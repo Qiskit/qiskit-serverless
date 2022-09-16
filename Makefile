@@ -1,4 +1,4 @@
-version=0.0.1-dev1
+version=0.0.1
 repository=qiskit
 
 notebookImageName=$(repository)/quantum-serverless-notebook
