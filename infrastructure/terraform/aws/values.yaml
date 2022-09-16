@@ -1,0 +1,73 @@
+# ===================
+# Quantum Serverless configs
+# ===================
+
+jupyterEnable: true
+
+
+# ===================
+# Jupyter configs
+# ===================
+
+jupyter:
+  jupyterToken: "jupyter-password"
+
+  image:
+    repository: jupyter/base-notebook
+    pullPolicy: IfNotPresent
+    tag: "python-3.9.12"
+
+  container:
+    port: 8888
+
+  service:
+    port: 80
+
+  ingress:
+    enabled: false
+
+# ===================
+# Ray configs
+# ===================
+
+ray:
+  image: rayproject/ray:2.0.0-py39
+  operatorImage: rayproject/ray:latest
+  operatorOnly: false
+  clusterOnly: false
+  # nodes configuration
+  headPodType: headType
+  podTypes:
+    headType:
+      CPU: 1
+      memory: 1Gi
+      GPU: 0
+      rayResources: { }
+      nodeSelector: { }
+      tolerations: [ ]
+    hybridType:
+      minWorkers: 1
+      maxWorkers: 2
+      memory: 1Gi
+      CPU: 1
+      GPU: 0
+      rayResources: { "QPU": 1 }
+      nodeSelector: { }
+      tolerations: [ ]
+
+
+# ===================
+# Middleware configs
+# ===================
+
+middleware:
+  image:
+    repository: nginx
+    pullPolicy: Always
+    tag: "latest"
+
+  container:
+    port: 80
+
+  service:
+    port: 5000

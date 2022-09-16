@@ -1,0 +1,30 @@
+services:
+  jupyter:
+    container_name: qs-jupyter
+    build:
+      context: ./
+      dockerfile: infrastructure/docker/Dockerfile-notebook
+    ports:
+      - 8888:8888
+    networks:
+      - safe-tier
+  ray-head:
+    container_name: ray-head
+    build:
+      context: ./
+      dockerfile: infrastructure/docker/Dockerfile-ray-qiskit
+    entrypoint: [
+      "ray", "start", "--head", "--port=6379",
+      "--dashboard-host=0.0.0.0", "--block"
+    ]
+    ports:
+      - 8265:8265
+      - 8000:8000
+      - 10001:10001
+    privileged: true
+    volumes:
+      - /dev/shm:/dev/shm
+    networks:
+      - safe-tier
+networks:
+  safe-tier:

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "middleware.fullname" . }}
+  labels:
+    {{- include "middleware.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - protocol: TCP
+      targetPort: {{ .Values.container.port }}
+      port: {{ .Values.service.port }}
+      name: http
+  selector:
+    {{- include "middleware.selectorLabels" . | nindent 4 }}

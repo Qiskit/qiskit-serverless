@@ -1,0 +1,88 @@
+# ===================
+# Quantum Serverless configs
+# ===================
+
+jupyterEnable: true
+
+
+# ===================
+# Jupyter configs
+# ===================
+
+jupyter:
+  jupyterToken: "V3uMYQMb2W*HmB%E52K287D%&YH23u"
+
+  image:
+    repository: us.icr.io/quantum-computing/quantum-serverless-notebook
+    pullPolicy: Always
+    tag: "0.0.1-ckt2"
+
+  container:
+    port: 8888
+
+  service:
+    port: 80
+
+  ingress:
+    enabled: true
+    hosts:
+      - host: jupyter-ckt-demo.experimental-us-5dd5718798d097eccc65fac4e78a33ce-0000.us-east.containers.appdomain.cloud
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: experimental-us-5dd5718798d097eccc65fac4e78a33ce-0000
+        hosts:
+          - jupyter-ckt-demo.experimental-us-5dd5718798d097eccc65fac4e78a33ce-0000.us-east.containers.appdomain.cloud
+    loadBalancer:
+      hostname: e82e093d-us-east.lb.appdomain.cloud
+
+
+# ===================
+# Ray configs
+# ===================
+
+ray:
+  image: us.icr.io/quantum-computing/quantum-serverless-ray-node:0.0.1-ckt3
+  imagePullPolicy: Always
+  operatorImage: rayproject/ray:latest
+  operatorOnly: false
+  clusterOnly: false
+  # nodes configuration
+  headPodType: headType
+  podTypes:
+    headType:
+      CPU: 0
+      memory: 1Gi
+      GPU: 0
+      rayResources: { }
+      nodeSelector: { }
+      tolerations: [ ]
+    quantumType:
+      minWorkers: 2
+      maxWorkers: 3
+      memory: 4Gi
+      CPU: 4
+      GPU: 0
+      rayResources: {"QPU": 1}
+      nodeSelector: {}
+      tolerations: []
+
+
+# ===================
+# Middleware configs
+# ===================
+
+middleware:
+  image:
+    repository: us.icr.io/quantum-computing/quantum-serverless-manager
+    pullPolicy: Always
+    tag: "0.0.1-dev1"
+  imagePullSecrets:
+    - name: "all-icr-io"
+
+  container:
+    port: 5000
+
+  service:
+    port: 5000

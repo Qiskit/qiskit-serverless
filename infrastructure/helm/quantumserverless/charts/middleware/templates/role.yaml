@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "middleware.fullname" . }}-role
+  namespace: {{ .Release.Namespace }}
+rules:
+- apiGroups: ["cluster.ray.io"]
+  resources: ["rayclusters"]
+  verbs: ["get", "list", "create", "delete"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get"]

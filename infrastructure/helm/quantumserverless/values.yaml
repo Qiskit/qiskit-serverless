@@ -1,0 +1,84 @@
+# ===================
+# Quantum Serverless configs
+# ===================
+
+jupyterEnable: true
+
+
+# ===================
+# Jupyter configs
+# ===================
+
+jupyter:
+  jupyterToken: "<YOUR_JUPYTER_PASSWORD_HERE>"
+
+  image:
+    repository: "<JUPYTER_NOTEBOOK_IMAGE>"
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  
+  container:
+    port: 8888
+
+  service:
+    port: 80
+
+  ingress:
+    enabled: false
+
+# ===================
+# Ray configs
+# ===================
+
+ray:
+  image: "<RAY_NODE_IMAGE>"
+  operatorImage: rayproject/ray:latest
+  operatorOnly: false
+  clusterOnly: false
+  # nodes configuration
+  headPodType: headType
+  podTypes:
+    headType:
+      CPU: 1
+      memory: 1Gi
+      GPU: 0
+      rayResources: { }
+      nodeSelector: { }
+      tolerations: [ ]
+    classicalType:
+      minWorkers: 1
+      maxWorkers: 3
+      memory: 1Gi
+      CPU: 1
+      GPU: 0
+      rayResources: { }
+      nodeSelector: { }
+      tolerations: [ ]
+    quantumType:
+      minWorkers: 1
+      maxWorkers: 3
+      memory: 1Gi
+      CPU: 1
+      GPU: 0
+      rayResources: { "QPU": 1 }
+      nodeSelector: { }
+      tolerations: [ ]
+
+
+# ===================
+# Middleware configs
+# ===================
+
+middleware:
+  image:
+    repository: "<CLUSTER_MANAGER_IMAGE>"
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  imagePullSecrets:
+    - name: "all-icr-io"
+  
+  container:
+    port: 5000
+
+  service:
+    port: 5000
