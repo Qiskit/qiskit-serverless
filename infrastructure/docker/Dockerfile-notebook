@@ -1,0 +1,17 @@
+FROM jupyter/base-notebook:python-3.9.12
+
+USER root
+
+RUN pip install qiskit~=0.36.0
+RUN pip install qiskit-nature~=0.4.3
+
+RUN mkdir /pylib
+COPY ./client /pylib
+RUN cd /pylib && pip install .
+
+COPY ./docs/tutorials/ /home/jovyan/serverless/tutorials/
+COPY ./docs/how_tos/ /home/jovyan/serverless/how_tos/
+
+USER $NB_UID
+
+ENV JUPYTER_ENABLE_LAB=no
