@@ -1,6 +1,6 @@
-# =============
+# =========
 # Constants
-# =============
+# =========
 
 version=0.0.1
 repository=qiskit
