@@ -41,7 +41,7 @@ class BaseQuantumServerless(ABC):
         """
         raise NotImplementedError
 
-    def cluster(self) -> Context:
+    def cluster(self, cluster: Union[str, Cluster]) -> Context:
         """Allocate context with selected cluster.
 
         Example:
@@ -117,12 +117,15 @@ class QuantumServerless(BaseQuantumServerless):
         """
         pass
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Optional[Dict[str, Any]]):
         """Quantum serverless management class.
 
         Example:
             >>> configuration = {"providers": [{"name": "<NAME>", "host": "<HOST>", "token": "<TOKEN>"}]}
             >>> quantum_serverless = QuantumServerless(configuration)
+
+        Example:
+            >>> quantum_serverless = QuantumServerless()
 
         Args:
             config: configuration
@@ -134,41 +137,53 @@ class QuantumServerless(BaseQuantumServerless):
         Raises:
             QuantumServerlessException
         """
-        self.providers: List[Provider] = load_config(config)
-        self._selected_provider: Optional[Provider] = None
-
-        self.manager_address = os.environ.get("QS_CLUSTER_MANAGER_ADDRESS", None)
-        self._selected_cluster: Optional[Cluster] = None
-        self._clusters = self._get_clusters()
-        self.set_cluster(0)
+        self._providers: List[Provider] = load_config(config)
+        self._selected_provider: Provider = self.providers[-1]
+        self._clusters = [
+            provider.cluster
+            for provider in self._providers
+            if provider.cluster
+        ]
+        self._selected_cluster: Cluster = self._selected_provider.cluster
 
     def provider(self, provider: Union[str, Provider], cluster: Optional[Union[str, Cluster]] = None) -> Context:
         pass
 
-    def cluster(self) -> Context:
+    def cluster(self, cluster: Union[str, Cluster]) -> Context:
         pass
 
     def add_provider(self, provider: Provider) -> "BaseQuantumServerless":
-        pass
+        self._providers.append(provider)
+        return self
 
     def set_provider(self, provider: Union[str, int, Provider]) -> "BaseQuantumServerless":
-        pass
+        providers = self._providers
+        if isinstance(provider, int):
+            if len(providers) <= provider:
+                raise QuantumServerlessException(
+                    f"Selected index is out of bounds. "
+                    f"You picked {provider} index whereas only {len(providers)}"
+                    f"available"
+                )
+            self._selected_provider = providers[provider]
+
+        elif isinstance(provider, str):
+            provider_names = [c.name for c in providers]
+            if provider not in provider_names:
+                raise QuantumServerlessException(
+                    f"{provider} name is not in a list "
+                    f"of available provider names: {provider_names}."
+                )
+            self._selected_cluster = providers[provider_names.index(provider)]
+
+        elif isinstance(provider, Provider):
+            if provider not in providers:
+                self.add_provider(provider)
+            self._selected_provider = provider
+        return self
 
     def providers(self) -> List[Provider]:
-        pass
-
-    def _get_clusters(self) -> List[Cluster]:
-        """Get list of available clusters
-
-        Returns:
-            list of available clusters
-        """
-        clusters = [
-            Cluster("local", resources={"QPU": 1}),
-        ]  # local machine
-        if self.manager_address is not None:
-            clusters += get_clusters(self.manager_address, token=self.token)
-        return clusters
+        return self._providers
 
     def clusters(self) -> List[Cluster]:
         return self._clusters
@@ -212,16 +227,13 @@ class QuantumServerless(BaseQuantumServerless):
 
     def context(self, **kwargs) -> Context:
         """Returns Ray context for tasks/actors execution."""
-        if self._selected_cluster is None:
-            self._selected_cluster = self._clusters[0]
-
         # register custom serializers
         register_all_serializers()
 
         return self._selected_cluster.context(**kwargs)
 
 
-def load_config(config: Dict[str, Any]) -> List[Provider]:
+def load_config(config: Optional[Dict[str, Any]]) -> List[Provider]:
     """Loads providers from configuration."""
     local_provider = Provider(
         name="local",
@@ -229,8 +241,9 @@ def load_config(config: Dict[str, Any]) -> List[Provider]:
     )
     providers = [local_provider]
 
-    for provider_config in config.get("providers", []):
-        providers.append(Provider(**provider_config))
+    if config is not None:
+        for provider_config in config.get("providers", []):
+            providers.append(Provider(**provider_config))
 
     return providers
 

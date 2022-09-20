@@ -27,3 +27,9 @@ class Provider(JsonSerializable):
         if self.cluster is None:
             raise QuantumServerlessException("Cluster was not selected for provider %s", self.name)
         return self.cluster.context(**kwargs)
+
+    def __eq__(self, other):
+        if isinstance(other, Provider):
+            return self.name == other.name
+        else:
+            return False
