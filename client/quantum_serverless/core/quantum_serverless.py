@@ -1,7 +1,6 @@
 """Quantum serverless."""
 import json
 import logging
-import os
 from abc import ABC
 from typing import Optional, Union, List, Dict, Any
 
@@ -24,7 +23,11 @@ class BaseQuantumServerless(ABC):
         """Creates QuantumServerless object from configuration."""
         raise NotImplementedError
 
-    def provider(self, provider: Union[str, Provider], cluster: Optional[Union[str, Cluster]] = None) -> Context:
+    def provider(
+        self,
+        provider: Union[str, Provider],
+        cluster: Optional[Union[str, Cluster]] = None,
+    ) -> Context:
         """Allocate context with selected provider and cluster.
 
         Example:
@@ -58,7 +61,9 @@ class BaseQuantumServerless(ABC):
         """Adds provider."""
         raise NotImplementedError
 
-    def set_provider(self, provider: Union[str, int, Provider]) -> "BaseQuantumServerless":
+    def set_provider(
+        self, provider: Union[str, int, Provider]
+    ) -> "BaseQuantumServerless":
         """Set specific provider."""
         raise NotImplementedError
 
@@ -140,23 +145,63 @@ class QuantumServerless(BaseQuantumServerless):
         self._providers: List[Provider] = load_config(config)
         self._selected_provider: Provider = self.providers[-1]
         self._clusters = [
-            provider.cluster
-            for provider in self._providers
-            if provider.cluster
+            provider.cluster for provider in self._providers if provider.cluster
         ]
         self._selected_cluster: Cluster = self._selected_provider.cluster
 
-    def provider(self, provider: Union[str, Provider], cluster: Optional[Union[str, Cluster]] = None) -> Context:
-        pass
+    def provider(
+        self,
+        provider: Union[str, Provider],
+        cluster: Optional[Union[str, Cluster]] = None,
+    ) -> Context:
+        if isinstance(cluster, Cluster):
+            return cluster.context()
+
+        if isinstance(provider, str):
+            available_providers: Dict[str, Provider] = {
+                p.name: p for p in self._providers
+            }
+            if provider in available_providers:
+                provider = available_providers[provider]
+            else:
+                raise QuantumServerlessException(
+                    f"Provider {provider} is not in a list of available providers {list(available_providers.keys())}"
+                )
+
+        available_clusters: Dict[str, Cluster] = {
+            c.name: c for c in provider.available_clusters
+        }
+        if cluster in available_clusters:
+            return available_clusters[cluster].context()
+        else:
+            raise QuantumServerlessException(
+                f"Cluster {cluster} is not in a list of available clusters {list(available_clusters.keys())}"
+            )
 
     def cluster(self, cluster: Union[str, Cluster]) -> Context:
-        pass
+        if isinstance(cluster, Cluster):
+            return cluster.context()
+        elif isinstance(cluster, str):
+            available_clusters: Dict[str, Cluster] = {c.name: c for c in self._clusters}
+            if cluster in available_clusters:
+                return available_clusters[cluster].context()
+            else:
+                raise QuantumServerlessException(
+                    f"No cluster named {cluster} in list of available clusters"
+                    f"{list(available_clusters.keys())}"
+                )
+        else:
+            raise QuantumServerlessException(
+                "Argument must be instance of Cluster or str with name of available cluster."
+            )
 
     def add_provider(self, provider: Provider) -> "BaseQuantumServerless":
         self._providers.append(provider)
         return self
 
-    def set_provider(self, provider: Union[str, int, Provider]) -> "BaseQuantumServerless":
+    def set_provider(
+        self, provider: Union[str, int, Provider]
+    ) -> "BaseQuantumServerless":
         providers = self._providers
         if isinstance(provider, int):
             if len(providers) <= provider:
@@ -237,7 +282,8 @@ def load_config(config: Optional[Dict[str, Any]]) -> List[Provider]:
     """Loads providers from configuration."""
     local_provider = Provider(
         name="local",
-        cluster=Cluster(name="local")
+        cluster=Cluster(name="local"),
+        available_clusters=[Cluster(name="local")],
     )
     providers = [local_provider]
 

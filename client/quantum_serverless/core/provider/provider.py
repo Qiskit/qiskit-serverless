@@ -1,7 +1,7 @@
 """Base provider."""
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 from quantum_serverless.exception import QuantumServerlessException
 
@@ -13,10 +13,12 @@ from quantum_serverless.utils import JsonSerializable
 @dataclass
 class Provider(JsonSerializable):
     """Provider"""
+
     name: str
     host: Optional[str] = None
     token: Optional[str] = None
     cluster: Optional[Cluster] = None
+    available_clusters: Optional[List[Cluster]] = None
 
     @classmethod
     def from_dict(cls, dictionary: dict):
@@ -25,7 +27,9 @@ class Provider(JsonSerializable):
     def context(self, **kwargs):
         """Allocated context for selected cluster for provider."""
         if self.cluster is None:
-            raise QuantumServerlessException("Cluster was not selected for provider %s", self.name)
+            raise QuantumServerlessException(
+                "Cluster was not selected for provider %s", self.name
+            )
         return self.cluster.context(**kwargs)
 
     def __eq__(self, other):
