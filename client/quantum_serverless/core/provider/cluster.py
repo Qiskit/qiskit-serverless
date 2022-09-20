@@ -2,15 +2,9 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+import ray
+
 from quantum_serverless.exception import QuantumServerlessException
-
-
-@dataclass
-class Node:
-    """Cluster node class."""
-
-    node_id: str
-    resource: Dict[str, float]
 
 
 @dataclass
@@ -22,7 +16,6 @@ class Cluster:
         host: host address of cluster
         port: port of cluster
         ip_address: ip address of cluster
-        nodes: list of nodes for cluster
         resources: list of resrouces
     """
 
@@ -30,9 +23,24 @@ class Cluster:
     host: Optional[str] = None
     port: Optional[int] = None
     ip_address: Optional[str] = None
-    nodes: Optional[List[Node]] = None
     resources: Optional[Dict[str, float]] = None
-    is_local: bool = False
+
+    def context(self, **kwargs):
+        """Returns context allocated for this cluster."""
+        init_args = {
+            **kwargs,
+            **{
+                "address": kwargs.get(
+                    "address",
+                    self.connection_string_interactive_mode(),
+                ),
+                "ignore_reinit_error": kwargs.get("ignore_reinit_error", True),
+                "logging_level": kwargs.get("logging_level", "warning"),
+                "resources": kwargs.get("resources", self.resources),
+            },
+        }
+
+        return ray.init(**init_args)
 
     def connection_string_interactive_mode(self) -> Optional[str]:
         """Returns connection string to cluster."""

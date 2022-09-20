@@ -18,5 +18,5 @@ Quantum serverless core module classes and functions
 """
 
 from .quantum_serverless import QuantumServerless
-from .cluster import Cluster
+from .provider.cluster import Cluster
 from .decorators import remote, get, put

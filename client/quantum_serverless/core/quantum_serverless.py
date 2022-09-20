@@ -3,14 +3,13 @@ import json
 import logging
 import os
 from abc import ABC
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Dict, Any
 
-import ray
 import requests
 from ray._private.worker import BaseContext
-from ray.job_submission import JobSubmissionClient
 
-from quantum_serverless.core.cluster import Cluster
+from quantum_serverless.core import Cluster
+from quantum_serverless.core.provider.provider import Provider
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers import register_all_serializers
 
@@ -19,6 +18,53 @@ Context = Union[BaseContext]
 
 class BaseQuantumServerless(ABC):
     """BaseQuantumServerless class."""
+
+    @classmethod
+    def load_configuration(cls, path: str) -> "BaseQuantumServerless":
+        """Creates QuantumServerless object from configuration."""
+        raise NotImplementedError
+
+    def provider(self, provider: Union[str, Provider], cluster: Optional[Union[str, Cluster]] = None) -> Context:
+        """Allocate context with selected provider and cluster.
+
+        Example:
+            >>> quantum_serverless = QuantumServerless()
+            >>> with quantum_serverless.provider("ibm"):
+            >>>     ...
+
+        Args:
+            provider:
+            cluster:
+
+        Returns:
+
+        """
+        raise NotImplementedError
+
+    def cluster(self) -> Context:
+        """Allocate context with selected cluster.
+
+        Example:
+            >>> quantum_serverless = QuantumServerless()
+            >>> with quantum_serverless.cluster("<MY_CLUSTER>"):
+            >>>     ...
+
+        Returns:
+            Execution context.
+        """
+        raise NotImplementedError
+
+    def add_provider(self, provider: Provider) -> "BaseQuantumServerless":
+        """Adds provider."""
+        raise NotImplementedError
+
+    def set_provider(self, provider: Union[str, int, Provider]) -> "BaseQuantumServerless":
+        """Set specific provider."""
+        raise NotImplementedError
+
+    def providers(self) -> List[Provider]:
+        """Returns list of available providers."""
+        raise NotImplementedError
 
     def clusters(self) -> List[Cluster]:
         """Returns list of available clusters."""
@@ -40,7 +86,7 @@ class BaseQuantumServerless(ABC):
 
         Args:
             cluster: Can be int for index in list,
-                str for name of clsuter in list
+                str for name of cluster in list
                 or Cluster object.
 
         Returns:
@@ -52,44 +98,64 @@ class BaseQuantumServerless(ABC):
         """Creates execution context for serverless workloads."""
         raise NotImplementedError
 
-    def get_job_client(self) -> JobSubmissionClient:
-        """Returns job client."""
-        raise NotImplementedError
-
 
 class QuantumServerless(BaseQuantumServerless):
     """QuantumServerless class."""
 
-    def __init__(
-        self, token: Optional[str] = None, manager_address: Optional[str] = None
-    ):
-        """Quantum serverless management class.
+    @classmethod
+    def load_configuration(cls, path: str) -> "QuantumServerless":
+        """Creates instance from configuration file.
+
+        Example:
+            >>> quantum_serverless = QuantumServerless.load_configuration("./my_config.json")
 
         Args:
-            token: authentication token
-            manager_address: address for cluster manager
+            path: path to file with configuration
+
+        Returns:
+            Instance of QuantumServerless
+        """
+        pass
+
+    def __init__(self, config: Dict[str, Any]):
+        """Quantum serverless management class.
+
+        Example:
+            >>> configuration = {"providers": [{"name": "<NAME>", "host": "<HOST>", "token": "<TOKEN>"}]}
+            >>> quantum_serverless = QuantumServerless(configuration)
+
+        Args:
+            config: configuration
 
         Example:
             >>> from quantum_serverless import QuantumServerless
             >>> serverless = QuantumServerless()
-            >>> with serverless.context():
-            ...     pass # workload
 
         Raises:
             QuantumServerlessException
         """
-        if token is None:
-            token = os.environ.get("QS_TOKEN", None)
-        self.token = token
+        self.providers: List[Provider] = load_config(config)
+        self._selected_provider: Optional[Provider] = None
 
-        if manager_address is None:
-            manager_address = os.environ.get("QS_CLUSTER_MANAGER_ADDRESS", None)
-        self.manager_address = manager_address
-
-        # set up clusters
+        self.manager_address = os.environ.get("QS_CLUSTER_MANAGER_ADDRESS", None)
         self._selected_cluster: Optional[Cluster] = None
         self._clusters = self._get_clusters()
         self.set_cluster(0)
+
+    def provider(self, provider: Union[str, Provider], cluster: Optional[Union[str, Cluster]] = None) -> Context:
+        pass
+
+    def cluster(self) -> Context:
+        pass
+
+    def add_provider(self, provider: Provider) -> "BaseQuantumServerless":
+        pass
+
+    def set_provider(self, provider: Union[str, int, Provider]) -> "BaseQuantumServerless":
+        pass
+
+    def providers(self) -> List[Provider]:
+        pass
 
     def _get_clusters(self) -> List[Cluster]:
         """Get list of available clusters
@@ -152,32 +218,21 @@ class QuantumServerless(BaseQuantumServerless):
         # register custom serializers
         register_all_serializers()
 
-        init_args = {
-            **kwargs,
-            **{
-                "address": kwargs.get(
-                    "address",
-                    self._selected_cluster.connection_string_interactive_mode(),
-                ),
-                "ignore_reinit_error": kwargs.get("ignore_reinit_error", True),
-                "logging_level": kwargs.get("logging_level", "warning"),
-                "local_mode": kwargs.get("local_mode", self._selected_cluster.is_local),
-                "resources": kwargs.get("resources", self._selected_cluster.resources),
-            },
-        }
+        return self._selected_cluster.context(**kwargs)
 
-        return ray.init(**init_args)
 
-    def get_job_client(self) -> JobSubmissionClient:
-        if self._selected_cluster is None:
-            self._selected_cluster = self._clusters[0]
+def load_config(config: Dict[str, Any]) -> List[Provider]:
+    """Loads providers from configuration."""
+    local_provider = Provider(
+        name="local",
+        cluster=Cluster(name="local")
+    )
+    providers = [local_provider]
 
-        return JobSubmissionClient(
-            self._selected_cluster.connection_string_job_server()
-        )
+    for provider_config in config.get("providers", []):
+        providers.append(Provider(**provider_config))
 
-    def __repr__(self):
-        return f"QuantumServerless:\n | selected cluster: {self._selected_cluster}"
+    return providers
 
 
 def get_clusters(manager_address: str, token: Optional[str] = None) -> List[Cluster]:
