@@ -84,6 +84,23 @@ class Provider(JsonSerializable):
         cluster: Optional[Cluster] = None,
         available_clusters: Optional[List[Cluster]] = None,
     ):
+        """Provider for serverless computation.
+
+        Example:
+            >>> provider = Provider(
+            >>>    name="<NAME>",
+            >>>    host="<HOST>",
+            >>>    token="<TOKEN>",
+            >>>    cluster=Cluster(name="<CLUSTER_NAME>", host="<CLUSTER_HOST>"),
+            >>> )
+
+        Args:
+            name: name of provider
+            host: host of provider a.k.a managers host
+            token: authentication token for manager
+            cluster: selected cluster from provider
+            available_clusters: available clusters in provider
+        """
         self.name = name
         self.host = host
         self.token = token
@@ -103,12 +120,12 @@ class Provider(JsonSerializable):
         """Allocated context for selected cluster for provider."""
         if self.cluster is None:
             raise QuantumServerlessException(
-                "Cluster was not selected for provider %s", self.name
+                f"Cluster was not selected for provider {self.name}"
             )
         return self.cluster.context(**kwargs)
 
     def __eq__(self, other):
         if isinstance(other, Provider):
             return self.name == other.name
-        else:
-            return False
+
+        return False

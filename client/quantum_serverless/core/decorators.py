@@ -13,7 +13,13 @@ put = ray.put
 
 @dataclass
 class Target(JsonSerializable):
-    """Quantum serverless target."""
+    """Quantum serverless target.
+
+    Example:
+        >>> @run_qiskit_remote(target=Target(cpu=1))
+        >>> def awesome_function():
+        >>>     return 42
+    """
 
     cpu: int = 1
     gpu: int = 0
@@ -28,6 +34,25 @@ class Target(JsonSerializable):
 
 
 def run_qiskit_remote(target: Union[Dict[str, Any], Target]):
+    """Wraps local function as remote executable function.
+    New function will return reference object when called.
+
+    Example:
+        >>> import quantum_serverless as qs
+        >>>
+        >>> @run_qiskit_remote
+        >>> def awesome_function(seed: int):
+        >>>     return 42
+        >>>
+        >>> reference = awesome_function()
+        >>> function_result = qs.get(reference)
+
+    Args:
+        target: target object or dictionary for requirements for node resources
+
+    Returns:
+        object reference
+    """
     if not isinstance(target, Target):
         target = Target.from_dict(target)
 

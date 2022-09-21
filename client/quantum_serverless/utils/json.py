@@ -24,7 +24,7 @@ class JsonSerializable(ABC):
                     else:
                         element.append(item)
             elif isinstance(val, JsonSerializable):
-                element = val.to_dict()
+                element = val.to_dict()  # type: ignore
             else:
                 element = val
             result[key] = element

@@ -1,7 +1,6 @@
 """Tests for QuantumServerless."""
 import json
-import os
-from unittest import TestCase, mock, skip
+from unittest import TestCase, skip
 
 import ray
 import requests_mock
@@ -38,8 +37,6 @@ class TestQuantumServerless(TestCase):
         serverless.add_provider(Provider("my_provider"))
         self.assertEqual(len(serverless.providers()), 2)
 
-        print(serverless._selected_provider)
-
     def test_add_cluster(self):
         """Tests add cluster method."""
         serverless = QuantumServerless()
@@ -51,25 +48,37 @@ class TestQuantumServerless(TestCase):
 
         self.assertIsInstance(serverless.set_cluster(1), QuantumServerless)
 
-    def test_context_from_provider_and_cluster(self):
+    def test_all_context_allocations(self):
         """Test context allocation from provider and cluster calls."""
         serverless = QuantumServerless()
 
+        with serverless:
+            self.assertTrue(ray.is_initialized())
+        self.assertFalse(ray.is_initialized())
+
         with serverless.provider("local"):
             self.assertTrue(ray.is_initialized())
+        self.assertFalse(ray.is_initialized())
 
         with serverless.cluster("local"):
             self.assertTrue(ray.is_initialized())
+        self.assertFalse(ray.is_initialized())
 
         with serverless.cluster(Cluster("local")):
             self.assertTrue(ray.is_initialized())
-
         self.assertFalse(ray.is_initialized())
+
+    def test_load_config(self):
+        """Tests configuration loading."""
+        config = {"providers": [{"name": "local2", "cluster": {"name": "local2"}}]}
+
+        serverless = QuantumServerless(config)
+        self.assertEqual(len(serverless.providers()), 2)
 
     @skip("Reimplement")
     def test_available_clusters_with_mock(self):
         """Test for external api call for available clusters."""
-        # TODO: reimplement
+        # TODO: reimplement  # pylint:disable=fixme
         manager_address = "http://mock_host:42"
 
         with requests_mock.Mocker() as mocker:
@@ -91,7 +100,7 @@ class TestQuantumServerless(TestCase):
                         }
                     ),
                 )
-            serverless = QuantumServerless(manager_address=manager_address)
+            serverless = QuantumServerless()
             clusters = serverless.clusters()
 
             self.assertEqual(len(clusters), 5)

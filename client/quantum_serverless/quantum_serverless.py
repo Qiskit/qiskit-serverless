@@ -35,11 +35,11 @@ class BaseQuantumServerless(ABC):
             >>>     ...
 
         Args:
-            provider:
-            cluster:
+            provider: provider or name of provider to use for context allocation
+            cluster: cluster or name of cluster within provider to use for context allocation
 
         Returns:
-
+            Execution context
         """
         raise NotImplementedError
 
@@ -50,6 +50,9 @@ class BaseQuantumServerless(ABC):
             >>> quantum_serverless = QuantumServerless()
             >>> with quantum_serverless.cluster("<MY_CLUSTER>"):
             >>>     ...
+
+        Args:
+            cluster: cluster or name of cluster within provider to use for context allocation
 
         Returns:
             Execution context.
@@ -119,7 +122,7 @@ class QuantumServerless(BaseQuantumServerless):
         Returns:
             Instance of QuantumServerless
         """
-        with open(path, "r") as config_file:
+        with open(path, "r") as config_file:  # pylint: disable=unspecified-encoding
             config = json.load(config_file)
             return QuantumServerless(config)
 
@@ -127,7 +130,9 @@ class QuantumServerless(BaseQuantumServerless):
         """Quantum serverless management class.
 
         Example:
-            >>> configuration = {"providers": [{"name": "<NAME>", "host": "<HOST>", "token": "<TOKEN>"}]}
+            >>> configuration = {"providers": [
+            >>>    {"name": "<NAME>", "host": "<HOST>", "token": "<TOKEN>"}
+            >>> ]}
             >>> quantum_serverless = QuantumServerless(configuration)
 
         Example:
@@ -150,13 +155,27 @@ class QuantumServerless(BaseQuantumServerless):
         ]
         self._selected_cluster: Cluster = self._selected_provider.cluster
 
+        self._allocated_context: Optional[Context] = None
+
+    def __enter__(self):
+        self._allocated_context = self._selected_cluster.context()
+        return self._allocated_context
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._allocated_context:
+            self._allocated_context.disconnect()
+
     def provider(
         self,
         provider: Union[str, Provider],
         cluster: Optional[Union[str, Cluster]] = None,
+        **kwargs,
     ) -> Context:
         if isinstance(cluster, Cluster):
-            return cluster.context()
+            return cluster.context(**kwargs)
+
+        if isinstance(provider, Provider) and provider.cluster is None:
+            raise QuantumServerlessException("Given provider does not have cluster")
 
         if isinstance(provider, str):
             available_providers: Dict[str, Provider] = {
@@ -166,38 +185,40 @@ class QuantumServerless(BaseQuantumServerless):
                 provider = available_providers[provider]
             else:
                 raise QuantumServerlessException(
-                    f"Provider {provider} is not in a list of available providers {list(available_providers.keys())}"
+                    f"Provider {provider} is not in a list of available providers "
+                    f"{list(available_providers.keys())}"
                 )
 
         if cluster is None:
-            return provider.context()
+            return provider.context(**kwargs)
 
         available_clusters: Dict[str, Cluster] = {
             c.name: c for c in provider.available_clusters
         }
         if cluster in available_clusters:
-            return available_clusters[cluster].context()
-        else:
-            raise QuantumServerlessException(
-                f"Cluster {cluster} is not in a list of available clusters {list(available_clusters.keys())}"
-            )
+            return available_clusters[cluster].context(**kwargs)
 
-    def cluster(self, cluster: Union[str, Cluster]) -> Context:
+        raise QuantumServerlessException(
+            f"Cluster {cluster} is not in a list of available clusters "
+            f"{list(available_clusters.keys())}"
+        )
+
+    def cluster(self, cluster: Union[str, Cluster], **kwargs) -> Context:
         if isinstance(cluster, Cluster):
-            return cluster.context()
-        elif isinstance(cluster, str):
+            return cluster.context(**kwargs)
+        if isinstance(cluster, str):
             available_clusters: Dict[str, Cluster] = {c.name: c for c in self._clusters}
             if cluster in available_clusters:
-                return available_clusters[cluster].context()
-            else:
-                raise QuantumServerlessException(
-                    f"No cluster named {cluster} in list of available clusters"
-                    f"{list(available_clusters.keys())}"
-                )
-        else:
+                return available_clusters[cluster].context(**kwargs)
+
             raise QuantumServerlessException(
-                "Argument must be instance of Cluster or str with name of available cluster."
+                f"No cluster named {cluster} in list of available clusters"
+                f"{list(available_clusters.keys())}"
             )
+
+        raise QuantumServerlessException(
+            "Argument must be instance of Cluster or str with name of available cluster."
+        )
 
     def add_provider(self, provider: Provider) -> "BaseQuantumServerless":
         self._providers.append(provider)
@@ -223,10 +244,14 @@ class QuantumServerless(BaseQuantumServerless):
                     f"{provider} name is not in a list "
                     f"of available provider names: {provider_names}."
                 )
-            self._selected_cluster = providers[provider_names.index(provider)]
+            self._selected_provider = providers[provider_names.index(provider)]
 
         elif isinstance(provider, Provider):
             self._selected_provider = provider
+
+        if self._selected_provider.cluster:
+            self._selected_cluster = self._selected_provider.cluster
+
         return self
 
     def providers(self) -> List[Provider]:
