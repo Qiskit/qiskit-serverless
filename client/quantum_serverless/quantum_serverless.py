@@ -7,8 +7,7 @@ from typing import Optional, Union, List, Dict, Any
 import requests
 from ray._private.worker import BaseContext
 
-from quantum_serverless.core import Cluster
-from quantum_serverless.core.provider.provider import Provider
+from quantum_serverless.core.provider import Provider, Cluster
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers import register_all_serializers
 
@@ -120,9 +119,11 @@ class QuantumServerless(BaseQuantumServerless):
         Returns:
             Instance of QuantumServerless
         """
-        pass
+        with open(path, "r") as config_file:
+            config = json.load(config_file)
+            return QuantumServerless(config)
 
-    def __init__(self, config: Optional[Dict[str, Any]]):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Quantum serverless management class.
 
         Example:
@@ -143,7 +144,7 @@ class QuantumServerless(BaseQuantumServerless):
             QuantumServerlessException
         """
         self._providers: List[Provider] = load_config(config)
-        self._selected_provider: Provider = self.providers[-1]
+        self._selected_provider: Provider = self._providers[-1]
         self._clusters = [
             provider.cluster for provider in self._providers if provider.cluster
         ]
@@ -167,6 +168,9 @@ class QuantumServerless(BaseQuantumServerless):
                 raise QuantumServerlessException(
                     f"Provider {provider} is not in a list of available providers {list(available_providers.keys())}"
                 )
+
+        if cluster is None:
+            return provider.context()
 
         available_clusters: Dict[str, Cluster] = {
             c.name: c for c in provider.available_clusters
@@ -222,8 +226,6 @@ class QuantumServerless(BaseQuantumServerless):
             self._selected_cluster = providers[provider_names.index(provider)]
 
         elif isinstance(provider, Provider):
-            if provider not in providers:
-                self.add_provider(provider)
             self._selected_provider = provider
         return self
 
@@ -264,8 +266,6 @@ class QuantumServerless(BaseQuantumServerless):
             self._selected_cluster = clusters[cluster_names.index(cluster)]
 
         elif isinstance(cluster, Cluster):
-            if cluster not in clusters:
-                self.add_cluster(cluster)
             self._selected_cluster = cluster
 
         return self
@@ -278,7 +278,7 @@ class QuantumServerless(BaseQuantumServerless):
         return self._selected_cluster.context(**kwargs)
 
 
-def load_config(config: Optional[Dict[str, Any]]) -> List[Provider]:
+def load_config(config: Optional[Dict[str, Any]] = None) -> List[Provider]:
     """Loads providers from configuration."""
     local_provider = Provider(
         name="local",
@@ -289,7 +289,25 @@ def load_config(config: Optional[Dict[str, Any]]) -> List[Provider]:
 
     if config is not None:
         for provider_config in config.get("providers", []):
-            providers.append(Provider(**provider_config))
+            cluster = None
+            if provider_config.get("cluster"):
+                cluster = Cluster(**provider_config.get("cluster"))
+
+            available_clusters = []
+            if provider_config.get("available_clusters"):
+                for cluster_json in provider_config.get("available_clusters"):
+                    available_clusters.append(Cluster(**cluster_json))
+            providers.append(
+                Provider(
+                    **{
+                        **provider_config,
+                        **{
+                            "cluster": cluster,
+                            "available_clusters": available_clusters,
+                        },
+                    }
+                )
+            )
 
     return providers
 

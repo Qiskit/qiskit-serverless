@@ -1,10 +1,12 @@
-"""Cluster classes."""
+"""Base provider."""
+
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Optional, List, Dict
 
 import ray
 
 from quantum_serverless.exception import QuantumServerlessException
+from quantum_serverless.utils import JsonSerializable
 
 
 @dataclass
@@ -48,16 +50,6 @@ class Cluster:
             return f"ray://{self.host}:{self.port}"
         return None
 
-    def connection_string_job_server(self):
-        """Return connection string for job server."""
-        if self.host is None:
-            raise QuantumServerlessException(
-                f"Your cluster must have host. "
-                f"You are trying to connect to {self.name} "
-                f"which is not a viable cluster for job execution."
-            )
-        return f"http://{self.host}:8265"
-
     @classmethod
     def from_dict(cls, data: dict):
         """Created cluster object form dict."""
@@ -79,3 +71,44 @@ class Cluster:
 
     def __repr__(self):
         return f"<Cluster: {self.name}>"
+
+
+class Provider(JsonSerializable):
+    """Provider"""
+
+    def __init__(
+        self,
+        name: str,
+        host: Optional[str] = None,
+        token: Optional[str] = None,
+        cluster: Optional[Cluster] = None,
+        available_clusters: Optional[List[Cluster]] = None,
+    ):
+        self.name = name
+        self.host = host
+        self.token = token
+        self.cluster = cluster
+        if available_clusters is None:
+            if cluster is not None:
+                available_clusters = [cluster]
+            else:
+                available_clusters = []
+        self.available_clusters = available_clusters
+
+    @classmethod
+    def from_dict(cls, dictionary: dict):
+        return Provider(**dictionary)
+
+    def context(self, **kwargs):
+        """Allocated context for selected cluster for provider."""
+        if self.cluster is None:
+            raise QuantumServerlessException(
+                "Cluster was not selected for provider %s", self.name
+            )
+        return self.cluster.context(**kwargs)
+
+    def __eq__(self, other):
+        if isinstance(other, Provider):
+            return self.name == other.name
+        else:
+            return False

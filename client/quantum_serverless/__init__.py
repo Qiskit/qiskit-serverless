@@ -2,7 +2,8 @@
 
 from importlib_metadata import version as metadata_version, PackageNotFoundError
 
-from .core import QuantumServerless, Cluster, remote, get, put
+from .core import Provider, remote, get, put
+from .quantum_serverless import QuantumServerless
 
 try:
     __version__ = metadata_version("quantum_serverless")
