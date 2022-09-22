@@ -33,7 +33,7 @@ class Target(JsonSerializable):
         return Target(**dictionary)
 
 
-def run_qiskit_remote(target: Union[Dict[str, Any], Target]):
+def run_qiskit_remote(target: Optional[Union[Dict[str, Any], Target]] = None):
     """Wraps local function as remote executable function.
     New function will return reference object when called.
 
@@ -53,6 +53,9 @@ def run_qiskit_remote(target: Union[Dict[str, Any], Target]):
     Returns:
         object reference
     """
+    if target is None:
+        target = Target(cpu=1)
+
     if not isinstance(target, Target):
         target = Target.from_dict(target)
 
