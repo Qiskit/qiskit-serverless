@@ -302,6 +302,11 @@ class QuantumServerless(BaseQuantumServerless):
 
         return self._selected_cluster.context(**kwargs)
 
+    def __repr__(self):
+        providers = ", ".join(provider.name for provider in self.providers())
+        clusters = ", ".join(cluster.name for cluster in self.clusters())
+        return f"<QuantumServerless: providers [{providers}], clusters [{clusters}]>"
+
 
 def load_config(config: Optional[Dict[str, Any]] = None) -> List[Provider]:
     """Loads providers from configuration."""

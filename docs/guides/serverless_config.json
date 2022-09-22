@@ -1,0 +1,10 @@
+{
+  "providers": [
+    {
+      "name": "ibm",
+      "cluster": {
+        "name": "ibm_remote"
+      }
+    }
+  ]
+}

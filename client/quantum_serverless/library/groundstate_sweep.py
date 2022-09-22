@@ -66,6 +66,7 @@ def groundstate_solver_parallel_sweep(
     backends: Optional[List[Backend]] = None,
     geometries: Optional[List[List[List[float]]]] = None,
     ansatz: Optional[List[QuantumCircuit]] = None,
+    n_geometries: Optional[int] = None
 ):
     """Groundstate solver parallel sweep.
     Number of parallel runs will be product of parameter values passed.
@@ -76,6 +77,7 @@ def groundstate_solver_parallel_sweep(
         >>> )
 
     Args:
+        n_geometries: number of geometries to generate is none was given
         molecules: list of molecules
         backends: list of backends to run
         geometries: geometries of molecules if molecules themselves where passed as strings
@@ -87,6 +89,7 @@ def groundstate_solver_parallel_sweep(
     if not isinstance(molecules, list):
         raise QuantumServerlessException("Molecules argument must be a list.")
 
+    n_geometries = n_geometries or 1
     ansatz = ansatz or []
     backends = backends or [Aer.get_backend("aer_simulator_statevector")]
 
@@ -101,18 +104,19 @@ def groundstate_solver_parallel_sweep(
             # generate geometries
             updated_molecules = []
             for molecule in molecules:
-                geometry = [
-                    (
-                        atom,
-                        [
-                            random.uniform(0.1, 0.5),
-                            random.uniform(0.1, 0.5),
-                            random.uniform(0.1, 0.5),
-                        ],
-                    )
-                    for atom in molecule
-                ]
-                updated_molecules.append(Molecule(geometry=geometry))
+                for _ in range(n_geometries):
+                    geometry = [
+                        (
+                            atom,
+                            [
+                                random.uniform(0.1, 0.5),
+                                random.uniform(0.1, 0.5),
+                                random.uniform(0.1, 0.5),
+                            ],
+                        )
+                        for atom in molecule
+                    ]
+                    updated_molecules.append(Molecule(geometry=geometry))
 
         molecules: List[Molecule] = updated_molecules
 
