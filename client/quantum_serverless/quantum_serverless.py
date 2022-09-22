@@ -5,6 +5,8 @@ from abc import ABC
 from typing import Optional, Union, List, Dict, Any
 
 import requests
+from qiskit import IBMQ
+from qiskit.providers import Backend
 from ray._private.worker import BaseContext
 
 from quantum_serverless.core.provider import Provider, Cluster
@@ -23,9 +25,9 @@ class BaseQuantumServerless(ABC):
         raise NotImplementedError
 
     def provider(
-        self,
-        provider: Union[str, Provider],
-        cluster: Optional[Union[str, Cluster]] = None,
+            self,
+            provider: Union[str, Provider],
+            cluster: Optional[Union[str, Cluster]] = None,
     ) -> Context:
         """Allocate context with selected provider and cluster.
 
@@ -64,7 +66,7 @@ class BaseQuantumServerless(ABC):
         raise NotImplementedError
 
     def set_provider(
-        self, provider: Union[str, int, Provider]
+            self, provider: Union[str, int, Provider]
     ) -> "BaseQuantumServerless":
         """Set specific provider."""
         raise NotImplementedError
@@ -75,6 +77,10 @@ class BaseQuantumServerless(ABC):
 
     def clusters(self) -> List[Cluster]:
         """Returns list of available clusters."""
+        raise NotImplementedError
+
+    def backends(self, **kwargs) -> List[Backend]:
+        """Returns list of available backends."""
         raise NotImplementedError
 
     def add_cluster(self, cluster: Cluster) -> "BaseQuantumServerless":
@@ -166,10 +172,10 @@ class QuantumServerless(BaseQuantumServerless):
             self._allocated_context.disconnect()
 
     def provider(
-        self,
-        provider: Union[str, Provider],
-        cluster: Optional[Union[str, Cluster]] = None,
-        **kwargs,
+            self,
+            provider: Union[str, Provider],
+            cluster: Optional[Union[str, Cluster]] = None,
+            **kwargs,
     ) -> Context:
         if isinstance(cluster, Cluster):
             return cluster.context(**kwargs)
@@ -225,7 +231,7 @@ class QuantumServerless(BaseQuantumServerless):
         return self
 
     def set_provider(
-        self, provider: Union[str, int, Provider]
+            self, provider: Union[str, int, Provider]
     ) -> "BaseQuantumServerless":
         providers = self._providers
         if isinstance(provider, int):
@@ -259,6 +265,10 @@ class QuantumServerless(BaseQuantumServerless):
 
     def clusters(self) -> List[Cluster]:
         return self._clusters
+
+    def backends(self, **kwargs) -> List[Backend]:
+        provider = IBMQ.load_account()
+        return provider.backends()
 
     def add_cluster(self, cluster: Cluster) -> "BaseQuantumServerless":
         if cluster in self._clusters:

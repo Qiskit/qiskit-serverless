@@ -31,21 +31,21 @@ class SweepResult:
     parameters: Dict[str, Any]
 
 
-@run_qiskit_remote()
+@run_qiskit_remote(target={"cpu": 2})
 def ground_state_solve(
     backend: Backend,
     molecule: Molecule,
     ansatz: Optional[QuantumCircuit] = None,
 ):
-    """
+    """Run of ground state solver on given arguments.
 
     Args:
-        backend:
-        molecule:
-        ansatz:
+        backend: backend
+        molecule: molecule
+        ansatz: ansatz for VQE
 
     Returns:
-
+        solver result
     """
     driver = ElectronicStructureMoleculeDriver(
         molecule, basis="sto3g", driver_type=ElectronicStructureDriverType.PYSCF

@@ -129,3 +129,6 @@ class Provider(JsonSerializable):
             return self.name == other.name
 
         return False
+
+    def __repr__(self):
+        return f"<Provider: {self.name}>"
