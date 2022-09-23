@@ -6,6 +6,7 @@ from typing import List, Union, Optional, Any, Dict
 
 from qiskit import Aer, QuantumCircuit
 from qiskit.providers import Backend
+from qiskit.algorithms import VQE
 from qiskit.utils import QuantumInstance
 from qiskit_nature.algorithms import GroundStateEigensolver
 from qiskit_nature.algorithms import VQEUCCFactory
@@ -55,7 +56,7 @@ def ground_state_solve(
     qubit_converter = QubitConverter(JordanWignerMapper())
 
     quantum_instance = QuantumInstance(backend=backend)
-    vqe_solver = VQEUCCFactory(quantum_instance=quantum_instance, ansatz=ansatz)
+    vqe_solver = VQE(quantum_instance=quantum_instance, ansatz=ansatz)
 
     calc = GroundStateEigensolver(qubit_converter, vqe_solver)
     return calc.solve(es_problem)

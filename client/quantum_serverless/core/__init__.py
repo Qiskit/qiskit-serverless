@@ -15,7 +15,7 @@ Quantum serverless core module classes and functions
     :toctree: ../stubs/
 
     Provider
-    Provider
+    Cluster
 
     remote
     get
