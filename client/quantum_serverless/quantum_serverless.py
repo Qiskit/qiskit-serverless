@@ -1,6 +1,7 @@
 """Quantum serverless."""
 import json
 import logging
+import os
 from abc import ABC
 from typing import Optional, Union, List, Dict, Any
 
@@ -349,10 +350,20 @@ def load_config(config: Optional[Dict[str, Any]] = None) -> List[Provider]:
                 )
             )
 
+    if os.environ.get("QS_CLUSTER_MANAGER_ADDRESS", None):
+        auto_discovered_provider = get_auto_discovered_provider(
+            manager_address=os.environ.get("QS_CLUSTER_MANAGER_ADDRESS"),
+            token=os.environ.get("QS_CLUSTER_MANAGER_TOKEN"),
+        )
+        if auto_discovered_provider is not None:
+            providers.append(auto_discovered_provider)
+
     return providers
 
 
-def get_clusters(manager_address: str, token: Optional[str] = None) -> List[Cluster]:
+def get_auto_discovered_provider(
+    manager_address: str, token: Optional[str] = None
+) -> Optional[Provider]:
     """Makes http request to middleware to get available clusters."""
     clusters = []
 
@@ -373,9 +384,14 @@ def get_clusters(manager_address: str, token: Optional[str] = None) -> List[Clus
                 )
     else:
         logging.warning(
-            "Something went wrong when trying to connect to cluster manager: [%d] %s",
+            "Something went wrong when trying to connect to provider: [%d] %s",
             response.status_code,
             response.text,
         )
 
-    return clusters
+    if len(clusters) > 0:
+        return Provider(
+            name="auto_discovered", cluster=clusters[0], available_clusters=clusters
+        )
+
+    return None

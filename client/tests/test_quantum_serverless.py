@@ -1,13 +1,13 @@
 """Tests for QuantumServerless."""
 import json
-from unittest import TestCase, skip
+from unittest import TestCase
 
 import ray
 import requests_mock
 
 from quantum_serverless import QuantumServerless, Provider
 from quantum_serverless.core import Cluster
-from quantum_serverless.quantum_serverless import get_clusters
+from quantum_serverless.quantum_serverless import get_auto_discovered_provider
 
 
 class TestQuantumServerless(TestCase):
@@ -75,10 +75,8 @@ class TestQuantumServerless(TestCase):
         serverless = QuantumServerless(config)
         self.assertEqual(len(serverless.providers()), 2)
 
-    @skip("Reimplement")
     def test_available_clusters_with_mock(self):
         """Test for external api call for available clusters."""
-        # TODO: reimplement  # pylint:disable=fixme
         manager_address = "http://mock_host:42"
 
         with requests_mock.Mocker() as mocker:
@@ -101,14 +99,18 @@ class TestQuantumServerless(TestCase):
                     ),
                 )
             serverless = QuantumServerless()
-            clusters = serverless.clusters()
+            providers = serverless.providers()
 
-            self.assertEqual(len(clusters), 5)
-            for cluster in clusters:
-                self.assertIsInstance(cluster, Cluster)
+            self.assertEqual(len(providers), 1)
+            for provider in providers:
+                self.assertIsInstance(provider, Provider)
 
-            clusters_from_function = get_clusters(manager_address, token="token")
+            provider = get_auto_discovered_provider(manager_address, token="token")
 
-            self.assertEqual(len(clusters_from_function), 4)
-            for cluster in clusters_from_function:
-                self.assertIsInstance(cluster, Cluster)
+            self.assertIsInstance(provider, Provider)
+
+            if isinstance(provider, Provider):
+                self.assertIsInstance(provider.cluster, Cluster)
+                self.assertEqual(len(provider.available_clusters), 4)
+                for cluster in provider.available_clusters:
+                    self.assertIsInstance(cluster, Cluster)
