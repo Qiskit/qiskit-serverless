@@ -9,7 +9,6 @@ from qiskit.providers import Backend
 from qiskit.algorithms import VQE
 from qiskit.utils import QuantumInstance
 from qiskit_nature.algorithms import GroundStateEigensolver
-from qiskit_nature.algorithms import VQEUCCFactory
 from qiskit_nature.converters.second_quantization import QubitConverter
 from qiskit_nature.drivers import Molecule
 from qiskit_nature.drivers.second_quantization import (
@@ -67,7 +66,7 @@ def groundstate_solver_parallel_sweep(
     backends: Optional[List[Backend]] = None,
     geometries: Optional[List[List[List[float]]]] = None,
     ansatz: Optional[List[QuantumCircuit]] = None,
-    n_geometries: Optional[int] = None
+    n_geometries: Optional[int] = None,
 ):
     """Groundstate solver parallel sweep.
     Number of parallel runs will be product of parameter values passed.
@@ -99,7 +98,7 @@ def groundstate_solver_parallel_sweep(
         if geometries is not None:
             updated_molecules = []
             for geom, molecule in zip(geometries, molecules):
-                geometry = list(zip(molecule, geom))
+                geometry = list(zip(molecule, geom))  # type: ignore
                 updated_molecules.append(Molecule(geometry=geometry))
         else:
             # generate geometries
@@ -115,11 +114,11 @@ def groundstate_solver_parallel_sweep(
                                 random.uniform(0.1, 0.5),
                             ],
                         )
-                        for atom in molecule
+                        for atom in molecule  # type: ignore
                     ]
                     updated_molecules.append(Molecule(geometry=geometry))
 
-        molecules: List[Molecule] = updated_molecules
+        molecules: List[Molecule] = updated_molecules  # type: ignore
 
     trials = []
 
