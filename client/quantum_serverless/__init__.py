@@ -2,7 +2,7 @@
 
 from importlib_metadata import version as metadata_version, PackageNotFoundError
 
-from .core import Provider, remote, get, put
+from .core import Provider, run_qiskit_remote, get, put
 from .quantum_serverless import QuantumServerless
 
 try:

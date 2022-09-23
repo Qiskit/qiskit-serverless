@@ -23,4 +23,4 @@ Quantum serverless core module classes and functions
 """
 
 from .provider import Provider, Cluster
-from .decorators import remote, get, put
+from .decorators import remote, get, put, run_qiskit_remote
