@@ -40,7 +40,7 @@ def run_qiskit_remote(target: Optional[Union[Dict[str, Any], Target]] = None):
     Example:
         >>> import quantum_serverless as qs
         >>>
-        >>> @run_qiskit_remote
+        >>> @run_qiskit_remote()
         >>> def awesome_function(seed: int):
         >>>     return 42
         >>>

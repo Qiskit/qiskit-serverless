@@ -1,26 +1,25 @@
 """Parallel transpiler."""
 from typing import List, Union
 
-import ray
 from qiskit import QuantumCircuit, transpile
 from qiskit.providers import Backend
 
 from quantum_serverless.exception import QuantumServerlessException
-from quantum_serverless import remote
+from quantum_serverless import run_qiskit_remote, get, put
 
-transpile_ray = remote(transpile)
+transpile_ray = run_qiskit_remote()(transpile)
 
 
-@remote
+@run_qiskit_remote()
 def remote_transpile(
     circuits: List[Union[QuantumCircuit, List[QuantumCircuit]]], backends: List[Backend]
 ) -> List[List[QuantumCircuit]]:
     """Remote transpile."""
     transpile_circuits_tasks = [
-        transpile_ray.remote(circuits=circuits, backend=backend)
+        transpile_ray(circuits=circuits, backend=backend)
         for circuits, backend in zip(circuits, backends)
     ]
-    return ray.get(transpile_circuits_tasks)
+    return get(transpile_circuits_tasks)
 
 
 def parallel_transpile(
@@ -39,6 +38,6 @@ def parallel_transpile(
         raise QuantumServerlessException(
             "Length of circuits must be equal to length of backends."
         )
-    circuits_id = ray.put(circuits)
-    backends_id = ray.put(backends)
-    return ray.get(remote_transpile.remote(circuits_id, backends_id))
+    circuits_id = put(circuits)
+    backends_id = put(backends)
+    return get(remote_transpile(circuits_id, backends_id))
