@@ -14,9 +14,13 @@ Quantum serverless core module classes and functions
 .. autosummary::
     :toctree: ../stubs/
 
-    QuantumServerless
+    Provider
+    Cluster
+
+    remote
+    get
+    put
 """
 
-from .quantum_serverless import QuantumServerless
-from .cluster import Cluster
-from .decorators import remote, get, put
+from .provider import Provider, Cluster
+from .decorators import remote, get, put, run_qiskit_remote
