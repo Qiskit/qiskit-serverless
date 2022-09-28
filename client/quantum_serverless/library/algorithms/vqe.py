@@ -40,6 +40,7 @@ class EstimatorVQE(MinimumEigensolver):
         self._optimizer = optimizer
         self._callback = callback
         self._init_point = init_point
+        self._histories = []
 
     def compute_minimum_eigenvalue(self, operator, aux_operators=None):
         # define objective
@@ -52,6 +53,8 @@ class EstimatorVQE(MinimumEigensolver):
                 value = e_job.values[0]
             if self._callback:
                 self._callback(value)
+            print("value:", value)
+            self._histories.append((parameters, value))
             return value
 
         # run optimization
@@ -70,4 +73,4 @@ class EstimatorVQE(MinimumEigensolver):
         result.optimizer_time = res
         result.eigenvalue = res.fun + 0j
 
-        return result
+        return result, self._histories

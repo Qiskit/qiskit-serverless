@@ -3,11 +3,12 @@ import random
 from typing import List, Optional, Union, Any, Dict
 
 import numpy as np
-from qiskit.algorithms.optimizers import COBYLA
+from qiskit.algorithms.optimizers import COBYLA, SPSA
 from qiskit.circuit.library import TwoLocal as TLA
 from qiskit.primitives import Estimator as QiskitEstimator
 from qiskit.providers.ibmq import IBMQBackend
 from qiskit_ibm_runtime import Estimator, Session, QiskitRuntimeService, Options
+from qiskit_ibm_runtime.options import Execution
 from qiskit_nature.circuit.library import HartreeFock
 from qiskit_nature.converters.second_quantization import QubitConverter
 from qiskit_nature.drivers import Molecule
@@ -17,7 +18,7 @@ from qiskit_nature.problems.second_quantization import ElectronicStructureProble
 from qiskit_nature.transformers.second_quantization.electronic import (
     ActiveSpaceTransformer,
 )
-
+from qiskit_aer.primitives import Estimator as AerEstimator
 from quantum_serverless import run_qiskit_remote, get
 from quantum_serverless.library import EstimatorVQE
 
@@ -89,8 +90,9 @@ def hardware_efficient_ansatz(
     )
 
     optimizer = COBYLA(maxiter=500)
+    # optimizer = SPSA()
     ansatz.num_qubits = operator.num_qubits
-
+    print(f"molecule: {molecule.geometry}, shift {e_shift}")
     with Session(service=service) as session:
         estimator = QiskitEstimator([ansatz], [operator])
         estimator = Estimator(session=session, options=options)
@@ -102,9 +104,9 @@ def hardware_efficient_ansatz(
             init_point=initial_point,
         )
 
-        vqe_result = vqe.compute_minimum_eigenvalue(operator)
+        vqe_result, histories = vqe.compute_minimum_eigenvalue(operator)
 
-    return vqe_result.optimal_value + e_shift
+    return vqe_result.optimal_value, e_shift, histories
 
 
 def efficient_ansatz_vqe_sweep(
@@ -112,6 +114,9 @@ def efficient_ansatz_vqe_sweep(
     initial_points: Optional[List[List[float]]] = None,
     service: Optional[QiskitRuntimeService] = None,
     backends: Optional[List[IBMQBackend]] = None,
+    optimization_level: int = 1,
+    resilience_level: int = 0,
+    shots: int = 4000
 ):
     """Parallel VQE energy calculation using hardware efficient ansatz
 
@@ -120,26 +125,28 @@ def efficient_ansatz_vqe_sweep(
         initial_points: optional list of initial points
         service: runtime service
         backends: list of backends to run against
+        resilience_level: resilience level
+        optimization_level: optimization level
+        shots: number of shots
 
     Returns:
         list of VQE energies
     """
     service = service or QiskitRuntimeService()
+    initial_points = initial_points or [None] * len(molecules)
+    backends = backends or [None] * len(molecules)
 
-    optimization_level = 1
-    resilience_level = 0
     options = [
         Options(
             optimization_level=optimization_level,
             resilience_level=resilience_level,
-            backend=random.choice(backends).name()
-            if backends
+            backend=backend.name
+            if backend
             else "ibmq_qasm_simulator",
+            execution=Execution(shots=shots)
         )
-        for _ in range(len(molecules))
+        for _, backend in zip(molecules, backends)
     ]
-
-    initial_points = initial_points or [None] * len(molecules)
 
     function_references = [
         hardware_efficient_ansatz(
