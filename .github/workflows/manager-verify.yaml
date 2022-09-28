@@ -1,4 +1,4 @@
-name: Manager verify process, lint and test
+name: Manager verify process
 
 on:
   pull_request:

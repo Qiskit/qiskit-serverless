@@ -1,4 +1,4 @@
-name: Client verify process, lint and test
+name: Client verify process
 
 on:
   pull_request:
