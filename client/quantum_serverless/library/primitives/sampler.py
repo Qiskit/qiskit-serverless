@@ -15,7 +15,7 @@ from qiskit_ibm_runtime import (
     SamplerResult,
 )
 
-from quantum_serverless import remote, get
+from quantum_serverless import run_qiskit_remote, get
 from .utils import SessionParameters
 
 
@@ -30,7 +30,7 @@ class SamplerParameters:
     parameters: Sequence[Sequence[Parameter]] | None = None
 
 
-@remote
+@run_qiskit_remote()
 def sample_remotely(
     service_parameterss: SessionParameters,
     sampler_parameters: SamplerParameters,
@@ -134,7 +134,7 @@ class ParallelSampler(Sampler):
 
         return get(
             [
-                sample_remotely.remote(
+                sample_remotely(
                     service_parameterss=service_parameterss,
                     sampler_parameters=sampler_parameters,
                     options=self.options,
