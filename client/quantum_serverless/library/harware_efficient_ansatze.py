@@ -3,7 +3,7 @@ import random
 from typing import List, Optional, Union, Any, Dict
 
 import numpy as np
-from qiskit.algorithms.optimizers import COBYLA, SPSA
+from qiskit.algorithms.optimizers import COBYLA, SPSA, Optimizer
 from qiskit.circuit.library import TwoLocal as TLA
 from qiskit.primitives import Estimator as QiskitEstimator
 from qiskit.providers.ibmq import IBMQBackend
@@ -29,6 +29,7 @@ def hardware_efficient_ansatz(
     initial_point: Union[List[float], np.ndarray],
     options: Optional[Options] = None,
     service: Optional[Union[QiskitRuntimeService, Dict[str, Any]]] = None,
+    optimizer: Optional[Optimizer] = None,
 ):
     """Energy calculation using hardware efficient ansatz with VQE
 
@@ -37,6 +38,7 @@ def hardware_efficient_ansatz(
         initial_point: initial point
         options: options for esimator
         service: runtime service
+        optimizer: optimizer
 
     Returns:
         energy
@@ -44,6 +46,8 @@ def hardware_efficient_ansatz(
     # setup service
     if service and isinstance(service, dict):
         service = QiskitRuntimeService(**service)
+
+    optimizer = optimizer or COBYLA(maxiter=500)
 
     transformer = ActiveSpaceTransformer(
         num_electrons=2, num_molecular_orbitals=3, active_orbitals=[1, 4, 5]
@@ -89,12 +93,12 @@ def hardware_efficient_ansatz(
         reps=1,
     )
 
-    optimizer = COBYLA(maxiter=500)
-    # optimizer = SPSA()
+    print("optimizer", optimizer)
     ansatz.num_qubits = operator.num_qubits
     print(f"molecule: {molecule.geometry}, shift {e_shift}")
     with Session(service=service) as session:
-        estimator = QiskitEstimator([ansatz], [operator])
+        # estimator = QiskitEstimator([ansatz], [operator])
+        # estimator = AerEstimator([ansatz], [operator])
         estimator = Estimator(session=session, options=options)
 
         vqe = EstimatorVQE(
@@ -116,7 +120,8 @@ def efficient_ansatz_vqe_sweep(
     backends: Optional[List[IBMQBackend]] = None,
     optimization_level: int = 1,
     resilience_level: int = 0,
-    shots: int = 4000
+    shots: int = 4000,
+    optimizer: Optional[Optimizer] = None,
 ):
     """Parallel VQE energy calculation using hardware efficient ansatz
 
@@ -128,6 +133,7 @@ def efficient_ansatz_vqe_sweep(
         resilience_level: resilience level
         optimization_level: optimization level
         shots: number of shots
+        optimizer: optimizer
 
     Returns:
         list of VQE energies
@@ -154,6 +160,7 @@ def efficient_ansatz_vqe_sweep(
             initial_point=initial_point,
             options=opt,
             service=service.active_account(),
+            optimizer=optimizer,
         )
         for molecule, initial_point, opt in zip(molecules, initial_points, options)
     ]
