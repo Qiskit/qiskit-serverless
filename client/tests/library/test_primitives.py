@@ -33,7 +33,7 @@ class TestPrimitives(TestCase):
         obs = SparsePauliOp.from_list([("II", 1), ("IZ", 2), ("XI", 3)])
         theta1 = [0, 1, 1, 2, 3, 5]
 
-        with Session(service=service) as session, serverless:
+        with serverless, Session(service=service) as session:
             estimator = ParallelEstimator(session=session, options=options)
 
             estimator.add(circuits=[psi1], observables=[obs], parameter_values=[theta1])
