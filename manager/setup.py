@@ -1,15 +1,6 @@
 import os
 from setuptools import setup
 
-requires = (
-    "flask",
-    "flask-sqlalchemy",
-    "requests>=0.13.6",
-    "python-dateutil>=1.5",
-    "twilio",
-    "selenium",
-)
-
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
