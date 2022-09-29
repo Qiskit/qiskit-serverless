@@ -1,4 +1,5 @@
 """ Application definition"""
+# pylint: disable=keyword-arg-before-vararg
 import logging
 import sys
 import re
@@ -18,7 +19,7 @@ api = Api(
     description="API for cluster management",
 )
 app.config.from_object("manager.config.ProductionConfig")
-# validate_config(app.config)
+
 
 ns = api.namespace("quantum-serverless-middleware", description="Cluster operations")
 

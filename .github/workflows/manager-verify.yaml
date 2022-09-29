@@ -1,0 +1,37 @@
+name: Manager verify process
+
+on:
+  pull_request:
+
+jobs:
+  verify-manager:
+    name: lint, test
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.7']
+    
+    defaults:
+      run:
+        working-directory: ./manager
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          
+      - name: Install tox
+        run: |
+          pip install tox
+
+      - name: Run styles check
+        run: tox -elint
+      
+      - name: Test using tox environment
+        run: |
+          tox ${{ env.TOX_ENV }}

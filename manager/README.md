@@ -16,6 +16,8 @@ Ray cluster manager middleware is the API which permits the management of ray cl
 
 `pip install -r requirements.txt
 `
+`pip install -r requirements-dev.txt
+`
 
 **Setup the application** 
 
