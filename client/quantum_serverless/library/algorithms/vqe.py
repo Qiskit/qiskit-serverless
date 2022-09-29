@@ -1,8 +1,7 @@
 """VQE."""
-from typing import Optional
+from typing import Optional, List, Tuple, Any
 
 import numpy as np
-
 from qiskit import QuantumCircuit
 from qiskit.algorithms import MinimumEigensolver, VQEResult
 from qiskit.algorithms.optimizers import Optimizer
@@ -40,7 +39,7 @@ class EstimatorVQE(MinimumEigensolver):
         self._optimizer = optimizer
         self._callback = callback
         self._init_point = init_point
-        self._histories = []
+        self._histories: List[Tuple[Any, Any]] = []
 
     def compute_minimum_eigenvalue(self, operator, aux_operators=None):
         # define objective

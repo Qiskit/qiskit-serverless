@@ -1,11 +1,9 @@
 """Hardware efficient ansatze."""
-import random
 from typing import List, Optional, Union, Any, Dict
 
 import numpy as np
-from qiskit.algorithms.optimizers import COBYLA, SPSA, Optimizer
+from qiskit.algorithms.optimizers import COBYLA, Optimizer
 from qiskit.circuit.library import TwoLocal as TLA
-from qiskit.primitives import Estimator as QiskitEstimator
 from qiskit.providers.ibmq import IBMQBackend
 from qiskit_ibm_runtime import Estimator, Session, QiskitRuntimeService, Options
 from qiskit_ibm_runtime.options import Execution
@@ -18,7 +16,7 @@ from qiskit_nature.problems.second_quantization import ElectronicStructureProble
 from qiskit_nature.transformers.second_quantization.electronic import (
     ActiveSpaceTransformer,
 )
-from qiskit_aer.primitives import Estimator as AerEstimator
+
 from quantum_serverless import run_qiskit_remote, get
 from quantum_serverless.library import EstimatorVQE
 
