@@ -1,4 +1,5 @@
 """Dao definition for cluster """
+# pylint: disable=subprocess-run-check
 from subprocess import PIPE, run
 import logging
 from manager.errors import CommandError, NotFoundError
