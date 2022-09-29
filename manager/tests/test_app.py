@@ -80,7 +80,8 @@ class TestApi(TestCase):
         """Test status code for get all api call with command error"""
         # arrange
         app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError"
+            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError",
+            NAMESPACE="ray",
         )
         tester = app.test_client(self)
         # act
@@ -92,7 +93,8 @@ class TestApi(TestCase):
         """Test status code for get cluster details api call with command error"""
         # arrange
         app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError"
+            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError",
+            NAMESPACE="ray",
         )
         tester = app.test_client(self)
         # act
@@ -104,7 +106,8 @@ class TestApi(TestCase):
         """Test status code for create api call with command error"""
         # arrange
         app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError"
+            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError",
+            NAMESPACE="ray",
         )
         tester = app.test_client(self)
         # act
@@ -120,7 +123,8 @@ class TestApi(TestCase):
         """Test status code for delete api call with command error"""
         # arrange
         app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError"
+            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError",
+            NAMESPACE="ray",
         )
         tester = app.test_client(self)
         # act
@@ -132,7 +136,8 @@ class TestApi(TestCase):
         """Test status code for invalid input(name not in lowercase) when creating cluster"""
         # arrange
         app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError"
+            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError",
+            NAMESPACE="ray",
         )
         tester = app.test_client(self)
         # act
@@ -148,7 +153,8 @@ class TestApi(TestCase):
         """Test status code for invalid input(name loo long) when creating cluster"""
         # arrange
         app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError"
+            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError",
+            NAMESPACE="ray",
         )
         tester = app.test_client(self)
         # act
@@ -166,7 +172,8 @@ class TestApi(TestCase):
         """Test status code for get cluster details when the cluster is not found"""
         # arrange
         app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryNotFoundError"
+            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryNotFoundError",
+            NAMESPACE="ray",
         )
         tester = app.test_client(self)
         # act
