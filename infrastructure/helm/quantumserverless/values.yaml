@@ -2,12 +2,12 @@
 # Quantum Serverless configs
 # ===================
 
-jupyterEnable: true
-
 
 # ===================
 # Jupyter configs
 # ===================
+
+jupyterEnable: false
 
 jupyter:
   jupyterToken: "<YOUR_JUPYTER_PASSWORD_HERE>"
@@ -31,7 +31,7 @@ jupyter:
 # Middleware configs
 # ===================
 
-middlewareEnable: true
+middlewareEnable: false
 
 middleware:
   image:
@@ -58,7 +58,7 @@ rayClusterEnable: true
 cluster:
   image:
     repository: rayproject/ray
-    tag: 2.0.0
+    tag: 2.0.0-py37
     pullPolicy: IfNotPresent
 
   nameOverride: "kuberay"
