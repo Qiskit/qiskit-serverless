@@ -25,6 +25,7 @@ from quantum_serverless.library import EstimatorVQE
 def hardware_efficient_ansatz(
     molecule: Molecule,
     initial_point: Union[List[float], np.ndarray],
+    backend: str,
     options: Optional[Options] = None,
     service: Optional[Union[QiskitRuntimeService, Dict[str, Any]]] = None,
     optimizer: Optional[Optimizer] = None,
@@ -37,6 +38,7 @@ def hardware_efficient_ansatz(
         options: options for esimator
         service: runtime service
         optimizer: optimizer
+        backend: name of backend
 
     Returns:
         energy
@@ -94,7 +96,7 @@ def hardware_efficient_ansatz(
     print("optimizer", optimizer)
     ansatz.num_qubits = operator.num_qubits
     print(f"molecule: {molecule.geometry}, shift {e_shift}")
-    with Session(service=service) as session:
+    with Session(service=service, backend=backend) as session:
         # estimator = QiskitEstimator([ansatz], [operator])
         # estimator = AerEstimator([ansatz], [operator])
         estimator = Estimator(session=session, options=options)
@@ -140,27 +142,20 @@ def efficient_ansatz_vqe_sweep(
     initial_points = initial_points or [None] * len(molecules)
     backends = backends or [None] * len(molecules)
 
-    options = [
-        Options(
-            optimization_level=optimization_level,
-            resilience_level=resilience_level,
-            backend=backend.name
-            if backend
-            else "ibmq_qasm_simulator",
-            execution=Execution(shots=shots)
-        )
-        for _, backend in zip(molecules, backends)
-    ]
-
     function_references = [
         hardware_efficient_ansatz(
             molecule=molecule,
             initial_point=initial_point,
-            options=opt,
+            backend=backend.name if backend else "ibmq_qasm_simulator",
+            options=Options(
+                optimization_level=optimization_level,
+                resilience_level=resilience_level,
+                execution=Execution(shots=shots),
+            ),
             service=service.active_account(),
             optimizer=optimizer,
         )
-        for molecule, initial_point, opt in zip(molecules, initial_points, options)
+        for molecule, initial_point, backend in zip(molecules, initial_points, backends)
     ]
 
     return get(function_references)
