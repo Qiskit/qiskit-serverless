@@ -12,7 +12,7 @@ module "vpc_kubernetes_cluster" {
 
   worker_pool_flavor = var.machine_type
   worker_zones = {
-    var.zone_name = {
+    "var.zone_name" = {
       subnet_id = ibm_is_subnet.subnet.id
     }
   }
