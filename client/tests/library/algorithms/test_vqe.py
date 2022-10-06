@@ -29,11 +29,9 @@ class TestVQE(TestCase):
         optimizer = SPSA(maxiter=1)
 
         service = QiskitRuntimeService()
-        options = Options(
-            optimization_level=1, resilience_level=0, backend="ibmq_qasm_simulator"
-        )
+        options = Options(optimization_level=1, resilience_level=0)
 
-        with Session(service=service) as session:
+        with Session(service=service, backend="ibmq_qasm_simulator") as session:
             estimator = RuntimeEstimator(session=session, options=options)
 
             custom_vqe = EstimatorVQE(estimator, circuit, optimizer)
