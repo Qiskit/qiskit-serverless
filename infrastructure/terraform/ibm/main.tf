@@ -6,25 +6,27 @@
 terraform {
   required_providers {
     ibm = {
-      source = "IBM-Cloud/ibm"
-      version = ">= 1.45.1"
+      source  = "IBM-Cloud/ibm"
+      version = ">= 1.46.0"
     }
     helm = {
-      source = "hashicorp/helm"
+      source  = "hashicorp/helm"
       version = ">= 2.6.0"
     }
   }
+
+  required_version = "~> 1.2"
 }
 
-provider ibm {
-  ibmcloud_api_key      = "${var.ibmcloud_api_key}"
-  region                = "${var.ibm_region}"
-  ibmcloud_timeout      = 60
+provider "ibm" {
+  ibmcloud_api_key = var.ibmcloud_api_key
+  region           = var.ibm_region
+  ibmcloud_timeout = var.ibmcloud_timeout
 }
 
-provider helm {
+provider "helm" {
   kubernetes {
-    host     = "${ibm_container_vpc_cluster.cluster.public_service_endpoint_url}"
+    host = ibm_container_vpc_cluster.cluster.public_service_endpoint_url
   }
 }
 
@@ -35,8 +37,8 @@ provider helm {
 # Resource Group
 ##############################################################################
 
-data ibm_resource_group resource_group {
-  name = "${var.resource_group}"
+data "ibm_resource_group" "resource_group" {
+  name = var.resource_group
 }
 
 ##############################################################################
