@@ -6,4 +6,6 @@ Refer to [installation guide](../INSTALL.md).
 
 ## Usage
 
-Refer to [how-to-guides](./how_tos) and [tutorials](./tutorials).
+- [Beginner's guide](./beginners_guide.md).
+- [Guides](./guides)
+- [Tutorials](./tutorials)
