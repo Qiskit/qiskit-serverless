@@ -1,5 +1,5 @@
 """Hardware efficient ansatze."""
-from typing import List, Optional, Union, Any, Dict
+from typing import List, Optional, Union, Any, Dict, Tuple
 
 import numpy as np
 from qiskit.algorithms.optimizers import COBYLA, Optimizer
@@ -18,8 +18,77 @@ from qiskit_nature.transformers.second_quantization.electronic import (
     ActiveSpaceTransformer,
 )
 
+from qiskit import QuantumCircuit
+from qiskit.algorithms import MinimumEigensolver, VQEResult
+
 from quantum_serverless import run_qiskit_remote, get
-from quantum_serverless.library import EstimatorVQE
+
+
+class EstimatorVQE(MinimumEigensolver):
+    """EstimatorVQE."""
+
+    def __init__(
+        self,
+        estimator: Union[QiskitEstimator, RuntimeEstimator],
+        circuit: QuantumCircuit,
+        optimizer: Optimizer,
+        callback=None,
+        init_point: Optional[np.ndarray] = None,
+    ):
+        """EstimatorVQE - VQE implementation using Qiskit Runtime Estimator primitive
+
+        Example:
+            >>> with Session(service=service) as session:
+            >>>     estimator = Estimator(session=session, options=options)
+            >>>     custom_vqe = EstimatorVQE(estimator, circuit, optimizer)
+            >>>     result = custom_vqe.compute_minimum_eigenvalue(operator)
+
+        Args:
+            estimator: Qiskit Runtime Estimator
+            circuit: ansatz cirucit
+            optimizer: optimizer
+            callback: callback function
+            init_point: optional initial point for optimization
+        """
+        self._estimator = estimator
+        self._circuit = circuit
+        self._optimizer = optimizer
+        self._callback = callback
+        self._init_point = init_point
+        self._histories: List[Tuple[Any, Any]] = []
+
+    def compute_minimum_eigenvalue(self, operator, aux_operators=None):
+        # define objective
+        def objective(parameters):
+            if isinstance(self._estimator, RuntimeEstimator):
+                e_job = self._estimator.run([self._circuit], [operator], [parameters])
+                value = e_job.result().values[0]
+            else:
+                e_job = self._estimator([self._circuit], [operator], [parameters])
+                value = e_job.values[0]
+            if self._callback:
+                self._callback(value)
+            print("value:", value)
+            self._histories.append((parameters, value))
+            return value
+
+        # run optimization
+        init_params = (
+            np.random.rand(self._circuit.num_parameters)
+            if self._init_point is None
+            else self._init_point
+        )
+        res = self._optimizer.minimize(objective, x0=init_params)
+
+        result = VQEResult()
+        result.optimal_point = res.x
+        result.optimal_parameters = dict(zip(self._circuit.parameters, res.x))
+        result.optimal_value = res.fun
+        result.cost_function_evals = res.nfev
+        result.optimizer_time = res
+        result.eigenvalue = res.fun + 0j
+
+        return result, self._histories
 
 
 @run_qiskit_remote(target={"cpu": 2})

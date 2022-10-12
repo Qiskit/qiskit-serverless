@@ -1,12 +1,21 @@
+# This code is part of Qiskit.
+#
+# (C) Copyright IBM 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """
 ============================================
 Core module (:mod:`quantum_serverless.core`)
 ============================================
 
 .. currentmodule:: quantum_serverless.core
-
-This module contains an :class:`QuantumServerless`
-which is the main class for managing serverless execution.
 
 Quantum serverless core module classes and functions
 ====================================================
@@ -17,7 +26,7 @@ Quantum serverless core module classes and functions
     Provider
     Cluster
 
-    remote
+    run_qiskit_remote
     get
     put
 """
