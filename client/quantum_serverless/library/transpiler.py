@@ -1,4 +1,30 @@
-"""Parallel transpiler."""
+# This code is part of Qiskit.
+#
+# (C) Copyright IBM 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
+"""
+=================================================
+Transpiler (:mod:`quantum_serverless.transpiler`)
+=================================================
+
+.. currentmodule:: quantum_serverless.library.transpiler
+
+Quantum serverless transpiler functions
+=======================================
+
+.. autosummary::
+    :toctree: ../stubs/
+
+    parallel_transpile
+"""
 from typing import List, Union
 
 from qiskit import QuantumCircuit, transpile
@@ -26,6 +52,10 @@ def parallel_transpile(
     circuits: List[Union[QuantumCircuit, List[QuantumCircuit]]], backends: List[Backend]
 ):
     """Transpile circuits in parallel using core of local machine or remote raylets.
+
+    Example:
+        >>> parallel_transpile([circuit1, [circuit2, circuit3]], [backend1, backend2])
+        >>> # [<QuantumCircuit ...>, [<QuantumCircuit ...>, <QuantumCircuit ...>]]
 
     Args:
         circuits: list of lists of circuits to transpile

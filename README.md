@@ -16,19 +16,51 @@
    2. [Middleware](./manager)
    3. [Infrastructure](./infrastructure)
 5. [Tutorials](docs/tutorials/)
-6. [How-Tos](docs/how_tos/)
+6. [Guides](docs/guides/)
 7. [How to Give Feedback](#how-to-give-feedback)
 8. [Contribution Guidelines](#contribution-guidelines)
 9. [References and Acknowledgements](#references-and-acknowledgements)
 10. [License](#license)
 
+----------------------------------------------------------------------------------------------------
+
+```python
+from quantum_serverless import QuantumServerless, run_qiskit_remote, get
+
+# 1. let's annotate out function to convert it 
+# to function that can be executed remotely
+# using `run_qiskit_remote` decorator
+@run_qiskit_remote()
+def my_qiskit_function():
+    # Doing compute things here!
+    return "Computed result"
+
+
+# 2. Next let's create out serverless object to control 
+# where our remote function will be executed
+serverless = QuantumServerless()
+
+# 3. create serverless context 
+with serverless:
+    # 4. run our function and get back reference to it
+    # as now our function it remote one
+    function_reference = my_qiskit_function()
+    # 4.1 or we can run N of them in parallel
+    N = 4
+    function_references = [my_qiskit_function() for _ in range(N)]
+    
+    # 5. to get results back from reference 
+    # we need to call `get` on function reference
+    print(get(function_reference))
+    print(get(function_references))
+```
 
 ----------------------------------------------------------------------------------------------------
 
 ### How to Give Feedback
 
 We encourage your feedback! You can share your thoughts with us by:
-- [Opening an issue](https://github.ibm.com/IBM-Q-Software/quantum-serverless/issues) in the repository
+- [Opening an issue](https://github.com/Qiskit-Extensions/quantum-serverless/issues) in the repository
 
 
 ----------------------------------------------------------------------------------------------------
@@ -41,8 +73,11 @@ For information on how to contribute to this project, please take a look at our 
 ----------------------------------------------------------------------------------------------------
 
 ## References and Acknowledgements
-[1] Diátaxis Technical Documentation Framework \
-    https://diataxis.fr/
+[1] Qiskit Terra \
+    https://github.com/Qiskit/qiskit-terra
+
+[2] Client for IBM Qiskit Runtime \
+    https://github.com/Qiskit/qiskit-ibm-runtime
 
 
 ----------------------------------------------------------------------------------------------------
