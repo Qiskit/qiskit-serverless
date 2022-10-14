@@ -14,13 +14,13 @@ variable "ibmcloud_api_key" {
 # Account Variables
 ##############################################################################
 
-variable "ibm_region" {
+variable "ibmcloud_region" {
   description = "IBM Cloud region where all resources will be deployed"
   type        = string
   default     = "us-south"
 }
 
-variable "resource_group" {
+variable "ibmcloud_resource_group" {
   description = "Name of resource group to provision resources"
   type        = string
   default     = "Default"
@@ -39,28 +39,28 @@ variable "ibmcloud_timeout" {
 # VPC - Subnet - Gateway Variables
 ##############################################################################
 
-variable "vpc_name" {
-  description = "ID of VPC where cluster is to be created"
+variable "name" {
+  description = "The prefix name for all the resources"
   type        = string
-  default     = "quantum-serverless-vpc"
+  default     = "qserverless"
 }
 
-variable "gateway_name" {
-  description = "Name for the vpc public gateway"
-  type        = string
-  default     = "quantum-serverless-public-gateway"
+variable "tags" {
+  description = "The list of tags"
+  type        = list(string)
+  default     = ["env:dev", "project:qserverless"]
 }
 
-variable "subnet_name" {
-  description = "Name for the vpc subnet"
-  type        = string
-  default     = "quantum-serverless-subnet"
+variable "locations" {
+  description = "The locations for the subnets and nodes"
+  type        = list(string)
+  default     = ["us-south-1", "us-south-2"]
 }
 
-variable "zone_name" {
-  description = "Name for the vpc subnet zone"
-  type        = string
-  default     = "us-south-1"
+variable "number_of_addresses" {
+  description = "The number of addresses by subnet"
+  type        = number
+  default     = 64
 }
 
 ##############################################################################
@@ -69,19 +69,13 @@ variable "zone_name" {
 # Cluster Variables
 ##############################################################################
 
-variable "cluster_name" {
-  description = "name for the iks cluster"
-  type        = string
-  default     = "quantum-serverless-cluster"
-}
-
 variable "machine_type" {
   description = "Machine type for the IKS Cluster"
   type        = string
   default     = "cx2.2x4"
 }
 
-variable "worker_count" {
+variable "worker_nodes_per_zone" {
   description = "Number of workers per zone"
   type        = number
   default     = 1
@@ -90,32 +84,7 @@ variable "worker_count" {
 variable "disable_pse" {
   description = "Disable public service endpoint for cluster. True or false"
   type        = bool
-  default     = true
-}
-
-##############################################################################
-
-
-##############################################################################
-# Helm Variables
-##############################################################################
-
-variable "helm_name" {
-  description = "Name of the helm that you will execute"
-  type        = string
-  default     = "quantum-serverless" #  This name should be DNS compliance
-}
-
-variable "helm_path" {
-  description = "Path to the chart folder"
-  type        = string
-  default     = "../helm/quantumserverless"
-}
-
-variable "values_file" {
-  description = "Path to the values file"
-  type        = string
-  default     = "terraform.yaml"
+  default     = false
 }
 
 ##############################################################################

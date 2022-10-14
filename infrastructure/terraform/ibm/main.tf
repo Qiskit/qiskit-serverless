@@ -20,7 +20,7 @@ terraform {
 
 provider "ibm" {
   ibmcloud_api_key = var.ibmcloud_api_key
-  region           = var.ibm_region
+  region           = var.ibmcloud_region
   ibmcloud_timeout = var.ibmcloud_timeout
 }
 
@@ -37,8 +37,8 @@ provider "helm" {
 # Resource Group
 ##############################################################################
 
-data "ibm_resource_group" "resource_group" {
-  name = var.resource_group
+data "ibm_resource_group" "ibmcloud_resource_group" {
+  name = (var.ibmcloud_resource_group != null ? var.ibmcloud_resource_group : "default")
 }
 
 ##############################################################################
