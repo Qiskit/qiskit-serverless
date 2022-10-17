@@ -1,0 +1,82 @@
+# ===================
+# Quantum Serverless configs
+# ===================
+
+jupyterEnable: true
+
+
+# ===================
+# Jupyter configs
+# ===================
+
+jupyter:
+  jupyterToken: "ultimate-password"
+
+  image:
+    repository: us.icr.io/quantum-computing/quantum-serverles-notebook
+    pullPolicy: Always
+    tag: "ckt-demo"
+  
+  container:
+    port: 8888
+
+  service:
+    port: 80
+
+  ingress:
+    enabled: true
+    hosts:
+      - host: jupyter-ckt-demo.experimental-us-5dd5718798d097eccc65fac4e78a33ce-0000.us-east.containers.appdomain.cloud
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: experimental-us-5dd5718798d097eccc65fac4e78a33ce-0000
+        hosts:
+          - jupyter-ckt-demo.experimental-us-5dd5718798d097eccc65fac4e78a33ce-0000.us-east.containers.appdomain.cloud
+    loadBalancer:
+      hostname: e82e093d-us-east.lb.appdomain.cloud
+
+
+# ===================
+# Ray configs
+# ===================
+
+ray:
+  image: us.icr.io/quantum-computing/quantum-serverles-ray-node-image:demo-ckt
+  operatorImage: rayproject/ray:latest
+  operatorOnly: false
+  clusterOnly: true
+  # nodes configuration
+  headPodType: headType
+  podTypes:
+    headType:
+      CPU: 0
+      memory: 1Gi
+      GPU: 0
+      rayResources: { }
+      nodeSelector: { }
+      tolerations: [ ]
+    hybridType:
+      minWorkers: 2
+      maxWorkers: 2
+      memory: 4Gi
+      CPU: 4
+      GPU: 0
+      rayResources: { "QPU": 1 }
+      nodeSelector: { }
+      tolerations: [ ]
+
+
+# ===================
+# Middleware configs
+# ===================
+
+middleware:
+  image:
+    repository: us.icr.io/quantum-computing/quantum-serverles-mock-middleware
+    pullPolicy: Always
+    tag: "latest"
+  imagePullSecrets:
+    - name: "all-icr-io"
+
