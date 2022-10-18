@@ -1,4 +1,4 @@
-FROM jupyter/base-notebook:python-3.9.12
+FROM jupyter/base-notebook:python-3.7.12
 
 USER root
 
@@ -10,7 +10,7 @@ COPY ./client /pylib
 RUN cd /pylib && pip install .
 
 COPY ./docs/tutorials/ /home/jovyan/serverless/tutorials/
-COPY ./docs/how_tos/ /home/jovyan/serverless/how_tos/
+COPY ./docs/guides/ /home/jovyan/serverless/guides/
 
 USER $NB_UID
 

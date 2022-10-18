@@ -4,8 +4,8 @@ metadata:
   name: {{ include "middleware.fullname" . }}-role
   namespace: {{ .Release.Namespace }}
 rules:
-- apiGroups: ["cluster.ray.io"]
-  resources: ["rayclusters"]
+- apiGroups: ["ray.io", "cluster.ray.io"]
+  resources: ["rayclusters", "rayclusters.ray.io"]
   verbs: ["get", "list", "create", "delete"]
 - apiGroups: [""]
   resources: ["services"]
