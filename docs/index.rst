@@ -1,12 +1,20 @@
-################################
-Quantum serverless documentation
-################################
+##################
+Quantum serverless
+##################
+
+Quantum Serverless is a new programming model for leveraging quantum and classical resources
+
+.. toctree::
+  :maxdepth: 2
+
+  Tutorials <tutorials/index>
+  Guides <guides/index>
+
+API references
 
 .. toctree::
   :maxdepth: 1
 
-  Tutorials <tutorials/index>
-  User Guide <how_tos/index>
   API References <apidocs/index>
 
 .. Hiding - Indices and tables
