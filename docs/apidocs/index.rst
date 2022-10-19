@@ -10,3 +10,5 @@ Quantum serverless API References
    :maxdepth: 1
 
    core
+   library
+   serializers

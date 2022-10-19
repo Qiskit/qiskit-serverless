@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.append(os.path.abspath('../client'))
 
-project = "Quantum serverless project"
+project = "Quantum serverless"
 copyright = "2022"  # pylint: disable=redefined-builtin
 author = ""
 
@@ -42,7 +42,7 @@ modindex_common_prefix = ["quantum_serverless_project."]
 
 # html theme options
 html_static_path = ["_static"]
-html_logo = "_static/images/logo.png"
+# html_logo = "_static/images/logo.png"
 
 # autodoc/autosummary options
 autosummary_generate = True
