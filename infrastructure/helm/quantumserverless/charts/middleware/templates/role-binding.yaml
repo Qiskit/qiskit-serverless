@@ -1,11 +1,11 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "middleware.fullname" . }}-crb
+  name: {{ include "middleware.fullname" . }}-rb
   namespace: {{ .Release.Namespace }}
 subjects:
   - kind: User
-    name: system:serviceaccount:ray:{{ include "middleware.fullname" . }}
+    name: system:serviceaccount:{{ .Release.Namespace }}:{{ include "middleware.fullname" . }}
 roleRef:
   kind: Role
   name: {{ include "middleware.fullname" . }}-role

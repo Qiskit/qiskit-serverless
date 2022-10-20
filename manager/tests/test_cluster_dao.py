@@ -50,14 +50,14 @@ class TestClusterDao(TestCase):
         """Test successful get cluster details"""
         cluster_dao = ClusterDAO("ray")
         cluster_dao.run = MagicMock()
-        cluster_dao.run.return_value = "10.102.15.119   10001"
+        cluster_dao.run.return_value = "10.102.15.119"
 
         result = cluster_dao.get("cluster")
 
         assert result["name"] == "cluster"
-        assert result["host"] == "cluster-ray-head"
+        assert result["host"] == "cluster-head-svc"
         assert result["ip"] == "10.102.15.119"
-        assert result["port"] == "10001"
+        assert result["port"] == 10001
 
     def test_create_cluster(self):
         """Test successful create cluster"""

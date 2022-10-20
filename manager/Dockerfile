@@ -17,7 +17,7 @@ RUN curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -
     && chmod +x get_helm.sh && ./get_helm.sh
 
 COPY manager/manager/* manager/
-COPY infrastructure/helm/quantumserverless/charts/ray ray
+COPY infrastructure/helm/quantumserverless/charts/ray-cluster ray
 
 ENV FLASK_APP manager/app.py
 

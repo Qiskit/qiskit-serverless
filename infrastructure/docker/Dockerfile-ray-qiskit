@@ -1,4 +1,4 @@
-FROM rayproject/ray:2.0.0-py39
+FROM rayproject/ray:2.0.0-py37
 
 RUN pip install qiskit~=0.36.0
 RUN pip install qiskit-nature~=0.4.3

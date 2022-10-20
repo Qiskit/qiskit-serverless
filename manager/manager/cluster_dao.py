@@ -83,7 +83,7 @@ class ClusterDAO:
             "-n",
             self.namespace,
             "get",
-            "rayclusters",
+            "rayclusters.ray.io",
             "--no-headers",
             "-o",
             "custom-columns=NAME:metadata.name",
@@ -114,19 +114,19 @@ class ClusterDAO:
             self.namespace,
             "get",
             "service",
-            str(name) + "-ray-head",
+            str(name) + "-head-svc",
             "-o",
-            "custom-columns=IP:.spec.clusterIP,PORT:.spec.ports[0].targetPort",
+            "custom-columns=IP:.spec.clusterIP",
             "--no-headers",
         ]
         try:
             result = self.run(get_clusters_command)
-            host_port = result.strip().split()
+            host_id = result.strip()
             return {
                 "name": name,
-                "host": name + "-ray-head",
-                "ip": host_port[0],
-                "port": host_port[1],
+                "host": name + "-head-svc",
+                "ip": host_id,
+                "port": 10001,
             }
         except CommandError as err:
             if "NotFound" in str(err):
@@ -173,7 +173,7 @@ class ClusterDAO:
             "-n",
             self.namespace,
             "delete",
-            "rayclusters",
+            "rayclusters.ray.io",
             name,
         ]
         try:
