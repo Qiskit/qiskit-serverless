@@ -38,8 +38,7 @@ middleware:
     repository: "<CLUSTER_MANAGER_IMAGE>"
     pullPolicy: IfNotPresent
     tag: "latest"
-  imagePullSecrets:
-    - name: "all-icr-io"
+  imagePullSecrets: []
 
   container:
     port: 5000
@@ -55,7 +54,7 @@ middleware:
 # CLUSTER
 
 rayClusterEnable: true
-cluster:
+ray-cluster:
   image:
     repository: rayproject/ray
     tag: 2.0.0-py37
