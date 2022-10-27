@@ -3,7 +3,7 @@
 # =========
 
 version=0.0.1
-repository=qiskit
+repository=icr.io/quantum-serverless
 
 notebookImageName=$(repository)/quantum-serverless-notebook
 rayNodeImageName=$(repository)/quantum-serverless-ray-node
