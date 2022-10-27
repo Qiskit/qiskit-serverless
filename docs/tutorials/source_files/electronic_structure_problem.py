@@ -7,7 +7,7 @@ from qiskit.circuit.library import TwoLocal as TLA
 from qiskit.providers.ibmq import IBMQBackend
 from qiskit.primitives import Estimator as QiskitEstimator
 from qiskit_ibm_runtime import Estimator as RuntimeEstimator, Session, QiskitRuntimeService, Options
-from qiskit_ibm_runtime.options import Execution
+from qiskit_ibm_runtime.options import ExecutionOptions
 from qiskit_nature.circuit.library import HartreeFock
 from qiskit_nature.converters.second_quantization import QubitConverter
 from qiskit_nature.drivers import Molecule
@@ -60,12 +60,8 @@ class EstimatorVQE(MinimumEigensolver):
     def compute_minimum_eigenvalue(self, operator, aux_operators=None):
         # define objective
         def objective(parameters):
-            if isinstance(self._estimator, RuntimeEstimator):
-                e_job = self._estimator.run([self._circuit], [operator], [parameters])
-                value = e_job.result().values[0]
-            else:
-                e_job = self._estimator([self._circuit], [operator], [parameters])
-                value = e_job.values[0]
+            e_job = self._estimator.run([self._circuit], [operator], [parameters])
+            value = e_job.result().values[0]
             if self._callback:
                 self._callback(value)
             print("value:", value)
@@ -96,7 +92,9 @@ def ground_state_solve(
     molecule: Molecule,
     initial_point: Union[List[float], np.ndarray],
     backend: str,
-    options: Optional[Options] = None,
+    optimization_level: int,
+    resilience_level: int,
+    shots: int,
     service: Optional[Union[QiskitRuntimeService, Dict[str, Any]]] = None,
     optimizer: Optional[Optimizer] = None,
     use_local_simulator: bool = False
@@ -170,8 +168,12 @@ def ground_state_solve(
     print(f"molecule: {molecule.geometry}, shift {e_shift}")
     with Session(service=service, backend=backend) as session:
         if use_local_simulator is True:
-            estimator = QiskitEstimator([ansatz], [operator])
+            estimator = QiskitEstimator()
         else:
+            options = Options()
+            options.optimization_level = optimization_level
+            options.resilience_level = resilience_level
+            options.execution.shots = shots
             estimator = RuntimeEstimator(session=session, options=options)
 
         vqe = EstimatorVQE(
@@ -222,11 +224,9 @@ def electronic_structure_problem(
             molecule=molecule,
             initial_point=initial_point,
             backend=backend.name if backend else "ibmq_qasm_simulator",
-            options=Options(
-                optimization_level=optimization_level,
-                resilience_level=resilience_level,
-                execution=Execution(shots=shots),
-            ),
+            optimization_level=optimization_level,
+            resilience_level=resilience_level,
+            shots=shots,
             service=service.active_account(),
             optimizer=optimizer,
             use_local_simulator=use_local_simulator,
