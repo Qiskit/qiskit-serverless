@@ -18,8 +18,6 @@ docker build -f Dockerfile-ray-qiskit -t <IMAGE_NAME> .
 ### Versions
 - Ray == 2.0.0
 - Python == 3.7
-- Qiskit ~= 0.36.0
-- Qiskit Nature ~= 0.4.3
 
 
 ## Ray node with Jupyter notebook
@@ -33,6 +31,5 @@ docker build -f Dockerfile-notebook -t <IMAGE_NAME> .
 ```
 
 ### Versions
+- Notebook == ???
 - Python == 3.7.12
-- Qiskit ~= 0.36.0
-- Qiskit Nature ~= 0.4.3
