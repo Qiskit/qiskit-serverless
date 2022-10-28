@@ -11,8 +11,8 @@ There are three main tools that you will need to install:
 
 ### Requirements
 - Docker >= 20.10
-- Helm >= 3.10
-- Terraform == 1.2.9
+- Helm >= 2.6.0
+- Terraform ~> 1.2
 
 
 ## Technologies
