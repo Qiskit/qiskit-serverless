@@ -1,7 +1,7 @@
 Quantum serverless deployment to AWS
 ====================================
 
-### How-to
+## Installation
 
 1. setup AWS CLI
 2. have kubectl, helm installed
@@ -9,3 +9,7 @@ Quantum serverless deployment to AWS
 4. run `terraform apply` to deploy infrastructure and services for serverless
 
 to delete infrastructure run `terraform destroy`
+
+## Documentation
+
+In progress...

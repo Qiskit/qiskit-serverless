@@ -6,4 +6,23 @@ Right now the project supports two platforms where you can deploy the infrastruc
 - [IBM Cloud](./ibm)
 - [AWS](./aws)
 
-In each folder you will find all the documentation to be able to run the configuration in each platform.
+In each folder you will find all the documentation to be able to run the configuration in each platform. For that we are using `terraform`.
+
+### Plan
+
+```
+terraform plan
+```
+
+### Apply
+
+```
+terraform apply
+```
+
+### Delete
+
+```
+terraform destroy
+```
+
