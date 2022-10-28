@@ -17,37 +17,64 @@ Install from specific values file
 
 **Jupyter notebook**
 
-| Name         | Description                                                    |
-|--------------|----------------------------------------------------------------|
-| jupyterEnable| Specify if helm will execute the jupyter configuration or not. |
-| jupyterToken | Password for jupyter notebook.                                 |
-| image        | Image setting for docker.                                      |
-| service.port | Port number that service will be exposed externally.           |
+| Name                      | Description                                                       |
+|---------------------------|-------------------------------------------------------------------|
+| jupyterEnable             | Specify if helm will execute the jupyter configuration.           |
+| jupyter.jupyterToken      | Password for jupyter notebook.                                    |
+| jupyter.image             | Docker image configuration to deploy the notebook.                |
+| jupyter.imagePullSecrets  | Secrets to pull the image from a private registry.                |
+| jupyter.container.port    | Port number that the pod will use in the cluster.                 |
+| jupyter.service.port      | Port number that service will be exposed externally.              |
+| jupyter.ingress.enabled   | Specifies if you are going to use ingress to expose the service.  |
 
 **Middleware**
 
-| Name                         | Description                                            |
-|-------------------|-------------------------------------------------------------------|
-| middlewareEnable  | Specify if helm will execute the middleware configuration or not. |
-| image             | Image setting for docker.                                         |
-| service.port      | Port number that service will be exposed externally.              |
+| Name                          | Description                                                       |
+|-------------------------------|-------------------------------------------------------------------|
+| middlewareEnable              | Specify if helm will execute the middleware configuration.        |
+| middleware.image              | Docker image configuration to deploy the manager.                 |
+| middleware.imagePullSecrets   | Secrets to pull the image from a private registry.                |
+| middleware.container.port     | Port number that the pod will use in the cluster.                 |
+| middleware.service.port       | Port number that service will be exposed externally.              |
+| middleware.ingress.enabled    | Specifies if you are going to use ingress to expose the service.  |
 
 **Ray cluster**
 
-| Name                         | Description                                                                                                                                                                                                                                                                                                                                                            |
-|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| image                        | Image is Ray image to use for the head and workers of this Ray cluster. It's recommended to build custom dependencies for your workload into this image, taking one of the offical `rayproject/ray` images as base.                                                                                                                                                    |
-| upscalingSpeed               | The autoscaler will scale up the cluster faster with higher upscaling speed. If the task requires adding more nodes then autoscaler will gradually scale up the cluster in chunks of upscaling_speed*currently_running_nodes. This number should be > 0.                                                                                                               |
-| idleTimeoutMinutes           | If a node is idle for this many minutes, it will be removed.                                                                                                                                                                                                                                                                                                           |
-| headPodType                  | headPodType is the podType used for the Ray head node (as configured below).                                                                                                                                                                                                                                                                                           |
-| podTypes.<NAME>.cpu          | CPU is the number of CPUs used by this pod type                                                                                                                                                                                                                                                                                                                        |
-| podTypes.<NAME>.memory       | memory is the memory used by this Pod type                                                                                                                                                                                                                                                                                                                             |
-| podTypes.<NAME>.GPU          | GPU is the number of NVIDIA GPUs used by this pod type                                                                                                                                                                                                                                                                                                                 |
-| podTypes.<NAME>.rayResources | rayResources is an optional str ing-int mapping signalling additional resources to Ray                                                                                                                                                                                                                                                                                 |
-| podTypes.<NAME>.nodeSelector | Optionally, set a node selector for this podType: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector                                                                                                                                                                                                                                |
-| podTypes.<NAME>.tolerations  | tolerations for Ray pods of this podType (the head's podType in this case). ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/. Note that it is often not necessary to manually specify tolerations for GPU usage on managed platforms such as AKS, EKS, and GKE. ref: https://docs.ray.io/en/master/cluster/kubernetes-gpu.html             |
-| operatorOnly                 | If true, will only set up the Operator with this release, without launching a Ray cluster.                                                                                                                                                                                                                                                                             |
-| clusterOnly                  | If true, will only create a RayCluster resource with this release, without setting up the Operator.(Useful when launching multiple Ray clusters.)                                                                                                                                                                                                                      |
-| namespacedOperator           | If true, the operator is scoped to the Release namespace and only manages RayClusters in that namespace. By default, the operator is cluster-scoped and runs in the default namespace.                                                                                                                                                                                 |
-| operatorNamespace            | If using a cluster-scoped operator (namespacedOperator: false), set the namespace in which to launch the operator.                                                                                                                                                                                                                                                     |
-| operatorImage                | The image used in the operator deployment. It is recommended to use one of the official `rayproject/ray` images for the operator. It is recommended to use the same Ray version in the operator as in the Ray clusters managed by the operator. In other words, the images specified under the fields `operatorImage` and `image` should carry matching Ray versions.  |
+| Name                                      | Description                                                                                                                                                                   |
+|-------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| rayClusterEnable                          | Specify if helm will execute the ray-cluster configuration.                                                                                                       |
+| ray-cluster.image                         | Docker image configuration to deploy the manager.                                                                                                                 |
+| ray-cluster.imagePullSecrets              | Secrets to pull the image from a private registry.                                                                                                                |
+| ray-cluster.nameOverride                  | Replaces the name of the chart in the Chart.yaml.                                                                                                                 |
+| ray-cluster.fullnameOverride              | Completely replaces the generated name.                                                                                                                           |
+| ray-cluster.head                          | Head pod configuration which hosts global control processes for the Ray cluster.                                                                                  |
+| ray-cluster.head.initArgs.dashboard-host  | Host to expose the Ray dashboard outside the Ray cluster.                                                                                                         |
+| ray-cluster.head.initArgs.port            | Port to expose the Ray dashboard outside the Ray cluster.                                                                                                         |
+| ray-cluster.worker                        | Worker pods configuration which run Ray tasks and actors.                                                                                                         |
+| ray-cluster.worker.replicas               | Specifies the number of worker pods of that group to keep in the cluster. It has optional **minReplicas** and **maxReplicas** fields.                             |
+| ray-cluster.ports                         | Port configuration for the worker.                                                                                                                                |
+| ray-cluster.resources                     | Computational resources configuration for the worker.                                                                                                             |
+| ray-cluster.headServiceSuffix             | Suffix used by the head service.                                                                                                                                  |
+| ray-cluster.service.type                  | Options are ClusterIP, NodePort, and LoadBalancer. Exposing the head’s service outside the cluster may require using a service of type LoadBalancer or NodePort.  |
+| ray-cluster.service.port                  | Port number that the head's service will be exposed externally.                                                                                                   |
+
+
+
+**KubeRay operator**
+
+| Name                          | Description                                                                                                                                                           |
+|-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| rayOperatorEnable             | Specify if helm will execute the kuberay-operator configuration.                                                                                                      |
+| operator.image                | Docker image configuration to deploy the KubeRay Operator.                                                                                                            |
+| operator.nameOverride         | Replaces the name of the chart in the Chart.yaml.                                                                                                                     |
+| operator.fullnameOverride     | Completely replaces the generated name.                                                                                                                               |
+| operator.rbac.true            | Specifies whether you want to install the default RBAC roles and bindings.                                                                                            |
+| operator.serviceAccount.true  | Specifies whether a service account should be created.                                                                                                                |
+| operator.serviceAccount.name  | The name of the service account to use.                                                                                                                               |
+| operator.service.type         | Options are ClusterIP, NodePort, and LoadBalancer. Exposing the operators’ service outside the cluster may require using a service of type LoadBalancer or NodePort.  |
+| operator.service.port         | Port number that the operators' service will user.                                                                                                                    |
+| operator.ingress.enabled      | Specifies if you are going to use ingress to expose the service.                                                                                                      |
+| operator.livenessProbe        | Liveness probe configuration.                                                                                                                                         |
+| operator.readinessProbe       | Readiness probe configuration.                                                                                                                                        |
+| operator.createCustomResource | Specifies whether helm should create a custom resource.                                                                                                               |
+| operator.rbacEnable           | Specifies whether rbac roles are enable.                                                                                                                              |
