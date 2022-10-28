@@ -4,6 +4,10 @@ Project is arranged as monorepository. Each of sub-modules has it's own installa
 
 ### Client (QuantumServerless) library
 
+```shell
+pip install quantum_serverless
+```
+
 #### Installation from source
 
 1. Run
