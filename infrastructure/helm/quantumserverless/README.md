@@ -2,7 +2,7 @@
 
 Main configuration to setup your k8s cluster and the services that this project uses. The helm configuration contains 4 charts: jupyter, middleware, operator and ray-cluster.
 
-## Run
+## Installation
 
 ```shell
 helm -n ray install quantum-serverless --create-namespace .
