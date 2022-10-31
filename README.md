@@ -3,8 +3,7 @@
 [![Code style: Black](https://img.shields.io/badge/Code%20style-Black-000.svg)](https://github.com/psf/black)
 [![Python](https://img.shields.io/badge/Python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10-informational)](https://www.python.org/)
 
-
-# Quantum serverless
+# Quantum serverless [![Alpha Version](https://img.shields.io/badge/version-alpha-f39f37)](https://github.com/Qiskit-Extensions/quantum-serverless/releases)
 
 ### Table of Contents
 
