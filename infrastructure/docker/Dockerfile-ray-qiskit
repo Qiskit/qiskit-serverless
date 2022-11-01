@@ -1,7 +1,7 @@
 FROM rayproject/ray:2.0.0-py37
 
-USER root
+USER $RAY_UID
 
-RUN mkdir /pylib
-COPY ./client /pylib
-RUN cd /pylib && pip install .
+RUN mkdir /home/qs
+COPY ./client /home/qs
+RUN cd /home/qs && pip install .
