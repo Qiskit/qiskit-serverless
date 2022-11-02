@@ -1,4 +1,4 @@
-# Quantum serverless deployment to IBM Cloud
+# Quantum serverless deployment for IBM Cloud
 
 ## Requirements
 
