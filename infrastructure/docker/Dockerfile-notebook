@@ -1,15 +1,14 @@
-FROM jupyter/base-notebook:python-3.7.12
-
-USER root
-
-RUN mkdir /home/jovyan/qs
-COPY ./client /home/jovyan/qs
-RUN cd /home/jovyan/qs && pip install .
-RUN rm -r /home/jovyan/qs
+FROM jupyter/base-notebook:python-3.7@sha256:1e836126472970b84fd4bc7862c40a2ff2e55a54c47756e8bf4a4579d068621b
 
 USER $NB_UID
 
-COPY ./docs/tutorials/ /home/jovyan/serverless/tutorials/
-COPY ./docs/guides/ /home/jovyan/serverless/guides/
+RUN mkdir ./qs
+COPY ./client ./qs
+RUN cd ./qs && pip install .
+RUN cd ../
+RUN rm -r ./qs
+
+COPY ./docs/tutorials/ ./serverless/tutorials/
+COPY ./docs/guides/ ./serverless/guides/
 
 ENV JUPYTER_ENABLE_LAB=no
