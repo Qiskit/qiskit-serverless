@@ -12,6 +12,7 @@
 
 | Name | Version |
 |------|---------|
+| <a name="provider_helm"></a> [helm](#provider\_helm) | 2.7.1 |
 | <a name="provider_ibm"></a> [ibm](#provider\_ibm) | 1.46.0 |
 
 ## Modules
@@ -25,6 +26,7 @@
 
 | Name | Type |
 |------|------|
+| [helm_release.quantum_severless_helm](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
 | [ibm_resource_group.ibmcloud_resource_group](https://registry.terraform.io/providers/IBM-Cloud/ibm/latest/docs/data-sources/resource_group) | data source |
 
 ## Inputs
