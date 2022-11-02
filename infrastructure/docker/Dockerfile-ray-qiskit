@@ -1,4 +1,7 @@
 FROM rayproject/ray:2.0.0-py37
 
-RUN pip install qiskit~=0.36.0
-RUN pip install qiskit-nature~=0.4.3
+USER $RAY_UID
+
+RUN mkdir /home/qs
+COPY ./client /home/qs
+RUN cd /home/qs && pip install .

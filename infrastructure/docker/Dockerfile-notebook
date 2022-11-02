@@ -2,16 +2,14 @@ FROM jupyter/base-notebook:python-3.7.12
 
 USER root
 
-RUN pip install qiskit~=0.36.0
-RUN pip install qiskit-nature~=0.4.3
+RUN mkdir /home/jovyan/qs
+COPY ./client /home/jovyan/qs
+RUN cd /home/jovyan/qs && pip install .
+RUN rm -r /home/jovyan/qs
 
-RUN mkdir /pylib
-COPY ./client /pylib
-RUN cd /pylib && pip install .
+USER $NB_UID
 
 COPY ./docs/tutorials/ /home/jovyan/serverless/tutorials/
 COPY ./docs/guides/ /home/jovyan/serverless/guides/
-
-USER $NB_UID
 
 ENV JUPYTER_ENABLE_LAB=no
