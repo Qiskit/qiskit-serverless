@@ -2,20 +2,22 @@
 # Quantum Serverless configs
 # ===================
 
-jupyterEnable: true
-
 
 # ===================
 # Jupyter configs
 # ===================
 
+jupyterEnable: false
+
 jupyter:
-  jupyterToken: "jupyter-password"
+  jupyterToken: "<YOUR_JUPYTER_PASSWORD_HERE>"
 
   image:
-    repository: jupyter/base-notebook
+    repository: "<JUPYTER_NOTEBOOK_IMAGE>"
+    tag: "latest"
     pullPolicy: IfNotPresent
-    tag: "python-3.9.12"
+  
+  imagePullSecrets: []
 
   container:
     port: 8888
@@ -26,48 +28,117 @@ jupyter:
   ingress:
     enabled: false
 
-# ===================
-# Ray configs
-# ===================
-
-ray:
-  image: rayproject/ray:2.0.0-py39
-  operatorImage: rayproject/ray:latest
-  operatorOnly: false
-  clusterOnly: false
-  # nodes configuration
-  headPodType: headType
-  podTypes:
-    headType:
-      CPU: 1
-      memory: 1Gi
-      GPU: 0
-      rayResources: { }
-      nodeSelector: { }
-      tolerations: [ ]
-    hybridType:
-      minWorkers: 1
-      maxWorkers: 2
-      memory: 1Gi
-      CPU: 1
-      GPU: 0
-      rayResources: { "QPU": 1 }
-      nodeSelector: { }
-      tolerations: [ ]
-
 
 # ===================
 # Middleware configs
 # ===================
 
+middlewareEnable: false
+
 middleware:
   image:
-    repository: nginx
-    pullPolicy: Always
+    repository: "<CLUSTER_MANAGER_IMAGE>"
     tag: "latest"
+    pullPolicy: IfNotPresent
+    
+  imagePullSecrets: []
 
   container:
     port: 80
 
   service:
     port: 5000
+
+  ingress:
+    enabled: false
+
+
+# ===================
+# Ray configs
+# ===================
+
+# RAY CLUSTER
+
+rayClusterEnable: true
+
+ray-cluster:
+  image:
+    repository: "<RAY_CLUSTER_IMAGE>"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  imagePullSecrets: []
+    # - name: an-existing-secret
+
+  nameOverride: "kuberay"
+  fullnameOverride: ""
+
+  head:
+    initArgs:
+      dashboard-host: '0.0.0.0'
+      port: '6379'
+
+  worker:
+    # If you want to disable the default workergroup
+    # uncomment the line below
+    # disabled: true
+    replicas: 1
+    ports:
+      - containerPort: 80
+        protocol: TCP
+    resources:
+      limits:
+        cpu: 1
+      requests:
+        cpu: 200m
+
+  headServiceSuffix: "ray-operator.svc"
+
+  service:
+    type: LoadBalancer
+    port: 8080
+
+# KUBERAY OPERATOR
+
+rayOperatorEnable: true
+
+operator:
+  image:
+    repository: kuberay/operator
+    tag: nightly
+    pullPolicy: IfNotPresent
+
+  nameOverride: "kuberay-operator"
+  fullnameOverride: "kuberay-operator"
+
+  ## Install Default RBAC roles and bindings
+  rbac:
+    create: true
+    apiVersion: v1
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: "kuberay-operator"
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  ingress:
+    enabled: false
+
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 5
+
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 5
+
+  createCustomResource: true
+  rbacEnable: true
