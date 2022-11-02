@@ -31,5 +31,4 @@ docker build -f ./infrastructure/docker/Dockerfile-notebook -t <IMAGE_NAME> .
 ```
 
 ### Versions
-- Notebook == ???
-- Python == 3.7.12
+- Python == 3.7
