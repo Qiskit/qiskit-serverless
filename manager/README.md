@@ -1,64 +1,62 @@
-Ray cluster manager middleware
-==============================
+[![Stability](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/Qiskit-Extensions/quantum-serverless/releases)
+[![Manager verify process](https://github.com/Qiskit-Extensions/quantum-serverless/actions/workflows/manager-verify.yaml/badge.svg)](https://github.com/Qiskit-Extensions/quantum-serverless/actions/workflows/manager-verify.yaml)
+[![License](https://img.shields.io/github/license/qiskit-community/quantum-prototype-template?label=License)](https://github.com/qiskit-community/quantum-prototype-template/blob/main/LICENSE.txt)
 
-Ray cluster manager middleware is the API which permits the management of ray clusters at a high level.
+# Quantum Serverless manager
 
+Manager middleware part of quantum serverless project. 
+Restful application for auto-discovery of clusters within kubernetes deployment.
 
-## Development
+> NOTE: manager only works in kubernetes namespace and exposes internal kubernetes dns records of cluster services.
+> QuantumServerless client uses this service (if available) to set available providers.
 
-**Setup environment**
+### Table of Contents
 
-`conda create -n quantum_serverless_middleware python=3.9
-`
+1. [Installation](#installation)
+2. [Usage](#usage)
 
-`conda activate quantum_serverless_middleware
-`
+----------------------------------------------------------------------------------------------------
 
-`pip install -r requirements.txt
-`
-`pip install -r requirements-dev.txt
-`
+### Installation
 
-**Setup the application** 
+Installed as a part of [helm](../infrastructure/helm/quantumserverless) chart.
 
-`export FLASK_APP=manager/app.py
-`
+To build docker image run from root folder of this repo
 
-`export FLASK_ENV=development
-`
-`export NAMESPACE=ray`
+```shell
+docker build -f manager/Dockerfile -t <REPOSITORY>:<TAG> .
+```
 
-`cp -R ../infrastructure/ray .`
+or
 
-`flask run`
+```shell
+make build-manager
+```
 
-**Build docker application**
-
-Point the shell to minikube's docker-daemon:
-
-`eval $(minikube -p minikube docker-env)`
-
-Build container (from root directory):
+----------------------------------------------------------------------------------------------------
 
 
-`docker build -f manager/Dockerfile -t manager:0.0.1 .`
+### Usage
 
+Manager exposes endpoints to access information about available clusters.
 
-`kubectl -n ray run manager --env="NAMESPACE=ray" --image=manager:0.0.1`
+GET: `/quantum-serverless-middleware/cluster/`
 
+Response body:
+```json
+[
+  {"name":  "<CLUSTER_NAME>"},
+  {"name":  "<CLUSTER_NAME_2>"}
+]
+```
 
+GET: `/quantum-serverless-middleware/cluster/<CLUSTER_NAME>`
 
-`kubectl apply -f pod.yaml`
-
-`kubectl apply -f role.yaml`
-
-`kubectl apply -f role-binding.yaml`
-
-`kubectl apply -f cluster-role.yaml`
-
-`kubectl apply -f cluster-role-binding.yaml`
-
-
-`kubectl -n ray port-forward manager 5002:5000`
-
-`kubectl -n ray exec --stdin --tty manager -- /bin/bash`
+Response body:
+```json
+{
+  "name": "<CLUSTER_NAME>",
+  "host": "<CLUSTER_SERVICE_DNS_ADDRESS>",
+  "port": 10001
+}
+```
