@@ -1,14 +1,13 @@
-FROM jupyter/base-notebook:python-3.7@sha256:1e836126472970b84fd4bc7862c40a2ff2e55a54c47756e8bf4a4579d068621b
+FROM jupyter/base-notebook:python-3.7
 
 USER $NB_UID
 
-RUN mkdir ./qs
-COPY ./client ./qs
+COPY --chown=$NB_UID:$NB_UID ./client ./qs
 RUN cd ./qs && pip install .
 RUN cd ../
 RUN rm -r ./qs
 
-COPY ./docs/tutorials/ ./serverless/tutorials/
-COPY ./docs/guides/ ./serverless/guides/
+COPY --chown=$NB_UID:$NB_UID ./docs/tutorials/ ./serverless/tutorials/
+COPY --chown=$NB_UID:$NB_UID ./docs/guides/ ./serverless/guides/
 
 ENV JUPYTER_ENABLE_LAB=no
