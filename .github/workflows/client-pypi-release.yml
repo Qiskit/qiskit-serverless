@@ -2,9 +2,6 @@ name: Release to PyPi and upload artifact
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - '*'
 
 jobs:
   release-package:
@@ -20,14 +17,15 @@ jobs:
         run: pip install -U twine wheel
       - name: Build Artifacts
         run: |
+          cd client
           python setup.py sdist
           python setup.py bdist_wheel
         shell: bash
       - uses: actions/upload-artifact@v2
         with:
-          path: ./dist/qiskit*
+          path: ./client/dist/quantum_serverless*
       - name: Publish to PyPi
         env:
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        run: twine upload dist/qiskit*
+        run: twine upload client/dist/quantum_serverless*
