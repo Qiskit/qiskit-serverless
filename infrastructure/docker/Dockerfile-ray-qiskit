@@ -1,9 +1,8 @@
-FROM rayproject/ray:2.0.0-py37@sha256:8f9592faa1c102f0af7bba80c0f8903adaf9718e98975935fa3a28a1bbb7b24a
+FROM rayproject/ray:2.0.0-py37
 
 USER $RAY_UID
 
-RUN mkdir ./qs
-COPY ./client ./qs
+COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 RUN cd ./qs && pip install .
 RUN cd ../ 
 RUN rm -r ./qs
