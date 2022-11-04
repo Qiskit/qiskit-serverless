@@ -391,11 +391,11 @@ def load_config(config: Optional[Dict[str, Any]] = None) -> List[Provider]:
 def get_auto_discovered_provider(
     manager_address: str, token: Optional[str] = None
 ) -> Optional[Provider]:
-    """Makes http request to middleware to get available clusters."""
+    """Makes http request to manager to get available clusters."""
     clusters = []
 
     headers = {"Authorization": f"Bearer {token}"} if token else None
-    url = f"{manager_address}/quantum-serverless-middleware/cluster/"
+    url = f"{manager_address}/quantum-serverless-manager/cluster/"
 
     response = requests.get(url, headers=headers, timeout=10)
     if response.ok:

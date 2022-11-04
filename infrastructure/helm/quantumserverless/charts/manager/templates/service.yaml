@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "middleware.fullname" . }}
+  name: {{ include "manager.fullname" . }}
   labels:
-    {{- include "middleware.labels" . | nindent 4 }}
+    {{- include "manager.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -12,4 +12,4 @@ spec:
       port: {{ .Values.service.port }}
       name: http
   selector:
-    {{- include "middleware.selectorLabels" . | nindent 4 }}
+    {{- include "manager.selectorLabels" . | nindent 4 }}

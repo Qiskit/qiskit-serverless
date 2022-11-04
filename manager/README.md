@@ -4,7 +4,7 @@
 
 # Quantum Serverless manager
 
-Manager middleware part of quantum serverless project. 
+Manager manager part of quantum serverless project. 
 Restful application for auto-discovery of clusters within kubernetes deployment.
 
 > NOTE: manager only works in kubernetes namespace and exposes internal kubernetes dns records of cluster services.
@@ -40,7 +40,7 @@ make build-manager
 
 Manager exposes endpoints to access information about available clusters.
 
-GET: `/quantum-serverless-middleware/cluster/`
+GET: `/quantum-serverless-manager/cluster/`
 
 Response body:
 ```json
@@ -50,7 +50,7 @@ Response body:
 ]
 ```
 
-GET: `/quantum-serverless-middleware/cluster/<CLUSTER_NAME>`
+GET: `/quantum-serverless-manager/cluster/<CLUSTER_NAME>`
 
 Response body:
 ```json
