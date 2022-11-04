@@ -11,6 +11,13 @@ An image that contains the ray library to be used in the infrastructure.
 
 ### Build
 To build image just run from the root of the project:
+
+```shell
+make build-ray-node
+```
+
+or in case you want to customize as much as possible your build:
+
 ```shell
 docker build -f ./infrastructure/docker/Dockerfile-ray-qiskit -t <IMAGE_NAME> .
 ```
@@ -26,6 +33,13 @@ An image to be able to deploy a jupyter notebook in the infrastructure and make 
 
 ### Build
 To build image just run from the root of the project:
+
+```shell
+make build-notebook
+```
+
+or in case you want to customize as much as possible your build:
+
 ```shell
 docker build -f ./infrastructure/docker/Dockerfile-notebook -t <IMAGE_NAME> .
 ```
