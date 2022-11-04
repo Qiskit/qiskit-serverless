@@ -1,0 +1,6 @@
+﻿quantum\_serverless.core.get
+============================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autofunction:: get

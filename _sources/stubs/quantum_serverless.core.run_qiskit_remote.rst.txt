@@ -1,0 +1,6 @@
+﻿quantum\_serverless.core.run\_qiskit\_remote
+============================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autofunction:: run_qiskit_remote

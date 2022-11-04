@@ -1,0 +1,6 @@
+﻿quantum\_serverless.serializers.serializers.service\_serializer
+===============================================================
+
+.. currentmodule:: quantum_serverless.serializers.serializers
+
+.. autofunction:: service_serializer

@@ -1,0 +1,35 @@
+﻿quantum\_serverless.core.Cluster
+================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: Cluster
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Cluster.__init__
+      ~Cluster.connection_string_interactive_mode
+      ~Cluster.context
+      ~Cluster.from_dict
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Cluster.host
+      ~Cluster.ip_address
+      ~Cluster.port
+      ~Cluster.resources
+      ~Cluster.name
+   
+   

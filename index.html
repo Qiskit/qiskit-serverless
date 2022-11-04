@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Quantum serverless &#8212; Quantum serverless 0.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/thebelab-helper.js"></script>
+    <script src="_static/clipboard.min.js"></script>
+    <script src="_static/copybutton.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="&lt;no title&gt;" href="tutorials/index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="quantum-serverless">
+<h1>Quantum serverless<a class="headerlink" href="#quantum-serverless" title="Permalink to this heading">¶</a></h1>
+<p>Quantum Serverless is a new programming model for leveraging quantum and classical resources</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/01_quantum_serverless.html">Quantum serverless</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Background,-motivation-and-goals">Background, motivation and goals</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Building-blocks-of-distributed-computation">Building blocks of distributed computation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Resource-allocation-and-execution-management">Resource allocation and execution management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Assembling-all-together">Assembling all together</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Demo:-electronic-structure-problem">Demo: electronic structure problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Extra:-infrastructure">Extra: infrastructure</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/02_tutorial_-_approaches_to_serverless_code_writing.html">Tutorial: approaches to serverless code writing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/02_tutorial_-_approaches_to_serverless_code_writing.html#Approach-#1:-revealing-details-of-implementations-to-user">Approach #1: revealing details of implementations to user</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/02_tutorial_-_approaches_to_serverless_code_writing.html#Approach-#2:-hiding-details-of-implementations-from-user">Approach #2: hiding details of implementations from user</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/03_tutorial_writing_serverless_pacakge_from_scratch.html">Tutorial: writing serverless package from scratch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/04_tutorial_-_converting_existing_code_to_serverless.html">Tutorial: converting existing code to serverless without internal code modifications</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/04_tutorial_-_converting_existing_code_to_serverless.html#Approach-#1:-wrapping-function-/-classes-as-tasks-/-actors">Approach #1: wrapping function / classes as tasks / actors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/04_tutorial_-_converting_existing_code_to_serverless.html#Approach-#2:-Monkey-patching">Approach #2: Monkey-patching</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html">Tutorial: solving electronic structure problem</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html#Overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html#Implementation">Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html#Execution">Execution</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guides/01_run_anything_in_distributed_fashion.html">Guide: run anything in distributed fashion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/02_specific_resource_allocation.html">Guide: specific resource requirements</a></li>
+</ul>
+</div>
+<p>API references</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apidocs/index.html">API References</a></li>
+</ul>
+</div>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">Quantum serverless</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/01_quantum_serverless.html">Quantum serverless</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/02_tutorial_-_approaches_to_serverless_code_writing.html">Tutorial: approaches to serverless code writing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/03_tutorial_writing_serverless_pacakge_from_scratch.html">Tutorial: writing serverless package from scratch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/04_tutorial_-_converting_existing_code_to_serverless.html">Tutorial: converting existing code to serverless without internal code modifications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html">Tutorial: solving electronic structure problem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/01_run_anything_in_distributed_fashion.html">Guide: run anything in distributed fashion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/02_specific_resource_allocation.html">Guide: specific resource requirements</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apidocs/index.html">API References</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="tutorials/index.html" title="next chapter">&lt;no title&gt;</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2022.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
