@@ -4,6 +4,12 @@ Quantum serverless
 
 Quantum Serverless is a new programming model for leveraging quantum and classical resources
 
+The source code to the project is available `on GitHub <https://github.com/Qiskit-Extensions/quantum-serverless>`_.
+
+
+Contents
+--------
+
 .. toctree::
   :maxdepth: 2
 
