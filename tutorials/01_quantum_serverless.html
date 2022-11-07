@@ -312,39 +312,28 @@ div.rendered_html tbody tr:hover {
 <li><p>assembling all together</p></li>
 <li><p>electronic structure problem example</p></li>
 <li><p>infrastructure</p></li>
+<li><p>links and references</p></li>
 </ul>
-<blockquote>
-<div><p>Quick install</p>
-</div></blockquote>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># ! pip install quantum_serverless</span>
-<span class="c1"># ! pip install pyscf</span>
-</pre></div>
-</div>
-</div>
 <section id="Background,-motivation-and-goals">
 <h2>Background, motivation and goals<a class="headerlink" href="#Background,-motivation-and-goals" title="Permalink to this heading">¶</a></h2>
 <p><strong>Background and motivation</strong></p>
-<p>Today a lot of experiments are happening on a local machines or on manually allocated remote resources. This approach is not scalable and we need to give users a tool to run hybrid workloads without worrying about allocating and managing underlying infrastructure. Moreover, the majority of code written today is not structured in a way to leverage parallel hybrid compute.</p>
+<p>Today a lot of experiments are happening on a local machines or on manually allocated remote resources. This approach is not scalable and we need to give users a tool to run quantum-classical workloads without worrying about allocating and managing underlying infrastructure.</p>
 <p>To achieve the quantum advantage we need to figure out mechanism to combine Classical + Quantum computation, and how orchestrate it.</p>
 <p><strong>Goals</strong></p>
-<p>Create a set of tools that allow user to execute hybrid workloads (combine/orchestrate Classical and Quantum computation) using serverless capabilities</p>
-<p>Tool will enable users execute functions (chunks of code) in parallel fashion using dedicated hardware resources</p>
-<p>Tool should be flexible enough not to block/lock user to specific compute resource</p>
+<p>Create a set of tools that allow user to execute hybrid workloads (combine/orchestrate Classical and Quantum computation).</p>
+<p>Efficiently manage abstractions for Quantum and Classical workloads.</p>
+<p>Maximizes flexibility for users in multi-cloud and HPC scenarios.</p>
 </section>
 <section id="Building-blocks-of-distributed-computation">
 <h2>Building blocks of distributed computation<a class="headerlink" href="#Building-blocks-of-distributed-computation" title="Permalink to this heading">¶</a></h2>
 <p><strong>Compute resources</strong></p>
 <p>Compute resources can be described as set of computational nodes with resources associated to each of them. Nodes are performing computation itself. Distributed storage is for accessing sharable resources between nodes.</p>
-<p><img alt="compute resources" src="../_images/diagrams_compute_resource.png" /></p>
+<p><img alt="compute resources" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_compute_resource.png" /></p>
 <p>In order to resolve distributed compute we need a way to orchestrate our workloads on remote resources.</p>
 <p><strong>Object</strong></p>
 <p>Let’s first look how to turn a local object into a remote one.</p>
 <p>To turn your local object to distributed one you need to call <code class="docutils literal notranslate"><span class="pre">put</span></code> function. It will serialize your object and send it to distributed storage and return you a reference to remote object location.</p>
-<p><img alt="objects diagram" src="../_images/diagrams_put.png" /></p>
+<p><img alt="objects diagram" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_put.png" /></p>
 <p>Example</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cirucit</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">M</span><span class="p">)</span>
 <span class="o">...</span>
@@ -355,7 +344,7 @@ div.rendered_html tbody tr:hover {
 <p><strong>Functions</strong></p>
 <p>As a second step we need to know how to transform our local function into remote one.</p>
 <p>In order to do that you need to annotate function with <code class="docutils literal notranslate"><span class="pre">run_qiskit_remote</span></code> decorator. This will turn your function into remote executable.</p>
-<p><img alt="functions diagram" src="../_images/diagrams_function.png" /></p>
+<p><img alt="functions diagram" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_function.png" /></p>
 <p>All you need to do now is call this function and it will be executed as a remote procedure automatically.</p>
 <p>If you run N instances of this function in parallel you need just call it N times in a loop. The result of the following code will be a list of references to execution results.</p>
 <p>Example</p>
@@ -381,7 +370,7 @@ div.rendered_html tbody tr:hover {
 <p>As you can see we are passing an observable by refernce and circuits by values. Attributes passed by value will be converted to remote objects automatically and resolved within the remote function. We are passing observable by referece because we know it is the same one shared by all parallel function invocations, so we are saving some space.</p>
 <p><strong>Collecting results</strong></p>
 <p>And of course you need to collect your results back from remote resources. In order to do that you need to call the <code class="docutils literal notranslate"><span class="pre">get</span></code> function, which can be applied to object and function references or, alternatively, to a list of references.</p>
-<p><img alt="collecting results diagram" src="../_images/diagram_get.png" /></p>
+<p><img alt="collecting results diagram" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagram_get.png" /></p>
 <p>Example</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">collected_circuit</span> <span class="o">=</span> <span class="n">quantum_serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">circuit_reference</span><span class="p">)</span>
 <span class="c1"># &lt;QuantumCircuit ...&gt;</span>
@@ -397,7 +386,7 @@ div.rendered_html tbody tr:hover {
 <h2>Resource allocation and execution management<a class="headerlink" href="#Resource-allocation-and-execution-management" title="Permalink to this heading">¶</a></h2>
 <p><strong>Resource allocation</strong></p>
 <p>Some functions are more demanding than others. To allocate specific resources to a function, the decorator accepts <code class="docutils literal notranslate"><span class="pre">target</span></code> parameter. For example, your function may require 2 cpus to be executed. You can pass <code class="docutils literal notranslate"><span class="pre">target={'cpu':</span> <span class="pre">2}</span></code> to decorator and this function will request 2 cpus from your resource capacity to be executed.</p>
-<p><img alt="resource allocation diagram" src="../_images/diagrams_resource_allocation.png" /></p>
+<p><img alt="resource allocation diagram" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_resource_allocation.png" /></p>
 <p>Example</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@quantum_serverless</span><span class="o">.</span><span class="n">run_qiskit_remote</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;mem&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">})</span>
 <span class="k">def</span> <span class="nf">exp_val_remote</span><span class="p">(</span><span class="n">cirucit</span><span class="p">,</span> <span class="n">obs</span><span class="p">):</span>
@@ -412,7 +401,7 @@ div.rendered_html tbody tr:hover {
 <p>To have control over location of compute we use configurations in <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> object and python context managers.</p>
 <p><code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> has a notion of <code class="docutils literal notranslate"><span class="pre">providers</span></code> which are abstractions to define where your compute resources are located.</p>
 <p>By default you always have a <code class="docutils literal notranslate"><span class="pre">local</span></code> provider which is your local machine where nodes and local cores. And you can configure as many providers as you want.</p>
-<p><img alt="execution management diagram" src="../_images/diagrams_context_management.png" /></p>
+<p><img alt="execution management diagram" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_context_management.png" /></p>
 <p>Example</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">({</span><span class="s2">&quot;providers&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">...</span><span class="p">]})</span>
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="o">.</span><span class="n">load_configuration</span><span class="p">(</span><span class="s2">&quot;&lt;PATH_TO_CONFIG_FILE&gt;&quot;</span><span class="p">)</span>
@@ -432,30 +421,54 @@ div.rendered_html tbody tr:hover {
 <section id="Assembling-all-together">
 <h2>Assembling all together<a class="headerlink" href="#Assembling-all-together" title="Permalink to this heading">¶</a></h2>
 <p>Now we have all the important concepts in place and we can assemble our first simple example of a distributed program.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">run_qiskit_remote</span><span class="p">,</span> <span class="n">put</span><span class="p">,</span> <span class="n">get</span>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># ! pip install quantum_serverless</span>
+<span class="c1"># ! pip install pyscf</span>
+<span class="c1"># ! pip install matplotlib</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
+<span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Estimator</span>
+<span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">run_qiskit_remote</span><span class="p">,</span> <span class="n">put</span><span class="p">,</span> <span class="n">get</span>
 
-<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">({</span><span class="s2">&quot;providers&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">...</span><span class="p">]})</span>
-<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="o">.</span><span class="n">load_configuration</span><span class="p">(</span><span class="s2">&quot;&lt;PATH_TO_CONFIG_FILE&gt;&quot;</span><span class="p">)</span>
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="o">.</span><span class="n">load_configuration</span><span class="p">(</span><span class="s2">&quot;./serverless_config.json&quot;</span><span class="p">)</span>
 
-<span class="nd">@quantum_serverless</span><span class="o">.</span><span class="n">run_qiskit_remote</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">exp_val_remote</span><span class="p">(</span><span class="n">cirucit</span><span class="p">,</span> <span class="n">obs</span><span class="p">):</span>
-    <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">estimator</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">)</span>
+<span class="nd">@run_qiskit_remote</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">exp_val_remote</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">):</span>
+    <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">estimator</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
 
-<span class="n">circuit_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">]</span> <span class="o">=</span> <span class="o">...</span>
-<span class="n">obs</span><span class="p">:</span> <span class="n">Operator</span> <span class="o">=</span> <span class="o">...</span>
+<span class="n">circuit_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+<span class="n">obs</span> <span class="o">=</span> <span class="n">SparsePauliOp</span><span class="p">([</span><span class="s2">&quot;IZ&quot;</span><span class="p">])</span>
 
-<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">provider</span><span class="p">(</span><span class="s2">&quot;ibm&quot;</span><span class="p">):</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
     <span class="n">obs_ref</span> <span class="o">=</span> <span class="n">put</span><span class="p">(</span><span class="n">obs</span><span class="p">)</span>
     <span class="n">exp_val_execution_references</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">exp_val_remote</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span> <span class="n">obs_ref</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">circ</span> <span class="ow">in</span> <span class="n">circuit_list</span>
     <span class="p">]</span>
-    <span class="n">collected_exp_values</span> <span class="o">=</span> <span class="n">quantum_serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">exp_val_execution_references</span><span class="p">)</span>
+    <span class="n">collected_exp_values</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">exp_val_execution_references</span><span class="p">)</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">collected_exp_values</span><span class="p">)</span>
-<span class="c1"># [&lt;EstimatorResult ...&gt;, &lt;EstimatorResult ...&gt;, ...]</span>
 </pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[EstimatorResult(values=array([1.]), metadata=[{}]), EstimatorResult(values=array([1.]), metadata=[{}]), EstimatorResult(values=array([-0.8821732]), metadata=[{}])]
+</pre></div></div>
 </div>
 </section>
 <section id="Demo:-electronic-structure-problem">
@@ -488,7 +501,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </div>
 <p>Let’s see what is the overall architecture of this example</p>
-<p><img alt="electronic_structure_problem" src="../_images/electronic_structure_problem.png" /></p>
+<p><img alt="electronic_structure_problem" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/electronic_structure_problem.png" /></p>
 <section id="Implementation">
 <h3>Implementation<a class="headerlink" href="#Implementation" title="Permalink to this heading">¶</a></h3>
 <p>Let’s see how we can implement this. For full implementation <a class="reference external" href="./source_files/electronic_structure_problem.py">see here</a>.</p>
@@ -679,7 +692,7 @@ Energy + shift:  [-7.779421641963911, -7.876900357296077, -7.8515878699005714]
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/tutorials_01_quantum_serverless_21_0.png" src="../_images/tutorials_01_quantum_serverless_21_0.png" />
+<img alt="../_images/tutorials_01_quantum_serverless_20_0.png" src="../_images/tutorials_01_quantum_serverless_20_0.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
@@ -701,7 +714,7 @@ Energy + shift:  [-7.779421641963911, -7.876900357296077, -7.8515878699005714]
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../_images/tutorials_01_quantum_serverless_22_0.png" src="../_images/tutorials_01_quantum_serverless_22_0.png" />
+<img alt="../_images/tutorials_01_quantum_serverless_21_0.png" src="../_images/tutorials_01_quantum_serverless_21_0.png" />
 </div>
 </div>
 </section>
@@ -710,7 +723,25 @@ Energy + shift:  [-7.779421641963911, -7.876900357296077, -7.8515878699005714]
 <h2>Extra: infrastructure<a class="headerlink" href="#Extra:-infrastructure" title="Permalink to this heading">¶</a></h2>
 <p>We provide infrastructure layer in a form of a helm chart, which can be installed to any Kubernetes deployment on any cloud or on-premise resources.</p>
 <p>On top of that we provide terraform template for popular cloud vendors to create Kubernetes clusters and install serverless on them.</p>
-<p><img alt="Infrastructure" src="../_images/diagrams_infra.png" /></p>
+<p><img alt="Infrastructure" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_infra.png" /></p>
+</section>
+<section id="Links-and-references">
+<h2>Links and references<a class="headerlink" href="#Links-and-references" title="Permalink to this heading">¶</a></h2>
+<p>Quantum Serverless GitHub repository</p>
+<section id="https://ibm.biz/qs-repo">
+<h3><a class="reference external" href="https://ibm.biz/qs-repo">https://ibm.biz/qs-repo</a><a class="headerlink" href="#https://ibm.biz/qs-repo" title="Permalink to this heading">¶</a></h3>
+<p><img alt="repo qr" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/qr_repo.png" /></p>
+<p>Documentation</p>
+</section>
+<section id="https://ibm.biz/qs-docs">
+<h3><a class="reference external" href="https://ibm.biz/qs-docs">https://ibm.biz/qs-docs</a><a class="headerlink" href="#https://ibm.biz/qs-docs" title="Permalink to this heading">¶</a></h3>
+<p><img alt="docs qr" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/qr_docs.png" /></p>
+<p>Demo notebook</p>
+</section>
+<section id="https://ibm.biz/qs-demo1">
+<h3><a class="reference external" href="https://ibm.biz/qs-demo1">https://ibm.biz/qs-demo1</a><a class="headerlink" href="#https://ibm.biz/qs-demo1" title="Permalink to this heading">¶</a></h3>
+<p><img alt="demo qr" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/qr_demo1.png" /></p>
+</section>
 </section>
 </section>
 
@@ -739,6 +770,7 @@ Energy + shift:  [-7.779421641963911, -7.876900357296077, -7.8515878699005714]
 <li class="toctree-l2"><a class="reference internal" href="#Assembling-all-together">Assembling all together</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#Demo:-electronic-structure-problem">Demo: electronic structure problem</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#Extra:-infrastructure">Extra: infrastructure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Links-and-references">Links and references</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="02_tutorial_-_approaches_to_serverless_code_writing.html">Tutorial: approaches to serverless code writing</a></li>

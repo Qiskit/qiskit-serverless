@@ -14,27 +14,8 @@
     "- resource allocation and execution management\n",
     "- assembling all together\n",
     "- electronic structure problem example\n",
-    "- infrastructure"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "id": "2e884614-1ec1-4f46-9730-8f66544640f8",
-   "metadata": {},
-   "source": [
-    "\n",
-    "> Quick install"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": 1,
-   "id": "00885b33-4fa1-4da5-b9c0-582b6242543d",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "# ! pip install quantum_serverless\n",
-    "# ! pip install pyscf"
+    "- infrastructure\n",
+    "- links and references"
    ]
   },
   {
@@ -46,18 +27,18 @@
     "\n",
     "**Background and motivation**\n",
     "\n",
-    "Today a lot of experiments are happening on a local machines or on manually allocated remote resources. This approach is not scalable and we need to give users a tool to run hybrid workloads without worrying about allocating and managing underlying infrastructure. Moreover, the majority of code written today is not structured in a way to leverage parallel hybrid compute.\n",
+    "Today a lot of experiments are happening on a local machines or on manually allocated remote resources. This approach is not scalable and we need to give users a tool to run quantum-classical workloads without worrying about allocating and managing underlying infrastructure.\n",
     "\n",
     "To achieve the quantum advantage we need to figure out mechanism to combine Classical + Quantum computation, and how orchestrate it.\n",
     "\n",
     "\n",
     "**Goals**\n",
     "\n",
-    "Create a set of tools that allow user to execute hybrid workloads (combine/orchestrate Classical and Quantum computation) using serverless capabilities\n",
+    "Create a set of tools that allow user to execute hybrid workloads (combine/orchestrate Classical and Quantum computation).\n",
     "\n",
-    "Tool will enable users execute functions (chunks of code) in parallel fashion using dedicated hardware resources\n",
+    "Efficiently manage abstractions for Quantum and Classical workloads.\n",
     "\n",
-    "Tool should be flexible enough not to block/lock user to specific compute resource"
+    "Maximizes flexibility for users in multi-cloud and HPC scenarios."
    ]
   },
   {
@@ -79,7 +60,7 @@
     "Nodes are performing computation itself. \n",
     "Distributed storage is for accessing sharable resources between nodes.\n",
     "\n",
-    "![compute resources](./images/diagrams_compute_resource.png)\n",
+    "![compute resources](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_compute_resource.png)\n",
     "\n",
     "\n",
     "In order to resolve distributed compute we need a way to orchestrate our workloads on remote resources.\n",
@@ -91,7 +72,7 @@
     "To turn your local object to distributed one you need to call `put` function. \n",
     "It will serialize your object and send it to distributed storage and return you a reference to remote object location. \n",
     "\n",
-    "![objects diagram](./images/diagrams_put.png)\n",
+    "![objects diagram](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_put.png)\n",
     "\n",
     "Example\n",
     "\n",
@@ -111,7 +92,7 @@
     "In order to do that you need to annotate function with `run_qiskit_remote` decorator. \n",
     "This will turn your function into remote executable.  \n",
     "\n",
-    "![functions diagram](./images/diagrams_function.png)\n",
+    "![functions diagram](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_function.png)\n",
     "\n",
     "All you need to do now is call this function and it will be executed as a remote procedure automatically. \n",
     "\n",
@@ -147,7 +128,7 @@
     "And of course you need to collect your results back from remote resources. \n",
     "In order to do that you need to call the `get` function, which can be applied to object and function references or, alternatively, to a list of references.\n",
     "\n",
-    "![collecting results diagram](./images/diagram_get.png)\n",
+    "![collecting results diagram](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagram_get.png)\n",
     "\n",
     "Example\n",
     "\n",
@@ -181,7 +162,7 @@
     "To allocate specific resources to a function, the decorator accepts `target` parameter.\n",
     "For example, your function may require 2 cpus to be executed. You can pass `target={'cpu': 2}` to decorator and this function will request 2 cpus from your resource capacity to be executed.\n",
     "\n",
-    "![resource allocation diagram](./images/diagrams_resource_allocation.png)\n",
+    "![resource allocation diagram](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_resource_allocation.png)\n",
     "\n",
     "Example\n",
     "\n",
@@ -206,7 +187,7 @@
     "By default you always have a `local` provider which is your local machine where nodes and local cores.\n",
     "And you can configure as many providers as you want.\n",
     "\n",
-    "![execution management diagram](./images/diagrams_context_management.png)\n",
+    "![execution management diagram](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_context_management.png)\n",
     "\n",
     "Example\n",
     "\n",
@@ -231,41 +212,62 @@
    "id": "3a8c5fc8-5e85-4d47-aa9f-1e3b849783a4",
    "metadata": {},
    "source": [
-    "## Assembling all together"
+    "## Assembling all together\n",
+    "\n",
+    "Now we have all the important concepts in place and we can assemble our first simple example of a distributed program."
    ]
   },
   {
-   "cell_type": "markdown",
-   "id": "91f1a903-9500-4d59-af98-352bad6b09d9",
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "086b4a61-68a1-4ea9-b80c-d04d5004c500",
    "metadata": {},
+   "outputs": [],
    "source": [
-    "Now we have all the important concepts in place and we can assemble our first simple example of a distributed program.\n",
-    "\n",
-    "```python\n",
+    "# ! pip install quantum_serverless\n",
+    "# ! pip install pyscf\n",
+    "# ! pip install matplotlib"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "6277cbd3-a1ac-4a8f-8a29-c9c92732e780",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[EstimatorResult(values=array([1.]), metadata=[{}]), EstimatorResult(values=array([1.]), metadata=[{}]), EstimatorResult(values=array([-0.8821732]), metadata=[{}])]\n"
+     ]
+    }
+   ],
+   "source": [
+    "from qiskit.circuit.random import random_circuit\n",
+    "from qiskit.primitives import Estimator\n",
+    "from qiskit.quantum_info import SparsePauliOp\n",
     "from quantum_serverless import QuantumServerless, run_qiskit_remote, put, get\n",
     "\n",
-    "serverless = QuantumServerless({\"providers\": [...]})\n",
-    "serverless = QuantumServerless.load_configuration(\"<PATH_TO_CONFIG_FILE>\")\n",
+    "serverless = QuantumServerless.load_configuration(\"./serverless_config.json\")\n",
     "\n",
-    "@quantum_serverless.run_qiskit_remote()\n",
-    "def exp_val_remote(cirucit, obs):\n",
-    "    estimator = Estimator(...)\n",
-    "    return estimator.run(circuit, obs)\n",
+    "@run_qiskit_remote()\n",
+    "def exp_val_remote(circuit, obs):\n",
+    "    estimator = Estimator()\n",
+    "    return estimator.run(circuit, obs).result()\n",
     "\n",
-    "circuit_list: List[QuantumCircuit] = ...\n",
-    "obs: Operator = ...\n",
+    "circuit_list = [random_circuit(2, 2) for _ in range(3)]\n",
+    "obs = SparsePauliOp([\"IZ\"])\n",
     "\n",
-    "with serverless.provider(\"ibm\"):\n",
+    "with serverless:\n",
     "    obs_ref = put(obs)\n",
     "    exp_val_execution_references = [\n",
     "        exp_val_remote(circ, obs_ref) \n",
     "        for circ in circuit_list\n",
     "    ]\n",
-    "    collected_exp_values = quantum_serverless.get(exp_val_execution_references)\n",
+    "    collected_exp_values = get(exp_val_execution_references)\n",
     "    \n",
-    "print(collected_exp_values)\n",
-    "# [<EstimatorResult ...>, <EstimatorResult ...>, ...]\n",
-    "```"
+    "print(collected_exp_values)"
    ]
   },
   {
@@ -315,7 +317,7 @@
    "source": [
     "Let's see what is the overall architecture of this example\n",
     "\n",
-    "![electronic_structure_problem](images/electronic_structure_problem.png)"
+    "![electronic_structure_problem](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/electronic_structure_problem.png)"
    ]
   },
   {
@@ -592,7 +594,30 @@
     "\n",
     "On top of that we provide terraform template for popular cloud vendors to create Kubernetes clusters and install serverless on them.\n",
     "\n",
-    "![Infrastructure](./images/diagrams_infra.png)"
+    "![Infrastructure](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_infra.png)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e4a58cd5",
+   "metadata": {},
+   "source": [
+    "## Links and references\n",
+    "\n",
+    "Quantum Serverless GitHub repository\n",
+    "\n",
+    "### https://ibm.biz/qs-repo \n",
+    "![repo qr](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/qr_repo.png)\n",
+    "\n",
+    "Documentation\n",
+    "\n",
+    "### https://ibm.biz/qs-docs \n",
+    "![docs qr](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/qr_docs.png)\n",
+    "\n",
+    "Demo notebook\n",
+    "\n",
+    "### https://ibm.biz/qs-demo1 \n",
+    "![demo qr](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/qr_demo1.png)\n"
    ]
   }
  ],
