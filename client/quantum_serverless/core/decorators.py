@@ -85,20 +85,22 @@ def run_qiskit_remote(target: Optional[Union[Dict[str, Any], Target]] = None):
     if target is None:
         target = Target(cpu=1)
 
-    if not isinstance(target, Target):
-        target = Target.from_dict(target)
+    if isinstance(target, Target):
+        remote_target = target
+    else:
+        remote_target = Target.from_dict(target)
 
-    runtime_env = {"env_vars": target.env_vars}
-    if target.pip is not None:
-        runtime_env["pip"] = target.pip
+    runtime_env: Dict[str, Any] = {"env_vars": remote_target.env_vars}
+    if remote_target.pip is not None:
+        runtime_env["pip"] = remote_target.pip
 
     def decorator(function):
         def wrapper(*args, **kwargs):
             result = ray.remote(
-                num_cpus=target.cpu,
-                num_gpus=target.gpu,
-                resources=target.resources,
-                memory=target.mem,
+                num_cpus=remote_target.cpu,
+                num_gpus=remote_target.gpu,
+                resources=remote_target.resources,
+                memory=remote_target.mem,
                 runtime_env=runtime_env,
             )(function).remote(*args, **kwargs)
 
