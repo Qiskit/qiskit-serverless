@@ -15,7 +15,7 @@
 from unittest import TestCase
 
 from quantum_serverless import QuantumServerless, get
-from quantum_serverless.core.decorators import run_qiskit_remote
+from quantum_serverless.core.decorators import run_qiskit_remote, Target
 
 
 class TestDecorators(TestCase):
@@ -38,3 +38,11 @@ class TestDecorators(TestCase):
             result = get(reference)
 
             self.assertEqual(result, 42)
+
+    def test_target(self):
+        """Test for target."""
+        target_expected = Target(pip=["requests", "qiskit==0.39.2"])
+        target = Target.from_dict({
+            "pip": ["requests", "qiskit==0.39.2"]
+        })
+        self.assertEqual(target.pip, target_expected.pip)

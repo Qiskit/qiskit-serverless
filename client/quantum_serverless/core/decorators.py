@@ -28,7 +28,7 @@ Quantum serverless decorators
     run_qiskit_remote
 """
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, List
 
 import ray
 
@@ -55,6 +55,7 @@ class Target(JsonSerializable):
     mem: int = 1
     resources: Optional[Dict[str, float]] = None
     env_vars: Optional[Dict[str, Any]] = None
+    pip: Optional[List[str]] = None
 
     @classmethod
     def from_dict(cls, dictionary: dict):
@@ -87,6 +88,10 @@ def run_qiskit_remote(target: Optional[Union[Dict[str, Any], Target]] = None):
     if not isinstance(target, Target):
         target = Target.from_dict(target)
 
+    runtime_env = {"env_vars": target.env_vars}
+    if target.pip is not None:
+        runtime_env["pip"] = target.pip
+
     def decorator(function):
         def wrapper(*args, **kwargs):
             result = ray.remote(
@@ -94,7 +99,7 @@ def run_qiskit_remote(target: Optional[Union[Dict[str, Any], Target]] = None):
                 num_gpus=target.gpu,
                 resources=target.resources,
                 memory=target.mem,
-                runtime_env={"env_vars": target.env_vars},
+                runtime_env=runtime_env,
             )(function).remote(*args, **kwargs)
 
             return result
