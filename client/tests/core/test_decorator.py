@@ -42,7 +42,5 @@ class TestDecorators(TestCase):
     def test_target(self):
         """Test for target."""
         target_expected = Target(pip=["requests", "qiskit==0.39.2"])
-        target = Target.from_dict({
-            "pip": ["requests", "qiskit==0.39.2"]
-        })
+        target = Target.from_dict({"pip": ["requests", "qiskit==0.39.2"]})
         self.assertEqual(target.pip, target_expected.pip)
