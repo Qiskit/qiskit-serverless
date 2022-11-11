@@ -1,7 +1,8 @@
-FROM rayproject/ray:2.0.0-py37
+FROM rayproject/ray:2.1.0-py37
 
 USER $RAY_UID
 
-RUN mkdir /home/qs
-COPY ./client /home/qs
-RUN cd /home/qs && pip install .
+COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
+RUN cd ./qs && pip install .
+RUN cd ../ 
+RUN rm -r ./qs
