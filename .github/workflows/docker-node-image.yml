@@ -1,0 +1,41 @@
+name: Docker | build and push
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag for images'
+        required: true
+
+jobs:
+  docker_build_and_push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push node image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile-ray-qiskit
+          push: true
+          tags: qiskit/quantum-serverless-ray-node:${{ github.event.inputs.tag }}
+      - name: Build and push manager
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./manager/Dockerfile
+          push: true
+          tags: qiskit/quantum-serverless-manager:${{ github.event.inputs.tag }}
+      - name: Build and push jupyter
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile-notebook
+          push: true
+          tags: qiskit/quantum-serverless-notebook:${{ github.event.inputs.tag }}
