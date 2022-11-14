@@ -1,6 +1,6 @@
 # Helm configuration
 
-Main configuration to setup your k8s cluster and the services that this project uses. The helm configuration contains 4 charts: jupyter, middleware, operator and ray-cluster.
+Main configuration to setup your k8s cluster and the services that this project uses. The helm configuration contains 4 charts: jupyter, manager, operator and ray-cluster.
 
 ## Installation
 
@@ -27,16 +27,16 @@ Install from specific values file
 | jupyter.service.port      | Port number that service will be exposed externally.              |
 | jupyter.ingress.enabled   | Specifies if you are going to use ingress to expose the service.  |
 
-**Middleware**
+**Manager**
 
 | Name                          | Description                                                       |
 |-------------------------------|-------------------------------------------------------------------|
-| middlewareEnable              | Specify if helm will execute the middleware configuration.        |
-| middleware.image              | Docker image configuration to deploy the manager.                 |
-| middleware.imagePullSecrets   | Secrets to pull the image from a private registry.                |
-| middleware.container.port     | Port number that the pod will use in the cluster.                 |
-| middleware.service.port       | Port number that service will be exposed externally.              |
-| middleware.ingress.enabled    | Specifies if you are going to use ingress to expose the service.  |
+| managerEnable              | Specify if helm will execute the manager configuration.        |
+| manager.image              | Docker image configuration to deploy the manager.                 |
+| manager.imagePullSecrets   | Secrets to pull the image from a private registry.                |
+| manager.container.port     | Port number that the pod will use in the cluster.                 |
+| manager.service.port       | Port number that service will be exposed externally.              |
+| manager.ingress.enabled    | Specifies if you are going to use ingress to expose the service.  |
 
 **Ray cluster**
 

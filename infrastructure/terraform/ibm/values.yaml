@@ -30,12 +30,12 @@ jupyter:
 
 
 # ===================
-# Middleware configs
+# Manager configs
 # ===================
 
-middlewareEnable: false
+managerEnable: false
 
-middleware:
+manager:
   image:
     repository: "<CLUSTER_MANAGER_IMAGE>"
     tag: "latest"

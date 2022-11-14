@@ -3,8 +3,8 @@
 # Declare variables to be passed into your templates.
 
 jupyterToken: "123"
-middlewareHost: ""
-middlewarePort: 5000
+managerHost: ""
+managerPort: 5000
 
 replicaCount: 1
 

@@ -1,6 +1,6 @@
 apiVersion: v2
-name: middleware
-description: Helm chart to deploy the middleware python application in kubernetes
+name: manager
+description: Helm chart to deploy the manager python application in kubernetes
 
 # A chart can be either an 'application' or a 'library' chart.
 #

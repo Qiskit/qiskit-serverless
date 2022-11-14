@@ -1,12 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "middleware.fullname" . }}-crb
+  name: {{ include "manager.fullname" . }}-crb
   namespace: {{ .Release.Namespace }}
 subjects:
   - kind: User
-    name: system:serviceaccount:ray:{{ include "middleware.fullname" . }}
+    name: system:serviceaccount:ray:{{ include "manager.fullname" . }}
 roleRef:
   kind: ClusterRole
-  name: {{ include "middleware.fullname" . }}-cr
+  name: {{ include "manager.fullname" . }}-cr
   apiGroup: rbac.authorization.k8s.io

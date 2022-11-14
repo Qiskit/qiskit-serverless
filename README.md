@@ -13,7 +13,7 @@
 3. [Quickstart Guide](docs/quickstart_guide.md)
 4. Modules:
    1. [Client](./client)
-   2. [Middleware](./manager)
+   2. [Manager](./manager)
    3. [Infrastructure](./infrastructure)
 5. [Tutorials](docs/tutorials/)
 6. [Guides](docs/guides/)

@@ -29,7 +29,7 @@ class TestApi(TestCase):
         )
         tester = app.test_client(self)
         # act
-        response = tester.get("/quantum-serverless-middleware/cluster/")
+        response = tester.get("/quantum-serverless-manager/cluster/")
         data = response.json
         # assert
         assert response.status_code == 200
@@ -44,7 +44,7 @@ class TestApi(TestCase):
         )
         tester = app.test_client(self)
         # act
-        response = tester.get("/quantum-serverless-middleware/cluster/cluster-a")
+        response = tester.get("/quantum-serverless-manager/cluster/cluster-a")
         data = response.json
         # assert
         assert response.status_code == 200
@@ -65,7 +65,7 @@ class TestApi(TestCase):
         tester = app.test_client(self)
         # act
         response = tester.post(
-            "/quantum-serverless-middleware/cluster/",
+            "/quantum-serverless-manager/cluster/",
             data=json.dumps({"name": "bb"}),
             content_type="application/json",
         )
@@ -84,7 +84,7 @@ class TestApi(TestCase):
         )
         tester = app.test_client(self)
         # act
-        response = tester.delete("/quantum-serverless-middleware/cluster/cluster-a")
+        response = tester.delete("/quantum-serverless-manager/cluster/cluster-a")
         # assert
         assert response.status_code == 204
 
@@ -97,7 +97,7 @@ class TestApi(TestCase):
         )
         tester = app.test_client(self)
         # act
-        response = tester.get("/quantum-serverless-middleware/cluster/")
+        response = tester.get("/quantum-serverless-manager/cluster/")
         # assert
         assert response.status_code == 500
 
@@ -110,7 +110,7 @@ class TestApi(TestCase):
         )
         tester = app.test_client(self)
         # act
-        response = tester.get("/quantum-serverless-middleware/cluster/cluster-a")
+        response = tester.get("/quantum-serverless-manager/cluster/cluster-a")
         # assert
         assert response.status_code == 500
 
@@ -124,7 +124,7 @@ class TestApi(TestCase):
         tester = app.test_client(self)
         # act
         response = tester.post(
-            "/quantum-serverless-middleware/cluster/",
+            "/quantum-serverless-manager/cluster/",
             data=json.dumps({"name": "bb"}),
             content_type="application/json",
         )
@@ -140,7 +140,7 @@ class TestApi(TestCase):
         )
         tester = app.test_client(self)
         # act
-        response = tester.delete("/quantum-serverless-middleware/cluster/cluster-a")
+        response = tester.delete("/quantum-serverless-manager/cluster/cluster-a")
         # assert
         assert response.status_code == 500
 
@@ -154,7 +154,7 @@ class TestApi(TestCase):
         tester = app.test_client(self)
         # act
         response = tester.post(
-            "/quantum-serverless-middleware/cluster/",
+            "/quantum-serverless-manager/cluster/",
             data=json.dumps({"name": "AA"}),
             content_type="application/json",
         )
@@ -171,7 +171,7 @@ class TestApi(TestCase):
         tester = app.test_client(self)
         # act
         response = tester.post(
-            "/quantum-serverless-middleware/cluster/",
+            "/quantum-serverless-manager/cluster/",
             data=json.dumps(
                 {"name": "aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeee1234"}
             ),
@@ -189,7 +189,7 @@ class TestApi(TestCase):
         )
         tester = app.test_client(self)
         # act
-        response = tester.get("/quantum-serverless-middleware/cluster/cluster-a")
+        response = tester.get("/quantum-serverless-manager/cluster/cluster-a")
         print(response.status_code)
         # assert
         assert response.status_code == 404

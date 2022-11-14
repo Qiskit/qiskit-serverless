@@ -15,5 +15,5 @@ dependencies:
     condition: rayOperatorEnable
   - name: ray-cluster
     condition: rayClusterEnable
-  - name: middleware
-    condition: middlewareEnable
+  - name: manager
+    condition: managerEnable
