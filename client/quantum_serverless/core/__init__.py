@@ -24,12 +24,12 @@ Quantum serverless core module classes and functions
     :toctree: ../stubs/
 
     Provider
-    Cluster
+    ComputeResource
 
     run_qiskit_remote
     get
     put
 """
 
-from .provider import Provider, Cluster
+from .provider import Provider, ComputeResource
 from .decorators import remote, get, put, run_qiskit_remote

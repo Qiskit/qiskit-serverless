@@ -18,7 +18,7 @@ import ray
 import requests_mock
 
 from quantum_serverless import QuantumServerless, Provider
-from quantum_serverless.core import Cluster
+from quantum_serverless.core import ComputeResource
 from quantum_serverless.quantum_serverless import get_auto_discovered_provider
 
 
@@ -29,16 +29,15 @@ class TestQuantumServerless(TestCase):
         """Tests template class."""
         serverless = QuantumServerless()
 
-        with serverless.context():
+        with serverless:
             self.assertTrue(ray.is_initialized())
 
         self.assertFalse(ray.is_initialized())
 
     def test_for_at_least_one_cluster_and_one_provider(self):
-        """Test for at least one cluster."""
+        """Test for at least one compute_resource."""
         serverless = QuantumServerless()
 
-        self.assertEqual(len(serverless.clusters()), 1)
         self.assertEqual(len(serverless.providers()), 1)
 
     def test_add_provider(self):
@@ -49,19 +48,8 @@ class TestQuantumServerless(TestCase):
         serverless.add_provider(Provider("my_provider"))
         self.assertEqual(len(serverless.providers()), 2)
 
-    def test_add_cluster(self):
-        """Tests add cluster method."""
-        serverless = QuantumServerless()
-
-        self.assertEqual(len(serverless.clusters()), 1)
-
-        serverless.add_cluster(Cluster(name="New local cluster"))
-        self.assertEqual(len(serverless.clusters()), 2)
-
-        self.assertIsInstance(serverless.set_cluster(1), QuantumServerless)
-
     def test_all_context_allocations(self):
-        """Test context allocation from provider and cluster calls."""
+        """Test context allocation from provider and compute_resource calls."""
         serverless = QuantumServerless()
 
         with serverless:
@@ -72,27 +60,42 @@ class TestQuantumServerless(TestCase):
             self.assertTrue(ray.is_initialized())
         self.assertFalse(ray.is_initialized())
 
-        with serverless.cluster("local"):
-            self.assertTrue(ray.is_initialized())
-        self.assertFalse(ray.is_initialized())
-
-        with serverless.cluster(Cluster("local")):
-            self.assertTrue(ray.is_initialized())
-        self.assertFalse(ray.is_initialized())
-
     def test_load_config(self):
         """Tests configuration loading."""
-        config = {"providers": [{"name": "local2", "cluster": {"name": "local2"}}]}
+        config = {
+            "providers": [{"name": "local2", "compute_resource": {"name": "local2"}}]
+        }
 
         serverless = QuantumServerless(config)
         self.assertEqual(len(serverless.providers()), 2)
+
+        config2 = {
+            "providers": [
+                {
+                    "name": "some_provider",
+                    "compute_resource": {
+                        "name": "some_resource",
+                        "host": "some_host",
+                        "port": 10001,
+                    },
+                }
+            ]
+        }
+        serverless2 = QuantumServerless(config2)
+        self.assertEqual(len(serverless2.providers()), 2)
+
+        compute_resource = serverless2.providers()[-1].compute_resource
+
+        self.assertEqual(compute_resource.host, "some_host")
+        self.assertEqual(compute_resource.name, "some_resource")
+        self.assertEqual(compute_resource.port, 10001)
 
     def test_available_clusters_with_mock(self):
         """Test for external api call for available clusters."""
         manager_address = "http://mock_host:42"
 
         with requests_mock.Mocker() as mocker:
-            clusters_mocks = [{"name": f"mock-cluster-{i}"} for i in range(4)]
+            clusters_mocks = [{"name": f"mock-compute_resource-{i}"} for i in range(4)]
             mocker.get(
                 "http://mock_host:42/quantum-serverless-manager/cluster/",
                 text=json.dumps(clusters_mocks),
@@ -122,7 +125,7 @@ class TestQuantumServerless(TestCase):
             self.assertIsInstance(provider, Provider)
 
             if isinstance(provider, Provider):
-                self.assertIsInstance(provider.cluster, Cluster)
+                self.assertIsInstance(provider.compute_resource, ComputeResource)
                 self.assertEqual(len(provider.available_clusters), 4)
                 for cluster in provider.available_clusters:
-                    self.assertIsInstance(cluster, Cluster)
+                    self.assertIsInstance(cluster, ComputeResource)
