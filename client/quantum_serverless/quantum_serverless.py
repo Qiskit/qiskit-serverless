@@ -31,12 +31,14 @@ import logging
 import os
 from abc import ABC
 from typing import Optional, Union, List, Dict, Any
+from uuid import uuid4
 
 import requests
 from qiskit import IBMQ
 from qiskit.providers import Backend
 from ray._private.worker import BaseContext
 
+from quantum_serverless.core.job import Job, RuntimeEnv
 from quantum_serverless.core.provider import Provider, Cluster
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers import register_all_serializers
@@ -189,6 +191,7 @@ class QuantumServerless(BaseQuantumServerless):
         ]
         self._selected_cluster: Cluster = self._selected_provider.cluster
 
+        self._job_client = self._selected_provider.job_client()
         self._allocated_context: Optional[Context] = None
 
     def __enter__(self):
@@ -198,6 +201,46 @@ class QuantumServerless(BaseQuantumServerless):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._allocated_context:
             self._allocated_context.disconnect()
+
+    def run_job(
+        self,
+        entrypoint: str,
+        runtime_env: Optional[Union[Dict[str, Any], RuntimeEnv]] = None,
+    ) -> Optional[Job]:
+        """Runs given entrypoint script as job.
+
+        Example:
+            >>> job = QuantumServerless(...).run_job(
+            >>>     entrypoint="python job.py",
+            >>>     runtime_env={
+            >>>         "working_dir": "./",
+            >>>         # "pip": ["requests==2.26.0"]
+            >>>     }
+            >>> )
+            >>> job.status()
+            >>> job.logs()
+
+        Args:
+            entrypoint: how to execute your job
+            runtime_env: workdir, extra dependencies, etc.
+
+        Returns:
+            job
+        """
+        if self._job_client is None:
+            logging.warning(  # pylint: disable=logging-fstring-interpolation
+                f"Job has not been submitted as no provider "
+                f"with remote host has been configured. "
+                f"Selected provider: {self._selected_provider}"
+            )
+            return None
+
+        job_id = self._job_client.submit_job(
+            entrypoint=entrypoint,
+            submission_id=f"qs_{uuid4()}",
+            runtime_env=runtime_env,
+        )
+        return Job(job_id=job_id, job_client=self._job_client)
 
     def provider(
         self,

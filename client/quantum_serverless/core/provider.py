@@ -31,6 +31,7 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict
 
 import ray
+from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
@@ -53,6 +54,16 @@ class Cluster:
     port: Optional[int] = None
     ip_address: Optional[str] = None
     resources: Optional[Dict[str, float]] = None
+
+    def job_client(self) -> Optional[JobSubmissionClient]:
+        """Returns job client for given compute resource
+
+        Returns:
+            job client
+        """
+        if self.host is not None:
+            return JobSubmissionClient(f"http://{self.host}:8265")
+        return None
 
     def context(self, **kwargs):
         """Returns context allocated for this cluster."""
@@ -142,6 +153,14 @@ class Provider(JsonSerializable):
     @classmethod
     def from_dict(cls, dictionary: dict):
         return Provider(**dictionary)
+
+    def job_client(self):
+        """Returns job client for configured compute resource of provider.
+
+        Returns:
+            job client
+        """
+        return self.cluster.job_client()
 
     def context(self, **kwargs):
         """Allocated context for selected cluster for provider."""
