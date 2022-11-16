@@ -391,29 +391,35 @@ def load_config(config: Optional[Dict[str, Any]] = None) -> List[Provider]:
 def get_auto_discovered_provider(
     manager_address: str, token: Optional[str] = None
 ) -> Optional[Provider]:
-    """Makes http request to middleware to get available clusters."""
+    """Makes http request to manager to get available clusters."""
     clusters = []
 
     headers = {"Authorization": f"Bearer {token}"} if token else None
-    url = f"{manager_address}/quantum-serverless-middleware/cluster/"
+    url = f"{manager_address}/quantum-serverless-manager/cluster/"
 
-    response = requests.get(url, headers=headers, timeout=10)
-    if response.ok:
-        cluster_names_response = json.loads(response.text)
-        for cluster_name in cluster_names_response:
-            name = cluster_name.get("name")
-            cluster_details_response = requests.get(
-                f"{url}{name}", headers=headers, timeout=10
-            )
-            if cluster_details_response.ok and name:
-                clusters.append(
-                    Cluster.from_dict(json.loads(cluster_details_response.text))
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.ok:
+            cluster_names_response = json.loads(response.text)
+            for cluster_name in cluster_names_response:
+                name = cluster_name.get("name")
+                cluster_details_response = requests.get(
+                    f"{url}{name}", headers=headers, timeout=10
                 )
-    else:
-        logging.warning(
-            "Something went wrong when trying to connect to provider: [%d] %s",
-            response.status_code,
-            response.text,
+                if cluster_details_response.ok and name:
+                    clusters.append(
+                        Cluster.from_dict(json.loads(cluster_details_response.text))
+                    )
+        else:
+            logging.warning(
+                "Something went wrong when trying to connect to provider: [%d] %s",
+                response.status_code,
+                response.text,
+            )
+
+    except Exception:  # pylint: disable=broad-except
+        logging.info(
+            "Autodiscovery: was not able to autodiscover additional resources."
         )
 
     if len(clusters) > 0:

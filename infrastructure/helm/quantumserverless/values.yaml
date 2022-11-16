@@ -7,13 +7,13 @@
 # Jupyter configs
 # ===================
 
-jupyterEnable: false
+jupyterEnable: true
 
 jupyter:
   jupyterToken: "<YOUR_JUPYTER_PASSWORD_HERE>"
 
   image:
-    repository: "<JUPYTER_NOTEBOOK_IMAGE>"
+    repository: "qiskit/quantum-serverless-notebook"
     tag: "latest"
     pullPolicy: IfNotPresent
   
@@ -30,14 +30,14 @@ jupyter:
 
 
 # ===================
-# Middleware configs
+# Manager configs
 # ===================
 
-middlewareEnable: false
+managerEnable: true
 
-middleware:
+manager:
   image:
-    repository: "<CLUSTER_MANAGER_IMAGE>"
+    repository: "qiskit/quantum-serverless-manager"
     tag: "latest"
     pullPolicy: IfNotPresent
     
@@ -63,7 +63,7 @@ rayClusterEnable: true
 
 ray-cluster:
   image:
-    repository: "<RAY_CLUSTER_IMAGE>"
+    repository: "qiskit/quantum-serverless-ray-node"
     tag: "latest"
     pullPolicy: IfNotPresent
 
@@ -95,7 +95,7 @@ ray-cluster:
   headServiceSuffix: "ray-operator.svc"
 
   service:
-    type: LoadBalancer
+    type: ClusterIP
     port: 8080
 
 # KUBERAY OPERATOR

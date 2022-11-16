@@ -2,8 +2,8 @@
 # Constants
 # =========
 
-version=0.0.1
-repository=icr.io/quantum-serverless
+version=0.0.2
+repository=qiskit
 
 notebookImageName=$(repository)/quantum-serverless-notebook
 rayNodeImageName=$(repository)/quantum-serverless-ray-node

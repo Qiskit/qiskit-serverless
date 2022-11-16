@@ -53,4 +53,4 @@ Once time you select one you will need to run the terraform configuration as is 
 
 ## Manager
 
-In-progress...
+All you will need to build the docker image inside the [manager folder](./manager/). You can follow the `docker build` examples described in the docker's README for that or simply run `make build-manager`.

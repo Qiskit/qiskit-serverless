@@ -33,7 +33,7 @@ api = Api(
 app.config.from_object("manager.config.ProductionConfig")
 
 
-ns = api.namespace("quantum-serverless-middleware", description="Cluster operations")
+ns = api.namespace("quantum-serverless-manager", description="Cluster operations")
 
 logging.basicConfig(filename="debug.log", level=logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)

@@ -13,7 +13,7 @@
 3. [Quickstart Guide](docs/quickstart_guide.md)
 4. Modules:
    1. [Client](./client)
-   2. [Middleware](./manager)
+   2. [Manager](./manager)
    3. [Infrastructure](./infrastructure)
 5. [Tutorials](docs/tutorials/)
 6. [Guides](docs/guides/)
@@ -25,34 +25,43 @@
 ----------------------------------------------------------------------------------------------------
 
 ```python
-from quantum_serverless import QuantumServerless, run_qiskit_remote, get
+from qiskit import QuantumCircuit
+from qiskit.circuit.random import random_circuit
+from qiskit.quantum_info import SparsePauliOp
+from qiskit_ibm_runtime import Estimator
 
-# 1. let's annotate out function to convert it 
+from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put
+
+# 1. let's annotate out function to convert it
 # to function that can be executed remotely
 # using `run_qiskit_remote` decorator
 @run_qiskit_remote()
-def my_qiskit_function():
-    # Doing compute things here!
-    return "Computed result"
+def my_function(circuit: QuantumCircuit, obs: SparsePauliOp):
+	return Estimator().run([circuit], [obs]).result().values
 
 
-# 2. Next let's create out serverless object to control 
+# 2. Next let's create out serverless object to control
 # where our remote function will be executed
 serverless = QuantumServerless()
 
-# 3. create serverless context 
+circuits = [random_circuit(2, 2) for _ in range(3)]
+
+# 3. create serverless context
 with serverless:
+	# 4. let's put some shared objects into remote storage that will be shared among all executions
+	obs_ref = put(SparsePauliOp(["ZZ"]))
+
     # 4. run our function and get back reference to it
     # as now our function it remote one
-    function_reference = my_qiskit_function()
-    # 4.1 or we can run N of them in parallel
-    N = 4
-    function_references = [my_qiskit_function() for _ in range(N)]
-    
-    # 5. to get results back from reference 
+	function_reference = my_function(circuits[0], obs_ref)
+
+    # 4.1 or we can run N of them in parallel (for all circuits)
+	function_references = [my_function(circ, obs_ref) for circ in circuits]
+
+	# 5. to get results back from reference
     # we need to call `get` on function reference
-    print(get(function_reference))
-    print(get(function_references))
+	print("Single execution:", get(function_reference))
+	print("N parallel executions:", get(function_references))
 ```
 
 ----------------------------------------------------------------------------------------------------

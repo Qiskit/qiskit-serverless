@@ -1,0 +1,31 @@
+name: Release to PyPi and upload artifact
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-package:
+    name: Build and Publish Release Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        name: Install Python
+        with:
+          python-version: '3.7'
+      - name: Install Deps
+        run: pip install -U twine wheel
+      - name: Build Artifacts
+        run: |
+          cd client
+          python setup.py sdist
+          python setup.py bdist_wheel
+        shell: bash
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./client/dist/quantum_serverless*
+      - name: Publish to PyPi
+        env:
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        run: twine upload client/dist/quantum_serverless*

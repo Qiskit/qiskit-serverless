@@ -94,13 +94,13 @@ class TestQuantumServerless(TestCase):
         with requests_mock.Mocker() as mocker:
             clusters_mocks = [{"name": f"mock-cluster-{i}"} for i in range(4)]
             mocker.get(
-                "http://mock_host:42/quantum-serverless-middleware/cluster/",
+                "http://mock_host:42/quantum-serverless-manager/cluster/",
                 text=json.dumps(clusters_mocks),
             )
             for mock_cluster in clusters_mocks:
                 name = mock_cluster.get("name")
                 mocker.get(
-                    f"http://mock_host:42/quantum-serverless-middleware/cluster/{name}",
+                    f"http://mock_host:42/quantum-serverless-manager/cluster/{name}",
                     text=json.dumps(
                         {
                             "name": name,
