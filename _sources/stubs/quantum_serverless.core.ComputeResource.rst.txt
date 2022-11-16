@@ -17,6 +17,7 @@
       ~ComputeResource.connection_string_interactive_mode
       ~ComputeResource.context
       ~ComputeResource.from_dict
+      ~ComputeResource.job_client
    
    
 

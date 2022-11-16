@@ -70,11 +70,12 @@
 <span class="sd">    ComputeResource</span>
 <span class="sd">    Provider</span>
 <span class="sd">&quot;&quot;&quot;</span>
-
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span>
 
 <span class="kn">import</span> <span class="nn">ray</span>
+<span class="kn">from</span> <span class="nn">ray.dashboard.modules.job.sdk</span> <span class="kn">import</span> <span class="n">JobSubmissionClient</span>
 
 <span class="kn">from</span> <span class="nn">quantum_serverless.exception</span> <span class="kn">import</span> <span class="n">QuantumServerlessException</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.utils</span> <span class="kn">import</span> <span class="n">JsonSerializable</span>
@@ -95,6 +96,26 @@
     <span class="n">host</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">port</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">resources</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">job_client</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">JobSubmissionClient</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Returns job client for given compute resource</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            job client</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">connection_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;http://</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">:8265&quot;</span>
+            <span class="n">client</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">client</span> <span class="o">=</span> <span class="n">JobSubmissionClient</span><span class="p">(</span><span class="n">connection_url</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ConnectionError</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Failed to establish connection with jobs server at </span><span class="si">%s</span><span class="s2">. &quot;</span>
+                    <span class="s2">&quot;You will not be able to run jobs on this provider.&quot;</span><span class="p">,</span>
+                    <span class="n">connection_url</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="n">client</span>
+        <span class="k">return</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="nf">context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Returns context allocated for this compute_resource.&quot;&quot;&quot;</span>
@@ -181,11 +202,19 @@
                 <span class="n">available_compute_resources</span> <span class="o">=</span> <span class="p">[</span><span class="n">compute_resource</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">available_compute_resources</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">available_clusters</span> <span class="o">=</span> <span class="n">available_compute_resources</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">available_compute_resources</span> <span class="o">=</span> <span class="n">available_compute_resources</span></div>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">Provider</span><span class="p">(</span><span class="o">**</span><span class="n">dictionary</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">job_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns job client for configured compute resource of provider.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            job client</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_resource</span><span class="o">.</span><span class="n">job_client</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Allocated context for selected compute_resource for provider.&quot;&quot;&quot;</span>
@@ -232,6 +261,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/03_configuring-quantum-serverless.html">Guide: configuring quantum serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/03_runtime_primitives_with_quantum_serverless.html">Guide: Qiskit Runtime Primitives with QuantumServerless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/03_specific_package_installation.html">Guide: specific package requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/04_run_jobs.html">Guide: run jobs</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../apidocs/index.html">API References</a></li>

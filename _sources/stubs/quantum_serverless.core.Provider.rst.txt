@@ -16,6 +16,7 @@
       ~Provider.__init__
       ~Provider.context
       ~Provider.from_dict
+      ~Provider.job_client
       ~Provider.to_dict
    
    
