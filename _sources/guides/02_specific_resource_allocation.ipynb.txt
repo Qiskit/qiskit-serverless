@@ -10,7 +10,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 4,
+   "execution_count": 1,
    "id": "5c870446-9c6c-440c-9082-5ddad431e643",
    "metadata": {},
    "outputs": [],
@@ -25,17 +25,17 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 5,
+   "execution_count": 2,
    "id": "ff073fc9-1e24-4122-b968-032ee3d2d2f2",
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "<QuantumServerless: providers [local], clusters [local]>"
+       "<QuantumServerless | providers [local]>"
       ]
      },
-     "execution_count": 5,
+     "execution_count": 2,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -58,7 +58,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 6,
+   "execution_count": 3,
    "id": "e6b433b5-63dd-4e99-8b1c-472344c2e311",
    "metadata": {},
    "outputs": [],
@@ -70,7 +70,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 7,
+   "execution_count": 5,
    "id": "96e18044-bd49-4d7b-baa4-9866da07d442",
    "metadata": {},
    "outputs": [],
@@ -80,25 +80,25 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 8,
+   "execution_count": 6,
    "id": "3ad5f102-5c48-4a08-a27f-e55a23131592",
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "[<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7f78f09d7e10>,\n",
-       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7f78e0756fd0>,\n",
-       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7f78e076ab50>]"
+       "[<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fc27945cfd0>,\n",
+       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fc208191910>,\n",
+       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fc2793e9450>]"
       ]
      },
-     "execution_count": 8,
+     "execution_count": 6,
      "metadata": {},
      "output_type": "execute_result"
     }
    ],
    "source": [
-    "with serverless.context():\n",
+    "with serverless:\n",
     "    results = get(remote_transpile(circuits))\n",
     "    \n",
     "results"

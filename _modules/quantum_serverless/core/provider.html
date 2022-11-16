@@ -67,7 +67,7 @@
 <span class="sd">.. autosummary::</span>
 <span class="sd">    :toctree: ../stubs/</span>
 
-<span class="sd">    Cluster</span>
+<span class="sd">    ComputeResource</span>
 <span class="sd">    Provider</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
@@ -80,26 +80,24 @@
 <span class="kn">from</span> <span class="nn">quantum_serverless.utils</span> <span class="kn">import</span> <span class="n">JsonSerializable</span>
 
 
-<div class="viewcode-block" id="Cluster"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.Cluster.html#quantum_serverless.core.Cluster">[docs]</a><span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">Cluster</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Cluster class.</span>
+<div class="viewcode-block" id="ComputeResource"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.ComputeResource.html#quantum_serverless.core.ComputeResource">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">ComputeResource</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;ComputeResource class.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        name: name of cluster</span>
-<span class="sd">        host: host address of cluster</span>
-<span class="sd">        port: port of cluster</span>
-<span class="sd">        ip_address: ip address of cluster</span>
+<span class="sd">        name: name of compute_resource</span>
+<span class="sd">        host: host address of compute_resource</span>
+<span class="sd">        port: port of compute_resource</span>
 <span class="sd">        resources: list of resources</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">host</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">port</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">ip_address</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">resources</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="nf">context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Returns context allocated for this cluster.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;Returns context allocated for this compute_resource.&quot;&quot;&quot;</span>
         <span class="n">init_args</span> <span class="o">=</span> <span class="p">{</span>
             <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
             <span class="o">**</span><span class="p">{</span>
@@ -116,23 +114,22 @@
         <span class="k">return</span> <span class="n">ray</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="o">**</span><span class="n">init_args</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">connection_string_interactive_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;Returns connection string to cluster.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;Returns connection string to compute_resource.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;ray://</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="k">return</span> <span class="kc">None</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Created cluster object form dict.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">Cluster</span><span class="p">(</span>
+        <span class="sd">&quot;&quot;&quot;Created compute_resource object form dict.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">ComputeResource</span><span class="p">(</span>
             <span class="n">name</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">),</span>
             <span class="n">host</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;host&quot;</span><span class="p">),</span>
             <span class="n">port</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;port&quot;</span><span class="p">),</span>
-            <span class="n">ip_address</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ip_address&quot;</span><span class="p">),</span>
         <span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Cluster</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">ComputeResource</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">name</span>
                 <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">port</span>
@@ -141,7 +138,7 @@
         <span class="k">return</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;Cluster: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&gt;&quot;</span></div>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;ComputeResource: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&gt;&quot;</span></div>
 
 
 <div class="viewcode-block" id="Provider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider">[docs]</a><span class="k">class</span> <span class="nc">Provider</span><span class="p">(</span><span class="n">JsonSerializable</span><span class="p">):</span>
@@ -152,8 +149,8 @@
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">host</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">token</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">cluster</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Cluster</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">available_clusters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Cluster</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">compute_resource</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ComputeResource</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">available_compute_resources</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">ComputeResource</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Provider for serverless computation.</span>
 
@@ -162,38 +159,41 @@
 <span class="sd">            &gt;&gt;&gt;    name=&quot;&lt;NAME&gt;&quot;,</span>
 <span class="sd">            &gt;&gt;&gt;    host=&quot;&lt;HOST&gt;&quot;,</span>
 <span class="sd">            &gt;&gt;&gt;    token=&quot;&lt;TOKEN&gt;&quot;,</span>
-<span class="sd">            &gt;&gt;&gt;    cluster=Cluster(name=&quot;&lt;CLUSTER_NAME&gt;&quot;, host=&quot;&lt;CLUSTER_HOST&gt;&quot;),</span>
+<span class="sd">            &gt;&gt;&gt;    compute_resource=ComputeResource(</span>
+<span class="sd">            &gt;&gt;&gt;        name=&quot;&lt;COMPUTE_RESOURCE_NAME&gt;&quot;,</span>
+<span class="sd">            &gt;&gt;&gt;        host=&quot;&lt;COMPUTE_RESOURCE_HOST&gt;&quot;</span>
+<span class="sd">            &gt;&gt;&gt;    ),</span>
 <span class="sd">            &gt;&gt;&gt; )</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            name: name of provider</span>
 <span class="sd">            host: host of provider a.k.a managers host</span>
 <span class="sd">            token: authentication token for manager</span>
-<span class="sd">            cluster: selected cluster from provider</span>
-<span class="sd">            available_clusters: available clusters in provider</span>
+<span class="sd">            compute_resource: selected compute_resource from provider</span>
+<span class="sd">            available_compute_resources: available clusters in provider</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">host</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="o">=</span> <span class="n">token</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span> <span class="o">=</span> <span class="n">cluster</span>
-        <span class="k">if</span> <span class="n">available_clusters</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">cluster</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">available_clusters</span> <span class="o">=</span> <span class="p">[</span><span class="n">cluster</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compute_resource</span> <span class="o">=</span> <span class="n">compute_resource</span>
+        <span class="k">if</span> <span class="n">available_compute_resources</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">compute_resource</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">available_compute_resources</span> <span class="o">=</span> <span class="p">[</span><span class="n">compute_resource</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">available_clusters</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">available_clusters</span> <span class="o">=</span> <span class="n">available_clusters</span></div>
+                <span class="n">available_compute_resources</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">available_clusters</span> <span class="o">=</span> <span class="n">available_compute_resources</span></div>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">Provider</span><span class="p">(</span><span class="o">**</span><span class="n">dictionary</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Allocated context for selected cluster for provider.&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Allocated context for selected compute_resource for provider.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_resource</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">QuantumServerlessException</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Cluster was not selected for provider </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;ComputeResource was not selected for provider </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cluster</span><span class="o">.</span><span class="n">context</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_resource</span><span class="o">.</span><span class="n">context</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Provider</span><span class="p">):</span>

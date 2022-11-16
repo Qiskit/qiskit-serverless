@@ -1,0 +1,34 @@
+﻿quantum\_serverless.core.ComputeResource
+========================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: ComputeResource
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ComputeResource.__init__
+      ~ComputeResource.connection_string_interactive_mode
+      ~ComputeResource.context
+      ~ComputeResource.from_dict
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ComputeResource.host
+      ~ComputeResource.port
+      ~ComputeResource.resources
+      ~ComputeResource.name
+   
+   

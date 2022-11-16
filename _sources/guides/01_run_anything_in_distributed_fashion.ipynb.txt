@@ -2,16 +2,22 @@
  "cells": [
   {
    "cell_type": "markdown",
+   "id": "bcdd01c6",
+   "metadata": {},
    "source": [
     "# Guide: run anything in distributed fashion"
-   ],
-   "metadata": {
-    "collapsed": false
-   }
+   ]
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": 1,
+   "id": "71a5d29e",
+   "metadata": {
+    "collapsed": false,
+    "jupyter": {
+     "outputs_hidden": false
+    }
+   },
    "outputs": [],
    "source": [
     "from typing import List\n",
@@ -20,10 +26,7 @@
     "from qiskit.circuit.random import random_circuit\n",
     "\n",
     "from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put"
-   ],
-   "metadata": {
-    "collapsed": false
-   }
+   ]
   },
   {
    "cell_type": "code",
@@ -33,7 +36,9 @@
    "outputs": [
     {
      "data": {
-      "text/plain": "<QuantumServerless: providers [local], clusters [local]>"
+      "text/plain": [
+       "<QuantumServerless | providers [local]>"
+      ]
      },
      "execution_count": 2,
      "metadata": {},
@@ -48,16 +53,40 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 3,
+   "execution_count": 4,
    "id": "424affa8-9ffc-41c9-9b42-5e58221fdccd",
    "metadata": {},
    "outputs": [
     {
      "data": {
-      "text/plain": "     ┌────────────┐            ┌────────────┐   \nq_0: ┤ U1(3.1592) ├─────────■──┤ Rz(4.4834) ├───\n     └────────────┘ ┌───┐   │  └────────────┘   \nq_1: ──────■────────┤ X ├───┼─────────────────■─\n           │       ┌┴───┴┐  │      ┌───┐      │ \nq_2: ──────X───────┤ Tdg ├──┼──────┤ S ├──────┼─\n           │       └─────┘  │  ┌───┴───┴────┐ │ \nq_3: ──────X────────────────■──┤ Ry(1.8682) ├─┼─\n         ┌───┐            ┌─┴─┐└────────────┘ │ \nq_4: ────┤ X ├────────────┤ X ├───────────────■─\n         └───┘            └───┘                 ",
-      "text/html": "<pre style=\"word-wrap: normal;white-space: pre;background: #fff0;line-height: 1.1;font-family: &quot;Courier New&quot;,Courier,monospace\">     ┌────────────┐            ┌────────────┐   \nq_0: ┤ U1(3.1592) ├─────────■──┤ Rz(4.4834) ├───\n     └────────────┘ ┌───┐   │  └────────────┘   \nq_1: ──────■────────┤ X ├───┼─────────────────■─\n           │       ┌┴───┴┐  │      ┌───┐      │ \nq_2: ──────X───────┤ Tdg ├──┼──────┤ S ├──────┼─\n           │       └─────┘  │  ┌───┴───┴────┐ │ \nq_3: ──────X────────────────■──┤ Ry(1.8682) ├─┼─\n         ┌───┐            ┌─┴─┐└────────────┘ │ \nq_4: ────┤ X ├────────────┤ X ├───────────────■─\n         └───┘            └───┘                 </pre>"
+      "text/html": [
+       "<pre style=\"word-wrap: normal;white-space: pre;background: #fff0;line-height: 1.1;font-family: &quot;Courier New&quot;,Courier,monospace\">                               ┌───┐             ┌───┐              \n",
+       "q_0: ──────────■───────────────┤ S ├─────────────┤ X ├──────────────\n",
+       "               │               └───┘     ┌───────┴───┴────────┐     \n",
+       "q_1: ──────────X─────────────────■───────┤ U2(4.0568,0.20671) ├─────\n",
+       "               │               ┌─┴─┐     └────────────────────┘     \n",
+       "q_2: ──────────X───────────────┤ X ├───────────────X────────────────\n",
+       "            ┌─────┐            └─┬─┘               │           ┌───┐\n",
+       "q_3: ───────┤ Sdg ├──────────────■─────────────────┼───────────┤ T ├\n",
+       "     ┌──────┴─────┴───────┐┌────────────┐          │           └───┘\n",
+       "q_4: ┤ U2(0.37458,3.2557) ├┤ Rz(1.7343) ├──────────X────────────────\n",
+       "     └────────────────────┘└────────────┘                           </pre>"
+      ],
+      "text/plain": [
+       "                               ┌───┐             ┌───┐              \n",
+       "q_0: ──────────■───────────────┤ S ├─────────────┤ X ├──────────────\n",
+       "               │               └───┘     ┌───────┴───┴────────┐     \n",
+       "q_1: ──────────X─────────────────■───────┤ U2(4.0568,0.20671) ├─────\n",
+       "               │               ┌─┴─┐     └────────────────────┘     \n",
+       "q_2: ──────────X───────────────┤ X ├───────────────X────────────────\n",
+       "            ┌─────┐            └─┬─┘               │           ┌───┐\n",
+       "q_3: ───────┤ Sdg ├──────────────■─────────────────┼───────────┤ T ├\n",
+       "     ┌──────┴─────┴───────┐┌────────────┐          │           └───┘\n",
+       "q_4: ┤ U2(0.37458,3.2557) ├┤ Rz(1.7343) ├──────────X────────────────\n",
+       "     └────────────────────┘└────────────┘                           "
+      ]
      },
-     "execution_count": 3,
+     "execution_count": 4,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -70,7 +99,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 4,
+   "execution_count": 7,
    "id": "bb3f6d67-9019-416e-b801-a8bec031970e",
    "metadata": {},
    "outputs": [
@@ -78,27 +107,19 @@
      "name": "stdout",
      "output_type": "stream",
      "text": [
-      "Circuit reference: ObjectRef(00ffffffffffffffffffffffffffffffffffffff0100000001000000)\n",
+      "Circuit reference: ObjectRef(00ffffffffffffffffffffffffffffffffffffff0100000002000000)\n",
       "Retrieved object\n",
-      "      ┌────────────┐            ┌────────────┐   \n",
-      "q_0: ┤ U1(3.1592) ├─────────■──┤ Rz(4.4834) ├───\n",
-      "     └────────────┘ ┌───┐   │  └────────────┘   \n",
-      "q_1: ──────■────────┤ X ├───┼─────────────────■─\n",
-      "           │       ┌┴───┴┐  │      ┌───┐      │ \n",
-      "q_2: ──────X───────┤ Tdg ├──┼──────┤ S ├──────┼─\n",
-      "           │       └─────┘  │  ┌───┴───┴────┐ │ \n",
-      "q_3: ──────X────────────────■──┤ Ry(1.8682) ├─┼─\n",
-      "         ┌───┐            ┌─┴─┐└────────────┘ │ \n",
-      "q_4: ────┤ X ├────────────┤ X ├───────────────■─\n",
-      "         └───┘            └───┘                 \n"
-     ]
-    },
-    {
-     "name": "stderr",
-     "output_type": "stream",
-     "text": [
-      "/opt/anaconda3/envs/quantum-serverless/lib/python3.10/site-packages/ray/_private/worker.py:976: UserWarning: len(ctx) is deprecated. Use len(ctx.address_info) instead.\n",
-      "  warnings.warn(\"len(ctx) is deprecated. Use len(ctx.address_info) instead.\")\n"
+      "                                ┌───┐             ┌───┐              \n",
+      "q_0: ──────────■───────────────┤ S ├─────────────┤ X ├──────────────\n",
+      "               │               └───┘     ┌───────┴───┴────────┐     \n",
+      "q_1: ──────────X─────────────────■───────┤ U2(4.0568,0.20671) ├─────\n",
+      "               │               ┌─┴─┐     └────────────────────┘     \n",
+      "q_2: ──────────X───────────────┤ X ├───────────────X────────────────\n",
+      "            ┌─────┐            └─┬─┘               │           ┌───┐\n",
+      "q_3: ───────┤ Sdg ├──────────────■─────────────────┼───────────┤ T ├\n",
+      "     ┌──────┴─────┴───────┐┌────────────┐          │           └───┘\n",
+      "q_4: ┤ U2(0.37458,3.2557) ├┤ Rz(1.7343) ├──────────X────────────────\n",
+      "     └────────────────────┘└────────────┘                           \n"
      ]
     }
    ],
@@ -118,15 +139,22 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 5,
+   "execution_count": 8,
    "id": "ae461219-d128-4dd4-8b5f-b67f165d5bc9",
    "metadata": {},
    "outputs": [
     {
      "data": {
-      "text/plain": "[[<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fd840eb84f0>,\n  <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fd840eb8760>],\n [<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fd840ebbfa0>,\n  <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fd840eb9e40>],\n [<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fd860585cc0>,\n  <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fd860584100>]]"
+      "text/plain": [
+       "[[<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdd70e60790>,\n",
+       "  <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdd70e60e10>],\n",
+       " [<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdd70e602d0>,\n",
+       "  <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdd70e60d90>],\n",
+       " [<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdd70e60b90>,\n",
+       "  <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdd70e60ed0>]]"
+      ]
      },
-     "execution_count": 5,
+     "execution_count": 8,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -141,7 +169,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 6,
+   "execution_count": 10,
    "id": "0a0687f4-5fa2-4dd0-ba9d-7fd634dde295",
    "metadata": {},
    "outputs": [
@@ -150,7 +178,7 @@
      "output_type": "stream",
      "text": [
       "Function reference: ObjectRef(c8ef45ccd0112571ffffffffffffffffffffffff0100000001000000)\n",
-      "Function result: [<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fd840eb8910>, <qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fd860585f90>]\n"
+      "Function result: [<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fdd70e6db90>, <qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fdd70e60750>]\n"
      ]
     }
    ],
@@ -163,7 +191,7 @@
     "def remote_transpile(circuits: List[QuantumCircuit]):\n",
     "    return transpile(circuits)\n",
     "\n",
-    "with serverless.context():\n",
+    "with serverless:\n",
     "    # to call this function by arring `remote` to function call `<function_name>.remote`\n",
     "    remote_function_reference = remote_transpile(circuit_batches[0])\n",
     "    print(\"Function reference:\", remote_function_reference)\n",
@@ -175,7 +203,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 7,
+   "execution_count": 11,
    "id": "7b1b7aaa-de95-4796-9a8f-d1d5f278bc06",
    "metadata": {},
    "outputs": [
@@ -184,7 +212,7 @@
      "output_type": "stream",
      "text": [
       "Functions references: [ObjectRef(16310a0f0a45af5cffffffffffffffffffffffff0100000001000000), ObjectRef(c2668a65bda616c1ffffffffffffffffffffffff0100000001000000), ObjectRef(32d950ec0ccf9d2affffffffffffffffffffffff0100000001000000)]\n",
-      "Functions resulst: [[<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fd8605868f0>, <qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fd860586d70>], [<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fd860586200>, <qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fd860585d20>], [<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fd840eb85b0>, <qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fd840ec2b00>]]\n"
+      "Functions resulst: [[<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fdd70e61b50>, <qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fdd70e77a10>], [<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fdd70e615d0>, <qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fdd70dec5d0>], [<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fdd70e761d0>, <qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fdd70e61950>]]\n"
      ]
     }
    ],
@@ -203,14 +231,6 @@
     "    result = get(remote_function_references)\n",
     "    print(\"Functions resulst:\", result)"
    ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "c4677421-4c80-4bec-994f-c2af2d1c0c69",
-   "metadata": {},
-   "outputs": [],
-   "source": []
   }
  ],
  "metadata": {
