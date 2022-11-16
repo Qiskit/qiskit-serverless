@@ -32,7 +32,7 @@ class TestDecorators(TestCase):
             print("Printing function argument:", ultimate_argument)
             return 42
 
-        with serverless.context():
+        with serverless:
             reference = ultimate_function(1)
 
             result = get(reference)

@@ -23,7 +23,7 @@ Quantum serverless provider
 .. autosummary::
     :toctree: ../stubs/
 
-    Cluster
+    ComputeResource
     Provider
 """
 
@@ -38,21 +38,19 @@ from quantum_serverless.utils import JsonSerializable
 
 
 @dataclass
-class Cluster:
-    """Cluster class.
+class ComputeResource:
+    """ComputeResource class.
 
     Args:
-        name: name of cluster
-        host: host address of cluster
-        port: port of cluster
-        ip_address: ip address of cluster
+        name: name of compute_resource
+        host: host address of compute_resource
+        port: port of compute_resource
         resources: list of resources
     """
 
     name: str
     host: Optional[str] = None
     port: Optional[int] = None
-    ip_address: Optional[str] = None
     resources: Optional[Dict[str, float]] = None
 
     def job_client(self) -> Optional[JobSubmissionClient]:
@@ -66,7 +64,7 @@ class Cluster:
         return None
 
     def context(self, **kwargs):
-        """Returns context allocated for this cluster."""
+        """Returns context allocated for this compute_resource."""
         init_args = {
             **kwargs,
             **{
@@ -83,23 +81,22 @@ class Cluster:
         return ray.init(**init_args)
 
     def connection_string_interactive_mode(self) -> Optional[str]:
-        """Returns connection string to cluster."""
+        """Returns connection string to compute_resource."""
         if self.host is not None and self.port is not None:
             return f"ray://{self.host}:{self.port}"
         return None
 
     @classmethod
     def from_dict(cls, data: dict):
-        """Created cluster object form dict."""
-        return Cluster(
+        """Created compute_resource object form dict."""
+        return ComputeResource(
             name=data.get("name"),
             host=data.get("host"),
             port=data.get("port"),
-            ip_address=data.get("ip_address"),
         )
 
     def __eq__(self, other: object):
-        if isinstance(other, Cluster):
+        if isinstance(other, ComputeResource):
             return (
                 self.name == other.name
                 and self.port == other.port
@@ -108,7 +105,7 @@ class Cluster:
         return False
 
     def __repr__(self):
-        return f"<Cluster: {self.name}>"
+        return f"<ComputeResource: {self.name}>"
 
 
 class Provider(JsonSerializable):
@@ -119,8 +116,8 @@ class Provider(JsonSerializable):
         name: str,
         host: Optional[str] = None,
         token: Optional[str] = None,
-        cluster: Optional[Cluster] = None,
-        available_clusters: Optional[List[Cluster]] = None,
+        compute_resource: Optional[ComputeResource] = None,
+        available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
         """Provider for serverless computation.
 
@@ -129,26 +126,29 @@ class Provider(JsonSerializable):
             >>>    name="<NAME>",
             >>>    host="<HOST>",
             >>>    token="<TOKEN>",
-            >>>    cluster=Cluster(name="<CLUSTER_NAME>", host="<CLUSTER_HOST>"),
+            >>>    compute_resource=ComputeResource(
+            >>>        name="<COMPUTE_RESOURCE_NAME>",
+            >>>        host="<COMPUTE_RESOURCE_HOST>"
+            >>>    ),
             >>> )
 
         Args:
             name: name of provider
             host: host of provider a.k.a managers host
             token: authentication token for manager
-            cluster: selected cluster from provider
-            available_clusters: available clusters in provider
+            compute_resource: selected compute_resource from provider
+            available_compute_resources: available clusters in provider
         """
         self.name = name
         self.host = host
         self.token = token
-        self.cluster = cluster
-        if available_clusters is None:
-            if cluster is not None:
-                available_clusters = [cluster]
+        self.compute_resource = compute_resource
+        if available_compute_resources is None:
+            if compute_resource is not None:
+                available_compute_resources = [compute_resource]
             else:
-                available_clusters = []
-        self.available_clusters = available_clusters
+                available_compute_resources = []
+        self.available_clusters = available_compute_resources
 
     @classmethod
     def from_dict(cls, dictionary: dict):
@@ -163,12 +163,12 @@ class Provider(JsonSerializable):
         return self.cluster.job_client()
 
     def context(self, **kwargs):
-        """Allocated context for selected cluster for provider."""
-        if self.cluster is None:
+        """Allocated context for selected compute_resource for provider."""
+        if self.compute_resource is None:
             raise QuantumServerlessException(
-                f"Cluster was not selected for provider {self.name}"
+                f"ComputeResource was not selected for provider {self.name}"
             )
-        return self.cluster.context(**kwargs)
+        return self.compute_resource.context(**kwargs)
 
     def __eq__(self, other):
         if isinstance(other, Provider):
