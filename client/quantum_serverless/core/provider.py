@@ -26,7 +26,7 @@ Quantum serverless provider
     ComputeResource
     Provider
 """
-
+import logging
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 
@@ -60,7 +60,17 @@ class ComputeResource:
             job client
         """
         if self.host is not None:
-            return JobSubmissionClient(f"http://{self.host}:8265")
+            connection_url = f"http://{self.host}:8265"
+            client = None
+            try:
+                client = JobSubmissionClient(connection_url)
+            except ConnectionError:
+                logging.warning(
+                    "Failed to establish connection with jobs server at %s. "
+                    "You will not be able to run jobs on this provider.",
+                    connection_url,
+                )
+            return client
         return None
 
     def context(self, **kwargs):
@@ -148,7 +158,7 @@ class Provider(JsonSerializable):
                 available_compute_resources = [compute_resource]
             else:
                 available_compute_resources = []
-        self.available_clusters = available_compute_resources
+        self.available_compute_resources = available_compute_resources
 
     @classmethod
     def from_dict(cls, dictionary: dict):
@@ -160,7 +170,7 @@ class Provider(JsonSerializable):
         Returns:
             job client
         """
-        return self.cluster.job_client()
+        return self.compute_resource.job_client()
 
     def context(self, **kwargs):
         """Allocated context for selected compute_resource for provider."""
