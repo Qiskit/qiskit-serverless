@@ -34,7 +34,7 @@ class TestParallelTranspile(TestCase):
         backend1 = FakeAlmadenV2()
         backend2 = FakeBrooklynV2()
 
-        with QuantumServerless().context():
+        with QuantumServerless():
             transpiled_circuits = parallel_transpile(
                 circuits=[circuit1, [circuit1, circuit2]], backends=[backend1, backend2]
             )
@@ -51,7 +51,7 @@ class TestParallelTranspile(TestCase):
         backend1 = FakeAlmadenV2()
         backend2 = FakeBrooklynV2()
 
-        with QuantumServerless().context():
+        with QuantumServerless():
             # inconsistent number of circuits and backends
             with self.assertRaises(QuantumServerlessException):
                 parallel_transpile(circuits=[circuit1], backends=[backend1, backend2])
