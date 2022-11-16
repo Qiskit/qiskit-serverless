@@ -26,11 +26,12 @@ Quantum serverless provider
     ComputeResource
     Provider
 """
-
+import logging
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 
 import ray
+from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
@@ -51,6 +52,26 @@ class ComputeResource:
     host: Optional[str] = None
     port: Optional[int] = None
     resources: Optional[Dict[str, float]] = None
+
+    def job_client(self) -> Optional[JobSubmissionClient]:
+        """Returns job client for given compute resource
+
+        Returns:
+            job client
+        """
+        if self.host is not None:
+            connection_url = f"http://{self.host}:8265"
+            client = None
+            try:
+                client = JobSubmissionClient(connection_url)
+            except ConnectionError:
+                logging.warning(
+                    "Failed to establish connection with jobs server at %s. "
+                    "You will not be able to run jobs on this provider.",
+                    connection_url,
+                )
+            return client
+        return None
 
     def context(self, **kwargs):
         """Returns context allocated for this compute_resource."""
@@ -137,11 +158,19 @@ class Provider(JsonSerializable):
                 available_compute_resources = [compute_resource]
             else:
                 available_compute_resources = []
-        self.available_clusters = available_compute_resources
+        self.available_compute_resources = available_compute_resources
 
     @classmethod
     def from_dict(cls, dictionary: dict):
         return Provider(**dictionary)
+
+    def job_client(self):
+        """Returns job client for configured compute resource of provider.
+
+        Returns:
+            job client
+        """
+        return self.compute_resource.job_client()
 
     def context(self, **kwargs):
         """Allocated context for selected compute_resource for provider."""

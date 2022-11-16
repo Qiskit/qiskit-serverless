@@ -126,6 +126,6 @@ class TestQuantumServerless(TestCase):
 
             if isinstance(provider, Provider):
                 self.assertIsInstance(provider.compute_resource, ComputeResource)
-                self.assertEqual(len(provider.available_clusters), 4)
-                for cluster in provider.available_clusters:
+                self.assertEqual(len(provider.available_compute_resources), 4)
+                for cluster in provider.available_compute_resources:
                     self.assertIsInstance(cluster, ComputeResource)
