@@ -36,7 +36,7 @@ import requests
 from ray._private.worker import BaseContext
 
 from quantum_serverless.core.job import Job, RuntimeEnv
-from quantum_serverless.core.provider import Provider, Cluster, ComputeResource
+from quantum_serverless.core.provider import Provider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
 
 Context = Union[BaseContext]
