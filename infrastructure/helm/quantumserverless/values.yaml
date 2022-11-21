@@ -44,7 +44,7 @@ manager:
   imagePullSecrets: []
 
   container:
-    port: 80
+    port: 5000
 
   service:
     port: 5000
