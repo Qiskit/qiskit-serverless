@@ -70,6 +70,7 @@
 <span class="sd">    get</span>
 <span class="sd">    put</span>
 <span class="sd">    run_qiskit_remote</span>
+<span class="sd">    get_refs_by_status</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span>
@@ -81,6 +82,7 @@
 <span class="n">remote</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">remote</span>
 <span class="n">get</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">get</span>
 <span class="n">put</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">put</span>
+<span class="n">get_refs_by_status</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">wait</span>
 
 
 <span class="nd">@dataclass</span>
@@ -183,6 +185,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/03_runtime_primitives_with_quantum_serverless.html">Guide: Qiskit Runtime Primitives with QuantumServerless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/03_specific_package_installation.html">Guide: specific package requirements</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/04_run_jobs.html">Guide: run jobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/05_get_finished_tasks.html">Guide: get finished remote tasks</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../apidocs/index.html">API References</a></li>
