@@ -26,6 +26,7 @@ Quantum serverless decorators
     get
     put
     run_qiskit_remote
+    get_refs_by_status
 """
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List
@@ -37,6 +38,7 @@ from quantum_serverless.utils import JsonSerializable
 remote = ray.remote
 get = ray.get
 put = ray.put
+get_refs_by_status = ray.wait
 
 
 @dataclass

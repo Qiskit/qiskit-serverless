@@ -29,7 +29,8 @@ Quantum serverless core module classes and functions
     run_qiskit_remote
     get
     put
+    get_refs_by_status
 """
 
 from .provider import Provider, ComputeResource
-from .decorators import remote, get, put, run_qiskit_remote
+from .decorators import remote, get, put, run_qiskit_remote, get_refs_by_status
