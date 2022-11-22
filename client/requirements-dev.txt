@@ -14,3 +14,4 @@ reno>=3.5.0
 # the ~= specifier for it.
 black[jupyter]~=22.1
 requests-mock>=1.9.3
+testcontainers>=3.7.0
