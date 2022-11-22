@@ -2,6 +2,7 @@
  "cells": [
   {
    "cell_type": "markdown",
+   "metadata": {},
    "source": [
     "# Guide: configuring quantum serverless\n",
     "\n",
@@ -9,13 +10,11 @@
     "It is easy to do with constructor arguments.\n",
     "\n",
     "Let's see how to do that."
-   ],
-   "metadata": {
-    "collapsed": false
-   }
+   ]
   },
   {
    "cell_type": "markdown",
+   "metadata": {},
    "source": [
     "First option is to pass configuration to constructor of `QuantumServerless`\n",
     "\n",
@@ -23,21 +22,18 @@
     "serverless = QuantumServerless({\n",
     "\t\"providers\": [{\n",
     "\t\t\"name\": \"my_provider\",  # name of provider\n",
-    "\t\t\"cluster\": { # main computational resource\n",
-    "\t\t\t\"name\": \"my_cluster\", # name of cluster\n",
+    "\t\t\"compute_resource\": { # main computational resource\n",
+    "\t\t\t\"name\": \"my_resource\", # name of cluster\n",
     "\t\t\t\"host\": \"HOST_ADDRESS_OF_CLUSTER_HEAD_NODE\", # host address of cluster, if you are using helm it will be DEPLOYMENT_NAME-kuberay-head-svc\n",
-    "\t\t\t\"port\": 10001 # port to connect\n",
     "\t\t}\n",
     "\t}]\n",
     "})\n",
     "```"
-   ],
-   "metadata": {
-    "collapsed": false
-   }
+   ]
   },
   {
    "cell_type": "markdown",
+   "metadata": {},
    "source": [
     "Other option will be creating instance from configuration file, which has exactly the same structure as example above\n",
     "\n",
@@ -46,10 +42,9 @@
     "{\n",
     "\t\"providers\": [{\n",
     "\t\t\"name\": \"my_provider\",\n",
-    "\t\t\"cluster\": {\n",
+    "\t\t\"compute_resource\": {\n",
     "\t\t\t\"name\": \"my_cluster\",\n",
     "\t\t\t\"host\": \"HOST_ADDRESS_OF_CLUSTER_HEAD_NODE\",\n",
-    "\t\t\t\"port\": 10001\n",
     "\t\t}\n",
     "\t}]\n",
     "}\n",
@@ -60,13 +55,11 @@
     "```python\n",
     "serverless = QuantumServerless.load_configuration(\"./config.json\")\n",
     "```"
-   ],
-   "metadata": {
-    "collapsed": false
-   }
+   ]
   },
   {
    "cell_type": "markdown",
+   "metadata": {},
    "source": [
     "You can use it now\n",
     "\n",
@@ -74,31 +67,28 @@
     "with serverless.provider(\"my_provider\"):\n",
     "    ...\n",
     "```"
-   ],
-   "metadata": {
-    "collapsed": false
-   }
+   ]
   }
  ],
  "metadata": {
   "kernelspec": {
-   "display_name": "Python 3",
+   "display_name": "Python 3 (ipykernel)",
    "language": "python",
    "name": "python3"
   },
   "language_info": {
    "codemirror_mode": {
     "name": "ipython",
-    "version": 2
+    "version": 3
    },
    "file_extension": ".py",
    "mimetype": "text/x-python",
    "name": "python",
    "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython2",
-   "version": "2.7.6"
+   "pygments_lexer": "ipython3",
+   "version": "3.7.13"
   }
  },
  "nbformat": 4,
- "nbformat_minor": 0
+ "nbformat_minor": 4
 }

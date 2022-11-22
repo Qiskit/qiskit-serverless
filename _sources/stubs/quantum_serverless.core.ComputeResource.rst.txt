@@ -28,7 +28,8 @@
    .. autosummary::
    
       ~ComputeResource.host
-      ~ComputeResource.port
+      ~ComputeResource.port_interactive
+      ~ComputeResource.port_job_server
       ~ComputeResource.resources
       ~ComputeResource.name
    

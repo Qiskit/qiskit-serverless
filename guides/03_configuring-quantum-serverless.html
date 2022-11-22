@@ -54,10 +54,9 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">({</span>
     <span class="s2">&quot;providers&quot;</span><span class="p">:</span> <span class="p">[{</span>
         <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;my_provider&quot;</span><span class="p">,</span>  <span class="c1"># name of provider</span>
-        <span class="s2">&quot;cluster&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="c1"># main computational resource</span>
-            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;my_cluster&quot;</span><span class="p">,</span> <span class="c1"># name of cluster</span>
+        <span class="s2">&quot;compute_resource&quot;</span><span class="p">:</span> <span class="p">{</span> <span class="c1"># main computational resource</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;my_resource&quot;</span><span class="p">,</span> <span class="c1"># name of cluster</span>
             <span class="s2">&quot;host&quot;</span><span class="p">:</span> <span class="s2">&quot;HOST_ADDRESS_OF_CLUSTER_HEAD_NODE&quot;</span><span class="p">,</span> <span class="c1"># host address of cluster, if you are using helm it will be DEPLOYMENT_NAME-kuberay-head-svc</span>
-            <span class="s2">&quot;port&quot;</span><span class="p">:</span> <span class="mi">10001</span> <span class="c1"># port to connect</span>
         <span class="p">}</span>
     <span class="p">}]</span>
 <span class="p">})</span>
@@ -68,10 +67,9 @@
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="nt">&quot;providers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="w"></span>
 <span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;my_provider&quot;</span><span class="p">,</span><span class="w"></span>
-<span class="w">        </span><span class="nt">&quot;cluster&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="nt">&quot;compute_resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;my_cluster&quot;</span><span class="p">,</span><span class="w"></span>
 <span class="w">            </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HOST_ADDRESS_OF_CLUSTER_HEAD_NODE&quot;</span><span class="p">,</span><span class="w"></span>
-<span class="w">            </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10001</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="p">}]</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
