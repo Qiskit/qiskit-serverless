@@ -76,7 +76,7 @@ class TestQuantumServerless(TestCase):
                     "compute_resource": {
                         "name": "some_resource",
                         "host": "some_host",
-                        "port": 10001,
+                        "port_interactive": 10002,
                     },
                 }
             ]
@@ -88,7 +88,8 @@ class TestQuantumServerless(TestCase):
 
         self.assertEqual(compute_resource.host, "some_host")
         self.assertEqual(compute_resource.name, "some_resource")
-        self.assertEqual(compute_resource.port, 10001)
+        self.assertEqual(compute_resource.port_interactive, 10002)
+        self.assertEqual(compute_resource.port_job_server, 8265)
 
     def test_available_clusters_with_mock(self):
         """Test for external api call for available clusters."""

@@ -50,7 +50,8 @@ class ComputeResource:
 
     name: str
     host: Optional[str] = None
-    port: Optional[int] = None
+    port_interactive: int = 10001
+    port_job_server: int = 8265
     resources: Optional[Dict[str, float]] = None
 
     def job_client(self) -> Optional[JobSubmissionClient]:
@@ -60,7 +61,7 @@ class ComputeResource:
             job client
         """
         if self.host is not None:
-            connection_url = f"http://{self.host}:8265"
+            connection_url = f"http://{self.host}:{self.port_job_server}"
             client = None
             try:
                 client = JobSubmissionClient(connection_url)
@@ -92,8 +93,8 @@ class ComputeResource:
 
     def connection_string_interactive_mode(self) -> Optional[str]:
         """Returns connection string to compute_resource."""
-        if self.host is not None and self.port is not None:
-            return f"ray://{self.host}:{self.port}"
+        if self.host is not None:
+            return f"ray://{self.host}:{self.port_interactive}"
         return None
 
     @classmethod
@@ -102,16 +103,13 @@ class ComputeResource:
         return ComputeResource(
             name=data.get("name"),
             host=data.get("host"),
-            port=data.get("port"),
+            port_interactive=data.get("port_interactive"),
+            port_job_server=data.get("port_job_server"),
         )
 
     def __eq__(self, other: object):
         if isinstance(other, ComputeResource):
-            return (
-                self.name == other.name
-                and self.port == other.port
-                and self.host == other.host
-            )
+            return self.name == other.name and self.host == other.host
         return False
 
     def __repr__(self):
