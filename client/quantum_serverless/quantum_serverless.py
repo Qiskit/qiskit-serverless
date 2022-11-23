@@ -96,7 +96,6 @@ class QuantumServerless:
         self._providers: List[Provider] = load_config(config)
         self._selected_provider: Provider = self._providers[-1]
 
-        self._job_client = self._selected_provider.job_client()
         self._allocated_context: Optional[Context] = None
 
     def __enter__(self):
@@ -107,6 +106,11 @@ class QuantumServerless:
         if self._allocated_context:
             self._allocated_context.disconnect()
         self._allocated_context = None
+
+    @property
+    def job_client(self):
+        """Job client for given provider."""
+        return self._selected_provider.job_client()
 
     def run_job(
         self,
@@ -133,7 +137,9 @@ class QuantumServerless:
         Returns:
             job
         """
-        if self._job_client is None:
+        job_client = self.job_client
+
+        if job_client is None:
             logging.warning(  # pylint: disable=logging-fstring-interpolation
                 f"Job has not been submitted as no provider "
                 f"with remote host has been configured. "
@@ -141,12 +147,12 @@ class QuantumServerless:
             )
             return None
 
-        job_id = self._job_client.submit_job(
+        job_id = job_client.submit_job(
             entrypoint=entrypoint,
             submission_id=f"qs_{uuid4()}",
             runtime_env=runtime_env,
         )
-        return Job(job_id=job_id, job_client=self._job_client)
+        return Job(job_id=job_id, job_client=job_client)
 
     def provider(
         self,

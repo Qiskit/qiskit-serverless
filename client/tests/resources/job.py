@@ -7,6 +7,6 @@ def ultimate():
 
 
 with QuantumServerless():
-    result = get([ultimate() for _ in range(100)])
+    result = get([ultimate() for _ in range(10)])
 
 print(result)
