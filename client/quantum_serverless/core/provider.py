@@ -44,7 +44,8 @@ class ComputeResource:
     Args:
         name: name of compute_resource
         host: host address of compute_resource
-        port: port of compute_resource
+        port_interactive: port of compute_resource for interactive mode
+        port_job_server: port of compute resource for job server
         resources: list of resources
     """
 
