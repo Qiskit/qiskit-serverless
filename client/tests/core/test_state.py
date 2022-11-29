@@ -1,10 +1,11 @@
-"""Tests jobs."""
+"""Test handlers."""
 import os
 
 from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
 
 from quantum_serverless import QuantumServerless
+from quantum_serverless.core.state import RedisStateHandler
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
 resources_path = os.path.join(
@@ -12,7 +13,8 @@ resources_path = os.path.join(
 )
 
 
-def test_jobs():
+# pylint: disable=duplicate-code
+def test_state():
     """Integration test for jobs."""
 
     with DockerCompose(
@@ -20,6 +22,15 @@ def test_jobs():
     ) as compose:
         host = compose.get_service_host("testrayhead", 8265)
         port = compose.get_service_port("testrayhead", 8265)
+
+        redis_host = compose.get_service_host("redis", 6379)
+        redis_port = compose.get_service_port("redis", 6379)
+
+        state_handler = RedisStateHandler(redis_host, redis_port)
+
+        state_handler.set("some_key", {"key": "value"})
+
+        assert state_handler.get("some_key") == {"key": "value"}
 
         serverless = QuantumServerless(
             {
@@ -39,7 +50,7 @@ def test_jobs():
         wait_for_job_client(serverless)
 
         job = serverless.run_job(
-            entrypoint="python job.py",
+            entrypoint="python job_with_state.py",
             runtime_env={
                 "working_dir": resources_path,
             },
@@ -50,3 +61,6 @@ def test_jobs():
         assert "42" in job.logs()
         assert job.status().is_terminal()
         assert job.status() == JobStatus.SUCCEEDED
+
+        assert state_handler.get("in_job") == {"k": 42}
+        assert state_handler.get("in_other_job") == {"other_k": 42}

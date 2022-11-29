@@ -1,13 +1,13 @@
 services:
-  jupyter:
-    container_name: qs-jupyter
-    build:
-      context: ./
-      dockerfile: infrastructure/docker/Dockerfile-notebook
-    ports:
-      - 8888:8888
-    networks:
-      - safe-tier
+#  jupyter:
+#    container_name: qs-jupyter
+#    build:
+#      context: ./
+#      dockerfile: infrastructure/docker/Dockerfile-notebook
+#    ports:
+#      - 8888:8888
+#    networks:
+#      - safe-tier
   ray-head:
     container_name: ray-head
     build:
@@ -24,6 +24,15 @@ services:
     privileged: true
     volumes:
       - /dev/shm:/dev/shm
+    networks:
+      - safe-tier
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_PORT_NUMBER=6379
+    ports:
+      - '6379:6379'
     networks:
       - safe-tier
 networks:

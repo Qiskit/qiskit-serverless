@@ -33,6 +33,7 @@ from typing import Optional, Dict, Any, Union, List
 
 import ray
 
+from quantum_serverless.core.state import StateHandler
 from quantum_serverless.utils import JsonSerializable
 
 remote = ray.remote
@@ -64,7 +65,10 @@ class Target(JsonSerializable):
         return Target(**dictionary)
 
 
-def run_qiskit_remote(target: Optional[Union[Dict[str, Any], Target]] = None):
+def run_qiskit_remote(
+    target: Optional[Union[Dict[str, Any], Target]] = None,
+    state: Optional[StateHandler] = None,
+):
     """Wraps local function as remote executable function.
     New function will return reference object when called.
 
@@ -98,6 +102,8 @@ def run_qiskit_remote(target: Optional[Union[Dict[str, Any], Target]] = None):
 
     def decorator(function):
         def wrapper(*args, **kwargs):
+            if state is not None:
+                args = tuple([state] + list(args))
             result = ray.remote(
                 num_cpus=remote_target.cpu,
                 num_gpus=remote_target.gpu,

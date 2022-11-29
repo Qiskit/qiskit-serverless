@@ -1,11 +1,19 @@
 services:
   testrayhead:
     container_name: testrayhead
-    image: qiskit/quantum-serverless-ray-node:latest
+    image: icekhan/quantum-serverless-ray-node:latest #qiskit/quantum-serverless-ray-node:0.0.3-dev1
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
     ]
     ports:
       - 9999:8265
-
+      - 9997:10001
+  redis:
+    container_name: redis
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_PORT_NUMBER=6379
+    ports:
+      - 9998:6379

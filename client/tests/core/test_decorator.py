@@ -11,11 +11,25 @@
 # that they have been altered from the originals.
 
 """Test decorators."""
-
+from typing import Dict, Any
 from unittest import TestCase
 
 from quantum_serverless import QuantumServerless, get
 from quantum_serverless.core.decorators import run_qiskit_remote, Target
+from quantum_serverless.core.state import StateHandler
+
+
+class TestHandler(StateHandler):
+    """TestHandler"""
+
+    def __init__(self):
+        self.memory: Dict[str, Any] = {}
+
+    def set(self, key: str, value: Dict[str, Any]):
+        self.memory[key] = value
+
+    def get(self, key: str):
+        return self.memory.get(key)
 
 
 class TestDecorators(TestCase):
@@ -44,3 +58,25 @@ class TestDecorators(TestCase):
         target_expected = Target(pip=["requests", "qiskit==0.39.2"])
         target = Target.from_dict({"pip": ["requests", "qiskit==0.39.2"]})
         self.assertEqual(target.pip, target_expected.pip)
+
+    def test_remote_with_state_injection(self):
+        """Tests remote with state injection."""
+        serverless = QuantumServerless()
+        state_handler = TestHandler()
+
+        @run_qiskit_remote(target={"cpu": 1}, state=state_handler)
+        def ultimate_function_with_state(state: StateHandler, ultimate_argument: int):
+            """Test function."""
+            state.set("some_key", {"result": ultimate_argument})
+            return state.get("some_key")
+
+        with serverless:
+            reference = (
+                ultimate_function_with_state(  # pylint: disable=no-value-for-parameter
+                    1
+                )
+            )
+
+            result = get(reference)
+
+            self.assertEqual(result, {"result": 1})
