@@ -97,7 +97,7 @@ def redis_state_serializer(state: RedisStateHandler):
     return {
         "host": state._host,
         "port": state._port,
-        "db": state._db,
+        "database": state._db,
         "password": state._password,
     }
 
@@ -107,7 +107,7 @@ def redis_state_deserializer(redis: dict):
     return RedisStateHandler(
         host=redis.get("host"),
         port=redis.get("port"),
-        db=redis.get("db"),
+        db=redis.get("database"),
         password=redis.get("password"),
     )
 

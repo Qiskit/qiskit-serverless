@@ -31,9 +31,9 @@ class RedisStateHandler(StateHandler):
         """RedisStateHandler.
 
         Args:
-            host: host for redis db
+            host: host for redis database
             port: port for redis
-            db: db
+            db: database
             password: redis password
         """
         # TODO: initialization using env variables  # pylint: disable=fixme

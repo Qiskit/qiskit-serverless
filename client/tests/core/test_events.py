@@ -1,0 +1,85 @@
+"""Test handlers."""
+import json
+import os
+
+from testcontainers.compose import DockerCompose
+
+from quantum_serverless import QuantumServerless, run_qiskit_remote, get
+from quantum_serverless.core.constrants import META_TOPIC
+from quantum_serverless.core.events import RedisEventHandler
+
+resources_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "../resources"
+)
+
+
+# pylint: disable=duplicate-code
+def test_events():
+    """Integration test for jobs."""
+
+    topic = "test-topic"
+
+    with DockerCompose(
+        resources_path, compose_file_name="test-compose.yml", pull=True
+    ) as compose:
+        host = compose.get_service_host("testrayhead", 10001)
+        port = compose.get_service_port("testrayhead", 10001)
+
+        redis_host = compose.get_service_host("redis", 6379)
+        redis_port = compose.get_service_port("redis", 6379)
+
+        events_handler = RedisEventHandler(redis_host, redis_port)
+
+        pubsub = events_handler.redis.pubsub()
+        pubsub.subscribe(topic)
+
+        events_handler.publish(topic, {"some_key": "some_value"})
+
+        for message in pubsub.listen():
+            if message.get("type") == "message":
+                assert json.loads(message.get("data")) == {"some_key": "some_value"}
+            pubsub.unsubscribe()
+
+        serverless = QuantumServerless(
+            {
+                "providers": [
+                    {
+                        "name": "test_docker",
+                        "compute_resource": {
+                            "name": "test_docker",
+                            "host": host,
+                            "port_job_server": port,
+                            "port_interactive": port,
+                        },
+                    }
+                ]
+            }
+        ).set_provider("test_docker")
+
+        @run_qiskit_remote(target={"cpu": 1, "qpu": 2}, events_handler=events_handler)
+        def ultimate():
+            return 42
+
+        pubsub.subscribe(META_TOPIC)
+
+        with serverless:
+            result = get(ultimate())
+            assert result == 42
+
+        for message in pubsub.listen():
+            if message.get("type") == "message":
+                message_data = json.loads(message.get("data"))
+                print(message_data)
+                assert message_data.get("layer") == "qs"
+                assert message_data.get("function_meta", {}).get("name") == "ultimate"
+                assert message_data.get("resources") == {
+                    "cpu": 1,
+                    "gpu": 0,
+                    "qpu": 2,
+                    "mem": 1,
+                    "resources": None,
+                    "env_vars": None,
+                    "pip": None,
+                }
+
+            pubsub.unsubscribe()

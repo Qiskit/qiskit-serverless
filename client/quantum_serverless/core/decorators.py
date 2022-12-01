@@ -28,11 +28,18 @@ Quantum serverless decorators
     run_qiskit_remote
     get_refs_by_status
 """
+import os
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List
 
 import ray
 
+from quantum_serverless.core.constrants import META_TOPIC
+from quantum_serverless.core.events import (
+    RedisEventHandler,
+    ExecutionMessage,
+    EventHandler,
+)
 from quantum_serverless.core.state import StateHandler
 from quantum_serverless.utils import JsonSerializable
 
@@ -68,6 +75,7 @@ class Target(JsonSerializable):
 def run_qiskit_remote(
     target: Optional[Union[Dict[str, Any], Target]] = None,
     state: Optional[StateHandler] = None,
+    events_handler: Optional[EventHandler] = None,
 ):
     """Wraps local function as remote executable function.
     New function will return reference object when called.
@@ -84,6 +92,8 @@ def run_qiskit_remote(
 
     Args:
         target: target object or dictionary for requirements for node resources
+        state: state handler
+        events_handler: events handler
 
     Returns:
         object reference
@@ -102,8 +112,27 @@ def run_qiskit_remote(
 
     def decorator(function):
         def wrapper(*args, **kwargs):
+            # inject state as an argument when passed in decorator
             if state is not None:
                 args = tuple([state] + list(args))
+
+            # inject execution meta emitter
+            if events_handler is not None:
+                emitter = events_handler
+            else:
+                emitter = RedisEventHandler.from_env_vars()
+            if emitter is not None:
+                emitter.publish(
+                    META_TOPIC,
+                    message=ExecutionMessage(
+                        workload_id=os.environ.get("QS_EXECUTION_WORKLOAD_ID"),
+                        uid=os.environ.get("QS_EXECUTION_UID"),
+                        layer="qs",
+                        function_meta={"name": function.__name__},
+                        resources=remote_target.to_dict(),
+                    ).to_dict(),
+                )
+
             result = ray.remote(
                 num_cpus=remote_target.cpu,
                 num_gpus=remote_target.gpu,
