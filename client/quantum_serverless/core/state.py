@@ -1,4 +1,34 @@
-"""State handler."""
+# This code is a Qiskit project.
+#
+# (C) Copyright IBM 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
+
+"""
+===============================================
+Provider (:mod:`quantum_serverless.core.state`)
+===============================================
+
+.. currentmodule:: quantum_serverless.core.state
+
+Quantum serverless state handler
+=================================
+
+.. autosummary::
+    :toctree: ../stubs/
+
+    ExecutionMessage
+    EventHandler
+    RedisEventHandler
+"""
+
 from abc import ABC
 from typing import Any, Dict, Optional
 
@@ -30,6 +60,12 @@ class RedisStateHandler(StateHandler):
     ):
         """RedisStateHandler.
 
+        Example:
+            >>> state = RedisStateHandler(host="<REDIS_HOST>", port=8267, password="<REDIS_PASSWORD>")
+            >>> state.set("some_id", {"some_key": "some_value"})
+            >>> state.get("some_id")
+            >>> # {"some_key": "some_value"}
+
         Args:
             host: host for redis database
             port: port for redis
@@ -58,3 +94,6 @@ class RedisStateHandler(StateHandler):
         deserializer = RedisStateHandler
         serialized_data = (self._host, self._port, self._db, self._password)
         return deserializer, serialized_data
+
+    def __repr__(self):
+        return f"<RedisStateHandler | {self._host}:{self._port}>"

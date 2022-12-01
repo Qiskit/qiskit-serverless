@@ -1,4 +1,33 @@
-"""Events manager."""
+# This code is a Qiskit project.
+#
+# (C) Copyright IBM 2022.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
+"""
+================================================
+Provider (:mod:`quantum_serverless.core.events`)
+================================================
+
+.. currentmodule:: quantum_serverless.core.events
+
+Quantum serverless events handler
+=================================
+
+.. autosummary::
+    :toctree: ../stubs/
+
+    ExecutionMessage
+    EventHandler
+    RedisEventHandler
+"""
+
 import json
 import os
 import time
@@ -54,6 +83,21 @@ class RedisEventHandler(EventHandler):
     ):
         """Event handler backed up by Redis.
 
+        Example:
+            >>> emitter = RedisEventHandler(
+            >>>     host="<REDIS_HOST>",
+            >>>     port=8267,
+            >>>     password="<REDIS_PASSWORD>"
+            >>> )
+            >>> emitter.publish("some_topic", {"some_key": "some_value"})
+
+        Example:
+            >>> emitter = RedisEventHandler.from_env_vars()
+            >>> # if env variables are set it will create handler object
+            >>> # otherwise return None
+            >>> if emitter is not None:
+            >>>     emitter.publish("some_topic", {"some_key": "some_value"})
+
         Args:
             host: redis host
             port: redis port
@@ -85,3 +129,8 @@ class RedisEventHandler(EventHandler):
             database=0,
             password=os.environ.get(QS_EVENTS_REDIS_PASSWORD, None),
         )
+
+    def __reduce__(self):
+        deserializer = RedisEventHandler
+        serialized_data = (self.host, self.port, self.database, self.password)
+        return deserializer, serialized_data
