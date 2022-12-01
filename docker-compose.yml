@@ -1,13 +1,13 @@
 services:
-#  jupyter:
-#    container_name: qs-jupyter
-#    build:
-#      context: ./
-#      dockerfile: infrastructure/docker/Dockerfile-notebook
-#    ports:
-#      - 8888:8888
-#    networks:
-#      - safe-tier
+  jupyter:
+    container_name: qs-jupyter
+    build:
+      context: ./
+      dockerfile: infrastructure/docker/Dockerfile-notebook
+    ports:
+      - 8888:8888
+    networks:
+      - safe-tier
   ray-head:
     container_name: ray-head
     build:
