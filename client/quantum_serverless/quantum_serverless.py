@@ -154,6 +154,27 @@ class QuantumServerless:
         )
         return Job(job_id=job_id, job_client=job_client)
 
+    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        """Returns job by job id.
+
+        Args:
+            job_id: job id
+
+        Returns:
+            Job instance
+        """
+        job_client = self.job_client
+
+        if job_client is None:
+            logging.warning(  # pylint: disable=logging-fstring-interpolation
+                f"Job has not been found as no provider "
+                f"with remote host has been configured. "
+                f"Selected provider: {self._selected_provider}"
+            )
+            return None
+        job_client.get_job_info(job_id)
+        return Job(job_id=job_id, job_client=job_client)
+
     def provider(
         self,
         provider: Union[str, Provider],
