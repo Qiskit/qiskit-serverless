@@ -18,7 +18,11 @@ import os
 from testcontainers.compose import DockerCompose
 
 from quantum_serverless import QuantumServerless, run_qiskit_remote, get
-from quantum_serverless.core.constrants import META_TOPIC, QS_EVENTS_REDIS_HOST, QS_EVENTS_REDIS_PORT
+from quantum_serverless.core.constrants import (
+    META_TOPIC,
+    QS_EVENTS_REDIS_HOST,
+    QS_EVENTS_REDIS_PORT,
+)
 from quantum_serverless.core.events import RedisEventHandler
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
@@ -27,7 +31,7 @@ resources_path = os.path.join(
 )
 
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,too-many-locals
 def test_events():
     """Integration test for jobs."""
 
@@ -108,8 +112,8 @@ def test_events():
                 "working_dir": resources_path,
                 "env_vars": {
                     QS_EVENTS_REDIS_HOST: "redis",
-                    QS_EVENTS_REDIS_PORT: "6379"
-                }
+                    QS_EVENTS_REDIS_PORT: "6379",
+                },
             },
         )
 
@@ -123,3 +127,4 @@ def test_events():
                 assert message_data.get("layer") == "qs"
                 assert message_data.get("function_meta", {}).get("name") == "ultimate"
             pubsub.unsubscribe()
+        assert len(messages) == 10

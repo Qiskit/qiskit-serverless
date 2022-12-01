@@ -61,7 +61,11 @@ class RedisStateHandler(StateHandler):
         """RedisStateHandler.
 
         Example:
-            >>> state = RedisStateHandler(host="<REDIS_HOST>", port=8267, password="<REDIS_PASSWORD>")
+            >>> state = RedisStateHandler(
+            >>>     host="<REDIS_HOST>",
+            >>>     port=8267,
+            >>>     password="<REDIS_PASSWORD>"
+            >>> )
             >>> state.set("some_id", {"some_key": "some_value"})
             >>> state.get("some_id")
             >>> # {"some_key": "some_value"}

@@ -1,7 +1,7 @@
 services:
   testrayhead:
     container_name: testrayhead
-    image: icekhan/quantum-serverless-ray-node:latest #qiskit/quantum-serverless-ray-node:0.0.3-dev1
+    image: qiskit/quantum-serverless-ray-node:latest
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
