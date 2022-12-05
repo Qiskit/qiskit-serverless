@@ -338,7 +338,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;QuantumServerless: providers [local, docker], clusters [local, docker]&gt;
+&lt;QuantumServerless | providers [local, docker]&gt;
 </pre></div></div>
 </div>
 <blockquote>
@@ -426,6 +426,15 @@ div.rendered_html tbody tr:hover {
 <div class="highlight"><pre>
 &#39;/home/ray/anaconda3/lib/python3.7/site-packages/ray/_private/worker.py:983: UserWarning: len(ctx) is deprecated. Use len(ctx.address_info) instead.\n  warnings.warn(&#34;len(ctx) is deprecated. Use len(ctx.address_info) instead.&#34;)\n[42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42]\n&#39;
 </pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># recover job by id</span>
+<span class="n">recovered_job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get_job_by_id</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+</pre></div>
+</div>
 </div>
 </section>
 
