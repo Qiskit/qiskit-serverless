@@ -1,0 +1,26 @@
+﻿quantum\_serverless.core.EventHandler
+=====================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: EventHandler
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~EventHandler.__init__
+      ~EventHandler.listen
+      ~EventHandler.publish
+      ~EventHandler.subscribe
+      ~EventHandler.unsubscribe
+   
+   
+
+   
+   
+   

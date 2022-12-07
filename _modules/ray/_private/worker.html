@@ -99,6 +99,7 @@
 <span class="kn">import</span> <span class="nn">ray._private.storage</span> <span class="k">as</span> <span class="nn">storage</span>
 
 <span class="c1"># Ray modules</span>
+<span class="kn">import</span> <span class="nn">ray.actor</span>
 <span class="kn">import</span> <span class="nn">ray.cloudpickle</span> <span class="k">as</span> <span class="nn">pickle</span>
 <span class="kn">import</span> <span class="nn">ray.job_config</span>
 <span class="kn">import</span> <span class="nn">ray.remote_function</span>
@@ -641,11 +642,9 @@
         <span class="c1"># Make sure that the value is not an object ref.</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">ObjectRef</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-                <span class="s2">&quot;Calling &#39;put&#39; on an ray.ObjectRef is not allowed &quot;</span>
-                <span class="s2">&quot;(similarly, returning an ray.ObjectRef from a remote &quot;</span>
-                <span class="s2">&quot;function is not allowed). If you really want to &quot;</span>
-                <span class="s2">&quot;do this, you can wrap the ray.ObjectRef in a list and &quot;</span>
-                <span class="s2">&quot;call &#39;put&#39; on it (or return it).&quot;</span>
+                <span class="s2">&quot;Calling &#39;put&#39; on an ray.ObjectRef is not allowed. &quot;</span>
+                <span class="s2">&quot;If you really want to do this, you can wrap the &quot;</span>
+                <span class="s2">&quot;ray.ObjectRef in a list and call &#39;put&#39; on it.&quot;</span>
             <span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">LOCAL_MODE</span><span class="p">:</span>
@@ -728,8 +727,16 @@
             <span class="n">debugger_breakpoint</span><span class="p">,</span>
         <span class="p">)</span>
 
+    <span class="nd">@Deprecated</span>
     <span class="k">def</span> <span class="nf">run_function_on_all_workers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">callable</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Run arbitrary code on all of the workers.</span>
+        <span class="sd">&quot;&quot;&quot;This function has been deprecated given the following issues:</span>
+<span class="sd">            - no guarantee that the function run before the remote function run.</span>
+<span class="sd">            - pubsub signal might be lost in some failure cases.</span>
+
+<span class="sd">        This API will be deleted once we move the working dir init away.</span>
+<span class="sd">        NO NEW CODE SHOULD USE THIS API.</span>
+
+<span class="sd">        Run arbitrary code on all of the workers.</span>
 
 <span class="sd">        This function will first be run on the driver, and then it will be</span>
 <span class="sd">        exported to all of the workers to be run. It will also be run on any</span>
@@ -1118,7 +1125,7 @@
 <span class="sd">        ray.init(address=&quot;ray://123.45.67.89:10001&quot;)</span>
 
 <span class="sd">    More details for starting and connecting to a remote cluster can be found</span>
-<span class="sd">    here: https://docs.ray.io/en/master/cluster/running-applications/job-submission/ray-client.html # noqa: E501</span>
+<span class="sd">    here: https://docs.ray.io/en/master/cluster/getting-started.html</span>
 
 <span class="sd">    You can also define an environment variable called `RAY_ADDRESS` in</span>
 <span class="sd">    the same format as the `address` parameter to connect to an existing</span>
@@ -1203,7 +1210,7 @@
 <span class="sd">        _temp_dir: If provided, specifies the root temporary</span>
 <span class="sd">            directory for the Ray process. Defaults to an OS-specific</span>
 <span class="sd">            conventional location, e.g., &quot;/tmp/ray&quot;.</span>
-<span class="sd">        _metrics_export_port(int): Port number Ray exposes system metrics</span>
+<span class="sd">        _metrics_export_port: Port number Ray exposes system metrics</span>
 <span class="sd">            through a Prometheus endpoint. It is currently under active</span>
 <span class="sd">            development, and the API is subject to change.</span>
 <span class="sd">        _system_config: Configuration for overriding</span>
@@ -1297,6 +1304,8 @@
                 <span class="n">usage_lib</span><span class="o">.</span><span class="n">put_pre_init_usage_stats</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">usage_lib</span><span class="o">.</span><span class="n">put_pre_init_usage_stats</span><span class="p">()</span>
+
+        <span class="n">usage_lib</span><span class="o">.</span><span class="n">record_library_usage</span><span class="p">(</span><span class="s2">&quot;client&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ctx</span>
 
     <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
@@ -1544,6 +1553,7 @@
     <span class="c1"># already contain a protocol.</span>
     <span class="k">if</span> <span class="n">dashboard_url</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">dashboard_url</span><span class="p">)</span><span class="o">.</span><span class="n">scheme</span><span class="p">:</span>
         <span class="n">dashboard_url</span> <span class="o">=</span> <span class="s2">&quot;http://&quot;</span> <span class="o">+</span> <span class="n">dashboard_url</span>
+
     <span class="c1"># We logged the address before attempting the connection, so we don&#39;t need</span>
     <span class="c1"># to log it again.</span>
     <span class="n">info_str</span> <span class="o">=</span> <span class="s2">&quot;Connected to Ray cluster.&quot;</span>
@@ -2110,10 +2120,15 @@
         <span class="c1"># are the same.</span>
         <span class="c1"># When using an interactive shell, there is no script directory.</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">interactive_mode</span><span class="p">:</span>
-            <span class="n">script_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
-            <span class="n">worker</span><span class="o">.</span><span class="n">run_function_on_all_workers</span><span class="p">(</span>
-                <span class="k">lambda</span> <span class="n">worker_info</span><span class="p">:</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">script_directory</span><span class="p">)</span>
-            <span class="p">)</span>
+            <span class="n">script_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="c1"># If driver&#39;s sys.path doesn&#39;t include the script directory</span>
+            <span class="c1"># (e.g driver is started via `python -m`,</span>
+            <span class="c1"># see https://peps.python.org/pep-0338/),</span>
+            <span class="c1"># then we shouldn&#39;t add it to the workers.</span>
+            <span class="k">if</span> <span class="n">script_directory</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="p">:</span>
+                <span class="n">worker</span><span class="o">.</span><span class="n">run_function_on_all_workers</span><span class="p">(</span>
+                    <span class="k">lambda</span> <span class="n">worker_info</span><span class="p">:</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">script_directory</span><span class="p">)</span>
+                <span class="p">)</span>
         <span class="c1"># In client mode, if we use runtime envs with &quot;working_dir&quot;, then</span>
         <span class="c1"># it&#39;ll be handled automatically.  Otherwise, add the current dir.</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">job_config</span><span class="o">.</span><span class="n">client_job</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">job_config</span><span class="o">.</span><span class="n">runtime_env_has_working_dir</span><span class="p">():</span>
@@ -2305,8 +2320,7 @@
 
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">object_refs</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;&#39;object_refs&#39; must either be an object ref &quot;</span>
-                <span class="s2">&quot;or a list of object refs.&quot;</span>
+                <span class="s2">&quot;&#39;object_refs&#39; must either be an ObjectRef or a list of ObjectRefs.&quot;</span>
             <span class="p">)</span>
 
         <span class="c1"># TODO(ujvl): Consider how to allow user to retrieve the ready objects.</span>
@@ -2351,11 +2365,12 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        value: The Python object to be stored.</span>
-<span class="sd">        _owner: The actor that should own this object. This allows creating</span>
-<span class="sd">            objects with lifetimes decoupled from that of the creating process.</span>
-<span class="sd">            Note that the owner actor must be passed a reference to the object</span>
-<span class="sd">            prior to the object creator exiting, otherwise the reference will</span>
-<span class="sd">            still be lost.</span>
+<span class="sd">        _owner [Experimental]: The actor that should own this object. This</span>
+<span class="sd">            allows creating objects with lifetimes decoupled from that of the</span>
+<span class="sd">            creating process. The owner actor must be passed a reference to the</span>
+<span class="sd">            object prior to the object creator exiting, otherwise the reference</span>
+<span class="sd">            will still be lost. *Note that this argument is an experimental API</span>
+<span class="sd">            and should be avoided if possible.*</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        The object ref assigned to this value.</span>
@@ -2627,6 +2642,9 @@
 
 
 <span class="k">def</span> <span class="nf">_make_remote</span><span class="p">(</span><span class="n">function_or_class</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">function_or_class</span><span class="o">.</span><span class="vm">__module__</span><span class="p">:</span>
+        <span class="n">function_or_class</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">=</span> <span class="s2">&quot;global&quot;</span>
+
     <span class="k">if</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isfunction</span><span class="p">(</span><span class="n">function_or_class</span><span class="p">)</span> <span class="ow">or</span> <span class="n">is_cython</span><span class="p">(</span><span class="n">function_or_class</span><span class="p">):</span>
         <span class="n">ray_option_utils</span><span class="o">.</span><span class="n">validate_task_options</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="n">in_options</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ray</span><span class="o">.</span><span class="n">remote_function</span><span class="o">.</span><span class="n">RemoteFunction</span><span class="p">(</span>
@@ -2817,62 +2835,118 @@
 
 
 <span class="nd">@PublicAPI</span>
-<span class="k">def</span> <span class="nf">remote</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">remote</span><span class="p">(</span>
+    <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">ray</span><span class="o">.</span><span class="n">remote_function</span><span class="o">.</span><span class="n">RemoteFunction</span><span class="p">,</span> <span class="n">ray</span><span class="o">.</span><span class="n">actor</span><span class="o">.</span><span class="n">ActorClass</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;Defines a remote function or an actor class.</span>
 
-<span class="sd">    This can be used with no arguments to define a remote function or actor as</span>
-<span class="sd">    follows:</span>
+<span class="sd">    This function can be used as a decorator with no arguments</span>
+<span class="sd">    to define a remote function or actor as follows:</span>
 
-<span class="sd">    .. code-block:: python</span>
+<span class="sd">    &gt;&gt;&gt; import ray</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; @ray.remote</span>
+<span class="sd">    ... def f(a, b, c):</span>
+<span class="sd">    ...     return a + b + c</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; object_ref = f.remote(1, 2, 3)</span>
+<span class="sd">    &gt;&gt;&gt; result = ray.get(object_ref)</span>
+<span class="sd">    &gt;&gt;&gt; assert result == (1 + 2 + 3)</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; @ray.remote</span>
+<span class="sd">    ... class Foo:</span>
+<span class="sd">    ...     def __init__(self, arg):</span>
+<span class="sd">    ...         self.x = arg</span>
+<span class="sd">    ...</span>
+<span class="sd">    ...     def method(self, a):</span>
+<span class="sd">    ...         return self.x + a</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; actor_handle = Foo.remote(123)</span>
+<span class="sd">    &gt;&gt;&gt; object_ref = actor_handle.method.remote(321)</span>
+<span class="sd">    &gt;&gt;&gt; result = ray.get(object_ref)</span>
+<span class="sd">    &gt;&gt;&gt; assert result == (123 + 321)</span>
 
-<span class="sd">        @ray.remote</span>
-<span class="sd">        def f():</span>
-<span class="sd">            return 1</span>
+<span class="sd">    Equivalently, use a function call to create a remote function or actor.</span>
 
-<span class="sd">        @ray.remote</span>
-<span class="sd">        class Foo:</span>
-<span class="sd">            def method(self):</span>
-<span class="sd">                return 1</span>
+<span class="sd">    &gt;&gt;&gt; def g(a, b, c):</span>
+<span class="sd">    ...     return a + b + c</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; remote_g = ray.remote(g)</span>
+<span class="sd">    &gt;&gt;&gt; object_ref = remote_g.remote(1, 2, 3)</span>
+<span class="sd">    &gt;&gt;&gt; assert ray.get(object_ref) == (1 + 2 + 3)</span>
+
+<span class="sd">    &gt;&gt;&gt; class Bar:</span>
+<span class="sd">    ...     def __init__(self, arg):</span>
+<span class="sd">    ...         self.x = arg</span>
+<span class="sd">    ...</span>
+<span class="sd">    ...     def method(self, a):</span>
+<span class="sd">    ...         return self.x + a</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; RemoteBar = ray.remote(Bar)</span>
+<span class="sd">    &gt;&gt;&gt; actor_handle = RemoteBar.remote(123)</span>
+<span class="sd">    &gt;&gt;&gt; object_ref = actor_handle.method.remote(321)</span>
+<span class="sd">    &gt;&gt;&gt; result = ray.get(object_ref)</span>
+<span class="sd">    &gt;&gt;&gt; assert result == (123 + 321)</span>
+
 
 <span class="sd">    It can also be used with specific keyword arguments as follows:</span>
 
-<span class="sd">    .. code-block:: python</span>
-
-<span class="sd">        @ray.remote(num_gpus=1, max_calls=1, num_returns=2)</span>
-<span class="sd">        def f():</span>
-<span class="sd">            return 1, 2</span>
-
-<span class="sd">        @ray.remote(num_cpus=2, resources={&quot;CustomResource&quot;: 1})</span>
-<span class="sd">        class Foo:</span>
-<span class="sd">            def method(self):</span>
-<span class="sd">                return 1</span>
+<span class="sd">    &gt;&gt;&gt; @ray.remote(num_gpus=1, max_calls=1, num_returns=2)</span>
+<span class="sd">    ... def f():</span>
+<span class="sd">    ...     return 1, 2</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; @ray.remote(num_cpus=2, resources={&quot;CustomResource&quot;: 1})</span>
+<span class="sd">    ... class Foo:</span>
+<span class="sd">    ...     def method(self):</span>
+<span class="sd">    ...         return 1</span>
 
 <span class="sd">    Remote task and actor objects returned by @ray.remote can also be</span>
 <span class="sd">    dynamically modified with the same arguments as above using</span>
 <span class="sd">    ``.options()`` as follows:</span>
 
-<span class="sd">    .. code-block:: python</span>
+<span class="sd">    &gt;&gt;&gt; @ray.remote(num_gpus=1, max_calls=1, num_returns=2)</span>
+<span class="sd">    ... def f():</span>
+<span class="sd">    ...     return 1, 2</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; f_with_2_gpus = f.options(num_gpus=2) # doctest: +SKIP</span>
+<span class="sd">    &gt;&gt;&gt; object_ref = f_with_2_gpus.remote() # doctest: +SKIP</span>
+<span class="sd">    &gt;&gt;&gt; assert ray.get(object_ref) == (1, 2) # doctest: +SKIP</span>
 
-<span class="sd">        @ray.remote(num_gpus=1, max_calls=1, num_returns=2)</span>
-<span class="sd">        def f():</span>
-<span class="sd">            return 1, 2</span>
-<span class="sd">        g = f.options(num_gpus=2)</span>
+<span class="sd">    &gt;&gt;&gt; @ray.remote(num_cpus=2, resources={&quot;CustomResource&quot;: 1})</span>
+<span class="sd">    ... class Foo:</span>
+<span class="sd">    ...     def method(self):</span>
+<span class="sd">    ...         return 1</span>
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; Foo_with_no_resources = Foo.options(num_cpus=1, resources=None)</span>
+<span class="sd">    &gt;&gt;&gt; foo_actor = Foo_with_no_resources.remote()</span>
+<span class="sd">    &gt;&gt;&gt; assert ray.get(foo_actor.method.remote()) == 1</span>
 
-<span class="sd">        @ray.remote(num_cpus=2, resources={&quot;CustomResource&quot;: 1})</span>
-<span class="sd">        class Foo:</span>
-<span class="sd">            def method(self):</span>
-<span class="sd">                return 1</span>
-<span class="sd">        Bar = Foo.options(num_cpus=1, resources=None)</span>
 
-<span class="sd">    Running remote actors will be terminated when the actor handle to them</span>
+<span class="sd">    A remote actor will be terminated when all actor handle to it</span>
 <span class="sd">    in Python is deleted, which will cause them to complete any outstanding</span>
-<span class="sd">    work and then shut down. If you want to kill them immediately, you can</span>
-<span class="sd">    also call ``ray.kill(actor)``.</span>
+<span class="sd">    work and then shut down. If you only have 1 reference to an actor handle,</span>
+<span class="sd">    calling ``del actor`` *could* trigger actor deletion. Note that your program</span>
+<span class="sd">    may have multiple references to the same ActorHandle, and actor termination</span>
+<span class="sd">    will not occur until the reference count goes to 0. See the Python</span>
+<span class="sd">    documentation for more context about object deletion.</span>
+<span class="sd">    https://docs.python.org/3.9/reference/datamodel.html#object.__del__</span>
+
+<span class="sd">    If you want to kill actors immediately, you can also call ``ray.kill(actor)``.</span>
+
+<span class="sd">    .. tip::</span>
+<span class="sd">        Avoid repeatedly passing in large arguments to remote task or method calls.</span>
+
+<span class="sd">        Instead, use ray.put to create a copy of the object in the object store.</span>
+
+<span class="sd">        See :ref:`more info here &lt;tip-delay-get&gt;`.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        num_returns: This is only for *remote functions*. It specifies</span>
-<span class="sd">            the number of object refs returned by</span>
-<span class="sd">            the remote function invocation.</span>
+<span class="sd">            the number of object refs returned by the remote function</span>
+<span class="sd">            invocation. Pass &quot;dynamic&quot; to allow the task to decide how many</span>
+<span class="sd">            return values to return during execution, and the caller will</span>
+<span class="sd">            receive an ObjectRef[ObjectRefGenerator] (note, this setting is</span>
+<span class="sd">            experimental).</span>
 <span class="sd">        num_cpus: The quantity of CPU cores to reserve</span>
 <span class="sd">            for this task or for the lifetime of the actor.</span>
 <span class="sd">        num_gpus: The quantity of GPUs to reserve</span>
@@ -2916,9 +2990,9 @@
 <span class="sd">            this actor or task and its children. See</span>
 <span class="sd">            :ref:`runtime-environments` for detailed documentation. This API is</span>
 <span class="sd">            in beta and may change before becoming stable.</span>
-<span class="sd">        retry_exceptions: Only for *remote functions*. This specifies</span>
-<span class="sd">            whether application-level errors should be retried</span>
-<span class="sd">            up to max_retries times.</span>
+<span class="sd">        retry_exceptions: Only for *remote functions*. This specifies whether</span>
+<span class="sd">            application-level errors should be retried up to max_retries times.</span>
+<span class="sd">            This can be a boolean or a list of exceptions that should be retried.</span>
 <span class="sd">        scheduling_strategy: Strategy about how to</span>
 <span class="sd">            schedule a remote function or actor. Possible values are</span>
 <span class="sd">            None: ray will figure out the scheduling strategy to use, it</span>
@@ -2932,6 +3006,7 @@
 <span class="sd">            placement group based scheduling.</span>
 <span class="sd">        _metadata: Extended options for Ray libraries. For example,</span>
 <span class="sd">            _metadata={&quot;workflows.io/options&quot;: &lt;workflow options&gt;} for Ray workflows.</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># &quot;callable&quot; returns true for both function and class.</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">callable</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
@@ -2971,6 +3046,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/03_specific_package_installation.html">Guide: specific package requirements</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/04_run_jobs.html">Guide: run jobs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/05_get_finished_tasks.html">Guide: get finished remote tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/06_shared_state.html">Guide: state handling</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../apidocs/index.html">API References</a></li>

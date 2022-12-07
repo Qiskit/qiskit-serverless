@@ -55,11 +55,12 @@
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>value</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>) – The Python object to be stored.</p></li>
-<li><p><strong>_owner</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ActorHandle</span></code>]) – The actor that should own this object. This allows creating
-objects with lifetimes decoupled from that of the creating process.
-Note that the owner actor must be passed a reference to the object
-prior to the object creator exiting, otherwise the reference will
-still be lost.</p></li>
+<li><p><strong>[</strong><strong>Experimental</strong><strong>]</strong> (<em>_owner</em>) – The actor that should own this object. This
+allows creating objects with lifetimes decoupled from that of the
+creating process. The owner actor must be passed a reference to the
+object prior to the object creator exiting, otherwise the reference
+will still be lost. <em>Note that this argument is an experimental API
+and should be avoided if possible.</em></p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -104,6 +105,7 @@ still be lost.</p></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/03_specific_package_installation.html">Guide: specific package requirements</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/04_run_jobs.html">Guide: run jobs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/05_get_finished_tasks.html">Guide: get finished remote tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/06_shared_state.html">Guide: state handling</a></li>
 </ul>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../apidocs/index.html">API References</a></li>

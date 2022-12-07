@@ -80,6 +80,8 @@
 <span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">qpy</span>
 <span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
 
+<span class="kn">from</span> <span class="nn">quantum_serverless.core.state</span> <span class="kn">import</span> <span class="n">RedisStateHandler</span>
+
 
 <div class="viewcode-block" id="circuit_serializer"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.serializers.circuit_serializer.html#quantum_serverless.serializers.serializers.circuit_serializer">[docs]</a><span class="k">def</span> <span class="nf">circuit_serializer</span><span class="p">(</span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Serializes QuantumCircuit into string.</span>
@@ -133,6 +135,27 @@
     <span class="k">return</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="o">**</span><span class="n">account</span><span class="p">)</span></div>
 
 
+<span class="c1"># pylint: disable=protected-access</span>
+<span class="k">def</span> <span class="nf">redis_state_serializer</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">RedisStateHandler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Serializer for redis state.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;host&quot;</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">_host</span><span class="p">,</span>
+        <span class="s2">&quot;port&quot;</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">_port</span><span class="p">,</span>
+        <span class="s2">&quot;database&quot;</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">_db</span><span class="p">,</span>
+        <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">_password</span><span class="p">,</span>
+    <span class="p">}</span>
+
+
+<span class="k">def</span> <span class="nf">redis_state_deserializer</span><span class="p">(</span><span class="n">redis</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Deserializer for redis state.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">RedisStateHandler</span><span class="p">(</span>
+        <span class="n">host</span><span class="o">=</span><span class="n">redis</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;host&quot;</span><span class="p">),</span>
+        <span class="n">port</span><span class="o">=</span><span class="n">redis</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;port&quot;</span><span class="p">),</span>
+        <span class="n">db</span><span class="o">=</span><span class="n">redis</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;database&quot;</span><span class="p">),</span>
+        <span class="n">password</span><span class="o">=</span><span class="n">redis</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;password&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+
+
 <div class="viewcode-block" id="register_all_serializers"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.serializers.register_all_serializers.html#quantum_serverless.serializers.serializers.register_all_serializers">[docs]</a><span class="k">def</span> <span class="nf">register_all_serializers</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;Registers all serializers.&quot;&quot;&quot;</span>
     <span class="c1"># serialization for QiskitRuntimeService</span>
@@ -144,6 +167,13 @@
     <span class="c1"># serialization for QuantumCircuit</span>
     <span class="n">ray</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">register_serializer</span><span class="p">(</span>
         <span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">serializer</span><span class="o">=</span><span class="n">circuit_serializer</span><span class="p">,</span> <span class="n">deserializer</span><span class="o">=</span><span class="n">circuit_deserializer</span>
+    <span class="p">)</span>
+
+    <span class="c1"># state handler</span>
+    <span class="n">ray</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">register_serializer</span><span class="p">(</span>
+        <span class="n">RedisStateHandler</span><span class="p">,</span>
+        <span class="n">serializer</span><span class="o">=</span><span class="n">redis_state_serializer</span><span class="p">,</span>
+        <span class="n">deserializer</span><span class="o">=</span><span class="n">redis_state_deserializer</span><span class="p">,</span>
     <span class="p">)</span></div>
 </pre></div>
 
@@ -176,6 +206,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/03_specific_package_installation.html">Guide: specific package requirements</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/04_run_jobs.html">Guide: run jobs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../guides/05_get_finished_tasks.html">Guide: get finished remote tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guides/06_shared_state.html">Guide: state handling</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../apidocs/index.html">API References</a></li>

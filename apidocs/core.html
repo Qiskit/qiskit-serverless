@@ -48,6 +48,8 @@
 <h1>Core module (<a class="reference internal" href="#module-quantum_serverless.core" title="quantum_serverless.core"><code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.core</span></code></a>)<a class="headerlink" href="#core-module-quantum-serverless-core" title="Permalink to this heading">¶</a></h1>
 <section id="quantum-serverless-core-module-classes-and-functions">
 <h2>Quantum serverless core module classes and functions<a class="headerlink" href="#quantum-serverless-core-module-classes-and-functions" title="Permalink to this heading">¶</a></h2>
+<section id="core-abstractions">
+<h3>Core abstractions<a class="headerlink" href="#core-abstractions" title="Permalink to this heading">¶</a></h3>
 <table class="autosummary longtable docutils align-default">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider" title="quantum_serverless.core.Provider"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Provider</span></code></a>(name[, host, token, ...])</p></td>
@@ -56,7 +58,7 @@
 <tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.ComputeResource.html#quantum_serverless.core.ComputeResource" title="quantum_serverless.core.ComputeResource"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ComputeResource</span></code></a>(name[, host, ...])</p></td>
 <td><p>ComputeResource class.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.run_qiskit_remote.html#quantum_serverless.core.run_qiskit_remote" title="quantum_serverless.core.run_qiskit_remote"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_qiskit_remote</span></code></a>([target])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.run_qiskit_remote.html#quantum_serverless.core.run_qiskit_remote" title="quantum_serverless.core.run_qiskit_remote"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_qiskit_remote</span></code></a>([target, state, events])</p></td>
 <td><p>Wraps local function as remote executable function.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.get.html#quantum_serverless.core.get" title="quantum_serverless.core.get"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get</span></code></a>()</p></td>
@@ -70,6 +72,36 @@
 </tr>
 </tbody>
 </table>
+</section>
+<section id="events-classes">
+<h3>Events classes<a class="headerlink" href="#events-classes" title="Permalink to this heading">¶</a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.EventHandler.html#quantum_serverless.core.EventHandler" title="quantum_serverless.core.EventHandler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">EventHandler</span></code></a>()</p></td>
+<td><p>Base class for events handling.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.RedisEventHandler.html#quantum_serverless.core.RedisEventHandler" title="quantum_serverless.core.RedisEventHandler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RedisEventHandler</span></code></a>([host, port, database, ...])</p></td>
+<td><p>RedisEventHandler.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.ExecutionMessage.html#quantum_serverless.core.ExecutionMessage" title="quantum_serverless.core.ExecutionMessage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ExecutionMessage</span></code></a>(workload_id, uid, layer, ...)</p></td>
+<td><p>ExecutionMessage class for meta information about function execution.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="state-classes">
+<h3>State classes<a class="headerlink" href="#state-classes" title="Permalink to this heading">¶</a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.StateHandler.html#quantum_serverless.core.StateHandler" title="quantum_serverless.core.StateHandler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">StateHandler</span></code></a>()</p></td>
+<td><p>Base class for state handlers.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.RedisStateHandler.html#quantum_serverless.core.RedisStateHandler" title="quantum_serverless.core.RedisStateHandler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RedisStateHandler</span></code></a>([host, port, db, password])</p></td>
+<td><p>RedisStateHandler.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 </section>
 
@@ -103,6 +135,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../guides/03_specific_package_installation.html">Guide: specific package requirements</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/04_run_jobs.html">Guide: run jobs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/05_get_finished_tasks.html">Guide: get finished remote tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guides/06_shared_state.html">Guide: state handling</a></li>
 </ul>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">API References</a></li>
