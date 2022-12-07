@@ -49,15 +49,12 @@ def test_events():
 
         events_handler = RedisEventHandler(redis_host, redis_port)
 
-        pubsub = events_handler.redis.pubsub()
-        pubsub.subscribe(topic)
-
         events_handler.publish(topic, {"some_key": "some_value"})
 
-        for message in pubsub.listen():
+        for message in events_handler.listen():
             if message.get("type") == "message":
                 assert json.loads(message.get("data")) == {"some_key": "some_value"}
-            pubsub.unsubscribe()
+            events_handler.unsubscribe()
 
         serverless = QuantumServerless(
             {
@@ -75,17 +72,17 @@ def test_events():
             }
         ).set_provider("test_docker")
 
-        @run_qiskit_remote(target={"cpu": 1, "qpu": 2}, events_handler=events_handler)
+        @run_qiskit_remote(target={"cpu": 1, "qpu": 2}, events=events_handler)
         def ultimate():
             return 42
 
-        pubsub.subscribe(META_TOPIC)
+        events_handler.subscribe(META_TOPIC)
 
         with serverless:
             result = get(ultimate())
             assert result == 42
 
-        for message in pubsub.listen():
+        for message in events_handler.listen():
             if message.get("type") == "message":
                 message_data = json.loads(message.get("data"))
                 assert message_data.get("layer") == "qs"
@@ -100,11 +97,11 @@ def test_events():
                     "pip": None,
                 }
 
-            pubsub.unsubscribe()
+            events_handler.unsubscribe()
 
         wait_for_job_client(serverless)
 
-        pubsub.subscribe(META_TOPIC)
+        events_handler.subscribe(META_TOPIC)
 
         job = serverless.run_job(
             entrypoint="python job.py",
@@ -120,11 +117,11 @@ def test_events():
         wait_for_job_completion(job)
 
         messages = []
-        for message in pubsub.listen():
+        for message in events_handler.listen():
             if message.get("type") == "message":
                 message_data = json.loads(message.get("data"))
                 messages.append(message_data)
                 assert message_data.get("layer") == "qs"
                 assert message_data.get("function_meta", {}).get("name") == "ultimate"
-            pubsub.unsubscribe()
+            events_handler.unsubscribe()
         assert len(messages) == 10

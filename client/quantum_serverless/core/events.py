@@ -33,7 +33,7 @@ import os
 import time
 from abc import ABC
 from dataclasses import dataclass, asdict
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Iterator, List, Union
 
 import redis
 
@@ -63,11 +63,23 @@ class ExecutionMessage:
         return f"<ExecutionMessage | {self.workload_id}|{self.layer}>"
 
 
-class EventHandler(ABC):  # pylint: disable=too-few-public-methods
+class EventHandler(ABC):
     """Base class for events handling."""
 
     def publish(self, topic: str, message: Dict[str, Any]):
         """Emits message to specified topic."""
+        raise NotImplementedError
+
+    def subscribe(self, topic: Union[str, bytes]):
+        """Subscribe to given list of topics."""
+        raise NotImplementedError
+
+    def unsubscribe(self, topics: Optional[List[str]] = None):
+        """Unsubscribe from topics."""
+        raise NotImplementedError
+
+    def listen(self) -> Iterator[Dict[str, Any]]:
+        """Returns iterator of messages that handler is subscribed to."""
         raise NotImplementedError
 
 
@@ -111,9 +123,23 @@ class RedisEventHandler(EventHandler):
         self.redis = redis.Redis(
             host=self.host, port=self.port, db=self.database, password=self.password
         )
+        self.pubsub = self.redis.pubsub()
 
     def publish(self, topic: str, message: Dict[str, Any]):
         return self.redis.publish(topic, json.dumps(message))
+
+    def subscribe(self, topic: Union[str, bytes]):
+        return self.pubsub.subscribe(topic)
+
+    def unsubscribe(self, topics: Optional[List[str]] = None):
+        if topics is not None:
+            for topic in topics:
+                self.pubsub.unsubscribe(topic)
+        else:
+            self.pubsub.unsubscribe()
+
+    def listen(self) -> Iterator[Dict[str, Any]]:
+        return self.pubsub.listen()
 
     @classmethod
     def from_env_vars(cls) -> Optional["RedisEventHandler"]:
