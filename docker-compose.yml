@@ -26,5 +26,14 @@ services:
       - /dev/shm:/dev/shm
     networks:
       - safe-tier
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_PORT_NUMBER=6379
+    ports:
+      - '6379:6379'
+    networks:
+      - safe-tier
 networks:
   safe-tier:

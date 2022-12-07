@@ -20,6 +20,9 @@ Core module (:mod:`quantum_serverless.core`)
 Quantum serverless core module classes and functions
 ====================================================
 
+Core abstractions
+-----------------
+
 .. autosummary::
     :toctree: ../stubs/
 
@@ -30,7 +33,29 @@ Quantum serverless core module classes and functions
     get
     put
     get_refs_by_status
+
+
+Events classes
+--------------
+
+.. autosummary::
+    :toctree: ../stubs/
+
+    EventHandler
+    RedisEventHandler
+    ExecutionMessage
+
+State classes
+-------------
+
+.. autosummary::
+    :toctree: ../stubs/
+
+    StateHandler
+    RedisStateHandler
 """
 
 from .provider import Provider, ComputeResource
 from .decorators import remote, get, put, run_qiskit_remote, get_refs_by_status
+from .events import RedisEventHandler, EventHandler, ExecutionMessage
+from .state import RedisStateHandler, StateHandler
