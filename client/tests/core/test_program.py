@@ -5,6 +5,8 @@ from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
 
 from quantum_serverless import QuantumServerless
+from quantum_serverless.core.job import Job
+from quantum_serverless.core.program import Program
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
 resources_path = os.path.join(
@@ -12,9 +14,8 @@ resources_path = os.path.join(
 )
 
 
-# pylint: disable=duplicate-code
-def test_jobs():
-    """Integration test for jobs."""
+def test_program():
+    """Integration test for programs."""
 
     with DockerCompose(
         resources_path, compose_file_name="test-compose.yml", pull=True
@@ -26,25 +27,30 @@ def test_jobs():
             {
                 "providers": [
                     {
-                        "name": "test_docker",
+                        "name": "docker",
                         "compute_resource": {
-                            "name": "test_docker",
+                            "name": "docker",
                             "host": host,
                             "port_job_server": port,
                         },
                     }
                 ]
             }
-        ).set_provider("test_docker")
+        ).set_provider("docker")
 
         wait_for_job_client(serverless)
 
-        job = serverless.run_job(
-            entrypoint="python job.py",
-            runtime_env={
-                "working_dir": resources_path,
-            },
+        program = Program(
+            name="simple_job",
+            entrypoint="job.py",
+            working_dir=resources_path,
+            description="description",
+            version="0.0.1",
         )
+
+        job = serverless.run_program(program)
+
+        assert isinstance(job, Job)
 
         wait_for_job_completion(job)
 
