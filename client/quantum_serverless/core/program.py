@@ -57,7 +57,7 @@ class Program:  # pylint: disable=too-many-instance-attributes
     version: Optional[str] = None
 
 
-class ProgramStorageBackend(ABC):
+class ProgramStorage(ABC):
     """Base program backend to save and load programs from."""
 
     def save_program(self, program: Program) -> bool:
