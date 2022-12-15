@@ -26,15 +26,17 @@ Quantum serverless nested program
 
     Program
 """
+from abc import ABC
 from typing import Optional, Dict, List
 from dataclasses import dataclass
 
 
 @dataclass
-class Program:
+class Program:  # pylint: disable=too-many-instance-attributes
     """Serverless programs.
 
     Args:
+        name: program name
         entrypoint: is a script that will be executed as a job
             ex: job.py
         arguments: arguments for entrypoint script
@@ -45,6 +47,7 @@ class Program:
         version: version of a program
     """
 
+    name: str
     entrypoint: str
     arguments: Optional[Dict[str, str]] = None
     env_vars: Optional[Dict[str, str]] = None
@@ -52,3 +55,38 @@ class Program:
     working_dir: Optional[str] = None
     description: Optional[str] = None
     version: Optional[str] = None
+
+
+class ProgramStorageBackend(ABC):
+    """Base program backend to save and load programs from."""
+
+    def save_program(self, program: Program) -> bool:
+        """Save program in specified backend.
+
+        Args:
+            program: program
+
+        Returns:
+            success state
+        """
+        raise NotImplementedError
+
+    def get_programs(self) -> List[str]:
+        """Returns list of available programs to get.
+
+        Returns:
+            List of names of programs
+        """
+        raise NotImplementedError
+
+    def get_program(self, name: str, **kwargs) -> Program:
+        """Returns program by name of other query criterieas.
+
+        Args:
+            name: name of program
+            **kwargs: other args
+
+        Returns:
+            Program
+        """
+        raise NotImplementedError
