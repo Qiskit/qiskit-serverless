@@ -36,6 +36,7 @@ import requests
 from ray._private.worker import BaseContext
 
 from quantum_serverless.core.job import Job, RuntimeEnv
+from quantum_serverless.core.program import Program
 from quantum_serverless.core.provider import Provider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
 
@@ -112,6 +113,55 @@ class QuantumServerless:
         """Job client for given provider."""
         return self._selected_provider.job_client()
 
+    def run_program(self, program: Program) -> Optional[Job]:
+        """Executes program as a async job
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> nested_program = Program(
+            >>>     "job.py",
+            >>>     arguments={"arg1": "val1"},
+            >>>     dependencies=["requests"]
+            >>> )
+            >>> job = serverless.run_program(nested_program)
+            >>> # <Job | ...>
+
+        Args:
+            program: program object
+
+        Returns:
+            Job
+        """
+        job_client = self.job_client
+
+        if job_client is None:
+            logging.warning(  # pylint: disable=logging-fstring-interpolation
+                f"Job has not been submitted as no provider "
+                f"with remote host has been configured. "
+                f"Selected provider: {self._selected_provider}"
+            )
+            return None
+
+        arguments = ""
+        if program.arguments is not None:
+            arg_list = [
+                f"--{key}={value}"
+                for key, value in program.arguments.items()
+            ]
+            arguments = " ".join(arg_list)
+        entrypoint = f"python {program.entrypoint} {arguments}"
+
+        job_id = job_client.submit_job(
+            entrypoint=entrypoint,
+            submission_id=f"qs_{uuid4()}",
+            runtime_env={
+                "working_dir": program.working_dir,
+                "pip": program.dependencies,
+                "env_vars": program.env_vars
+            },
+        )
+        return Job(job_id=job_id, job_client=job_client)
+
     def run_job(
         self,
         entrypoint: str,
@@ -137,6 +187,9 @@ class QuantumServerless:
         Returns:
             job
         """
+        warnings.warn("Function run_job is deprecated and will be removed in future releases."
+                      "Please, use run_program instead.", DeprecationWarning, stacklevel=2)
+
         job_client = self.job_client
 
         if job_client is None:
