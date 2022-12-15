@@ -144,10 +144,7 @@ class QuantumServerless:
 
         arguments = ""
         if program.arguments is not None:
-            arg_list = [
-                f"--{key}={value}"
-                for key, value in program.arguments.items()
-            ]
+            arg_list = [f"--{key}={value}" for key, value in program.arguments.items()]
             arguments = " ".join(arg_list)
         entrypoint = f"python {program.entrypoint} {arguments}"
 
@@ -157,7 +154,7 @@ class QuantumServerless:
             runtime_env={
                 "working_dir": program.working_dir,
                 "pip": program.dependencies,
-                "env_vars": program.env_vars
+                "env_vars": program.env_vars,
             },
         )
         return Job(job_id=job_id, job_client=job_client)
@@ -187,8 +184,12 @@ class QuantumServerless:
         Returns:
             job
         """
-        warnings.warn("Function run_job is deprecated and will be removed in future releases."
-                      "Please, use run_program instead.", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "Function run_job is deprecated and will be removed in future releases."
+            "Please, use run_program instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         job_client = self.job_client
 

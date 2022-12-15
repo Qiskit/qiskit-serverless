@@ -12,6 +12,7 @@ resources_path = os.path.join(
 )
 
 
+# pylint: disable=duplicate-code
 def test_jobs():
     """Integration test for jobs."""
 

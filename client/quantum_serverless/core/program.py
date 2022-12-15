@@ -27,34 +27,28 @@ Quantum serverless nested program
     Program
 """
 from typing import Optional, Dict, List
+from dataclasses import dataclass
 
 
+@dataclass
 class Program:
-    def __init__(self,
-                 entrypoint: str,
-                 arguments: Optional[Dict[str, str]] = None,
-                 env_vars: Optional[Dict[str, str]] = None,
-                 dependencies: Optional[List[str]] = None,
-                 working_dir: Optional[str] = None,
-                 description: Optional[str] = None,
-                 version: Optional[str] = None
-                 ):
-        """
+    """Serverless programs.
 
-        Args:
-            entrypoint: is a script that will be executed as a job
-                ex: job.py
-            arguments: arguments for entrypoint script
-            env_vars: env vars
-            dependencies: list of python dependencies for program to execute
-            working_dir: directory where entrypoint file is located
-            description: description of a program
-            version: version of a program
-        """
-        self.entrypoint = entrypoint
-        self.arguments = arguments
-        self.env_vars = env_vars
-        self.dependencies = dependencies
-        self.working_dir = working_dir
-        self.description = description
-        self.version = version or "0.0.0"
+    Args:
+        entrypoint: is a script that will be executed as a job
+            ex: job.py
+        arguments: arguments for entrypoint script
+        env_vars: env vars
+        dependencies: list of python dependencies for program to execute
+        working_dir: directory where entrypoint file is located
+        description: description of a program
+        version: version of a program
+    """
+
+    entrypoint: str
+    arguments: Optional[Dict[str, str]] = None
+    env_vars: Optional[Dict[str, str]] = None
+    dependencies: Optional[List[str]] = None
+    working_dir: Optional[str] = None
+    description: Optional[str] = None
+    version: Optional[str] = None

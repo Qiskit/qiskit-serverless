@@ -14,8 +14,8 @@ resources_path = os.path.join(
 )
 
 
-def test_jobs():
-    """Integration test for jobs."""
+def test_program():
+    """Integration test for programs."""
 
     with DockerCompose(
         resources_path, compose_file_name="test-compose.yml", pull=True
@@ -27,16 +27,16 @@ def test_jobs():
             {
                 "providers": [
                     {
-                        "name": "test_docker",
+                        "name": "docker",
                         "compute_resource": {
-                            "name": "test_docker",
+                            "name": "docker",
                             "host": host,
                             "port_job_server": port,
                         },
                     }
                 ]
             }
-        ).set_provider("test_docker")
+        ).set_provider("docker")
 
         wait_for_job_client(serverless)
 
@@ -44,7 +44,7 @@ def test_jobs():
             entrypoint="job.py",
             working_dir=resources_path,
             description="description",
-            version="0.0.1"
+            version="0.0.1",
         )
 
         job = serverless.run_program(program)
