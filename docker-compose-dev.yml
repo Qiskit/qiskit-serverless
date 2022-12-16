@@ -1,15 +1,19 @@
-# compose config on nightly builds
+# compose config for running images based on local files
 services:
   jupyter:
     container_name: qs-jupyter
-    image: qiskit/quantum-serverless-notebook:nightly
+    build:
+      context: ./
+      dockerfile: infrastructure/docker/Dockerfile-notebook
     ports:
       - 8888:8888
     networks:
       - safe-tier
   ray-head:
     container_name: ray-head
-    image: qiskit/quantum-serverless-ray-node:nightly
+    build:
+      context: ./
+      dockerfile: infrastructure/docker/Dockerfile-ray-qiskit
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
