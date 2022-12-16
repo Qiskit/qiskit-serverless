@@ -6,15 +6,16 @@
 
 # Quantum serverless
 
+![diagram](./docs/images/qs_diagram.png)
+
 ### Table of Contents
 
 1. [Installation](INSTALL.md)
-2. [Beginners Guide](docs/beginners_guide.md)
-3. [Quickstart Guide](docs/quickstart_guide.md)
+2. [Quickstart](#quickstart-guide)
+3. [Beginners Guide](docs/beginners_guide.md)
 4. Modules:
    1. [Client](./client)
-   2. [Manager](./manager)
-   3. [Infrastructure](./infrastructure)
+   2. [Infrastructure](./infrastructure)
 5. [Tutorials](docs/tutorials/)
 6. [Guides](docs/guides/)
 7. [How to Give Feedback](#how-to-give-feedback)
@@ -24,11 +25,34 @@
 
 ----------------------------------------------------------------------------------------------------
 
+### Quickstart
+
+Steps
+1. prepare infrastructure
+2. write your program
+3. run program
+
+#### Prepare infrastructure
+
+In a root folder of this project you can find `docker-compose.yml` 
+file, which is configured to run all necessary services for quickstart tutorials.
+
+Run in a root folder
+```shell
+docker-compose pull
+docker-compose up
+```
+
+#### Write your program
+
+Create python file with necessary code. Let's call in `program.py`
+
 ```python
+# program.py
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 from qiskit.quantum_info import SparsePauliOp
-from qiskit_ibm_runtime import Estimator
+from qiskit.primitives import Estimator
 
 from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put
 
@@ -63,6 +87,42 @@ with serverless:
     print("Single execution:", get(function_reference))
     print("N parallel executions:", get(function_references))
 ```
+
+#### Run program
+
+Let's run our program now
+
+```python
+from quantum_serverless import QuantumServerless, Program
+
+serverless = QuantumServerless({
+    "providers": [{
+        "name": "docker-compose",
+        "compute_resource": {
+            "name": "docker-compose",
+            "host": "localhost", # using our docker-compose infrastructure
+        }
+    }]
+})
+serverless.set_provider("docker-compose") # set provider as docker-compose
+
+# create out program
+program = Program(
+    name="my_program",
+    entrypoint="program.py", # set entrypoint as out program.py file
+    working_dir="./"
+)
+
+job = serverless.run_program(program)
+
+job.status()
+# <JobStatus.SUCCEEDED: 'SUCCEEDED'>
+
+job.logs()
+# Single execution: [1.]
+# N parallel executions: [array([1.]), array([0.]), array([-0.28650496])]
+```
+
 
 ----------------------------------------------------------------------------------------------------
 
