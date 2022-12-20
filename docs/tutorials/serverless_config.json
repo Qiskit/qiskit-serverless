@@ -1,10 +1,9 @@
 {
-  "providers": [
-    {
-      "name": "ibm",
-      "cluster": {
-        "name": "ibm_remote"
-      }
-    }
-  ]
+    "providers": [{
+        "name": "docker",
+        "compute_resource": {
+            "name": "docker",
+            "host": "localhost"
+        }
+    }]
 }
