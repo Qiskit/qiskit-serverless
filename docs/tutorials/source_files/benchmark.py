@@ -22,7 +22,7 @@ from qiskit.primitives import Estimator
 from qiskit.providers import Backend
 from qiskit.providers.fake_provider import ConfigurableFakeBackend
 from qiskit.quantum_info.random import random_pauli_list
-from quantum_serverless import QuantumServerless, get, run_qiskit_remote
+from quantum_serverless import QuantumServerless, get, run_qiskit_remote, put
 
 
 @run_qiskit_remote()
@@ -122,13 +122,13 @@ def run_graph(
         )
     )
 
+    observables_ref = put(observables)
+
     results = []
     for backend in backends:
-        transpiled_circuits = get(transpile_remote(circuits, backend))
+        results.append(estimate(transpile_remote(circuits, backend), observables_ref))
 
-        results.append(get(estimate(transpiled_circuits, observables)))
-
-    return results
+    return get(results)
 
 
 if __name__ == "__main__":
@@ -153,6 +153,9 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument("--n_backends", help="Number of backends", default=3, type=int)
+    parser.add_argument(
+        "--n_graphs", help="Number of graphs to run", default=1, type=int
+    )
 
     args = parser.parse_args()
 
@@ -161,14 +164,17 @@ if __name__ == "__main__":
         t0 = time.time()
 
         results = get(
-            run_graph(
-                depth_of_recursion=args.depth_of_recursion,
-                n_qubits=args.n_qubits,
-                n_entries=args.n_entries,
-                circuit_depth=args.circuit_depth,
-                size_of_observable=args.size_of_observable,
-                n_backends=args.n_backends,
-            )
+            [
+                run_graph(
+                    depth_of_recursion=args.depth_of_recursion,
+                    n_qubits=args.n_qubits,
+                    n_entries=args.n_entries,
+                    circuit_depth=args.circuit_depth,
+                    size_of_observable=args.size_of_observable,
+                    n_backends=args.n_backends,
+                )
+                for _ in range(args.n_graphs)
+            ]
         )
 
         runtime = time.time() - t0
