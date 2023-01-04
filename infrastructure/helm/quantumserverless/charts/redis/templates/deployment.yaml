@@ -42,13 +42,13 @@ spec:
           env:
             {{- if eq .Values.allowEmptyPassword "yes" }}
             - name: ALLOW_EMPTY_PASSWORD
-              value: {{ .Values.allowEmptyPassword }}
+              value: {{ .Values.allowEmptyPassword | quote}}
             {{ else }}
             - name: REDIS_PASSWORD
-              value: {{ .Values.password }}
+              value: {{ .Values.password | quote }}
             {{- end }}
             - name: REDIS_PORT_NUMBER
-              value: {{ .Values.container.port }}
+              value: {{ .Values.container.port | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
