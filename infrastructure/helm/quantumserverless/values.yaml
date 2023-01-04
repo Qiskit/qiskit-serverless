@@ -95,7 +95,7 @@ ray-cluster:
   head:
     initArgs:
       dashboard-host: '0.0.0.0'
-      port: '6379'
+      port: '3000'
 
   worker:
     # If you want to disable the default workergroup
