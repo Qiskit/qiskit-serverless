@@ -84,7 +84,7 @@
 <span class="k">def</span> <span class="nf">remote_transpile</span><span class="p">(</span>
     <span class="n">circuits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">]]],</span> <span class="n">backends</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Backend</span><span class="p">]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">]]:</span>
-    <span class="sd">&quot;&quot;&quot;Remote transpile.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Remote transpile.&quot;&quot;&quot;</span>
     <span class="n">transpile_circuits_tasks</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">transpile_ray</span><span class="p">(</span><span class="n">circuits</span><span class="o">=</span><span class="n">circuits</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">circuits</span><span class="p">,</span> <span class="n">backend</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">circuits</span><span class="p">,</span> <span class="n">backends</span><span class="p">)</span>
@@ -95,7 +95,7 @@
 <div class="viewcode-block" id="parallel_transpile"><a class="viewcode-back" href="../../../stubs/quantum_serverless.library.parallel_transpile.html#quantum_serverless.library.parallel_transpile">[docs]</a><span class="k">def</span> <span class="nf">parallel_transpile</span><span class="p">(</span>
     <span class="n">circuits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">]]],</span> <span class="n">backends</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Backend</span><span class="p">]</span>
 <span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Transpile circuits in parallel using core of local machine or remote raylets.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Transpile circuits in parallel using core of local machine or remote raylets.</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; parallel_transpile([circuit1, [circuit2, circuit3]], [backend1, backend2])</span>
@@ -149,6 +149,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorials/03_tutorial_writing_serverless_pacakge_from_scratch.html">Tutorial: writing serverless package from scratch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorials/04_tutorial_-_converting_existing_code_to_serverless.html">Tutorial: converting existing code to serverless without internal code modifications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorials/06_electronic_structure_problem.html">Tutorial: solving electronic structure problem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/07_benchmark_program.html">Tutorial: benchmark program to stress test compute resources</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../apidocs/index.html">API References</a></li>

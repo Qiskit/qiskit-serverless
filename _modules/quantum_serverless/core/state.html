@@ -81,19 +81,19 @@
 
 
 <div class="viewcode-block" id="StateHandler"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.StateHandler.html#quantum_serverless.core.StateHandler">[docs]</a><span class="k">class</span> <span class="nc">StateHandler</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Base class for state handlers.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for state handlers.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
-        <span class="sd">&quot;&quot;&quot;Sets value by key.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sets value by key.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Gets value by key.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Gets value by key.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 
 <div class="viewcode-block" id="RedisStateHandler"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.RedisStateHandler.html#quantum_serverless.core.RedisStateHandler">[docs]</a><span class="k">class</span> <span class="nc">RedisStateHandler</span><span class="p">(</span><span class="n">StateHandler</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;RedisStateHandler.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;RedisStateHandler.&quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="RedisStateHandler.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.RedisStateHandler.html#quantum_serverless.core.RedisStateHandler.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -102,7 +102,7 @@
         <span class="n">db</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># pylint: disable=invalid-name</span>
         <span class="n">password</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;RedisStateHandler.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;RedisStateHandler.</span>
 
 <span class="sd">        Example:</span>
 <span class="sd">            &gt;&gt;&gt; state = RedisStateHandler(</span>
@@ -179,6 +179,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorials/03_tutorial_writing_serverless_pacakge_from_scratch.html">Tutorial: writing serverless package from scratch</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorials/04_tutorial_-_converting_existing_code_to_serverless.html">Tutorial: converting existing code to serverless without internal code modifications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../tutorials/06_electronic_structure_problem.html">Tutorial: solving electronic structure problem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/07_benchmark_program.html">Tutorial: benchmark program to stress test compute resources</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../apidocs/index.html">API References</a></li>

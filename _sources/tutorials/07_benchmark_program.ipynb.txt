@@ -1,0 +1,173 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "604850c4-053a-4b78-bff2-f5f0c9250ed8",
+   "metadata": {},
+   "source": [
+    "# Tutorial: benchmark program to stress test compute resources\n",
+    "\n",
+    "In order to test compute resources we need to have benchmark program.\n",
+    "\n",
+    "Below you can see executon graph of a program. Each of boxes is a task in a program. This program is designed to tests vertical and horizontal scalability of compute resources.\n",
+    "\n",
+    "![program flow](./images/benchmark_program.png)\n",
+    "\n",
+    "Program accepts list of arguments to control stress levels:\n",
+    "- `n_entries` - number of circuits and observables will be used in each iteration on generation task.\n",
+    "- `depth_of_recursion` - defines how many recursive iterations generation task will have. (Number of generated circuits will be n_entries * depth_of_recursion).\n",
+    "- `n_backends` - number of backends, which defines how many parallel trainspilation and estimations will happen.\n",
+    "- `n_qubits` - number of qubits will be used in a program. Affects backends, circuits and observables.\n",
+    "- `circuit_depth` - depth of generated circuits.\n",
+    "- `size_of_observable` - size of generated observables.\n",
+    "- `n_graphs` - number of times graph above will be executed within one program.\n",
+    "\n",
+    "\n",
+    "------\n",
+    "\n",
+    "\n",
+    "Now let's create serverless object and lunch execution of our test program"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "b031e9c4-8503-4535-8517-22f445593eb5",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from quantum_serverless import QuantumServerless, Program"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "id": "3694d35b-6ad7-4a60-9edc-9c674be56908",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<QuantumServerless | providers [local, docker]>"
+      ]
+     },
+     "execution_count": 35,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "serverless = QuantumServerless({\n",
+    "    \"providers\": [{\n",
+    "        \"name\": \"docker\",\n",
+    "        \"compute_resource\": {\n",
+    "            \"name\": \"docker\",\n",
+    "            \"host\": \"localhost\",\n",
+    "        }\n",
+    "    }]\n",
+    "})\n",
+    "serverless"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 55,
+   "id": "030ccde4-d18b-43fc-979e-68df797f5977",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<Job | fqs_c290765f-a216-4369-a0e2-a988ef51e224>"
+      ]
+     },
+     "execution_count": 55,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "program = Program(\n",
+    "    name=\"brnchmark_program\",\n",
+    "    entrypoint=\"benchmark.py\",\n",
+    "    arguments={\n",
+    "        \"n_qubits\": 2,\n",
+    "        \"n_entries\": 2,\n",
+    "        \"depth_of_recursion\": 4,\n",
+    "        \"n_backends\": 3,\n",
+    "        \"n_graphs\": 2\n",
+    "    },\n",
+    "    working_dir=\"./source_files\",\n",
+    "    description=\"Benchmark program to test compute resources.\"\n",
+    ")\n",
+    "\n",
+    "job = serverless.run_program(program)\n",
+    "job"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "id": "316d3bdd-c9ed-404e-bf76-afca850920f5",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "['Execution time: 18.622056245803833',\n",
+       " 'Results: [[EstimatorResult(values=array([ 1.00000000e+00-1.00000000e+00j,  2.22044605e-16-1.00000000e+00j,',\n",
+       " '        2.16726672e-16+8.65956056e-17j,  0.00000000e+00+9.99342407e-01j,',\n",
+       " '       -1.00000000e+00+2.44929360e-16j, -4.41586599e-01-7.07106781e-01j,',\n",
+       " '       -5.01468367e-16+1.00000000e+00j, -3.92943373e-17-1.20799277e-16j]), metadata=[{}, {}, {}, {}, {}, {}, {}, {}]), EstimatorResult(values=array([ 1.00000000e+00-1.00000000e+00j,  2.22044605e-16-1.00000000e+00j,',\n",
+       " '        2.16726672e-16+8.65956056e-17j,  0.00000000e+00+9.99342407e-01j,',\n",
+       " '       -1.00000000e+00+2.44929360e-16j, -4.41586599e-01-7.07106781e-01j,',\n",
+       " '       -5.01468367e-16+1.00000000e+00j, -3.92943373e-17-1.20799277e-16j]), metadata=[{}, {}, {}, {}, {}, {}, {}, {}]), EstimatorResult(values=array([ 1.00000000e+00-1.00000000e+00j,  2.22044605e-16-1.00000000e+00j,',\n",
+       " '        2.16726672e-16+8.65956056e-17j,  0.00000000e+00+9.99342407e-01j,',\n",
+       " '       -1.00000000e+00+2.44929360e-16j, -4.41586599e-01-7.07106781e-01j,',\n",
+       " '       -5.01468367e-16+1.00000000e+00j, -3.92943373e-17-1.20799277e-16j]), metadata=[{}, {}, {}, {}, {}, {}, {}, {}])], [EstimatorResult(values=array([-4.18409669e-02-9.92346029e-02j, -5.55111512e-17-1.70198288e-01j,',\n",
+       " '        1.00000000e+00+0.00000000e+00j, -8.94166369e-01+3.16884478e-01j,',\n",
+       " '       -6.55602185e-01+0.00000000e+00j,  3.86457683e-18-1.00000000e+00j,',\n",
+       " '       -1.00000000e+00-1.22464680e-16j,  0.00000000e+00+1.01968358e-17j]), metadata=[{}, {}, {}, {}, {}, {}, {}, {}]), EstimatorResult(values=array([-4.18409669e-02-9.92346029e-02j, -5.55111512e-17-1.70198288e-01j,',\n",
+       " '        1.00000000e+00+0.00000000e+00j, -8.94166369e-01+3.16884478e-01j,',\n",
+       " '       -6.55602185e-01+0.00000000e+00j,  3.86457683e-18-1.00000000e+00j,',\n",
+       " '       -1.00000000e+00-1.22464680e-16j,  0.00000000e+00+1.01968358e-17j]), metadata=[{}, {}, {}, {}, {}, {}, {}, {}]), EstimatorResult(values=array([-4.18409669e-02-9.92346029e-02j, -5.55111512e-17-1.70198288e-01j,',\n",
+       " '        1.00000000e+00+0.00000000e+00j, -8.94166369e-01+3.16884478e-01j,',\n",
+       " '       -6.55602185e-01+0.00000000e+00j,  3.86457683e-18-1.00000000e+00j,',\n",
+       " '       -1.00000000e+00-1.22464680e-16j,  0.00000000e+00+1.01968358e-17j]), metadata=[{}, {}, {}, {}, {}, {}, {}, {}])]]',\n",
+       " '/home/ray/anaconda3/lib/python3.7/site-packages/ray/_private/worker.py:983: UserWarning: len(ctx) is deprecated. Use len(ctx.address_info) instead.',\n",
+       " '  warnings.warn(\"len(ctx) is deprecated. Use len(ctx.address_info) instead.\")',\n",
+       " '']"
+      ]
+     },
+     "execution_count": 56,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "job.logs().split(\"\\n\")"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.7.13"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
