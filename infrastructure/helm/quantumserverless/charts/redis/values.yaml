@@ -3,12 +3,12 @@
 # Declare variables to be passed into your templates.
 
 allowEmptyPassword: "yes"
-redisPassword: ""
+password: ""
 
 replicaCount: 1
 
 image:
-  repository: bitnami/redis
+  repository: "bitnami/redis"
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"

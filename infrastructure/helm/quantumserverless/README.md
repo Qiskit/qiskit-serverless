@@ -15,6 +15,18 @@ Install from specific values file
 
 ## Helm chart values
 
+**Redis**
+
+| Name                      | Description                                                       |
+|---------------------------|-------------------------------------------------------------------|
+| redisEnable               | Specify if helm will execute the jupyter configuration.           |
+| redis.allowEmptyPassword  | Allows you to initialize Redis without a password: "yes" | "no".  |
+| redis.password            | Password which one you can setup your redis database.             |
+| redis.imagePullSecrets    | Secrets to pull the image from a private registry.                |
+| redis.container.port      | Port number that the pod will use in the cluster.                 |
+| redis.service.port        | Port number that service will be exposed externally.              |
+| redis.ingress.enabled     | Specifies if you are going to use ingress to expose the service.  |
+
 **Jupyter notebook**
 
 | Name                      | Description                                                       |
@@ -29,14 +41,14 @@ Install from specific values file
 
 **Manager**
 
-| Name                          | Description                                                       |
-|-------------------------------|-------------------------------------------------------------------|
-| managerEnable              | Specify if helm will execute the manager configuration.        |
-| manager.image              | Docker image configuration to deploy the manager.                 |
-| manager.imagePullSecrets   | Secrets to pull the image from a private registry.                |
-| manager.container.port     | Port number that the pod will use in the cluster.                 |
-| manager.service.port       | Port number that service will be exposed externally.              |
-| manager.ingress.enabled    | Specifies if you are going to use ingress to expose the service.  |
+| Name                       | Description                                                      |
+|----------------------------|------------------------------------------------------------------|
+| managerEnable              | Specify if helm will execute the manager configuration.          |
+| manager.image              | Docker image configuration to deploy the manager.                |
+| manager.imagePullSecrets   | Secrets to pull the image from a private registry.               |
+| manager.container.port     | Port number that the pod will use in the cluster.                |
+| manager.service.port       | Port number that service will be exposed externally.             |
+| manager.ingress.enabled    | Specifies if you are going to use ingress to expose the service. |
 
 **Ray cluster**
 

@@ -2,6 +2,25 @@
 # Quantum Serverless configs
 # ===================
 
+# ===================
+# Redis configs
+# ===================
+
+redisEnable: true
+redis:
+  allowEmptyPassword: "yes"
+  password: ""
+
+  imagePullSecrets: []
+
+  container:
+    port: 6379
+
+  service:
+    port: 6379
+
+  ingress:
+    enabled: false
 
 # ===================
 # Jupyter configs

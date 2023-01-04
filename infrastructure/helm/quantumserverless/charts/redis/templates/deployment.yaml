@@ -45,7 +45,7 @@ spec:
               value: {{ .Values.allowEmptyPassword }}
             {{ else }}
             - name: REDIS_PASSWORD
-              value: {{ .Values.redisPassword }}
+              value: {{ .Values.password }}
             {{- end }}
             - name: REDIS_PORT_NUMBER
               value: {{ .Values.container.port }}

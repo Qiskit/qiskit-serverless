@@ -17,3 +17,5 @@ dependencies:
     condition: rayClusterEnable
   - name: manager
     condition: managerEnable
+  - name: redis
+    condition: redisEnable
