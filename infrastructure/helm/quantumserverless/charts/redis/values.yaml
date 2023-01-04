@@ -2,13 +2,19 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+allowEmptyPassword: "yes"
+redisPassword: ""
+
 replicaCount: 1
 
 image:
-  repository: nginx
+  repository: bitnami/redis
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "latest"
+
+container:
+  port: 6379
 
 imagePullSecrets: []
 nameOverride: ""
@@ -38,7 +44,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
+  port: 6379
 
 ingress:
   enabled: false
