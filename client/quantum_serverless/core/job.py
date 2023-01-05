@@ -53,6 +53,10 @@ class Job:
         """Returns status of the job."""
         return self._job_client.get_job_status(self.job_id)
 
+    def stop(self):
+        """Stops the job from running."""
+        return self._job_client.stop_job(self.job_id)
+
     def logs(self) -> str:
         """Returns logs of the job."""
         return self._job_client.get_job_logs(self.job_id)
