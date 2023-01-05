@@ -63,3 +63,4 @@ def test_program():
         assert "42" in recovered_job.logs()
         assert recovered_job.status().is_terminal()
         assert recovered_job.status() == JobStatus.SUCCEEDED
+        assert isinstance(job.stop(), bool)
