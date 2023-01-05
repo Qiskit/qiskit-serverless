@@ -5,6 +5,10 @@ Main configuration to setup your k8s cluster and the services that this project 
 ## Installation
 
 ```shell
+helm dependency build
+```
+
+```shell
 helm -n ray install quantum-serverless --create-namespace .
 ```
 
