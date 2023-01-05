@@ -5,6 +5,10 @@ Main configuration to setup your k8s cluster and the services that this project 
 ## Installation
 
 ```shell
+helm dependency build
+```
+
+```shell
 helm -n ray install quantum-serverless --create-namespace .
 ```
 
@@ -14,6 +18,10 @@ Install from specific values file
 ```
 
 ## Helm chart values
+
+**Redis**
+
+For our Redis dependency we are using the configuration offered by Bitnami. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to all the parameters that Bitnami added in the chart specified in their [README](https://artifacthub.io/packages/helm/bitnami/redis).
 
 **Jupyter notebook**
 
@@ -29,14 +37,14 @@ Install from specific values file
 
 **Manager**
 
-| Name                          | Description                                                       |
-|-------------------------------|-------------------------------------------------------------------|
-| managerEnable              | Specify if helm will execute the manager configuration.        |
-| manager.image              | Docker image configuration to deploy the manager.                 |
-| manager.imagePullSecrets   | Secrets to pull the image from a private registry.                |
-| manager.container.port     | Port number that the pod will use in the cluster.                 |
-| manager.service.port       | Port number that service will be exposed externally.              |
-| manager.ingress.enabled    | Specifies if you are going to use ingress to expose the service.  |
+| Name                       | Description                                                      |
+|----------------------------|------------------------------------------------------------------|
+| managerEnable              | Specify if helm will execute the manager configuration.          |
+| manager.image              | Docker image configuration to deploy the manager.                |
+| manager.imagePullSecrets   | Secrets to pull the image from a private registry.               |
+| manager.container.port     | Port number that the pod will use in the cluster.                |
+| manager.service.port       | Port number that service will be exposed externally.             |
+| manager.ingress.enabled    | Specifies if you are going to use ingress to expose the service. |
 
 **Ray cluster**
 

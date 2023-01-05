@@ -4,16 +4,23 @@ description: Quantum-Serverless helm chart that contains different dependencies.
 
 type: application
 
-version: 0.1.1
-
-appVersion: "latest"
+version: 0.1.0
+appVersion: "0.1.0"
 
 dependencies:
   - name: jupyter
     condition: jupyterEnable
+    version: 0.1.0
   - name: operator
     condition: rayOperatorEnable
+    version: 0.3.0
   - name: ray-cluster
     condition: rayClusterEnable
+    version: 0.3.0
   - name: manager
     condition: managerEnable
+    version: 0.1.0
+  - name: redis
+    condition: redisEnable
+    version: 17.4.1
+    repository: https://charts.bitnami.com/bitnami

@@ -1,6 +1,9 @@
 # Local .terraform directories
 **/.terraform/*
 
+# Local helm dependencies
+infrastructure/helm/**/*.tgz
+
 # .tfstate files
 *.tfstate
 *.tfstate.*

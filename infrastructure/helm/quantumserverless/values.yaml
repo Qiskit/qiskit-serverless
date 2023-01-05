@@ -2,6 +2,25 @@
 # Quantum Serverless configs
 # ===================
 
+# ===================
+# Redis configs
+# ===================
+
+redisEnable: true
+redis:
+  architecture: "standalone"
+
+  global:
+    redis:
+      password: ""
+  
+  auth:
+    enabled: false
+  
+  master:
+    service:
+      ports:
+        redis: 7000
 
 # ===================
 # Jupyter configs
