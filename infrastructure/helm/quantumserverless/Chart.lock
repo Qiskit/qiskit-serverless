@@ -1,0 +1,18 @@
+dependencies:
+- name: jupyter
+  repository: ""
+  version: 0.1.0
+- name: operator
+  repository: ""
+  version: 0.3.0
+- name: ray-cluster
+  repository: ""
+  version: 0.3.0
+- name: manager
+  repository: ""
+  version: 0.1.0
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 17.4.1
+digest: sha256:7f98311605fe354572f27462aba2f2606e646e80db7da003c87c29e22671d43a
+generated: "2023-01-05T14:16:47.505228+01:00"

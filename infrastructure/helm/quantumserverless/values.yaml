@@ -8,19 +8,19 @@
 
 redisEnable: true
 redis:
-  allowEmptyPassword: "yes"
-  password: ""
+  architecture: "standalone"
 
-  imagePullSecrets: []
-
-  container:
-    port: 7000
-
-  service:
-    port: 7000
-
-  ingress:
+  global:
+    redis:
+      password: ""
+  
+  auth:
     enabled: false
+  
+  master:
+    service:
+      ports:
+        redis: 7000
 
 # ===================
 # Jupyter configs

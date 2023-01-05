@@ -17,15 +17,7 @@ Install from specific values file
 
 **Redis**
 
-| Name                      | Description                                                       |
-|---------------------------|-------------------------------------------------------------------|
-| redisEnable               | Specify if helm will execute the jupyter configuration.           |
-| redis.allowEmptyPassword  | Allows you to initialize Redis without a password: "yes" | "no".  |
-| redis.password            | Password which one you can setup your redis database.             |
-| redis.imagePullSecrets    | Secrets to pull the image from a private registry.                |
-| redis.container.port      | Port number that the pod will use in the cluster.                 |
-| redis.service.port        | Port number that service will be exposed externally.              |
-| redis.ingress.enabled     | Specifies if you are going to use ingress to expose the service.  |
+For our Redis dependency we are using the configuration offered by Bitnami. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to all the parameters that Bitnami added in the chart specified in their [README](https://artifacthub.io/packages/helm/bitnami/redis).
 
 **Jupyter notebook**
 
