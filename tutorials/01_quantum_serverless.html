@@ -311,9 +311,7 @@ div.rendered_html tbody tr:hover {
 <li><p>building blocks of distributed computation</p></li>
 <li><p>resource allocation and execution management</p></li>
 <li><p>assembling all together</p></li>
-<li><p>electronic structure problem example</p></li>
-<li><p>infrastructure</p></li>
-<li><p>links and references</p></li>
+<li><p>running as async program</p></li>
 </ul>
 <section id="Background,-motivation-and-goals">
 <h2>Background, motivation and goals<a class="headerlink" href="#Background,-motivation-and-goals" title="Permalink to this heading">¶</a></h2>
@@ -407,13 +405,13 @@ div.rendered_html tbody tr:hover {
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">({</span><span class="s2">&quot;providers&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">...</span><span class="p">]})</span>
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="o">.</span><span class="n">load_configuration</span><span class="p">(</span><span class="s2">&quot;&lt;PATH_TO_CONFIG_FILE&gt;&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">serverless</span><span class="p">)</span>
-<span class="c1"># &lt;QuantumServerless: providers [local, ibm, ...]&gt;</span>
+<span class="c1"># &lt;QuantumServerless: providers [local, ibm-cloud, ...]&gt;</span>
 
 <span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">provider</span><span class="p">(</span><span class="s2">&quot;local&quot;</span><span class="p">):</span>
     <span class="n">exp_val_execution_reference</span> <span class="o">=</span> <span class="n">exp_val_remote</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">)</span>
     <span class="n">collected_exp_value</span> <span class="o">=</span> <span class="n">quantum_serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">exp_val_execution_reference</span><span class="p">)</span>
 
-<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">provider</span><span class="p">(</span><span class="s2">&quot;ibm&quot;</span><span class="p">):</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">provider</span><span class="p">(</span><span class="s2">&quot;ibm-cloud&quot;</span><span class="p">):</span>
     <span class="n">exp_val_execution_reference</span> <span class="o">=</span> <span class="n">exp_val_remote</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">)</span>
     <span class="n">collected_exp_value</span> <span class="o">=</span> <span class="n">quantum_serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">exp_val_execution_reference</span><span class="p">)</span>
 </pre></div>
@@ -422,8 +420,11 @@ div.rendered_html tbody tr:hover {
 <section id="Assembling-all-together">
 <h2>Assembling all together<a class="headerlink" href="#Assembling-all-together" title="Permalink to this heading">¶</a></h2>
 <p>Now we have all the important concepts in place and we can assemble our first simple example of a distributed program.</p>
+<blockquote>
+<div><p>NOTE: make sure to run docker-compose to use this example</p>
+</div></blockquote>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
@@ -458,7 +459,81 @@ div.rendered_html tbody tr:hover {
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[EstimatorResult(values=array([1.]), metadata=[{}]), EstimatorResult(values=array([1.]), metadata=[{}]), EstimatorResult(values=array([-0.8821732]), metadata=[{}])]
+[EstimatorResult(values=array([1.]), metadata=[{}]), EstimatorResult(values=array([1.]), metadata=[{}]), EstimatorResult(values=array([1.]), metadata=[{}])]
+</pre></div></div>
+</div>
+</section>
+<section id="Running-as-async-program">
+<h2>Running as async program<a class="headerlink" href="#Running-as-async-program" title="Permalink to this heading">¶</a></h2>
+<p>In most of the cases we want to run our scripts as sync programs, so we can lunch them and forget, then later on check results. In order to do so we will use <code class="docutils literal notranslate"><span class="pre">Program</span></code> interface.</p>
+<p>Let’s reuse benchmark script which covers all the concepts covered above and which you can find <a class="reference external" href="./source_files/benchmark.py">here</a>.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
+
+<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;brnchmark_program&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;benchmark.py&quot;</span><span class="p">,</span>
+    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Benchmark program&quot;</span>
+<span class="p">)</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run_program</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+<span class="n">job</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+2023-01-09 10:42:24,138 INFO dashboard_sdk.py:362 -- Package gcs://_ray_pkg_521b4aa7701fdb06.zip already exists, skipping upload.
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Job | fqs_8c3019a3-d63b-4f22-b91b-338a494ad2e7&gt;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;JobStatus.RUNNING: &#39;RUNNING&#39;&gt;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;Execution time: 10.197080135345459\nResults: [[EstimatorResult(values=array([-1.57009246e-16+6.35678836e-17j,  0.00000000e+00+2.00000000e+00j,\n        1.00000000e+00+4.89879098e-01j,  0.00000000e+00-5.93914329e-01j,\n        1.00000000e+00+3.84977936e-17j, -3.02888967e-01+0.00000000e+00j,\n        9.23868961e-01+8.41944092e-01j, -1.00000000e+00-6.98797220e-17j,\n        9.91094361e-01+5.68284953e-01j, -4.16333634e-17-1.00000000e+00j,\n        8.07303767e-01+0.00000000e+00j, -5.34510053e-17+0.00000000e+00j,\n       -3.34083829e-01+1.00000000e+00j,  0.00000000e+00+1.65570683e+00j,\n        8.87382321e-01+0.00000000e+00j, -8.81812854e-01-1.22464680e-16j,\n       -3.08751328e-01-5.78644041e-18j,  0.00000000e+00+1.92837761e-16j,\n        0.00000000e+00+1.00000000e+00j,  2.00000000e+00+2.58341370e-16j,\n       -1.40395784e-16-8.97966034e-18j,  0.00000000e+00-8.65956056e-17j,\n       -1.22464680e-16-8.72832410e-34j,  1.00000000e+00+0.00000000e+00j,\n        3.97958431e-01+6.42319385e-01j, -1.00000000e+00+1.00000000e+00j,\n       -1.66533454e-16+9.75159526e-01j,  0.00000000e+00+0.00000000e+00j,\n       -1.00000000e+00-4.83503087e-01j, -9.52623642e-01-5.95841695e-02j]), metadata=[{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}]), EstimatorResult(values=array([-1.57009246e-16+6.35678836e-17j,  0.00000000e+00+2.00000000e+00j,\n        1.00000000e+00+4.89879098e-01j,  0.00000000e+00-5.93914329e-01j,\n        1.00000000e+00+3.84977936e-17j, -3.02888967e-01+0.00000000e+00j,\n        9.23868961e-01+8.41944092e-01j, -1.00000000e+00-6.98797220e-17j,\n        9.91094361e-01+5.68284953e-01j, -4.16333634e-17-1.00000000e+00j,\n        8.07303767e-01+0.00000000e+00j, -5.34510053e-17+0.00000000e+00j,\n       -3.34083829e-01+1.00000000e+00j,  0.00000000e+00+1.65570683e+00j,\n        8.87382321e-01+0.00000000e+00j, -8.81812854e-01-1.22464680e-16j,\n       -3.08751328e-01-5.78644041e-18j,  0.00000000e+00+1.92837761e-16j,\n        0.00000000e+00+1.00000000e+00j,  2.00000000e+00+2.58341370e-16j,\n       -1.40395784e-16-8.97966034e-18j,  0.00000000e+00-8.65956056e-17j,\n       -1.22464680e-16-8.72832410e-34j,  1.00000000e+00+0.00000000e+00j,\n        3.97958431e-01+6.42319385e-01j, -1.00000000e+00+1.00000000e+00j,\n       -1.66533454e-16+9.75159526e-01j,  0.00000000e+00+0.00000000e+00j,\n       -1.00000000e+00-4.83503087e-01j, -9.52623642e-01-5.95841695e-02j]), metadata=[{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}]), EstimatorResult(values=array([-1.57009246e-16+6.35678836e-17j,  0.00000000e+00+2.00000000e+00j,\n        1.00000000e+00+4.89879098e-01j,  0.00000000e+00-5.93914329e-01j,\n        1.00000000e+00+3.84977936e-17j, -3.02888967e-01+0.00000000e+00j,\n        9.23868961e-01+8.41944092e-01j, -1.00000000e+00-6.98797220e-17j,\n        9.91094361e-01+5.68284953e-01j, -4.16333634e-17-1.00000000e+00j,\n        8.07303767e-01+0.00000000e+00j, -5.34510053e-17+0.00000000e+00j,\n       -3.34083829e-01+1.00000000e+00j,  0.00000000e+00+1.65570683e+00j,\n        8.87382321e-01+0.00000000e+00j, -8.81812854e-01-1.22464680e-16j,\n       -3.08751328e-01-5.78644041e-18j,  0.00000000e+00+1.92837761e-16j,\n        0.00000000e+00+1.00000000e+00j,  2.00000000e+00+2.58341370e-16j,\n       -1.40395784e-16-8.97966034e-18j,  0.00000000e+00-8.65956056e-17j,\n       -1.22464680e-16-8.72832410e-34j,  1.00000000e+00+0.00000000e+00j,\n        3.97958431e-01+6.42319385e-01j, -1.00000000e+00+1.00000000e+00j,\n       -1.66533454e-16+9.75159526e-01j,  0.00000000e+00+0.00000000e+00j,\n       -1.00000000e+00-4.83503087e-01j, -9.52623642e-01-5.95841695e-02j]), metadata=[{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}])]]\n/home/ray/anaconda3/lib/python3.7/site-packages/ray/_private/worker.py:983: UserWarning: len(ctx) is deprecated. Use len(ctx.address_info) instead.\n  warnings.warn(&#34;len(ctx) is deprecated. Use len(ctx.address_info) instead.&#34;)\n&#39;
 </pre></div></div>
 </div>
 </section>
@@ -498,6 +573,7 @@ div.rendered_html tbody tr:hover {
 <li class="toctree-l2"><a class="reference internal" href="#Building-blocks-of-distributed-computation">Building blocks of distributed computation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#Resource-allocation-and-execution-management">Resource allocation and execution management</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#Assembling-all-together">Assembling all together</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Running-as-async-program">Running as async program</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="02_tutorial_-_approaches_to_serverless_code_writing.html">Tutorial: approaches to serverless code writing</a></li>

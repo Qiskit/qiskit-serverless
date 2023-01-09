@@ -28,15 +28,15 @@ from quantum_serverless import run_qiskit_remote, get, QuantumServerless
 
 @run_qiskit_remote(target={"cpu": 2})
 def ground_state_solve(
-    molecule: Molecule,
-    initial_point: Union[List[float], np.ndarray],
-    backend: str,
-    optimization_level: int,
-    resilience_level: int,
-    shots: int,
-    service: Optional[Union[QiskitRuntimeService, Dict[str, Any]]] = None,
-    optimizer: Optional[Optimizer] = None,
-    use_local_simulator: bool = False
+        molecule: Molecule,
+        initial_point: Union[List[float], np.ndarray],
+        backend: str,
+        optimization_level: int,
+        resilience_level: int,
+        shots: int,
+        service: Optional[Union[QiskitRuntimeService, Dict[str, Any]]] = None,
+        optimizer: Optional[Optimizer] = None,
+        use_local_simulator: bool = False
 ):
     """Energy calculation using hardware efficient ansatz with VQE
 
@@ -53,7 +53,7 @@ def ground_state_solve(
         energy
     """
     # setup service
-    if service and isinstance(service, dict):
+    if service and isinstance(service, dict) and not use_local_simulator:
         service = QiskitRuntimeService(**service)
 
     optimizer = optimizer or COBYLA(maxiter=500)
@@ -73,7 +73,7 @@ def ground_state_solve(
     )
 
     operator = qubit_converter.convert(
-        es_problem.second_q_ops()[0],
+        es_problem.second_q_ops()["ElectronicEnergy"],
         num_particles=es_problem.num_particles,
     )
 
@@ -106,7 +106,7 @@ def ground_state_solve(
 
     if use_local_simulator is True:
         estimator = QiskitEstimator()
-    
+
         vqe = VQE(
             estimator=estimator,
             ansatz=ansatz,
@@ -136,15 +136,15 @@ def ground_state_solve(
 
 
 def electronic_structure_problem(
-    molecules: List[Molecule],
-    initial_points: Optional[List[List[float]]] = None,
-    service: Optional[QiskitRuntimeService] = None,
-    backends: Optional[List[IBMQBackend]] = None,
-    optimization_level: int = 1,
-    resilience_level: int = 0,
-    shots: int = 4000,
-    optimizer: Optional[Optimizer] = None,
-    use_local_simulator: bool = False
+        molecules: List[Molecule],
+        initial_points: Optional[List[List[float]]] = None,
+        service: Optional[QiskitRuntimeService] = None,
+        backends: Optional[List[IBMQBackend]] = None,
+        optimization_level: int = 1,
+        resilience_level: int = 0,
+        shots: int = 4000,
+        optimizer: Optional[Optimizer] = None,
+        use_local_simulator: bool = False
 ):
     """Parallel VQE energy calculation using hardware efficient ansatz
 
@@ -162,7 +162,9 @@ def electronic_structure_problem(
     Returns:
         list of VQE energies
     """
-    service = service or QiskitRuntimeService()
+    service_account: Dict[str, Any] = {}
+    if service is not None and isinstance(service, QiskitRuntimeService):
+        service_account = service.active_account()
     initial_points = initial_points or [None] * len(molecules)
     backends = backends or [None] * len(molecules)
 
@@ -174,7 +176,7 @@ def electronic_structure_problem(
             optimization_level=optimization_level,
             resilience_level=resilience_level,
             shots=shots,
-            service=service.active_account(),
+            service=service_account,
             optimizer=optimizer,
             use_local_simulator=use_local_simulator,
         )
@@ -182,3 +184,42 @@ def electronic_structure_problem(
     ]
 
     return get(function_references)
+
+
+if __name__ == '__main__':
+    serverless = QuantumServerless()
+
+    USE_RUNTIME = False
+
+    service = None
+    backends = None
+    if USE_RUNTIME:
+        service = QiskitRuntimeService()
+        names = ["ibmq_qasm_simulator", "ibmq_qasm_simulator", "ibmq_qasm_simulator"]
+        backends = [service.backend(name) for name in names]
+
+    with serverless:
+        energies = electronic_structure_problem(
+            molecules=[
+                Molecule(geometry=[("H", [0.0, 0.0, 0.0]), ("Li", [0.0, 0.0, 1.0])], charge=0, multiplicity=1),
+                Molecule(geometry=[("H", [0.0, 0.0, 0.0]), ("Li", [0.0, 0.0, 1.5])], charge=0, multiplicity=1),
+                Molecule(geometry=[("H", [0.0, 0.0, 0.0]), ("Li", [0.0, 0.0, 2.0])], charge=0, multiplicity=1),
+            ],
+            initial_points=[
+                [0.1, 0.1, 0.1, 0.1],
+                [0.01, 0.01, 0.01, 0.01],
+                [0.001, 0.001, 0.001, 0.001],
+            ],
+            service=service,
+            backends=backends,
+            optimization_level=1,
+            resilience_level=1,
+            shots=4000,
+            optimizer=SPSA(),
+            use_local_simulator=not USE_RUNTIME
+        )
+
+    print("LiH experiment results:")
+    print("Energies: ", [e[0] for e in energies])
+    print("Shifts: ", [e[1] for e in energies])
+    print("Energy + shift: ", [e[0] + e[1] for e in energies])
