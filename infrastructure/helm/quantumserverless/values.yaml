@@ -80,6 +80,11 @@ ray-cluster:
   nameOverride: "kuberay"
   fullnameOverride: ""
 
+  image:
+    repository: "qiskit/quantum-serverless-ray-node"
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
   head:
     rayStartParams:
       dashboard-host: '0.0.0.0'
