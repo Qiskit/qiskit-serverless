@@ -53,7 +53,6 @@ jupyter:
 # ===================
 
 managerEnable: true
-
 manager:
   image:
     repository: "qiskit/quantum-serverless-manager"
@@ -73,63 +72,44 @@ manager:
 
 
 # ===================
-# Ray configs
+# Ray Cluster
 # ===================
 
-# RAY CLUSTER
-
 rayClusterEnable: true
-
 ray-cluster:
+  nameOverride: "kuberay"
+  fullnameOverride: ""
+
   image:
     repository: "qiskit/quantum-serverless-ray-node"
     tag: "latest"
     pullPolicy: IfNotPresent
 
-  imagePullSecrets: []
-    # - name: an-existing-secret
-
-  nameOverride: "kuberay"
-  fullnameOverride: ""
-
   head:
-    initArgs:
+    rayStartParams:
       dashboard-host: '0.0.0.0'
-      port: '6379'
 
   worker:
     # If you want to disable the default workergroup
     # uncomment the line below
     # disabled: true
     replicas: 1
-    ports:
-      - containerPort: 80
-        protocol: TCP
-    resources:
-      limits:
-        cpu: 1
-      requests:
-        cpu: 200m
-
-  headServiceSuffix: "ray-operator.svc"
+    type: worker
 
   service:
     type: ClusterIP
-    port: 8080
 
-# KUBERAY OPERATOR
 
-rayOperatorEnable: true
+# ===================
+# Kuberay Operator
+# ===================
 
-operator:
-  image:
-    repository: kuberay/operator
-    tag: nightly
-    pullPolicy: IfNotPresent
-
+kuberayOperatorEnable: true
+kuberay-operator:
   nameOverride: "kuberay-operator"
   fullnameOverride: "kuberay-operator"
 
+  rbacEnable: true
   ## Install Default RBAC roles and bindings
   rbac:
     create: true
@@ -146,9 +126,6 @@ operator:
     type: ClusterIP
     port: 8080
 
-  ingress:
-    enabled: false
-
   livenessProbe:
     initialDelaySeconds: 10
     periodSeconds: 5
@@ -160,4 +137,6 @@ operator:
     failureThreshold: 5
 
   createCustomResource: true
-  rbacEnable: true
+
+  batchScheduler:
+    enabled: false

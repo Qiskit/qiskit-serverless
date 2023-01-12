@@ -2,17 +2,17 @@ dependencies:
 - name: jupyter
   repository: ""
   version: 0.1.0
-- name: operator
-  repository: ""
-  version: 0.3.0
+- name: kuberay-operator
+  repository: https://ray-project.github.io/kuberay-helm
+  version: 0.4.0
 - name: ray-cluster
-  repository: ""
-  version: 0.3.0
+  repository: https://ray-project.github.io/kuberay-helm
+  version: 0.4.0
 - name: manager
   repository: ""
   version: 0.1.0
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 17.4.1
-digest: sha256:7f98311605fe354572f27462aba2f2606e646e80db7da003c87c29e22671d43a
-generated: "2023-01-05T14:16:47.505228+01:00"
+digest: sha256:505bca14d3c11880618e3acced06e9d78420bb5659b1141d089b01104b5cafb3
+generated: "2023-01-11T15:59:23.454696+01:00"

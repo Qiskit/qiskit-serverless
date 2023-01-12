@@ -11,12 +11,14 @@ dependencies:
   - name: jupyter
     condition: jupyterEnable
     version: 0.1.0
-  - name: operator
-    condition: rayOperatorEnable
-    version: 0.3.0
+  - name: kuberay-operator
+    condition: kuberayOperatorEnable
+    version: 0.4.0
+    repository: https://ray-project.github.io/kuberay-helm
   - name: ray-cluster
     condition: rayClusterEnable
-    version: 0.3.0
+    version: 0.4.0
+    repository: https://ray-project.github.io/kuberay-helm
   - name: manager
     condition: managerEnable
     version: 0.1.0
