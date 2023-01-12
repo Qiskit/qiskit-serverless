@@ -24,6 +24,7 @@ from qiskit_nature.drivers import Molecule
 from qiskit.algorithms.optimizers import SPSA
 
 from quantum_serverless import run_qiskit_remote, get, QuantumServerless
+from quantum_serverless.core import RedisStateHandler
 
 
 @run_qiskit_remote(target={"cpu": 2})
@@ -188,6 +189,7 @@ def electronic_structure_problem(
 
 if __name__ == '__main__':
     serverless = QuantumServerless()
+    state_handler = RedisStateHandler("redis", 6379)
 
     USE_RUNTIME = False
 
@@ -223,3 +225,8 @@ if __name__ == '__main__':
     print("Energies: ", [e[0] for e in energies])
     print("Shifts: ", [e[1] for e in energies])
     print("Energy + shift: ", [e[0] + e[1] for e in energies])
+
+    state_handler.set("results", {
+        "energies": [e[0] for e in energies],
+        "shifts": [e[1] for e in energies]
+    })
