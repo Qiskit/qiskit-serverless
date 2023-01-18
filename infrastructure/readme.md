@@ -23,8 +23,8 @@ the different Python executions that you can send to your [k8s](https://kubernet
 
 ## Docker folder
 In [this folder](./docker) you will find the resources related with the creation of the docker images that the infrastructure requires to deploy. There are two main images:
-- Jupyter notebook: an image to be able to deploy a jupyter notebook in the infrastructure and make use of the project in a easy way without install anything locally.
-- Ray: an image that contains the ray library to be used in the infrastructure.
+- **Jupyter notebook**: an image to be able to deploy a jupyter notebook in the infrastructure and make use of the project in a easy way without install anything locally.
+- **Ray**: an image that contains the ray library to be used in the infrastructure.
 
 
 ## Helm folder

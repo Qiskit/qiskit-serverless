@@ -2,12 +2,12 @@
 
 Docker images that the infrastructure requires to deploy. There are two main images:
 - [Jupyter notebook](#ray-node-with-jupyter-notebook)
-- [Ray](#ray-node-with-qiskit)
+- [Ray](#custom-ray-cluster)
 
 
-## Ray node with Qiskit
+## Custom ray-cluster
 
-An image that contains the ray library to be used in the infrastructure.
+An image that contains our custom ray-cluster configuration.
 
 ### Build
 To build image just run from the root of the project:

@@ -1,6 +1,6 @@
 # Helm configuration
 
-Main configuration to setup your k8s cluster and the services that this project uses. The helm configuration contains 4 charts: jupyter, manager, operator and ray-cluster.
+Main configuration to setup your k8s cluster and the services that this project uses. The helm configuration contains 5 charts: jupyter, manager, kuberay-operator, ray-cluster and redis.
 
 ## Installation
 
