@@ -2,12 +2,15 @@
 
 Docker images that the infrastructure requires to deploy. There are two main images:
 - [Jupyter notebook](#ray-node-with-jupyter-notebook)
-- [Ray](#custom-ray-cluster)
+- [Ray](#custom-ray)
 
 
-## Custom ray-cluster
+## Custom ray
 
-An image that contains our custom ray-cluster configuration.
+An image that contains our custom [ray](https://github.com/ray-project/ray) configuration.
+It works for local development or to be used with [ray-cluster](https://docs.ray.io/en/latest/cluster/getting-started.html).
+
+
 
 ### Build
 To build image just run from the root of the project:
