@@ -11,7 +11,6 @@
 # that they have been altered from the originals.
 
 """Tests for api calls"""
-import json
 import unittest
 from unittest import TestCase
 from manager.app import app
@@ -55,39 +54,6 @@ class TestApi(TestCase):
             "ip": "127.0.0.1",
         }
 
-    def test_cluster_api_create(self):
-        """Test successful create cluster api call"""
-        # arrange
-        app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactorySuccess",
-            NAMESPACE="ray",
-        )
-        tester = app.test_client(self)
-        # act
-        response = tester.post(
-            "/quantum-serverless-manager/cluster/",
-            data=json.dumps({"name": "bb"}),
-            content_type="application/json",
-        )
-        data = response.json
-        print(data)
-        # assert
-        assert response.status_code == 201
-        assert data == {"name": "cluster-a"}
-
-    def test_cluster_api_delete(self):
-        """Test successful delete api call"""
-        # arrange
-        app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactorySuccess",
-            NAMESPACE="ray",
-        )
-        tester = app.test_client(self)
-        # act
-        response = tester.delete("/quantum-serverless-manager/cluster/cluster-a")
-        # assert
-        assert response.status_code == 204
-
     def test_cluster_api_get_all_internal_error(self):
         """Test status code for get all api call with command error"""
         # arrange
@@ -113,72 +79,6 @@ class TestApi(TestCase):
         response = tester.get("/quantum-serverless-manager/cluster/cluster-a")
         # assert
         assert response.status_code == 500
-
-    def test_cluster_api_create_command_error(self):
-        """Test status code for create api call with command error"""
-        # arrange
-        app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError",
-            NAMESPACE="ray",
-        )
-        tester = app.test_client(self)
-        # act
-        response = tester.post(
-            "/quantum-serverless-manager/cluster/",
-            data=json.dumps({"name": "bb"}),
-            content_type="application/json",
-        )
-        # assert
-        assert response.status_code == 500
-
-    def test_cluster_api_delete_command_error(self):
-        """Test status code for delete api call with command error"""
-        # arrange
-        app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError",
-            NAMESPACE="ray",
-        )
-        tester = app.test_client(self)
-        # act
-        response = tester.delete("/quantum-serverless-manager/cluster/cluster-a")
-        # assert
-        assert response.status_code == 500
-
-    def test_cluster_api_create_validation_error(self):
-        """Test status code for invalid input(name not in lowercase) when creating cluster"""
-        # arrange
-        app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError",
-            NAMESPACE="ray",
-        )
-        tester = app.test_client(self)
-        # act
-        response = tester.post(
-            "/quantum-serverless-manager/cluster/",
-            data=json.dumps({"name": "AA"}),
-            content_type="application/json",
-        )
-        # assert
-        assert response.status_code == 400
-
-    def test_cluster_api_create_validation_error_length(self):
-        """Test status code for invalid input(name loo long) when creating cluster"""
-        # arrange
-        app.config.update(
-            CLUSTER_DAO_FACTORY="tests.test_util_dao.ClusterDAOFactoryCommandError",
-            NAMESPACE="ray",
-        )
-        tester = app.test_client(self)
-        # act
-        response = tester.post(
-            "/quantum-serverless-manager/cluster/",
-            data=json.dumps(
-                {"name": "aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeee1234"}
-            ),
-            content_type="application/json",
-        )
-        # assert
-        assert response.status_code == 400
 
     def test_cluster_api_get_not_found_error(self):
         """Test status code for get cluster details when the cluster is not found"""
