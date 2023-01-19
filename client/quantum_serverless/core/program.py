@@ -49,10 +49,10 @@ class Program:  # pylint: disable=too-many-instance-attributes
 
     name: str
     entrypoint: str
+    working_dir: str = "./"
     arguments: Optional[Dict[str, str]] = None
     env_vars: Optional[Dict[str, str]] = None
     dependencies: Optional[List[str]] = None
-    working_dir: Optional[str] = None
     description: Optional[str] = None
     version: Optional[str] = None
 
