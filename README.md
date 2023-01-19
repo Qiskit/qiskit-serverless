@@ -55,6 +55,7 @@ from qiskit.quantum_info import SparsePauliOp
 from qiskit.primitives import Estimator
 
 from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put
+from quantum_serverless.core.state import RedisStateHandler
 
 # 1. let's annotate out function to convert it
 # to function that can be executed remotely
@@ -67,6 +68,9 @@ def my_function(circuit: QuantumCircuit, obs: SparsePauliOp):
 # 2. Next let's create out serverless object to control
 # where our remote function will be executed
 serverless = QuantumServerless()
+
+# 2.1 (Optional) state handler to write/read results in/out of job
+state_handler = RedisStateHandler("redis", 6379)
 
 circuits = [random_circuit(2, 2) for _ in range(3)]
 
@@ -84,8 +88,17 @@ with serverless:
 
     # 5. to get results back from reference
     # we need to call `get` on function reference
-    print("Single execution:", get(function_reference))
-    print("N parallel executions:", get(function_references))
+    single_result = get(function_reference)
+    parallel_result = get(function_references)
+    print("Single execution:", single_result)
+    print("N parallel executions:", parallel_result)
+
+    # 5.1 (Optional) write results to state.
+    state_handler.set("result", {
+        "status": "ok",
+        "single": single_result.tolist(),
+        "parallel_result": [entry.tolist() for entry in parallel_result]
+    })
 ```
 
 #### Run program
@@ -94,6 +107,7 @@ Let's run our program now
 
 ```python
 from quantum_serverless import QuantumServerless, Program
+from quantum_serverless.core.state import RedisStateHandler
 
 serverless = QuantumServerless({
     "providers": [{
@@ -106,11 +120,12 @@ serverless = QuantumServerless({
 })
 serverless.set_provider("docker-compose") # set provider as docker-compose
 
+state_handler = RedisStateHandler("localhost", 6379)
+
 # create out program
 program = Program(
     name="my_program",
-    entrypoint="program.py", # set entrypoint as out program.py file
-    working_dir="./"
+    entrypoint="program.py" # set entrypoint as our program.py file
 )
 
 job = serverless.run_program(program)
@@ -121,6 +136,11 @@ job.status()
 job.logs()
 # Single execution: [1.]
 # N parallel executions: [array([1.]), array([0.]), array([-0.28650496])]
+
+state_handler.get("result") # (Optional) get written data
+# {'status': 'ok',
+# 'single': [1.0],
+# 'parallel_result': [[1.0], [0.0], [-0.28650496]]}
 ```
 
 
