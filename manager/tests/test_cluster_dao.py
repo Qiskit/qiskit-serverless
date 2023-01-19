@@ -59,39 +59,6 @@ class TestClusterDao(TestCase):
         assert result["ip"] == "10.102.15.119"
         assert result["port"] == 10001
 
-    def test_create_cluster(self):
-        """Test successful create cluster"""
-        cluster_dao = ClusterDAO("ray")
-        cluster_dao.run = MagicMock()
-        cluster_dao.run.return_value = ""
-
-        result = cluster_dao.create({"name": "cluster"})
-
-        cluster_dao.run.assert_called_once()
-        assert result["name"] == "cluster"
-
-    def test_delete_cluster(self):
-        """Test successful delete cluster"""
-        cluster_dao = ClusterDAO("ray")
-        cluster_dao.run = MagicMock()
-        cluster_dao.run.return_value = ""
-
-        cluster_dao.delete("cluster")
-
-        cluster_dao.run.assert_called_once()
-
-    def test_create_throws_error(self):
-        """Test create throws error"""
-        cluster_dao = ClusterDAO("ray")
-        cluster_dao.run = MagicMock()
-        cluster_dao.run.side_effect = error_cluster_exists
-        with self.assertRaises(CommandError) as error:
-            cluster_dao.create({"name": "cluster"})
-            assert (
-                str(error)
-                == "Error: INSTALLATION FAILED: cannot re-use a name that is still in use"
-            )
-
     def test_get_data_throws_error(self):
         """Test get data throws not found error"""
         cluster_dao = ClusterDAO("ray")
@@ -100,18 +67,6 @@ class TestClusterDao(TestCase):
 
         with self.assertRaises(NotFoundError) as context:
             cluster_dao.get("cluster")
-        assert 'Error from server (NotFound): services "XXX" not found' == str(
-            context.exception
-        )
-
-    def test_delete_data_throws_error(self):
-        """Test delete data throws not found error"""
-        cluster_dao = ClusterDAO("ray")
-        cluster_dao.run = MagicMock()
-        cluster_dao.run.side_effect = error_cluster_not_found
-
-        with self.assertRaises(NotFoundError) as context:
-            cluster_dao.delete("cluster")
         assert 'Error from server (NotFound): services "XXX" not found' == str(
             context.exception
         )

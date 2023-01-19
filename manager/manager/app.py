@@ -143,14 +143,6 @@ class ClusterList(Resource):
         """List all clusters"""
         return self.get_cluster_dao_instance().get_all()
 
-    @ns.doc("create_cluster")
-    @ns.expect(cluster_model)
-    @ns.marshal_with(cluster_model, code=201)
-    def post(self):
-        """Create a new cluster"""
-        validate(api.payload)
-        return self.get_cluster_dao_instance().create(api.payload), 201
-
 
 @ns.route("/cluster/<name>")
 @ns.response(404, "Cluster not found")
@@ -185,13 +177,6 @@ class Cluster(Resource):
     def get(self, name):
         """Fetch a given resource"""
         return self.get_cluster_dao_instance().get(name)
-
-    @ns.doc("delete_cluster")
-    @ns.response(204, "Cluster deleted")
-    def delete(self, name):
-        """Delete a cluster given its identifier"""
-        self.get_cluster_dao_instance().delete(name)
-        return "", 204
 
 
 if __name__ == "__main__":
