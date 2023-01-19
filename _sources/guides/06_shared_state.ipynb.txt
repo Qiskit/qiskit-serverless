@@ -35,7 +35,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "from quantum_serverless import QuantumServerless\n",
+    "from quantum_serverless import QuantumServerless, Program\n",
     "from quantum_serverless.core.state import RedisStateHandler"
    ]
   },
@@ -79,7 +79,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 8,
+   "execution_count": 3,
    "id": "a4bfff67-be65-4b3a-80f2-d0696e3190de",
    "metadata": {},
    "outputs": [
@@ -89,7 +89,7 @@
        "<RedisStateHandler | localhost:6379>"
       ]
      },
-     "execution_count": 8,
+     "execution_count": 3,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -140,17 +140,31 @@
    "execution_count": 4,
    "id": "bfb0a660-7354-446e-b14b-0dc97e883134",
    "metadata": {},
-   "outputs": [],
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<Job | fqs_33de200c-d56b-4e59-89fc-a658ee94f9e3>"
+      ]
+     },
+     "execution_count": 4,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
    "source": [
-    "job = serverless.run_job(\n",
-    "    entrypoint=\"python job_with_state.py\",\n",
-    "    runtime_env={\"working_dir\": \"./\"},\n",
-    ")"
+    "program = Program(\n",
+    "    name=\"job_with_state\",\n",
+    "    entrypoint=\"job_with_state.py\"\n",
+    ")\n",
+    "\n",
+    "job = serverless.run_program(program)\n",
+    "job"
    ]
   },
   {
    "cell_type": "code",
-   "execution_count": 10,
+   "execution_count": 6,
    "id": "6c9d41a6-cedf-4064-a1ea-fa9441c6ed9a",
    "metadata": {},
    "outputs": [
@@ -160,7 +174,7 @@
        "<JobStatus.SUCCEEDED: 'SUCCEEDED'>"
       ]
      },
-     "execution_count": 10,
+     "execution_count": 6,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -179,7 +193,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 12,
+   "execution_count": 8,
    "id": "cb0acc2d-85c8-4850-a7ee-4af1f837b3fe",
    "metadata": {},
    "outputs": [
@@ -189,7 +203,7 @@
        "({'k': 42}, {'other_k': 42})"
       ]
      },
-     "execution_count": 12,
+     "execution_count": 8,
      "metadata": {},
      "output_type": "execute_result"
     }

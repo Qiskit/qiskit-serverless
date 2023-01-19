@@ -314,7 +314,7 @@ div.rendered_html tbody tr:hover {
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">Program</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.state</span> <span class="kn">import</span> <span class="n">RedisStateHandler</span>
 </pre></div>
 </div>
@@ -347,7 +347,7 @@ div.rendered_html tbody tr:hover {
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">state_handler</span> <span class="o">=</span> <span class="n">RedisStateHandler</span><span class="p">(</span><span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="mi">6379</span><span class="p">)</span>
@@ -356,7 +356,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -392,19 +392,31 @@ div.rendered_html tbody tr:hover {
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="nbinput nblast docutils container">
+<div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run_job</span><span class="p">(</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;python job_with_state.py&quot;</span><span class="p">,</span>
-    <span class="n">runtime_env</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;working_dir&quot;</span><span class="p">:</span> <span class="s2">&quot;./&quot;</span><span class="p">},</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;job_with_state&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;job_with_state.py&quot;</span>
 <span class="p">)</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run_program</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+<span class="n">job</span>
 </pre></div>
 </div>
 </div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Job | fqs_33de200c-d56b-4e59-89fc-a658ee94f9e3&gt;
+</pre></div></div>
+</div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -412,7 +424,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -422,7 +434,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <p>As you can see from job code we saved 2 enries in our state handler <code class="docutils literal notranslate"><span class="pre">in_job</span></code> and <code class="docutils literal notranslate"><span class="pre">in_other_job</span></code>. And because we are using same handler with the same redis instance we can access stored information, by calling <code class="docutils literal notranslate"><span class="pre">get</span></code> on handler instance</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">state_handler</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;in_job&quot;</span><span class="p">),</span> <span class="n">state_handler</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;in_other_job&quot;</span><span class="p">)</span>
@@ -430,7 +442,7 @@ div.rendered_html tbody tr:hover {
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
