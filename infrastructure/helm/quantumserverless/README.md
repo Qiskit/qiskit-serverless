@@ -23,9 +23,12 @@ The Quantum Serverless Chart has several internal and external dependencies. If 
 
 ## Helm chart values
 
-**Redis**
+**Redis & Nginx Ingress controller**
 
-For our Redis dependency we are using the configuration created by Bitnami. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to all the parameters that Bitnami added in the chart specified in their [README](https://artifacthub.io/packages/helm/bitnami/redis).
+For our Redis and Nginx Ingress controller dependencies we are using the configuration created by Bitnami. To simplify the configuration we offered you with a straigh-forward initial parameters setup. 
+But if you are interested in more complex configurations you have access to all the parameters that Bitnami added in the chart specified in their READMEs:
+* [Redis README](https://artifacthub.io/packages/helm/bitnami/redis).
+* [Nginx Ingress controller's README](https://artifacthub.io/packages/helm/bitnami/nginx-ingress-controller)
 
 **Jupyter notebook**
 
