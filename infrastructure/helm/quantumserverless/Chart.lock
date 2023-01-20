@@ -2,6 +2,9 @@ dependencies:
 - name: jupyter
   repository: ""
   version: 0.1.0
+- name: nginx-ingress-controller
+  repository: https://charts.bitnami.com/bitnami
+  version: 9.3.26
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
   version: 0.4.0
@@ -14,5 +17,5 @@ dependencies:
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 17.4.3
-digest: sha256:1f1f3a40ece0093c3f1fa0fa6fe4e1cb43b8268ac2411701dc3bf0e95a0f0e02
-generated: "2023-01-18T14:35:23.24738369Z"
+digest: sha256:6a12f46e80b855dbbd40f5c70a3fea9626f7fce6d7485ad70e078b7983239d8f
+generated: "2023-01-20T14:57:45.991889+01:00"
