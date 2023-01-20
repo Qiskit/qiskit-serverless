@@ -23,7 +23,7 @@ class TestHandler(StateHandler):
     """TestHandler"""
 
     def __init__(self):
-        self.memory: Dict[str, Any] = {}
+        self.memory: Dict[str, Any] = {}  # type: ignore
 
     def set(self, key: str, value: Dict[str, Any]):
         self.memory[key] = value
