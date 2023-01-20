@@ -12,7 +12,7 @@ dependencies:
     condition: jupyterEnable
     version: 0.1.0
   - name: nginx-ingress-controller
-    condition:
+    condition: nginxIngressControllerEnable
     version: 9.3.26
     repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
