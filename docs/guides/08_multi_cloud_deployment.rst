@@ -11,17 +11,15 @@ with your desired configuration.
 
 So, you will be able to look up information in this guide for:
 
-* :ref:`requirements_installation`
+* :ref:`installation_requirements`
 * Step by step commands to deploy using:
-    * :ref:`docker-deployment`: for easy to go local developments.
-    * :ref:`helm-deployment`: do you already have a cluster? Deploy it in your infrastructure.
-    * :ref:`terraform-deployment`: you don't have anything? We provide you with all the configuration needed to deploy everything in your favorite cloud.
-        * IBM Cloud
-        * Amazon Web Services (AWS)
+    * :ref:`docker-deployment`
+    * :ref:`helm-deployment`
+    * :ref:`terraform-deployment`
 
-.. _requirements_installation:
+.. _installation_requirements:
 
-Requirements installation
+Installation requirements
 ===========================
 
 To deploy the required infrastructure by ``Quantum Serverless`` you need to have installed three main tools:
@@ -53,8 +51,8 @@ tools installed!
 
 .. _docker-deployment:
 
-Docker deployment
-===========================
+Docker: an easy to go option for local development
+===================================================
 
 This section will describe you the steps that you can follow to build and deploy the infrastructure with **Docker**.
 
@@ -89,8 +87,8 @@ and have access to:
 
 .. _helm-deployment:
 
-Helm deployment
-===========================
+Helm: to use your own cluster locally or in the cloud
+=======================================================
 
 Until now you deployed locally with a default configuration and minimum customization ``Quantum Serverless``. With
 **Helm** you are going to be able to deploy this project with a **production** ready configuration and fully
@@ -131,6 +129,7 @@ always will work is to use the ``port-forward`` command:
 Now that we have the desired pods we can expose their ports:
 
 .. code-block::
+   :caption: ports 8265 and 8888 are the the default ports for each service
 
         $  kubectl port-forward <NAMESPACE>-kuberay-head-<POD_ID> 8265
         $  kubectl port-forward <NAMESPACE>-jupyter-<POD_ID> 8888
@@ -146,8 +145,8 @@ configuration example to expose through ``ingress`` in ``localhost`` the Jupyter
 
 .. _terraform-deployment:
 
-Terraform deployment
-===========================
+Terraform: we deploy all the infrastructure in your favourite cloud provider
+==============================================================================
 
 This approach is very useful when you don't have anything where to deploy the infrastructure so let's go step by step.
 
@@ -187,11 +186,13 @@ terraform:
 
 .. code-block::
     :caption: always run a plan before an apply, this will compare your current configuration with the new one
+
         $ terraform plan
 
 and as final step:
 
 .. code-block::
+    :caption: this command will deploy the plan in your account
 
         $ terraform apply
 
