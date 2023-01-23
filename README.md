@@ -34,7 +34,7 @@ Steps
 
 #### Prepare infrastructure
 
-In a root folder of this project you can find `docker-compose.yml` 
+In the root folder of this project you can find `docker-compose.yml` 
 file, which is configured to run all necessary services for quickstart tutorials.
 
 Run in a root folder
@@ -42,6 +42,9 @@ Run in a root folder
 docker-compose pull
 docker-compose up
 ```
+
+:memo: For more advanced ways to deploy the project you have the guide:
+[Multi cloud deployment](https://qiskit-extensions.github.io/quantum-serverless/guides/08_multi_cloud_deployment.html).
 
 #### Write your program
 
