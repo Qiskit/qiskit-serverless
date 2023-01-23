@@ -156,8 +156,7 @@ Before anything the first thing that you should do is to create an account in yo
     * `AWS registration process <https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account/>`_
     * Azure is not supported in this process by now but we have plans to include it soon.
 
-Once time you have created an account, you will need to configure an API key/Access key to access from your terminal to
-your selected provider account:
+Once time you have created an account, you will need to configure an API key/Access key to access from your terminal to your selected provider account:
     * `IBM Cloud API key creation <https://cloud.ibm.com/docs/account?topic=account-userapikey&interface=ui#create_user_key>`_
     * `AWS Access key creation <https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html#access-keys-about>`_
 
