@@ -5,6 +5,11 @@ Main configuration to setup your k8s cluster and the services that this project 
 ## Installation
 
 ```shell
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo add kuberay https://ray-project.github.io/kuberay-helm
+```
+
+```shell
 helm dependency build
 ```
 
@@ -53,10 +58,12 @@ But if you are interested in more complex configurations you have access to all 
 | manager.service.port       | Port number that service will be exposed externally.             |
 | manager.ingress.enabled    | Specifies if you are going to use ingress to expose the service. |
 
-**Ray cluster & Kuberay operator**
+**Ray cluster, Kuberay operator, and Kuberay api server**
 
 For our Ray Charts dependencies we are using the configuration created by the Ray Project. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to their Helm project [in GitHub](https://github.com/ray-project/kuberay-helm) to analyze the different variables:
 
 - For Kuberay Operator you can read their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/kuberay-operator/values.yaml).
 
 - For Ray Cluster they provide you with a commented initial setup in their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/ray-cluster/values.yaml).
+
+- For Ray Api Server you can read their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/kuberay-apiserver/values.yaml).

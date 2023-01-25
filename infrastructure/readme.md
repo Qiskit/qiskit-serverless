@@ -28,11 +28,12 @@ In [this folder](./docker) you will find the resources related with the creation
 
 
 ## Helm folder
-In [this folder](./helm) you will find the main configuration to set up your k8s cluster and the services that this project uses. There are 4 main configurations:
+In [this folder](./helm) you will find the main configuration to set up your k8s cluster and the services that this project uses. There are 5 main configurations:
 - **Jupyter**: this configuration deploys in your cluster the service that provides you with a notebook to work easily with the project.
 - **Manager**: this configuration deploys the API to handle your Ray cluster.
 - **Operator**: a standard ray configuration to set up the KubeRay operator in the k8s cluster. This resource provides a Kubernetes-native way to manage Ray clusters.
 - **Ray cluster**: standard configuration to set up and deploy your Ray cluster in a k8s environment.
+- **Kuberay API server**: a standard configuration to manage KubeRay resources using gRPC and HTTP APIs.
 
 
 ## Terraform
