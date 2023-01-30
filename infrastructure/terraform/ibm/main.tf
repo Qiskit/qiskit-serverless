@@ -24,9 +24,13 @@ provider "ibm" {
   ibmcloud_timeout = var.ibmcloud_timeout
 }
 
+data "ibm_container_vpc_cluster" "qserverless" {
+  name = module.vpc_kubernetes_cluster.kubernetes_vpc_cluster_id
+}
+
 provider "helm" {
   kubernetes {
-    host = ibm_container_vpc_cluster.cluster.public_service_endpoint_url
+    host = data.ibm_container_vpc_cluster.qserverless.public_service_endpoint_url
   }
 }
 
