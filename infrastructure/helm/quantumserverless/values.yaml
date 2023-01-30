@@ -214,4 +214,9 @@ kuberay-apiserver:
 
   replicaCount: 1
 
+# ===================
+# Keycloak 
+# ===================
+
+keycloakEnable: true
 
