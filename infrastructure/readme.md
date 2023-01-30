@@ -34,7 +34,7 @@ In [this folder](./helm) you will find the main configuration to set up your k8s
 - **Operator**: a standard ray configuration to set up the KubeRay operator in the k8s cluster. This resource provides a Kubernetes-native way to manage Ray clusters.
 - **Ray cluster**: standard configuration to set up and deploy your Ray cluster in a k8s environment.
 - **Kuberay API server**: a standard configuration to manage KubeRay resources using gRPC and HTTP APIs.
-
+- **Keycloak**: a standard configuration to manage access to the resources
 
 ## Terraform
 The [folder](./terraform) contains the configuration that helps you to create your k8s and Ray clusters. Currently, the project supports deployments in:
