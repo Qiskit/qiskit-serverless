@@ -101,7 +101,7 @@ ray-cluster:
   fullnameOverride: ""
 
   image:
-    repository: "<RAY_CLUSTER_IMAGE>"
+    repository: "qiskit/quantum-serverless-ray-node"
     tag: "latest"
     pullPolicy: IfNotPresent
 
