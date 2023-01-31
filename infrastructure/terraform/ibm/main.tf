@@ -26,12 +26,24 @@ provider "ibm" {
 
 provider "helm" {
   kubernetes {
-    host = ibm_container_vpc_cluster.cluster.public_service_endpoint_url
+    host = data.ibm_container_cluster_config.quantum_serverless_cluster_config.host
+    token = data.ibm_container_cluster_config.quantum_serverless_cluster_config.token
+    cluster_ca_certificate = data.ibm_container_cluster_config.quantum_serverless_cluster_config.ca_certificate
   }
 }
 
 ##############################################################################
 
+##############################################################################
+# Cluster reference
+##############################################################################
+
+data "ibm_container_cluster_config" "quantum_serverless_cluster_config" {
+  cluster_name_id = module.vpc_kubernetes_cluster.kubernetes_vpc_cluster_id
+  resource_group_id = data.ibm_resource_group.ibmcloud_resource_group.id
+}
+
+##############################################################################
 
 ##############################################################################
 # Resource Group

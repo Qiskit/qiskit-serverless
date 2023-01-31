@@ -5,15 +5,15 @@
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | ~> 1.2 |
-| <a name="requirement_helm"></a> [helm](#requirement\_helm) | >= 2.6.0 |
-| <a name="requirement_ibm"></a> [ibm](#requirement\_ibm) | >= 1.46.0 |
+| <a name="requirement_helm"></a> [helm](#requirement\_helm) | >= 2.8.0 |
+| <a name="requirement_ibm"></a> [ibm](#requirement\_ibm) | >= 1.50.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_helm"></a> [helm](#provider\_helm) | 2.7.1 |
-| <a name="provider_ibm"></a> [ibm](#provider\_ibm) | 1.46.0 |
+| <a name="provider_helm"></a> [helm](#provider\_helm) | 2.8.0 |
+| <a name="provider_ibm"></a> [ibm](#provider\_ibm) | 1.50.0 |
 
 ## Modules
 
@@ -26,7 +26,8 @@
 
 | Name | Type |
 |------|------|
-| [helm_release.quantum_severless_helm](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
+| [helm_release.quantum_serverless_release](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
+| [ibm_container_cluster_config.quantum_serverless_cluster_config](https://registry.terraform.io/providers/IBM-Cloud/ibm/latest/docs/data-sources/container_cluster_config) | data source |
 | [ibm_resource_group.ibmcloud_resource_group](https://registry.terraform.io/providers/IBM-Cloud/ibm/latest/docs/data-sources/resource_group) | data source |
 
 ## Inputs
@@ -50,3 +51,4 @@
 | Name | Description |
 |------|-------------|
 | <a name="output_cluster_id"></a> [cluster\_id](#output\_cluster\_id) | ID of the IKS on VPC Cluster |
+| <a name="output_vpc_id"></a> [vpc\_id](#output\_vpc\_id) | The ID of the vpc |
