@@ -107,6 +107,8 @@ and run the next commands:
 .. code-block::
    :caption: run these commands from ./infrastructure/helm/quantumserverless folder
 
+        $ helm repo add bitnami https://charts.bitnami.com/bitnami
+        $ helm repo add kuberay https://ray-project.github.io/kuberay-helm
         $ helm dependency build
         $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace .
 
