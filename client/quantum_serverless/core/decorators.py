@@ -34,7 +34,6 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List, Callable, Sequence
 
 import ray
-from opencensus.trace.span_context import generate_trace_id, generate_span_id
 from opentelemetry import trace
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -42,6 +41,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import (
     SimpleSpanProcessor,
 )
+from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from qiskit import QuantumCircuit
 from ray.runtime_env import RuntimeEnv
@@ -82,8 +82,8 @@ OT_PROGRAM_NAME = "OT_PROGRAM_NAME"
 OT_JAEGER_HOST = "OT_JAEGER_HOST"
 OT_JAEGER_HOST_KEY = "OT_JAEGER_HOST_KEY"
 OT_JAEGER_PORT_KEY = "OT_JAEGER_PORT_KEY"
-OT_TRACE_ID_KEY = "OT_TRACE_ID_KEY"
-
+OT_TRACEPARENT_ID_KEY = "OT_TRACEPARENT_ID_KEY"
+OT_SPAN_DEFAULT_NAME = "entrypoint"
 OT_ATTRIBUTE_PREFIX = "qs"
 
 
@@ -145,7 +145,42 @@ def fetch_execution_meta(*args, **kwargs) -> Dict[str, Sequence[Numeric]]:
     return meta
 
 
-def traced(name: str, target: Target, trace_id: Optional[str] = None) -> Callable:
+def get_tracer(instrumenting_module_name) -> Tracer:
+    """Returns tracer for funciton."""
+    resource = Resource(
+        attributes={
+            SERVICE_NAME: f"qs.{os.environ.get(OT_PROGRAM_NAME, 'unnamed_execution')}"
+        }
+    )
+    jaeger_exporter = JaegerExporter(
+        agent_host_name=os.environ.get(OT_JAEGER_HOST_KEY, "localhost"),
+        agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
+    )
+    provider = TracerProvider(resource=resource)
+    provider.add_span_processor(SimpleSpanProcessor(jaeger_exporter))
+    trace.set_tracer_provider(provider)
+    return trace.get_tracer(instrumenting_module_name)
+
+
+def _trace_env_vars(env_vars: dict):
+    tracer = get_tracer(__name__)
+    if env_vars.get(OT_TRACEPARENT_ID_KEY, None) is not None:
+        env_vars[OT_TRACEPARENT_ID_KEY] = env_vars.get(OT_TRACEPARENT_ID_KEY)
+    elif os.environ.get(OT_TRACEPARENT_ID_KEY) is not None:
+        env_vars[OT_TRACEPARENT_ID_KEY] = os.environ.get(OT_TRACEPARENT_ID_KEY)
+    else:
+        carrier: Dict[str, str] = {}
+        with tracer.start_as_current_span(OT_SPAN_DEFAULT_NAME):
+            TraceContextTextMapPropagator().inject(carrier)
+        env_vars[OT_TRACEPARENT_ID_KEY] = carrier.get(
+            TraceContextTextMapPropagator._TRACEPARENT_HEADER_NAME  # pylint:disable=protected-access
+        )
+    return env_vars
+
+
+def _tracible_function(
+    name: str, target: Target, trace_id: Optional[str] = None
+) -> Callable:
     """Wrap a function in an OTel span.
 
     Args:
@@ -160,24 +195,17 @@ def traced(name: str, target: Target, trace_id: Optional[str] = None) -> Callabl
     def decorator(func: Callable):
         @functools.wraps(func)
         def wraps(*args, **kwargs):
-            carrier = {
-                "traceparent": f"42-{trace_id or generate_trace_id()}-{generate_span_id()}-01"
-            }
-            ctx = TraceContextTextMapPropagator().extract(carrier)
-
-            resource = Resource(attributes={SERVICE_NAME: f"qs.{os.environ.get(OT_PROGRAM_NAME, 'unnamed_execution')}"})
-            jaeger_exporter = JaegerExporter(
-                agent_host_name=os.environ.get(OT_JAEGER_HOST_KEY, "localhost"),
-                agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
+            tracer = get_tracer(func.__module__)
+            ctx = TraceContextTextMapPropagator().extract(
+                {
+                    TraceContextTextMapPropagator._TRACEPARENT_HEADER_NAME: trace_id  # pylint:disable=protected-access
+                }
             )
-            provider = TracerProvider(resource=resource)
-            provider.add_span_processor(SimpleSpanProcessor(jaeger_exporter))
-            trace.set_tracer_provider(provider)
-            tracer = trace.get_tracer(func.__module__)
 
             circuits_meta = fetch_execution_meta(*args, **kwargs)
 
             with tracer.start_as_current_span(name, context=ctx) as rollspan:
+                # TODO: add serverless package version # pylint: disable=fixme
                 rollspan.set_attribute(
                     f"{OT_ATTRIBUTE_PREFIX}.meta.function_name", name
                 )
@@ -254,24 +282,17 @@ def run_qiskit_remote(
             if state is not None:
                 args = tuple([state] + list(args))
 
-            # runtime env
-            # TODO: fix runtime_env warning  # pylint: disable=fixme
-            env_vars = remote_target.env_vars or {}
-            if env_vars.get(OT_TRACE_ID_KEY, None) is not None:
-                env_vars[OT_TRACE_ID_KEY] = env_vars.get(OT_TRACE_ID_KEY)
-            elif os.environ.get(OT_TRACE_ID_KEY) is not None:
-                env_vars[OT_TRACE_ID_KEY] = os.environ.get(OT_TRACE_ID_KEY)
-            else:
-                env_vars[OT_TRACE_ID_KEY] = generate_trace_id()
-
-            runtime_env = RuntimeEnv(env_vars=env_vars, pip=remote_target.pip)
-
             # tracing
-            traced_function = traced(
+            traced_env_vars = _trace_env_vars(remote_target.env_vars or {})
+            traced_function = _tracible_function(
                 name=function.__name__,
                 target=remote_target,
-                trace_id=env_vars.get(OT_TRACE_ID_KEY),
+                trace_id=traced_env_vars.get(OT_TRACEPARENT_ID_KEY),
             )(function)
+
+            # runtime env
+            # TODO: fix runtime_env warning  # pylint: disable=fixme
+            runtime_env = RuntimeEnv(env_vars=traced_env_vars, pip=remote_target.pip)
 
             # remote function
             result = ray.remote(
