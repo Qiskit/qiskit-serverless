@@ -165,7 +165,7 @@ def traced(name: str, target: Target, trace_id: Optional[str] = None) -> Callabl
             }
             ctx = TraceContextTextMapPropagator().extract(carrier)
 
-            resource = Resource(attributes={SERVICE_NAME: "quantum_serverless"})
+            resource = Resource(attributes={SERVICE_NAME: f"qs.{os.environ.get(OT_PROGRAM_NAME, 'unnamed_execution')}"})
             jaeger_exporter = JaegerExporter(
                 agent_host_name=os.environ.get(OT_JAEGER_HOST_KEY, "localhost"),
                 agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
