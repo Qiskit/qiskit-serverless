@@ -30,37 +30,24 @@ Quantum serverless decorators
 """
 import functools
 import os
-import uuid
-from contextlib import nullcontext
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, Union, List, Callable
+from typing import Optional, Dict, Any, Union, List, Callable, Sequence
 
 import ray
 from opencensus.trace.span_context import generate_trace_id, generate_span_id
+from opentelemetry import trace
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.trace import NonRecordingSpan, set_span_in_context, SpanContext
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import (
+    SimpleSpanProcessor,
+)
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from qiskit import QuantumCircuit
 from ray.runtime_env import RuntimeEnv
-from rstr import rstr
 
-from quantum_serverless.core.constrants import (
-    META_TOPIC,
-    QS_EXECUTION_WORKLOAD_ID,
-    QS_EXECUTION_UID,
-)
-from quantum_serverless.core.events import (
-    RedisEventHandler,
-    ExecutionMessage,
-    EventHandler,
-)
 from quantum_serverless.core.state import StateHandler
 from quantum_serverless.utils import JsonSerializable
-
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 remote = ray.remote
 get = ray.get
@@ -97,12 +84,68 @@ OT_JAEGER_HOST_KEY = "OT_JAEGER_HOST_KEY"
 OT_JAEGER_PORT_KEY = "OT_JAEGER_PORT_KEY"
 OT_TRACE_ID_KEY = "OT_TRACE_ID_KEY"
 
+OT_ATTRIBUTE_PREFIX = "qs"
 
-def traced(
-        name: str,
-        target: Target,
-        trace_id: Optional[str] = None
-) -> Callable:
+
+@dataclass
+class CircuitMeta:
+    """Circuit metainformation."""
+
+    n_qubits: int
+    depth: int
+
+    def to_seq(self) -> Sequence[int]:
+        """Converts meta to seq."""
+        return [self.n_qubits, self.depth]
+
+
+Numeric = Union[float, int]
+
+
+def fetch_execution_meta(*args, **kwargs) -> Dict[str, Sequence[Numeric]]:
+    """Extracts meta information from function arguments.
+
+    Meta information consist of metrics that describe circuits.
+    Metrics described in `CircuitMeta` class.
+
+    Args:
+        *args: arguments
+        **kwargs: named arguments
+
+    Returns:
+        return meta information dictionary
+    """
+
+    def fetch_meta(circuit: QuantumCircuit) -> CircuitMeta:
+        """Returns meta information from circuit."""
+        return CircuitMeta(n_qubits=circuit.num_qubits, depth=circuit.depth())
+
+    meta: Dict[str, Sequence[Numeric]] = {}
+
+    for idx, argument in enumerate(args):
+        if isinstance(argument, QuantumCircuit):
+            meta[f"{OT_ATTRIBUTE_PREFIX}.args.arg_{idx}"] = fetch_meta(
+                argument
+            ).to_seq()
+        elif isinstance(argument, list):
+            for sub_idx, sub_argument in enumerate(argument):
+                if isinstance(sub_argument, QuantumCircuit):
+                    meta[
+                        f"{OT_ATTRIBUTE_PREFIX}.args.arg_{idx}.{sub_idx}"
+                    ] = fetch_meta(sub_argument).to_seq()
+    for key, value in kwargs.items():
+        if isinstance(value, QuantumCircuit):
+            meta[f"{OT_ATTRIBUTE_PREFIX}.kwargs.{key}"] = fetch_meta(value).to_seq()
+        elif isinstance(value, list):
+            for sub_idx, sub_argument in enumerate(value):
+                if isinstance(sub_argument, QuantumCircuit):
+                    meta[f"{OT_ATTRIBUTE_PREFIX}.kwargs.{key}.{sub_idx}"] = fetch_meta(
+                        sub_argument
+                    ).to_seq()
+    return meta
+
+
+def traced(name: str, target: Target, trace_id: Optional[str] = None) -> Callable:
     """Wrap a function in an OTel span.
 
     Args:
@@ -113,12 +156,13 @@ def traced(
     Returns:
         traced function
     """
+
     def decorator(func: Callable):
         @functools.wraps(func)
         def wraps(*args, **kwargs):
-            traceparent = f"42-{trace_id or generate_trace_id()}-{generate_span_id()}-01"
-            carrier = {"traceparent": traceparent}
-
+            carrier = {
+                "traceparent": f"42-{trace_id or generate_trace_id()}-{generate_span_id()}-01"
+            }
             ctx = TraceContextTextMapPropagator().extract(carrier)
 
             resource = Resource(attributes={SERVICE_NAME: "quantum_serverless"})
@@ -127,25 +171,42 @@ def traced(
                 agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
             )
             provider = TracerProvider(resource=resource)
-            processor = SimpleSpanProcessor(jaeger_exporter)
-            provider.add_span_processor(processor)
+            provider.add_span_processor(SimpleSpanProcessor(jaeger_exporter))
             trace.set_tracer_provider(provider)
             tracer = trace.get_tracer(func.__module__)
 
-            with tracer.start_as_current_span(name, context=ctx) as rollspan:
-                rollspan.set_attribute("function_name", name)
-                rollspan.set_attribute("stack_layer", "quantum_serverless")
+            circuits_meta = fetch_execution_meta(*args, **kwargs)
 
-                rollspan.set_attribute("cpu", target.cpu)
-                rollspan.set_attribute("memory", target.mem)
-                rollspan.set_attribute("gpu", target.gpu)
+            with tracer.start_as_current_span(name, context=ctx) as rollspan:
+                rollspan.set_attribute(
+                    f"{OT_ATTRIBUTE_PREFIX}.meta.function_name", name
+                )
+                rollspan.set_attribute(
+                    f"{OT_ATTRIBUTE_PREFIX}.meta.stack_layer", "quantum_serverless"
+                )
+
+                rollspan.set_attribute(
+                    f"{OT_ATTRIBUTE_PREFIX}.resources.cpu", target.cpu
+                )
+                rollspan.set_attribute(
+                    f"{OT_ATTRIBUTE_PREFIX}.resources.memory", target.mem
+                )
+                rollspan.set_attribute(
+                    f"{OT_ATTRIBUTE_PREFIX}.resources.gpu", target.gpu
+                )
 
                 resources = target.resources or {}
                 for resource_name, resource_value in resources.items():
-                    rollspan.set_attribute(resource_name, resource_value)
+                    rollspan.set_attribute(
+                        f"{OT_ATTRIBUTE_PREFIX}.resources.{resource_name}",
+                        resource_value,
+                    )
 
                 if target.pip is not None:
                     rollspan.set_attribute("requirements", target.pip)
+
+                for meta_key, meta_value in circuits_meta.items():
+                    rollspan.set_attribute(meta_key, meta_value)
 
                 return func(*args, **kwargs)
 
@@ -156,7 +217,7 @@ def traced(
 
 def run_qiskit_remote(
     target: Optional[Union[Dict[str, Any], Target]] = None,
-    state: Optional[StateHandler] = None
+    state: Optional[StateHandler] = None,
 ):
     """Wraps local function as remote executable function.
     New function will return reference object when called.
@@ -194,7 +255,7 @@ def run_qiskit_remote(
                 args = tuple([state] + list(args))
 
             # runtime env
-            # TODO: fix runtime_env warning
+            # TODO: fix runtime_env warning  # pylint: disable=fixme
             env_vars = remote_target.env_vars or {}
             if env_vars.get(OT_TRACE_ID_KEY, None) is not None:
                 env_vars[OT_TRACE_ID_KEY] = env_vars.get(OT_TRACE_ID_KEY)
@@ -209,7 +270,7 @@ def run_qiskit_remote(
             traced_function = traced(
                 name=function.__name__,
                 target=remote_target,
-                trace_id=env_vars.get(OT_TRACE_ID_KEY)
+                trace_id=env_vars.get(OT_TRACE_ID_KEY),
             )(function)
 
             # remote function
