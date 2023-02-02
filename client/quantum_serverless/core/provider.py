@@ -33,6 +33,7 @@ from typing import Optional, List, Dict
 import ray
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
+from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
 
@@ -77,6 +78,8 @@ class ComputeResource:
 
     def context(self, **kwargs):
         """Returns context allocated for this compute_resource."""
+        _trace_env_vars({}, location="on context allocation")
+
         init_args = {
             **kwargs,
             **{

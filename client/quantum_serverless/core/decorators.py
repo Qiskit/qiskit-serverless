@@ -34,19 +34,18 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List, Callable, Sequence
 
 import ray
-from opentelemetry import trace
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import (
-    SimpleSpanProcessor,
-)
-from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from qiskit import QuantumCircuit
 from ray.runtime_env import RuntimeEnv
 
+from quantum_serverless.core.constrants import (
+    OT_ATTRIBUTE_PREFIX,
+    OT_JAEGER_HOST_KEY,
+    OT_JAEGER_PORT_KEY,
+    OT_TRACEPARENT_ID_KEY,
+)
 from quantum_serverless.core.state import StateHandler
+from quantum_serverless.core.tracing import get_tracer, _trace_env_vars
 from quantum_serverless.utils import JsonSerializable
 
 remote = ray.remote
@@ -76,15 +75,6 @@ class Target(JsonSerializable):
     @classmethod
     def from_dict(cls, dictionary: dict):
         return Target(**dictionary)
-
-
-OT_PROGRAM_NAME = "OT_PROGRAM_NAME"
-OT_JAEGER_HOST = "OT_JAEGER_HOST"
-OT_JAEGER_HOST_KEY = "OT_JAEGER_HOST_KEY"
-OT_JAEGER_PORT_KEY = "OT_JAEGER_PORT_KEY"
-OT_TRACEPARENT_ID_KEY = "OT_TRACEPARENT_ID_KEY"
-OT_SPAN_DEFAULT_NAME = "entrypoint"
-OT_ATTRIBUTE_PREFIX = "qs"
 
 
 @dataclass
@@ -145,39 +135,6 @@ def fetch_execution_meta(*args, **kwargs) -> Dict[str, Sequence[Numeric]]:
     return meta
 
 
-def get_tracer(instrumenting_module_name) -> Tracer:
-    """Returns tracer for funciton."""
-    resource = Resource(
-        attributes={
-            SERVICE_NAME: f"qs.{os.environ.get(OT_PROGRAM_NAME, 'unnamed_execution')}"
-        }
-    )
-    jaeger_exporter = JaegerExporter(
-        agent_host_name=os.environ.get(OT_JAEGER_HOST_KEY, "localhost"),
-        agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
-    )
-    provider = TracerProvider(resource=resource)
-    provider.add_span_processor(SimpleSpanProcessor(jaeger_exporter))
-    trace.set_tracer_provider(provider)
-    return trace.get_tracer(instrumenting_module_name)
-
-
-def _trace_env_vars(env_vars: dict):
-    tracer = get_tracer(__name__)
-    if env_vars.get(OT_TRACEPARENT_ID_KEY, None) is not None:
-        env_vars[OT_TRACEPARENT_ID_KEY] = env_vars.get(OT_TRACEPARENT_ID_KEY)
-    elif os.environ.get(OT_TRACEPARENT_ID_KEY) is not None:
-        env_vars[OT_TRACEPARENT_ID_KEY] = os.environ.get(OT_TRACEPARENT_ID_KEY)
-    else:
-        carrier: Dict[str, str] = {}
-        with tracer.start_as_current_span(OT_SPAN_DEFAULT_NAME):
-            TraceContextTextMapPropagator().inject(carrier)
-        env_vars[OT_TRACEPARENT_ID_KEY] = carrier.get(
-            TraceContextTextMapPropagator._TRACEPARENT_HEADER_NAME  # pylint:disable=protected-access
-        )
-    return env_vars
-
-
 def _tracible_function(
     name: str, target: Target, trace_id: Optional[str] = None
 ) -> Callable:
@@ -195,7 +152,11 @@ def _tracible_function(
     def decorator(func: Callable):
         @functools.wraps(func)
         def wraps(*args, **kwargs):
-            tracer = get_tracer(func.__module__)
+            tracer = get_tracer(
+                func.__module__,
+                agent_host=os.environ.get(OT_JAEGER_HOST_KEY, None),
+                agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
+            )
             ctx = TraceContextTextMapPropagator().extract(
                 {
                     TraceContextTextMapPropagator._TRACEPARENT_HEADER_NAME: trace_id  # pylint:disable=protected-access
@@ -283,7 +244,9 @@ def run_qiskit_remote(
                 args = tuple([state] + list(args))
 
             # tracing
-            traced_env_vars = _trace_env_vars(remote_target.env_vars or {})
+            traced_env_vars = _trace_env_vars(
+                remote_target.env_vars or {}, location="on decoration"
+            )
             traced_function = _tracible_function(
                 name=function.__name__,
                 target=remote_target,
@@ -291,8 +254,7 @@ def run_qiskit_remote(
             )(function)
 
             # runtime env
-            # TODO: fix runtime_env warning  # pylint: disable=fixme
-            runtime_env = RuntimeEnv(env_vars=traced_env_vars, pip=remote_target.pip)
+            runtime_env = RuntimeEnv(pip=remote_target.pip, env_vars=traced_env_vars)
 
             # remote function
             result = ray.remote(
