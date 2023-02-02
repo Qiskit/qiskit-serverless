@@ -19,7 +19,7 @@ from rest_framework import routers
 from api import views
 
 router = routers.DefaultRouter()
-router.register(r"nested-programs", views.NestedProgramViewSet)
+router.register(r"nested-programs", views.NestedProgramViewSet, basename="nested-programs")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
