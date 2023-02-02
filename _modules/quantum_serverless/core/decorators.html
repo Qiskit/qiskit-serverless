@@ -72,23 +72,24 @@
 <span class="sd">    run_qiskit_remote</span>
 <span class="sd">    get_refs_by_status</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">functools</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Sequence</span>
 
 <span class="kn">import</span> <span class="nn">ray</span>
+<span class="kn">from</span> <span class="nn">opentelemetry.trace.propagation.tracecontext</span> <span class="kn">import</span> <span class="n">TraceContextTextMapPropagator</span>
+<span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
+<span class="kn">from</span> <span class="nn">ray.runtime_env</span> <span class="kn">import</span> <span class="n">RuntimeEnv</span>
 
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.constrants</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">META_TOPIC</span><span class="p">,</span>
-    <span class="n">QS_EXECUTION_WORKLOAD_ID</span><span class="p">,</span>
-    <span class="n">QS_EXECUTION_UID</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless.core.events</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">RedisEventHandler</span><span class="p">,</span>
-    <span class="n">ExecutionMessage</span><span class="p">,</span>
-    <span class="n">EventHandler</span><span class="p">,</span>
+    <span class="n">OT_ATTRIBUTE_PREFIX</span><span class="p">,</span>
+    <span class="n">OT_JAEGER_HOST_KEY</span><span class="p">,</span>
+    <span class="n">OT_JAEGER_PORT_KEY</span><span class="p">,</span>
+    <span class="n">OT_TRACEPARENT_ID_KEY</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.state</span> <span class="kn">import</span> <span class="n">StateHandler</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless.core.tracing</span> <span class="kn">import</span> <span class="n">get_tracer</span><span class="p">,</span> <span class="n">_trace_env_vars</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.utils</span> <span class="kn">import</span> <span class="n">JsonSerializable</span>
 
 <span class="n">remote</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">remote</span>
@@ -120,10 +121,136 @@
         <span class="k">return</span> <span class="n">Target</span><span class="p">(</span><span class="o">**</span><span class="n">dictionary</span><span class="p">)</span>
 
 
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">CircuitMeta</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Circuit metainformation.&quot;&quot;&quot;</span>
+
+    <span class="n">n_qubits</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="k">def</span> <span class="nf">to_seq</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts meta to seq.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">n_qubits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">depth</span><span class="p">]</span>
+
+
+<span class="n">Numeric</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">fetch_execution_meta</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Numeric</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extracts meta information from function arguments.</span>
+
+<span class="sd">    Meta information consist of metrics that describe circuits.</span>
+<span class="sd">    Metrics described in `CircuitMeta` class.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        *args: arguments</span>
+<span class="sd">        **kwargs: named arguments</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        return meta information dictionary</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">fetch_meta</span><span class="p">(</span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CircuitMeta</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns meta information from circuit.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">CircuitMeta</span><span class="p">(</span><span class="n">n_qubits</span><span class="o">=</span><span class="n">circuit</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="n">circuit</span><span class="o">.</span><span class="n">depth</span><span class="p">())</span>
+
+    <span class="n">meta</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Numeric</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">argument</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
+            <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.args.arg_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span>
+                <span class="n">argument</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argument</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">sub_idx</span><span class="p">,</span> <span class="n">sub_argument</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">argument</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub_argument</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
+                    <span class="n">meta</span><span class="p">[</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.args.arg_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">sub_idx</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span><span class="n">sub_argument</span><span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
+            <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.kwargs.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">sub_idx</span><span class="p">,</span> <span class="n">sub_argument</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub_argument</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
+                    <span class="n">meta</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.kwargs.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">sub_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fetch_meta</span><span class="p">(</span>
+                        <span class="n">sub_argument</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">to_seq</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">meta</span>
+
+
+<span class="k">def</span> <span class="nf">_tracible_function</span><span class="p">(</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Target</span><span class="p">,</span> <span class="n">trace_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrap a function in an OTel span.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: name of function</span>
+<span class="sd">        target: target for function</span>
+<span class="sd">        trace_id: trace id</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        traced function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">):</span>
+        <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">wraps</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="n">tracer</span> <span class="o">=</span> <span class="n">get_tracer</span><span class="p">(</span>
+                <span class="n">func</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span>
+                <span class="n">agent_host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">OT_JAEGER_HOST_KEY</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+                <span class="n">agent_port</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">OT_JAEGER_PORT_KEY</span><span class="p">,</span> <span class="mi">6831</span><span class="p">)),</span>
+            <span class="p">)</span>
+            <span class="n">ctx</span> <span class="o">=</span> <span class="n">TraceContextTextMapPropagator</span><span class="p">()</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="n">TraceContextTextMapPropagator</span><span class="o">.</span><span class="n">_TRACEPARENT_HEADER_NAME</span><span class="p">:</span> <span class="n">trace_id</span>  <span class="c1"># pylint:disable=protected-access</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+
+            <span class="n">circuits_meta</span> <span class="o">=</span> <span class="n">fetch_execution_meta</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+            <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">)</span> <span class="k">as</span> <span class="n">rollspan</span><span class="p">:</span>
+                <span class="c1"># TODO: add serverless package version # pylint: disable=fixme</span>
+                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.meta.function_name&quot;</span><span class="p">,</span> <span class="n">name</span>
+                <span class="p">)</span>
+                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.meta.stack_layer&quot;</span><span class="p">,</span> <span class="s2">&quot;quantum_serverless&quot;</span>
+                <span class="p">)</span>
+
+                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.cpu&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">cpu</span>
+                <span class="p">)</span>
+                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.memory&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">mem</span>
+                <span class="p">)</span>
+                <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.gpu&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">gpu</span>
+                <span class="p">)</span>
+
+                <span class="n">resources</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">resources</span> <span class="ow">or</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">resource_name</span><span class="p">,</span> <span class="n">resource_value</span> <span class="ow">in</span> <span class="n">resources</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">OT_ATTRIBUTE_PREFIX</span><span class="si">}</span><span class="s2">.resources.</span><span class="si">{</span><span class="n">resource_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="n">resource_value</span><span class="p">,</span>
+                    <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">pip</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;requirements&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">pip</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">meta_key</span><span class="p">,</span> <span class="n">meta_value</span> <span class="ow">in</span> <span class="n">circuits_meta</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">rollspan</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="n">meta_key</span><span class="p">,</span> <span class="n">meta_value</span><span class="p">)</span>
+
+                <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">wraps</span>
+
+    <span class="k">return</span> <span class="n">decorator</span>
+
+
 <div class="viewcode-block" id="run_qiskit_remote"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.run_qiskit_remote.html#quantum_serverless.core.run_qiskit_remote">[docs]</a><span class="k">def</span> <span class="nf">run_qiskit_remote</span><span class="p">(</span>
     <span class="n">target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">Target</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">StateHandler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">events</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">EventHandler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Wraps local function as remote executable function.</span>
 <span class="sd">    New function will return reference object when called.</span>
@@ -154,40 +281,33 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">remote_target</span> <span class="o">=</span> <span class="n">Target</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
 
-    <span class="n">runtime_env</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;env_vars&quot;</span><span class="p">:</span> <span class="n">remote_target</span><span class="o">.</span><span class="n">env_vars</span><span class="p">}</span>
-    <span class="k">if</span> <span class="n">remote_target</span><span class="o">.</span><span class="n">pip</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">runtime_env</span><span class="p">[</span><span class="s2">&quot;pip&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">remote_target</span><span class="o">.</span><span class="n">pip</span>
-
     <span class="k">def</span> <span class="nf">decorator</span><span class="p">(</span><span class="n">function</span><span class="p">):</span>
         <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
             <span class="c1"># inject state as an argument when passed in decorator</span>
             <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">args</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">state</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">))</span>
 
-            <span class="c1"># inject execution meta emitter</span>
-            <span class="k">if</span> <span class="n">events</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">emitter</span> <span class="o">=</span> <span class="n">events</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">emitter</span> <span class="o">=</span> <span class="n">RedisEventHandler</span><span class="o">.</span><span class="n">from_env_vars</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">emitter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">emitter</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span>
-                    <span class="n">META_TOPIC</span><span class="p">,</span>
-                    <span class="n">message</span><span class="o">=</span><span class="n">ExecutionMessage</span><span class="p">(</span>
-                        <span class="n">workload_id</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">QS_EXECUTION_WORKLOAD_ID</span><span class="p">),</span>
-                        <span class="n">uid</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">QS_EXECUTION_UID</span><span class="p">),</span>
-                        <span class="n">layer</span><span class="o">=</span><span class="s2">&quot;qs&quot;</span><span class="p">,</span>
-                        <span class="n">function_meta</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="p">},</span>
-                        <span class="n">resources</span><span class="o">=</span><span class="n">remote_target</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span>
-                    <span class="p">)</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span>
-                <span class="p">)</span>
+            <span class="c1"># tracing</span>
+            <span class="n">traced_env_vars</span> <span class="o">=</span> <span class="n">_trace_env_vars</span><span class="p">(</span>
+                <span class="n">remote_target</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{},</span> <span class="n">location</span><span class="o">=</span><span class="s2">&quot;on decoration&quot;</span>
+            <span class="p">)</span>
+            <span class="n">traced_function</span> <span class="o">=</span> <span class="n">_tracible_function</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">remote_target</span><span class="p">,</span>
+                <span class="n">trace_id</span><span class="o">=</span><span class="n">traced_env_vars</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">OT_TRACEPARENT_ID_KEY</span><span class="p">),</span>
+            <span class="p">)(</span><span class="n">function</span><span class="p">)</span>
 
+            <span class="c1"># runtime env</span>
+            <span class="n">runtime_env</span> <span class="o">=</span> <span class="n">RuntimeEnv</span><span class="p">(</span><span class="n">pip</span><span class="o">=</span><span class="n">remote_target</span><span class="o">.</span><span class="n">pip</span><span class="p">,</span> <span class="n">env_vars</span><span class="o">=</span><span class="n">traced_env_vars</span><span class="p">)</span>
+
+            <span class="c1"># remote function</span>
             <span class="n">result</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">remote</span><span class="p">(</span>
                 <span class="n">num_cpus</span><span class="o">=</span><span class="n">remote_target</span><span class="o">.</span><span class="n">cpu</span><span class="p">,</span>
                 <span class="n">num_gpus</span><span class="o">=</span><span class="n">remote_target</span><span class="o">.</span><span class="n">gpu</span><span class="p">,</span>
                 <span class="n">resources</span><span class="o">=</span><span class="n">remote_target</span><span class="o">.</span><span class="n">resources</span><span class="p">,</span>
                 <span class="n">memory</span><span class="o">=</span><span class="n">remote_target</span><span class="o">.</span><span class="n">mem</span><span class="p">,</span>
                 <span class="n">runtime_env</span><span class="o">=</span><span class="n">runtime_env</span><span class="p">,</span>
-            <span class="p">)(</span><span class="n">function</span><span class="p">)</span><span class="o">.</span><span class="n">remote</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="p">)(</span><span class="n">traced_function</span><span class="p">)</span><span class="o">.</span><span class="n">remote</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
             <span class="k">return</span> <span class="n">result</span>
 
