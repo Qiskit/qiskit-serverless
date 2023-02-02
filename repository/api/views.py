@@ -9,6 +9,7 @@ class NestedProgramViewSet(viewsets.ModelViewSet):
     """
     TODO: documentation here
     """
-    queryset = NestedProgram.objects.all().order_by('created')
+
+    queryset = NestedProgram.objects.all().order_by("created")
     serializer_class = NestedProgramSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
