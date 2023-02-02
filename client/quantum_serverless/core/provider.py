@@ -29,11 +29,16 @@ Quantum serverless provider
 import logging
 from dataclasses import dataclass
 from typing import Optional, List, Dict
+from uuid import uuid4
 
 import ray
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
+from quantum_serverless.core.constrants import OT_PROGRAM_NAME
+
 from quantum_serverless.core.tracing import _trace_env_vars
+from quantum_serverless.core.job import Job
+from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
 
@@ -57,7 +62,7 @@ class ComputeResource:
     resources: Optional[Dict[str, float]] = None
 
     def job_client(self) -> Optional[JobSubmissionClient]:
-        """Returns job client for given compute resource
+        """Return job client for given compute resource.
 
         Returns:
             job client
@@ -96,14 +101,14 @@ class ComputeResource:
         return ray.init(**init_args)
 
     def connection_string_interactive_mode(self) -> Optional[str]:
-        """Returns connection string to compute_resource."""
+        """Return connection string to compute_resource."""
         if self.host is not None:
             return f"ray://{self.host}:{self.port_interactive}"
         return None
 
     @classmethod
     def from_dict(cls, data: dict):
-        """Created compute_resource object form dict."""
+        """Create compute_resource object form dict."""
         return ComputeResource(
             name=data.get("name"),
             host=data.get("host"),
@@ -121,7 +126,7 @@ class ComputeResource:
 
 
 class Provider(JsonSerializable):
-    """Provider"""
+    """Provider."""
 
     def __init__(
         self,
@@ -167,7 +172,7 @@ class Provider(JsonSerializable):
         return Provider(**dictionary)
 
     def job_client(self):
-        """Returns job client for configured compute resource of provider.
+        """Return job client for configured compute resource of provider.
 
         Returns:
             job client
@@ -190,3 +195,64 @@ class Provider(JsonSerializable):
 
     def __repr__(self):
         return f"<Provider: {self.name}>"
+
+    def get_compute_resources(self) -> List[ComputeResource]:
+        """Return compute resources for provider."""
+        raise NotImplementedError
+
+    def create_compute_resource(self, resource) -> int:
+        """Create compute resource for provider."""
+        raise NotImplementedError
+
+    def delete_compute_resource(self, resource) -> int:
+        """Delete compute resource for provider."""
+        raise NotImplementedError
+
+    def run_program(self, program: Program) -> Job:
+        """Execute program as a async job.
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> nested_program = Program(
+            >>>     "job.py",
+            >>>     arguments={"arg1": "val1"},
+            >>>     dependencies=["requests"]
+            >>> )
+            >>> job = serverless.run_program(nested_program)
+            >>> # <Job | ...>
+
+        Args:
+            program: program object
+
+        Returns:
+            Job
+        """
+        job_client = self.job_client()
+
+        if job_client is None:
+            logging.warning(  # pylint: disable=logging-fstring-interpolation
+                f"Job has not been submitted as no provider "
+                f"with remote host has been configured. "
+                f"Selected provider: {self}"
+            )
+            return None
+
+        arguments = ""
+        if program.arguments is not None:
+            arg_list = [f"--{key}={value}" for key, value in program.arguments.items()]
+            arguments = " ".join(arg_list)
+        entrypoint = f"python {program.entrypoint} {arguments}"
+
+        # set program name so OT can use it as parent span name
+        env_vars = {**(program.env_vars or {}), **{OT_PROGRAM_NAME: program.name}}
+
+        job_id = job_client.submit_job(
+            entrypoint=entrypoint,
+            submission_id=f"qs_{uuid4()}",
+            runtime_env={
+                "working_dir": program.working_dir,
+                "pip": program.dependencies,
+                "env_vars": env_vars,
+            },
+        )
+        return Job(job_id=job_id, job_client=job_client)

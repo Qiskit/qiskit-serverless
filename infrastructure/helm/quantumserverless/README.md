@@ -35,6 +35,10 @@ But if you are interested in more complex configurations you have access to all 
 * [Redis README](https://artifacthub.io/packages/helm/bitnami/redis).
 * [Nginx Ingress controller's README](https://artifacthub.io/packages/helm/bitnami/nginx-ingress-controller)
 
+For our keycloak dependencies we are using the configuration created by Bitnami. To simplify the configuration we offered you with a straigh-forward initial parameters setup. 
+But if you are interested in more complex configurations you have access to all the parameters that Bitnami added in the chart specified in their READMEs:
+* [keycloak README](https://artifacthub.io/packages/helm/bitnami/keycloak)
+
 **Jupyter notebook**
 
 | Name                      | Description                                                       |
