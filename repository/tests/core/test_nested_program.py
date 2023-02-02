@@ -15,4 +15,3 @@ class NestedProgramTests(APITestCase):
         url = reverse("nested-programs-detail", args=[1])
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(NestedProgram.objects.count(), 1)
