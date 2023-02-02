@@ -5,4 +5,4 @@ from .models import NestedProgram
 class NestedProgramSerializer(serializers.ModelSerializer):
     class Meta:
         model = NestedProgram
-        fields = '__all__'
+        fields = "__all__"

@@ -14,10 +14,12 @@ class NestedProgram(models.Model):
     updated = models.DateTimeField(auto_now=True)
     # author = TODO: relationship with user, pending review integration with keycloack
     title = models.CharField(max_length=255, blank=False, null=False)
-    description = models.TextField(blank=True, default='')
+    description = models.TextField(blank=True, default="")
     entrypoint = models.CharField(max_length=255, blank=False, null=False)
-    working_dir = models.CharField(max_length=255, blank=False, null=False, default='./')
-    version = models.CharField(max_length=100, blank=False, null=False, default='0.0.0')
+    working_dir = models.CharField(
+        max_length=255, blank=False, null=False, default="./"
+    )
+    version = models.CharField(max_length=100, blank=False, null=False, default="0.0.0")
     dependencies = models.JSONField(null=True, default=empty_list)
     env_vars = models.JSONField(null=True, default=empty_dict)
     arguments = models.JSONField(null=True, default=empty_dict)
