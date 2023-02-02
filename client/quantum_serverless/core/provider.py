@@ -34,6 +34,9 @@ from uuid import uuid4
 import ray
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
+from quantum_serverless.core.constrants import OT_PROGRAM_NAME
+
+from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
@@ -79,7 +82,9 @@ class ComputeResource:
         return None
 
     def context(self, **kwargs):
-        """Return context allocated for this compute_resource."""
+        """Returns context allocated for this compute_resource."""
+        _trace_env_vars({}, location="on context allocation")
+
         init_args = {
             **kwargs,
             **{
@@ -238,13 +243,16 @@ class Provider(JsonSerializable):
             arguments = " ".join(arg_list)
         entrypoint = f"python {program.entrypoint} {arguments}"
 
+        # set program name so OT can use it as parent span name
+        env_vars = {**(program.env_vars or {}), **{OT_PROGRAM_NAME: program.name}}
+
         job_id = job_client.submit_job(
             entrypoint=entrypoint,
             submission_id=f"qs_{uuid4()}",
             runtime_env={
                 "working_dir": program.working_dir,
                 "pip": program.dependencies,
-                "env_vars": program.env_vars,
+                "env_vars": env_vars,
             },
         )
         return Job(job_id=job_id, job_client=job_client)
