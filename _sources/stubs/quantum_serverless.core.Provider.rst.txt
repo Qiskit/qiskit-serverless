@@ -15,8 +15,12 @@
    
       ~Provider.__init__
       ~Provider.context
+      ~Provider.create_compute_resource
+      ~Provider.delete_compute_resource
       ~Provider.from_dict
+      ~Provider.get_compute_resources
       ~Provider.job_client
+      ~Provider.run_program
       ~Provider.to_dict
    
    
