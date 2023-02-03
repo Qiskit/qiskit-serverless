@@ -14,6 +14,8 @@ services:
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
     ]
+    environment:
+      - OT_JAEGER_HOST_KEY=jaeger
     ports:
       - 8265:8265
       - 8000:8000
@@ -30,6 +32,21 @@ services:
       - REDIS_PORT_NUMBER=6379
     ports:
       - '6379:6379'
+    networks:
+      - safe-tier
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+    ports:
+      - 5775:5775/udp
+      - 6831:6831/udp
+      - 6832:6832/udp
+      - 5778:5778
+      - 16686:16686
+      - 14268:14268
+      - 14250:14250
+      - 9411:9411
     networks:
       - safe-tier
 networks:
