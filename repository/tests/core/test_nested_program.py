@@ -81,7 +81,7 @@ class NestedProgramTests(APITestCase):
         failed_validation_fields_list = list(response.json().keys())
         self.assertListEqual(failed_validation_fields_list, fields_to_check)
 
-    def test_create_nested_program(self):
+    def test_create_nested_program_returns_201(self):
         """
         Create a nested program
         """
@@ -105,3 +105,48 @@ class NestedProgramTests(APITestCase):
         response = self.client.post(url, data=nested_program_input, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(NestedProgram.objects.count(), 2)
+
+    def test_count_of_all_nested_programs_created_must_be_one(self):
+        """
+        List all the nested programs created and check that there is one
+        """
+        url = reverse("nested-programs-list")
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["count"], 1)
+
+    def test_delete_nested_program_unauthenticated_returns_403(self):
+        """
+        Delete a nested program with an unauthenticated user
+        """
+        nested_program_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
+
+        url = reverse("nested-programs-detail", args=[nested_program_id])
+        response = self.client.delete(url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_delete_a_non_created_nested_program_returns_404(self):
+        """
+        Delete a nested program that doesn't exist returns a 404
+        """
+        test_user = User.objects.get(username="test_user")
+
+        self.client.force_login(test_user)
+
+        url = reverse("nested-programs-detail", args=[2])
+        response = self.client.delete(url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_nested_program_returns_204(self):
+        """
+        Delete a nested program that exists 204
+        """
+        nested_program_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
+        test_user = User.objects.get(username="test_user")
+
+        self.client.force_login(test_user)
+
+        url = reverse("nested-programs-detail", args=[nested_program_id])
+        response = self.client.delete(url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(NestedProgram.objects.count(), 0)
