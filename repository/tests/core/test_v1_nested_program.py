@@ -150,3 +150,28 @@ class NestedProgramTests(APITestCase):
         response = self.client.delete(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(NestedProgram.objects.count(), 0)
+
+    # def test_list_validation_returns_error_400(self):
+    #     """
+    #     TODO: review test name and description
+    #     """
+    #     nested_program_input = {
+    #         "title": "Awesome nested program",
+    #         "description": "Awesome nested program description",
+    #         "entrypoint": "nested_program.py",
+    #         "working_dir": "./",
+    #         "version": "0.0.1",
+    #         "dependencies": None,
+    #         "env_vars": {"DEBUG": True},
+    #         "arguments": None,
+    #         "tags": ["dev"],
+    #         "public": True,
+    #     }
+    #     test_user = User.objects.get(username="test_user")
+    #
+    #     self.client.force_login(test_user)
+    #
+    #     url = reverse("v1:nested-programs-list")
+    #     response = self.client.post(url, data=nested_program_input, format="json")
+    #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
