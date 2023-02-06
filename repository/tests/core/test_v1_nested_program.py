@@ -14,7 +14,7 @@ class NestedProgramTests(APITestCase):
         Retrieve information about a specific nested program
         """
         nested_program_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
-        url = reverse("nested-programs-detail", args=[nested_program_id])
+        url = reverse("v1:nested-programs-detail", args=[nested_program_id])
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -22,7 +22,7 @@ class NestedProgramTests(APITestCase):
         """
         Retrieve information about a specific nested program that doesn't exist returns a 404
         """
-        url = reverse("nested-programs-detail", args=[2])
+        url = reverse("v1:nested-programs-detail", args=[2])
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -32,7 +32,7 @@ class NestedProgramTests(APITestCase):
         """
         nested_program_input = {}
 
-        url = reverse("nested-programs-list")
+        url = reverse("v1:nested-programs-list")
         response = self.client.post(url, data=nested_program_input, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -46,7 +46,7 @@ class NestedProgramTests(APITestCase):
 
         self.client.force_login(test_user)
 
-        url = reverse("nested-programs-list")
+        url = reverse("v1:nested-programs-list")
         response = self.client.post(url, data=nested_program_input, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -74,7 +74,7 @@ class NestedProgramTests(APITestCase):
 
         self.client.force_login(test_user)
 
-        url = reverse("nested-programs-list")
+        url = reverse("v1:nested-programs-list")
         response = self.client.post(url, data=nested_program_input, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -101,7 +101,7 @@ class NestedProgramTests(APITestCase):
 
         self.client.force_login(test_user)
 
-        url = reverse("nested-programs-list")
+        url = reverse("v1:nested-programs-list")
         response = self.client.post(url, data=nested_program_input, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(NestedProgram.objects.count(), 2)
@@ -110,7 +110,7 @@ class NestedProgramTests(APITestCase):
         """
         List all the nested programs created and check that there is one
         """
-        url = reverse("nested-programs-list")
+        url = reverse("v1:nested-programs-list")
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["count"], 1)
@@ -121,7 +121,7 @@ class NestedProgramTests(APITestCase):
         """
         nested_program_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
 
-        url = reverse("nested-programs-detail", args=[nested_program_id])
+        url = reverse("v1:nested-programs-detail", args=[nested_program_id])
         response = self.client.delete(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -133,7 +133,7 @@ class NestedProgramTests(APITestCase):
 
         self.client.force_login(test_user)
 
-        url = reverse("nested-programs-detail", args=[2])
+        url = reverse("v1:nested-programs-detail", args=[2])
         response = self.client.delete(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -146,7 +146,7 @@ class NestedProgramTests(APITestCase):
 
         self.client.force_login(test_user)
 
-        url = reverse("nested-programs-detail", args=[nested_program_id])
+        url = reverse("v1:nested-programs-detail", args=[nested_program_id])
         response = self.client.delete(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(NestedProgram.objects.count(), 0)

@@ -3,6 +3,9 @@ from .models import NestedProgram
 
 
 class NestedProgramSerializer(serializers.ModelSerializer):
+    """
+    TODO: documentation here
+    """
+
     class Meta:
         model = NestedProgram
-        fields = "__all__"
