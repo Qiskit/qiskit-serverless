@@ -81,7 +81,7 @@ module "eks_blueprints" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 3.0"
+  version = "~> 3.19"
 
   name = local.name
   cidr = local.vpc_cidr
