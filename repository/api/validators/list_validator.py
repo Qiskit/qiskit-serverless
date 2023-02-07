@@ -2,7 +2,7 @@ from rest_framework import serializers
 from typing import Any, Dict, List, OrderedDict, Union
 
 
-class List:
+class ListValidator:
     """
     TODO: description
     """

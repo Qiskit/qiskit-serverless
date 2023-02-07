@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import NestedProgram
-from .validators import list
+from .validators.list_validator import ListValidator
 
 
 class NestedProgramSerializer(serializers.ModelSerializer):
@@ -10,4 +10,4 @@ class NestedProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = NestedProgram
-        validators = [list.List(fields=["dependencies", "tags"], nullable=True)]
+        validators = [ListValidator(fields=["dependencies", "tags"], nullable=True)]
