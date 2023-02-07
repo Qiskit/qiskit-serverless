@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from typing import List, Dict, Union
+from typing import Any, Dict, List, OrderedDict, Union
 
 
 class List:
@@ -11,7 +11,7 @@ class List:
         self.fields = fields
         self.nullable = nullable
 
-    def __call__(self, attrs):
+    def __call__(self, attrs: OrderedDict[str, Any]):
         error_messages = {}
 
         for field in self.fields:
@@ -22,9 +22,9 @@ class List:
         if error_messages:
             raise serializers.ValidationError(error_messages)
 
-    def validate(self, field: str, value) -> Union[Dict[str, str], None]:
+    def validate(self, field: str, value: Any) -> Union[Dict[str, str], None]:
         if value is None:
-            if self.nullable is False:
+            if not self.nullable:
                 return {f"{field}": "This field may not be null."}
         else:
             # Using `type` instead of `isinstance` to validate that it is a list and no a subtype
