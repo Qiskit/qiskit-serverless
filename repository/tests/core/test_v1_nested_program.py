@@ -153,7 +153,7 @@ class NestedProgramTests(APITestCase):
 
     def test_nested_program_list_validation_returns_400(self):
         """
-        The value for dependencies and tags is a dict, a non-allowed value for these fields and return a 400
+        The value for dependencies and tags is a dict, a non-allowed value for these fields and returns a 400
         """
         fields_to_check = ["dependencies", "tags"]
         nested_program_input = {
@@ -179,3 +179,30 @@ class NestedProgramTests(APITestCase):
         failed_validation_fields_list = list(response.json().keys())
         self.assertListEqual(failed_validation_fields_list, fields_to_check)
 
+    def test_nested_program_dict_validation_returns_400(self):
+        """
+        The value for env_vars and arguments is a list, a non-allowed value for these fields and returns a 400
+        """
+        fields_to_check = ["env_vars", "arguments"]
+        nested_program_input = {
+            "title": "Awesome nested program",
+            "description": "Awesome nested program description",
+            "entrypoint": "nested_program.py",
+            "working_dir": "./",
+            "version": "0.0.1",
+            "dependencies": None,
+            "env_vars": [],
+            "arguments": [],
+            "tags": ["dev"],
+            "public": True,
+        }
+        test_user = User.objects.get(username="test_user")
+
+        self.client.force_login(test_user)
+
+        url = reverse("v1:nested-programs-list")
+        response = self.client.post(url, data=nested_program_input, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        failed_validation_fields_list = list(response.json().keys())
+        self.assertListEqual(failed_validation_fields_list, fields_to_check)
