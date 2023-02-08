@@ -1,3 +1,9 @@
+"""
+Django Rest framework serializer.
+
+Version serializers inherit from this serializer.
+"""
+
 from rest_framework import serializers
 from .models import NestedProgram
 from .validators import list_validator, dict_validator
@@ -5,7 +11,7 @@ from .validators import list_validator, dict_validator
 
 class NestedProgramSerializer(serializers.ModelSerializer):
     """
-    TODO: documentation here
+    Serializer for the nested program model.
     """
 
     class Meta:
