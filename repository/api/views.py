@@ -1,11 +1,16 @@
+"""
+Django Rest framework views:
+    - Nested Program ViewSet
+"""
+
 from rest_framework import viewsets
 from rest_framework import permissions
 from .models import NestedProgram
 
 
-class NestedProgramViewSet(viewsets.ModelViewSet):
+class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     """
-    TODO: documentation here
+    Nested Program ViewSet configuration using ModelViewSet.
     """
 
     BASE_NAME = "nested-programs"
