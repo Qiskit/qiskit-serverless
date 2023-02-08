@@ -6,6 +6,7 @@ from typing import Any, Dict, List, OrderedDict, Union
 from rest_framework import serializers
 
 
+# pylint: disable=duplicate-code
 class DictValidator:
     """
     This validator checks if a specific set of fields contains:
