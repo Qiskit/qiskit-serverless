@@ -41,8 +41,8 @@ resource "aws_vpc" "quantum_serverless_vpc" {
   cidr_block = "10.0.0.0/16"
 }
 
-resource "helm_release" "quantum_serverless_chart" {
-  name       = "quantum-serverless-chart"
+resource "helm_release" "quantum_serverless_release" {
+  name       = "quantum-serverless-release"
   chart      = "../../helm/quantumserverless"
 
   values = [
@@ -55,7 +55,7 @@ resource "helm_release" "quantum_serverless_chart" {
 #---------------------------------------------------------------
 
 module "eks_blueprints" {
-  source = "github.com/aws-ia/terraform-aws-eks-blueprints?ref=v4.8.0"
+  source = "github.com/aws-ia/terraform-aws-eks-blueprints?ref=v4.23.0"
 
   cluster_name    = local.cluster_name
   cluster_version = "1.23"
@@ -81,7 +81,7 @@ module "eks_blueprints" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 3.0"
+  version = "~> 3.19"
 
   name = local.name
   cidr = local.vpc_cidr

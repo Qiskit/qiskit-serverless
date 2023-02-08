@@ -1,5 +1,5 @@
 # Quantum serverless deployment
-Infrastructure part of quantum serverless project. Here you will find all the resources required to setup the correct environment to run the project.
+Infrastructure part of quantum serverless project. Here you will find all the resources required to set up the correct environment to run the project.
 
 
 ## Tools
@@ -17,7 +17,7 @@ There are three main tools that you will need to install:
 
 ## Technologies
 
-With these tools you will setup the infrastructure. Below the infrastructure the project makes use of [Ray](https://www.ray.io/) as the main framework to scale
+With these tools you will set up the infrastructure. Below the infrastructure the project makes use of [Ray](https://www.ray.io/) as the main framework to scale
 the different Python executions that you can send to your [k8s](https://kubernetes.io/).
 
 
@@ -28,14 +28,17 @@ In [this folder](./docker) you will find the resources related with the creation
 
 
 ## Helm folder
-In [this folder](./helm) you will find the main configuration to setup your k8s cluster and the services that this project uses. There are 4 main configurations:
-- **Jupyter**: this configuration deploys in your your cluster the service that provides you with a notebook to work easily with the project.
+In [this folder](./helm) you will find the main configuration to set up your k8s cluster and the services that this project uses. There are 5 main configurations:
+- **Jupyter**: this configuration deploys in your cluster the service that provides you with a notebook to work easily with the project.
 - **Manager**: this configuration deploys the API to handle your Ray cluster.
-- **Operator**: a standard ray configuration to setup the KubeRay operator in the k8s cluster. This resource provides a Kubernetes-native way to manage Ray clusters.
-- **Ray cluster**: standard configuration to setup and deploy your Ray cluster in a k8s environment.
-
+- **Operator**: a standard ray configuration to set up the KubeRay operator in the k8s cluster. This resource provides a Kubernetes-native way to manage Ray clusters.
+- **Ray cluster**: standard configuration to set up and deploy your Ray cluster in a k8s environment.
+- **Kuberay API server**: a standard configuration to manage KubeRay resources using gRPC and HTTP APIs.
+- **Keycloak**: a standard configuration to manage access to the resources
 
 ## Terraform
-The [folder](./terraform) contains the configuration that helps you to create your k8s and Ray clusters. Currently the project supports deployments in:
+The [folder](./terraform) contains the configuration that helps you to create your k8s and Ray clusters. Currently, the project supports deployments in:
 - [IBM Cloud](https://cloud.ibm.com/login)
 - [AWS](https://aws.amazon.com/)
+
+:memo: For more advanced ways to deploy the project you have the guide: [Multi cloud deployment](https://qiskit-extensions.github.io/quantum-serverless/guides/08_multi_cloud_deployment.html).

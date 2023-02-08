@@ -11,11 +11,18 @@
 # that they have been altered from the originals.
 
 """Test decorators."""
-from typing import Dict, Any
+from typing import Dict, Any, List
 from unittest import TestCase
 
+from qiskit import QuantumCircuit
+from qiskit.circuit.random import random_circuit
+
 from quantum_serverless import QuantumServerless, get
-from quantum_serverless.core.decorators import run_qiskit_remote, Target
+from quantum_serverless.core.decorators import (
+    run_qiskit_remote,
+    Target,
+    fetch_execution_meta,
+)
 from quantum_serverless.core.state import StateHandler
 
 
@@ -40,18 +47,28 @@ class TestDecorators(TestCase):
 
         serverless = QuantumServerless()
 
+        @run_qiskit_remote()
+        def another_function(
+            circuit: List[QuantumCircuit], other_circuit: QuantumCircuit
+        ):
+            """Another test function."""
+            return circuit[0].compose(other_circuit, range(5)).depth()
+
         @run_qiskit_remote(target={"cpu": 1})
         def ultimate_function(ultimate_argument: int):
             """Test function."""
             print("Printing function argument:", ultimate_argument)
-            return 42
+            mid_result = get(
+                another_function(
+                    [random_circuit(5, 2)], other_circuit=random_circuit(5, 2)
+                )
+            )
+            return mid_result
 
         with serverless:
             reference = ultimate_function(1)
-
             result = get(reference)
-
-            self.assertEqual(result, 42)
+            self.assertEqual(result, 4)
 
     def test_target(self):
         """Test for target."""
@@ -80,3 +97,20 @@ class TestDecorators(TestCase):
             result = get(reference)
 
             self.assertEqual(result, {"result": 1})
+
+    def test_execution_meta(self):
+        """Tests execution meta fetching."""
+        args = ([random_circuit(5, 2)], 42, random_circuit(3, 1))
+        kwargs = {
+            "some_kwarg": random_circuit(3, 1),
+            "some_kwargs": [random_circuit(3, 1)],
+        }
+        meta = fetch_execution_meta(*args, **kwargs)
+
+        expecting = {
+            "qs.args.arg_0.0": [5, 2],
+            "qs.args.arg_2": [3, 1],
+            "qs.kwargs.some_kwarg": [3, 1],
+            "qs.kwargs.some_kwargs.0": [3, 1],
+        }
+        self.assertEqual(expecting, meta)

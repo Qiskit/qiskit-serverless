@@ -3,6 +3,13 @@
 # ===================
 
 # ===================
+# Ingress Nginx controller configs
+# ===================
+
+# Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
+nginxIngressControllerEnable: false
+
+# ===================
 # Redis configs
 # ===================
 
@@ -44,8 +51,20 @@ jupyter:
   service:
     port: 80
 
+  # If you enable it remember to enable nginx ingress controller if you need a controller for ingress
   ingress:
     enabled: false
+    className: "nginx"
+    annotations: {}
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    loadBalancer:
+      hostname: localhost
+    hosts:
+      - host: localhost
+        paths:
+          - path: /
+            pathType: Prefix
 
 
 # ===================
@@ -140,3 +159,66 @@ kuberay-operator:
 
   batchScheduler:
     enabled: false
+
+# ===================
+# Kuberay API Server
+# ===================
+
+kuberayApiServerEnable: true
+kuberay-apiserver:
+  nameOverride: "kuberay-apiserver"
+  fullnameOverride: "kuberay-apiserver"
+ 
+  image:
+    repository: kuberay/apiserver
+    tag: v0.4.0
+    pullPolicy: IfNotPresent
+
+  rbacEnable: true
+  ## Install Default RBAC roles and bindings
+  rbac:
+    create: true
+    apiVersion: v1
+
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: "kuberay-apiserver"
+
+  containerPort:
+    - containerPort: 8888
+    - containerPort: 8887
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 500Mi
+    requests:
+      cpu: 300m
+      memory: 300Mi
+
+  service:
+    type: NodePort
+    ports:
+      - name: http
+        port: 8888
+        targetPort: 8888
+        nodePort: 31888
+      - name: rpc
+        port: 8887
+        targetPort: 8887
+        nodePort: 31887
+
+  ingress:
+    enabled: false
+
+  replicaCount: 1
+
+# ===================
+# Keycloak 
+# ===================
+
+keycloakEnable: true
+

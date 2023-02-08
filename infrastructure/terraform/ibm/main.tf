@@ -7,11 +7,11 @@ terraform {
   required_providers {
     ibm = {
       source  = "IBM-Cloud/ibm"
-      version = ">= 1.46.0"
+      version = ">= 1.50.0"
     }
     helm = {
       source  = "hashicorp/helm"
-      version = ">= 2.7.1"
+      version = ">= 2.8.0"
     }
   }
 
@@ -26,12 +26,24 @@ provider "ibm" {
 
 provider "helm" {
   kubernetes {
-    host = ibm_container_vpc_cluster.cluster.public_service_endpoint_url
+    host = data.ibm_container_cluster_config.quantum_serverless_cluster_config.host
+    token = data.ibm_container_cluster_config.quantum_serverless_cluster_config.token
+    cluster_ca_certificate = data.ibm_container_cluster_config.quantum_serverless_cluster_config.ca_certificate
   }
 }
 
 ##############################################################################
 
+##############################################################################
+# Cluster reference
+##############################################################################
+
+data "ibm_container_cluster_config" "quantum_serverless_cluster_config" {
+  cluster_name_id = module.vpc_kubernetes_cluster.kubernetes_vpc_cluster_id
+  resource_group_id = data.ibm_resource_group.ibmcloud_resource_group.id
+}
+
+##############################################################################
 
 ##############################################################################
 # Resource Group

@@ -5,6 +5,11 @@ Main configuration to setup your k8s cluster and the services that this project 
 ## Installation
 
 ```shell
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo add kuberay https://ray-project.github.io/kuberay-helm
+```
+
+```shell
 helm dependency build
 ```
 
@@ -23,9 +28,16 @@ The Quantum Serverless Chart has several internal and external dependencies. If 
 
 ## Helm chart values
 
-**Redis**
+**Redis & Nginx Ingress controller**
 
-For our Redis dependency we are using the configuration created by Bitnami. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to all the parameters that Bitnami added in the chart specified in their [README](https://artifacthub.io/packages/helm/bitnami/redis).
+For our Redis and Nginx Ingress controller dependencies we are using the configuration created by Bitnami. To simplify the configuration we offered you with a straigh-forward initial parameters setup. 
+But if you are interested in more complex configurations you have access to all the parameters that Bitnami added in the chart specified in their READMEs:
+* [Redis README](https://artifacthub.io/packages/helm/bitnami/redis).
+* [Nginx Ingress controller's README](https://artifacthub.io/packages/helm/bitnami/nginx-ingress-controller)
+
+For our keycloak dependencies we are using the configuration created by Bitnami. To simplify the configuration we offered you with a straigh-forward initial parameters setup. 
+But if you are interested in more complex configurations you have access to all the parameters that Bitnami added in the chart specified in their READMEs:
+* [keycloak README](https://artifacthub.io/packages/helm/bitnami/keycloak)
 
 **Jupyter notebook**
 
@@ -50,10 +62,12 @@ For our Redis dependency we are using the configuration created by Bitnami. To s
 | manager.service.port       | Port number that service will be exposed externally.             |
 | manager.ingress.enabled    | Specifies if you are going to use ingress to expose the service. |
 
-**Ray cluster & Kuberay operator**
+**Ray cluster, Kuberay operator, and Kuberay api server**
 
 For our Ray Charts dependencies we are using the configuration created by the Ray Project. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to their Helm project [in GitHub](https://github.com/ray-project/kuberay-helm) to analyze the different variables:
 
 - For Kuberay Operator you can read their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/kuberay-operator/values.yaml).
 
 - For Ray Cluster they provide you with a commented initial setup in their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/ray-cluster/values.yaml).
+
+- For Ray Api Server you can read their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/kuberay-apiserver/values.yaml).
