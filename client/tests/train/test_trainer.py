@@ -23,7 +23,9 @@ from torch import nn
 from quantum_serverless.train.trainer import (
     QiskitScalingConfig,
     QiskitTorchTrainer,
-    get_runtime_session,
+    get_runtime_sessions,
+    assign_backends,
+    QiskitTrainerException,
 )
 
 QISKIT_RUNTIME_ACCOUNT_CONFIG_KEY = "qiskit_runtime_account"
@@ -53,8 +55,8 @@ class NeuralNetwork(nn.Module):
 
 def loop(config):
     """Test training loop."""
-    runtime_session = get_runtime_session(config)
-    print(runtime_session)
+    runtime_sessions = get_runtime_sessions(config)
+    print(runtime_sessions)
 
     dataset_shard = session.get_dataset_shard("train")
     model = NeuralNetwork()
@@ -79,13 +81,78 @@ def loop(config):
 class TestTrainer(TestCase):
     """Tests for trainer."""
 
+    def test_backend_assignment(self):
+        """Tests backends assignments."""
+        assignment_default = assign_backends(
+            available_backends=[f"backend{idx}" for idx in range(10)],
+            filter_match={
+                "filter1": [f"backend{idx}" for idx in range(0, 5)],
+                "filter2": [f"backend{idx}" for idx in range(6, 9)],
+            },
+            num_workers=3,
+        )
+        expecting_assignments_default = {
+            "0__filter1": "backend0",
+            "1__filter1": "backend1",
+            "2__filter1": "backend2",
+            "0__filter2": "backend6",
+            "1__filter2": "backend7",
+            "2__filter2": "backend8",
+        }
+        self.assertEqual(
+            assignment_default, expecting_assignments_default, "No overbooking case."
+        )
+
+        # with overbooking allowed
+        assignment_with_overbooking = assign_backends(
+            available_backends=[f"backend{idx}" for idx in range(10)],
+            filter_match={
+                "filter1": [f"backend{idx}" for idx in range(0, 5)],
+                "filter2": [f"backend{idx}" for idx in range(2, 4)],
+            },
+            num_workers=3,
+            allow_over_booking=True,
+        )
+        expecting_assignments_with_overbooking = {
+            "0__filter1": "backend0",
+            "1__filter1": "backend1",
+            "2__filter1": "backend2",
+            "0__filter2": "backend3",
+            "1__filter2": "backend2",
+            "2__filter2": "backend3",
+        }
+        self.assertEqual(
+            assignment_with_overbooking,
+            expecting_assignments_with_overbooking,
+            "With overbooking allowed.",
+        )
+
+        # should throw error as assignment with overbooking
+        with self.assertRaises(QiskitTrainerException):
+            assign_backends(
+                available_backends=[f"backend{idx}" for idx in range(10)],
+                filter_match={
+                    "filter1": [f"backend{idx}" for idx in range(0, 5)],
+                    "filter2": [f"backend{idx}" for idx in range(2, 4)],
+                },
+                num_workers=3,
+                allow_over_booking=False,
+            )
+
     @skip("Call to external resources.")
     def test_trainer(self):
         """Tests trainer."""
         train_dataset = ray.data.from_items(
             [{"x": x, "y": 2 * x + 1} for x in range(200)]
         )
-        scaling_config = QiskitScalingConfig(num_workers=3, num_qubits=1)
+        scaling_config = QiskitScalingConfig(
+            num_workers=3,
+            resource_filtering={
+                "qpu1": {"simulator": True},
+                "qpu2": {"simulator": True},
+            },
+            allow_overbooking=True,
+        )
         runtime_service = QiskitRuntimeService()
 
         trainer = QiskitTorchTrainer(

@@ -28,4 +28,4 @@ Quantum serverless trainer
     get_runtime_session
 """
 
-from .trainer import get_runtime_session, QiskitRuntimeService, QiskitScalingConfig
+from .trainer import get_runtime_sessions, QiskitRuntimeService, QiskitScalingConfig
