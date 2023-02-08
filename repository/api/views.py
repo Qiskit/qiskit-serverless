@@ -1,6 +1,8 @@
 """
-Django Rest framework views:
+Django Rest framework views for api application:
     - Nested Program ViewSet
+
+Version views inherit from the different views.
 """
 
 from rest_framework import viewsets

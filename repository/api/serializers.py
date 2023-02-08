@@ -1,7 +1,8 @@
 """
-Django Rest framework serializer.
+Django Rest framework serializers for api application:
+    - NestedProgramSerializer
 
-Version serializers inherit from this serializer.
+Version serializers inherit from the different serializers.
 """
 
 from rest_framework import serializers
