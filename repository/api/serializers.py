@@ -11,6 +11,10 @@ class NestedProgramSerializer(serializers.ModelSerializer):
     class Meta:
         model = NestedProgram
         validators = [
-            list_validator.ListValidator(fields=["dependencies", "tags"], nullable=True),
-            dict_validator.DictValidator(fields=["env_vars", "arguments"], nullable=True)
+            list_validator.ListValidator(
+                fields=["dependencies", "tags"], nullable=True
+            ),
+            dict_validator.DictValidator(
+                fields=["env_vars", "arguments"], nullable=True
+            ),
         ]
