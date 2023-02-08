@@ -1,6 +1,6 @@
 """
-Django Rest framework models:
-  - NestedProgram
+Django Rest framework models for api application:
+    - NestedProgram
 """
 
 import uuid

@@ -1,3 +1,7 @@
+"""
+URL Patterns for V1 api application.
+"""
+
 from rest_framework import routers
 from . import views as v1_views
 
