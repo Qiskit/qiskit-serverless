@@ -20,7 +20,7 @@ from ray import train
 from ray.air import session
 from torch import nn
 
-from quantum_serverless.train.trainer import (
+from quantum_serverless.library.train.trainer import (
     QiskitScalingConfig,
     QiskitTorchTrainer,
     get_runtime_sessions,

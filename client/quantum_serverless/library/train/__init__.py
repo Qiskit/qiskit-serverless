@@ -11,11 +11,11 @@
 # that they have been altered from the originals.
 
 """
-=====================================================
-Serializers (:mod:`quantum_serverless.train.trainer`)
-=====================================================
+=============================================================
+Serializers (:mod:`quantum_serverless.library.train.trainer`)
+=============================================================
 
-.. currentmodule:: quantum_serverless.train.trainer
+.. currentmodule:: quantum_serverless.library.train.trainer
 
 Quantum serverless trainer
 ==========================
