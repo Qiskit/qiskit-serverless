@@ -97,6 +97,10 @@ def assign_backends(
             sorted_acquire_map = sorted(
                 filtered_acquire_map.items(), key=lambda x: -x[1]
             )
+            if len(sorted_acquire_map) == 0 or len(sorted_acquire_map[0]) == 0:
+                raise QiskitTrainerException(
+                    f"No backends found meeting [{filter_name}] criteria."
+                )
             backend_name_to_acquire = sorted_acquire_map[0][0]
             acquire_map[backend_name_to_acquire] -= 1
 

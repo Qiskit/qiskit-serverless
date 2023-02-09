@@ -28,9 +28,6 @@ from quantum_serverless.library.train.trainer import (
     QiskitTrainerException,
 )
 
-QISKIT_RUNTIME_ACCOUNT_CONFIG_KEY = "qiskit_runtime_account"
-QISKIT_RUNTIME_BACKENDS_CONFIG_KEY = "qiskit_runtime_backends_configs"
-
 
 INPUT_SIZE = 1
 LAYER_SIZE = 15
