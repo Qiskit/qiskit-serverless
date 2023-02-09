@@ -312,8 +312,9 @@ class KuberayProvider(Provider):
             f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters",
             timeout=30,
         )
-        if req.status_code != 200:
+        if req.status_code != 200 or not req.json():
             return []
+
         clusters = req.json()["clusters"]
 
         resources = []
@@ -330,4 +331,11 @@ class KuberayProvider(Provider):
 
     def delete_compute_resource(self, resource) -> int:
         """Delete compute resource for provider."""
-        raise NotImplementedError
+        req = requests.delete(
+            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters/{resource}",
+            timeout=30
+        )
+        if req.status_code != 200:
+            return 1
+
+        return 0
