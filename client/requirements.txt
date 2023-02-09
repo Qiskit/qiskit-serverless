@@ -6,7 +6,7 @@ qiskit-nature>=0.5.2
 qiskit-ibmq-provider>=0.20.0
 qiskit-aer>=0.11.2
 qiskit-ibm-runtime>=0.8.0
-redis>=4.3.4
+redis>=4.5.1
 # opentelemetry
 opentelemetry-api>=1.15.0
 opentelemetry-sdk>=1.15.0
