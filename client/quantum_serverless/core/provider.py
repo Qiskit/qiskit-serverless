@@ -333,7 +333,7 @@ class KuberayProvider(Provider):
         """Delete compute resource for provider."""
         req = requests.delete(
             f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters/{resource}",
-            timeout=30
+            timeout=30,
         )
         if req.status_code != 200:
             return 1
