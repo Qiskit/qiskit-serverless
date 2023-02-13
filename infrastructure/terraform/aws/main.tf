@@ -55,7 +55,7 @@ resource "helm_release" "quantum_serverless_release" {
 #---------------------------------------------------------------
 
 module "eks_blueprints" {
-  source = "github.com/aws-ia/terraform-aws-eks-blueprints?ref=v4.23.0"
+  source = "github.com/aws-ia/terraform-aws-eks-blueprints?ref=v4.24.0"
 
   cluster_name    = local.cluster_name
   cluster_version = "1.23"
