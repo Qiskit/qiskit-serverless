@@ -30,6 +30,7 @@ import logging
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 from uuid import uuid4
+import requests
 
 import ray
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
@@ -256,3 +257,85 @@ class Provider(JsonSerializable):
             },
         )
         return Job(job_id=job_id, job_client=job_client)
+
+
+class KuberayProvider(Provider):
+    """Implements CRUD for Kuberay API server."""
+
+    def __init__(
+        self,
+        name: str,
+        host: Optional[str] = None,
+        namespace: Optional[str] = "default",
+        token: Optional[str] = None,
+        compute_resource: Optional[ComputeResource] = None,
+        available_compute_resources: Optional[List[ComputeResource]] = None,
+    ):
+        """Kuberay provider for serverless computation.
+
+        Example:
+            >>> provider = Provider(
+            >>>    name="<NAME>",
+            >>>    host="<HOST>",
+            >>>    namespace="<NAMESPACE>",
+            >>>    token="<TOKEN>",
+            >>>    compute_resource=ComputeResource(
+            >>>        name="<COMPUTE_RESOURCE_NAME>",
+            >>>        host="<COMPUTE_RESOURCE_HOST>"
+            >>>    ),
+            >>> )
+
+        Args:
+            name: name of provider
+            host: host of provider a.k.a managers host
+            namespace: namespace to deploy provider in
+            token: authentication token for manager
+            compute_resource: selected compute_resource from provider
+            available_compute_resources: available clusters in provider
+        """
+        super().__init__(name)
+        self.name = name
+        self.host = host
+        self.token = token
+        self.namespace = namespace
+        self.compute_resource = compute_resource
+        if available_compute_resources is None:
+            if compute_resource is not None:
+                available_compute_resources = [compute_resource]
+            else:
+                available_compute_resources = []
+        self.available_compute_resources = available_compute_resources
+
+    def get_compute_resources(self) -> List[ComputeResource]:
+        """Return compute resources for provider."""
+        req = requests.get(
+            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters",
+            timeout=30,
+        )
+        if req.status_code != 200 or not req.json():
+            return []
+
+        clusters = req.json()["clusters"]
+
+        resources = []
+        # for each cluster, create a ComputeResource and append it
+        for cluster in clusters:
+            resource = ComputeResource(name=cluster["name"])
+            resources.append(resource)
+
+        return resources
+
+    def create_compute_resource(self, resource) -> int:
+        """Create compute resource for provider."""
+        raise NotImplementedError
+
+    def delete_compute_resource(self, resource) -> int:
+        """Delete compute resource for provider."""
+        req = requests.delete(
+            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters/{resource}",
+            timeout=30,
+        )
+        if req.status_code != 200:
+            return 1
+
+        return 0

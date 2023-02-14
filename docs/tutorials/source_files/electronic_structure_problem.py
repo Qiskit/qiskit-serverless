@@ -200,7 +200,7 @@ if __name__ == '__main__':
         names = ["ibmq_qasm_simulator", "ibmq_qasm_simulator", "ibmq_qasm_simulator"]
         backends = [service.backend(name) for name in names]
 
-    with serverless:
+    with serverless.context():
         energies = electronic_structure_problem(
             molecules=[
                 Molecule(geometry=[("H", [0.0, 0.0, 0.0]), ("Li", [0.0, 0.0, 1.0])], charge=0, multiplicity=1),

@@ -159,7 +159,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    with QuantumServerless():
+    with QuantumServerless().context():
 
         t0 = time.time()
 

@@ -22,6 +22,12 @@ Install from specific values file
  helm -n ray install quantum-serverless -f <PATH_TO_VALUES_FILE> --create-namespace .
 ```
 
+(temporary) Patch the kuberay apiserver service
+
+```shell
+kubectl patch svc -n ray kuberay-apiserver-service --type json  --patch '[{"op" : "replace" ,"path" : "/spec/selector" ,"value" : {"app.kubernetes.io/component": "kuberay-apiserver"}}]'
+```
+
 ## Helm chart versions
 
 The Quantum Serverless Chart has several internal and external dependencies. If you are interested to know what versions the project is using you can check them in the [Chart.lock file](./Chart.lock).
