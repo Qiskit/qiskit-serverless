@@ -40,7 +40,7 @@ jupyter:
 
   image:
     repository: "qiskit/quantum-serverless-notebook"
-    tag: "latest"
+    tag: "latest-py39"
     pullPolicy: IfNotPresent
   
   imagePullSecrets: []
@@ -101,7 +101,7 @@ ray-cluster:
 
   image:
     repository: "qiskit/quantum-serverless-ray-node"
-    tag: "latest"
+    tag: "latest-py39"
     pullPolicy: IfNotPresent
 
   head:
