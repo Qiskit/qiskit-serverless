@@ -407,11 +407,11 @@ div.rendered_html tbody tr:hover {
 <span class="nb">print</span><span class="p">(</span><span class="n">serverless</span><span class="p">)</span>
 <span class="c1"># &lt;QuantumServerless: providers [local, ibm-cloud, ...]&gt;</span>
 
-<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">provider</span><span class="p">(</span><span class="s2">&quot;local&quot;</span><span class="p">):</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">(</span><span class="s2">&quot;local&quot;</span><span class="p">):</span>
     <span class="n">exp_val_execution_reference</span> <span class="o">=</span> <span class="n">exp_val_remote</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">)</span>
     <span class="n">collected_exp_value</span> <span class="o">=</span> <span class="n">quantum_serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">exp_val_execution_reference</span><span class="p">)</span>
 
-<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">provider</span><span class="p">(</span><span class="s2">&quot;ibm-cloud&quot;</span><span class="p">):</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">(</span><span class="s2">&quot;ibm-cloud&quot;</span><span class="p">):</span>
     <span class="n">exp_val_execution_reference</span> <span class="o">=</span> <span class="n">exp_val_remote</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">)</span>
     <span class="n">collected_exp_value</span> <span class="o">=</span> <span class="n">quantum_serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">exp_val_execution_reference</span><span class="p">)</span>
 </pre></div>
@@ -442,7 +442,7 @@ div.rendered_html tbody tr:hover {
 <span class="n">circuit_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
 <span class="n">obs</span> <span class="o">=</span> <span class="n">SparsePauliOp</span><span class="p">([</span><span class="s2">&quot;IZ&quot;</span><span class="p">])</span>
 
-<span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
     <span class="n">obs_ref</span> <span class="o">=</span> <span class="n">put</span><span class="p">(</span><span class="n">obs</span><span class="p">)</span>
     <span class="n">exp_val_execution_references</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">exp_val_remote</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span> <span class="n">obs_ref</span><span class="p">)</span>

@@ -370,7 +370,7 @@ q_4: ┤ U2(0.37458,3.2557) ├┤ Rz(1.7343) ├──────────X
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># object</span>
 
-<span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
     <span class="c1"># make any object as remote object</span>
     <span class="n">circuit_reference</span> <span class="o">=</span> <span class="n">put</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
 
@@ -440,7 +440,7 @@ q_4: ┤ U2(0.37458,3.2557) ├┤ Rz(1.7343) ├──────────X
 <span class="k">def</span> <span class="nf">remote_transpile</span><span class="p">(</span><span class="n">circuits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">]):</span>
     <span class="k">return</span> <span class="n">transpile</span><span class="p">(</span><span class="n">circuits</span><span class="p">)</span>
 
-<span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
     <span class="c1"># to call this function by arring `remote` to function call `&lt;function_name&gt;.remote`</span>
     <span class="n">remote_function_reference</span> <span class="o">=</span> <span class="n">remote_transpile</span><span class="p">(</span><span class="n">circuit_batches</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Function reference:&quot;</span><span class="p">,</span> <span class="n">remote_function_reference</span><span class="p">)</span>
@@ -466,7 +466,7 @@ Function result: [&lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># we can run multiple remote function in parallel</span>
 
-<span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
     <span class="c1"># to call this function by arring `remote` to function call `&lt;function_name&gt;.remote`</span>
     <span class="n">remote_function_references</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">remote_transpile</span><span class="p">(</span><span class="n">circuit_batch</span><span class="p">)</span>

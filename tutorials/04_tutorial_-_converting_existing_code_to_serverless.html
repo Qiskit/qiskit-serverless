@@ -420,7 +420,7 @@ q_2 -> 18 ───────────────────────�
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
     <span class="c1"># execute remote transpile function and get back pointer to remote task,</span>
     <span class="c1">#    so we can fetch results out of it</span>
     <span class="n">task</span> <span class="o">=</span> <span class="n">remote_transpile</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span>
@@ -465,7 +465,7 @@ q_2 -> 18 ───────────────────────�
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
     <span class="c1"># let&#39;s run 5 circuits transpilations in parallel</span>
     <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">remote_transpile</span><span class="p">(</span><span class="n">random_circuit</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">backend</span><span class="p">)</span>
@@ -552,7 +552,7 @@ q_1 -> 18 ───────────────┤ U3(0.3885,0,0) ├─
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dummy_class</span> <span class="o">=</span> <span class="n">DummyClass</span><span class="p">()</span>
 
-<span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">dummy_class</span><span class="o">.</span><span class="n">sum_n_times</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_times</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
 </pre></div>

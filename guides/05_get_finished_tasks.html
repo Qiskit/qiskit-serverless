@@ -353,7 +353,7 @@ div.rendered_html tbody tr:hover {
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
 
-<span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
     <span class="n">function_refs</span> <span class="o">=</span> <span class="p">[</span><span class="n">sleepy_function</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">)]</span>
 
     <span class="n">finished_refs</span><span class="p">,</span> <span class="n">non_finished_refs</span> <span class="o">=</span> <span class="n">get_refs_by_status</span><span class="p">(</span><span class="n">function_refs</span><span class="p">)</span>

@@ -386,7 +386,7 @@ div.rendered_html tbody tr:hover {
     <span class="k">return</span> <span class="n">get</span><span class="p">(</span><span class="n">func_with_state</span><span class="p">(</span><span class="n">seed</span><span class="p">))</span>
 
 
-<span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">other_func_with_state</span><span class="p">(</span><span class="mi">42</span><span class="p">))</span>  <span class="c1"># no need to pass state as it is handled in decorator</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>

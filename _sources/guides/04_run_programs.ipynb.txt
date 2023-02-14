@@ -77,7 +77,7 @@
     "    return 42\n",
     "\n",
     "\n",
-    "with QuantumServerless():\n",
+    "with QuantumServerless().context():\n",
     "    result = get([\n",
     "        ultimate()\n",
     "        for _ in range(100)\n",

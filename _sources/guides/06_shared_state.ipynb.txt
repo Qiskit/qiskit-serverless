@@ -128,7 +128,7 @@
     "    return get(func_with_state(seed))\n",
     "\n",
     "\n",
-    "with serverless:\n",
+    "with serverless.context():\n",
     "    result = get(other_func_with_state(42))  # no need to pass state as it is handled in decorator\n",
     "\n",
     "print(result)\n",
