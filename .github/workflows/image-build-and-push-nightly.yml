@@ -6,7 +6,7 @@ on:
     - cron:  '0 1 * * *'
 
 jobs:
-  docker_build_and_push:
+  docker_build_and_push_nightly:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
