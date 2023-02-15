@@ -38,7 +38,7 @@ submitting pull requests.
 
 ## Before you start
 
-Contributing to Quantum Serverless, assumes you have some level
+Contributing to Quantum Serverless assumes you have some level
 of [Git](https://git-scm.com) knowledge. For external contributors, a basic understanding
 of repositories, remotes, branches and commits is needed. For core contributors, you
 should know about resolving conflicts and rebasing too.
