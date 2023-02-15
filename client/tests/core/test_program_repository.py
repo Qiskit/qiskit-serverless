@@ -1,28 +1,8 @@
 """Test program repository."""
-
+import os.path
 from unittest import TestCase
 
 from quantum_serverless.core.program import ProgramRepository
-
-
-MOCK_URL = ""
-
-
-def mocked_get_programs(*args, **kwargs):
-    class MockResponse:
-        def __init__(self, json_data, status_code):
-            self.json_data = json_data
-            self.status_code = status_code
-
-        def json(self):
-            return self.json_data
-
-    if args[0] == 'http://someurl.com/test.json':
-        return MockResponse({"key1": "value1"}, 200)
-    elif args[0] == 'http://someotherurl.com/anothertest.json':
-        return MockResponse({"key2": "value2"}, 200)
-
-    return MockResponse(None, 404)
 
 
 class TestRepository(TestCase):
@@ -31,8 +11,17 @@ class TestRepository(TestCase):
     def test_repository_get_programs(self):
         """Tests program repository."""
 
-        repository = ProgramRepository(
-            host="localhost",
-            port=8000
-        )
+        repository = ProgramRepository(host="http://127.0.0.1", port=8000)
         print(repository.get_programs())
+
+    def test_repository_get_program(self):
+        """Tests single program fetch."""
+        repository = ProgramRepository(
+            host="http://127.0.0.1",
+            port=8000,
+            root=os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "..", "resources"
+            ),
+        )
+        program = repository.get_program("hello_program")
+        print(program)
