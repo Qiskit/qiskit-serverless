@@ -26,7 +26,8 @@
       "tags": [
         "dev"
       ],
-      "public": true
+      "public": true,
+      "artifact": "path"
     }
   }
 ]

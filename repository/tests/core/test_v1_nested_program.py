@@ -1,4 +1,9 @@
+import json
+import os.path
+from pathlib import Path
+
 from django.contrib.auth.models import User
+from django.core.files import File
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -14,7 +19,7 @@ class NestedProgramTests(APITestCase):
         Retrieve information about a specific nested program
         """
         nested_program_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
-        url = reverse("nested-programs-detail", args=[nested_program_id])
+        url = reverse("v1:nested-programs-detail", args=[nested_program_id])
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -22,7 +27,7 @@ class NestedProgramTests(APITestCase):
         """
         Retrieve information about a specific nested program that doesn't exist returns a 404
         """
-        url = reverse("nested-programs-detail", args=[2])
+        url = reverse("v1:nested-programs-detail", args=[2])
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -32,7 +37,7 @@ class NestedProgramTests(APITestCase):
         """
         nested_program_input = {}
 
-        url = reverse("nested-programs-list")
+        url = reverse("v1:nested-programs-list")
         response = self.client.post(url, data=nested_program_input, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -41,12 +46,12 @@ class NestedProgramTests(APITestCase):
         Create a nested program with an empty object as input should return a validation error
         """
         nested_program_input = {}
-        fields_to_check = ["title", "entrypoint"]
+        fields_to_check = ["title", "entrypoint", "artifact"]
         test_user = User.objects.get(username="test_user")
 
         self.client.force_login(test_user)
 
-        url = reverse("nested-programs-list")
+        url = reverse("v1:nested-programs-list")
         response = self.client.post(url, data=nested_program_input, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -69,12 +74,12 @@ class NestedProgramTests(APITestCase):
             "tags": None,
             "public": True,
         }
-        fields_to_check = ["title", "entrypoint", "working_dir", "version"]
+        fields_to_check = ["title", "entrypoint", "working_dir", "version", "artifact"]
         test_user = User.objects.get(username="test_user")
 
         self.client.force_login(test_user)
 
-        url = reverse("nested-programs-list")
+        url = reverse("v1:nested-programs-list")
         response = self.client.post(url, data=nested_program_input, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -91,18 +96,30 @@ class NestedProgramTests(APITestCase):
             "entrypoint": "nested_program.py",
             "working_dir": "./",
             "version": "0.0.1",
-            "dependencies": None,
-            "env_vars": {"DEBUG": True},
-            "arguments": None,
-            "tags": ["dev"],
+            "env_vars": json.dumps({"DEBUG": True}),
+            "arguments": json.dumps({}),
+            "tags": json.dumps(["dev"]),
+            "dependencies": json.dumps([]),
             "public": True,
         }
         test_user = User.objects.get(username="test_user")
 
         self.client.force_login(test_user)
 
-        url = reverse("nested-programs-list")
-        response = self.client.post(url, data=nested_program_input, format="json")
+        url = reverse("v1:nested-programs-list")
+        with open(
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                "..",
+                "fixtures",
+                "initial_data.json",
+            )
+        ) as file:
+            nested_program_input["artifact"] = File(file)
+            response = self.client.post(
+                url, data=nested_program_input, format="multipart"
+            )
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(NestedProgram.objects.count(), 2)
 
@@ -110,7 +127,7 @@ class NestedProgramTests(APITestCase):
         """
         List all the nested programs created and check that there is one
         """
-        url = reverse("nested-programs-list")
+        url = reverse("v1:nested-programs-list")
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["count"], 1)
@@ -121,7 +138,7 @@ class NestedProgramTests(APITestCase):
         """
         nested_program_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
 
-        url = reverse("nested-programs-detail", args=[nested_program_id])
+        url = reverse("v1:nested-programs-detail", args=[nested_program_id])
         response = self.client.delete(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -133,7 +150,7 @@ class NestedProgramTests(APITestCase):
 
         self.client.force_login(test_user)
 
-        url = reverse("nested-programs-detail", args=[2])
+        url = reverse("v1:nested-programs-detail", args=[2])
         response = self.client.delete(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -146,7 +163,85 @@ class NestedProgramTests(APITestCase):
 
         self.client.force_login(test_user)
 
-        url = reverse("nested-programs-detail", args=[nested_program_id])
+        url = reverse("v1:nested-programs-detail", args=[nested_program_id])
         response = self.client.delete(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(NestedProgram.objects.count(), 0)
+
+    def test_nested_program_list_validation_returns_400(self):
+        """
+        The value for dependencies and tags is a dict, a non-allowed value for these fields and returns a 400
+        """
+        fields_to_check = ["dependencies", "tags"]
+        nested_program_input = {
+            "title": "Awesome nested program",
+            "description": "Awesome nested program description",
+            "entrypoint": "nested_program.py",
+            "working_dir": "./",
+            "version": "0.0.1",
+            "dependencies": json.dumps({}),
+            "env_vars": json.dumps({"DEBUG": True}),
+            "arguments": json.dumps(None),
+            "tags": json.dumps({}),
+            "public": True,
+        }
+        test_user = User.objects.get(username="test_user")
+
+        self.client.force_login(test_user)
+
+        url = reverse("v1:nested-programs-list")
+        with open(
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                "..",
+                "fixtures",
+                "initial_data.json",
+            )
+        ) as file:
+            nested_program_input["artifact"] = File(file)
+            response = self.client.post(
+                url, data=nested_program_input, format="multipart"
+            )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        failed_validation_fields_list = list(response.json().keys())
+        self.assertListEqual(failed_validation_fields_list, fields_to_check)
+
+    def test_nested_program_dict_validation_returns_400(self):
+        """
+        The value for env_vars and arguments is a list, a non-allowed value for these fields and returns a 400
+        """
+        fields_to_check = ["env_vars", "arguments"]
+        nested_program_input = {
+            "title": "Awesome nested program",
+            "description": "Awesome nested program description",
+            "entrypoint": "nested_program.py",
+            "working_dir": "./",
+            "version": "0.0.1",
+            "dependencies": json.dumps([]),
+            "env_vars": json.dumps([]),
+            "arguments": json.dumps([]),
+            "tags": json.dumps(["dev"]),
+            "public": True,
+        }
+        test_user = User.objects.get(username="test_user")
+
+        self.client.force_login(test_user)
+
+        url = reverse("v1:nested-programs-list")
+        with open(
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                "..",
+                "fixtures",
+                "initial_data.json",
+            )
+        ) as file:
+            nested_program_input["artifact"] = File(file)
+            response = self.client.post(
+                url, data=nested_program_input, format="multipart"
+            )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        failed_validation_fields_list = list(response.json().keys())
+        self.assertListEqual(failed_validation_fields_list, fields_to_check)

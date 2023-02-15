@@ -1,16 +1,31 @@
+"""
+Django Rest framework models for api application:
+    - NestedProgram
+"""
+
 import uuid
 from django.db import models
 
 
 def empty_list():
+    """
+    Returns an empty list.
+    """
     return []
 
 
 def empty_dict():
+    """
+    Returns an empty dict.
+    """
     return {}
 
 
 class NestedProgram(models.Model):
+    """
+    Nested Program database model.
+    """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -27,3 +42,4 @@ class NestedProgram(models.Model):
     arguments = models.JSONField(null=True, default=empty_dict)
     tags = models.JSONField(null=True, default=empty_list)
     public = models.BooleanField(default=True)
+    artifact = models.FileField(upload_to="artifacts_%Y_%m_%d", null=False, blank=False)
