@@ -89,6 +89,7 @@ track this repository. A typical Git setup after
 git clone https://github.com/<your_username>/quantum-serverless.git
 cd quantum-serverless
 git remote add upstream https://github.com/Qiskit-Extensions/quantum-serverless.git
+git remote set-url --push upstream no_push
 git remote update upstream
 git checkout main
 git branch -u upstream/main
