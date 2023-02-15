@@ -1,30 +1,251 @@
 # Contributing
 
-**We appreciate all kinds of help, so thank you!**
+Regardless if you are part of the core team or an external contributor, welcome and thank you for contributing to Quantum Serverless!
 
-## Contributing to QuantumServerless
+In Quantum Serverless, we aim at creating an excellent work-space where all of us can feel welcomed, useful, respected and valued. If you are thinking to contribute to this project, you agree to abide by our [code of conduct](CODE_OF_CONDUCT.md) which we strongly recommend you read before continuing.
 
-Specific details for contributing to this project are outlined below.
+Following these guidelines communicates you value the time and effort of the core contributors and maintainers of this site and so, thank you!
 
-### Reporting Bugs and Requesting Features
 
-Users are encouraged to use GitHub Issues for reporting issues and requesting features.
+## Table of contents
 
-### Project Code Style
+- [Start contributing](#start-contributing)
+- [Before you start](#before-you-start)
+- [Opening issues](#opening-issues)
+- [Contributing code](#contributing-code)
+  - [Deciding what to work on](#deciding-what-to-work-on)
+  - [Setup](#setup)
+  - [Assigning yourself](#assigning-yourself)
+  - [Working on an issue](#working-on-an-issue)
+  - [Adding tests](#adding-tests)
+  - [Pull requests](#pull-requests)
+  - [Live previews](#live-previews)
+  - [Code review](#code-review)
+  - [Merging](#merging)
+- [Code style](#code-style)
+  - [Solving linting issues](#solving-linting-issues)
 
-Code in this repository should conform to PEP8 standards. Style/lint checks are run to validate this. Line length must be limited to no more than 88 characters.
 
-### Pull Request Checklist
+## Start contributing
 
-When submitting a pull request and you feel it is ready for review,
-please ensure that:
+This repository is for developing and maintaining Quantum Serverless project.
 
-1. The code follows the _code style_ of this project and successfully
-   passes the _unit tests_. This project uses [Pylint](https://www.pylint.org) and
-   [PEP8](https://www.python.org/dev/peps/pep-0008) style guidelines.
+There are many ways of contributing: from catching a typo to coming up with a way
+of improving performance or accessibility; you can open an issue, or you can prepare
+a patch. In any case, read the contribution guidelines for opening new issues and
+submitting pull requests.
 
-   You can run
-   ```shell script
-   tox -elint
-   ```
-   from [`client/`, `manager/`] folders for lint conformance checks.
+
+## Before you start
+
+Contributing to Quantum Serverless, assumes you have some level
+of [Git](https://git-scm.com) knowledge. For external contributors, a basic understanding
+of repositories, remotes, branches and commits is needed. For core contributors, you
+should know about resolving conflicts and rebasing too.
+
+There are tons of useful resources about Git [out there](https://try.github.io/).
+
+
+## Opening issues
+
+You can [open 4 types of issues](https://github.com/Qiskit-Extensions/quantum-serverless/issues/new/choose):
+
+* Bug reports: for reporting a misfunction. Provide steps to reproduce and expected behaviour.
+* Enhancement request: to suggest improvements to the current code.
+* Feature request: if you have a new use case or feature that we are not supporting.
+* Security vulnerability: in case you find a vulnerability in the project.
+
+Core contributors classify the tasks according to its nature and prioritize them
+from sprint to sprint. Types are not mutually exclusive and can change over time
+if needed.
+
+
+## Contributing code
+
+
+### Deciding what to work on
+
+To give our collaborators an idea of where the team needs help, we use the
+[help wanted](https://github.com/Qiskit-Extensions/quantum-serverless/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
+label – this is appropriate for all contributors. In addition, for those who are relatively new to the open-source
+workflow or our codebase, feel free to view issues tagged with the
+[good first issue](https://github.com/Qiskit-Extensions/quantum-serverless/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
+label.
+
+
+### Setup
+
+So you decided to get your hands dirty and start working on a patch? Then you
+need to know that the project follows the
+[Forking Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/forking-workflow)
+with [Feature Branches](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).
+
+The above means we expect you to fork the project on your own GitHub account and make your `main` branch to
+track this repository. A typical Git setup after
+[forking the project](https://docs.github.com/en/free-pro-team@latest/github/getting-started-with-github/fork-a-repo) is:
+
+```sh
+# After forking the repository in GitHub
+git clone https://github.com/<your_username>/quantum-serverless.git
+cd quantum-serverless
+git remote add upstream https://github.com/Qiskit-Extensions/quantum-serverless.git
+git remote update upstream
+git checkout main
+git branch -u upstream/main
+git pull
+```
+
+As a core contributor due to some access limitations between forks and the head branch we encourage you to
+[clone](https://support.atlassian.com/bitbucket-cloud/docs/clone-a-repository/) the repository
+instead of forking it.
+
+This repository contains several projects with different technologies. Depending on the project that you selected
+you will run:
+- `pip install -r requirements.txt requirements-dev.txt` for python projects.
+- `helm dependency build` for helm.
+-  `terraform init` for terraform.
+
+
+### Assigning yourself
+
+The very first step to working on an issue is
+[assigning yourself](https://docs.github.com/en/issues/tracking-your-work-with-issues/assigning-issues-and-pull-requests-to-other-github-users#assigning-an-individual-issue-or-pull-request)
+the issue. This gives all contributors the visibility into who is working on what.
+
+### Working on an issue
+
+When you are going to start working on an issue, make sure you are in your `main`
+branch and that it is entirely up-to-date and create a new branch with a
+meaningful name. The typical terminal code for this is:
+
+```sh
+git checkout main
+git pull upstream main
+git checkout -b issue-1234-new-feature
+```
+
+Now start adding your changes and remember to commit often:
+
+```sh
+git commit
+```
+
+And include a summary and some notes or clarifications if needed:
+
+```
+Add a new feature.
+
+The new feature will provide the possibility to do something awesome.
+```
+
+From time to time, you want to check if your `main` branch is still up-to-date. If not, you will need to merge
+(or [rebase](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase)),
+then continue working:
+
+```sh
+git checkout main
+git pull
+git checkout issue-1234-new-feature
+git merge main
+```
+
+
+### Adding tests
+
+Our team upholds the philosophy that a healthy codebase will include the proper amount of testing, you can run them
+just typing `tox -epy39`.
+
+As a part of the development backlog planning, we have internal discussions to determine which scenarios should be
+tested. For code that requires testing, please look for notes in the original issues, as we will do our best to
+provide ideal, meaningful cases to test.
+
+If you feel that there's a test case that we have not considered, please comment in the
+original issue for the team to see.
+
+
+### Pull requests
+
+Pull requests serve a double purpose:
+1. Share the code with the team. So almost everybody is aware of how the code base is evolving.
+2. Provide an opportunity for improving code quality.
+
+When you think your work is done, push the branch to your repository:
+
+```sh
+git push origin issue-1234-new-feature
+# Start a pull request in GitHub
+```
+
+And
+[create a pull request](https://docs.github.com/en/free-pro-team@latest/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request)
+against `main` (or a feature branch).
+When creating the pull request, provide a description and
+[link with the issue that is being solved](https://docs.github.com/en/free-pro-team@latest/github/managing-your-work-on-github/linking-a-pull-request-to-an-issue).
+
+Linking the issue has the advantage of automatically closing the related issue when the pull
+request is merged.
+
+
+### Code review
+
+When you open a PR you will see a template in the pull request body. Please read it carefully and fill in the necessary
+information to help the code review process go smoothly.
+
+Once you have sent a PR, the code contributors get notified, and there may be a code
+review. The code review helps to solve implementation, semantic and maintainability issues.
+
+The repository also contains some automated checks such as tests and
+[linting](#solving-linting-issues). For a pull request to be ready for merging it needs to
+**pass automatic checks and have, at least, one positive review**.
+
+During code reviews, there are two prominent roles: the reviewer and the contributor.
+The reviewer acts as the keeper of best-practices and code quality, asking
+clarifying questions, highlighting implementation errors and recommending changes.
+We expect the contributor to take recommendations seriously and be willing to
+implement suggested changes or take some other action instead.
+
+Notice we don't expect the contributors to address **all** the comments, nor
+the reviewer highlight **all** the issues, we hope both take some compromises to provide
+as much value and quality as it fits in the estimated effort.
+
+We don't expect discussions to happen in the pull requests. If there is a disagreement,
+our recommendation is for the contributor to yield to the reviewer and for the reviewer
+to suggest other alternatives.
+
+
+### Merging
+
+Once all automated checks are passing and there is a positive review, the pull request
+can be merged. If you are an external contributor, expect your PR to be merged by
+a core contributor.
+
+
+## Code style
+
+Code in this repository should conform to PEP8 standards. Style/lint checks are run to validate this.
+Line length must be limited to no more than 88 characters.
+
+**Readability** is what we value most. We expect reviewers to pay special attention on readability
+so at least they can understand new contributions to the codebase.
+
+
+### Solving linting issues
+
+While developing, you can check linting issues. Notice that, although
+some linting issues are reported as warnings, we don't usually allow any warning in our code base, so
+you will need to solve those problems for your contribution to pass the checks.
+
+In the case you need to [disable a rule](https://pylint.readthedocs.io/en/latest/user_guide/messages/message_control.html#block-disables),
+please provide an explanation supporting why the exception.
+
+This repository contains several projects and depending of the project you will need to run:
+- `tox -elint` for python projects.
+- `helm lint` for the helm project.
+- `terraform validate`for the terraform project.
+
+
+## Final words
+
+Thank you for reading until the end of the document! Abiding by these guidelines you
+express your willing in collaborating and contributing in a healthy way. Thanks for
+that too!
