@@ -28,7 +28,7 @@ Following these guidelines communicates you value the time and effort of the cor
 
 ## Start contributing
 
-This repository is for developing and maintaining Quantum Serverless project.
+This repository is for developing and maintaining the Quantum Serverless project.
 
 There are many ways of contributing: from catching a typo to coming up with a way
 of improving performance or accessibility; you can open an issue, or you can prepare
