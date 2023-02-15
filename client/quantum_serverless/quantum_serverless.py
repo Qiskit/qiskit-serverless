@@ -100,6 +100,12 @@ class QuantumServerless:
         self._allocated_context: Optional[Context] = None
 
     def __enter__(self):
+        warnings.warn(
+            "Calling `with serverless: ...` is deprecated. "
+            "Please, consider using `with serverless.context(): ...`",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._allocated_context = self._selected_provider.context()
         return self._allocated_context
 
@@ -204,6 +210,43 @@ class QuantumServerless:
         job_client.get_job_info(job_id)
         return Job(job_id=job_id, job_client=job_client)
 
+    def context(
+        self,
+        provider: Optional[Union[str, Provider]] = None,
+        **kwargs,
+    ):
+        """Sets context for allocation
+
+        Args:
+            provider: Provider instance or name of provider
+            **kwargs: arguments that will be passed to context initialization.
+                See https://docs.ray.io/en/latest/ray-core/package-ref.html#ray-init
+
+        Returns:
+            Context
+        """
+        if provider is not None:
+            if isinstance(provider, Provider) and provider.compute_resource is None:
+                raise QuantumServerlessException(
+                    "Given provider does not have compute_resources"
+                )
+
+            if isinstance(provider, str):
+                available_providers: Dict[str, Provider] = {
+                    p.name: p for p in self._providers
+                }
+                if provider in available_providers:
+                    provider = available_providers[provider]
+                else:
+                    raise QuantumServerlessException(
+                        f"Provider {provider} is not in a list of available providers "
+                        f"{list(available_providers.keys())}"
+                    )
+        else:
+            provider = self._selected_provider
+
+        return provider.context(**kwargs)
+
     def provider(
         self,
         provider: Union[str, Provider],
@@ -219,24 +262,7 @@ class QuantumServerless:
         Returns:
             Context
         """
-        if isinstance(provider, Provider) and provider.compute_resource is None:
-            raise QuantumServerlessException(
-                "Given provider does not have compute_resources"
-            )
-
-        if isinstance(provider, str):
-            available_providers: Dict[str, Provider] = {
-                p.name: p for p in self._providers
-            }
-            if provider in available_providers:
-                provider = available_providers[provider]
-            else:
-                raise QuantumServerlessException(
-                    f"Provider {provider} is not in a list of available providers "
-                    f"{list(available_providers.keys())}"
-                )
-
-        return provider.context(**kwargs)
+        return self.context(provider=provider, **kwargs)
 
     def add_provider(self, provider: Provider) -> "QuantumServerless":
         """Adds provider to the list of available providers.

@@ -6,7 +6,7 @@ on:
     - cron:  '0 1 * * *'
 
 jobs:
-  docker_build_and_push:
+  docker_build_and_push_nightly:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -16,13 +16,33 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push node image
+      - name: Build and push node image [3.8]
         uses: docker/build-push-action@v3
         with:
           context: .
           file: ./infrastructure/docker/Dockerfile-ray-qiskit
           push: true
-          tags: qiskit/quantum-serverless-ray-node:nightly
+          tags: qiskit/quantum-serverless-ray-node:nightly-py38
+          build-args:
+            IMAGE_PY_VERSION=py38
+      - name: Build and push node image [3.9]
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile-ray-qiskit
+          push: true
+          tags: qiskit/quantum-serverless-ray-node:nightly-py39
+          build-args:
+            IMAGE_PY_VERSION=py39
+      - name: Build and push node image [3.10]
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile-ray-qiskit
+          push: true
+          tags: qiskit/quantum-serverless-ray-node:nightly-py310
+          build-args:
+            IMAGE_PY_VERSION=py310
       - name: Build and push manager
         uses: docker/build-push-action@v3
         with:
@@ -30,10 +50,30 @@ jobs:
           file: ./manager/Dockerfile
           push: true
           tags: qiskit/quantum-serverless-manager:nightly
-      - name: Build and push jupyter
+      - name: Build and push jupyter [3.8]
         uses: docker/build-push-action@v3
         with:
           context: .
           file: ./infrastructure/docker/Dockerfile-notebook
           push: true
-          tags: qiskit/quantum-serverless-notebook:nightly
+          tags: qiskit/quantum-serverless-notebook:nightly-py38
+          build-args:
+            IMAGE_PY_VERSION=3.8
+      - name: Build and push jupyter [3.9]
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile-notebook
+          push: true
+          tags: qiskit/quantum-serverless-notebook:nightly-py39
+          build-args:
+            IMAGE_PY_VERSION=3.9
+      - name: Build and push jupyter [3.10]
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile-notebook
+          push: true
+          tags: qiskit/quantum-serverless-notebook:nightly-py310
+          build-args:
+            IMAGE_PY_VERSION=3.10
