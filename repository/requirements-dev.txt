@@ -1,5 +1,6 @@
 pylint>=2.9.5
 pytest>=6.2.5
+pylint-django>=2.5.3
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
 black~=22.1

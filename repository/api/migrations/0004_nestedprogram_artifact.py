@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0003_alter_nestedprogram_id"),
+        ("api", "0001_initial"),
     ]
 
     operations = [
