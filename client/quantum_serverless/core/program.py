@@ -199,7 +199,7 @@ def download_and_unpack_artifact(
         logging.warning("Program folder already exist. Will be overwritten.")
 
     # download file
-    response = requests.get(artifact_url, stream=True, headers=headers, timeout=100)
+    response = requests.get(url=artifact_url, stream=True, headers=headers, timeout=100)
     if not response.ok:
         raise QuantumServerlessException(
             f"Error during fetch of [{artifact_url}] file."
