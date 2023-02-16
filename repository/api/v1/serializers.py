@@ -25,4 +25,5 @@ class NestedProgramSerializer(serializers.NestedProgramSerializer):
             "arguments",
             "tags",
             "public",
+            "artifact",
         )
