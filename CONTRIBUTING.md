@@ -139,15 +139,15 @@ Add a new feature.
 The new feature will provide the possibility to do something awesome.
 ```
 
-From time to time, you want to check if your `main` branch is still up-to-date. If not, you will need to merge
-(or [rebase](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase)),
-then continue working:
+From time to time, you want to check if your `main` branch is still up-to-date. If not, you will need to 
+[rebase](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase) 
+(or [merge](https://www.atlassian.com/git/tutorials/using-branches/git-merge)), then continue working:
 
 ```sh
 git checkout main
 git pull
 git checkout issue-1234-new-feature
-git merge main
+git rebase main issue-1234-new-feature
 ```
 
 
