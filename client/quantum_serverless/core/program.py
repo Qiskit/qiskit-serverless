@@ -103,11 +103,11 @@ class ProgramStorage(ABC):
         """
         raise NotImplementedError
 
-    def get_program(self, program: str, **kwargs) -> Optional[Program]:
-        """Returns program by name of other query criterieas.
+    def get_program(self, title: str, **kwargs) -> Optional[Program]:
+        """Returns program by name of other query criteria.
 
         Args:
-            program: name of the program
+            title: title of the program
             **kwargs: other args
 
         Returns:
@@ -124,7 +124,7 @@ class ProgramRepository(ProgramStorage):
         host: Optional[str] = None,
         port: Optional[int] = None,
         token: Optional[str] = None,
-        root: Optional[str] = None,
+        folder: Optional[str] = None,
     ):
         """Program repository implementation.
 
@@ -132,9 +132,9 @@ class ProgramRepository(ProgramStorage):
             host: host of backend
             port: port of backend
             token: authentication token
-            root: path to directory where program files will be stored
+            folder: path to directory where title files will be stored
         """
-        self.root = root or os.path.dirname(os.path.abspath(__file__))
+        self.folder = folder or os.path.dirname(os.path.abspath(__file__))
         self._host = host or os.environ.get(REPO_HOST_KEY, "http://localhost")
         self._port = port or os.environ.get(REPO_PORT_KEY, 80)
         self._token = token
@@ -151,11 +151,11 @@ class ProgramRepository(ProgramStorage):
             result = [entry.get("title") for entry in response_data.get("results", [])]
         return result
 
-    def get_program(self, program: str, **kwargs) -> Optional[Program]:
+    def get_program(self, title: str, **kwargs) -> Optional[Program]:
         result = None
         response = requests.get(
             url=f"{self._base_url}",
-            params={"name": program},
+            params={"title": title},
             allow_redirects=True,
             timeout=10,
         )
@@ -166,7 +166,7 @@ class ProgramRepository(ProgramStorage):
                 artifact = results[0].get("artifact")
                 result = Program.from_json(results[0])
                 result.working_dir = download_and_unpack_artifact(
-                    artifact_url=artifact, program=result, root=self.root
+                    artifact_url=artifact, program=result, folder=self.folder
                 )
             else:
                 logging.warning("No entries were found for your request.")
@@ -176,7 +176,7 @@ class ProgramRepository(ProgramStorage):
 def download_and_unpack_artifact(
     artifact_url: str,
     program: Program,
-    root: str,
+    folder: str,
     headers: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Downloads and extract artifact files into destination folder.
@@ -184,13 +184,13 @@ def download_and_unpack_artifact(
     Args:
         artifact_url: url to get artifact from
         program: program object artifact belongs to
-        root: root of programs folder a.k.a unpack destination
+        folder: root of programs folder a.k.a unpack destination
         headers: optional headers needed for download requests
 
     Returns:
         workdir for program
     """
-    program_folder_path = os.path.join(root, program.title)
+    program_folder_path = os.path.join(folder, program.title)
     artifact_file_name = "artifact"
     tarfile_path = os.path.join(program_folder_path, artifact_file_name)
 

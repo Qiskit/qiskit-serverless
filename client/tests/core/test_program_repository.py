@@ -109,7 +109,7 @@ def mocked_requests_get(**kwargs):
 
 
 class TestRepository(TestCase):
-    """Tests for program."""
+    """Tests for repository."""
 
     def setUp(self) -> None:
         self.resources_folder = os.path.join(
@@ -135,7 +135,7 @@ class TestRepository(TestCase):
     def test_repository_get_program(self, mock_get):
         """Tests single program fetch."""
         repository = ProgramRepository(
-            host="http://localhost", root=self.programs_folder
+            host="http://localhost", folder=self.programs_folder
         )
         program = repository.get_program("hello_world")
         self.assertEqual(program.title, "hello_world")

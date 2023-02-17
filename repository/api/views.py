@@ -26,7 +26,7 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
         queryset = NestedProgram.objects.all().order_by("created")
 
         # if name is specified in query parameters
-        name = query_params.get("name", None)
-        if name:
-            queryset = queryset.filter(title__exact=name)
+        title = query_params.get("title", None)
+        if title:
+            queryset = queryset.filter(title__exact=title)
         return queryset
