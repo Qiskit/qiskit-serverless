@@ -41,7 +41,7 @@ def test_program():
         wait_for_job_client(serverless)
 
         program = Program(
-            name="simple_job",
+            title="simple_job",
             entrypoint="job.py",
             working_dir=resources_path,
             description="description",
