@@ -6,6 +6,11 @@
 
 # Quantum serverless
 
+Quantum Serverless is a user-friendly tool that enables you to easily run complex quantum computing tasks. 
+With this software, you can execute Qiskit programs as long running jobs and distribute them across multiple CPUs, GPUs, and QPUs. 
+This means you can take on more complex quantum-classical programs and run them with ease. 
+You don't have to worry about configuration or scaling up computational resources, as Quantum Serverless takes care of everything for you. 
+
 ![diagram](./docs/images/qs_diagram.png)
 
 ### Table of Contents
@@ -13,20 +18,66 @@
 1. [Installation](INSTALL.md)
 2. [Quickstart](#quickstart-guide)
 3. [Beginners Guide](docs/beginners_guide.md)
-4. Modules:
+4. [Getting started](docs/getting_started/)
+5. Modules:
    1. [Client](./client)
    2. [Infrastructure](./infrastructure)
-5. [Tutorials](docs/tutorials/)
-6. [Guides](docs/guides/)
-7. [How to Give Feedback](#how-to-give-feedback)
-8. [Contribution Guidelines](#contribution-guidelines)
-9. [References and Acknowledgements](#references-and-acknowledgements)
-10. [License](#license)
+6. [Tutorials](docs/tutorials/)
+7. [Guides](docs/guides/)
+8. [How to Give Feedback](#how-to-give-feedback)
+9. [Contribution Guidelines](#contribution-guidelines)
+10. [References and Acknowledgements](#references-and-acknowledgements)
+11. [License](#license)
 
 ----------------------------------------------------------------------------------------------------
 
 ### Quickstart
 
+
+
+<details>
+  <summary>1. Hello World quickstart</summary>
+
+1 - Create program file `hello_qiskit.py`
+```python
+# hello_qiskit.py
+
+from qiskit import QuantumCircuit
+from qiskit.primitives import Sampler
+
+circuit = QuantumCircuit(2)
+circuit.h(0)
+circuit.cx(0, 1)
+circuit.measure_all()
+circuit.draw()
+
+sampler = Sampler()
+
+quasi_dists = sampler.run(circuit).result().quasi_dists
+
+print(f"Quasi distribution: {quasi_dists[0]}")
+```
+
+2 - Run program file
+```python
+from quantum_serverless import QuantumServerless, Program
+serverless = QuantumServerless(...) # serverless setup is provided by your admin or use docker compose (refer to all-in-one quickstart)
+program = Program(
+    name="Hello Qiskit!",
+    entrypoint="hello_qiskit.py",
+    working_dir="./"
+)
+
+job = serverless.run_program(program)
+job.logs()
+# 'Quasi distribution: {0: 0.4999999999999999, 3: 0.4999999999999999}\n'
+```
+</details>
+
+
+<details>
+  <summary>2. All-in-one quickstart</summary>
+  
 Steps
 1. prepare infrastructure
 2. write your program
@@ -146,6 +197,9 @@ state_handler.get("result") # (Optional) get written data
 # 'parallel_result': [[1.0], [0.0], [-0.28650496]]}
 ```
 
+</details>
+
+For more detailed examples and explanations refer to [Beginners Guide](docs/beginners_guide.md) and [Getting started examples](docs/getting_started/)
 
 ----------------------------------------------------------------------------------------------------
 
