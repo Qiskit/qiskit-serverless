@@ -113,6 +113,10 @@ The very first step to working on an issue is
 [assigning yourself](https://docs.github.com/en/issues/tracking-your-work-with-issues/assigning-issues-and-pull-requests-to-other-github-users#assigning-an-individual-issue-or-pull-request)
 the issue. This gives all contributors the visibility into who is working on what.
 
+In case you are not a contributor just participate in the issue that you are interested to help, and we will
+let you know the status of that issue.
+
+
 ### Working on an issue
 
 When you are going to start working on an issue, make sure you are in your `main`
