@@ -125,7 +125,8 @@ meaningful name. The typical terminal code for this is:
 
 ```sh
 git checkout main
-git pull upstream main
+git fetch upstream
+git rebase upstream main
 git checkout -b issue-1234-new-feature
 ```
 
