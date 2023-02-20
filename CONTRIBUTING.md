@@ -229,8 +229,8 @@ a core contributor.
 
 ## Code style
 
-Code in this repository should conform to PEP8 standards. Style/lint checks are run to validate this.
-Line length must be limited to no more than 88 characters.
+Code in this repository should conform to [PEP8](https://peps.python.org/pep-0008/) standards. 
+Style/lint checks are run to validate this. Line length must be limited to no more than 88 characters.
 
 **Readability** is what we value most. We expect reviewers to pay special attention on readability
 so at least they can understand new contributions to the codebase.
