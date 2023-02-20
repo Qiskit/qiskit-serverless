@@ -150,7 +150,8 @@ From time to time, you want to check if your `main` branch is still up-to-date. 
 
 ```sh
 git checkout main
-git pull
+git fetch upstream
+git rebase upstream main
 git checkout issue-1234-new-feature
 git rebase main issue-1234-new-feature
 ```
