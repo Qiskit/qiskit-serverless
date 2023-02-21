@@ -32,7 +32,7 @@ dependencies:
     version: 0.1.0
   - name: redis
     condition: redisEnable
-    version: 17.7.5
+    version: 17.7.6
     repository: https://charts.bitnami.com/bitnami
   - name: keycloak
     condition: keycloakEnable
