@@ -27,8 +27,11 @@ Quantum serverless nested program
     Program
 """
 from abc import ABC
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
+
+from quantum_serverless.exception import QuantumServerlessException
+from quantum_serverless.utils.json import is_jsonable
 
 
 @dataclass
@@ -50,11 +53,17 @@ class Program:  # pylint: disable=too-many-instance-attributes
     name: str
     entrypoint: str
     working_dir: str = "./"
-    arguments: Optional[Dict[str, str]] = None
+    arguments: Optional[Dict[str, Any]] = None
     env_vars: Optional[Dict[str, str]] = None
     dependencies: Optional[List[str]] = None
     description: Optional[str] = None
     version: Optional[str] = None
+
+    def __post_init__(self):
+        if self.arguments is not None and not is_jsonable(self.arguments):
+            raise QuantumServerlessException(
+                "Arguments provided are not json serializable."
+            )
 
 
 class ProgramStorage(ABC):
