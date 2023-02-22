@@ -6,5 +6,13 @@
   ],
   "prConcurrentLimit": 2,
   "rangeStrategy": "bump",
-  "rebaseWhen": "never"
+  "rebaseWhen": "never",
+  "packageRules": [
+    {
+      "matchPackagePatterns": [
+        "^opentelemetry"
+      ],
+      "groupName": "opentelemetry packages"
+    }
+  ]
 }
