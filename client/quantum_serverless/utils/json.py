@@ -25,6 +25,7 @@ Quantum serverless json utilities
 
     JsonSerializable
 """
+import json
 from abc import ABC
 
 
@@ -55,3 +56,12 @@ class JsonSerializable(ABC):
                 element = val
             result[key] = element
         return result
+
+
+def is_jsonable(data):
+    """Check if data can be serialized to json."""
+    try:
+        json.dumps(data)
+        return True
+    except (TypeError, OverflowError):
+        return False
