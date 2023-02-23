@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "drf_yasg",
     "api",
 ]
 
@@ -135,3 +136,5 @@ REST_FRAMEWORK = {
     "DEFAULT_VERSION": "v1",
     "VERSION_PARAM": "version",
 }
+
+SWAGGER_SETTINGS = {"LOGIN_URL": "/api-auth/login/", "LOGOUT_URL": "/api-auth/logout/"}
