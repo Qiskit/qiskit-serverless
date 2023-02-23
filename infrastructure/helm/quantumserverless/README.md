@@ -59,6 +59,12 @@ Install from specific values file
 kubectl patch svc -n ray kuberay-apiserver-service --type json  --patch '[{"op" : "replace" ,"path" : "/spec/selector" ,"value" : {"app.kubernetes.io/component": "kuberay-apiserver"}}]'
 ```
 
+(temporary) Patch the kuberay-apiserver deployment
+
+```shell
+./hack/apisesrver=patch.sh <LOCAL-IP>
+```
+
 ## Helm chart versions
 
 The Quantum Serverless Chart has several internal and external dependencies. If you are interested to know what versions the project is using you can check them in the [Chart.lock file](./Chart.lock).
@@ -108,6 +114,26 @@ For our Ray Charts dependencies we are using the configuration created by the Ra
 - For Ray Cluster they provide you with a commented initial setup in their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/ray-cluster/values.yaml).
 
 - For Ray Api Server you can read their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/kuberay-apiserver/values.yaml).
+
+- Ray Api Server access needs the access token issued by the keycloak.  Here is the example to obtain the access token and send request to the Ray API Server
+
+```
+#!/bin/bash
+API=$1
+RESPONSE=$(curl --request POST \
+  --url 'http://<LOCAL-IP>:31059/realms/quantumserverless/protocol/openid-connect/token' \
+  --header 'content-type: application/x-www-form-urlencoded' \
+  --data grant_type=client_credentials \
+  --data client_id=rayapiserver \
+  --data client_secret=APISERVERSECRET-CHANGEME \
+  --data audience=rayapiserver | jq .access_token)
+TOKEN=${RESPONSE//'"'/}
+
+curl --request GET -k --proxy http://<LOCAL-IP>:30634/ \
+--header "authorization: Bearer $TOKEN" \
+--header 'content-type: application/json' \
+--url "http://kuberay-apiserver-service:8888/$API"
+```
 
 **Keycloak**
 
