@@ -26,8 +26,8 @@ docker build -f ./infrastructure/docker/Dockerfile-ray-qiskit -t <IMAGE_NAME> .
 ```
 
 ### Versions
-- Ray == 2.0.0
-- Python == 3.7
+- Ray == 2.2.0
+- Python == 3.9
 
 
 ## Ray node with Jupyter notebook
@@ -48,4 +48,4 @@ docker build -f ./infrastructure/docker/Dockerfile-notebook -t <IMAGE_NAME> .
 ```
 
 ### Versions
-- Python == 3.7
+- Python == 3.9
