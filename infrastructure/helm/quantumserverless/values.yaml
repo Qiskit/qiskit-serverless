@@ -222,3 +222,8 @@ kuberay-apiserver:
 
 keycloakEnable: true
 
+# ===================
+# Quantum Repository 
+# ===================
+
+repositoryEnable: true
