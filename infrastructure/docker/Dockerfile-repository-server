@@ -1,0 +1,16 @@
+FROM registry.access.redhat.com/ubi9/python-39@sha256:9d69d5f28b58f78b7b366783bc8785c59af37187c90e25b3ed582942c4c72919
+
+WORKDIR /app
+
+USER 0
+COPY repository .
+RUN chown -R 1001:0 /app
+USER 1001
+
+RUN pip3 install -r requirements.txt
+RUN pip3 install -r requirements-dev.txt
+RUN python manage.py migrate
+
+EXPOSE 8000
+CMD ["python3", "manage.py", "runserver", "0.0.0.0:8000"]
+
