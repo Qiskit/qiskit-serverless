@@ -7,7 +7,7 @@
 # ===================
 
 # Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
-nginxIngressControllerEnable: false
+nginxIngressControllerEnable: true
 
 # ===================
 # Redis configs
@@ -107,7 +107,23 @@ ray-cluster:
   head:
     rayStartParams:
       dashboard-host: '0.0.0.0'
-
+    ports: [{containerPort: 10001, name: client},{containerPort: 6379, name: redis},{containerPort: 8265, name: dashboard},{containerPort: 8080, name: metrics},{containerPort: 8000, name: serve},{containerPort: 4180, name: proxy}]
+    sidecarContainers:
+        - name: oauth-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.3.0
+          imagePullPolicy: IfNotPresent
+          args:
+          - --client-secret=CLIENTSECRET-CHANGEME
+          - --oidc-issuer-url=http://LOCAL-IP:31059/realms/quantumserverless
+          - --oidc-extra-audience="account"
+          - --email-domain="*"
+          - --insecure-oidc-allow-unverified-email=true
+          - --http-address=0.0.0.0:4180
+          - --cookie-secret=SECRET0123456789
+          - --provider=keycloak-oidc
+          - --client-id=rayclient
+          - --upstream="http://HELM-RELEASE-kuberay-head-svc:8265"
+          - --redirect-url=http://localhost/oauth2/callback
   worker:
     # If you want to disable the default workergroup
     # uncomment the line below
@@ -221,4 +237,25 @@ kuberay-apiserver:
 # ===================
 
 keycloakEnable: true
+keycloakClientSecret: CLIENTSECRET-CHANGEME
+keycloakUserID: user
+keycloakUserPassword: passw0rd
 
+keycloak:
+  logging:
+    level: DEBUG
+  service:
+    type: NodePort
+    nodePorts:
+      http: 31059
+  auth:
+    adminUser: admin
+    adminPassword: passw0rd
+  extraVolumes:
+    - name: realm
+      configMap:
+        name: keycloakrealm
+  extraVolumeMounts:
+    - name: realm
+      mountPath: /opt/bitnami/keycloak/data/import
+  extraStartupArgs: "--import-realm"
