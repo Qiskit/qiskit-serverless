@@ -44,6 +44,8 @@ from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
 
+TIMEOUT = 30
+
 
 @dataclass
 class ComputeResource:
@@ -52,6 +54,7 @@ class ComputeResource:
     Args:
         name: name of compute_resource
         host: host address of compute_resource
+        namespace: k8s namespace of compute_resource
         port_interactive: port of compute_resource for interactive mode
         port_job_server: port of compute resource for job server
         resources: list of resources
@@ -84,7 +87,7 @@ class ComputeResource:
         return None
 
     def context(self, **kwargs):
-        """Returns context allocated for this compute_resource."""
+        """Return context allocated for this compute_resource."""
         _trace_env_vars({}, location="on context allocation")
 
         init_args = {
@@ -316,7 +319,7 @@ class KuberayProvider(Provider):
         """Return compute resources for provider."""
         req = requests.get(
             f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters",
-            timeout=30,
+            timeout=TIMEOUT,
         )
         if req.status_code != 200 or not req.json():
             return []
@@ -332,16 +335,127 @@ class KuberayProvider(Provider):
         return resources
 
     def create_compute_resource(self, resource) -> int:
-        """Create compute resource for provider."""
-        raise NotImplementedError
+        """
+        Create compute resource for provider.
+
+        First, create a compute_template based on the defined ComputeResource.
+        If the compute_template already exists (which shouldn't be the case,
+        exit silently. Otherwise, create the template. This template is
+        ephemeral and will be deleted when no longer needed (either the cluster
+        was created or we failed to create it and thus need to start over).
+
+        Then use that template to create a KubeRay Cluster. If the cluster
+        already exists, we exit silently. Users are only able to configure the
+        amount of cpu/memory and the number of worker replicas. The full spec
+        can be found in the KubeRay API spec under the "protoCluster"
+        definition:
+        https://github.com/ray-project/kuberay/blob/master/proto/swagger/cluster.swagger.json
+        """
+        compute_resource_name = self.name + "-template"
+
+        # Create template from resource
+        req = requests.get(
+            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
+            f"/compute_templates/{compute_resource_name}",
+            timeout=TIMEOUT,
+        )
+        if req.status_code == 200:
+            print(f"template name {compute_resource_name} already exists")
+            return 1
+
+        data = {
+            "name": compute_resource_name,
+            "namespace": self.namespace,
+            "cpu": resource.resources["cpu"],
+            "memory": resource.resources["memory"],
+        }
+        req = requests.post(
+            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
+            f"/compute_templates",
+            json=data,
+            timeout=TIMEOUT,
+        )
+        if req.status_code != 200:
+            req.raise_for_status()
+            return 1
+
+        # Create cluster from template
+        req = requests.get(
+            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
+            f"/clusters/{self.name}",
+            timeout=TIMEOUT,
+        )
+        if req.status_code == 200:
+            print(f"cluster {self.name} already exists")
+            delete_kuberay_template(self.host, self.namespace, compute_resource_name)
+            return 1
+
+        data = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "user": "default",
+            "clusterSpec": {
+                "headGroupSpec": {
+                    "computeTemplate": compute_resource_name,
+                    "image": "rayproject/ray:2.2.0",
+                    "rayStartParams": {
+                        "dashboard-host": "127.0.0.1",
+                        "metrics-export-port": "8080",
+                    },
+                    "volumes": [],
+                },
+            },
+            "workerGroupSpec": [
+                {
+                    "groupName": "default-group",
+                    "computeTemplate": compute_resource_name,
+                    "image": "rayproject/ray:2.2.0",
+                    "replicas": resource.resources["worker_replicas"],
+                    "rayStartParams": {
+                        "node-ip-address": "$MY_POD_IP",
+                    },
+                },
+            ],
+        }
+        req = requests.post(
+            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters",
+            json=data,
+            timeout=TIMEOUT,
+        )
+        if req.status_code != 200:
+            delete_kuberay_template(self.host, self.namespace, compute_resource_name)
+            req.raise_for_status()
+            return 1
+
+        # Delete template
+        req = delete_kuberay_template(self.host, self.namespace, compute_resource_name)
+        if req.status_code != 200:
+            req.raise_for_status()
+            return 1
+
+        return 0
 
     def delete_compute_resource(self, resource) -> int:
         """Delete compute resource for provider."""
         req = requests.delete(
-            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters/{resource}",
-            timeout=30,
+            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
+            f"/clusters/{resource}",
+            timeout=TIMEOUT,
         )
         if req.status_code != 200:
+            req.raise_for_status()
             return 1
 
         return 0
+
+
+def delete_kuberay_template(host, namespace, resource):
+    """
+    Delete a KubeRay compute template.
+
+    Used as a helper function when creating kuberay clusters.
+    """
+    return requests.delete(
+        f"{host}/apis/v1alpha2/namespaces/{namespace}" f"/compute_templates/{resource}",
+        timeout=TIMEOUT,
+    )
