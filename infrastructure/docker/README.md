@@ -1,8 +1,9 @@
 # Docker images
 
-Docker images that the infrastructure requires to deploy. There are two main images:
+Docker images that the infrastructure requires to deploy. There are three main images:
 - [Jupyter notebook](#ray-node-with-jupyter-notebook)
 - [Ray](#custom-ray)
+- [Repository server](#repository-server)
 
 
 ## Custom ray
@@ -49,3 +50,24 @@ docker build -f ./infrastructure/docker/Dockerfile-notebook -t <IMAGE_NAME> .
 
 ### Versions
 - Python == 3.7
+
+## Repository Server
+
+An image of the repository server.
+
+### Build
+To build image just run from the root of the project:
+
+```shell
+make build-repository-server
+```
+
+or in case you want to customize as much as possible your build:
+
+```shell
+docker build -f ./infrastructure/docker/Dockerfile-repository-server -t <IMAGE_NAME> .
+```
+
+### Versions
+- Python == 3.9
+
