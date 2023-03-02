@@ -276,6 +276,7 @@ class KuberayProvider(Provider):
         name: str,
         host: Optional[str] = None,
         namespace: Optional[str] = "default",
+        img: Optional[str] = "qiskit/quantum-serverless-ray-node:latest-py39",
         token: Optional[str] = None,
         compute_resource: Optional[ComputeResource] = None,
         available_compute_resources: Optional[List[ComputeResource]] = None,
@@ -298,6 +299,7 @@ class KuberayProvider(Provider):
             name: name of provider
             host: host of provider a.k.a managers host
             namespace: namespace to deploy provider in
+            image: container image to use for ray cluster
             token: authentication token for manager
             compute_resource: selected compute_resource from provider
             available_compute_resources: available clusters in provider
@@ -307,6 +309,7 @@ class KuberayProvider(Provider):
         self.host = host
         self.token = token
         self.namespace = namespace
+        self.image = img
         self.compute_resource = compute_resource
         if available_compute_resources is None:
             if compute_resource is not None:
@@ -317,10 +320,8 @@ class KuberayProvider(Provider):
 
     def get_compute_resources(self) -> List[ComputeResource]:
         """Return compute resources for provider."""
-        req = requests.get(
-            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters",
-            timeout=TIMEOUT,
-        )
+        api_root = f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
+        req = requests.get(api_root + "/clusters", timeout=TIMEOUT)
         if req.status_code != 200 or not req.json():
             return []
 
@@ -351,43 +352,37 @@ class KuberayProvider(Provider):
         definition:
         https://github.com/ray-project/kuberay/blob/master/proto/swagger/cluster.swagger.json
         """
-        compute_resource_name = self.name + "-template"
+        template_name = self.name + "-template"
+        api_root = f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
 
         # Create template from resource
         req = requests.get(
-            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
-            f"/compute_templates/{compute_resource_name}",
+            api_root + f"/compute_templates/{template_name}",
             timeout=TIMEOUT,
         )
-        if req.status_code == 200:
-            print(f"template name {compute_resource_name} already exists")
+        if req.ok:
+            print(f"template name {template_name} already exists")
             return 1
 
         data = {
-            "name": compute_resource_name,
+            "name": template_name,
             "namespace": self.namespace,
             "cpu": resource.resources["cpu"],
             "memory": resource.resources["memory"],
         }
-        req = requests.post(
-            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
-            f"/compute_templates",
-            json=data,
-            timeout=TIMEOUT,
-        )
-        if req.status_code != 200:
+        req = requests.post(api_root + "/compute_templates", json=data, timeout=TIMEOUT)
+        if not req.ok:
             req.raise_for_status()
             return 1
 
         # Create cluster from template
         req = requests.get(
-            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
-            f"/clusters/{self.name}",
+            api_root + f"/clusters/{self.name}",
             timeout=TIMEOUT,
         )
-        if req.status_code == 200:
+        if req.ok:
             print(f"cluster {self.name} already exists")
-            delete_kuberay_template(self.host, self.namespace, compute_resource_name)
+            delete_kuberay_template(self.host, self.namespace, template_name)
             return 1
 
         data = {
@@ -396,8 +391,8 @@ class KuberayProvider(Provider):
             "user": "default",
             "clusterSpec": {
                 "headGroupSpec": {
-                    "computeTemplate": compute_resource_name,
-                    "image": "rayproject/ray:2.2.0",
+                    "computeTemplate": template_name,
+                    "image": self.image,
                     "rayStartParams": {
                         "dashboard-host": "127.0.0.1",
                         "metrics-export-port": "8080",
@@ -408,8 +403,8 @@ class KuberayProvider(Provider):
             "workerGroupSpec": [
                 {
                     "groupName": "default-group",
-                    "computeTemplate": compute_resource_name,
-                    "image": "rayproject/ray:2.2.0",
+                    "computeTemplate": template_name,
+                    "image": self.image,
                     "replicas": resource.resources["worker_replicas"],
                     "rayStartParams": {
                         "node-ip-address": "$MY_POD_IP",
@@ -418,17 +413,17 @@ class KuberayProvider(Provider):
             ],
         }
         req = requests.post(
-            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters",
+            api_root + "/clusters",
             json=data,
             timeout=TIMEOUT,
         )
         if req.status_code != 200:
-            delete_kuberay_template(self.host, self.namespace, compute_resource_name)
+            delete_kuberay_template(self.host, self.namespace, template_name)
             req.raise_for_status()
             return 1
 
         # Delete template
-        req = delete_kuberay_template(self.host, self.namespace, compute_resource_name)
+        req = delete_kuberay_template(self.host, self.namespace, template_name)
         if req.status_code != 200:
             req.raise_for_status()
             return 1
@@ -437,9 +432,9 @@ class KuberayProvider(Provider):
 
     def delete_compute_resource(self, resource) -> int:
         """Delete compute resource for provider."""
+        api_root = f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
         req = requests.delete(
-            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
-            f"/clusters/{resource}",
+            api_root + f"/clusters/{resource}",
             timeout=TIMEOUT,
         )
         if req.status_code != 200:
@@ -455,7 +450,8 @@ def delete_kuberay_template(host, namespace, resource):
 
     Used as a helper function when creating kuberay clusters.
     """
+    api_root = f"{host}/apis/v1alpha2/namespaces/{namespace}"
     return requests.delete(
-        f"{host}/apis/v1alpha2/namespaces/{namespace}" f"/compute_templates/{resource}",
+        api_root + f"/compute_templates/{resource}",
         timeout=TIMEOUT,
     )
