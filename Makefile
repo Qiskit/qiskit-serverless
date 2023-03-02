@@ -7,7 +7,6 @@ repository=qiskit
 
 notebookImageName=$(repository)/quantum-serverless-notebook
 rayNodeImageName=$(repository)/quantum-serverless-ray-node
-managerImageName=$(repository)/quantum-serverless-manager
 
 # =============
 # Docker images
@@ -15,20 +14,14 @@ managerImageName=$(repository)/quantum-serverless-manager
 
 build-and-push: build-all push-all
 
-build-all: build-manager build-notebook build-ray-node
-push-all: push-manager push-notebook push-ray-node
-
-build-manager:
-	docker build -t $(managerImageName):$(version) -f ./manager/Dockerfile .
+build-all: build-notebook build-ray-node
+push-all: push-notebook push-ray-node
 
 build-notebook:
 	docker build -t $(notebookImageName):$(version) -f ./infrastructure/docker/Dockerfile-notebook .
 
 build-ray-node:
 	docker build -t $(rayNodeImageName):$(version) -f ./infrastructure/docker/Dockerfile-ray-qiskit .
-
-push-manager:
-	docker push $(managerImageName):$(version)
 
 push-notebook:
 	docker push $(notebookImageName):$(version)

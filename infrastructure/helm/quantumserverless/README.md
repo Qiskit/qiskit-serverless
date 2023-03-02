@@ -1,6 +1,6 @@
 # Helm configuration
 
-Main configuration to setup your k8s cluster and the services that this project uses. The helm configuration contains 6 charts: jupyter, manager, kuberay-operator, ray-cluster, redis and keycloak.
+Main configuration to setup your k8s cluster and the services that this project uses. The helm configuration contains 5 charts: jupyter, kuberay-operator, ray-cluster, redis, and keycloak.
 
 ## Installation
 
@@ -101,17 +101,6 @@ But if you are interested in more complex configurations you have access to all 
 | jupyter.container.port    | Port number that the pod will use in the cluster.                 |
 | jupyter.service.port      | Port number that service will be exposed externally.              |
 | jupyter.ingress.enabled   | Specifies if you are going to use ingress to expose the service.  |
-
-**Manager**
-
-| Name                       | Description                                                      |
-|----------------------------|------------------------------------------------------------------|
-| managerEnable              | Specify if helm will execute the manager configuration.          |
-| manager.image              | Docker image configuration to deploy the manager.                |
-| manager.imagePullSecrets   | Secrets to pull the image from a private registry.               |
-| manager.container.port     | Port number that the pod will use in the cluster.                |
-| manager.service.port       | Port number that service will be exposed externally.             |
-| manager.ingress.enabled    | Specifies if you are going to use ingress to expose the service. |
 
 **Ray cluster, Kuberay operator, and Kuberay api server**
 
