@@ -40,9 +40,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_yasg",
     "api",
+    "middleware.keycloak_django",
+    "keycloak",
 ]
 
 MIDDLEWARE = [
+    "middleware.keycloak_django.KeycloakMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
