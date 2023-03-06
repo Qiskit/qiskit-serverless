@@ -2,8 +2,8 @@
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: {{ .Release.Name }}-nginx-ingress-controller
-data:
-  proxy-buffer-size: "256k"
-  proxy-buffers: "4 512k"
+  name: {{ .Release.Name }}-nginx-config
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "512k"
 {{- end }}
