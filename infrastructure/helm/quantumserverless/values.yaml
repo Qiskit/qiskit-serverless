@@ -39,11 +39,7 @@ redis:
   
   auth:
     enabled: false
-  
-  master:
-    service:
-      ports:
-        redis: 7000
+
 
 # ===================
 # Jupyter configs
@@ -236,7 +232,7 @@ kuberay-apiserver:
 # Keycloak 
 # ===================
 
-keycloakEnable: false
+keycloakEnable: true
 keycloakClientSecret: CLIENTSECRET-CHANGEME
 keycloakUserID: user
 keycloakUserPassword: passw0rd
