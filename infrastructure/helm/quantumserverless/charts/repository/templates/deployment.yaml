@@ -47,6 +47,11 @@ spec:
           #    port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: CLIENT_SECRET
+              value: {{ .Values.repositoryClientSecret }}
+            - name: KEYCLOAK_SERVER_URL
+              value: {{ .Values.keycloakServerUrl }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

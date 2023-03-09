@@ -27,7 +27,8 @@
         "dev"
       ],
       "public": true,
-      "artifact": "path"
+      "artifact": "path",
+      "author": "user"
     }
   }
 ]

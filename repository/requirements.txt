@@ -8,3 +8,4 @@ pytz>=2022.7.1
 sqlparse>=0.4.3
 zipp>=3.12.0
 drf-yasg>=1.21.5
+python-keycloak>=2.12.0

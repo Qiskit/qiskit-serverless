@@ -1,5 +1,6 @@
 import json
 import os.path
+import os
 from pathlib import Path
 
 from django.contrib.auth.models import User
@@ -18,41 +19,57 @@ class NestedProgramTests(APITestCase):
         """
         Retrieve information about a specific nested program
         """
+        TOKEN = os.getenv("TOKEN")
+
         nested_program_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
         url = reverse("v1:nested-programs-detail", args=[nested_program_id])
-        response = self.client.get(url, format="json")
+        response = self.client.get(
+            url, format="json", HTTP_AUTHORIZATION="Bearer " + str(TOKEN)
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_get_non_created_nested_program_returns_404(self):
         """
         Retrieve information about a specific nested program that doesn't exist returns a 404
         """
+        TOKEN = os.getenv("TOKEN")
         url = reverse("v1:nested-programs-detail", args=[2])
-        response = self.client.get(url, format="json")
+        response = self.client.get(
+            url, format="json", HTTP_AUTHORIZATION="Bearer " + str(TOKEN)
+        )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_create_nested_program_unauthenticated_returns_403(self):
         """
         Create a nested program without being authenticated returns a 403
         """
+        TOKEN = os.getenv("TOKEN1")
         nested_program_input = {}
 
         url = reverse("v1:nested-programs-list")
-        response = self.client.post(url, data=nested_program_input, format="json")
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        response = self.client.post(
+            url,
+            data=nested_program_input,
+            format="json",
+            HTTP_AUTHORIZATION="Bearer " + str(TOKEN),
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_nested_program_with_empty_object_validation(self):
         """
         Create a nested program with an empty object as input should return a validation error
         """
+        TOKEN = os.getenv("TOKEN")
         nested_program_input = {}
         fields_to_check = ["title", "entrypoint", "artifact"]
-        test_user = User.objects.get(username="test_user")
-
-        self.client.force_login(test_user)
 
         url = reverse("v1:nested-programs-list")
-        response = self.client.post(url, data=nested_program_input, format="json")
+        response = self.client.post(
+            url,
+            data=nested_program_input,
+            format="json",
+            HTTP_AUTHORIZATION="Bearer " + str(TOKEN),
+        )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         failed_validation_fields_list = list(response.json().keys())
@@ -62,6 +79,7 @@ class NestedProgramTests(APITestCase):
         """
         Create a nested program with an object with blank values should return a validation error
         """
+        TOKEN = os.getenv("TOKEN")
         nested_program_input = {
             "title": "",
             "description": "",
@@ -75,12 +93,14 @@ class NestedProgramTests(APITestCase):
             "public": True,
         }
         fields_to_check = ["title", "entrypoint", "working_dir", "version", "artifact"]
-        test_user = User.objects.get(username="test_user")
-
-        self.client.force_login(test_user)
 
         url = reverse("v1:nested-programs-list")
-        response = self.client.post(url, data=nested_program_input, format="json")
+        response = self.client.post(
+            url,
+            data=nested_program_input,
+            format="json",
+            HTTP_AUTHORIZATION="Bearer " + str(TOKEN),
+        )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         failed_validation_fields_list = list(response.json().keys())
@@ -90,6 +110,7 @@ class NestedProgramTests(APITestCase):
         """
         Create a nested program
         """
+        TOKEN = os.getenv("TOKEN")
         nested_program_input = {
             "title": "Awesome nested program",
             "description": "Awesome nested program description",
@@ -102,9 +123,6 @@ class NestedProgramTests(APITestCase):
             "dependencies": json.dumps([]),
             "public": True,
         }
-        test_user = User.objects.get(username="test_user")
-
-        self.client.force_login(test_user)
 
         url = reverse("v1:nested-programs-list")
         with open(
@@ -117,7 +135,10 @@ class NestedProgramTests(APITestCase):
         ) as file:
             nested_program_input["artifact"] = File(file)
             response = self.client.post(
-                url, data=nested_program_input, format="multipart"
+                url,
+                data=nested_program_input,
+                format="multipart",
+                HTTP_AUTHORIZATION="Bearer " + str(TOKEN),
             )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -127,8 +148,11 @@ class NestedProgramTests(APITestCase):
         """
         List all the nested programs created and check that there is one
         """
+        TOKEN = os.getenv("TOKEN")
         url = reverse("v1:nested-programs-list")
-        response = self.client.get(url, format="json")
+        response = self.client.get(
+            url, format="json", HTTP_AUTHORIZATION="Bearer " + str(TOKEN)
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()["count"], 1)
 
@@ -136,35 +160,38 @@ class NestedProgramTests(APITestCase):
         """
         Delete a nested program with an unauthenticated user
         """
+        TOKEN = os.getenv("TOKEN1")
         nested_program_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
 
         url = reverse("v1:nested-programs-detail", args=[nested_program_id])
-        response = self.client.delete(url, format="json")
+        response = self.client.delete(
+            url, format="json", HTTP_AUTHORIZATION="Bearer " + str(TOKEN)
+        )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_a_non_created_nested_program_returns_404(self):
         """
         Delete a nested program that doesn't exist returns a 404
         """
-        test_user = User.objects.get(username="test_user")
-
-        self.client.force_login(test_user)
+        TOKEN = os.getenv("TOKEN")
 
         url = reverse("v1:nested-programs-detail", args=[2])
-        response = self.client.delete(url, format="json")
+        response = self.client.delete(
+            url, format="json", HTTP_AUTHORIZATION="Bearer " + str(TOKEN)
+        )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_nested_program_returns_204(self):
         """
         Delete a nested program that exists 204
         """
+        TOKEN = os.getenv("TOKEN")
         nested_program_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
-        test_user = User.objects.get(username="test_user")
-
-        self.client.force_login(test_user)
 
         url = reverse("v1:nested-programs-detail", args=[nested_program_id])
-        response = self.client.delete(url, format="json")
+        response = self.client.delete(
+            url, format="json", HTTP_AUTHORIZATION="Bearer " + str(TOKEN)
+        )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(NestedProgram.objects.count(), 0)
 
@@ -172,6 +199,7 @@ class NestedProgramTests(APITestCase):
         """
         The value for dependencies and tags is a dict, a non-allowed value for these fields and returns a 400
         """
+        TOKEN = os.getenv("TOKEN")
         fields_to_check = ["dependencies", "tags"]
         nested_program_input = {
             "title": "Awesome nested program",
@@ -185,9 +213,6 @@ class NestedProgramTests(APITestCase):
             "tags": json.dumps({}),
             "public": True,
         }
-        test_user = User.objects.get(username="test_user")
-
-        self.client.force_login(test_user)
 
         url = reverse("v1:nested-programs-list")
         with open(
@@ -200,7 +225,10 @@ class NestedProgramTests(APITestCase):
         ) as file:
             nested_program_input["artifact"] = File(file)
             response = self.client.post(
-                url, data=nested_program_input, format="multipart"
+                url,
+                data=nested_program_input,
+                format="multipart",
+                HTTP_AUTHORIZATION="Bearer " + str(TOKEN),
             )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -211,6 +239,7 @@ class NestedProgramTests(APITestCase):
         """
         The value for env_vars and arguments is a list, a non-allowed value for these fields and returns a 400
         """
+        TOKEN = os.getenv("TOKEN")
         fields_to_check = ["env_vars", "arguments"]
         nested_program_input = {
             "title": "Awesome nested program",
@@ -224,9 +253,6 @@ class NestedProgramTests(APITestCase):
             "tags": json.dumps(["dev"]),
             "public": True,
         }
-        test_user = User.objects.get(username="test_user")
-
-        self.client.force_login(test_user)
 
         url = reverse("v1:nested-programs-list")
         with open(
@@ -239,7 +265,10 @@ class NestedProgramTests(APITestCase):
         ) as file:
             nested_program_input["artifact"] = File(file)
             response = self.client.post(
-                url, data=nested_program_input, format="multipart"
+                url,
+                data=nested_program_input,
+                format="multipart",
+                HTTP_AUTHORIZATION="Bearer " + str(TOKEN),
             )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 

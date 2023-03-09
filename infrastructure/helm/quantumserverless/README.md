@@ -15,6 +15,7 @@ helm dependency build
 Update values.yaml file. Find and replace the following strings
 
 - **CLIENTSECRET-CHANGEME**: string used as the secret for a OIDC protocol
+- **REPOSITORYSECRET-CHANGEME**: string used as the secret for a OIDC protocol
 - **HELM-RELEASE**: release name used in the helm install command
 - **LOCAL-IP**: IP address that can be accessed from both outside of the cluster and inside of the cluster.  
 

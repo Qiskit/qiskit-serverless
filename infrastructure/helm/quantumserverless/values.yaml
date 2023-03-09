@@ -266,3 +266,6 @@ keycloak:
 # ===================
 
 repositoryEnable: true
+repository:
+  repositoryClientSecret: REPOSITORYSECRET_CHANGEME
+  keycloakServerUrl: "http://LOCAL-IP:31059/"

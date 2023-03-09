@@ -68,6 +68,9 @@ resources: {}
   #   cpu: 100m
   #   memory: 128Mi
 
+repositoryClientSecret: ""
+keycloakServerUrl: ""
+
 autoscaling:
   enabled: false
   minReplicas: 1

@@ -29,7 +29,7 @@ class NestedProgram(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    # author = TODO: relationship with user, pending review integration with keycloack
+    author = models.CharField(max_length=255, blank=False, null="author")
     title = models.CharField(max_length=255, blank=False, null=False)
     description = models.TextField(blank=True, default="")
     entrypoint = models.CharField(max_length=255, blank=False, null=False)
