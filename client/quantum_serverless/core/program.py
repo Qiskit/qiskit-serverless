@@ -42,7 +42,6 @@ from quantum_serverless.core.constrants import (
     REPO_HOST_KEY,
     REPO_PORT_KEY,
 )
-from quantum_serverless.exception import QuantumServerlessException
 
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils.json import is_jsonable
