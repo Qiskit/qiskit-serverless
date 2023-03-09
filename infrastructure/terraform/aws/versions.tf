@@ -1,14 +1,14 @@
 terraform {
-  required_version = ">= 1.0.0"
+  required_version = ">= 1.3.9"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 4.54.0"
+      version = ">= 4.56.0"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = ">= 2.17.0"
+      version = ">= 2.18.1"
     }
     helm = {
       source  = "hashicorp/helm"

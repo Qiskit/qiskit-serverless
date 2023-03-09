@@ -26,6 +26,7 @@ Quantum serverless provider
     ComputeResource
     Provider
 """
+import json
 import logging
 from dataclasses import dataclass
 from typing import Optional, List, Dict
@@ -240,7 +241,12 @@ class Provider(JsonSerializable):
 
         arguments = ""
         if program.arguments is not None:
-            arg_list = [f"--{key}={value}" for key, value in program.arguments.items()]
+            arg_list = []
+            for key, value in program.arguments.items():
+                if isinstance(value, dict):
+                    arg_list.append(f"--{key}='{json.dumps(value)}'")
+                else:
+                    arg_list.append(f"--{key}={value}")
             arguments = " ".join(arg_list)
         entrypoint = f"python {program.entrypoint} {arguments}"
 

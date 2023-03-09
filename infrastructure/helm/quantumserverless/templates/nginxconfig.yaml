@@ -1,0 +1,9 @@
+{{- if .Values.keycloakEnable }}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}-nginx-ingress-controller
+data:
+  proxy-buffer-size: "256k"
+  proxy-buffers: "4 512k"
+{{- end }}

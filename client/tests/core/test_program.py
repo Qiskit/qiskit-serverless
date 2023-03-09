@@ -1,17 +1,40 @@
 """Tests jobs."""
 import os
+from unittest import TestCase
 
+import numpy as np
 from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
 
 from quantum_serverless import QuantumServerless
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
+from quantum_serverless.exception import QuantumServerlessException
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
 resources_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "../resources"
 )
+
+
+class TestProgram(TestCase):
+    """TestProgram."""
+
+    def test_arguments_validation(self):
+        """Tests arguments validation."""
+        program = Program(
+            name="awesome_program",
+            entrypoint="awesome.py",
+            arguments={"one": 1, "json": {"one": 1, "two": 2}},
+        )
+        self.assertIsInstance(program, Program)
+
+        with self.assertRaises(QuantumServerlessException):
+            Program(
+                name="awesome_program",
+                entrypoint="awesome.py",
+                arguments={"one": 1, "json": {"one": np.array([1]), "two": 2}},
+            )
 
 
 def test_program():

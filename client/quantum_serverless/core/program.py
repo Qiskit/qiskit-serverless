@@ -44,6 +44,9 @@ from quantum_serverless.core.constrants import (
 )
 from quantum_serverless.exception import QuantumServerlessException
 
+from quantum_serverless.exception import QuantumServerlessException
+from quantum_serverless.utils.json import is_jsonable
+
 
 @dataclass
 class Program:  # pylint: disable=too-many-instance-attributes
@@ -64,7 +67,7 @@ class Program:  # pylint: disable=too-many-instance-attributes
     title: str
     entrypoint: str
     working_dir: str = "./"
-    arguments: Optional[Dict[str, str]] = None
+    arguments: Optional[Dict[str, Any]] = None
     env_vars: Optional[Dict[str, str]] = None
     dependencies: Optional[List[str]] = None
     description: Optional[str] = None
@@ -76,6 +79,12 @@ class Program:  # pylint: disable=too-many-instance-attributes
         """Reconstructs Program from dictionary."""
         field_names = set(f.name for f in dataclasses.fields(Program))
         return Program(**{k: v for k, v in data.items() if k in field_names})
+
+    def __post_init__(self):
+        if self.arguments is not None and not is_jsonable(self.arguments):
+            raise QuantumServerlessException(
+                "Arguments provided are not json serializable."
+            )
 
 
 class ProgramStorage(ABC):
