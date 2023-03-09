@@ -23,7 +23,7 @@ class TestProgram(TestCase):
     def test_arguments_validation(self):
         """Tests arguments validation."""
         program = Program(
-            name="awesome_program",
+            title="awesome_program",
             entrypoint="awesome.py",
             arguments={"one": 1, "json": {"one": 1, "two": 2}},
         )
@@ -31,7 +31,7 @@ class TestProgram(TestCase):
 
         with self.assertRaises(QuantumServerlessException):
             Program(
-                name="awesome_program",
+                title="awesome_program",
                 entrypoint="awesome.py",
                 arguments={"one": 1, "json": {"one": np.array([1]), "two": 2}},
             )
