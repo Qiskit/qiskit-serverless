@@ -55,6 +55,7 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – name of compute_resource</p></li>
 <li><p><strong>host</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – host address of compute_resource</p></li>
+<li><p><strong>namespace</strong> – k8s namespace of compute_resource</p></li>
 <li><p><strong>port_interactive</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – port of compute_resource for interactive mode</p></li>
 <li><p><strong>port_job_server</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – port of compute resource for job server</p></li>
 <li><p><strong>resources</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]]) – list of resources</p></li>
@@ -76,7 +77,7 @@
 <td><p>Return connection string to compute_resource.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">context</span></code>(**kwargs)</p></td>
-<td><p>Returns context allocated for this compute_resource.</p></td>
+<td><p>Return context allocated for this compute_resource.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_dict</span></code>(data)</p></td>
 <td><p>Create compute_resource object form dict.</p></td>
