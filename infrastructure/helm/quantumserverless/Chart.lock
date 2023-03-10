@@ -22,6 +22,6 @@ dependencies:
   version: 17.8.3
 - name: keycloak
   repository: https://charts.bitnami.com/bitnami
-  version: 13.1.3
-digest: sha256:b95d3da060410c81ff8367d5ddfa17117348f1d5d54cb8fb049baabddf0ac793
-generated: "2023-03-08T21:30:23.685321703Z"
+  version: 13.2.0
+digest: sha256:0821c6a262bc5ccee8d273bf8c8b42852e84b2fbd1bffb3a396a255531c38dda
+generated: "2023-03-09T17:20:49.794586784Z"
