@@ -36,13 +36,15 @@ import requests
 import ray
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
-from quantum_serverless.core.constrants import OT_PROGRAM_NAME
+from quantum_serverless.core.constants import OT_PROGRAM_NAME, RAY_IMAGE
 
 from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
+
+TIMEOUT = 30
 
 
 @dataclass
@@ -52,6 +54,7 @@ class ComputeResource:
     Args:
         name: name of compute_resource
         host: host address of compute_resource
+        namespace: k8s namespace of compute_resource
         port_interactive: port of compute_resource for interactive mode
         port_job_server: port of compute resource for job server
         resources: list of resources
@@ -84,7 +87,7 @@ class ComputeResource:
         return None
 
     def context(self, **kwargs):
-        """Returns context allocated for this compute_resource."""
+        """Return context allocated for this compute_resource."""
         _trace_env_vars({}, location="on context allocation")
 
         init_args = {
@@ -273,6 +276,7 @@ class KuberayProvider(Provider):
         name: str,
         host: Optional[str] = None,
         namespace: Optional[str] = "default",
+        img: Optional[str] = RAY_IMAGE,
         token: Optional[str] = None,
         compute_resource: Optional[ComputeResource] = None,
         available_compute_resources: Optional[List[ComputeResource]] = None,
@@ -295,6 +299,7 @@ class KuberayProvider(Provider):
             name: name of provider
             host: host of provider a.k.a managers host
             namespace: namespace to deploy provider in
+            image: container image to use for ray cluster
             token: authentication token for manager
             compute_resource: selected compute_resource from provider
             available_compute_resources: available clusters in provider
@@ -304,6 +309,7 @@ class KuberayProvider(Provider):
         self.host = host
         self.token = token
         self.namespace = namespace
+        self.image = img
         self.compute_resource = compute_resource
         if available_compute_resources is None:
             if compute_resource is not None:
@@ -311,13 +317,11 @@ class KuberayProvider(Provider):
             else:
                 available_compute_resources = []
         self.available_compute_resources = available_compute_resources
+        self.api_root = f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}"
 
     def get_compute_resources(self) -> List[ComputeResource]:
         """Return compute resources for provider."""
-        req = requests.get(
-            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters",
-            timeout=30,
-        )
+        req = requests.get(self.api_root + "/clusters", timeout=TIMEOUT)
         if req.status_code != 200 or not req.json():
             return []
 
@@ -332,16 +336,116 @@ class KuberayProvider(Provider):
         return resources
 
     def create_compute_resource(self, resource) -> int:
-        """Create compute resource for provider."""
-        raise NotImplementedError
+        """
+        Create compute resource for provider.
+
+        First, create a compute_template based on the defined ComputeResource.
+        If the compute_template already exists (which shouldn't be the case,
+        exit silently. Otherwise, create the template. This template is
+        ephemeral and will be deleted when no longer needed (either the cluster
+        was created or we failed to create it and thus need to start over).
+
+        Then use that template to create a KubeRay Cluster. If the cluster
+        already exists, we exit silently. Users are only able to configure the
+        amount of cpu/memory and the number of worker replicas. The full spec
+        can be found in the KubeRay API spec under the "protoCluster"
+        definition:
+        https://github.com/ray-project/kuberay/blob/master/proto/swagger/cluster.swagger.json
+        """
+        template_name = self.name + "-template"
+
+        # Create template from resource
+        req = requests.get(
+            self.api_root + f"/compute_templates/{template_name}",
+            timeout=TIMEOUT,
+        )
+        if req.ok:
+            print(f"template name {template_name} already exists")
+            return 1
+
+        data = {
+            "name": template_name,
+            "namespace": self.namespace,
+            "cpu": resource.resources["cpu"],
+            "memory": resource.resources["memory"],
+        }
+        req = requests.post(
+            self.api_root + "/compute_templates", json=data, timeout=TIMEOUT
+        )
+        if not req.ok:
+            req.raise_for_status()
+            return 1
+
+        # Create cluster from template
+        req = requests.get(
+            self.api_root + f"/clusters/{self.name}",
+            timeout=TIMEOUT,
+        )
+        if req.ok:
+            print(f"cluster {self.name} already exists")
+            self.delete_kuberay_template(template_name)
+            return 1
+
+        data = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "user": "default",
+            "clusterSpec": {
+                "headGroupSpec": {
+                    "computeTemplate": template_name,
+                    "image": self.image,
+                    "rayStartParams": {
+                        "dashboard-host": "127.0.0.1",
+                        "metrics-export-port": "8080",
+                    },
+                    "volumes": [],
+                },
+            },
+            "workerGroupSpec": [
+                {
+                    "groupName": "default-group",
+                    "computeTemplate": template_name,
+                    "image": self.image,
+                    "replicas": resource.resources["worker_replicas"],
+                    "rayStartParams": {
+                        "node-ip-address": "$MY_POD_IP",
+                    },
+                },
+            ],
+        }
+        req = requests.post(
+            self.api_root + "/clusters",
+            json=data,
+            timeout=TIMEOUT,
+        )
+        if req.status_code != 200:
+            self.delete_kuberay_template(template_name)
+            req.raise_for_status()
+            return 1
+
+        # Delete template
+        req = self.delete_kuberay_template(template_name)
+        if req.status_code != 200:
+            req.raise_for_status()
+            return 1
+
+        return 0
 
     def delete_compute_resource(self, resource) -> int:
         """Delete compute resource for provider."""
         req = requests.delete(
-            f"{self.host}/apis/v1alpha2/namespaces/{self.namespace}/clusters/{resource}",
-            timeout=30,
+            self.api_root + f"/clusters/{resource}",
+            timeout=TIMEOUT,
         )
         if req.status_code != 200:
+            req.raise_for_status()
             return 1
 
         return 0
+
+    def delete_kuberay_template(self, resource):
+        """Delete a KubeRay compute template (helper function."""
+        return requests.delete(
+            self.api_root + f"/compute_templates/{resource}",
+            timeout=TIMEOUT,
+        )

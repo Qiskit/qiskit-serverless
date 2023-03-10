@@ -39,7 +39,7 @@ from opentelemetry.sdk.trace.export import (
 from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from quantum_serverless.core.constrants import (
+from quantum_serverless.core.constants import (
     OT_PROGRAM_NAME,
     OT_PROGRAM_NAME_DEFAULT,
     OT_JAEGER_HOST_KEY,
