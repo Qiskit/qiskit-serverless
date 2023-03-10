@@ -68,29 +68,6 @@ jupyter:
 
 
 # ===================
-# Manager configs
-# ===================
-
-managerEnable: true
-manager:
-  image:
-    repository: "qiskit/quantum-serverless-manager"
-    tag: "latest"
-    pullPolicy: IfNotPresent
-    
-  imagePullSecrets: []
-
-  container:
-    port: 5000
-
-  service:
-    port: 5000
-
-  ingress:
-    enabled: false
-
-
-# ===================
 # Ray Cluster
 # ===================
 

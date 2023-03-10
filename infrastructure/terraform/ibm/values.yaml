@@ -68,30 +68,6 @@ jupyter:
 
 
 # ===================
-# Manager configs
-# ===================
-
-managerEnable: false
-
-manager:
-  image:
-    repository: "<CLUSTER_MANAGER_IMAGE>"
-    tag: "latest"
-    pullPolicy: IfNotPresent
-    
-  imagePullSecrets: []
-
-  container:
-    port: 5000
-
-  service:
-    port: 5000
-
-  ingress:
-    enabled: false
-
-
-# ===================
 # Ray Cluster
 # ===================
 
