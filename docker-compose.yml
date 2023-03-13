@@ -1,12 +1,12 @@
 # compose config on nightly builds
 services:
-  jupyter:
-    container_name: qs-jupyter
-    image: qiskit/quantum-serverless-notebook:nightly-py39
-    ports:
-      - 8888:8888
-    networks:
-      - safe-tier
+#  jupyter:
+#    container_name: qs-jupyter
+#    image: qiskit/quantum-serverless-notebook:nightly-py39
+#    ports:
+#      - 8888:8888
+#    networks:
+#      - safe-tier
   ray-head:
     container_name: ray-head
     image: qiskit/quantum-serverless-ray-node:nightly-py39
@@ -18,8 +18,8 @@ services:
       - OT_JAEGER_HOST_KEY=jaeger
     ports:
       - 8265:8265
-      - 8000:8000
-      - 10001:10001
+#      - 8000:8000
+#      - 10001:10001
     privileged: true
     volumes:
       - /dev/shm:/dev/shm
@@ -49,5 +49,37 @@ services:
       - 9411:9411
     networks:
       - safe-tier
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: testkeycloakdb
+      POSTGRES_USER: testkeycloakuser
+      POSTGRES_PASSWORD: testkeycloakpassword
+    restart:
+      always
+
+  keycloak:
+    image: jboss/keycloak:16.1.0
+    volumes:
+      - ./realm-export.json:/opt/jboss/keycloak/imports/realm-export.json
+    command:
+      - "-b 0.0.0.0 -Dkeycloak.profile.feature.upload_scripts=enabled -Dkeycloak.import=/opt/jboss/keycloak/imports/realm-export.json"
+    environment:
+      DB_VENDOR: POSTGRES
+      DB_ADDR: postgres
+      DB_DATABASE: testkeycloakdb
+      DB_USER: testkeycloakuser
+      DB_SCHEMA: public
+      DB_PASSWORD: testkeycloakpassword
+      KEYCLOAK_USER: keycloakuser
+      KEYCLOAK_PASSWORD: keycloakpassword
+      PROXY_ADDRESS_FORWARDING: "true"
+      KEYCLOAK_LOGLEVEL: DEBUG
+    ports:
+      - '8085:8080'
+    depends_on:
+      - postgres
+    restart:
+      always
 networks:
   safe-tier:

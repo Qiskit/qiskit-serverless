@@ -28,6 +28,9 @@ Quantum serverless provider
 """
 import json
 import logging
+import os.path
+import tarfile
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Optional, List, Dict
 from uuid import uuid4
@@ -39,7 +42,7 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from quantum_serverless.core.constants import OT_PROGRAM_NAME, RAY_IMAGE
 
 from quantum_serverless.core.tracing import _trace_env_vars
-from quantum_serverless.core.job import Job
+from quantum_serverless.core.job import Job, RayJobClient, GatewayJobClient, BaseJobClient
 from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
@@ -66,7 +69,7 @@ class ComputeResource:
     port_job_server: int = 8265
     resources: Optional[Dict[str, float]] = None
 
-    def job_client(self) -> Optional[JobSubmissionClient]:
+    def job_client(self) -> Optional[BaseJobClient]:
         """Return job client for given compute resource.
 
         Returns:
@@ -83,7 +86,7 @@ class ComputeResource:
                     "You will not be able to run jobs on this provider.",
                     connection_url,
                 )
-            return client
+            return RayJobClient(client)
         return None
 
     def context(self, **kwargs):
@@ -134,12 +137,12 @@ class Provider(JsonSerializable):
     """Provider."""
 
     def __init__(
-        self,
-        name: str,
-        host: Optional[str] = None,
-        token: Optional[str] = None,
-        compute_resource: Optional[ComputeResource] = None,
-        available_compute_resources: Optional[List[ComputeResource]] = None,
+            self,
+            name: str,
+            host: Optional[str] = None,
+            token: Optional[str] = None,
+            compute_resource: Optional[ComputeResource] = None,
+            available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
         """Provider for serverless computation.
 
@@ -213,6 +216,33 @@ class Provider(JsonSerializable):
         """Delete compute resource for provider."""
         raise NotImplementedError
 
+    def get_jobs(self, **kwargs) -> List[Job]:
+        """Return list of jobs.
+
+        Returns:
+            list of jobs.
+        """
+        raise NotImplementedError
+
+    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        """Returns job by job id.
+
+        Args:
+            job_id: job id
+
+        Returns:
+            Job instance
+        """
+        job_client = self.job_client()
+
+        if job_client is None:
+            logging.warning(  # pylint: disable=logging-fstring-interpolation
+                "Job has not been found as no provider "
+                "with remote host has been configured. "
+            )
+            return None
+        return Job(job_id=job_id, job_client=job_client)
+
     def run_program(self, program: Program) -> Job:
         """Execute program as a async job.
 
@@ -242,44 +272,22 @@ class Provider(JsonSerializable):
             )
             return None
 
-        arguments = ""
-        if program.arguments is not None:
-            arg_list = []
-            for key, value in program.arguments.items():
-                if isinstance(value, dict):
-                    arg_list.append(f"--{key}='{json.dumps(value)}'")
-                else:
-                    arg_list.append(f"--{key}={value}")
-            arguments = " ".join(arg_list)
-        entrypoint = f"python {program.entrypoint} {arguments}"
+        return job_client.run_program(program)
 
-        # set program name so OT can use it as parent span name
-        env_vars = {**(program.env_vars or {}), **{OT_PROGRAM_NAME: program.name}}
-
-        job_id = job_client.submit_job(
-            entrypoint=entrypoint,
-            submission_id=f"qs_{uuid4()}",
-            runtime_env={
-                "working_dir": program.working_dir,
-                "pip": program.dependencies,
-                "env_vars": env_vars,
-            },
-        )
-        return Job(job_id=job_id, job_client=job_client)
 
 
 class KuberayProvider(Provider):
     """Implements CRUD for Kuberay API server."""
 
     def __init__(
-        self,
-        name: str,
-        host: Optional[str] = None,
-        namespace: Optional[str] = "default",
-        img: Optional[str] = RAY_IMAGE,
-        token: Optional[str] = None,
-        compute_resource: Optional[ComputeResource] = None,
-        available_compute_resources: Optional[List[ComputeResource]] = None,
+            self,
+            name: str,
+            host: Optional[str] = None,
+            namespace: Optional[str] = "default",
+            img: Optional[str] = RAY_IMAGE,
+            token: Optional[str] = None,
+            compute_resource: Optional[ComputeResource] = None,
+            available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
         """Kuberay provider for serverless computation.
 
@@ -449,3 +457,122 @@ class KuberayProvider(Provider):
             self.api_root + f"/compute_templates/{resource}",
             timeout=TIMEOUT,
         )
+
+    def get_jobs(self, **kwargs) -> List[Job]:
+        raise NotImplementedError
+
+
+class GatewayProvider(Provider):
+    def __init__(self,
+                 name: str,
+                 host: str,
+                 username: str,
+                 password: str,
+                 auth_host: Optional[str] = None
+                 ):
+        super().__init__(name)
+        self.host = host
+        self.auth_host = auth_host or host
+        self._username = username
+        self._password = password
+        self._token = None
+        self._fetch_token()
+
+    def get_compute_resources(self) -> List[ComputeResource]:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+    def create_compute_resource(self, resource) -> int:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+    def delete_compute_resource(self, resource) -> int:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        job = None
+        url = f"{self.host}/jobs/{job_id}/"
+        response = requests.get(url, headers={
+            'Authorization': f'Bearer {self._token}'
+        })
+        if response.ok:
+            data = json.loads(response.text)
+            job = Job(job_id=data.get("id"), job_client=GatewayJobClient(self.host, self._token))
+        else:
+            logging.warning(response.text)
+
+        return job
+
+    def run_program(self, program: Program) -> Job:
+        url = f"{self.host}/programs/run_program/"
+        file_name = os.path.join(program.working_dir, "artifact.tar")
+        with tarfile.open(file_name, "w") as file:
+            file.add(program.working_dir)
+
+        with open(file_name, "rb") as file:
+            response = requests.post(
+                url=url,
+                data={
+                    "title": program.name,
+                    "entrypoint": program.entrypoint
+                },
+                files={
+                    "artifact": file
+                },
+                headers={
+                    'Authorization': f'Bearer {self._token}'
+                }
+            )
+            if not response.ok:
+                raise QuantumServerlessException(f"Something went wrong with program execution. {response.text}")
+
+            json_response = json.loads(response.text)
+            job_id = json_response.get("id")
+
+            # TODO: remove file
+
+            return Job(job_id, job_client=GatewayJobClient(self.host, self._token))
+
+    def get_jobs(self, **kwargs) -> List[Job]:
+        jobs = []
+        url = f"{self.host}/jobs/"
+        response = requests.get(url, headers={
+                    'Authorization': f'Bearer {self._token}'
+                })
+        if response.ok:
+            jobs = [
+                Job(job_id=job.get("id"), job_client=GatewayJobClient(self.host, self._token))
+                for job in json.loads(response.text).get("results", [])
+            ]
+        else:
+            logging.warning(response.text)
+
+        return jobs
+
+    def _fetch_token(self):
+        realm = "Test"  # TODO: get realm
+        client_id = "newone"  # TODO: get client id
+        keycloak_response = requests.post(
+            url=f"{self.auth_host}/auth/realms/{realm}/protocol/openid-connect/token",
+            data={
+                "username": self._username,
+                "password": self._password,
+                "client_id": client_id,
+                "grant_type": "password"
+            }
+        )
+        if not keycloak_response.ok:
+            raise QuantumServerlessException("Incorrect credentials.")
+
+        keycloak_token = json.loads(keycloak_response.text).get("access_token")
+
+        gateway_response = requests.post(
+            url=f"{self.host}/dj-rest-auth/keycloak/",
+            data={
+                "access_token": keycloak_token
+            }
+        )
+
+        if not gateway_response.ok:
+            raise QuantumServerlessException("Incorrect access token.")
+
+        gateway_token = json.loads(gateway_response.text).get("access_token")
+        self._token = gateway_token

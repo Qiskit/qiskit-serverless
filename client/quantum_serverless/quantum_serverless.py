@@ -46,47 +46,8 @@ Context = Union[BaseContext]
 class QuantumServerless:
     """QuantumServerless class."""
 
-    @classmethod
-    def load_configuration(cls, path: str) -> "QuantumServerless":
-        """Creates instance from configuration file.
-
-        Example:
-            >>> quantum_serverless = QuantumServerless.load_configuration("./my_config.json")
-
-        Args:
-            path: path to file with configuration
-
-        Returns:
-            Instance of QuantumServerless
-        """
-        with open(path, "r") as config_file:  # pylint: disable=unspecified-encoding
-            config = json.load(config_file)
-            return QuantumServerless(config)
-
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, providers: Union[Provider, List[Provider]]):
         """Quantum serverless management class.
-
-        Example:
-            >>> configuration = {
-            >>>     "providers": [{
-            >>>         "name": "my_provider",
-            >>>         "compute_resource": {
-            >>>             "name": "my_resource",
-            >>>             "host": "<HEAD_NODE_HOST>",
-            >>>             "port": 10001
-            >>>         }
-            >>>     }]
-            >>> }
-            >>> quantum_serverless = QuantumServerless(configuration)
-            >>>
-            >>> with quantum_serverless.provider("my_provider"):
-            >>>     ...
-
-        Example:
-            >>> quantum_serverless = QuantumServerless()
-            >>>
-            >>> with quantum_serverless:
-            >>>     ...
 
         Args:
             config: configuration
@@ -94,7 +55,9 @@ class QuantumServerless:
         Raises:
             QuantumServerlessException
         """
-        self._providers: List[Provider] = load_config(config)
+        if isinstance(providers, Provider):
+            providers = [providers]
+        self._providers: List[Provider] = providers
         self._selected_provider: Provider = self._providers[-1]
 
         self._allocated_context: Optional[Context] = None
@@ -140,55 +103,6 @@ class QuantumServerless:
         """
         return self._selected_provider.run_program(program)
 
-    def run_job(
-        self,
-        entrypoint: str,
-        runtime_env: Optional[Union[Dict[str, Any], RuntimeEnv]] = None,
-    ) -> Optional[Job]:
-        """Runs given entrypoint script as job.
-
-        Example:
-            >>> job = QuantumServerless(...).run_job(
-            >>>     entrypoint="python job.py",
-            >>>     runtime_env={
-            >>>         "working_dir": "./",
-            >>>         # "pip": ["requests==2.26.0"]
-            >>>     }
-            >>> )
-            >>> job.status()
-            >>> job.logs()
-
-        Args:
-            entrypoint: how to execute your job
-            runtime_env: workdir, extra dependencies, etc.
-
-        Returns:
-            job
-        """
-        warnings.warn(
-            "Function run_job is deprecated and will be removed in future releases."
-            "Please, use run_program instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        job_client = self.job_client
-
-        if job_client is None:
-            logging.warning(  # pylint: disable=logging-fstring-interpolation
-                f"Job has not been submitted as no provider "
-                f"with remote host has been configured. "
-                f"Selected provider: {self._selected_provider}"
-            )
-            return None
-
-        job_id = job_client.submit_job(
-            entrypoint=entrypoint,
-            submission_id=f"qs_{uuid4()}",
-            runtime_env=runtime_env,
-        )
-        return Job(job_id=job_id, job_client=job_client)
-
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.
 
@@ -198,17 +112,18 @@ class QuantumServerless:
         Returns:
             Job instance
         """
-        job_client = self.job_client
+        return self._selected_provider.get_job_by_id(job_id)
 
-        if job_client is None:
-            logging.warning(  # pylint: disable=logging-fstring-interpolation
-                f"Job has not been found as no provider "
-                f"with remote host has been configured. "
-                f"Selected provider: {self._selected_provider}"
-            )
-            return None
-        job_client.get_job_info(job_id)
-        return Job(job_id=job_id, job_client=job_client)
+    def get_jobs(self, **kwargs):
+        """Return jobs.
+
+        Args:
+            **kwargs: filters
+
+        Returns:
+            list of jobs
+        """
+        return self._selected_provider.get_jobs(**kwargs)
 
     def context(
         self,

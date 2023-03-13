@@ -24,6 +24,7 @@ from .core import (
 )
 from .quantum_serverless import QuantumServerless
 from .core.program import Program
+from .core import Provider, KuberayProvider, GatewayProvider
 
 try:
     __version__ = metadata_version("quantum_serverless")
