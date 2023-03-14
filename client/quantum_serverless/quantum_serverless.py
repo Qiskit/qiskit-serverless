@@ -30,12 +30,11 @@ import logging
 import os
 import warnings
 from typing import Optional, Union, List, Dict, Any
-from uuid import uuid4
 
 import requests
 from ray._private.worker import BaseContext
 
-from quantum_serverless.core.job import Job, RuntimeEnv
+from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
 from quantum_serverless.core.provider import Provider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
@@ -46,7 +45,7 @@ Context = Union[BaseContext]
 class QuantumServerless:
     """QuantumServerless class."""
 
-    def __init__(self, providers: Union[Provider, List[Provider]]):
+    def __init__(self, providers: Optional[Union[Provider, List[Provider]]] = None):
         """Quantum serverless management class.
 
         Args:
@@ -55,7 +54,11 @@ class QuantumServerless:
         Raises:
             QuantumServerlessException
         """
-        if isinstance(providers, Provider):
+        if providers is None:
+            providers = [
+                Provider("local", compute_resource=ComputeResource(name="local"))
+            ]
+        elif isinstance(providers, Provider):
             providers = [providers]
         self._providers: List[Provider] = providers
         self._selected_provider: Provider = self._providers[-1]

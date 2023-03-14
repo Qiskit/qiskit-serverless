@@ -30,20 +30,27 @@ import json
 import logging
 import os.path
 import tarfile
-from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Optional, List, Dict
-from uuid import uuid4
-import requests
 
 import ray
+import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
-from quantum_serverless.core.constants import OT_PROGRAM_NAME, RAY_IMAGE
-
-from quantum_serverless.core.tracing import _trace_env_vars
-from quantum_serverless.core.job import Job, RayJobClient, GatewayJobClient, BaseJobClient
+from quantum_serverless.core.constants import (
+    RAY_IMAGE,
+    ENV_KEYCLOAK_REALM,
+    ENV_KEYCLOAK_CLIENT_ID,
+    REQUESTS_TIMEOUT,
+)
+from quantum_serverless.core.job import (
+    Job,
+    RayJobClient,
+    GatewayJobClient,
+    BaseJobClient,
+)
 from quantum_serverless.core.program import Program
+from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
 
@@ -79,14 +86,15 @@ class ComputeResource:
             connection_url = f"http://{self.host}:{self.port_job_server}"
             client = None
             try:
-                client = JobSubmissionClient(connection_url)
+                client = RayJobClient(JobSubmissionClient(connection_url))
             except ConnectionError:
                 logging.warning(
                     "Failed to establish connection with jobs server at %s. "
                     "You will not be able to run jobs on this provider.",
                     connection_url,
                 )
-            return RayJobClient(client)
+
+            return client
         return None
 
     def context(self, **kwargs):
@@ -137,12 +145,12 @@ class Provider(JsonSerializable):
     """Provider."""
 
     def __init__(
-            self,
-            name: str,
-            host: Optional[str] = None,
-            token: Optional[str] = None,
-            compute_resource: Optional[ComputeResource] = None,
-            available_compute_resources: Optional[List[ComputeResource]] = None,
+        self,
+        name: str,
+        host: Optional[str] = None,
+        token: Optional[str] = None,
+        compute_resource: Optional[ComputeResource] = None,
+        available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
         """Provider for serverless computation.
 
@@ -275,19 +283,18 @@ class Provider(JsonSerializable):
         return job_client.run_program(program)
 
 
-
 class KuberayProvider(Provider):
     """Implements CRUD for Kuberay API server."""
 
     def __init__(
-            self,
-            name: str,
-            host: Optional[str] = None,
-            namespace: Optional[str] = "default",
-            img: Optional[str] = RAY_IMAGE,
-            token: Optional[str] = None,
-            compute_resource: Optional[ComputeResource] = None,
-            available_compute_resources: Optional[List[ComputeResource]] = None,
+        self,
+        name: str,
+        host: Optional[str] = None,
+        namespace: Optional[str] = "default",
+        img: Optional[str] = RAY_IMAGE,
+        token: Optional[str] = None,
+        compute_resource: Optional[ComputeResource] = None,
+        available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
         """Kuberay provider for serverless computation.
 
@@ -463,19 +470,37 @@ class KuberayProvider(Provider):
 
 
 class GatewayProvider(Provider):
-    def __init__(self,
-                 name: str,
-                 host: str,
-                 username: str,
-                 password: str,
-                 auth_host: Optional[str] = None
-                 ):
+    """GatewayProvider."""
+
+    def __init__(
+        self,
+        name: str,
+        host: str,
+        username: str,
+        password: str,
+        auth_host: Optional[str] = None,
+        realm: Optional[str] = None,
+        client_id: Optional[str] = None,
+    ):
+        """GatewayProvider.
+
+        Args:
+            name: name of provider
+            host: host of gateway
+            username: username
+            password: password
+            auth_host: host of keycloak server
+            realm: keycloak realm
+            client_id: keycloak client id
+        """
         super().__init__(name)
         self.host = host
         self.auth_host = auth_host or host
         self._username = username
         self._password = password
         self._token = None
+        self._realm = realm or os.environ.get(ENV_KEYCLOAK_REALM, "Test")
+        self._client_id = client_id or os.environ.get(ENV_KEYCLOAK_CLIENT_ID, "newone")
         self._fetch_token()
 
     def get_compute_resources(self) -> List[ComputeResource]:
@@ -490,12 +515,17 @@ class GatewayProvider(Provider):
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         job = None
         url = f"{self.host}/jobs/{job_id}/"
-        response = requests.get(url, headers={
-            'Authorization': f'Bearer {self._token}'
-        })
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {self._token}"},
+            timeout=REQUESTS_TIMEOUT,
+        )
         if response.ok:
             data = json.loads(response.text)
-            job = Job(job_id=data.get("id"), job_client=GatewayJobClient(self.host, self._token))
+            job = Job(
+                job_id=data.get("id"),
+                job_client=GatewayJobClient(self.host, self._token),
+            )
         else:
             logging.warning(response.text)
 
@@ -510,36 +540,38 @@ class GatewayProvider(Provider):
         with open(file_name, "rb") as file:
             response = requests.post(
                 url=url,
-                data={
-                    "title": program.name,
-                    "entrypoint": program.entrypoint
-                },
-                files={
-                    "artifact": file
-                },
-                headers={
-                    'Authorization': f'Bearer {self._token}'
-                }
+                data={"title": program.name, "entrypoint": program.entrypoint},
+                files={"artifact": file},
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
             if not response.ok:
-                raise QuantumServerlessException(f"Something went wrong with program execution. {response.text}")
+                raise QuantumServerlessException(
+                    f"Something went wrong with program execution. {response.text}"
+                )
 
             json_response = json.loads(response.text)
             job_id = json_response.get("id")
 
-            # TODO: remove file
+        if os.path.exists(file_name):
+            os.remove(file_name)
 
-            return Job(job_id, job_client=GatewayJobClient(self.host, self._token))
+        return Job(job_id, job_client=GatewayJobClient(self.host, self._token))
 
     def get_jobs(self, **kwargs) -> List[Job]:
         jobs = []
         url = f"{self.host}/jobs/"
-        response = requests.get(url, headers={
-                    'Authorization': f'Bearer {self._token}'
-                })
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {self._token}"},
+            timeout=REQUESTS_TIMEOUT,
+        )
         if response.ok:
             jobs = [
-                Job(job_id=job.get("id"), job_client=GatewayJobClient(self.host, self._token))
+                Job(
+                    job_id=job.get("id"),
+                    job_client=GatewayJobClient(self.host, self._token),
+                )
                 for job in json.loads(response.text).get("results", [])
             ]
         else:
@@ -548,16 +580,15 @@ class GatewayProvider(Provider):
         return jobs
 
     def _fetch_token(self):
-        realm = "Test"  # TODO: get realm
-        client_id = "newone"  # TODO: get client id
         keycloak_response = requests.post(
-            url=f"{self.auth_host}/auth/realms/{realm}/protocol/openid-connect/token",
+            url=f"{self.auth_host}/auth/realms/{self._realm}/protocol/openid-connect/token",
             data={
                 "username": self._username,
                 "password": self._password,
-                "client_id": client_id,
-                "grant_type": "password"
-            }
+                "client_id": self._client_id,
+                "grant_type": "password",
+            },
+            timeout=REQUESTS_TIMEOUT,
         )
         if not keycloak_response.ok:
             raise QuantumServerlessException("Incorrect credentials.")
@@ -566,9 +597,8 @@ class GatewayProvider(Provider):
 
         gateway_response = requests.post(
             url=f"{self.host}/dj-rest-auth/keycloak/",
-            data={
-                "access_token": keycloak_token
-            }
+            data={"access_token": keycloak_token},
+            timeout=REQUESTS_TIMEOUT,
         )
 
         if not gateway_response.ok:

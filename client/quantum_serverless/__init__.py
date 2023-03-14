@@ -21,10 +21,10 @@ from .core import (
     put,
     get_refs_by_status,
     KuberayProvider,
+    GatewayProvider,
 )
 from .quantum_serverless import QuantumServerless
 from .core.program import Program
-from .core import Provider, KuberayProvider, GatewayProvider
 
 try:
     __version__ = metadata_version("quantum_serverless")

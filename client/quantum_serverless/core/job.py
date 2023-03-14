@@ -29,38 +29,52 @@ Quantum serverless job
 """
 import json
 import logging
-from typing import Iterator
 from uuid import uuid4
 
 import ray.runtime_env
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
+from quantum_serverless.core.constants import OT_PROGRAM_NAME, REQUESTS_TIMEOUT
 from quantum_serverless.core.program import Program
-from quantum_serverless.core.constants import OT_PROGRAM_NAME
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
 
 class BaseJobClient:
-    def run_program(self, program: Program) -> 'Job':
+    """Base class for Job clients."""
+
+    def run_program(self, program: Program) -> "Job":
+        """Runs program."""
         raise NotImplementedError
 
     def status(self, job_id: str):
+        """Check status."""
         raise NotImplementedError
 
     def stop(self, job_id: str):
+        """Stops job/program."""
         raise NotImplementedError
 
     def logs(self, job_id: str):
+        """Return logs."""
         raise NotImplementedError
 
     def result(self, job_id: str):
+        """Return results."""
         raise NotImplementedError
 
 
 class RayJobClient(BaseJobClient):
+    """RayJobClient."""
+
     def __init__(self, client: JobSubmissionClient):
+        """Ray job client.
+        Wrapper around JobSubmissionClient
+
+        Args:
+            client: JobSubmissionClient
+        """
         self._job_client = client
 
     def status(self, job_id: str):
@@ -103,20 +117,32 @@ class RayJobClient(BaseJobClient):
 
 
 class GatewayJobClient(BaseJobClient):
+    """GatewayJobClient."""
+
     def __init__(self, host: str, token: str):
+        """Job client for Gateway service.
+
+        Args:
+            host: gateway host
+            token: authorization token
+        """
         self.host = host
         self._token = token
 
     def status(self, job_id: str):
         default_status = "Unknown"
         status = default_status
-        response = requests.get(f"{self.host}/jobs/{job_id}/", headers={
-                    'Authorization': f'Bearer {self._token}'
-                })
+        response = requests.get(
+            f"{self.host}/jobs/{job_id}/",
+            headers={"Authorization": f"Bearer {self._token}"},
+            timeout=REQUESTS_TIMEOUT,
+        )
         if response.ok:
             status = json.loads(response.text).get("status", default_status)
         else:
-            logging.warning(f"Something went wrong during job status fetching. {response.text}")
+            logging.warning(
+                "Something went wrong during job status fetching. %s", response.text
+            )
         return status
 
     def stop(self, job_id: str):
@@ -127,13 +153,17 @@ class GatewayJobClient(BaseJobClient):
 
     def result(self, job_id: str):
         result = None
-        response = requests.get(f"{self.host}/jobs/{job_id}/", headers={
-                    'Authorization': f'Bearer {self._token}'
-                })
+        response = requests.get(
+            f"{self.host}/jobs/{job_id}/",
+            headers={"Authorization": f"Bearer {self._token}"},
+            timeout=REQUESTS_TIMEOUT,
+        )
         if response.ok:
             result = json.loads(response.text).get("result", None)
         else:
-            logging.warning(f"Something went wrong during job result fetching. {response.text}")
+            logging.warning(
+                "Something went wrong during job result fetching. %s", response.text
+            )
         return result
 
 

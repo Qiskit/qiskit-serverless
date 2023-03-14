@@ -24,3 +24,10 @@ OT_LABEL_CALL_LOCATION = "qs.location"
 
 # container image
 RAY_IMAGE = "qiskit/quantum-serverless-ray-node:latest-py39"
+
+# keycloak
+ENV_KEYCLOAK_REALM = "ENV_KEYCLOAK_REALM"
+ENV_KEYCLOAK_CLIENT_ID = "ENV_KEYCLOAK_CLIENT_ID"
+
+# request timeout
+REQUESTS_TIMEOUT: int = 30
