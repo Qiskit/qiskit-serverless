@@ -35,3 +35,7 @@ dependencies:
     condition: keycloakEnable
     version: 13.3.0
     repository: https://charts.bitnami.com/bitnami
+  - name: prometheus
+    condition: prometheusEnable
+    version: 19.7.2
+    repository: https://prometheus-community.github.io/helm-charts
