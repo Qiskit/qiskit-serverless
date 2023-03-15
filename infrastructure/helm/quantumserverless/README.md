@@ -1,6 +1,6 @@
 # Helm configuration
 
-Main configuration to setup your k8s cluster and the services that this project uses. The helm configuration contains 6 charts: jupyter, manager, kuberay-operator, ray-cluster, redis and keycloak.
+Main configuration to setup your k8s cluster and the services that this project uses. The helm configuration contains 5 charts: jupyter, kuberay-operator, ray-cluster, redis, and keycloak.
 
 ## Installation
 
@@ -15,6 +15,8 @@ helm dependency build
 Update values.yaml file. Find and replace the following strings
 
 - **CLIENTSECRET-CHANGEME**: string used as the secret for a OIDC protocol
+- **APISERVERSECRET-CHANGEME**: string used as the secret for a OIDC protocol for apiserver
+- **SECRET-CHANGEME**: string used as the secret for a OIDC protocol
 - **HELM-RELEASE**: release name used in the helm install command
 - **LOCAL-IP**: IP address that can be accessed from both outside of the cluster and inside of the cluster.  
 
@@ -42,6 +44,12 @@ eth1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
         TX packets 5373197  bytes 774842996 (774.8 MB)
         TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
 ```
+Kind - kubectl output (**172.18.0.2**)
+```
+# kubectl get node -o wide
+NAME                 STATUS   ROLES           AGE    VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+kind-control-plane   Ready    control-plane   5d6h   v1.25.3   172.18.0.2    <none>        Ubuntu 22.04.1 LTS   5.4.0-139-generic   containerd://1.6.9
+```
 
 Install from the default values file
 ```shell
@@ -57,6 +65,12 @@ Install from specific values file
 
 ```shell
 kubectl patch svc -n ray kuberay-apiserver-service --type json  --patch '[{"op" : "replace" ,"path" : "/spec/selector" ,"value" : {"app.kubernetes.io/component": "kuberay-apiserver"}}]'
+```
+
+(temporary) Patch the kuberay-apiserver deployment
+
+```shell
+./hack/apisesrver/patch.sh <LOCAL-IP>
 ```
 
 ## Helm chart versions
@@ -88,17 +102,6 @@ But if you are interested in more complex configurations you have access to all 
 | jupyter.service.port      | Port number that service will be exposed externally.              |
 | jupyter.ingress.enabled   | Specifies if you are going to use ingress to expose the service.  |
 
-**Manager**
-
-| Name                       | Description                                                      |
-|----------------------------|------------------------------------------------------------------|
-| managerEnable              | Specify if helm will execute the manager configuration.          |
-| manager.image              | Docker image configuration to deploy the manager.                |
-| manager.imagePullSecrets   | Secrets to pull the image from a private registry.               |
-| manager.container.port     | Port number that the pod will use in the cluster.                |
-| manager.service.port       | Port number that service will be exposed externally.             |
-| manager.ingress.enabled    | Specifies if you are going to use ingress to expose the service. |
-
 **Ray cluster, Kuberay operator, and Kuberay api server**
 
 For our Ray Charts dependencies we are using the configuration created by the Ray Project. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to their Helm project [in GitHub](https://github.com/ray-project/kuberay-helm) to analyze the different variables:
@@ -114,3 +117,25 @@ For our Ray Charts dependencies we are using the configuration created by the Ra
 - The initial user ID and password for both keycload console(adminUser/adminPassword) and Ray dashboard(keycloakUserID/keycloakPassword) can be changed in the values.yaml file. It is good to change them before apply the helm.
 - Keycloak console can be accessed at http://LOCAL-IP:31059/.  Its initial user ID and password are "admin" and "passw0rd".
 - Ray dashboard can be accessed at http://localhost/.  Its initial user ID and password are "user" and "passw0rd".
+
+## Usage
+
+- Ray Api Server access needs the access token issued by the keycloak.  Here is the example to obtain the access token and send request to the Ray API Server
+
+```
+#!/bin/bash
+API=$1
+RESPONSE=$(curl --request POST \
+  --url 'http://<LOCAL-IP>:31059/realms/quantumserverless/protocol/openid-connect/token' \
+  --header 'content-type: application/x-www-form-urlencoded' \
+  --data grant_type=client_credentials \
+  --data client_id=rayapiserver \
+  --data client_secret=APISERVERSECRET-CHANGEME \
+  --data audience=rayapiserver | jq .access_token)
+TOKEN=${RESPONSE//'"'/}
+
+curl --request GET -k --proxy http://<LOCAL-IP>:30634/ \
+--header "authorization: Bearer $TOKEN" \
+--header 'content-type: application/json' \
+--url "http://kuberay-apiserver-service:8888/$API"
+```

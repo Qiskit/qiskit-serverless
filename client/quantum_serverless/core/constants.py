@@ -26,3 +26,7 @@ OT_LABEL_CALL_LOCATION = "qs.location"
 # repository
 REPO_HOST_KEY = "REPO_HOST_KEY"
 REPO_PORT_KEY = "REPO_PORT_KEY"
+
+
+# container image
+RAY_IMAGE = "qiskit/quantum-serverless-ray-node:latest-py39"

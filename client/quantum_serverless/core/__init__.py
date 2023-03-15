@@ -55,7 +55,7 @@ State classes
     RedisStateHandler
 """
 
-from .provider import Provider, ComputeResource
+from .provider import Provider, ComputeResource, KuberayProvider
 from .decorators import remote, get, put, run_qiskit_remote, get_refs_by_status
 from .events import RedisEventHandler, EventHandler, ExecutionMessage
 from .state import RedisStateHandler, StateHandler

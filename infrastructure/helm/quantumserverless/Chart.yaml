@@ -27,16 +27,13 @@ dependencies:
     condition: rayClusterEnable
     version: 0.4.0
     repository: https://ray-project.github.io/kuberay-helm
-  - name: manager
-    condition: managerEnable
-    version: 0.1.0
   - name: redis
     condition: redisEnable
     version: 17.8.3
     repository: https://charts.bitnami.com/bitnami
   - name: keycloak
     condition: keycloakEnable
-    version: 13.1.3
+    version: 13.3.0
     repository: https://charts.bitnami.com/bitnami
   - name: repository
     condition: repositoryEnable
