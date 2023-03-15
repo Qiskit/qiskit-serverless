@@ -26,7 +26,7 @@ pip install -U -r requirements.txt -r requirements-dev.txt
 
 ### Usage
 
-To run the API you just need to run:
+To run the API you just need to execute:
 
 ```shell
 python manage.py runserver 
