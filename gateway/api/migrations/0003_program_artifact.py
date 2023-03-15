@@ -4,16 +4,15 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('api', '0002_job'),
+        ("api", "0002_job"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='program',
-            name='artifact',
-            field=models.FileField(default='default', upload_to='artifacts_%Y_%m_%d'),
+            model_name="program",
+            name="artifact",
+            field=models.FileField(default="default", upload_to="artifacts_%Y_%m_%d"),
             preserve_default=False,
         ),
     ]

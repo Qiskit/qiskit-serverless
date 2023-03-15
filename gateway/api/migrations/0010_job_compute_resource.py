@@ -5,15 +5,19 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('api', '0009_job_ray_job_id'),
+        ("api", "0009_job_ray_job_id"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='job',
-            name='compute_resource',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='api.computeresource'),
+            model_name="job",
+            name="compute_resource",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="api.computeresource",
+            ),
         ),
     ]

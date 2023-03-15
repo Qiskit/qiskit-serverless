@@ -4,15 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('api', '0005_alter_job_result'),
+        ("api", "0005_alter_job_result"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='job',
-            name='status',
-            field=models.CharField(choices=[('PENDING', 'Pending'), ('RUNNING', 'Running'), ('ERROR', 'Error'), ('FINISHED', 'Finished')], default='PENDING', max_length=10),
+            model_name="job",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("PENDING", "Pending"),
+                    ("RUNNING", "Running"),
+                    ("ERROR", "Error"),
+                    ("FINISHED", "Finished"),
+                ],
+                default="PENDING",
+                max_length=10,
+            ),
         ),
     ]
