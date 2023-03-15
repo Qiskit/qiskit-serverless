@@ -38,7 +38,7 @@ from typing import Optional, Dict, List, Any
 
 import requests
 
-from quantum_serverless.core.constrants import (
+from quantum_serverless.core.constants import (
     REPO_HOST_KEY,
     REPO_PORT_KEY,
 )
