@@ -22,8 +22,6 @@ services:
       - OT_JAEGER_HOST_KEY=jaeger
     ports:
       - 8265:8265
-      - 8000:8000
-      - 10001:10001
     privileged: true
     volumes:
       - /dev/shm:/dev/shm
@@ -53,5 +51,19 @@ services:
       - 9411:9411
     networks:
       - safe-tier
+  gateway:
+    container_name: gateway
+    build: ./gateway
+    command: gunicorn gateway.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - 8000:8000
+    environment:
+      - DEBUG=0
+      - SITE_HOST=127.0.0.1
+      - RAY_HOST=http://ray:8265
+      - CLIENT_ID=newone
+      - DJANGO_SUPERUSER_USERNAME=admin
+      - DJANGO_SUPERUSER_PASSWORD=123
+      - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
 networks:
   safe-tier:

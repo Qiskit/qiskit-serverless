@@ -35,7 +35,10 @@ class Command(BaseCommand):
             social_app = SocialApp(
                 provider="keycloak", name="keycloak", client_id=client_id
             )
+        social_app.save()
         social_app.sites.add(site)
         social_app.save()
 
-        self.stdout.write(self.style.SUCCESS("Done."))
+        self.stdout.write(
+            self.style.SUCCESS("Successfully created site and keycloak app.")
+        )
