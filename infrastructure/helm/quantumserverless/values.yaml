@@ -263,5 +263,6 @@ keycloak:
 # ===================
 
 prometheusEnable: true
-prometheus:
+# prometheus:
 #    special configuration over the prometheus sub-chart
+
