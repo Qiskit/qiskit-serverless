@@ -49,5 +49,9 @@ services:
       - 9411:9411
     networks:
       - safe-tier
+  prometheus:
+    image: prom/prometheus:v2.42.0
+    ports:
+      - 9000:9090
 networks:
   safe-tier:

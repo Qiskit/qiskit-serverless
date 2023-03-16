@@ -258,9 +258,16 @@ keycloak:
       mountPath: /opt/bitnami/keycloak/data/import
   extraStartupArgs: "--import-realm"
 
-
 # ===================
 # Quantum Repository
 # ===================
 
 repositoryEnable: true
+
+# ===================
+# Prometheus 
+# ===================
+
+prometheusEnable: true
+# prometheus:
+#    special configuration over the prometheus sub-chart
