@@ -257,3 +257,12 @@ keycloak:
     - name: realm
       mountPath: /opt/bitnami/keycloak/data/import
   extraStartupArgs: "--import-realm"
+
+# ===================
+# Prometheus 
+# ===================
+
+prometheusEnable: true
+# prometheus:
+#    special configuration over the prometheus sub-chart
+

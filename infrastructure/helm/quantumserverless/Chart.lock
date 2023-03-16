@@ -14,14 +14,14 @@ dependencies:
 - name: ray-cluster
   repository: https://ray-project.github.io/kuberay-helm
   version: 0.4.0
-- name: manager
-  repository: ""
-  version: 0.1.0
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 17.8.3
 - name: keycloak
   repository: https://charts.bitnami.com/bitnami
   version: 13.3.0
-digest: sha256:3523b498e3947ec549a29db4f98970963c0b72c08300385dbc5a34711410caac
-generated: "2023-03-10T15:21:35.712874809Z"
+- name: prometheus
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 19.7.2
+digest: sha256:61b4adc88d3a07f0ed0b669cdcaf76de28f0ceb3af01905eebb20bc100b81215
+generated: "2023-03-14T15:46:28.318204316-04:00"

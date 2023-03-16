@@ -7,6 +7,7 @@ Main configuration to setup your k8s cluster and the services that this project 
 ```shell
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo add kuberay https://ray-project.github.io/kuberay-helm
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 ```
 
 ```shell
@@ -117,6 +118,10 @@ For our Ray Charts dependencies we are using the configuration created by the Ra
 - The initial user ID and password for both keycload console(adminUser/adminPassword) and Ray dashboard(keycloakUserID/keycloakPassword) can be changed in the values.yaml file. It is good to change them before apply the helm.
 - Keycloak console can be accessed at http://LOCAL-IP:31059/.  Its initial user ID and password are "admin" and "passw0rd".
 - Ray dashboard can be accessed at http://localhost/.  Its initial user ID and password are "user" and "passw0rd".
+
+**Prometheus**
+
+For our Prometheus dependency we are using the charts managed by the Prometheus community. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to all the parameters in the chart's [values.yaml](https://github.com/prometheus-community/helm-charts/blob/main/charts/prometheus/values.yaml).
 
 ## Usage
 
