@@ -259,10 +259,15 @@ keycloak:
   extraStartupArgs: "--import-realm"
 
 # ===================
+# Quantum Repository
+# ===================
+
+repositoryEnable: true
+
+# ===================
 # Prometheus 
 # ===================
 
 prometheusEnable: true
 # prometheus:
 #    special configuration over the prometheus sub-chart
-

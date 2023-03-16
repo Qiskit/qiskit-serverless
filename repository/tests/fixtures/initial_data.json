@@ -1,0 +1,33 @@
+[
+  {
+    "model": "auth.user",
+    "pk": 1,
+    "fields": {
+      "username": "test_user",
+      "password": "password_for_test_user"
+    }
+  },
+  {
+    "model": "api.nestedprogram",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+    "fields": {
+      "created": "2023-02-01T15:30:43.281796Z",
+      "updated": "2023-02-01T15:30:43.281830Z",
+      "title": "Nested program",
+      "description": "Best nested program in the world",
+      "entrypoint": "nested_program.py",
+      "working_dir": "./",
+      "version": "0.0.0",
+      "dependencies": null,
+      "env_vars": {
+        "DEBUG": "true"
+      },
+      "arguments": null,
+      "tags": [
+        "dev"
+      ],
+      "public": true,
+      "artifact": "path"
+    }
+  }
+]

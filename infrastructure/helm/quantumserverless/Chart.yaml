@@ -35,6 +35,9 @@ dependencies:
     condition: keycloakEnable
     version: 13.3.0
     repository: https://charts.bitnami.com/bitnami
+  - name: repository
+    condition: repositoryEnable
+    version: 0.1.0
   - name: prometheus
     condition: prometheusEnable
     version: 19.7.2
