@@ -20,8 +20,14 @@ dependencies:
 - name: keycloak
   repository: https://charts.bitnami.com/bitnami
   version: 13.3.0
+- name: repository
+  repository: ""
+  version: 0.1.0
 - name: prometheus
   repository: https://prometheus-community.github.io/helm-charts
   version: 19.7.2
-digest: sha256:61b4adc88d3a07f0ed0b669cdcaf76de28f0ceb3af01905eebb20bc100b81215
-generated: "2023-03-14T15:46:28.318204316-04:00"
+- name: loki
+  repository: https://grafana.github.io/helm-charts
+  version: 4.8.0
+digest: sha256:996849006aacd6baed57c17db52ebeff1ff3a4af4322e09e52c2281724bb50c6
+generated: "2023-03-16T14:30:49.858207-04:00"
