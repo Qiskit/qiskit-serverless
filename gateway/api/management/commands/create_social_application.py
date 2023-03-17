@@ -25,9 +25,14 @@ class Command(BaseCommand):
         if host is None or client_id is None:
             raise CommandError("Arguments [host] and [client_id] must be provided.")
 
-        site = Site.objects.filter(domain=host).first()
+        site = Site.objects.filter().first()
         if site is None:
+            self.stdout.write(
+                self.style.SUCCESS("Site did not exists. Creating new one.")
+            )
             site = Site(domain=host, name=host)
+        site.domain = host
+        site.name = host
         site.save()
 
         social_app = SocialApp.objects.filter(provider="keycloak").first()

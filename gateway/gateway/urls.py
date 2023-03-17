@@ -17,7 +17,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
 
-from api.views import ProgramViewSet, KeycloakLogin, JobViewSet
+from api.views import ProgramViewSet, KeycloakLogin, JobViewSet, KeycloakUsersView
 
 router = routers.DefaultRouter()
 router.register(r"programs", ProgramViewSet)
@@ -28,6 +28,7 @@ urlpatterns = [
     path("", include(router.urls)),
     path("dj-rest-auth/", include("dj_rest_auth.urls")),
     path("dj-rest-auth/keycloak/", KeycloakLogin.as_view(), name="keycloak_login"),
+    path("dj-rest-auth/keycloak/login/", KeycloakUsersView.as_view()),
     path("accounts/", include("allauth.urls")),
     path("api-auth/", include("rest_framework.urls")),
     path("admin/", admin.site.urls),

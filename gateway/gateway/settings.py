@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", 1)
+DEBUG = int(os.environ.get("DEBUG", 1))
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
@@ -161,10 +161,16 @@ REST_AUTH = {
 }
 
 SITE_ID = 1
+SITE_HOST = os.environ.get("SITE_HOST")
 
 # Provider specific settings
 SETTING_KEYCLOAK_URL = "SETTING_KEYCLOAK_URL"
 SETTING_KEYCLOAK_REALM = "SETTING_KEYCLOAK_REALM"
+SETTINGS_KEYCLOAK_CLIENT_NAME = os.environ.get("CLIENT_ID")
+SETTINGS_KEYCLOAK_CLIENT_SECRET = os.environ.get("SETTINGS_KEYCLOAK_CLIENT_SECRET")
+SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT = int(
+    os.environ.get("SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT", 15)
+)
 SOCIALACCOUNT_PROVIDERS = {
     "keycloak": {
         "KEYCLOAK_URL": os.environ.get(

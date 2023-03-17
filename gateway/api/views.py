@@ -6,15 +6,18 @@ import shutil
 import tarfile
 import uuid
 
-from django.conf import settings
-from ray.dashboard.modules.job.common import JobStatus
-from ray.dashboard.modules.job.sdk import JobSubmissionClient
+import requests
 from allauth.socialaccount.providers.keycloak.views import KeycloakOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
+from django.conf import settings
+from django.contrib.auth.models import User  # pylint: disable=imported-auth-user
+from ray.dashboard.modules.job.common import JobStatus
+from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import Program, Job, ComputeResource
 from .permissions import IsOwner
@@ -142,3 +145,68 @@ class KeycloakLogin(SocialLoginView):
     """KeycloakLogin."""
 
     adapter_class = KeycloakOAuth2Adapter
+
+
+class KeycloakUsersView(APIView):
+    """KeycloakUsersView."""
+
+    queryset = User.objects.all()
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        """Get application token.
+
+        Request: /POST
+        Body: {"username": ..., "password": ...}
+        """
+        keycloak_payload = {
+            "grant_type": "password",
+            "client_id": settings.SETTINGS_KEYCLOAK_CLIENT_NAME,
+            "client_secret": settings.SETTINGS_KEYCLOAK_CLIENT_SECRET,
+        }
+        keycloak_provider = settings.SOCIALACCOUNT_PROVIDERS.get("keycloak")
+        if keycloak_provider is None:
+            return Response(
+                {
+                    "message": "Oops. Provider was not configured correctly on a server side."
+                },
+                status=status.HTTP_501_NOT_IMPLEMENTED,
+            )
+
+        keycloak_url = (
+            f"{keycloak_provider.get('KEYCLOAK_URL')}/realms/"
+            f"{keycloak_provider.get('KEYCLOAK_REALM')}/"
+            f"protocol/openid-connect/token/"
+        )
+        payload = {**keycloak_payload, **request.data}
+        keycloak_response = requests.post(
+            keycloak_url,
+            data=payload,
+            timeout=settings.SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT,
+        )
+        if not keycloak_response.ok:
+            return Response(
+                {"message": keycloak_response.text}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        access_token = json.loads(keycloak_response.text).get("access_token")
+        if settings.SITE_HOST is None:
+            return Response(
+                {
+                    "message": "Oops. Application was not configured correctly on a server side."
+                },
+                status=status.HTTP_501_NOT_IMPLEMENTED,
+            )
+
+        rest_auth_url = f"{settings.SITE_HOST}/dj-rest-auth/keycloak/"
+        rest_auth_response = requests.post(
+            rest_auth_url,
+            json={"access_token": access_token},
+            timeout=settings.SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT,
+        )
+
+        if not rest_auth_response.ok:
+            return Response(
+                {"message": rest_auth_response.text}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(json.loads(rest_auth_response.text))

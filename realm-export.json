@@ -294,7 +294,7 @@
       ],
       "security-admin-console": [],
       "admin-cli": [],
-      "test-client": [
+      "gateway-client": [
         {
           "id": "3f58b737-9ffa-455e-a36b-5a1b3f089080",
           "name": "uma_protection",
@@ -375,6 +375,21 @@
   "webAuthnPolicyPasswordlessAcceptableAaguids": [],
   "users": [
     {
+      "username": "john",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "john@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ]
+    },
+    {
       "id": "33b940e2-0bdb-49a7-9356-e6e230f49619",
       "createdTimestamp": 1640089861472,
       "username": "service-account-admin-cli",
@@ -422,11 +437,11 @@
     {
       "id": "83d84b8e-f053-480e-8b13-713c4fac708d",
       "createdTimestamp": 1640089810342,
-      "username": "service-account-test-client",
+      "username": "service-account-gateway-client",
       "enabled": true,
       "totp": false,
       "emailVerified": false,
-      "serviceAccountClientId": "test-client",
+      "serviceAccountClientId": "gateway-client",
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "notBefore": 0,
@@ -442,7 +457,7 @@
     }
   ],
   "clientScopeMappings": {
-    "test-client": [
+    "gateway-client": [
       {
         "client": "admin-cli",
         "roles": [
@@ -844,14 +859,14 @@
     },
     {
       "id": "9a76b2ec-b33e-40b0-9cad-e00ca7e77e40",
-      "clientId": "test-client",
+      "clientId": "gateway-client",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "AQ3sZ4eiF7NhOtfxeUEGo0YN7uQBoUnO",
       "redirectUris": [
-        "http://localhost:8081/callback"
+        "*"
       ],
       "webOrigins": [],
       "notBefore": 0,
@@ -957,7 +972,7 @@
         "resources": [
           {
             "name": "Default Resource",
-            "type": "urn:test-client:resources:default",
+            "type": "urn:gateway-client:resources:default",
             "ownerManagedAccess": false,
             "attributes": {},
             "_id": "c4c07a91-21b2-4259-b923-4b3d6b05d93f",
@@ -986,7 +1001,7 @@
             "logic": "POSITIVE",
             "decisionStrategy": "UNANIMOUS",
             "config": {
-              "defaultResourceType": "urn:test-client:resources:default",
+              "defaultResourceType": "urn:gateway-client:resources:default",
               "applyPolicies": "[\"Default Policy\"]"
             }
           }
