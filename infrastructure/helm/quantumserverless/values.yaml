@@ -273,7 +273,7 @@ prometheusEnable: true
 #    special configuration over the prometheus sub-chart
 
 # ===================
-# loki 
+# loki
 # ===================
 
 lokiEnable: true
@@ -297,3 +297,8 @@ loki:
     service:
       type: NodePort
 
+# ===================
+# promtail
+# ===================
+
+promtailEnable: true
