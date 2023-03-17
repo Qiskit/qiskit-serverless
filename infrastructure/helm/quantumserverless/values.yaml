@@ -269,8 +269,8 @@ repositoryEnable: true
 # ===================
 
 prometheusEnable: true
-# prometheus:
-#    special configuration over the prometheus sub-chart
+# kube-prometheus-stack:
+#    special configuration over the kube-prometheus-stack sub-chart
 
 # ===================
 # loki

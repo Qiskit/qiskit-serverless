@@ -23,9 +23,9 @@ dependencies:
 - name: repository
   repository: ""
   version: 0.1.0
-- name: prometheus
+- name: kube-prometheus-stack
   repository: https://prometheus-community.github.io/helm-charts
-  version: 19.7.2
+  version: 45.7.1
 - name: loki
   repository: https://grafana.github.io/helm-charts
   version: 4.8.0
