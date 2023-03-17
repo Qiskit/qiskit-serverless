@@ -1,6 +1,6 @@
 apiVersion: v2
-name: manager
-description: Helm chart to deploy the manager python application in kubernetes
+name: repository
+description: Helm chart to deploy repository API in kubernetes
 
 # A chart can be either an 'application' or a 'library' chart.
 #

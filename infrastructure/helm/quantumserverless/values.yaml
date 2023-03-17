@@ -257,3 +257,43 @@ keycloak:
     - name: realm
       mountPath: /opt/bitnami/keycloak/data/import
   extraStartupArgs: "--import-realm"
+
+# ===================
+# Quantum Repository
+# ===================
+
+repositoryEnable: true
+
+# ===================
+# Prometheus 
+# ===================
+
+prometheusEnable: true
+# prometheus:
+#    special configuration over the prometheus sub-chart
+
+# ===================
+# loki 
+# ===================
+
+lokiEnable: true
+
+loki:
+  loki:
+    commonConfig:
+      replication_factor: 1
+    storage:
+      type: 'filesystem'
+    auth_enabled: false
+  write:
+    replicas: 0
+  read:
+    replicas: 0
+  backend:
+    replicas: 0
+  singleBinary:
+    replicas: 1
+  gateway:
+    service:
+      type: NodePort
+

@@ -70,3 +70,10 @@ jobs:
           tags: qiskit/quantum-serverless-notebook:nightly-py310
           build-args:
             IMAGE_PY_VERSION=3.10
+      - name: Build and push repository server
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile-repository-server
+          push: true
+          tags: qiskit/quantum-repository-server:nightly

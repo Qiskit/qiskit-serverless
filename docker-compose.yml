@@ -106,5 +106,31 @@ services:
       - safe-tier
     depends_on:
       - keycloak
+  prometheus:
+    image: prom/prometheus:v2.42.0
+    ports:
+      - 9000:9090
+  loki:
+    image: grafana/loki:2.7.4
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - safe-tier
+
+  promtail:
+    image: grafana/promtail:2.7.4
+    volumes:
+      - /var/log:/var/log
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - safe-tier
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - safe-tier
 networks:
   safe-tier:

@@ -108,5 +108,9 @@ services:
       - safe-tier
     depends_on:
       - keycloak
+  prometheus:
+    image: prom/prometheus:v2.42.0
+    ports:
+      - 9000:9090
 networks:
   safe-tier:

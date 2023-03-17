@@ -22,6 +22,12 @@ OT_SPAN_DEFAULT_NAME = "entrypoint"
 OT_ATTRIBUTE_PREFIX = "qs"
 OT_LABEL_CALL_LOCATION = "qs.location"
 
+
+# repository
+REPO_HOST_KEY = "REPO_HOST_KEY"
+REPO_PORT_KEY = "REPO_PORT_KEY"
+
+
 # container image
 RAY_IMAGE = "qiskit/quantum-serverless-ray-node:latest-py39"
 
