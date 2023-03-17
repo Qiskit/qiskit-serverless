@@ -547,7 +547,7 @@ class GatewayProvider(Provider):
             response = requests.post(
                 url=url,
                 data={
-                    "title": program.name,
+                    "title": program.title,
                     "entrypoint": program.entrypoint,
                     "arguments": json.dumps(program.arguments or {}),
                     "dependencies": json.dumps(program.dependencies or []),

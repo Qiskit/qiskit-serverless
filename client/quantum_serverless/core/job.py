@@ -111,7 +111,7 @@ class RayJobClient(BaseJobClient):
         entrypoint = f"python {program.entrypoint} {arguments}"
 
         # set program name so OT can use it as parent span name
-        env_vars = {**(program.env_vars or {}), **{OT_PROGRAM_NAME: program.name}}
+        env_vars = {**(program.env_vars or {}), **{OT_PROGRAM_NAME: program.title}}
 
         job_id = self._job_client.submit_job(
             entrypoint=entrypoint,
