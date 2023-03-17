@@ -31,6 +31,7 @@ Quantum serverless serializers
 """
 import base64
 import io
+import zlib
 
 import ray
 from qiskit import QuantumCircuit, qpy
@@ -53,6 +54,7 @@ def circuit_serializer(circuit: QuantumCircuit) -> str:
     buff.seek(0)
     serialized_data = buff.read()
     buff.close()
+    serialized_data = zlib.compress(serialized_data)
     return base64.standard_b64encode(serialized_data).decode("utf-8")
 
 
@@ -67,6 +69,7 @@ def circuit_deserializer(encoded_circuit: str) -> QuantumCircuit:
     """
     buff = io.BytesIO()
     decoded = base64.standard_b64decode(encoded_circuit)
+    decoded = zlib.decompress(decoded)
     buff.write(decoded)
     buff.seek(0)
     orig = qpy.load(buff)

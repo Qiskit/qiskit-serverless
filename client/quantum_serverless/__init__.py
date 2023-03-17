@@ -14,7 +14,14 @@
 
 from importlib_metadata import version as metadata_version, PackageNotFoundError
 
-from .core import Provider, run_qiskit_remote, get, put, get_refs_by_status
+from .core import (
+    Provider,
+    run_qiskit_remote,
+    get,
+    put,
+    get_refs_by_status,
+    KuberayProvider,
+)
 from .quantum_serverless import QuantumServerless
 from .core.program import Program
 

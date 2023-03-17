@@ -7,7 +7,7 @@
 # ===================
 
 # Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
-nginxIngressControllerEnable: false
+nginxIngressControllerEnable: true
 
 # ===================
 # Redis configs
@@ -68,29 +68,6 @@ jupyter:
 
 
 # ===================
-# Manager configs
-# ===================
-
-managerEnable: true
-manager:
-  image:
-    repository: "qiskit/quantum-serverless-manager"
-    tag: "latest"
-    pullPolicy: IfNotPresent
-    
-  imagePullSecrets: []
-
-  container:
-    port: 5000
-
-  service:
-    port: 5000
-
-  ingress:
-    enabled: false
-
-
-# ===================
 # Ray Cluster
 # ===================
 
@@ -107,7 +84,23 @@ ray-cluster:
   head:
     rayStartParams:
       dashboard-host: '0.0.0.0'
-
+    ports: [{containerPort: 10001, name: client},{containerPort: 6379, name: redis},{containerPort: 8265, name: dashboard},{containerPort: 8080, name: metrics},{containerPort: 8000, name: serve},{containerPort: 4180, name: proxy}]
+    sidecarContainers:
+        - name: oauth-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.3.0
+          imagePullPolicy: IfNotPresent
+          args:
+          - --client-secret=CLIENTSECRET-CHANGEME
+          - --oidc-issuer-url=http://LOCAL-IP:31059/realms/quantumserverless
+          - --oidc-extra-audience="account"
+          - --email-domain="*"
+          - --insecure-oidc-allow-unverified-email=true
+          - --http-address=0.0.0.0:4180
+          - --cookie-secret=SECRET0123456789
+          - --provider=keycloak-oidc
+          - --client-id=rayclient
+          - --upstream="http://HELM-RELEASE-kuberay-head-svc:8265"
+          - --redirect-url=http://localhost/oauth2/callback
   worker:
     # If you want to disable the default workergroup
     # uncomment the line below
@@ -190,6 +183,7 @@ kuberay-apiserver:
   containerPort:
     - containerPort: 8888
     - containerPort: 8887
+    - containerPort: 4180
 
   resources:
     limits:
@@ -210,15 +204,96 @@ kuberay-apiserver:
         port: 8887
         targetPort: 8887
         nodePort: 31887
+      - name: proxy
+        port: 4180
+        targetPort: 4180
+        nodePort: 30634
 
   ingress:
     enabled: false
 
   replicaCount: 1
 
+  sidecarContainers:
+    - image: quay.io/gogatekeeper/gatekeeper:2.1.1
+      imagePullPolicy: IfNotPresent
+      name: gatekeeper
+      args:
+      - --no-redirects=true
+      - --forwarding-grant-type=client_credentials
+      - --listen=0.0.0.0:4180
+      - --client-id=rayapiserver
+      - --client-secret=APISERVERSECRET-CHANGEME
+      - --discovery-url=http://LOCAL-IP:31059/realms/quantumserverless
+      - --enable-logging=true
+      - --verbose=true
+      - --upstream-url=http://kuberay-apiserver-service:8888/
+
 # ===================
 # Keycloak 
 # ===================
 
 keycloakEnable: true
+keycloakClientSecret: CLIENTSECRET-CHANGEME
+keycloakApiServerSecret: APISERVERSECRET-CHANGEME
+keycloakUserID: user
+keycloakUserPassword: passw0rd
+
+keycloak:
+  logging:
+    level: DEBUG
+  service:
+    type: NodePort
+    nodePorts:
+      http: 31059
+  auth:
+    adminUser: admin
+    adminPassword: passw0rd
+  extraVolumes:
+    - name: realm
+      configMap:
+        name: keycloakrealm
+  extraVolumeMounts:
+    - name: realm
+      mountPath: /opt/bitnami/keycloak/data/import
+  extraStartupArgs: "--import-realm"
+
+# ===================
+# Quantum Repository
+# ===================
+
+repositoryEnable: true
+
+# ===================
+# Prometheus 
+# ===================
+
+prometheusEnable: true
+# prometheus:
+#    special configuration over the prometheus sub-chart
+
+# ===================
+# loki 
+# ===================
+
+lokiEnable: true
+
+loki:
+  loki:
+    commonConfig:
+      replication_factor: 1
+    storage:
+      type: 'filesystem'
+    auth_enabled: false
+  write:
+    replicas: 0
+  read:
+    replicas: 0
+  backend:
+    replicas: 0
+  singleBinary:
+    replicas: 1
+  gateway:
+    service:
+      type: NodePort
 

@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Sitdikov"
+  given-names: "Iskandar"
+  orcid: "https://orcid.org/0000-0002-6809-8943"
+- family-names: "Garcia Valinas"
+  given-names: "David"
+- family-names: "Martin Fernandez"
+  given-names: "Francisco"
+- family-names: "Zidaru"
+  given-names: "Iulia"
+- family-names: "Schweigert"
+  given-names: "Paul"
+- family-names: "Kuroda"
+  given-names: "Akihiko"
+title: "Quantum Serverless"
+version: 0.0.3
+date-released: 2023-02-14
+url: "https://github.com/Qiskit-Extensions/quantum-serverless"

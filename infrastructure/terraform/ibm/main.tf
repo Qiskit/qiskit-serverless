@@ -11,11 +11,11 @@ terraform {
     }
     helm = {
       source  = "hashicorp/helm"
-      version = ">= 2.8.0"
+      version = ">= 2.9.0"
     }
   }
 
-  required_version = "~> 1.2"
+  required_version = "~> 1.3"
 }
 
 provider "ibm" {

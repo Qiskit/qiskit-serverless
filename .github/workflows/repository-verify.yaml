@@ -1,0 +1,44 @@
+name: Repository verify process
+
+on:
+  pull_request:
+
+jobs:
+  verify-client:
+    name: lint, test
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8']
+
+    defaults:
+      run:
+        working-directory: ./repository
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Set up tox environment
+        run: |
+          pver=${{ matrix.python-version }}
+          tox_env="-epy${pver/./}"
+          echo tox_env
+          echo TOX_ENV=$tox_env >> $GITHUB_ENV
+
+      - name: Install tox
+        run: |
+          pip install tox
+
+      - name: Run styles check
+        run: tox -elint
+
+      - name: Test using tox environment
+        run: |
+          tox ${{ env.TOX_ENV }}

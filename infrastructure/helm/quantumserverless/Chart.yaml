@@ -13,7 +13,7 @@ dependencies:
     version: 0.1.0
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
-    version: 9.3.28
+    version: 9.3.32
     repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
     condition: kuberayOperatorEnable
@@ -27,14 +27,23 @@ dependencies:
     condition: rayClusterEnable
     version: 0.4.0
     repository: https://ray-project.github.io/kuberay-helm
-  - name: manager
-    condition: managerEnable
-    version: 0.1.0
   - name: redis
     condition: redisEnable
-    version: 17.7.3
+    version: 17.8.3
     repository: https://charts.bitnami.com/bitnami
   - name: keycloak
     condition: keycloakEnable
-    version: 13.0.5
+    version: 13.3.0
     repository: https://charts.bitnami.com/bitnami
+  - name: repository
+    condition: repositoryEnable
+    version: 0.1.0
+  - name: prometheus
+    condition: prometheusEnable
+    version: 19.7.2
+    repository: https://prometheus-community.github.io/helm-charts
+  - name: loki
+    condition: lokiEnable
+    version: 4.8.0
+    repository: https://grafana.github.io/helm-charts
+

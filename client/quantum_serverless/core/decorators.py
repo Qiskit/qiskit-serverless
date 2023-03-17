@@ -38,7 +38,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from qiskit import QuantumCircuit
 from ray.runtime_env import RuntimeEnv
 
-from quantum_serverless.core.constrants import (
+from quantum_serverless.core.constants import (
     OT_ATTRIBUTE_PREFIX,
     OT_JAEGER_HOST_KEY,
     OT_JAEGER_PORT_KEY,

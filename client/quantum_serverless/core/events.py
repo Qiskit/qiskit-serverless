@@ -37,7 +37,7 @@ from typing import Optional, Dict, Any, Iterator, List, Union
 
 import redis
 
-from quantum_serverless.core.constrants import (
+from quantum_serverless.core.constants import (
     QS_EVENTS_REDIS_PASSWORD,
     QS_EVENTS_REDIS_PORT,
     QS_EVENTS_REDIS_HOST,
