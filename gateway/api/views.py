@@ -127,6 +127,13 @@ class JobViewSet(viewsets.ModelViewSet):
         job.save()
         return Response(JobSerializer(job).data)
 
+    @action(methods=["GET"], detail=True)
+    def logs(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
+        """Returns logs from job."""
+        job = self.get_object()
+        ray_client = JobSubmissionClient(job.compute_resource.host)
+        return Response({"logs": ray_client.get_job_logs(job.ray_job_id)})
+
 
 def ray_job_status_to_model_job_status(ray_job_status):
     """Maps ray job status to model job status."""

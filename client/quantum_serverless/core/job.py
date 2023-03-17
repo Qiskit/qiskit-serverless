@@ -149,7 +149,19 @@ class GatewayJobClient(BaseJobClient):
         raise NotImplementedError
 
     def logs(self, job_id: str):
-        raise NotImplementedError
+        result = None
+        response = requests.get(
+            f"{self.host}/jobs/{job_id}/logs/",
+            headers={"Authorization": f"Bearer {self._token}"},
+            timeout=REQUESTS_TIMEOUT,
+        )
+        if response.ok:
+            result = json.loads(response.text).get("logs", None)
+        else:
+            logging.warning(
+                "Something went wrong during job result fetching. %s", response.text
+            )
+        return result
 
     def result(self, job_id: str):
         result = None

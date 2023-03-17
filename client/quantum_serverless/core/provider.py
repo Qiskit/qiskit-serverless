@@ -39,9 +39,8 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
 from quantum_serverless.core.constants import (
     RAY_IMAGE,
-    ENV_KEYCLOAK_REALM,
-    ENV_KEYCLOAK_CLIENT_ID,
     REQUESTS_TIMEOUT,
+    GATEWAY_PROVIDER_HOST,
 )
 from quantum_serverless.core.job import (
     Job,
@@ -474,13 +473,11 @@ class GatewayProvider(Provider):
 
     def __init__(
         self,
-        name: str,
-        host: str,
-        username: str,
-        password: str,
-        auth_host: Optional[str] = None,
-        realm: Optional[str] = None,
-        client_id: Optional[str] = None,
+        name: Optional[str] = None,
+        host: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        token: Optional[str] = None,
     ):
         """GatewayProvider.
 
@@ -489,19 +486,26 @@ class GatewayProvider(Provider):
             host: host of gateway
             username: username
             password: password
-            auth_host: host of keycloak server
-            realm: keycloak realm
-            client_id: keycloak client id
+            token: authorization token
         """
+        name = name or "gateway-provider"
+
+        host = host or os.environ.get(GATEWAY_PROVIDER_HOST)
+        if host is None:
+            raise QuantumServerlessException("Please provide `host` of gateway.")
+
+        if token is None and (username is None or password is None):
+            raise QuantumServerlessException(
+                "Authentication credentials must "
+                "be provided in form of `username` "
+                "and `password` or `token`."
+            )
+
         super().__init__(name)
         self.host = host
-        self.auth_host = auth_host or host
-        self._username = username
-        self._password = password
-        self._token = None
-        self._realm = realm or os.environ.get(ENV_KEYCLOAK_REALM, "Test")
-        self._client_id = client_id or os.environ.get(ENV_KEYCLOAK_CLIENT_ID, "newone")
-        self._fetch_token()
+        self._token = token
+        if token is None:
+            self._fetch_token(username, password)
 
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
@@ -579,30 +583,15 @@ class GatewayProvider(Provider):
 
         return jobs
 
-    def _fetch_token(self):
-        keycloak_response = requests.post(
-            url=f"{self.auth_host}/auth/realms/{self._realm}/protocol/openid-connect/token",
-            data={
-                "username": self._username,
-                "password": self._password,
-                "client_id": self._client_id,
-                "grant_type": "password",
-            },
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if not keycloak_response.ok:
-            raise QuantumServerlessException("Incorrect credentials.")
-
-        keycloak_token = json.loads(keycloak_response.text).get("access_token")
-
+    def _fetch_token(self, username: str, password: str):
         gateway_response = requests.post(
-            url=f"{self.host}/dj-rest-auth/keycloak/",
-            data={"access_token": keycloak_token},
+            url=f"{self.host}/dj-rest-auth/keycloak/login/",
+            data={"username": username, "password": password},
             timeout=REQUESTS_TIMEOUT,
         )
 
         if not gateway_response.ok:
-            raise QuantumServerlessException("Incorrect access token.")
+            raise QuantumServerlessException(gateway_response.text)
 
         gateway_token = json.loads(gateway_response.text).get("access_token")
         self._token = gateway_token
