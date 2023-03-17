@@ -28,19 +28,28 @@ Quantum serverless provider
 """
 import json
 import logging
+import os.path
+import tarfile
 from dataclasses import dataclass
 from typing import Optional, List, Dict
-from uuid import uuid4
-import requests
 
 import ray
+import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
-from quantum_serverless.core.constants import OT_PROGRAM_NAME, RAY_IMAGE
-
-from quantum_serverless.core.tracing import _trace_env_vars
-from quantum_serverless.core.job import Job
+from quantum_serverless.core.constants import (
+    RAY_IMAGE,
+    REQUESTS_TIMEOUT,
+    GATEWAY_PROVIDER_HOST,
+)
+from quantum_serverless.core.job import (
+    Job,
+    RayJobClient,
+    GatewayJobClient,
+    BaseJobClient,
+)
 from quantum_serverless.core.program import Program
+from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
 
@@ -66,7 +75,7 @@ class ComputeResource:
     port_job_server: int = 8265
     resources: Optional[Dict[str, float]] = None
 
-    def job_client(self) -> Optional[JobSubmissionClient]:
+    def job_client(self) -> Optional[BaseJobClient]:
         """Return job client for given compute resource.
 
         Returns:
@@ -76,13 +85,14 @@ class ComputeResource:
             connection_url = f"http://{self.host}:{self.port_job_server}"
             client = None
             try:
-                client = JobSubmissionClient(connection_url)
+                client = RayJobClient(JobSubmissionClient(connection_url))
             except ConnectionError:
                 logging.warning(
                     "Failed to establish connection with jobs server at %s. "
                     "You will not be able to run jobs on this provider.",
                     connection_url,
                 )
+
             return client
         return None
 
@@ -213,6 +223,33 @@ class Provider(JsonSerializable):
         """Delete compute resource for provider."""
         raise NotImplementedError
 
+    def get_jobs(self, **kwargs) -> List[Job]:
+        """Return list of jobs.
+
+        Returns:
+            list of jobs.
+        """
+        raise NotImplementedError
+
+    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        """Returns job by job id.
+
+        Args:
+            job_id: job id
+
+        Returns:
+            Job instance
+        """
+        job_client = self.job_client()
+
+        if job_client is None:
+            logging.warning(  # pylint: disable=logging-fstring-interpolation
+                "Job has not been found as no provider "
+                "with remote host has been configured. "
+            )
+            return None
+        return Job(job_id=job_id, job_client=job_client)
+
     def run_program(self, program: Program) -> Job:
         """Execute program as a async job.
 
@@ -242,30 +279,7 @@ class Provider(JsonSerializable):
             )
             return None
 
-        arguments = ""
-        if program.arguments is not None:
-            arg_list = []
-            for key, value in program.arguments.items():
-                if isinstance(value, dict):
-                    arg_list.append(f"--{key}='{json.dumps(value)}'")
-                else:
-                    arg_list.append(f"--{key}={value}")
-            arguments = " ".join(arg_list)
-        entrypoint = f"python {program.entrypoint} {arguments}"
-
-        # set program name so OT can use it as parent span name
-        env_vars = {**(program.env_vars or {}), **{OT_PROGRAM_NAME: program.title}}
-
-        job_id = job_client.submit_job(
-            entrypoint=entrypoint,
-            submission_id=f"qs_{uuid4()}",
-            runtime_env={
-                "working_dir": program.working_dir,
-                "pip": program.dependencies,
-                "env_vars": env_vars,
-            },
-        )
-        return Job(job_id=job_id, job_client=job_client)
+        return job_client.run_program(program)
 
 
 class KuberayProvider(Provider):
@@ -449,3 +463,142 @@ class KuberayProvider(Provider):
             self.api_root + f"/compute_templates/{resource}",
             timeout=TIMEOUT,
         )
+
+    def get_jobs(self, **kwargs) -> List[Job]:
+        raise NotImplementedError
+
+
+class GatewayProvider(Provider):
+    """GatewayProvider."""
+
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        host: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        token: Optional[str] = None,
+    ):
+        """GatewayProvider.
+
+        Args:
+            name: name of provider
+            host: host of gateway
+            username: username
+            password: password
+            token: authorization token
+        """
+        name = name or "gateway-provider"
+
+        host = host or os.environ.get(GATEWAY_PROVIDER_HOST)
+        if host is None:
+            raise QuantumServerlessException("Please provide `host` of gateway.")
+
+        if token is None and (username is None or password is None):
+            raise QuantumServerlessException(
+                "Authentication credentials must "
+                "be provided in form of `username` "
+                "and `password` or `token`."
+            )
+
+        super().__init__(name)
+        self.host = host
+        self._token = token
+        if token is None:
+            self._fetch_token(username, password)
+
+    def get_compute_resources(self) -> List[ComputeResource]:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+    def create_compute_resource(self, resource) -> int:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+    def delete_compute_resource(self, resource) -> int:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        job = None
+        url = f"{self.host}/jobs/{job_id}/"
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {self._token}"},
+            timeout=REQUESTS_TIMEOUT,
+        )
+        if response.ok:
+            data = json.loads(response.text)
+            job = Job(
+                job_id=data.get("id"),
+                job_client=GatewayJobClient(self.host, self._token),
+            )
+        else:
+            logging.warning(response.text)
+
+        return job
+
+    def run_program(self, program: Program) -> Job:
+        url = f"{self.host}/programs/run_program/"
+        artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+        with tarfile.open(artifact_file_path, "w") as tar:
+            for filename in os.listdir(program.working_dir):
+                fpath = os.path.join(program.working_dir, filename)
+                tar.add(fpath, arcname=filename)
+
+        with open(artifact_file_path, "rb") as file:
+            response = requests.post(
+                url=url,
+                data={
+                    "title": program.title,
+                    "entrypoint": program.entrypoint,
+                    "arguments": json.dumps(program.arguments or {}),
+                    "dependencies": json.dumps(program.dependencies or []),
+                },
+                files={"artifact": file},
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
+            )
+            if not response.ok:
+                raise QuantumServerlessException(
+                    f"Something went wrong with program execution. {response.text}"
+                )
+
+            json_response = json.loads(response.text)
+            job_id = json_response.get("id")
+
+        if os.path.exists(artifact_file_path):
+            os.remove(artifact_file_path)
+
+        return Job(job_id, job_client=GatewayJobClient(self.host, self._token))
+
+    def get_jobs(self, **kwargs) -> List[Job]:
+        jobs = []
+        url = f"{self.host}/jobs/"
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {self._token}"},
+            timeout=REQUESTS_TIMEOUT,
+        )
+        if response.ok:
+            jobs = [
+                Job(
+                    job_id=job.get("id"),
+                    job_client=GatewayJobClient(self.host, self._token),
+                )
+                for job in json.loads(response.text).get("results", [])
+            ]
+        else:
+            logging.warning(response.text)
+
+        return jobs
+
+    def _fetch_token(self, username: str, password: str):
+        gateway_response = requests.post(
+            url=f"{self.host}/dj-rest-auth/keycloak/login/",
+            data={"username": username, "password": password},
+            timeout=REQUESTS_TIMEOUT,
+        )
+
+        if not gateway_response.ok:
+            raise QuantumServerlessException(gateway_response.text)
+
+        gateway_token = json.loads(gateway_response.text).get("access_token")
+        self._token = gateway_token

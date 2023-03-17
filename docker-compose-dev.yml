@@ -22,8 +22,6 @@ services:
       - OT_JAEGER_HOST_KEY=jaeger
     ports:
       - 8265:8265
-      - 8000:8000
-      - 10001:10001
     privileged: true
     volumes:
       - /dev/shm:/dev/shm
@@ -53,6 +51,63 @@ services:
       - 9411:9411
     networks:
       - safe-tier
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: testkeycloakdb
+      POSTGRES_USER: testkeycloakuser
+      POSTGRES_PASSWORD: testkeycloakpassword
+    networks:
+      - safe-tier
+    restart:
+      always
+  keycloak:
+    container_name: keycloak
+    image: jboss/keycloak:16.1.0
+    volumes:
+      - ./realm-export.json:/opt/jboss/keycloak/imports/realm-export.json
+    command:
+      - "-b 0.0.0.0 -Dkeycloak.profile.feature.upload_scripts=enabled -Dkeycloak.import=/opt/jboss/keycloak/imports/realm-export.json"
+    environment:
+      DB_VENDOR: POSTGRES
+      DB_ADDR: postgres
+      DB_DATABASE: testkeycloakdb
+      DB_USER: testkeycloakuser
+      DB_SCHEMA: public
+      DB_PASSWORD: testkeycloakpassword
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: 123
+      PROXY_ADDRESS_FORWARDING: "true"
+      KEYCLOAK_LOGLEVEL: DEBUG
+    ports:
+      - '8085:8080'
+    depends_on:
+      - postgres
+    networks:
+      - safe-tier
+    restart:
+      always
+  gateway:
+    container_name: gateway
+    build: ./gateway
+    command: gunicorn gateway.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - 8000:8000
+    environment:
+      - DEBUG=0
+      - RAY_HOST=http://ray-head:8265
+      - CLIENT_ID=gateway-client
+      - DJANGO_SUPERUSER_USERNAME=admin
+      - DJANGO_SUPERUSER_PASSWORD=123
+      - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
+      - SETTING_KEYCLOAK_URL=http://keycloak:8080/auth
+      - SETTING_KEYCLOAK_REALM=Test
+      - SETTINGS_KEYCLOAK_CLIENT_SECRET=AQ3sZ4eiF7NhOtfxeUEGo0YN7uQBoUnO
+      - SITE_HOST=http://gateway:8000
+    networks:
+      - safe-tier
+    depends_on:
+      - keycloak
   prometheus:
     image: prom/prometheus:v2.42.0
     ports:

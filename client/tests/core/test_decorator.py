@@ -65,7 +65,7 @@ class TestDecorators(TestCase):
             )
             return mid_result
 
-        with serverless:
+        with serverless.context():
             reference = ultimate_function(1)
             result = get(reference)
             self.assertEqual(result, 4)
@@ -87,7 +87,7 @@ class TestDecorators(TestCase):
             state.set("some_key", {"result": ultimate_argument})
             return state.get("some_key")
 
-        with serverless:
+        with serverless.context():
             reference = (
                 ultimate_function_with_state(  # pylint: disable=no-value-for-parameter
                     1

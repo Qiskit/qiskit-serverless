@@ -3,7 +3,8 @@ from qiskit.circuit.random import random_circuit
 from qiskit.quantum_info import SparsePauliOp
 from qiskit.primitives import Estimator
 
-from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put
+from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put, save_result
+
 
 # 1. let's annotate out function to convert it
 # to function that can be executed remotely
@@ -20,7 +21,7 @@ serverless = QuantumServerless()
 circuits = [random_circuit(2, 2) for _ in range(3)]
 
 # 3. create serverless context
-with serverless:
+with serverless.context():
     # 4. let's put some shared objects into remote storage that will be shared among all executions
     obs_ref = put(SparsePauliOp(["ZZ"]))
 
@@ -32,6 +33,13 @@ with serverless:
     function_references = [my_function(circ, obs_ref) for circ in circuits]
 
     # 5. to get results back from reference
-    # we need to call `get` on function reference
+    # we need to call `get` on function reference  
     print("Single execution:", get(function_reference))
     print("N parallel executions:", get(function_references))
+
+    # 6. When saving results make sure objects 
+    # passing as result are json serializable
+    save_result({
+        "single_execution": get(function_reference).tolist(),
+        "multiple_executions": [entry.tolist() for entry in get(function_references)]
+    })
