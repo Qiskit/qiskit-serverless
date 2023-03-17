@@ -20,6 +20,9 @@ class Program(models.Model):
         on_delete=models.CASCADE,
     )
 
+    arguments = models.TextField(null=False, blank=True, default="{}")
+    dependencies = models.TextField(null=False, blank=True, default="[]")
+
     def __str__(self):
         return f"{self.title}"
 

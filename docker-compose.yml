@@ -1,14 +1,14 @@
 # compose config on nightly builds
 services:
-#  jupyter:
-#    container_name: qs-jupyter
-#    image: qiskit/quantum-serverless-notebook:nightly-py39
-#    ports:
-#      - 8888:8888
-#    environment:
-#      - JUPYTER_TOKEN=123
-#    networks:
-#      - safe-tier
+  jupyter:
+    container_name: qs-jupyter
+    image: qiskit/quantum-serverless-notebook:nightly-py39
+    ports:
+      - 8888:8888
+    environment:
+      - JUPYTER_TOKEN=123
+    networks:
+      - safe-tier
   ray-head:
     container_name: ray-head
     image: qiskit/quantum-serverless-ray-node:nightly-py39

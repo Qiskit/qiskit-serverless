@@ -29,14 +29,23 @@ Quantum serverless job
 """
 import json
 import logging
+import os
+from typing import Dict, Any
 from uuid import uuid4
 
 import ray.runtime_env
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
-from quantum_serverless.core.constants import OT_PROGRAM_NAME, REQUESTS_TIMEOUT
+from quantum_serverless.core.constants import (
+    OT_PROGRAM_NAME,
+    REQUESTS_TIMEOUT,
+    ENV_JOB_GATEWAY_TOKEN,
+    ENV_JOB_GATEWAY_HOST,
+    ENV_JOB_ID_GATEWAY,
+)
 from quantum_serverless.core.program import Program
+from quantum_serverless.utils.json import is_jsonable
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
@@ -210,3 +219,34 @@ class Job:
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"
+
+
+def save_result(result: Dict[str, Any]):
+    """Saves job results."""
+    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    if token is None:
+        logging.warning(
+            "Results will not be saves as "
+            "there are no information about "
+            "authorization token in environment."
+        )
+        return False
+
+    if not is_jsonable(result):
+        logging.warning("Object passed is not json serializable.")
+        return False
+
+    url = (
+        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
+        f"jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
+    )
+    response = requests.post(
+        url,
+        json={"result": result},
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=REQUESTS_TIMEOUT,
+    )
+    if not response.ok:
+        logging.warning("Something went wrong: %s", response.text)
+
+    return response.ok

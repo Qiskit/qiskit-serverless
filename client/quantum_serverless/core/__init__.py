@@ -59,3 +59,4 @@ from .provider import Provider, ComputeResource, KuberayProvider, GatewayProvide
 from .decorators import remote, get, put, run_qiskit_remote, get_refs_by_status
 from .events import RedisEventHandler, EventHandler, ExecutionMessage
 from .state import RedisStateHandler, StateHandler
+from .job import save_result

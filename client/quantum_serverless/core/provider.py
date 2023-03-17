@@ -537,14 +537,21 @@ class GatewayProvider(Provider):
 
     def run_program(self, program: Program) -> Job:
         url = f"{self.host}/programs/run_program/"
-        file_name = os.path.join(program.working_dir, "artifact.tar")
-        with tarfile.open(file_name, "w") as file:
-            file.add(program.working_dir)
+        artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+        with tarfile.open(artifact_file_path, "w") as tar:
+            for filename in os.listdir(program.working_dir):
+                fpath = os.path.join(program.working_dir, filename)
+                tar.add(fpath, arcname=filename)
 
-        with open(file_name, "rb") as file:
+        with open(artifact_file_path, "rb") as file:
             response = requests.post(
                 url=url,
-                data={"title": program.name, "entrypoint": program.entrypoint},
+                data={
+                    "title": program.name,
+                    "entrypoint": program.entrypoint,
+                    "arguments": json.dumps(program.arguments or {}),
+                    "dependencies": json.dumps(program.dependencies or []),
+                },
                 files={"artifact": file},
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_TIMEOUT,
@@ -557,8 +564,8 @@ class GatewayProvider(Provider):
             json_response = json.loads(response.text)
             job_id = json_response.get("id")
 
-        if os.path.exists(file_name):
-            os.remove(file_name)
+        if os.path.exists(artifact_file_path):
+            os.remove(artifact_file_path)
 
         return Job(job_id, job_client=GatewayJobClient(self.host, self._token))
 

@@ -22,6 +22,7 @@ from rest_framework.views import APIView
 from .models import Program, Job, ComputeResource
 from .permissions import IsOwner
 from .serializers import ProgramSerializer, JobSerializer
+from .utils import try_json_loads
 
 
 # pylint: disable=too-many-ancestors
@@ -46,13 +47,18 @@ class ProgramViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             # create program
             program = Program(**serializer.data)
+            _, dependencies = try_json_loads(program.dependencies)
+            _, arguments = try_json_loads(program.arguments)
 
             existing_programs = Program.objects.filter(
                 author=request.user, title__exact=program.title
             )
             if existing_programs.count() > 0:
                 # take existing one
-                program = existing_programs.first()
+                existing_programs = existing_programs.first()
+                existing_programs.arguments = program.arguments
+                existing_programs.dependencies = program.dependencies
+                program = existing_programs
             program.artifact = request.FILES.get("artifact")
             program.author = request.user
             program.save()
@@ -74,21 +80,45 @@ class ProgramViewSet(viewsets.ModelViewSet):
                     settings.MEDIA_ROOT, "tmp", str(uuid.uuid4())
                 )
                 file.extractall(extract_folder)
-            ray_job_id = ray_client.submit_job(
-                entrypoint=f"python {program.entrypoint}",
-                runtime_env={"working_dir": extract_folder},
-            )
-            # remote temp data
-            if os.path.exists(extract_folder):
-                shutil.rmtree(extract_folder)
 
             job = Job(
                 program=program,
                 author=request.user,
-                ray_job_id=ray_job_id,
                 compute_resource=compute_resource,
             )
             job.save()
+
+            if arguments is not None:
+                arg_list = []
+                for key, value in arguments.items():
+                    if isinstance(value, dict):
+                        arg_list.append(f"--{key}='{json.dumps(value)}'")
+                    else:
+                        arg_list.append(f"--{key}={value}")
+                arguments = " ".join(arg_list)
+            else:
+                arguments = ""
+            entrypoint = f"python {program.entrypoint} {arguments}"
+
+            ray_job_id = ray_client.submit_job(
+                entrypoint=entrypoint,
+                runtime_env={
+                    "working_dir": extract_folder,
+                    "env_vars": {
+                        "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
+                        "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
+                        "ENV_JOB_ID_GATEWAY": str(job.id),
+                    },
+                    "pip": dependencies or [],
+                },
+            )
+            job.ray_job_id = ray_job_id
+            job.save()
+
+            # remote temp data
+            if os.path.exists(extract_folder):
+                shutil.rmtree(extract_folder)
+
             return Response(JobSerializer(job).data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

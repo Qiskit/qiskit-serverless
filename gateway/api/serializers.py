@@ -10,7 +10,7 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
-        fields = ["title", "entrypoint", "artifact"]
+        fields = ["title", "entrypoint", "artifact", "dependencies", "arguments"]
 
 
 class JobSerializer(serializers.ModelSerializer):
