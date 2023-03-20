@@ -9,18 +9,20 @@ import time
 
 from text.constants import LINE_DECORATOR, LOCAL_DOCKER_WELCOME, LOCAL_DOCKER_INSTALLING_IMAGES, LOCAL_DOCKER_PULLING_IMAGES, LOCAL_DOCKER_RUNNING
 
+JUPYTER_NOTEBOOK_BASE_URL = 'http://127.0.0.1:8888/lab'
+JUPYTER_NOTEBOOK_TOKEN_OPTION = '?token='
+
 def execute_docker_up():
-    JUPYTER_NOTEBOOK_URL_REGEXP = 'http://127.0.0.1:8888/lab'
     urls = {}
-    jn_url = 'http://127.0.0.1:8888/lab'
+    jn_url = JUPYTER_NOTEBOOK_BASE_URL
     jn_url_token = None
     popen = subprocess.Popen(['docker-compose', 'up'], stdout=subprocess.PIPE, universal_newlines=True)
     for stdout_line in iter(popen.stdout.readline, ""):
-        if JUPYTER_NOTEBOOK_URL_REGEXP in stdout_line:
-            jn_url_token = parse.search('http://127.0.0.1:8888/lab?token={}\n', stdout_line)
+        if JUPYTER_NOTEBOOK_BASE_URL in stdout_line:
+            jn_url_token = parse.search(JUPYTER_NOTEBOOK_BASE_URL + JUPYTER_NOTEBOOK_TOKEN_OPTION + '{}\n', stdout_line)
             break
     if jn_url_token is not None:
-        jn_url += '?token=' + jn_url_token[0]
+        jn_url += JUPYTER_NOTEBOOK_TOKEN_OPTION + jn_url_token[0]
     urls['JUPYTER_NOTEBOOK_URL'] = jn_url
     return urls
 
@@ -44,7 +46,6 @@ def compose_pull():
 def compose_up():
     click.echo(click.style(LOCAL_DOCKER_INSTALLING_IMAGES, fg='green'))
     urls = execute_docker_up()
-    # proc = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     click.echo(click.style(LOCAL_DOCKER_INSTALLING_IMAGES, fg='green'))
     return urls
 
