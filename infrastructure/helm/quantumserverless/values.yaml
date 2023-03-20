@@ -269,8 +269,9 @@ repositoryEnable: true
 # ===================
 
 prometheusEnable: true
-# kube-prometheus-stack:
-#    special configuration over the kube-prometheus-stack sub-chart
+kube-prometheus-stack:
+grafana:
+    adminPassword: passw0rd
 
 # ===================
 # loki
