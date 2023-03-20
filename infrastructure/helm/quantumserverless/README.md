@@ -122,7 +122,7 @@ For our Ray Charts dependencies we are using the configuration created by the Ra
 
 **Prometheus**
 
-For our Prometheus dependency we are using the charts managed by the Prometheus community. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to all the parameters in the chart's [values.yaml](https://github.com/prometheus-community/helm-charts/blob/main/charts/prometheus/values.yaml).
+For our Prometheus dependency we are using the charts managed by the Prometheus community. To simplify the configuration we offered you with a straigh-forward initial parameters setup. But if you are interested in more complex configurations you have access to all the parameters in the chart's [values.yaml](https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/values.yaml).
 
 **loki**
 
