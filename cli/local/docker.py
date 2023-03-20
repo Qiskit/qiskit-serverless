@@ -5,7 +5,6 @@ sys.path.append(".")
 import click
 import subprocess
 import parse
-import time
 
 from text.constants import LINE_DECORATOR, LOCAL_DOCKER_WELCOME, LOCAL_DOCKER_INSTALLING_IMAGES, LOCAL_DOCKER_PULLING_IMAGES, LOCAL_DOCKER_RUNNING
 
