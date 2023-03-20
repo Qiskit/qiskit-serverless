@@ -270,7 +270,7 @@ repositoryEnable: true
 
 prometheusEnable: true
 kube-prometheus-stack:
-grafana:
+  grafana:
     adminPassword: passw0rd
 
 # ===================
