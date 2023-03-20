@@ -30,7 +30,7 @@ LOCAL_DOCKER_RUNNING = """
 -----------------------------------------------------------------------------------
 Your Middleware for Quantum Docker environment is running in your local system :)
 Ray Dashboard: """ + link('http://localhost:8265/') + """
-Jupyter Notebook with Tutorial and Guides: """ + link('http://127.0.0.1:8888/') + """
+Jupyter Notebook with Tutorial and Guides: """ + link('JUPYTER_NOTEBOOK_URL') + """
 -----------------------------------------------------------------------------------
 To stop your docker environment, use the next command: docker compose stop
 """
