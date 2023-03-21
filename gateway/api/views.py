@@ -200,6 +200,7 @@ class KeycloakUsersView(APIView):
             "grant_type": "password",
             "client_id": settings.SETTINGS_KEYCLOAK_CLIENT_NAME,
             "client_secret": settings.SETTINGS_KEYCLOAK_CLIENT_SECRET,
+            "scope": "openid"
         }
         keycloak_provider = settings.SOCIALACCOUNT_PROVIDERS.get("keycloak")
         if keycloak_provider is None:

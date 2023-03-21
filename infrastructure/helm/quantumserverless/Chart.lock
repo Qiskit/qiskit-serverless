@@ -1,4 +1,7 @@
 dependencies:
+- name: gateway
+  repository: ""
+  version: 0.1.0
 - name: jupyter
   repository: ""
   version: 0.1.0
@@ -29,5 +32,5 @@ dependencies:
 - name: loki
   repository: https://grafana.github.io/helm-charts
   version: 4.8.0
-digest: sha256:996849006aacd6baed57c17db52ebeff1ff3a4af4322e09e52c2281724bb50c6
-generated: "2023-03-16T14:30:49.858207-04:00"
+digest: sha256:4ce04cb6eee9fa8a2817a2aec4768fe4583574784060460f5520af1d472995d9
+generated: "2023-03-20T10:27:55.635127-04:00"
