@@ -92,3 +92,5 @@ docs/_build/
 /debug.log
 /manager/manager/debug.log
 /manager/ray/
+
+/infrastructure/helm/values/**

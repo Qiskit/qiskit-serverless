@@ -52,44 +52,13 @@ class TestQuantumServerless(TestCase):
         """Test context allocation from provider and compute_resource calls."""
         serverless = QuantumServerless()
 
-        with serverless:
+        with serverless.context():
             self.assertTrue(ray.is_initialized())
         self.assertFalse(ray.is_initialized())
 
         with serverless.provider("local"):
             self.assertTrue(ray.is_initialized())
         self.assertFalse(ray.is_initialized())
-
-    def test_load_config(self):
-        """Tests configuration loading."""
-        config = {
-            "providers": [{"name": "local2", "compute_resource": {"name": "local2"}}]
-        }
-
-        serverless = QuantumServerless(config)
-        self.assertEqual(len(serverless.providers()), 2)
-
-        config2 = {
-            "providers": [
-                {
-                    "name": "some_provider",
-                    "compute_resource": {
-                        "name": "some_resource",
-                        "host": "some_host",
-                        "port_interactive": 10002,
-                    },
-                }
-            ]
-        }
-        serverless2 = QuantumServerless(config2)
-        self.assertEqual(len(serverless2.providers()), 2)
-
-        compute_resource = serverless2.providers()[-1].compute_resource
-
-        self.assertEqual(compute_resource.host, "some_host")
-        self.assertEqual(compute_resource.name, "some_resource")
-        self.assertEqual(compute_resource.port_interactive, 10002)
-        self.assertEqual(compute_resource.port_job_server, 8265)
 
     def test_available_clusters_with_mock(self):
         """Test for external api call for available clusters."""
