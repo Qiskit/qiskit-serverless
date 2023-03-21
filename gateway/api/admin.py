@@ -1,10 +1,10 @@
 """Admin module."""
 
 from django.contrib import admin
-from .models import Job, Program, ComputeResource
+from .models import Job, NestedProgram, ComputeResource
 
 
-@admin.register(Program)
+@admin.register(NestedProgram)
 class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
 

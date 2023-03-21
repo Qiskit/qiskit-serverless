@@ -1,11 +1,16 @@
 """Models."""
+import uuid
+
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.conf import settings
 
 
-class Program(models.Model):
-    """Program model."""
+class NestedProgram(models.Model):
+    """NestedProgram model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True)
 
     title = models.CharField(max_length=255)
     entrypoint = models.CharField(max_length=255)
@@ -21,6 +26,7 @@ class Program(models.Model):
     )
 
     arguments = models.TextField(null=False, blank=True, default="{}")
+    env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
 
     def __str__(self):
@@ -29,6 +35,9 @@ class Program(models.Model):
 
 class ComputeResource(models.Model):
     """Compute resource model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True)
 
     title = models.CharField(max_length=100, blank=False, null=False)
     host = models.CharField(max_length=100, blank=False, null=False)
@@ -55,7 +64,10 @@ class Job(models.Model):
         (FAILED, "Failed"),
     ]
 
-    program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True)
+
+    program = models.ForeignKey(to=NestedProgram, on_delete=models.SET_NULL, null=True)
     result = models.TextField(null=True, blank=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -61,7 +61,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "gateway.urls"
+ROOT_URLCONF = "main.urls"
 
 TEMPLATES = [
     {
@@ -79,7 +79,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "gateway.wsgi.application"
+WSGI_APPLICATION = "main.wsgi.application"
 
 
 # Database
@@ -175,9 +175,7 @@ SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT = int(
 )
 SOCIALACCOUNT_PROVIDERS = {
     "keycloak": {
-        "KEYCLOAK_URL": os.environ.get(
-            SETTING_KEYCLOAK_URL, "http://localhost:8085/"
-        ),
+        "KEYCLOAK_URL": os.environ.get(SETTING_KEYCLOAK_URL, "http://localhost:8085/"),
         "KEYCLOAK_REALM": os.environ.get(SETTING_KEYCLOAK_REALM, "Test"),
     }
 }
