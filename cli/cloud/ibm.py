@@ -20,6 +20,12 @@ def welcome():
 def username(username):
     click.echo(f"Your IBM Cloud username is: {username}")
 
+def run():
+    click.clear()
+    click.echo(click.style(LINE_DECORATOR, fg='blue'))
+    click.echo(click.style("IBM CLOUD NOT IMPLEMENTED YET", fg='green'))
+    click.echo(click.style(LINE_DECORATOR, fg='blue'))
+
 def ibm():
     welcome()
-    username()
+    run()

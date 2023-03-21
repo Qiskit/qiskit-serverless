@@ -20,6 +20,12 @@ def welcome():
 def username(username):
     click.echo(f"Your Microsoft Azure username is: {username}")
 
+def run():
+    click.clear()
+    click.echo(click.style(LINE_DECORATOR, fg='blue'))
+    click.echo(click.style("MICROSOFT AZURE NOT IMPLEMENTED YET", fg='green'))
+    click.echo(click.style(LINE_DECORATOR, fg='blue'))
+
 def azure():
     welcome()
-    username()
+    run()

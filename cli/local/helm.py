@@ -11,5 +11,12 @@ def welcome():
     click.echo(click.style(LOCAL_HELM_WELCOME, fg='green'))
     click.echo(click.style(LINE_DECORATOR, fg='blue'))
 
+def run():
+    click.clear()
+    click.echo(click.style(LINE_DECORATOR, fg='blue'))
+    click.echo(click.style("HELM IN LOCAL NOT IMPLEMENTED YET", fg='green'))
+    click.echo(click.style(LINE_DECORATOR, fg='blue'))
+
 def helm():
     welcome()
+    run()
