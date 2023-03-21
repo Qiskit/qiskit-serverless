@@ -76,4 +76,4 @@ jobs:
           context: .
           file: ./infrastructure/docker/Dockerfile-repository-server
           push: true
-          tags: qiskit/quantum-repository-server:${{ github.event.inputs.tag }}
+          tags: qiskit/quantum-repository-server:nightly
