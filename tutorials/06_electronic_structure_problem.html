@@ -118,27 +118,33 @@
 <section id="Execution">
 <h2>Execution<a class="headerlink" href="#Execution" title="Permalink to this heading">¶</a></h2>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[66]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">Program</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">Program</span><span class="p">,</span> <span class="n">GatewayProvider</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.core</span> <span class="kn">import</span> <span class="n">RedisStateHandler</span>
 </pre></div>
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[63]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="o">.</span><span class="n">load_configuration</span><span class="p">(</span><span class="s2">&quot;./serverless_config.json&quot;</span><span class="p">)</span> <span class="c1"># config with local docker-compose setup</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">gateway_provider</span> <span class="o">=</span> <span class="n">GatewayProvider</span><span class="p">(</span>
+    <span class="n">username</span><span class="o">=</span><span class="s2">&quot;john&quot;</span><span class="p">,</span>
+    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password123&quot;</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">gateway_provider</span><span class="p">)</span> <span class="c1"># config with local docker-compose setup</span>
 <span class="n">state_handler</span> <span class="o">=</span> <span class="n">RedisStateHandler</span><span class="p">(</span><span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="mi">6379</span><span class="p">)</span> <span class="c1"># creating state handler to read and write data from jobs</span>
 </pre></div>
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[70]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
@@ -154,17 +160,25 @@
 </pre></div>
 </div>
 </div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{} [&#34;pyscf==1.6.3&#34;]
+</pre></div></div>
+</div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[70]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | fqs_89bd4cdb-75c4-47b8-b677-efbca50073f3&gt;
+&lt;Job | 23&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[72]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Logs:&quot;</span><span class="p">)</span>
@@ -178,9 +192,7 @@
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 Logs:
-Energies:  [-1.1696350782475755, -1.0949469830238987, -0.9811713427333931]
-Shifts:  [-6.609784771130337, -6.781951626949085, -6.870414678425508]
-Energy + shift:  [-7.779419849377913, -7.876898609972984, -7.8515860211589015]
+
 </pre></div></div>
 </div>
 <div class="nbinput nblast docutils container">

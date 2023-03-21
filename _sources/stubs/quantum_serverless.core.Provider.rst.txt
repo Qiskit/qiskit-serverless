@@ -19,6 +19,8 @@
       ~Provider.delete_compute_resource
       ~Provider.from_dict
       ~Provider.get_compute_resources
+      ~Provider.get_job_by_id
+      ~Provider.get_jobs
       ~Provider.job_client
       ~Provider.run_program
       ~Provider.to_dict
