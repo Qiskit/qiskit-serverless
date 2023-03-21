@@ -2,14 +2,14 @@
 
 from rest_framework import serializers
 
-from api.models import Program, Job
+from api.models import NestedProgram, Job
 
 
 class ProgramSerializer(serializers.ModelSerializer):
     """ProgramSerializer."""
 
     class Meta:
-        model = Program
+        model = NestedProgram
         fields = ["title", "entrypoint", "artifact", "dependencies", "arguments"]
 
 

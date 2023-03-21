@@ -43,7 +43,10 @@ class TestJobApi(APITestCase):
         """Tests job detail authorized."""
         self._authorize()
 
-        jobs_response = self.client.get(reverse("job-detail", args=[1]), format="json")
+        jobs_response = self.client.get(
+            reverse("job-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
+            format="json",
+        )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("status"), "SUCCEEDED")
         self.assertEqual(jobs_response.data.get("result"), '{"somekey":1}')
@@ -53,7 +56,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.post(
-            reverse("job-result", args=[1]),
+            reverse("job-result", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
             format="json",
             data={"result": {"ultimate": 42}},
         )

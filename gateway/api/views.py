@@ -19,7 +19,8 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Program, Job, ComputeResource
+
+from .models import NestedProgram, Job, ComputeResource
 from .permissions import IsOwner
 from .serializers import ProgramSerializer, JobSerializer
 from .utils import try_json_loads
@@ -29,12 +30,12 @@ from .utils import try_json_loads
 class ProgramViewSet(viewsets.ModelViewSet):
     """ProgramViewSet."""
 
-    queryset = Program.objects.all()
+    queryset = NestedProgram.objects.all()
     serializer_class = ProgramSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Program.objects.all().filter(author=self.request.user)
+        return NestedProgram.objects.all().filter(author=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -46,11 +47,11 @@ class ProgramViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             # create program
-            program = Program(**serializer.data)
+            program = NestedProgram(**serializer.data)
             _, dependencies = try_json_loads(program.dependencies)
             _, arguments = try_json_loads(program.arguments)
 
-            existing_programs = Program.objects.filter(
+            existing_programs = NestedProgram.objects.filter(
                 author=request.user, title__exact=program.title
             )
             if existing_programs.count() > 0:
@@ -200,6 +201,7 @@ class KeycloakUsersView(APIView):
             "grant_type": "password",
             "client_id": settings.SETTINGS_KEYCLOAK_CLIENT_NAME,
             "client_secret": settings.SETTINGS_KEYCLOAK_CLIENT_SECRET,
+            "scope": "openid",
         }
         keycloak_provider = settings.SOCIALACCOUNT_PROVIDERS.get("keycloak")
         if keycloak_provider is None:
