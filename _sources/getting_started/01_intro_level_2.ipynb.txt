@@ -1,0 +1,436 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "3ff90cec-1b42-4744-9400-eb5a4bd1ef3a",
+   "metadata": {},
+   "source": [
+    "# Getting started - level 2\n",
+    "\n",
+    "In this tutorial we will explore a little bit more advanced example of a program that require some configuration, requirements setup, etc. \n",
+    "\n",
+    "Again we will start with writing code for our program and saving it to [./source_files/gs_level_2.py](./source_files/gs_level_2.py) file.\n",
+    "This time it will be VQE example from [Qiskit documentation](https://qiskit.org/documentation/nature/tutorials/07_leveraging_qiskit_runtime.html) and we also introduce dependency management and arguments to our programs.\n",
+    "\n",
+    "```python\n",
+    "# source_files/gs_level_2.py\n",
+    "\n",
+    "import argparse\n",
+    "\n",
+    "from qiskit_nature.units import DistanceUnit\n",
+    "from qiskit_nature.second_q.drivers import PySCFDriver\n",
+    "from qiskit_nature.second_q.mappers import QubitConverter\n",
+    "from qiskit_nature.second_q.mappers import ParityMapper\n",
+    "from qiskit_nature.second_q.properties import ParticleNumber\n",
+    "from qiskit_nature.second_q.transformers import ActiveSpaceTransformer\n",
+    "from qiskit.algorithms.minimum_eigensolvers import NumPyMinimumEigensolver\n",
+    "from qiskit_nature.second_q.algorithms.ground_state_solvers import GroundStateEigensolver\n",
+    "from qiskit.circuit.library import EfficientSU2\n",
+    "import numpy as np\n",
+    "from qiskit.utils import algorithm_globals\n",
+    "from qiskit.algorithms.optimizers import SPSA\n",
+    "from qiskit.algorithms.minimum_eigensolvers import VQE\n",
+    "from qiskit.primitives import Estimator\n",
+    "\n",
+    "\n",
+    "def run(bond_distance: float = 2.5):\n",
+    "    driver = PySCFDriver(\n",
+    "        atom=f\"Li 0 0 0; H 0 0 {bond_distance}\",\n",
+    "        basis=\"sto3g\",\n",
+    "        charge=0,\n",
+    "        spin=0,\n",
+    "        unit=DistanceUnit.ANGSTROM,\n",
+    "    )\n",
+    "    problem = driver.run()\n",
+    "\n",
+    "    active_space_trafo = ActiveSpaceTransformer(\n",
+    "        num_electrons=problem.num_particles, num_spatial_orbitals=3\n",
+    "    )\n",
+    "    problem = active_space_trafo.transform(problem)\n",
+    "    qubit_converter = QubitConverter(ParityMapper(), two_qubit_reduction=True)\n",
+    "\n",
+    "    ansatz = EfficientSU2(num_qubits=4, reps=1, entanglement=\"linear\", insert_barriers=True)\n",
+    "\n",
+    "    np.random.seed(5)\n",
+    "    algorithm_globals.random_seed = 5\n",
+    "\n",
+    "\n",
+    "    optimizer = SPSA(maxiter=100)\n",
+    "    initial_point = np.random.random(ansatz.num_parameters)\n",
+    "\n",
+    "    estimator = Estimator()\n",
+    "    local_vqe = VQE(\n",
+    "        estimator,\n",
+    "        ansatz,\n",
+    "        optimizer,\n",
+    "        initial_point=initial_point,\n",
+    "    )\n",
+    "\n",
+    "    local_vqe_groundstate_solver = GroundStateEigensolver(qubit_converter, local_vqe)\n",
+    "    local_vqe_result = local_vqe_groundstate_solver.solve(problem)\n",
+    "\n",
+    "    print(local_vqe_result)\n",
+    "\n",
+    "\n",
+    "if __name__ == \"__main__\":\n",
+    "    parser = argparse.ArgumentParser()\n",
+    "    parser.add_argument(\n",
+    "        \"--bond_length\",\n",
+    "        help=\"Bond length in Angstrom.\",\n",
+    "        default=2.5,\n",
+    "        type=float,\n",
+    "    )\n",
+    "    args = parser.parse_args()\n",
+    "\n",
+    "    print(f\"Running for bond length {args.bond_length}.\")\n",
+    "    run(args.bond_length)\n",
+    "\n",
+    "```\n",
+    "\n",
+    "As you can see here we used couple of additional things compared to `getting started level 1`. \n",
+    "\n",
+    "First, we are introducing dependency management by using the `qiskit-nature` module and `pyscf` extension.\n",
+    "We also using argument parsing to accept arguments to our program. In this case argument is `bond_length`. This means that we can, re-run our program over different bond lengths and produce a dissociation curve.\n",
+    "\n",
+    "\n",
+    "Next we need to run this program. For that we need to import necessary modules and configure `QuantumServerless` client. We are doing so by providing name and host for deployed infrastructure."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "79434a17-1222-4d04-a81a-8140ed630ed6",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from quantum_serverless import QuantumServerless, GatewayProvider"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "b6ec8969-8c3d-4b7f-8c4c-adc6dbb9c59f",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<QuantumServerless | providers [gateway-provider]>"
+      ]
+     },
+     "execution_count": 2,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "provider = GatewayProvider(\n",
+    "    username=\"user\", # this username has already been defined in local docker setup and does not need to be changed\n",
+    "    password=\"password123\", # this password has already been defined in local docker setup and does not need to be changed\n",
+    "    host=\"http://gateway:8000\", # address of provider\n",
+    ")\n",
+    "\n",
+    "serverless = QuantumServerless(provider)\n",
+    "serverless"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "544f7c64-ae1e-4480-b5d0-93f0c335eccd",
+   "metadata": {},
+   "source": [
+    "In addition to that we will provide additional `dependencies` and `arguments` to our `Program` construction.\n",
+    "- `dependencies` parameter will install provided libraries to run our script. Dependencies can be python libraries available on PyPi or any package source installable via pip package manager .\n",
+    "- `arguments` parameter is a dictionary with arguments that will be passed for script execution"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "3ee09b31-4c7f-4ff3-af8f-294e4256793e",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<Job | 40754290-9768-4ba2-9689-6d72e9197878>"
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "from quantum_serverless import Program\n",
+    "\n",
+    "program = Program(\n",
+    "    title=\"Getting started program level 2\",\n",
+    "    entrypoint=\"gs_level_2.py\",\n",
+    "    working_dir=\"./source_files\",\n",
+    "    dependencies=[\"qiskit-nature\", \"qiskit-nature[pyscf]\"],\n",
+    "    arguments={\n",
+    "        \"bond_length\": 2.55\n",
+    "    }\n",
+    ")\n",
+    "\n",
+    "job = serverless.run_program(program)\n",
+    "job"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "420f2711-b8c6-4bf9-8651-c9d098348467",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'SUCCEEDED'"
+      ]
+     },
+     "execution_count": 8,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "job.status()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "7e3b0cc7-2f08-4b69-a266-bbbe4e9a6c59",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Running for bond length 2.55.\n",
+      "=== GROUND STATE ENERGY ===\n",
+      " \n",
+      "* Electronic ground state energy (Hartree): -8.211426461751\n",
+      "  - computed part:      -8.211426461751\n",
+      "  - ActiveSpaceTransformer extracted energy part: 0.0\n",
+      "~ Nuclear repulsion energy (Hartree): 0.622561424612\n",
+      "> Total ground state energy (Hartree): -7.588865037139\n",
+      " \n",
+      "=== MEASURED OBSERVABLES ===\n",
+      " \n",
+      "  0:  # Particles: 3.997 S: 0.436 S^2: 0.626 M: 0.001\n",
+      " \n",
+      "=== DIPOLE MOMENTS ===\n",
+      " \n",
+      "~ Nuclear dipole moment (a.u.): [0.0  0.0  4.81880162]\n",
+      " \n",
+      "  0: \n",
+      "  * Electronic dipole moment (a.u.): [0.0  0.0  1.53218981]\n",
+      "    - computed part:      [0.0  0.0  1.53218981]\n",
+      "    - ActiveSpaceTransformer extracted energy part: [0.0  0.0  0.0]\n",
+      "  > Dipole moment (a.u.): [0.0  0.0  3.28661181]  Total: 3.28661181\n",
+      "                 (debye): [0.0  0.0  8.35373319]  Total: 8.35373319\n",
+      " \n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(job.logs())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "94e3f04f-09df-4bc0-9715-643523207516",
+   "metadata": {},
+   "source": [
+    "---\n",
+    "If you want to run this program with different bond length you can run it 3 times. Programs are asynchronous, therefore each of instance of program will be running in parallel."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "5f4d4317-bcc9-4e1a-942a-a38ca5331261",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "[<Job | ddb7331c-6db2-4e44-9449-b58ba53bd6b8>,\n",
+       " <Job | 52f77d9d-c669-4526-8b33-2fa9290b71dd>,\n",
+       " <Job | c31428f3-8c15-4257-a53d-fd899d40e29f>]"
+      ]
+     },
+     "execution_count": 10,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "jobs = []\n",
+    "\n",
+    "for bond_length in [2.55, 3.0, 3.55]:\n",
+    "    program = Program(\n",
+    "        title=f\"Groundstate with bond length {bond_length}\",\n",
+    "        entrypoint=\"gs_level_2.py\",\n",
+    "        working_dir=\"./source_files\",\n",
+    "        dependencies=[\"qiskit-nature\", \"qiskit-nature[pyscf]\"],\n",
+    "        arguments={\n",
+    "            \"bond_length\": bond_length\n",
+    "        }\n",
+    "    )\n",
+    "    jobs.append(serverless.run_program(program))\n",
+    "\n",
+    "jobs"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "46fe3955-ac35-43d9-a5de-2a4e2cad1483",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "RUNNING\n",
+      "RUNNING\n",
+      "RUNNING\n"
+     ]
+    }
+   ],
+   "source": [
+    "for job in jobs:\n",
+    "    print(job.status())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "0988d6b4-03a4-4c87-ad1f-5b0526a7527e",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Running for bond length 2.55.\n",
+      "=== GROUND STATE ENERGY ===\n",
+      " \n",
+      "* Electronic ground state energy (Hartree): -8.211426461751\n",
+      "  - computed part:      -8.211426461751\n",
+      "  - ActiveSpaceTransformer extracted energy part: 0.0\n",
+      "~ Nuclear repulsion energy (Hartree): 0.622561424612\n",
+      "> Total ground state energy (Hartree): -7.588865037139\n",
+      " \n",
+      "=== MEASURED OBSERVABLES ===\n",
+      " \n",
+      "  0:  # Particles: 3.997 S: 0.436 S^2: 0.626 M: 0.001\n",
+      " \n",
+      "=== DIPOLE MOMENTS ===\n",
+      " \n",
+      "~ Nuclear dipole moment (a.u.): [0.0  0.0  4.81880162]\n",
+      " \n",
+      "  0: \n",
+      "  * Electronic dipole moment (a.u.): [0.0  0.0  1.53218981]\n",
+      "    - computed part:      [0.0  0.0  1.53218981]\n",
+      "    - ActiveSpaceTransformer extracted energy part: [0.0  0.0  0.0]\n",
+      "  > Dipole moment (a.u.): [0.0  0.0  3.28661181]  Total: 3.28661181\n",
+      "                 (debye): [0.0  0.0  8.35373319]  Total: 8.35373319\n",
+      " \n",
+      "\n",
+      "Running for bond length 3.0.\n",
+      "=== GROUND STATE ENERGY ===\n",
+      " \n",
+      "* Electronic ground state energy (Hartree): -8.124024370249\n",
+      "  - computed part:      -8.124024370249\n",
+      "  - ActiveSpaceTransformer extracted energy part: 0.0\n",
+      "~ Nuclear repulsion energy (Hartree): 0.52917721092\n",
+      "> Total ground state energy (Hartree): -7.594847159329\n",
+      " \n",
+      "=== MEASURED OBSERVABLES ===\n",
+      " \n",
+      "  0:  # Particles: 3.998 S: 0.408 S^2: 0.575 M: 0.001\n",
+      " \n",
+      "=== DIPOLE MOMENTS ===\n",
+      " \n",
+      "~ Nuclear dipole moment (a.u.): [0.0  0.0  5.66917837]\n",
+      " \n",
+      "  0: \n",
+      "  * Electronic dipole moment (a.u.): [0.0  0.0  2.91821215]\n",
+      "    - computed part:      [0.0  0.0  2.91821215]\n",
+      "    - ActiveSpaceTransformer extracted energy part: [0.0  0.0  0.0]\n",
+      "  > Dipole moment (a.u.): [0.0  0.0  2.75096622]  Total: 2.75096622\n",
+      "                 (debye): [0.0  0.0  6.99225801]  Total: 6.99225801\n",
+      " \n",
+      "\n",
+      "Running for bond length 3.55.\n",
+      "=== GROUND STATE ENERGY ===\n",
+      " \n",
+      "* Electronic ground state energy (Hartree): -8.049823374615\n",
+      "  - computed part:      -8.049823374615\n",
+      "  - ActiveSpaceTransformer extracted energy part: 0.0\n",
+      "~ Nuclear repulsion energy (Hartree): 0.447192009228\n",
+      "> Total ground state energy (Hartree): -7.602631365386\n",
+      " \n",
+      "=== MEASURED OBSERVABLES ===\n",
+      " \n",
+      "  0:  # Particles: 3.999 S: 0.378 S^2: 0.520 M: 0.001\n",
+      " \n",
+      "=== DIPOLE MOMENTS ===\n",
+      " \n",
+      "~ Nuclear dipole moment (a.u.): [0.0  0.0  6.70852774]\n",
+      " \n",
+      "  0: \n",
+      "  * Electronic dipole moment (a.u.): [0.0  0.0  5.39179177]\n",
+      "    - computed part:      [0.0  0.0  5.39179177]\n",
+      "    - ActiveSpaceTransformer extracted energy part: [0.0  0.0  0.0]\n",
+      "  > Dipole moment (a.u.): [0.0  0.0  1.31673597]  Total: 1.31673597\n",
+      "                 (debye): [0.0  0.0  3.34680868]  Total: 3.34680868\n",
+      " \n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "for job in jobs:\n",
+    "    print(job.logs())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "95a1d859-a089-4d7f-ad88-b2acae1ed66d",
+   "metadata": {},
+   "source": [
+    "---\n",
+    "Other way would be refactoring program file itself to accept list of bond length and run them in a loop inside a program.\n",
+    "If you want 3 independent results, then running 3 programs would be a better fit. But if you want to do some postprocessing after execution of multiple function, then refactoring program file to run 3 function and postprocess them would be better choice. But at the end it all boils down to user preference."
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.13"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

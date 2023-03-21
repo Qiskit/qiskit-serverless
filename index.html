@@ -23,7 +23,7 @@
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="&lt;no title&gt;" href="guides/index.html" />
+    <link rel="next" title="&lt;no title&gt;" href="getting_started/index.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -47,17 +47,24 @@
 <p>The source code to the project is available <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless">on GitHub</a>.</p>
 <hr class="docutils" />
 <p><strong>Quickstart</strong></p>
-<p>Step 1: run infrastructure</p>
+<p>Step 0: install package</p>
 <div class="literal-block-wrapper docutils container" id="id1">
-<div class="code-block-caption"><span class="caption-number">Listing 1 </span><span class="caption-text">run docker compose from a root of the project</span><a class="headerlink" href="#id1" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 1 </span><span class="caption-text">pip install</span><a class="headerlink" href="#id1" title="Permalink to this code">¶</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">pip</span> <span class="n">install</span> <span class="n">quantum_serverless</span>
+</pre></div>
+</div>
+</div>
+<p>Step 1: run infrastructure</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-number">Listing 2 </span><span class="caption-text">run docker compose from a root of the project</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">docker</span><span class="o">-</span><span class="n">compose</span> <span class="n">pull</span>
    <span class="n">docker</span><span class="o">-</span><span class="n">compose</span> <span class="n">up</span>
 </pre></div>
 </div>
 </div>
 <p>Step 2: write program</p>
-<div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-number">Listing 2 </span><span class="caption-text">program.py</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-number">Listing 3 </span><span class="caption-text">program.py</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
 <span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
 <span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
@@ -99,8 +106,8 @@
 </div>
 </div>
 <p>Step 3: run program</p>
-<div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-number">Listing 3 </span><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-number">Listing 4 </span><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">Program</span>
 
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">({</span>
@@ -133,6 +140,14 @@
 </div>
 </div>
 <hr class="docutils" />
+<p><strong>Getting started</strong></p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/01_intro_level_1.html">Getting started - level 1</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/01_intro_level_2.html">Getting started - level 2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/01_intro_level_3.html">Getting started - level 3</a></li>
+</ul>
+</div>
 <p><strong>Guides</strong></p>
 <div class="toctree-wrapper compound">
 <ul>
@@ -211,6 +226,11 @@
 
 <h3>Navigation</h3>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/01_intro_level_1.html">Getting started - level 1</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/01_intro_level_2.html">Getting started - level 2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/01_intro_level_3.html">Getting started - level 3</a></li>
+</ul>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="guides/01_run_anything_in_distributed_fashion.html">Guide: run anything in distributed fashion</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/02_specific_resource_allocation.html">Guide: specific resource requirements</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/03_runtime_primitives_with_quantum_serverless.html">Guide: Qiskit Runtime Primitives with QuantumServerless</a></li>
@@ -237,7 +257,7 @@
 <h3>Related Topics</h3>
 <ul>
   <li><a href="#">Documentation overview</a><ul>
-      <li>Next: <a href="guides/index.html" title="next chapter">&lt;no title&gt;</a></li>
+      <li>Next: <a href="getting_started/index.html" title="next chapter">&lt;no title&gt;</a></li>
   </ul></li>
 </ul>
 </div>
