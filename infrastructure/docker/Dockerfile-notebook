@@ -10,5 +10,6 @@ RUN rm -r ./qs
 
 COPY --chown=$NB_UID:$NB_UID ./docs/tutorials/ ./serverless/tutorials/
 COPY --chown=$NB_UID:$NB_UID ./docs/guides/ ./serverless/guides/
+COPY --chown=$NB_UID:$NB_UID ./docs/getting_started/ ./serverless/getting_started/
 
 ENV JUPYTER_ENABLE_LAB=no

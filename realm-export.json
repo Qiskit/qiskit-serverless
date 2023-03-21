@@ -469,7 +469,7 @@
       "groups": []
     },
     {
-      "username": "john",
+      "username": "user",
       "enabled": true,
       "email": "user@quatunserverless.org",
       "emailVerified": true,
