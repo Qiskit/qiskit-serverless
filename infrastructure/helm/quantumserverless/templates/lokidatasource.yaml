@@ -1,0 +1,20 @@
+{{- if .Values.prometheusEnable }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    grafana_datasource: "1"
+    release: {{ .Release.Name }}
+  name: loki-datasource
+  namespace: {{ .Release.Namespace }}
+data:
+  datasource.yaml: |-
+    apiVersion: 1
+    datasources:
+    - name: loki
+      type: loki
+      url: http://loki-gateway:80/
+      access: proxy
+      jsonData:
+        maxLines: 1000  
+{{- end }}

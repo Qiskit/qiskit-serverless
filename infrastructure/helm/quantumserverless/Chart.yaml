@@ -41,12 +41,17 @@ dependencies:
   - name: repository
     condition: repositoryEnable
     version: 0.1.0
-  - name: prometheus
+  - name: kube-prometheus-stack
     condition: prometheusEnable
-    version: 19.7.2
+    version: 45.7.1
     repository: https://prometheus-community.github.io/helm-charts
   - name: loki
     condition: lokiEnable
     version: 4.8.0
     repository: https://grafana.github.io/helm-charts
+  - name: promtail
+    condition: promtailEnable
+    version: 6.9.3
+    repository: https://grafana.github.io/helm-charts
+
 

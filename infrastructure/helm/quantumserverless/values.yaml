@@ -291,11 +291,12 @@ repositoryEnable: true
 # ===================
 
 prometheusEnable: true
-# prometheus:
-#    special configuration over the prometheus sub-chart
+kube-prometheus-stack:
+  grafana:
+    adminPassword: passw0rd
 
 # ===================
-# loki 
+# loki
 # ===================
 
 lokiEnable: true
@@ -319,3 +320,8 @@ loki:
     service:
       type: NodePort
 
+# ===================
+# promtail
+# ===================
+
+promtailEnable: true
