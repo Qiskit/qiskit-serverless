@@ -12,6 +12,14 @@ The source code to the project is available `on GitHub <https://github.com/Qiski
 
 **Quickstart**
 
+Step 0: install package
+
+.. code-block::
+   :caption: pip install
+
+      pip install quantum_serverless
+
+
 Step 1: run infrastructure
 
 .. code-block::
@@ -98,6 +106,13 @@ Step 3: run program
    # N parallel executions: [array([1.]), array([0.]), array([-0.28650496])]
 
 ------------
+
+**Getting started**
+
+.. toctree::
+  :maxdepth: 2
+
+  Guides <getting_started/index>
 
 **Guides**
 
