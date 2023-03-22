@@ -77,3 +77,10 @@ jobs:
           file: ./infrastructure/docker/Dockerfile-repository-server
           push: true
           tags: qiskit/quantum-repository-server:nightly
+      - name: Build and push gateway
+        uses: docker/build-push-action@v3
+        with:
+          context: ./gateway/
+          file: ./gateway/Dockerfile
+          push: true
+          tags: qiskit/quantum-serverless-gateway:nightly
