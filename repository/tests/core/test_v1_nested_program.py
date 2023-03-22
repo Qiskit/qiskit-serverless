@@ -249,6 +249,29 @@ class NestedProgramTests(APITestCase):
         failed_validation_fields_list = list(response.json().keys())
         self.assertListEqual(failed_validation_fields_list, fields_to_check)
 
+    def test_nested_program_artifact_validation_returns_400(self):
+        """
+        The value for artifact is not a tar file, a non-allowed value for this field and returns a 400
+        """
+        fields_to_check = ["artifact"]
+        nested_program_input = {
+            "title": "Awesome nested program",
+            "description": "Awesome nested program description",
+            "entrypoint": "nested_program.py",
+            "working_dir": "./",
+            "version": "0.0.1",
+            "env_vars": json.dumps({"DEBUG": True}),
+            "arguments": json.dumps({}),
+            "tags": json.dumps(["dev"]),
+            "dependencies": json.dumps([]),
+            "public": True,
+        }
+        test_user = User.objects.get(username="test_user")
+
+        self.client.force_login(test_user)
+
+        url = reverse("v1:nested-programs-list")
+
         with open(
             os.path.join(
                 os.path.dirname(os.path.realpath(__file__)),
