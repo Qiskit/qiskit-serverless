@@ -10,6 +10,7 @@ from text.constants import LINE_DECORATOR, LOCAL_DOCKER_WELCOME, LOCAL_DOCKER_IN
 
 JUPYTER_NOTEBOOK_BASE_URL = 'http://127.0.0.1:8888/lab'
 JUPYTER_NOTEBOOK_TOKEN_OPTION = '?token='
+JUPYTER_NOTEBOOK_DEFAULT_TOKEN = '123'
 
 def execute_docker_up():
     urls = {}
@@ -21,7 +22,10 @@ def execute_docker_up():
             jn_url_token = parse.search(JUPYTER_NOTEBOOK_BASE_URL + JUPYTER_NOTEBOOK_TOKEN_OPTION + '{}\n', stdout_line)
             break
     if jn_url_token is not None:
-        jn_url += JUPYTER_NOTEBOOK_TOKEN_OPTION + jn_url_token[0]
+        token = JUPYTER_NOTEBOOK_DEFAULT_TOKEN
+        if (jn_url_token[0] is not None and jn_url_token[0] != '...'):
+            token = jn_url_token[0]
+        jn_url += JUPYTER_NOTEBOOK_TOKEN_OPTION + token
     urls['JUPYTER_NOTEBOOK_URL'] = jn_url
     return urls
 
