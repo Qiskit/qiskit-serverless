@@ -6,7 +6,8 @@ import numpy as np
 from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
 
-from quantum_serverless import QuantumServerless
+from quantum_serverless import QuantumServerless, Provider
+from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
@@ -46,20 +47,13 @@ def test_program():
         host = compose.get_service_host("testrayhead", 8265)
         port = compose.get_service_port("testrayhead", 8265)
 
-        serverless = QuantumServerless(
-            {
-                "providers": [
-                    {
-                        "name": "docker",
-                        "compute_resource": {
-                            "name": "docker",
-                            "host": host,
-                            "port_job_server": port,
-                        },
-                    }
-                ]
-            }
-        ).set_provider("docker")
+        provider = Provider(
+            name="docker",
+            compute_resource=ComputeResource(
+                name="docker", host=host, port_job_server=port
+            ),
+        )
+        serverless = QuantumServerless(provider).set_provider("docker")
 
         wait_for_job_client(serverless)
 

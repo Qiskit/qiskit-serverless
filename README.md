@@ -6,6 +6,11 @@
 
 # Quantum serverless
 
+Quantum Serverless is a user-friendly tool that enables you to easily run complex quantum computing tasks. 
+With this software, you can execute Qiskit programs as long running jobs and distribute them across multiple CPUs, GPUs, and QPUs. 
+This means you can take on more complex quantum-classical programs and run them with ease. 
+You don't have to worry about configuration or scaling up computational resources, as Quantum Serverless takes care of everything for you. 
+
 ![diagram](./docs/images/qs_diagram.png)
 
 ### Table of Contents
@@ -13,139 +18,31 @@
 1. [Installation](INSTALL.md)
 2. [Quickstart](#quickstart-guide)
 3. [Beginners Guide](docs/beginners_guide.md)
-4. Modules:
+4. [Getting started](docs/getting_started/)
+5. Modules:
    1. [Client](./client)
    2. [Infrastructure](./infrastructure)
-5. [Tutorials](docs/tutorials/)
-6. [Guides](docs/guides/)
-7. [How to Give Feedback](#how-to-give-feedback)
-8. [Contribution Guidelines](#contribution-guidelines)
-9. [References and Acknowledgements](#references-and-acknowledgements)
-10. [License](#license)
+6. [Tutorials](docs/tutorials/)
+7. [Guides](docs/guides/)
+8. [How to Give Feedback](#how-to-give-feedback)
+9. [Contribution Guidelines](#contribution-guidelines)
+10. [References and Acknowledgements](#references-and-acknowledgements)
+11. [License](#license)
 
 ----------------------------------------------------------------------------------------------------
 
 ### Quickstart
 
-Steps
-1. prepare infrastructure
-2. write your program
-3. run program
-
-#### Prepare infrastructure
-
-In the root folder of this project you can find `docker-compose.yml` 
-file, which is configured to run all necessary services for quickstart tutorials.
-
-Run in a root folder
+1. Prepare local infrastructure
 ```shell
 docker-compose pull
 docker-compose up
 ```
 
-:memo: For more advanced ways to deploy the project you have the guide:
-[Multi cloud deployment](https://qiskit-extensions.github.io/quantum-serverless/guides/08_multi_cloud_deployment.html).
+2. Open jupyter notebook in browser at [http://localhost:8888/](http://localhost:8888/). Password for notebook is `123`
+3. Explore 3 getting started tutorials.
 
-#### Write your program
-
-Create python file with necessary code. Let's call in `program.py`
-
-```python
-# program.py
-from qiskit import QuantumCircuit
-from qiskit.circuit.random import random_circuit
-from qiskit.quantum_info import SparsePauliOp
-from qiskit.primitives import Estimator
-
-from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put
-from quantum_serverless.core.state import RedisStateHandler
-
-# 1. let's annotate out function to convert it
-# to function that can be executed remotely
-# using `run_qiskit_remote` decorator
-@run_qiskit_remote()
-def my_function(circuit: QuantumCircuit, obs: SparsePauliOp):
-    return Estimator().run([circuit], [obs]).result().values
-
-
-# 2. Next let's create out serverless object to control
-# where our remote function will be executed
-serverless = QuantumServerless()
-
-# 2.1 (Optional) state handler to write/read results in/out of job
-state_handler = RedisStateHandler("redis", 6379)
-
-circuits = [random_circuit(2, 2) for _ in range(3)]
-
-# 3. create serverless context
-with serverless:
-    # 4. let's put some shared objects into remote storage that will be shared among all executions
-    obs_ref = put(SparsePauliOp(["ZZ"]))
-
-    # 4. run our function and get back reference to it
-    # as now our function it remote one
-    function_reference = my_function(circuits[0], obs_ref)
-
-    # 4.1 or we can run N of them in parallel (for all circuits)
-    function_references = [my_function(circ, obs_ref) for circ in circuits]
-
-    # 5. to get results back from reference
-    # we need to call `get` on function reference
-    single_result = get(function_reference)
-    parallel_result = get(function_references)
-    print("Single execution:", single_result)
-    print("N parallel executions:", parallel_result)
-
-    # 5.1 (Optional) write results to state.
-    state_handler.set("result", {
-        "status": "ok",
-        "single": single_result.tolist(),
-        "parallel_result": [entry.tolist() for entry in parallel_result]
-    })
-```
-
-#### Run program
-
-Let's run our program now
-
-```python
-from quantum_serverless import QuantumServerless, Program
-from quantum_serverless.core.state import RedisStateHandler
-
-serverless = QuantumServerless({
-    "providers": [{
-        "name": "docker-compose",
-        "compute_resource": {
-            "name": "docker-compose",
-            "host": "localhost", # using our docker-compose infrastructure
-        }
-    }]
-})
-serverless.set_provider("docker-compose") # set provider as docker-compose
-
-state_handler = RedisStateHandler("localhost", 6379)
-
-# create out program
-program = Program(
-    name="my_program",
-    entrypoint="program.py" # set entrypoint as our program.py file
-)
-
-job = serverless.run_program(program)
-
-job.status()
-# <JobStatus.SUCCEEDED: 'SUCCEEDED'>
-
-job.logs()
-# Single execution: [1.]
-# N parallel executions: [array([1.]), array([0.]), array([-0.28650496])]
-
-state_handler.get("result") # (Optional) get written data
-# {'status': 'ok',
-# 'single': [1.0],
-# 'parallel_result': [[1.0], [0.0], [-0.28650496]]}
-```
-
+For more detailed examples and explanations refer to [Beginners Guide](docs/beginners_guide.md), [Getting started examples](docs/getting_started/), [Guides](docs/guides) and [Tutorials](docs/tutorials).
 
 ----------------------------------------------------------------------------------------------------
 

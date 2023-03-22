@@ -8,6 +8,9 @@ version: 0.1.0
 appVersion: "0.1.0"
 
 dependencies:
+  - name: gateway
+    condition: gatewayEnable
+    version: 0.1.0
   - name: jupyter
     condition: jupyterEnable
     version: 0.1.0

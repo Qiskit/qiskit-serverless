@@ -10,6 +10,28 @@
 nginxIngressControllerEnable: true
 
 # ===================
+# Gateway configs
+# ===================
+
+gatewayEnable: true
+gateway:
+  image:
+    pullPolicy: Always
+  application:
+    siteHost: "http://127.0.0.1:8000"
+    rayHost: "http://serverless-cluster-kuberay-head-svc:8265"
+    keycloak:
+      clientId: "gateway-client"
+      url: "http://serverless-cluster-keycloak/"
+      realm: "quantumserverless"
+      clientSecret: "secret"
+      clientName: "gateway-client"
+    superuser:
+      username: "admin"
+      password: "passw0rd"
+      email: "admin@examplemail.io"
+
+# ===================
 # Redis configs
 # ===================
 
