@@ -38,6 +38,7 @@ override.tf.json
 __pycache__
 .DS_Store
 
+
 venv/
 .idea/
 .vscode/
@@ -94,3 +95,6 @@ docs/_build/
 /manager/ray/
 
 /infrastructure/helm/values/**
+.local/
+
+
