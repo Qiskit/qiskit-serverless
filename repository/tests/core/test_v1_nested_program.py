@@ -114,7 +114,7 @@ class NestedProgramTests(APITestCase):
                 "fixtures",
                 "artifact.tar",
             ),
-            "rb"
+            "rb",
         ) as file:
             nested_program_input["artifact"] = file
             response = self.client.post(
@@ -198,7 +198,7 @@ class NestedProgramTests(APITestCase):
                 "fixtures",
                 "artifact.tar",
             ),
-            "rb"
+            "rb",
         ) as file:
             nested_program_input["artifact"] = file
             response = self.client.post(
@@ -238,7 +238,7 @@ class NestedProgramTests(APITestCase):
                 "fixtures",
                 "artifact.tar",
             ),
-            "rb"
+            "rb",
         ) as file:
             nested_program_input["artifact"] = file
             response = self.client.post(
