@@ -16,7 +16,8 @@ nginxIngressControllerEnable: true
 gatewayEnable: true
 gateway:
   image:
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
+    tag: "nightly"
   application:
     siteHost: "http://127.0.0.1:8000"
     rayHost: "http://serverless-cluster-kuberay-head-svc:8265"
@@ -62,7 +63,7 @@ jupyter:
 
   image:
     repository: "qiskit/quantum-serverless-notebook"
-    tag: "latest-py39"
+    tag: "nightly-py39"
     pullPolicy: IfNotPresent
   
   imagePullSecrets: []
@@ -100,7 +101,7 @@ ray-cluster:
 
   image:
     repository: "qiskit/quantum-serverless-ray-node"
-    tag: "latest-py39"
+    tag: "nightly-py39"
     pullPolicy: IfNotPresent
 
   head:
@@ -285,6 +286,8 @@ keycloak:
 # ===================
 
 repositoryEnable: true
+repository:
+  tag: "nightly"
 
 # ===================
 # Prometheus 
