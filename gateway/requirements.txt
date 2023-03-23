@@ -1,6 +1,6 @@
 django-filter==22.1
 djangorestframework==3.14.0
-Markdown==3.4.2
+Markdown==3.4.3
 django-allauth==0.52.0
 dj-rest-auth==3.0.0
 djangorestframework-simplejwt==5.2.2
