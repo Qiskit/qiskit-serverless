@@ -22,7 +22,8 @@ def welcome():
 @click.command()
 @click.option(
     "--tool-type", prompt='Choose your tool technology',
-    type=click.Choice([DOCKER, TERRAFORM, HELM]),
+    # type=click.Choice([DOCKER, TERRAFORM, HELM]),
+    type=click.Choice([DOCKER]),
     default=DOCKER,
     show_default=DOCKER
 )

@@ -17,7 +17,8 @@ def welcome():
 @click.command()
 @click.option(
     "--installation-type", prompt='Choose what kind installation you prefer',
-    type=click.Choice([LOCAL, CLOUD]),
+    # type=click.Choice([LOCAL, CLOUD]),
+    type=click.Choice([LOCAL]),
     default=LOCAL,
     show_default=LOCAL
 )
