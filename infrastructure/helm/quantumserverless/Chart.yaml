@@ -16,7 +16,7 @@ dependencies:
     version: 0.1.0
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
-    version: 9.3.32
+    version: 9.4.0
     repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
     condition: kuberayOperatorEnable
@@ -32,7 +32,7 @@ dependencies:
     repository: https://ray-project.github.io/kuberay-helm
   - name: redis
     condition: redisEnable
-    version: 17.8.3
+    version: 17.9.0
     repository: https://charts.bitnami.com/bitnami
   - name: keycloak
     condition: keycloakEnable
