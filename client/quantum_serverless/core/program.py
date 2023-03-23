@@ -13,18 +13,18 @@
 
 """
 =================================================
-Provider (:mod:`quantum_serverless.core.nested_program`)
+Provider (:mod:`quantum_serverless.core.program`)
 =================================================
 
-.. currentmodule:: quantum_serverless.core.nested_program
+.. currentmodule:: quantum_serverless.core.program
 
-Quantum serverless nested nested_program
+Quantum serverless nested program
 =================================
 
 .. autosummary::
     :toctree: ../stubs/
 
-    NestedProgram
+    Program
 """
 import dataclasses
 import json
@@ -48,19 +48,19 @@ from quantum_serverless.utils.json import is_jsonable
 
 
 @dataclass
-class NestedProgram:  # pylint: disable=too-many-instance-attributes
-    """Serverless nested_programs.
-    
+class Program:  # pylint: disable=too-many-instance-attributes
+    """Serverless programs.
+
     Args:
-        title: nested_program name
+        title: program name
         entrypoint: is a script that will be executed as a job
             ex: job.py
         arguments: arguments for entrypoint script
         env_vars: env vars
-        dependencies: list of python dependencies for nested_program to execute
+        dependencies: list of python dependencies for program to execute
         working_dir: directory where entrypoint file is located
-        description: description of a nested_program
-        version: version of a nested_program
+        description: description of a program
+        version: version of a program
     """
 
     title: str
@@ -75,9 +75,9 @@ class NestedProgram:  # pylint: disable=too-many-instance-attributes
 
     @classmethod
     def from_json(cls, data: Dict[str, Any]):
-        """Reconstructs NestedProgram from dictionary."""
-        field_names = set(f.name for f in dataclasses.fields(NestedProgram))
-        return NestedProgram(**{k: v for k, v in data.items() if k in field_names})
+        """Reconstructs Program from dictionary."""
+        field_names = set(f.name for f in dataclasses.fields(Program))
+        return Program(**{k: v for k, v in data.items() if k in field_names})
 
     def __post_init__(self):
         if self.arguments is not None and not is_jsonable(self.arguments):
@@ -86,46 +86,46 @@ class NestedProgram:  # pylint: disable=too-many-instance-attributes
             )
 
 
-class NestedProgramStorage(ABC):
-    """Base nested_program backend to save and load nested_programs from."""
+class ProgramStorage(ABC):
+    """Base program backend to save and load programs from."""
 
-    def save_nested_program(self, nested_program: NestedProgram) -> bool:
-        """Save nested_program in specified backend.
-        
+    def save_program(self, program: Program) -> bool:
+        """Save program in specified backend.
+
         Args:
-            nested_program: nested_program
-            
+            program: program
+
         Returns:
             success state
         """
         raise NotImplementedError
 
-    def get_nested_programs(self, **kwargs) -> List[str]:
-        """Returns list of available nested_programs to get.
-        
+    def get_programs(self, **kwargs) -> List[str]:
+        """Returns list of available programs to get.
+
         Args:
             kwargs: filtering criteria
-            
+
         Returns:
-            List of names of nested_programs
+            List of names of programs
         """
         raise NotImplementedError
 
-    def get_nested_program(self, title: str, **kwargs) -> Optional[NestedProgram]:
-        """Returns nested_program by name of other query criteria.
-        
+    def get_program(self, title: str, **kwargs) -> Optional[Program]:
+        """Returns program by name of other query criteria.
+
         Args:
-            title: title of the nested_program
+            title: title of the program
             **kwargs: other args
-            
+
         Returns:
-            NestedProgram
+            Program
         """
         raise NotImplementedError
 
 
-class NestedProgramRepository(NestedProgramStorage):
-    """NestedProgramRepository."""
+class ProgramRepository(ProgramStorage):
+    """ProgramRepository."""
 
     def __init__(
         self,
@@ -134,8 +134,8 @@ class NestedProgramRepository(NestedProgramStorage):
         token: Optional[str] = None,
         folder: Optional[str] = None,
     ):
-        """NestedProgram repository implementation.
-        
+        """Program repository implementation.
+
         Args:
             host: host of backend
             port: port of backend
@@ -146,12 +146,12 @@ class NestedProgramRepository(NestedProgramStorage):
         self._host = host or os.environ.get(REPO_HOST_KEY, "http://localhost")
         self._port = port or os.environ.get(REPO_PORT_KEY, 80)
         self._token = token
-        self._base_url = f"{self._host}:{self._port}/v1/api/nested-nested_programs/"
+        self._base_url = f"{self._host}:{self._port}/v1/api/nested-programs/"
 
-    def save_nested_program(self, nested_program: NestedProgram) -> bool:
+    def save_program(self, program: Program) -> bool:
         raise NotImplementedError("Not implemented yet.")
 
-    def get_nested_programs(self, **kwargs) -> List[str]:
+    def get_programs(self, **kwargs) -> List[str]:
         result = []
         response = requests.get(url=self._base_url, params=kwargs, timeout=10)
         if response.ok:
@@ -159,7 +159,7 @@ class NestedProgramRepository(NestedProgramStorage):
             result = [entry.get("title") for entry in response_data.get("results", [])]
         return result
 
-    def get_nested_program(self, title: str, **kwargs) -> Optional[NestedProgram]:
+    def get_program(self, title: str, **kwargs) -> Optional[Program]:
         result = None
         response = requests.get(
             url=f"{self._base_url}",
@@ -172,9 +172,9 @@ class NestedProgramRepository(NestedProgramStorage):
             results = response_data.get("results", [])
             if len(results) > 0:
                 artifact = results[0].get("artifact")
-                result = NestedProgram.from_json(results[0])
+                result = Program.from_json(results[0])
                 result.working_dir = download_and_unpack_artifact(
-                    artifact_url=artifact, nested_program=result, folder=self.folder
+                    artifact_url=artifact, program=result, folder=self.folder
                 )
             else:
                 logging.warning("No entries were found for your request.")
@@ -183,28 +183,28 @@ class NestedProgramRepository(NestedProgramStorage):
 
 def download_and_unpack_artifact(
     artifact_url: str,
-    nested_program: NestedProgram,
+    program: Program,
     folder: str,
     headers: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Downloads and extract artifact files into destination folder.
-    
+
     Args:
         artifact_url: url to get artifact from
-        nested_program: nested_program object artifact belongs to
-        folder: root of nested_programs folder a.k.a unpack destination
+        program: program object artifact belongs to
+        folder: root of programs folder a.k.a unpack destination
         headers: optional headers needed for download requests
-        
-    Returns:
-        workdir for nested_program
-    """
-    nested_program_folder_path = os.path.join(folder, nested_program.title)
-    artifact_file_name = "artifact"
-    tarfile_path = os.path.join(nested_program_folder_path, artifact_file_name)
 
-    # check if nested_program already exist on the disc
-    if os.path.exists(nested_program_folder_path):
-        logging.warning("NestedProgram folder already exist. Will be overwritten.")
+    Returns:
+        workdir for program
+    """
+    program_folder_path = os.path.join(folder, program.title)
+    artifact_file_name = "artifact"
+    tarfile_path = os.path.join(program_folder_path, artifact_file_name)
+
+    # check if program already exist on the disc
+    if os.path.exists(program_folder_path):
+        logging.warning("Program folder already exist. Will be overwritten.")
 
     # download file
     response = requests.get(url=artifact_url, stream=True, headers=headers, timeout=100)
@@ -213,7 +213,7 @@ def download_and_unpack_artifact(
             f"Error during fetch of [{artifact_url}] file."
         )
 
-    Path(nested_program_folder_path).mkdir(parents=True, exist_ok=True)
+    Path(program_folder_path).mkdir(parents=True, exist_ok=True)
 
     with open(tarfile_path, "wb") as file:
         for data in response.iter_content():
@@ -221,9 +221,9 @@ def download_and_unpack_artifact(
 
     # unpack tarfile
     with tarfile.open(tarfile_path, "r") as file_obj:
-        file_obj.extractall(nested_program_folder_path)
+        file_obj.extractall(program_folder_path)
 
     # delete artifact
     if os.path.exists(tarfile_path):
         os.remove(tarfile_path)
-    return nested_program_folder_path
+    return program_folder_path
