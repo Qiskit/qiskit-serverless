@@ -21,7 +21,7 @@ class TestJobApi(APITestCase):
 
     def test_job_non_auth_user(self):
         """Tests job list non-authorized."""
-        url = reverse("job-list")
+        url = reverse("v1:jobs-list")
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -29,7 +29,7 @@ class TestJobApi(APITestCase):
         """Tests job list authorized."""
         self._authorize()
 
-        jobs_response = self.client.get(reverse("job-list"), format="json")
+        jobs_response = self.client.get(reverse("v1:jobs-list"), format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 1)
         self.assertEqual(
@@ -44,7 +44,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("job-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
+            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -56,7 +56,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.post(
-            reverse("job-result", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
+            reverse("v1:jobs-result", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
             format="json",
             data={"result": {"ultimate": 42}},
         )
