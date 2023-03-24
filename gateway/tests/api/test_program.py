@@ -47,7 +47,8 @@ class TestNestedProgramApi(APITestCase):
 
         programs_response = self.client.get(
             reverse(
-                "v1:nested-programs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]
+                "v1:nested-programs-detail",
+                args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"],
             ),
             format="json",
         )
