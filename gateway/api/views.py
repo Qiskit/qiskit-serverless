@@ -142,6 +142,8 @@ class JobViewSet(viewsets.ModelViewSet):
     Job ViewSet configuration using ModelViewSet.
     """
 
+    BASE_NAME = "jobs"
+
     def get_serializer_class(self):
         return JobSerializer
 
