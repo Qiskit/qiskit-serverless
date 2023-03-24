@@ -43,6 +43,7 @@ from quantum_serverless.core.constants import (
     ENV_JOB_GATEWAY_TOKEN,
     ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
+    GATEWAY_PROVIDER_VERSION
 )
 from quantum_serverless.core.program import Program
 from quantum_serverless.utils.json import is_jsonable
@@ -128,21 +129,23 @@ class RayJobClient(BaseJobClient):
 class GatewayJobClient(BaseJobClient):
     """GatewayJobClient."""
 
-    def __init__(self, host: str, token: str):
+    def __init__(self, host: str, token: str, version: str):
         """Job client for Gateway service.
 
         Args:
             host: gateway host
+            version: gateway version
             token: authorization token
         """
         self.host = host
+        self.version = version
         self._token = token
 
     def status(self, job_id: str):
         default_status = "Unknown"
         status = default_status
         response = requests.get(
-            f"{self.host}/api/v1/jobs/{job_id}/",
+            f"{self.host}/api/{self.version}/jobs/{job_id}/",
             headers={"Authorization": f"Bearer {self._token}"},
             timeout=REQUESTS_TIMEOUT,
         )
@@ -160,7 +163,7 @@ class GatewayJobClient(BaseJobClient):
     def logs(self, job_id: str):
         result = None
         response = requests.get(
-            f"{self.host}/api/v1/jobs/{job_id}/logs/",
+            f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
             headers={"Authorization": f"Bearer {self._token}"},
             timeout=REQUESTS_TIMEOUT,
         )
@@ -175,7 +178,7 @@ class GatewayJobClient(BaseJobClient):
     def result(self, job_id: str):
         result = None
         response = requests.get(
-            f"{self.host}/api/v1/jobs/{job_id}/",
+            f"{self.host}/api/{self.version}/jobs/{job_id}/",
             headers={"Authorization": f"Bearer {self._token}"},
             timeout=REQUESTS_TIMEOUT,
         )
@@ -223,6 +226,12 @@ class Job:
 
 def save_result(result: Dict[str, Any]):
     """Saves job results."""
+
+    version = os.environ.get(GATEWAY_PROVIDER_VERSION)
+    if version is None:
+        logging.warning("Please provide `version` of gateway.")
+        return False
+
     token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
     if token is None:
         logging.warning(
