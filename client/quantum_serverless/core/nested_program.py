@@ -12,14 +12,14 @@
 
 
 """
-=================================================
+========================================================
 Provider (:mod:`quantum_serverless.core.nested_program`)
-=================================================
+========================================================
 
 .. currentmodule:: quantum_serverless.core.nested_program
 
 Quantum serverless nested nested_program
-=================================
+========================================
 
 .. autosummary::
     :toctree: ../stubs/
