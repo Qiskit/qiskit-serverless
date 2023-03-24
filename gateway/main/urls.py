@@ -20,8 +20,6 @@ from rest_framework import routers
 from api.views import KeycloakLogin, KeycloakUsersView
 
 router = routers.DefaultRouter()
-# router.register(r"programs", ProgramViewSet)
-# router.register(r"jobs", JobViewSet)
 
 
 urlpatterns = [
@@ -32,5 +30,5 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("api-auth/", include("rest_framework.urls")),
     path("admin/", admin.site.urls),
-    re_path(r"^v1/api/", include(("api.v1.urls", "api"), namespace="v1")),
+    re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
 ]
