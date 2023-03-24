@@ -23,7 +23,6 @@ router = routers.DefaultRouter()
 
 
 urlpatterns = [
-    # path("", include(router.urls)),
     path("dj-rest-auth/", include("dj_rest_auth.urls")),
     path("dj-rest-auth/keycloak/", KeycloakLogin.as_view(), name="keycloak_login"),
     path("dj-rest-auth/keycloak/login/", KeycloakUsersView.as_view()),

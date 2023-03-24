@@ -133,7 +133,6 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
             if os.path.exists(extract_folder):
                 shutil.rmtree(extract_folder)
 
-            # return Response(JobSerializer(job).data)
             job_serializer = self.get_serializer_job_class()(job)
             return Response(job_serializer.data)
 
@@ -172,7 +171,6 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         """Save result of a job."""
         job = self.get_object()
         job.result = json.dumps(request.data.get("result"))
-        # job.status = Job.SUCCEEDED
         job.save()
         serializer = self.get_serializer(job)
         return Response(serializer.data)
