@@ -36,7 +36,7 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
   - name: keycloak
     condition: keycloakEnable
-    version: 13.3.0
+    version: 13.4.0
     repository: https://charts.bitnami.com/bitnami
   - name: repository
     condition: repositoryEnable
