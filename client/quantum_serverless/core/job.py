@@ -160,7 +160,7 @@ class GatewayJobClient(BaseJobClient):
     def logs(self, job_id: str):
         result = None
         response = requests.get(
-            f"{self.host}/jobs/{job_id}/logs/",
+            f"{self.host}/api/v1/jobs/{job_id}/logs/",
             headers={"Authorization": f"Bearer {self._token}"},
             timeout=REQUESTS_TIMEOUT,
         )
@@ -175,7 +175,7 @@ class GatewayJobClient(BaseJobClient):
     def result(self, job_id: str):
         result = None
         response = requests.get(
-            f"{self.host}/jobs/{job_id}/",
+            f"{self.host}/api/v1/jobs/{job_id}/",
             headers={"Authorization": f"Bearer {self._token}"},
             timeout=REQUESTS_TIMEOUT,
         )
@@ -238,7 +238,7 @@ def save_result(result: Dict[str, Any]):
 
     url = (
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
+        f"api/v1/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
     )
     response = requests.post(
         url,

@@ -518,7 +518,7 @@ class GatewayProvider(Provider):
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         job = None
-        url = f"{self.host}/jobs/{job_id}/"
+        url = f"{self.host}/api/v1/jobs/{job_id}/"
         response = requests.get(
             url,
             headers={"Authorization": f"Bearer {self._token}"},
@@ -536,7 +536,7 @@ class GatewayProvider(Provider):
         return job
 
     def run_program(self, program: Program) -> Job:
-        url = f"{self.host}/programs/run_program/"
+        url = f"{self.host}/api/v1/nested-programs/run/"
         artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
         with tarfile.open(artifact_file_path, "w") as tar:
             for filename in os.listdir(program.working_dir):
@@ -571,7 +571,7 @@ class GatewayProvider(Provider):
 
     def get_jobs(self, **kwargs) -> List[Job]:
         jobs = []
-        url = f"{self.host}/jobs/"
+        url = f"{self.host}/api/v1/jobs/"
         response = requests.get(
             url,
             headers={"Authorization": f"Bearer {self._token}"},
