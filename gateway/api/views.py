@@ -54,7 +54,7 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
         serializer.save(author=self.request.user)
 
     @action(methods=["POST"], detail=False)
-    def run_program(self, request):
+    def run(self, request):
         """Runs provided program on compute resources."""
 
         serializer = self.get_serializer(data=request.data)
