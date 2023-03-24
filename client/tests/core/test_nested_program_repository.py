@@ -5,7 +5,10 @@ import shutil
 from pathlib import Path
 from unittest import TestCase, mock
 
-from quantum_serverless.core.nested_program import NestedProgramRepository, NestedProgram
+from quantum_serverless.core.nested_program import (
+    NestedProgramRepository,
+    NestedProgram,
+)
 
 responses = {
     "http://localhost:80/v1/api/nested-programs/": {
@@ -115,7 +118,9 @@ class TestRepository(TestCase):
         self.resources_folder = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "resources"
         )
-        self.nested_programs_folder = os.path.join(self.resources_folder, "nested_programs")
+        self.nested_programs_folder = os.path.join(
+            self.resources_folder, "nested_programs"
+        )
         Path(self.nested_programs_folder).mkdir(parents=True, exist_ok=True)
 
     def tearDown(self) -> None:
