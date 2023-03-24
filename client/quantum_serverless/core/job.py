@@ -247,7 +247,7 @@ def save_result(result: Dict[str, Any]):
 
     url = (
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/v1/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
+        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
     )
     response = requests.post(
         url,
