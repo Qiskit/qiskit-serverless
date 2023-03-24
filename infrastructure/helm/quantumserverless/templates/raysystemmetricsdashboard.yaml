@@ -8,7 +8,7 @@ metadata:
   name: ray-system-metrics-dashboard
   namespace: {{ .Release.Namespace }}
 data:
-  quantum-serverless.json: |-
+  ray-system-metrics.json: |-
     {
       "annotations": {
         "list": [
