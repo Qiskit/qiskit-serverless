@@ -85,7 +85,7 @@ class QuantumServerless:
         """Job client for given provider."""
         return self._selected_provider.job_client()
 
-    def run_program(self, nested_program: NestedProgram) -> Optional[Job]:
+    def run_nested_program(self, nested_program: NestedProgram) -> Optional[Job]:
         """Execute NestedProgram as a async job
 
         Example:
@@ -104,7 +104,7 @@ class QuantumServerless:
         Returns:
             Job
         """
-        return self._selected_provider.run_program(NestedProgram)
+        return self._selected_provider.run_program(nested_program)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.
