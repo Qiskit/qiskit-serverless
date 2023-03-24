@@ -38,6 +38,10 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
 
     @staticmethod
     def get_serializer_job_class():
+        """
+        This method returns Job serializer to be used in Nested Program.
+        """
+
         return JobSerializer
 
     def get_serializer_class(self):
@@ -136,7 +140,7 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class JobViewSet(viewsets.ModelViewSet):
+class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     """
     Job ViewSet configuration using ModelViewSet.
     """
@@ -155,8 +159,7 @@ class JobViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, pk=None):  # pylint: disable=arguments-differ
         queryset = Job.objects.all()
         job: Job = get_object_or_404(queryset, pk=pk)
-        # serializer = JobSerializer(job)
-        serializer = self.serializer_class(job)
+        serializer = self.get_serializer(job)
         if job.compute_resource:
             ray_client = JobSubmissionClient(job.compute_resource.host)
             ray_job_status = ray_client.get_job_status(job.ray_job_id)
@@ -171,7 +174,7 @@ class JobViewSet(viewsets.ModelViewSet):
         job.result = json.dumps(request.data.get("result"))
         # job.status = Job.SUCCEEDED
         job.save()
-        serializer = self.serializer_class(job)
+        serializer = self.get_serializer(job)
         return Response(serializer.data)
 
     @action(methods=["GET"], detail=True)
