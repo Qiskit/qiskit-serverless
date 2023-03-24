@@ -107,7 +107,7 @@ services:
     depends_on:
       - keycloak
   prometheus:
-    image: prom/prometheus:v2.42.0
+    image: prom/prometheus:v2.43.0
     ports:
       - 9000:9090
   loki:
