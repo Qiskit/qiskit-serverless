@@ -10,8 +10,8 @@ import os.path
 import shutil
 import tarfile
 import uuid
-
 import requests
+
 from allauth.socialaccount.providers.keycloak.views import KeycloakOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
