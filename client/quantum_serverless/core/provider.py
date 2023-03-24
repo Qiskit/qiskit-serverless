@@ -41,7 +41,7 @@ from quantum_serverless.core.constants import (
     RAY_IMAGE,
     REQUESTS_TIMEOUT,
     GATEWAY_PROVIDER_HOST,
-    GATEWAY_PROVIDER_VERSION
+    GATEWAY_PROVIDER_VERSION,
 )
 from quantum_serverless.core.job import (
     Job,
@@ -575,7 +575,9 @@ class GatewayProvider(Provider):
         if os.path.exists(artifact_file_path):
             os.remove(artifact_file_path)
 
-        return Job(job_id, job_client=GatewayJobClient(self.host, self._token, self.version))
+        return Job(
+            job_id, job_client=GatewayJobClient(self.host, self._token, self.version)
+        )
 
     def get_jobs(self, **kwargs) -> List[Job]:
         jobs = []

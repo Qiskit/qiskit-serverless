@@ -43,7 +43,7 @@ from quantum_serverless.core.constants import (
     ENV_JOB_GATEWAY_TOKEN,
     ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
-    GATEWAY_PROVIDER_VERSION
+    GATEWAY_PROVIDER_VERSION,
 )
 from quantum_serverless.core.program import Program
 from quantum_serverless.utils.json import is_jsonable
