@@ -146,7 +146,7 @@ class NestedProgramRepository(NestedProgramStorage):
         self._host = host or os.environ.get(REPO_HOST_KEY, "http://localhost")
         self._port = port or os.environ.get(REPO_PORT_KEY, 80)
         self._token = token
-        self._base_url = f"{self._host}:{self._port}/v1/api/nested-nested_programs/"
+        self._base_url = f"{self._host}:{self._port}/v1/api/nested-programs/"
 
     def save_nested_program(self, nested_program: NestedProgram) -> bool:
         raise NotImplementedError("Not implemented yet.")

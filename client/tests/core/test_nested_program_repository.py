@@ -8,7 +8,7 @@ from unittest import TestCase, mock
 from quantum_serverless.core.nested_program import NestedProgramRepository, NestedProgram
 
 responses = {
-    "http://localhost:80/v1/api/nested-nested_programs/": {
+    "http://localhost:80/v1/api/nested-programs/": {
         "count": 2,
         "results": [
             {
@@ -67,7 +67,7 @@ class MockResponse:
     @property
     def ok(self):  # pylint: disable=invalid-name
         """Status of response."""
-        return TrueProgram
+        return True
 
 
 class MockedStreamingResponse:
