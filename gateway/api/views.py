@@ -15,8 +15,7 @@ import requests
 from allauth.socialaccount.providers.keycloak.views import KeycloakOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
-from django.contrib.auth.models import User  # pylint: disable=imported-auth-user
-
+from django.contrib.auth import get_user_model
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
@@ -192,7 +191,7 @@ class KeycloakLogin(SocialLoginView):
 class KeycloakUsersView(APIView):
     """KeycloakUsersView."""
 
-    queryset = User.objects.all()
+    queryset = get_user_model().objects.all()
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
