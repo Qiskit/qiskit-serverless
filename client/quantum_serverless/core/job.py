@@ -142,7 +142,7 @@ class GatewayJobClient(BaseJobClient):
         default_status = "Unknown"
         status = default_status
         response = requests.get(
-            f"{self.host}/jobs/{job_id}/",
+            f"{self.host}/api/v1/jobs/{job_id}/",
             headers={"Authorization": f"Bearer {self._token}"},
             timeout=REQUESTS_TIMEOUT,
         )
