@@ -96,5 +96,5 @@ docs/_build/
 
 /infrastructure/helm/values/**
 .local/
-
-
+.jupyter/
+.ipython/
