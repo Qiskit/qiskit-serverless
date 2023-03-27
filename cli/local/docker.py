@@ -11,15 +11,17 @@ from text.constants import LINE_DECORATOR, LOCAL_DOCKER_WELCOME, LOCAL_DOCKER_IN
 JUPYTER_NOTEBOOK_BASE_URL = 'http://127.0.0.1:8888/lab'
 JUPYTER_NOTEBOOK_TOKEN_OPTION = '?token='
 JUPYTER_NOTEBOOK_DEFAULT_TOKEN = '123'
+GATEWAY_STARTED = 'Starting development server at'
 
 def execute_docker_up():
     urls = {}
     jn_url = JUPYTER_NOTEBOOK_BASE_URL
     jn_url_token = None
-    popen = subprocess.Popen(['docker-compose', 'up'], stdout=subprocess.PIPE, universal_newlines=True)
+    popen = subprocess.Popen(['docker-compose', 'up'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     for stdout_line in iter(popen.stdout.readline, ""):
         if JUPYTER_NOTEBOOK_BASE_URL in stdout_line:
             jn_url_token = parse.search(JUPYTER_NOTEBOOK_BASE_URL + JUPYTER_NOTEBOOK_TOKEN_OPTION + '{}\n', stdout_line)
+        if GATEWAY_STARTED in stdout_line:
             break
     if jn_url_token is not None:
         token = JUPYTER_NOTEBOOK_DEFAULT_TOKEN
