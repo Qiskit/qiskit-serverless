@@ -23,7 +23,7 @@ def empty_dict():
     return {}
 
 
-class NestedProgram(ExportModelOperationsMixin('nestedprogram'), models.Model):
+class NestedProgram(ExportModelOperationsMixin("nestedprogram"), models.Model):
     """
     Nested Program database model.
     """
