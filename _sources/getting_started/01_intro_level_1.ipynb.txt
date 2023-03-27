@@ -83,7 +83,7 @@
     "Now we need to run our program file, by creating an instance of `Program` and calling `run_program` method of our `QuantumServerless` client.\n",
     "\n",
     "`Program` accepts couple of required parameters:\n",
-    "- name - name of the program\n",
+    "- title - name of the program\n",
     "- entrypoint - name of python file you want to execute\n",
     "- working_dir - folder where  your script is located. This is optional parameter and will be current folder by default. "
    ]
