@@ -27,6 +27,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# allow connections from any internal host
+ALLOWED_CIDR_NETS = ["10.0.0.0/8"]
 
 # Application definition
 
@@ -44,6 +46,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "allow_cidr.middleware.AllowCIDRMiddleware",
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
