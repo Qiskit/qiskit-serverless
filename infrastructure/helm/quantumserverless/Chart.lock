@@ -22,7 +22,7 @@ dependencies:
   version: 17.9.2
 - name: keycloak
   repository: https://charts.bitnami.com/bitnami
-  version: 13.4.0
+  version: 13.4.1
 - name: repository
   repository: ""
   version: 0.1.0
@@ -35,5 +35,5 @@ dependencies:
 - name: promtail
   repository: https://grafana.github.io/helm-charts
   version: 6.9.3
-digest: sha256:f79e1d17c4c8d976eed336b4f2dfd8dc78824a797192de4761b712a6d61f697b
-generated: "2023-03-24T13:03:36.150530349Z"
+digest: sha256:a1f6a3bfda1aad7492367dba40906ceeadd02ea8134d8394853dcc8f95a2cbd1
+generated: "2023-03-29T11:08:38.981998071Z"
