@@ -16,12 +16,12 @@ def my_function(circuit: QuantumCircuit, obs: SparsePauliOp):
 
 
 # 2. Next let's create our serverless object that we will be using to create context
-# which will allow us to run funcitons in parallel
+# which will allow us to run functions in parallel
 serverless = QuantumServerless()
 
 circuits = [random_circuit(2, 2) for _ in range(3)]
 
-# 3. create serverless context which will allow us to run funcitons in parallel
+# 3. create serverless context which will allow us to run functions in parallel
 with serverless.context():
     # 4. The observable is the same for all expectation value calculations. So we can put that object into remote storage since it will be shared among all executions of my_function.
     obs_ref = put(SparsePauliOp(["ZZ"]))
