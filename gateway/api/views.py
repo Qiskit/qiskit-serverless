@@ -25,7 +25,7 @@ from rest_framework.views import APIView
 
 
 from .models import NestedProgram, Job, ComputeResource
-from .serializers import NestedProgramSerializer, JobSerializer
+from .serializers import JobSerializer
 from .utils import ray_job_status_to_model_job_status, try_json_loads
 
 
