@@ -67,7 +67,7 @@
 
 
 <span class="c1"># 2. Next let&#39;s create our serverless object that we will be using to create context</span>
-<span class="c1"># which will allow us to run funcitons in parallel</span>
+<span class="c1"># which will allow us to run functions in parallel</span>
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">()</span>
 
 <span class="n">circuits</span> <span class="o">=</span> <span class="p">[</span><span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
@@ -103,7 +103,7 @@
 </pre></div>
 </div>
 <p>As you can see we move to advanced section of using serverless.</p>
-<p>Here we are using <code class="docutils literal notranslate"><span class="pre">run_qiskit_remote</span></code> decorator to convert our function to asyncronous distributed one. With that <code class="docutils literal notranslate"><span class="pre">my_function</span></code> is converted into asyncronous distributed function (as a result you will be getting function pointer), which means that the function no longer executes as part of your local python process, but executed on configured compute resources.</p>
+<p>Here we are using <code class="docutils literal notranslate"><span class="pre">run_qiskit_remote</span></code> decorator to convert our function to asynchronous distributed one. With that <code class="docutils literal notranslate"><span class="pre">my_function</span></code> is converted into asynchronous distributed function (as a result you will be getting function pointer), which means that the function no longer executes as part of your local python process, but executed on configured compute resources.</p>
 <p>Moreover, we are using <code class="docutils literal notranslate"><span class="pre">save_result</span></code> function in order to save results into database storage, so we can retrieve it later after program execution.</p>
 <p>Next we need to run this program. For that we need to import necessary modules and configure QuantumServerless client. We are doing so by providing name and host for deployed infrastructure.</p>
 <div class="nbinput nblast docutils container">
