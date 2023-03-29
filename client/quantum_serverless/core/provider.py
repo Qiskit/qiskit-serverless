@@ -500,7 +500,8 @@ class GatewayProvider(Provider):
         version = version or os.environ.get(GATEWAY_PROVIDER_VERSION)
         if version is None:
             logging.warning(
-                f"No `gateway` version provided. Default one will be configured: {GATEWAY_PROVIDER_VERSION}"
+                "No `gateway` version provided. Default one will be configured: %s",
+                GATEWAY_PROVIDER_VERSION,
             )
             version = GATEWAY_PROVIDER_VERSION
 

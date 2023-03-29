@@ -228,9 +228,11 @@ def save_result(result: Dict[str, Any]):
     """Saves job results."""
 
     version = os.environ.get(GATEWAY_PROVIDER_VERSION)
+    # pylint: disable=duplicate-code
     if version is None:
         logging.warning(
-            f"No `gateway` version provided. Default one will be configured: {GATEWAY_PROVIDER_VERSION}"
+            "No `gateway` version provided. Default one will be configured: %s",
+            GATEWAY_PROVIDER_VERSION,
         )
         version = GATEWAY_PROVIDER_VERSION
 
