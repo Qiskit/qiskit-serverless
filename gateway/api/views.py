@@ -45,7 +45,7 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
         return JobSerializer
 
     def get_serializer_class(self):
-        return NestedProgramSerializer
+        return self.serializer_class
 
     def get_queryset(self):
         return NestedProgram.objects.all().filter(author=self.request.user)
@@ -147,7 +147,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     BASE_NAME = "jobs"
 
     def get_serializer_class(self):
-        return JobSerializer
+        return self.serializer_class
 
     def get_queryset(self):
         return Job.objects.all().filter(author=self.request.user)
