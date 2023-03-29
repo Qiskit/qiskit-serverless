@@ -65,7 +65,7 @@ def test_nested_program():
             version="0.0.1",
         )
 
-        job = serverless.run_nested_program(nested_program)
+        job = serverless.run(nested_program)
 
         assert isinstance(job, Job)
 
