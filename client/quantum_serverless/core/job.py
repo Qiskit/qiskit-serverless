@@ -229,8 +229,10 @@ def save_result(result: Dict[str, Any]):
 
     version = os.environ.get(GATEWAY_PROVIDER_VERSION)
     if version is None:
-        logging.warning("Please provide `version` of gateway.")
-        return False
+        logging.warning(
+            f"No `gateway` version provided. Default one will be configured: {GATEWAY_PROVIDER_VERSION}"
+        )
+        version = GATEWAY_PROVIDER_VERSION
 
     token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
     if token is None:
