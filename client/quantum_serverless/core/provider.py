@@ -40,8 +40,8 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from quantum_serverless.core.constants import (
     RAY_IMAGE,
     REQUESTS_TIMEOUT,
-    GATEWAY_PROVIDER_HOST,
-    GATEWAY_PROVIDER_VERSION,
+    ENV_GATEWAY_PROVIDER_HOST,
+    ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 from quantum_serverless.core.job import (
@@ -477,7 +477,7 @@ class GatewayProvider(Provider):
         self,
         name: Optional[str] = None,
         host: Optional[str] = None,
-        version: Optional[str] = GATEWAY_PROVIDER_VERSION,
+        version: Optional[str] = GATEWAY_PROVIDER_VERSION_DEFAULT,
         username: Optional[str] = None,
         password: Optional[str] = None,
         token: Optional[str] = None,
@@ -494,17 +494,11 @@ class GatewayProvider(Provider):
         """
         name = name or "gateway-provider"
 
-        host = host or os.environ.get(GATEWAY_PROVIDER_HOST)
+        host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
             raise QuantumServerlessException("Please provide `host` of gateway.")
 
-        version = version or os.environ.get(GATEWAY_PROVIDER_VERSION)
-        if version is None:
-            logging.warning(
-                "No `gateway` version provided. Default one will be configured: %s",
-                GATEWAY_PROVIDER_VERSION_DEFAULT,
-            )
-            version = GATEWAY_PROVIDER_VERSION_DEFAULT
+        version = version or os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
 
         if token is None and (username is None or password is None):
             raise QuantumServerlessException(

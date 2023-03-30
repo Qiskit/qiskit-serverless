@@ -43,7 +43,7 @@ from quantum_serverless.core.constants import (
     ENV_JOB_GATEWAY_TOKEN,
     ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
-    GATEWAY_PROVIDER_VERSION,
+    ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 from quantum_serverless.core.program import Program
@@ -228,13 +228,8 @@ class Job:
 def save_result(result: Dict[str, Any]):
     """Saves job results."""
 
-    version = os.environ.get(GATEWAY_PROVIDER_VERSION)
-    # pylint: disable=duplicate-code
+    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
     if version is None:
-        logging.warning(
-            "No `gateway` version provided. Default one will be configured: %s",
-            GATEWAY_PROVIDER_VERSION_DEFAULT,
-        )
         version = GATEWAY_PROVIDER_VERSION_DEFAULT
 
     token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
