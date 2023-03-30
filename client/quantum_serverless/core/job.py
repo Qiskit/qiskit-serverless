@@ -44,6 +44,7 @@ from quantum_serverless.core.constants import (
     ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
     GATEWAY_PROVIDER_VERSION,
+    GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 from quantum_serverless.core.program import Program
 from quantum_serverless.utils.json import is_jsonable
@@ -232,9 +233,9 @@ def save_result(result: Dict[str, Any]):
     if version is None:
         logging.warning(
             "No `gateway` version provided. Default one will be configured: %s",
-            GATEWAY_PROVIDER_VERSION,
+            GATEWAY_PROVIDER_VERSION_DEFAULT,
         )
-        version = GATEWAY_PROVIDER_VERSION
+        version = GATEWAY_PROVIDER_VERSION_DEFAULT
 
     token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
     if token is None:

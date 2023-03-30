@@ -42,6 +42,7 @@ from quantum_serverless.core.constants import (
     REQUESTS_TIMEOUT,
     GATEWAY_PROVIDER_HOST,
     GATEWAY_PROVIDER_VERSION,
+    GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 from quantum_serverless.core.job import (
     Job,
@@ -501,9 +502,9 @@ class GatewayProvider(Provider):
         if version is None:
             logging.warning(
                 "No `gateway` version provided. Default one will be configured: %s",
-                GATEWAY_PROVIDER_VERSION,
+                GATEWAY_PROVIDER_VERSION_DEFAULT,
             )
-            version = GATEWAY_PROVIDER_VERSION
+            version = GATEWAY_PROVIDER_VERSION_DEFAULT
 
         if token is None and (username is None or password is None):
             raise QuantumServerlessException(
