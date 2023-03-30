@@ -28,12 +28,12 @@ services:
     networks:
       - safe-tier
   redis:
-    image: 'bitnami/redis:latest'
+    image: bitnami/redis:latest
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
       - REDIS_PORT_NUMBER=6379
     ports:
-      - '6379:6379'
+      - 6379:6379
     networks:
       - safe-tier
   jaeger:
@@ -77,7 +77,7 @@ services:
       KEYCLOAK_HTTP_PORT: 8080
       KEYCLOAK_EXTRA_ARGS: "-Dkeycloak.import=/opt/keycloak/data/import/realm-export.json"
     ports:
-      - '8085:8080'
+      - 8085:8080
     depends_on:
       - postgres
     networks:
@@ -106,6 +106,19 @@ services:
       - safe-tier
     depends_on:
       - keycloak
+  repository-server:
+    container_name: repository-server
+    image: docker.io/qiskit/quantum-repository-server:nightly
+    command: python manage.py runserver 0.0.0.0:8060
+    ports:
+      - 8060:8060
+    environment:
+      - DEBUG=0
+      - DJANGO_SUPERUSER_USERNAME=admin
+      - DJANGO_SUPERUSER_PASSWORD=123
+      - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
+    networks:
+      - safe-tier
   prometheus:
     image: prom/prometheus:v2.43.0
     ports:
@@ -113,11 +126,10 @@ services:
   loki:
     image: grafana/loki:2.7.5
     ports:
-      - "3100:3100"
+      - 3100:3100
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - safe-tier
-
   promtail:
     image: grafana/promtail:2.7.4
     volumes:
@@ -125,11 +137,10 @@ services:
     command: -config.file=/etc/promtail/config.yml
     networks:
       - safe-tier
-
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3000:3000"
+      - 3000:3000
     networks:
       - safe-tier
 networks:
