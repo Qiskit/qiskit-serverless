@@ -27,7 +27,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-# allow connections from any internal host
+# allow connections from any kubernetes pod within the cluster
+# k8s pods are given an IP on the private 10. network, and 10.0.0.0/8
+# includes all 10. IPs.
 ALLOWED_CIDR_NETS = ["10.0.0.0/8"]
 
 # Application definition
