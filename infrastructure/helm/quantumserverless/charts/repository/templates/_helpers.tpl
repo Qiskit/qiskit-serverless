@@ -48,6 +48,7 @@ Selector labels
 {{- define "repository.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "repository.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+repository: "true"
 {{- end }}
 
 {{/*
