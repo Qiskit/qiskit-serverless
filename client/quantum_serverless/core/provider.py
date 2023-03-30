@@ -477,7 +477,7 @@ class GatewayProvider(Provider):
         self,
         name: Optional[str] = None,
         host: Optional[str] = None,
-        version: Optional[str] = GATEWAY_PROVIDER_VERSION_DEFAULT,
+        version: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
         token: Optional[str] = None,
@@ -499,6 +499,8 @@ class GatewayProvider(Provider):
             raise QuantumServerlessException("Please provide `host` of gateway.")
 
         version = version or os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
+        if version is None:
+            version = GATEWAY_PROVIDER_VERSION_DEFAULT
 
         if token is None and (username is None or password is None):
             raise QuantumServerlessException(
