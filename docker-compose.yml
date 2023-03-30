@@ -119,7 +119,7 @@ services:
       - safe-tier
 
   promtail:
-    image: grafana/promtail:2.7.4
+    image: grafana/promtail:2.7.5
     volumes:
       - /var/log:/var/log
     command: -config.file=/etc/promtail/config.yml
