@@ -4,9 +4,10 @@ import uuid
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.conf import settings
+from django_prometheus.models import ExportModelOperationsMixin
 
 
-class NestedProgram(models.Model):
+class NestedProgram(ExportModelOperationsMixin("nestedprogram"), models.Model):
     """NestedProgram model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
