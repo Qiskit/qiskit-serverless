@@ -28,6 +28,10 @@ DEBUG = int(os.environ.get("DEBUG", 1))
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
+# allow connections from any kubernetes pod within the cluster
+# k8s pods are given an IP on the private 10. network, and 10.0.0.0/8
+# includes all 10. IPs.
+ALLOWED_CIDR_NETS = ["10.0.0.0/8"]
 
 # Application definition
 
@@ -39,6 +43,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
+    "django_prometheus",
     "rest_framework",
     "rest_framework.authtoken",
     "rest_framework_simplejwt",
@@ -52,6 +57,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "allow_cidr.middleware.AllowCIDRMiddleware",
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -59,6 +66,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "main.urls"
@@ -87,7 +95,7 @@ WSGI_APPLICATION = "main.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
+        "ENGINE": "django_prometheus.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
