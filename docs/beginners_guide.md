@@ -34,7 +34,7 @@ docker-compose up
 
 #### Write your program
 
-Create python file with necessary code. Let's call in `program.py`
+Create python file with necessary code. Let's call in `nested-program.py`
 
 ```python
 # program.py
@@ -82,7 +82,7 @@ with serverless.context():
 Let's run our program now
 
 ```python
-from quantum_serverless import QuantumServerless, GatewayProvider, Program
+from quantum_serverless import QuantumServerless, GatewayProvider, NestedProgram
 
 provider = GatewayProvider(
     username="user", # this username has already been defined in local docker setup and does not need to be changed
@@ -92,13 +92,13 @@ provider = GatewayProvider(
 serverless = QuantumServerless(provider)
 
 # create out program
-program = Program(
+nested_program = NestedProgram(
     name="my_program",
-    entrypoint="program.py", # set entrypoint as out program.py file
+    entrypoint="nested-program.py", # set entrypoint as out nested-program.py file
     working_dir="./"
 )
 
-job = serverless.run_program(program)
+job = serverless.run(nested_program)
 
 job.status()
 # <JobStatus.SUCCEEDED: 'SUCCEEDED'>
