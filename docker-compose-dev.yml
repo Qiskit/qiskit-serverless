@@ -5,8 +5,12 @@ services:
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-notebook
+    volumes:
+      - ./docs/getting_started:/home/jovyan/
     ports:
       - 8888:8888
+    environment:
+      - JUPYTER_TOKEN=123
     networks:
       - safe-tier
   ray-head:
@@ -63,22 +67,19 @@ services:
       always
   keycloak:
     container_name: keycloak
-    image: jboss/keycloak:16.1.1
+    image: bitnami/keycloak:20.0.5-debian-11-r4
     volumes:
-      - ./realm-export.json:/opt/jboss/keycloak/imports/realm-export.json
-    command:
-      - "-b 0.0.0.0 -Dkeycloak.profile.feature.upload_scripts=enabled -Dkeycloak.import=/opt/jboss/keycloak/imports/realm-export.json"
+      - ./realm-export.json:/opt/keycloak/data/import/realm-export.json
     environment:
-      DB_VENDOR: POSTGRES
-      DB_ADDR: postgres
-      DB_DATABASE: testkeycloakdb
-      DB_USER: testkeycloakuser
-      DB_SCHEMA: public
-      DB_PASSWORD: testkeycloakpassword
-      KEYCLOAK_USER: admin
-      KEYCLOAK_PASSWORD: 123
-      PROXY_ADDRESS_FORWARDING: "true"
-      KEYCLOAK_LOGLEVEL: DEBUG
+      KEYCLOAK_DATABASE_HOST: postgres
+      KEYCLOAK_DATABASE_NAME: testkeycloakdb
+      KEYCLOAK_DATABASE_USER: testkeycloakuser
+      KEYCLOAK_DATABASE_SCHEMA: public
+      KEYCLOAK_DATABASE_PASSWORD: testkeycloakpassword
+      KEYCLOAK_ADMIN_USER: admin
+      KEYCLOAK_ADMIN_PASSWORD: 123
+      KEYCLOAK_HTTP_PORT: 8080
+      KEYCLOAK_EXTRA_ARGS: "-Dkeycloak.import=/opt/keycloak/data/import/realm-export.json"
     ports:
       - 8085:8080
     depends_on:
@@ -89,20 +90,23 @@ services:
       always
   gateway:
     container_name: gateway
-    build: ./gateway
-    command: gunicorn gateway.wsgi:application --bind 0.0.0.0:8000
+    build:
+      context: ./
+      dockerfile: infrastructure/docker/Dockerfile-gateway
+    command: python manage.py runserver 0.0.0.0:8000
     ports:
       - 8000:8000
     environment:
       - DEBUG=0
       - RAY_HOST=http://ray-head:8265
-      - CLIENT_ID=gateway-client
+      - CLIENT_ID=rayclient
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
-      - SETTING_KEYCLOAK_URL=http://keycloak:8080/auth
-      - SETTING_KEYCLOAK_REALM=Test
-      - SETTINGS_KEYCLOAK_CLIENT_SECRET=AQ3sZ4eiF7NhOtfxeUEGo0YN7uQBoUnO
+      - SETTING_KEYCLOAK_URL=http://keycloak:8080/
+      - SETTING_KEYCLOAK_REALM=quantumserverless
+      - SETTINGS_KEYCLOAK_CLIENT_SECRET=supersecret
+      - SETTINGS_KEYCLOAK_CLIENT_NAME=rayclient
       - SITE_HOST=http://gateway:8000
     networks:
       - safe-tier
@@ -110,7 +114,9 @@ services:
       - keycloak
   repository-server:
     container_name: repository-server
-    image: docker.io/qiskit/quantum-repository-server:nightly
+    build:
+      context: ./
+      dockerfile: infrastructure/docker/Dockerfile-repository-server
     command: python manage.py runserver 0.0.0.0:8060
     ports:
       - 8060:8060
