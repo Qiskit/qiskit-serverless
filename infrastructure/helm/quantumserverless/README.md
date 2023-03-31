@@ -19,6 +19,7 @@ Update values.yaml file. Find and replace the following strings
 - **CLIENTSECRET-CHANGEME**: string used as the secret for a OIDC protocol
 - **APISERVERSECRET-CHANGEME**: string used as the secret for a OIDC protocol for apiserver
 - **SECRET-CHANGEME**: string used as the secret for a OIDC protocol
+- **GRAFANASECRET-CHANGEME**: string used as the secret for a OIDC protocol for Grafana
 - **HELM-RELEASE**: release name used in the helm install command
 - **LOCAL-IP**: IP address that can be accessed from both outside of the cluster and inside of the cluster.  
 
@@ -129,6 +130,13 @@ For our Prometheus dependency we are using the charts managed by the Prometheus 
 - For our loki charts dependencies, we are using the single binary configuration created by Grafana project. To simplify the configuration we offered you with a straigh-forward initial parameters setup.
 But if you are interested in more complex configurations, you have access to all the parameters documented [here](https://grafana.com/docs/loki/next/installation/helm/) and source code of the helm charts are
 [here](https://github.com/grafana/loki/tree/main/production/helm/loki).
+
+**Grafana**
+
+- For our Grafana charts dependencies, we are configuring authentication by Keycloak and providing some predefined dashboards.
+If you are interested in more complex configurations, you have access to all the parameters documented [here](https://github.com/grafana/helm-charts/tree/main/charts/grafana).
+- The initial user ID and password for Grafana console(keycloakAdminID/keycloakAdminPassword) can be changed in the values.yaml file. It is good to change them before apply the helm.
+- Grafana console can be accessed at http://LOCAL-IP:32294/.  Its initial user ID and password are "admin" and "passw0rd".
 
 **promtail**
 
