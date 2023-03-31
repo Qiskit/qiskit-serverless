@@ -44,7 +44,7 @@ from quantum_serverless.core.constants import (
     ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
 )
-from quantum_serverless.core.program import Program
+from quantum_serverless.core.nested_program import NestedProgram
 from quantum_serverless.utils.json import is_jsonable
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
@@ -53,8 +53,8 @@ RuntimeEnv = ray.runtime_env.RuntimeEnv
 class BaseJobClient:
     """Base class for Job clients."""
 
-    def run_program(self, program: Program) -> "Job":
-        """Runs program."""
+    def run_program(self, nested_program: NestedProgram) -> "Job":
+        """Runs nested_program."""
         raise NotImplementedError
 
     def status(self, job_id: str):
@@ -62,7 +62,7 @@ class BaseJobClient:
         raise NotImplementedError
 
     def stop(self, job_id: str):
-        """Stops job/program."""
+        """Stops job/nested-program."""
         raise NotImplementedError
 
     def logs(self, job_id: str):
@@ -98,27 +98,30 @@ class RayJobClient(BaseJobClient):
     def result(self, job_id: str):
         return self.logs(job_id)
 
-    def run_program(self, program: Program):
+    def run_program(self, nested_program: NestedProgram):
         arguments = ""
-        if program.arguments is not None:
+        if nested_program.arguments is not None:
             arg_list = []
-            for key, value in program.arguments.items():
+            for key, value in nested_program.arguments.items():
                 if isinstance(value, dict):
                     arg_list.append(f"--{key}='{json.dumps(value)}'")
                 else:
                     arg_list.append(f"--{key}={value}")
             arguments = " ".join(arg_list)
-        entrypoint = f"python {program.entrypoint} {arguments}"
+        entrypoint = f"python {nested_program.entrypoint} {arguments}"
 
-        # set program name so OT can use it as parent span name
-        env_vars = {**(program.env_vars or {}), **{OT_PROGRAM_NAME: program.title}}
+        # set nested_program name so OT can use it as parent span name
+        env_vars = {
+            **(nested_program.env_vars or {}),
+            **{OT_PROGRAM_NAME: nested_program.title},
+        }
 
         job_id = self._job_client.submit_job(
             entrypoint=entrypoint,
             submission_id=f"qs_{uuid4()}",
             runtime_env={
-                "working_dir": program.working_dir,
-                "pip": program.dependencies,
+                "working_dir": nested_program.working_dir,
+                "pip": nested_program.dependencies,
                 "env_vars": env_vars,
             },
         )

@@ -25,7 +25,7 @@ from .core import (
     save_result,
 )
 from .quantum_serverless import QuantumServerless
-from .core.program import Program
+from .core.nested_program import NestedProgram
 
 try:
     __version__ = metadata_version("quantum_serverless")

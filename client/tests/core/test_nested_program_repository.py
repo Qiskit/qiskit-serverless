@@ -1,11 +1,14 @@
-"""Test program repository."""
+"""Test nested_program repository."""
 import json
 import os.path
 import shutil
 from pathlib import Path
 from unittest import TestCase, mock
 
-from quantum_serverless.core.program import ProgramRepository, Program
+from quantum_serverless.core.nested_program import (
+    NestedProgramRepository,
+    NestedProgram,
+)
 
 responses = {
     "http://localhost:80/v1/api/nested-programs/": {
@@ -102,7 +105,7 @@ def mocked_requests_get(**kwargs):
                 os.path.dirname(os.path.abspath(__file__)),
                 "..",
                 "resources",
-                "program.tar",
+                "nested_program.tar",
             )
         )
     return result
@@ -115,30 +118,32 @@ class TestRepository(TestCase):
         self.resources_folder = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "resources"
         )
-        self.programs_folder = os.path.join(self.resources_folder, "programs")
-        Path(self.programs_folder).mkdir(parents=True, exist_ok=True)
+        self.nested_programs_folder = os.path.join(
+            self.resources_folder, "nested_programs"
+        )
+        Path(self.nested_programs_folder).mkdir(parents=True, exist_ok=True)
 
     def tearDown(self) -> None:
-        if os.path.exists(self.programs_folder):
-            shutil.rmtree(self.programs_folder)
+        if os.path.exists(self.nested_programs_folder):
+            shutil.rmtree(self.nested_programs_folder)
 
     @mock.patch("requests.get", side_effect=mocked_requests_get)
-    def test_repository_get_programs(self, mock_get):
-        """Tests program repository."""
+    def test_repository_get_nested_programs(self, mock_get):
+        """Tests nested_program repository."""
 
-        repository = ProgramRepository(host="http://localhost")
-        programs = repository.get_programs()
-        self.assertEqual(programs, ["hello_world", "Test"])
+        repository = NestedProgramRepository(host="http://localhost")
+        nested_programs = repository.get_nested_programs()
+        self.assertEqual(nested_programs, ["hello_world", "Test"])
         self.assertEqual(len(mock_get.call_args_list), 1)
 
     @mock.patch("requests.get", side_effect=mocked_requests_get)
-    def test_repository_get_program(self, mock_get):
-        """Tests single program fetch."""
-        repository = ProgramRepository(
-            host="http://localhost", folder=self.programs_folder
+    def test_repository_get_nested_program(self, mock_get):
+        """Tests single nested_program fetch."""
+        repository = NestedProgramRepository(
+            host="http://localhost", folder=self.nested_programs_folder
         )
-        program = repository.get_program("hello_world")
-        self.assertEqual(program.title, "hello_world")
-        self.assertEqual(program.version, "0.0.0")
-        self.assertIsInstance(program, Program)
+        nested_program = repository.get_nested_program("hello_world")
+        self.assertEqual(nested_program.title, "hello_world")
+        self.assertEqual(nested_program.version, "0.0.0")
+        self.assertIsInstance(nested_program, NestedProgram)
         self.assertEqual(len(mock_get.call_args_list), 2)

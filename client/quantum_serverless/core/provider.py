@@ -48,7 +48,7 @@ from quantum_serverless.core.job import (
     GatewayJobClient,
     BaseJobClient,
 )
-from quantum_serverless.core.program import Program
+from quantum_serverless.core.nested_program import NestedProgram
 from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
@@ -250,12 +250,12 @@ class Provider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run_program(self, program: Program) -> Job:
-        """Execute program as a async job.
+    def run_program(self, nested_program: NestedProgram) -> Job:
+        """Execute nested_program as a async job.
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> nested_program = Program(
+            >>> nested_program = NestedProgram(
             >>>     "job.py",
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
@@ -264,7 +264,7 @@ class Provider(JsonSerializable):
             >>> # <Job | ...>
 
         Args:
-            program: program object
+            nested_program: nested_program object
 
         Returns:
             Job
@@ -279,7 +279,7 @@ class Provider(JsonSerializable):
             )
             return None
 
-        return job_client.run_program(program)
+        return job_client.run_program(nested_program)
 
 
 class KuberayProvider(Provider):
@@ -535,22 +535,22 @@ class GatewayProvider(Provider):
 
         return job
 
-    def run_program(self, program: Program) -> Job:
+    def run_program(self, nested_program: NestedProgram) -> Job:
         url = f"{self.host}/programs/run_program/"
-        artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+        artifact_file_path = os.path.join(nested_program.working_dir, "artifact.tar")
         with tarfile.open(artifact_file_path, "w") as tar:
-            for filename in os.listdir(program.working_dir):
-                fpath = os.path.join(program.working_dir, filename)
+            for filename in os.listdir(nested_program.working_dir):
+                fpath = os.path.join(nested_program.working_dir, filename)
                 tar.add(fpath, arcname=filename)
 
         with open(artifact_file_path, "rb") as file:
             response = requests.post(
                 url=url,
                 data={
-                    "title": program.title,
-                    "entrypoint": program.entrypoint,
-                    "arguments": json.dumps(program.arguments or {}),
-                    "dependencies": json.dumps(program.dependencies or []),
+                    "title": nested_program.title,
+                    "entrypoint": nested_program.entrypoint,
+                    "arguments": json.dumps(nested_program.arguments or {}),
+                    "dependencies": json.dumps(nested_program.dependencies or []),
                 },
                 files={"artifact": file},
                 headers={"Authorization": f"Bearer {self._token}"},
@@ -558,7 +558,7 @@ class GatewayProvider(Provider):
             )
             if not response.ok:
                 raise QuantumServerlessException(
-                    f"Something went wrong with program execution. {response.text}"
+                    f"Something went wrong with nested_program execution. {response.text}"
                 )
 
             json_response = json.loads(response.text)

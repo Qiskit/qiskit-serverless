@@ -9,7 +9,7 @@ from testcontainers.compose import DockerCompose
 from quantum_serverless import QuantumServerless, Provider
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.program import Program
+from quantum_serverless.core.nested_program import NestedProgram
 from quantum_serverless.exception import QuantumServerlessException
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
@@ -18,28 +18,28 @@ resources_path = os.path.join(
 )
 
 
-class TestProgram(TestCase):
-    """TestProgram."""
+class TestNestedProgram(TestCase):
+    """TestNestedProgram."""
 
     def test_arguments_validation(self):
         """Tests arguments validation."""
-        program = Program(
-            title="awesome_program",
+        nested_program = NestedProgram(
+            title="awesome_nested_program",
             entrypoint="awesome.py",
             arguments={"one": 1, "json": {"one": 1, "two": 2}},
         )
-        self.assertIsInstance(program, Program)
+        self.assertIsInstance(nested_program, NestedProgram)
 
         with self.assertRaises(QuantumServerlessException):
-            Program(
-                title="awesome_program",
+            NestedProgram(
+                title="awesome_nested_program",
                 entrypoint="awesome.py",
                 arguments={"one": 1, "json": {"one": np.array([1]), "two": 2}},
             )
 
 
-def test_program():
-    """Integration test for programs."""
+def test_nested_program():
+    """Integration test for nested_programs."""
 
     with DockerCompose(
         resources_path, compose_file_name="test-compose.yml", pull=True
@@ -57,7 +57,7 @@ def test_program():
 
         wait_for_job_client(serverless)
 
-        program = Program(
+        nested_program = NestedProgram(
             title="simple_job",
             entrypoint="job.py",
             working_dir=resources_path,
@@ -65,7 +65,7 @@ def test_program():
             version="0.0.1",
         )
 
-        job = serverless.run_program(program)
+        job = serverless.run(nested_program)
 
         assert isinstance(job, Job)
 
