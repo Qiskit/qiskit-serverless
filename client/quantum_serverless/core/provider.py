@@ -40,7 +40,9 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from quantum_serverless.core.constants import (
     RAY_IMAGE,
     REQUESTS_TIMEOUT,
-    GATEWAY_PROVIDER_HOST,
+    ENV_GATEWAY_PROVIDER_HOST,
+    ENV_GATEWAY_PROVIDER_VERSION,
+    GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 from quantum_serverless.core.job import (
     Job,
@@ -475,6 +477,7 @@ class GatewayProvider(Provider):
         self,
         name: Optional[str] = None,
         host: Optional[str] = None,
+        version: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
         token: Optional[str] = None,
@@ -484,15 +487,20 @@ class GatewayProvider(Provider):
         Args:
             name: name of provider
             host: host of gateway
+            version: version of gateway
             username: username
             password: password
             token: authorization token
         """
         name = name or "gateway-provider"
 
-        host = host or os.environ.get(GATEWAY_PROVIDER_HOST)
+        host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
             raise QuantumServerlessException("Please provide `host` of gateway.")
+
+        version = version or os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
+        if version is None:
+            version = GATEWAY_PROVIDER_VERSION_DEFAULT
 
         if token is None and (username is None or password is None):
             raise QuantumServerlessException(
@@ -503,6 +511,7 @@ class GatewayProvider(Provider):
 
         super().__init__(name)
         self.host = host
+        self.version = version
         self._token = token
         if token is None:
             self._fetch_token(username, password)
@@ -518,7 +527,7 @@ class GatewayProvider(Provider):
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         job = None
-        url = f"{self.host}/jobs/{job_id}/"
+        url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
         response = requests.get(
             url,
             headers={"Authorization": f"Bearer {self._token}"},
@@ -528,16 +537,17 @@ class GatewayProvider(Provider):
             data = json.loads(response.text)
             job = Job(
                 job_id=data.get("id"),
-                job_client=GatewayJobClient(self.host, self._token),
+                job_client=GatewayJobClient(self.host, self._token, self.version),
             )
         else:
             logging.warning(response.text)
 
         return job
 
-    def run_program(self, nested_program: NestedProgram) -> Job:
-        url = f"{self.host}/programs/run_program/"
+    def run_program(self, nested_program: Program) -> Job:
+        url = f"{self.host}/api/{self.version}/nested-programs/run/"
         artifact_file_path = os.path.join(nested_program.working_dir, "artifact.tar")
+
         with tarfile.open(artifact_file_path, "w") as tar:
             for filename in os.listdir(nested_program.working_dir):
                 fpath = os.path.join(nested_program.working_dir, filename)
@@ -567,11 +577,13 @@ class GatewayProvider(Provider):
         if os.path.exists(artifact_file_path):
             os.remove(artifact_file_path)
 
-        return Job(job_id, job_client=GatewayJobClient(self.host, self._token))
+        return Job(
+            job_id, job_client=GatewayJobClient(self.host, self._token, self.version)
+        )
 
     def get_jobs(self, **kwargs) -> List[Job]:
         jobs = []
-        url = f"{self.host}/jobs/"
+        url = f"{self.host}/api/{self.version}/jobs/"
         response = requests.get(
             url,
             headers={"Authorization": f"Bearer {self._token}"},
@@ -581,7 +593,7 @@ class GatewayProvider(Provider):
             jobs = [
                 Job(
                     job_id=job.get("id"),
-                    job_client=GatewayJobClient(self.host, self._token),
+                    job_client=GatewayJobClient(self.host, self._token, self.version),
                 )
                 for job in json.loads(response.text).get("results", [])
             ]

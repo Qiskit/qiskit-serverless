@@ -1,17 +1,18 @@
 """Tests program APIs."""
+
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 
-class TestProgramApi(APITestCase):
-    """TestProgramApi."""
+class TestNestedProgramApi(APITestCase):
+    """TestNestedProgramApi."""
 
     fixtures = ["tests/fixtures/fixtures.json"]
 
     def test_programs_non_auth_user(self):
         """Tests program list non-authorized."""
-        url = reverse("nestedprogram-list")
+        url = reverse("v1:nested-programs-list")
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -26,7 +27,7 @@ class TestProgramApi(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
         programs_response = self.client.get(
-            reverse("nestedprogram-list"), format="json"
+            reverse("v1:nested-programs-list"), format="json"
         )
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
@@ -46,7 +47,8 @@ class TestProgramApi(APITestCase):
 
         programs_response = self.client.get(
             reverse(
-                "nestedprogram-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]
+                "v1:nested-programs-detail",
+                args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"],
             ),
             format="json",
         )

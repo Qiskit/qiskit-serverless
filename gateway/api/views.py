@@ -1,17 +1,21 @@
-"""Views."""
+"""
+Django Rest framework views for api application:
+    - Nested Program ViewSet
+
+Version views inherit from the different views.
+"""
 
 import json
 import os.path
 import shutil
 import tarfile
 import uuid
-
 import requests
+
 from allauth.socialaccount.providers.keycloak.views import KeycloakOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
-from django.contrib.auth.models import User  # pylint: disable=imported-auth-user
-from ray.dashboard.modules.job.common import JobStatus
+from django.contrib.auth import get_user_model
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
@@ -21,18 +25,27 @@ from rest_framework.views import APIView
 
 
 from .models import NestedProgram, Job, ComputeResource
-from .permissions import IsOwner
-from .serializers import ProgramSerializer, JobSerializer
-from .utils import try_json_loads
+from .serializers import JobSerializer
+from .utils import ray_job_status_to_model_job_status, try_json_loads
 
 
-# pylint: disable=too-many-ancestors
-class ProgramViewSet(viewsets.ModelViewSet):
-    """ProgramViewSet."""
+class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+    """
+    Nested Program ViewSet configuration using ModelViewSet.
+    """
 
-    queryset = NestedProgram.objects.all()
-    serializer_class = ProgramSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    BASE_NAME = "nested-programs"
+
+    @staticmethod
+    def get_serializer_job_class():
+        """
+        This method returns Job serializer to be used in Nested Program.
+        """
+
+        return JobSerializer
+
+    def get_serializer_class(self):
+        return self.serializer_class
 
     def get_queryset(self):
         return NestedProgram.objects.all().filter(author=self.request.user)
@@ -41,7 +54,7 @@ class ProgramViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
 
     @action(methods=["POST"], detail=False)
-    def run_program(self, request):
+    def run(self, request):
         """Runs provided program on compute resources."""
 
         serializer = self.get_serializer(data=request.data)
@@ -120,17 +133,21 @@ class ProgramViewSet(viewsets.ModelViewSet):
             if os.path.exists(extract_folder):
                 shutil.rmtree(extract_folder)
 
-            return Response(JobSerializer(job).data)
+            job_serializer = self.get_serializer_job_class()(job)
+            return Response(job_serializer.data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class JobViewSet(viewsets.ModelViewSet):
-    """JobViewSet."""
+class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+    """
+    Job ViewSet configuration using ModelViewSet.
+    """
 
-    queryset = Job.objects.all()
-    serializer_class = JobSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    BASE_NAME = "jobs"
+
+    def get_serializer_class(self):
+        return self.serializer_class
 
     def get_queryset(self):
         return Job.objects.all().filter(author=self.request.user)
@@ -141,7 +158,7 @@ class JobViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, pk=None):  # pylint: disable=arguments-differ
         queryset = Job.objects.all()
         job: Job = get_object_or_404(queryset, pk=pk)
-        serializer = JobSerializer(job)
+        serializer = self.get_serializer(job)
         if job.compute_resource:
             ray_client = JobSubmissionClient(job.compute_resource.host)
             ray_job_status = ray_client.get_job_status(job.ray_job_id)
@@ -154,9 +171,9 @@ class JobViewSet(viewsets.ModelViewSet):
         """Save result of a job."""
         job = self.get_object()
         job.result = json.dumps(request.data.get("result"))
-        # job.status = Job.SUCCEEDED
         job.save()
-        return Response(JobSerializer(job).data)
+        serializer = self.get_serializer(job)
+        return Response(serializer.data)
 
     @action(methods=["GET"], detail=True)
     def logs(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
@@ -164,19 +181,6 @@ class JobViewSet(viewsets.ModelViewSet):
         job = self.get_object()
         ray_client = JobSubmissionClient(job.compute_resource.host)
         return Response({"logs": ray_client.get_job_logs(job.ray_job_id)})
-
-
-def ray_job_status_to_model_job_status(ray_job_status):
-    """Maps ray job status to model job status."""
-
-    mapping = {
-        JobStatus.PENDING: Job.PENDING,
-        JobStatus.RUNNING: Job.RUNNING,
-        JobStatus.STOPPED: Job.STOPPED,
-        JobStatus.SUCCEEDED: Job.SUCCEEDED,
-        JobStatus.FAILED: Job.FAILED,
-    }
-    return mapping.get(ray_job_status, Job.FAILED)
 
 
 class KeycloakLogin(SocialLoginView):
@@ -188,7 +192,7 @@ class KeycloakLogin(SocialLoginView):
 class KeycloakUsersView(APIView):
     """KeycloakUsersView."""
 
-    queryset = User.objects.all()
+    queryset = get_user_model().objects.all()
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):

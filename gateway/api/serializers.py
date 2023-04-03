@@ -1,21 +1,29 @@
-"""Serializers."""
+"""
+Django Rest framework serializers for api application:
+    - NestedProgramSerializer
+    - JobSerializer
+
+Version serializers inherit from the different serializers.
+"""
 
 from rest_framework import serializers
 
-from api.models import NestedProgram, Job
+from .models import NestedProgram, Job
 
 
-class ProgramSerializer(serializers.ModelSerializer):
-    """ProgramSerializer."""
+class NestedProgramSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the nested program model.
+    """
 
     class Meta:
         model = NestedProgram
-        fields = ["title", "entrypoint", "artifact", "dependencies", "arguments"]
 
 
 class JobSerializer(serializers.ModelSerializer):
-    """JobSerializer."""
+    """
+    Serializer for the job model.
+    """
 
     class Meta:
         model = Job
-        fields = ["id", "result", "status"]
