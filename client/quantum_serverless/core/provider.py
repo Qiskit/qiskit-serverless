@@ -252,7 +252,7 @@ class Provider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run_program(self, nested_program: NestedProgram) -> Job:
+    def run(self, nested_program: NestedProgram) -> Job:
         """Execute nested_program as a async job.
 
         Example:
@@ -262,7 +262,7 @@ class Provider(JsonSerializable):
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
             >>> )
-            >>> job = serverless.run_program(nested_program)
+            >>> job = serverless.run(nested_program)
             >>> # <Job | ...>
 
         Args:
@@ -281,7 +281,7 @@ class Provider(JsonSerializable):
             )
             return None
 
-        return job_client.run_program(nested_program)
+        return job_client.run(nested_program)
 
 
 class KuberayProvider(Provider):
@@ -544,7 +544,7 @@ class GatewayProvider(Provider):
 
         return job
 
-    def run_program(self, nested_program: NestedProgram) -> Job:
+    def run(self, nested_program: NestedProgram) -> Job:
         url = f"{self.host}/api/{self.version}/nested-programs/run/"
         artifact_file_path = os.path.join(nested_program.working_dir, "artifact.tar")
 

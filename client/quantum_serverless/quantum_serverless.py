@@ -104,7 +104,7 @@ class QuantumServerless:
         Returns:
             Job
         """
-        return self._selected_provider.run_program(nested_program)
+        return self._selected_provider.run(nested_program)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.
