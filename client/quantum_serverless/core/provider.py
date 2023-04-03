@@ -544,7 +544,7 @@ class GatewayProvider(Provider):
 
         return job
 
-    def run_program(self, nested_program: Program) -> Job:
+    def run_program(self, nested_program: NestedProgram) -> Job:
         url = f"{self.host}/api/{self.version}/nested-programs/run/"
         artifact_file_path = os.path.join(nested_program.working_dir, "artifact.tar")
 
