@@ -82,7 +82,7 @@ jobs:
       - name: Build and push gateway
         uses: docker/build-push-action@v3
         with:
-          context: ./gateway/
-          file: ./gateway/Dockerfile
+          context: .
+          file: ./infrastructure/docker/Dockerfile-gateway
           push: true
           tags: qiskit/quantum-serverless-gateway:${{ github.event.inputs.tag }}
