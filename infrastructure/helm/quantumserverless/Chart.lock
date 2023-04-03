@@ -19,7 +19,7 @@ dependencies:
   version: 0.4.0
 - name: redis
   repository: https://charts.bitnami.com/bitnami
-  version: 17.9.2
+  version: 17.9.3
 - name: keycloak
   repository: https://charts.bitnami.com/bitnami
   version: 13.4.1
@@ -35,5 +35,5 @@ dependencies:
 - name: promtail
   repository: https://grafana.github.io/helm-charts
   version: 6.9.3
-digest: sha256:fad77d55910c876eb2ea34d08f532bba9aade6fe8c32a89d19c2aa19a13295b8
-generated: "2023-04-03T08:59:24.781489773Z"
+digest: sha256:10e82f39e78b8b67961633db4b82b1967e2e35c35c72212dad9462baba5e1143
+generated: "2023-04-03T09:28:53.27480505Z"
