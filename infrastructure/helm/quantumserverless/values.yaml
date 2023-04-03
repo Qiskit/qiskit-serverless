@@ -259,6 +259,9 @@ kuberay-apiserver:
 keycloakEnable: true
 keycloakClientSecret: CLIENTSECRET-CHANGEME
 keycloakApiServerSecret: APISERVERSECRET-CHANGEME
+grafanaClientSecret: GRAFANASECRET-CHANGEME
+keycloakAdminID: admin
+keycloakAdminPassword: passw0rd
 keycloakUserID: user
 keycloakUserPassword: passw0rd
 
@@ -297,6 +300,31 @@ prometheusEnable: true
 kube-prometheus-stack:
   grafana:
     adminPassword: passw0rd
+    service:
+      type: NodePort
+      nodePort: 32294
+    grafana.ini:
+      auth:
+        disable_login_form: "true"
+      auth.generic_oauth:
+        enabled: "true"
+        name: Keycloak-OAuth
+        allow_sign_up: "true"
+        client_id: grafana
+        client_secret: GRAFANASECRET-CHANGEME
+        api_url: "http://LOCAL-IP:31059/realms/quantumserverless/protocol/openid-connect/userinfo"
+        auth_url: "http://LOCAL-IP:31059/realms/quantumserverless/protocol/openid-connect/auth"
+        token_url: "http://LOCAL-IP:31059/realms/quantumserverless/protocol/openid-connect/token"
+        role_attribute_path: "contains(roles[*], 'grafanaadmin') && 'GrafanaAdmin' || contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'"
+        allow_assign_grafana_admin: "true"
+        scopes: openid email profile roles
+        email_attribute_path: user@quatunserverless.org
+        login_attribute_path: user
+        name_attribute_path: none
+      log:
+        level: debug
+      server:
+        root_url: "http://localhost:32294/"
 
 # ===================
 # loki
