@@ -14,18 +14,15 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from rest_framework import routers
 
-from api.views import ProgramViewSet, KeycloakLogin, JobViewSet, KeycloakUsersView
+from api.views import KeycloakLogin, KeycloakUsersView
 
 router = routers.DefaultRouter()
-router.register(r"programs", ProgramViewSet)
-router.register(r"jobs", JobViewSet)
 
 
 urlpatterns = [
-    path("", include(router.urls)),
     path("dj-rest-auth/", include("dj_rest_auth.urls")),
     path("dj-rest-auth/keycloak/", KeycloakLogin.as_view(), name="keycloak_login"),
     path("dj-rest-auth/keycloak/login/", KeycloakUsersView.as_view()),
@@ -33,4 +30,5 @@ urlpatterns = [
     path("api-auth/", include("rest_framework.urls")),
     path("admin/", admin.site.urls),
     path("", include("django_prometheus.urls")),
+    re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
 ]
