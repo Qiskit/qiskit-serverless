@@ -95,7 +95,7 @@ class QuantumServerless:
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
             >>> )
-            >>> job = serverless.run_program(nested_program)
+            >>> job = serverless.run(nested_program)
             >>> # <Job | ...>
 
         Args:
