@@ -16,7 +16,7 @@ dependencies:
     version: 0.1.0
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
-    version: 9.4.0
+    version: 9.4.1
     repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
     condition: kuberayOperatorEnable
@@ -32,18 +32,18 @@ dependencies:
     repository: https://ray-project.github.io/kuberay-helm
   - name: redis
     condition: redisEnable
-    version: 17.9.1
+    version: 17.9.2
     repository: https://charts.bitnami.com/bitnami
   - name: keycloak
     condition: keycloakEnable
-    version: 13.4.0
+    version: 13.4.1
     repository: https://charts.bitnami.com/bitnami
   - name: repository
     condition: repositoryEnable
     version: 0.1.0
   - name: kube-prometheus-stack
     condition: prometheusEnable
-    version: 45.7.1
+    version: 45.8.1
     repository: https://prometheus-community.github.io/helm-charts
   - name: loki
     condition: lokiEnable

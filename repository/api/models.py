@@ -6,6 +6,7 @@ Django Rest framework models for api application:
 import uuid
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django_prometheus.models import ExportModelOperationsMixin
 
 
 def empty_list():
@@ -22,7 +23,7 @@ def empty_dict():
     return {}
 
 
-class NestedProgram(models.Model):
+class NestedProgram(ExportModelOperationsMixin("nestedprogram"), models.Model):
     """
     Nested Program database model.
     """

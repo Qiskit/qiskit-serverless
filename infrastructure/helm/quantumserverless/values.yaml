@@ -238,7 +238,7 @@ kuberay-apiserver:
   replicaCount: 1
 
   sidecarContainers:
-    - image: quay.io/gogatekeeper/gatekeeper:2.1.1
+    - image: quay.io/gogatekeeper/gatekeeper:2.3.0
       imagePullPolicy: IfNotPresent
       name: gatekeeper
       args:

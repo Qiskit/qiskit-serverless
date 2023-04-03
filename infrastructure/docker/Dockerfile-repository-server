@@ -11,6 +11,6 @@ RUN pip3 install -r requirements.txt
 RUN pip3 install -r requirements-dev.txt
 RUN python manage.py migrate
 
-EXPOSE 8000
-CMD ["python3", "manage.py", "runserver", "0.0.0.0:8000"]
+EXPOSE 8060
+CMD ["python3", "manage.py", "runserver", "0.0.0.0:8060"]
 

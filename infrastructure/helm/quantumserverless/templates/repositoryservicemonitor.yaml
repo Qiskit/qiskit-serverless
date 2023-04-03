@@ -1,0 +1,19 @@
+{{- if .Values.prometheusEnable }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: repository-monitor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  jobLabel: repository
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: repository
+  endpoints:
+    - port: http
+      path: /metrics
+  targetLabels:
+  - repository
+{{- end }}
