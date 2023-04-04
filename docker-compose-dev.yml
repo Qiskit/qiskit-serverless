@@ -93,7 +93,7 @@ services:
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-gateway
-    command: python manage.py runserver 0.0.0.0:8000
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000
     ports:
       - 8000:8000
     environment:
