@@ -117,7 +117,7 @@ services:
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-repository-server
-    command: python manage.py runserver 0.0.0.0:8060
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8060
     ports:
       - 8060:8060
     environment:

@@ -9,8 +9,11 @@ USER 1001
 
 RUN pip3 install -r requirements.txt
 RUN pip3 install -r requirements-dev.txt
-RUN python manage.py migrate
+
+RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh
+RUN chmod +x /usr/src/app/entrypoint.sh
 
 EXPOSE 8060
-CMD ["python3", "manage.py", "runserver", "0.0.0.0:8060"]
+# run entrypoint.sh
+ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
 
