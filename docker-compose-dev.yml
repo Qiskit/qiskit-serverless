@@ -97,7 +97,7 @@ services:
     ports:
       - 8000:8000
     environment:
-      - DEBUG=0
+      - DEBUG=1
       - RAY_HOST=http://ray-head:8265
       - CLIENT_ID=rayclient
       - DJANGO_SUPERUSER_USERNAME=admin
@@ -121,7 +121,7 @@ services:
     ports:
       - 8060:8060
     environment:
-      - DEBUG=0
+      - DEBUG=1
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
