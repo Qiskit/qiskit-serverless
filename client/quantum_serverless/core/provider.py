@@ -50,7 +50,7 @@ from quantum_serverless.core.job import (
     GatewayJobClient,
     BaseJobClient,
 )
-from quantum_serverless.core.quantum_function import NestedProgram
+from quantum_serverless.core.quantum_function import QuantumFunction
 from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
@@ -252,21 +252,21 @@ class Provider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run(self, nested_program: NestedProgram) -> Job:
-        """Execute nested_program as a async job.
+    def run(self, quantum_function: QuantumFunction) -> Job:
+        """Execute a quantum function as a async job.
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> nested_program = NestedProgram(
+            >>> quantum_function = QuantumFunction(
             >>>     "job.py",
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
             >>> )
-            >>> job = serverless.run(nested_program)
+            >>> job = serverless.run(quantum_function)
             >>> # <Job | ...>
 
         Args:
-            nested_program: nested_program object
+            quantum_function: quantum function object
 
         Returns:
             Job
@@ -281,7 +281,7 @@ class Provider(JsonSerializable):
             )
             return None
 
-        return job_client.run(nested_program)
+        return job_client.run(quantum_function)
 
 
 class KuberayProvider(Provider):
@@ -544,23 +544,23 @@ class GatewayProvider(Provider):
 
         return job
 
-    def run(self, nested_program: NestedProgram) -> Job:
+    def run(self, quantum_function: QuantumFunction) -> Job:
         url = f"{self.host}/api/{self.version}/nested-programs/run/"
-        artifact_file_path = os.path.join(nested_program.working_dir, "artifact.tar")
+        artifact_file_path = os.path.join(quantum_function.working_dir, "artifact.tar")
 
         with tarfile.open(artifact_file_path, "w") as tar:
-            for filename in os.listdir(nested_program.working_dir):
-                fpath = os.path.join(nested_program.working_dir, filename)
+            for filename in os.listdir(quantum_function.working_dir):
+                fpath = os.path.join(quantum_function.working_dir, filename)
                 tar.add(fpath, arcname=filename)
 
         with open(artifact_file_path, "rb") as file:
             response = requests.post(
                 url=url,
                 data={
-                    "title": nested_program.title,
-                    "entrypoint": nested_program.entrypoint,
-                    "arguments": json.dumps(nested_program.arguments or {}),
-                    "dependencies": json.dumps(nested_program.dependencies or []),
+                    "title": quantum_function.title,
+                    "entrypoint": quantum_function.entrypoint,
+                    "arguments": json.dumps(quantum_function.arguments or {}),
+                    "dependencies": json.dumps(quantum_function.dependencies or []),
                 },
                 files={"artifact": file},
                 headers={"Authorization": f"Bearer {self._token}"},

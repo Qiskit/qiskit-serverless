@@ -35,7 +35,7 @@ import requests
 from ray._private.worker import BaseContext
 
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.quantum_function import NestedProgram
+from quantum_serverless.core.quantum_function import QuantumFunction
 from quantum_serverless.core.provider import Provider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
 
@@ -85,26 +85,26 @@ class QuantumServerless:
         """Job client for given provider."""
         return self._selected_provider.job_client()
 
-    def run(self, nested_program: NestedProgram) -> Optional[Job]:
-        """Execute NestedProgram as a async job
+    def run(self, quantum_function: QuantumFunction) -> Optional[Job]:
+        """Execute a quantum function as a async job
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> nested_program = NestedProgram(
+            >>> quantum_function = QuantumFunction(
             >>>     "job.py",
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
             >>> )
-            >>> job = serverless.run(nested_program)
+            >>> job = serverless.run(quantum_function)
             >>> # <Job | ...>
 
         Args:
-            NestedProgram: NestedProgram object
+            quantum_function: quantum function object
 
         Returns:
             Job
         """
-        return self._selected_provider.run(nested_program)
+        return self._selected_provider.run(quantum_function)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.

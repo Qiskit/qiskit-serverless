@@ -46,7 +46,7 @@ from quantum_serverless.core.constants import (
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
-from quantum_serverless.core.quantum_function import NestedProgram
+from quantum_serverless.core.quantum_function import QuantumFunction
 from quantum_serverless.utils.json import is_jsonable
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
@@ -55,8 +55,8 @@ RuntimeEnv = ray.runtime_env.RuntimeEnv
 class BaseJobClient:
     """Base class for Job clients."""
 
-    def run(self, nested_program: NestedProgram) -> "Job":
-        """Runs nested_program."""
+    def run(self, quantum_function: QuantumFunction) -> "Job":
+        """Runs quantum function."""
         raise NotImplementedError
 
     def status(self, job_id: str):
@@ -100,30 +100,30 @@ class RayJobClient(BaseJobClient):
     def result(self, job_id: str):
         return self.logs(job_id)
 
-    def run(self, nested_program: NestedProgram):
+    def run(self, quantum_function: QuantumFunction):
         arguments = ""
-        if nested_program.arguments is not None:
+        if quantum_function.arguments is not None:
             arg_list = []
-            for key, value in nested_program.arguments.items():
+            for key, value in quantum_function.arguments.items():
                 if isinstance(value, dict):
                     arg_list.append(f"--{key}='{json.dumps(value)}'")
                 else:
                     arg_list.append(f"--{key}={value}")
             arguments = " ".join(arg_list)
-        entrypoint = f"python {nested_program.entrypoint} {arguments}"
+        entrypoint = f"python {quantum_function.entrypoint} {arguments}"
 
-        # set nested_program name so OT can use it as parent span name
+        # set quantum_function name so OT can use it as parent span name
         env_vars = {
-            **(nested_program.env_vars or {}),
-            **{OT_PROGRAM_NAME: nested_program.title},
+            **(quantum_function.env_vars or {}),
+            **{OT_PROGRAM_NAME: quantum_function.title},
         }
 
         job_id = self._job_client.submit_job(
             entrypoint=entrypoint,
             submission_id=f"qs_{uuid4()}",
             runtime_env={
-                "working_dir": nested_program.working_dir,
-                "pip": nested_program.dependencies,
+                "working_dir": quantum_function.working_dir,
+                "pip": quantum_function.dependencies,
                 "env_vars": env_vars,
             },
         )
