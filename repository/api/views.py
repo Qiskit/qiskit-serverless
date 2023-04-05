@@ -11,7 +11,9 @@ from rest_framework import viewsets
 from .models import QuantumFunction
 
 
-class QuantumFunctionViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+class QuantumFunctionViewSet(
+    viewsets.ModelViewSet
+):  # pylint: disable=too-many-ancestors
     """
     QuantumFunction ViewSet configuration using ModelViewSet.
     """
