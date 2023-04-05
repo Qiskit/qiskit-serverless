@@ -7,5 +7,5 @@ from .models import QuantumFunction
 
 
 @admin.register(QuantumFunction)
-class NestedProgramAdmin(admin.ModelAdmin):
-    """NestedProgramAdmin."""
+class QuantumFunctionAdmin(admin.ModelAdmin):
+    """QuantumFunctionAdmin."""
