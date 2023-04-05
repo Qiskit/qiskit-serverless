@@ -148,7 +148,7 @@ class QuantumFunctionRepository(QuantumFunctionStorage):
         self._token = token
         self._base_url = f"{self._host}:{self._port}/v1/api/nested-programs/"
 
-    def save_quantum_function(self, nested_program: QuantumFunction) -> bool:
+    def save_quantum_function(self, quantum_function: QuantumFunction) -> bool:
         raise NotImplementedError("Not implemented yet.")
 
     def get_quantum_functions(self, **kwargs) -> List[str]:

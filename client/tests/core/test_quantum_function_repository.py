@@ -132,7 +132,7 @@ class TestRepository(TestCase):
         """Tests quantum functions repository."""
 
         repository = QuantumFunctionRepository(host="http://localhost")
-        quantum_functions = repository.get_quantum_function()
+        quantum_functions = repository.get_quantum_functions()
         self.assertEqual(quantum_functions, ["hello_world", "Test"])
         self.assertEqual(len(mock_get.call_args_list), 1)
 
