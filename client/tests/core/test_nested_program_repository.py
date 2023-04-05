@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from unittest import TestCase, mock
 
-from quantum_serverless.core.nested_program import (
+from quantum_serverless.core.quantum_function import (
     NestedProgramRepository,
     NestedProgram,
 )

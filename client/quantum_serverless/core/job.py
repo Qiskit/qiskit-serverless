@@ -46,7 +46,7 @@ from quantum_serverless.core.constants import (
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
-from quantum_serverless.core.nested_program import NestedProgram
+from quantum_serverless.core.quantum_function import NestedProgram
 from quantum_serverless.utils.json import is_jsonable
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
