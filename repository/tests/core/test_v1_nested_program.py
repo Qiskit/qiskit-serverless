@@ -8,7 +8,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import NestedProgram
+from api.models import QuantumFunction
 
 
 class NestedProgramTests(APITestCase):
@@ -122,7 +122,7 @@ class NestedProgramTests(APITestCase):
             )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(NestedProgram.objects.count(), 2)
+        self.assertEqual(QuantumFunction.objects.count(), 2)
 
     def test_count_of_all_nested_programs_created_must_be_one(self):
         """
@@ -167,7 +167,7 @@ class NestedProgramTests(APITestCase):
         url = reverse("v1:nested-programs-detail", args=[nested_program_id])
         response = self.client.delete(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(NestedProgram.objects.count(), 0)
+        self.assertEqual(QuantumFunction.objects.count(), 0)
 
     def test_nested_program_list_validation_returns_400(self):
         """

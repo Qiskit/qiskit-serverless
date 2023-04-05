@@ -1,6 +1,6 @@
 """
 Django Rest framework models for api application:
-    - NestedProgram
+    - QuantumFunction
 """
 
 import uuid
@@ -23,9 +23,9 @@ def empty_dict():
     return {}
 
 
-class NestedProgram(ExportModelOperationsMixin("nestedprogram"), models.Model):
+class QuantumFunction(ExportModelOperationsMixin("quantumfunction"), models.Model):
     """
-    Nested Program database model.
+    QuantumFunction database model.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
