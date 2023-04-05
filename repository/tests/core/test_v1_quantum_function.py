@@ -16,7 +16,7 @@ class QuantumFunctionTests(APITestCase):
 
     def test_get_quantum_function_returns_200(self):
         """
-        Retrieve information about a specific nested program
+        Retrieve information about a specific quantum function
         """
         quantum_function_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
         url = reverse("v1:quantum-functions-detail", args=[quantum_function_id])
@@ -230,7 +230,7 @@ class QuantumFunctionTests(APITestCase):
 
         self.client.force_login(test_user)
 
-        url = reverse("v1:nested-programs-list")
+        url = reverse("v1:quantum-functions-list")
         with open(
             os.path.join(
                 os.path.dirname(os.path.realpath(__file__)),
