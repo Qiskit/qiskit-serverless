@@ -10,7 +10,7 @@ class NestedProgramViewSet(
     views.NestedProgramViewSet
 ):  # pylint: disable=too-many-ancestors
     """
-    Nested program view set first version. Use NestedProgramSerializer V1.
+    Nested program view set first version. Use QuantumFunctionSerializer V1.
     """
 
-    serializer_class = v1_serializers.NestedProgramSerializer
+    serializer_class = v1_serializers.QuantumFunctionSerializer
