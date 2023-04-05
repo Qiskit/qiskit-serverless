@@ -11,7 +11,7 @@ from quantum_serverless.core.quantum_function import (
 )
 
 responses = {
-    "http://localhost:80/v1/api/nested-programs/": {
+    "http://localhost:80/api/v1/quantum-functions/": {
         "count": 2,
         "results": [
             {

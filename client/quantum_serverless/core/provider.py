@@ -568,7 +568,7 @@ class GatewayProvider(Provider):
             )
             if not response.ok:
                 raise QuantumServerlessException(
-                    f"Something went wrong with nested_program execution. {response.text}"
+                    f"Something went wrong with quantum function execution. {response.text}"
                 )
 
             json_response = json.loads(response.text)
