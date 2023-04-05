@@ -1,6 +1,8 @@
 """
 Django Rest framework views for api application:
-    - Nested Program ViewSet
+    - QuantumFunction ViewSet
+    - Job ViewSet
+    - KeycloakUsers ApiView
 
 Version views inherit from the different views.
 """
@@ -29,7 +31,9 @@ from .serializers import JobSerializer
 from .utils import ray_job_status_to_model_job_status, try_json_loads
 
 
-class QuantumFunctionViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+class QuantumFunctionViewSet(
+    viewsets.ModelViewSet
+):  # pylint: disable=too-many-ancestors
     """
     QuantumFunction ViewSet configuration using ModelViewSet.
     """

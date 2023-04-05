@@ -121,7 +121,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
-                        to="api.nestedprogram",
+                        to="api.quantumfunction",
                     ),
                 ),
             ],

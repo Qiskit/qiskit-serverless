@@ -68,7 +68,9 @@ class Job(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True)
 
-    quantum_function = models.ForeignKey(to=QuantumFunction, on_delete=models.SET_NULL, null=True)
+    quantum_function = models.ForeignKey(
+        to=QuantumFunction, on_delete=models.SET_NULL, null=True
+    )
     result = models.TextField(null=True, blank=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
