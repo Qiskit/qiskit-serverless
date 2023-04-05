@@ -1,22 +1,22 @@
 """
 Django Rest framework serializers for api application:
-    - NestedProgramSerializer
+    - QuantumFunctionSerializer
 
 Version serializers inherit from the different serializers.
 """
 
 from rest_framework import serializers
-from .models import NestedProgram
+from .models import QuantumFunction
 from .validators import list_validator, dict_validator
 
 
-class NestedProgramSerializer(serializers.ModelSerializer):
+class QuantumFunctionSerializer(serializers.ModelSerializer):
     """
-    Serializer for the nested program model.
+    Serializer for the quantum function model.
     """
 
     class Meta:
-        model = NestedProgram
+        model = QuantumFunction
         validators = [
             list_validator.ListValidator(
                 fields=["dependencies", "tags"], nullable=True

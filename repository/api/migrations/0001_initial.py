@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="NestedProgram",
+            name="QuantumFunction",
             fields=[
                 (
                     "id",
