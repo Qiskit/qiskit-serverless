@@ -7,7 +7,7 @@ from . import views as v1_views
 
 router = routers.DefaultRouter()
 router.register(
-    r"nested-programs",
+    r"quantum-functions",
     v1_views.QuantumFunctionViewSet,
     basename=v1_views.QuantumFunctionViewSet.BASE_NAME,
 )
