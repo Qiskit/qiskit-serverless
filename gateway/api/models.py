@@ -7,8 +7,8 @@ from django.conf import settings
 from django_prometheus.models import ExportModelOperationsMixin
 
 
-class NestedProgram(ExportModelOperationsMixin("nestedprogram"), models.Model):
-    """NestedProgram model."""
+class QuantumFunction(ExportModelOperationsMixin("quantumfunction"), models.Model):
+    """QuantumFunction model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True)
@@ -68,7 +68,9 @@ class Job(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True)
 
-    program = models.ForeignKey(to=NestedProgram, on_delete=models.SET_NULL, null=True)
+    quantum_function = models.ForeignKey(
+        to=QuantumFunction, on_delete=models.SET_NULL, null=True
+    )
     result = models.TextField(null=True, blank=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -85,4 +87,4 @@ class Job(models.Model):
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
-        return f"Job <{self.pk}> {self.program}"
+        return f"Job <{self.pk}> {self.quantum_function}"

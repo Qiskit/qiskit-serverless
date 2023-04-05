@@ -5,12 +5,12 @@ Serializers api for V1.
 from api import serializers
 
 
-class NestedProgramSerializer(serializers.NestedProgramSerializer):
+class QuantumFunctionSerializer(serializers.QuantumFunctionSerializer):
     """
-    Nested program serializer first version. Include basic fields from the initial model.
+    Quantum function serializer first version. Include basic fields from the initial model.
     """
 
-    class Meta(serializers.NestedProgramSerializer.Meta):
+    class Meta(serializers.QuantumFunctionSerializer.Meta):
         fields = ["title", "entrypoint", "artifact", "dependencies", "arguments"]
 
 

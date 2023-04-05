@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
-            name="NestedProgram",
+            name="QuantumFunction",
             fields=[
                 (
                     "id",
@@ -117,11 +117,11 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "program",
+                    "quantum_function",
                     models.ForeignKey(
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
-                        to="api.nestedprogram",
+                        to="api.quantumfunction",
                     ),
                 ),
             ],

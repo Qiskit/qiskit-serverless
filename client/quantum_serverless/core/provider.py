@@ -545,7 +545,7 @@ class GatewayProvider(Provider):
         return job
 
     def run(self, quantum_function: QuantumFunction) -> Job:
-        url = f"{self.host}/api/{self.version}/nested-programs/run/"
+        url = f"{self.host}/api/{self.version}/quantum-functions/run/"
         artifact_file_path = os.path.join(quantum_function.working_dir, "artifact.tar")
 
         with tarfile.open(artifact_file_path, "w") as tar:
