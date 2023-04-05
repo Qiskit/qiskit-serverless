@@ -34,10 +34,10 @@ docker-compose up
 
 #### Write your program
 
-Create python file with necessary code. Let's call in `nested-program.py`
+Create python file with necessary code. Let's call in `quantum-function.py`
 
 ```python
-# program.py
+# quantum-function.py
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 from qiskit.quantum_info import SparsePauliOp
@@ -82,7 +82,7 @@ with serverless.context():
 Let's run our program now
 
 ```python
-from quantum_serverless import QuantumServerless, GatewayProvider, NestedProgram
+from quantum_serverless import QuantumServerless, GatewayProvider, QuantumFunction
 
 provider = GatewayProvider(
     username="user", # this username has already been defined in local docker setup and does not need to be changed
@@ -92,13 +92,13 @@ provider = GatewayProvider(
 serverless = QuantumServerless(provider)
 
 # create out program
-nested_program = NestedProgram(
+quantum_function = QuantumFunction(
     name="my_program",
-    entrypoint="nested-program.py", # set entrypoint as out nested-program.py file
+    entrypoint="quantum_function.py", # set entrypoint as out quantum_function.py file
     working_dir="./"
 )
 
-job = serverless.run(nested_program)
+job = serverless.run(quantum_function)
 
 job.status()
 # <JobStatus.SUCCEEDED: 'SUCCEEDED'>

@@ -31,7 +31,7 @@ Step 1: run infrastructure
 Step 2: write program
 
 .. code-block:: python
-   :caption: nested-program.py
+   :caption: quantum_function.py
 
    from qiskit import QuantumCircuit
    from qiskit.circuit.random import random_circuit
@@ -76,7 +76,7 @@ Step 3: run program
 .. code-block:: python
    :caption: in jupyter notebook
 
-   from quantum_serverless import QuantumServerless, GatewayProvider, NestedProgram
+   from quantum_serverless import QuantumServerless, GatewayProvider, QuantumFunction
 
    provider = GatewayProvider(
        username="user", # this username has already been defined in local docker setup and does not need to be changed
@@ -86,13 +86,13 @@ Step 3: run program
    serverless = QuantumServerless(provider)
 
    # create out program
-   nested_program = NestedProgram(
+   quantum_function = QuantumFunction(
        name="my_program",
-       entrypoint="nested-program.py", # set entrypoint as out nested-program.py file
+       entrypoint="quantum_function.py", # set entrypoint as out quantum_function.py file
        working_dir="./"
    )
 
-   job = serverless.run(nested_program)
+   job = serverless.run(quantum_function)
 
    job.status()
    # <JobStatus.SUCCEEDED: 'SUCCEEDED'>
