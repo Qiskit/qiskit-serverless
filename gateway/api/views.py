@@ -24,7 +24,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
-from .models import NestedProgram, Job, ComputeResource
+from .models import QuantumFunction, Job, ComputeResource
 from .serializers import JobSerializer
 from .utils import ray_job_status_to_model_job_status, try_json_loads
 
@@ -48,23 +48,23 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
         return self.serializer_class
 
     def get_queryset(self):
-        return NestedProgram.objects.all().filter(author=self.request.user)
+        return QuantumFunction.objects.all().filter(author=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
     @action(methods=["POST"], detail=False)
     def run(self, request):
-        """Runs provided program on compute resources."""
+        """Runs provided quantum function on compute resources."""
 
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            # create program
-            program = NestedProgram(**serializer.data)
+            # create quantum_function
+            program = QuantumFunction(**serializer.data)
             _, dependencies = try_json_loads(program.dependencies)
             _, arguments = try_json_loads(program.arguments)
 
-            existing_programs = NestedProgram.objects.filter(
+            existing_programs = QuantumFunction.objects.filter(
                 author=request.user, title__exact=program.title
             )
             if existing_programs.count() > 0:

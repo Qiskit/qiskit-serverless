@@ -7,7 +7,7 @@ from api import serializers
 
 class NestedProgramSerializer(serializers.NestedProgramSerializer):
     """
-    Nested program serializer first version. Include basic fields from the initial model.
+    Quantum function serializer first version. Include basic fields from the initial model.
     """
 
     class Meta(serializers.NestedProgramSerializer.Meta):

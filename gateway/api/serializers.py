@@ -8,16 +8,16 @@ Version serializers inherit from the different serializers.
 
 from rest_framework import serializers
 
-from .models import NestedProgram, Job
+from .models import QuantumFunction, Job
 
 
 class NestedProgramSerializer(serializers.ModelSerializer):
     """
-    Serializer for the nested program model.
+    Serializer for the quantum function model.
     """
 
     class Meta:
-        model = NestedProgram
+        model = QuantumFunction
 
 
 class JobSerializer(serializers.ModelSerializer):

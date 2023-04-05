@@ -6,7 +6,7 @@ from rest_framework import permissions
 
 
 from api import views
-from api.models import NestedProgram, Job
+from api.models import QuantumFunction, Job
 from api.permissions import IsOwner
 from . import serializers as v1_serializers
 
@@ -15,10 +15,10 @@ class NestedProgramViewSet(
     views.NestedProgramViewSet
 ):  # pylint: disable=too-many-ancestors
     """
-    Nested program view set first version. Use NestedProgramSerializer V1.
+    Quantum function view set first version. Use NestedProgramSerializer V1.
     """
 
-    queryset = NestedProgram.objects.all()
+    queryset = QuantumFunction.objects.all()
     serializer_class = v1_serializers.NestedProgramSerializer
     permission_classes = [permissions.IsAuthenticated]
 
