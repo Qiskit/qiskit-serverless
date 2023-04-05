@@ -9,7 +9,7 @@ from testcontainers.compose import DockerCompose
 from quantum_serverless import QuantumServerless, Provider
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.quantum_function import NestedProgram
+from quantum_serverless.core.quantum_function import QuantumFunction
 from quantum_serverless.exception import QuantumServerlessException
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
@@ -18,28 +18,28 @@ resources_path = os.path.join(
 )
 
 
-class TestNestedProgram(TestCase):
-    """TestNestedProgram."""
+class TestQuantumFunction(TestCase):
+    """TestQuantumFunction."""
 
     def test_arguments_validation(self):
         """Tests arguments validation."""
-        nested_program = NestedProgram(
-            title="awesome_nested_program",
+        quantum_function = QuantumFunction(
+            title="awesome_quantum_function",
             entrypoint="awesome.py",
             arguments={"one": 1, "json": {"one": 1, "two": 2}},
         )
-        self.assertIsInstance(nested_program, NestedProgram)
+        self.assertIsInstance(quantum_function, QuantumFunction)
 
         with self.assertRaises(QuantumServerlessException):
-            NestedProgram(
-                title="awesome_nested_program",
+            QuantumFunction(
+                title="awesome_quantum_function",
                 entrypoint="awesome.py",
                 arguments={"one": 1, "json": {"one": np.array([1]), "two": 2}},
             )
 
 
-def test_nested_program():
-    """Integration test for nested_programs."""
+def test_quantum_function():
+    """Integration test for quantum function."""
 
     with DockerCompose(
         resources_path, compose_file_name="test-compose.yml", pull=True
@@ -57,7 +57,7 @@ def test_nested_program():
 
         wait_for_job_client(serverless)
 
-        nested_program = NestedProgram(
+        nested_program = QuantumFunction(
             title="simple_job",
             entrypoint="job.py",
             working_dir=resources_path,

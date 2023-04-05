@@ -1,4 +1,4 @@
-"""Test nested_program repository."""
+"""Test quantum_function repository."""
 import json
 import os.path
 import shutil
@@ -6,8 +6,8 @@ from pathlib import Path
 from unittest import TestCase, mock
 
 from quantum_serverless.core.quantum_function import (
-    NestedProgramRepository,
-    NestedProgram,
+    QuantumFunctionRepository,
+    QuantumFunction,
 )
 
 responses = {
@@ -105,7 +105,7 @@ def mocked_requests_get(**kwargs):
                 os.path.dirname(os.path.abspath(__file__)),
                 "..",
                 "resources",
-                "nested_program.tar",
+                "quantum_function.tar",
             )
         )
     return result
@@ -118,32 +118,32 @@ class TestRepository(TestCase):
         self.resources_folder = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "resources"
         )
-        self.nested_programs_folder = os.path.join(
-            self.resources_folder, "nested_programs"
+        self.quantum_functions_folder = os.path.join(
+            self.resources_folder, "quantum_functions"
         )
-        Path(self.nested_programs_folder).mkdir(parents=True, exist_ok=True)
+        Path(self.quantum_functions_folder).mkdir(parents=True, exist_ok=True)
 
     def tearDown(self) -> None:
-        if os.path.exists(self.nested_programs_folder):
-            shutil.rmtree(self.nested_programs_folder)
+        if os.path.exists(self.quantum_functions_folder):
+            shutil.rmtree(self.quantum_functions_folder)
 
     @mock.patch("requests.get", side_effect=mocked_requests_get)
-    def test_repository_get_nested_programs(self, mock_get):
-        """Tests nested_program repository."""
+    def test_repository_get_quantum_functions(self, mock_get):
+        """Tests quantum functions repository."""
 
-        repository = NestedProgramRepository(host="http://localhost")
-        nested_programs = repository.get_nested_programs()
-        self.assertEqual(nested_programs, ["hello_world", "Test"])
+        repository = QuantumFunctionRepository(host="http://localhost")
+        quantum_functions = repository.get_quantum_function()
+        self.assertEqual(quantum_functions, ["hello_world", "Test"])
         self.assertEqual(len(mock_get.call_args_list), 1)
 
     @mock.patch("requests.get", side_effect=mocked_requests_get)
-    def test_repository_get_nested_program(self, mock_get):
-        """Tests single nested_program fetch."""
-        repository = NestedProgramRepository(
-            host="http://localhost", folder=self.nested_programs_folder
+    def test_repository_get_quantum_function(self, mock_get):
+        """Tests single quantum_function fetch."""
+        repository = QuantumFunctionRepository(
+            host="http://localhost", folder=self.quantum_functions_folder
         )
-        nested_program = repository.get_nested_program("hello_world")
-        self.assertEqual(nested_program.title, "hello_world")
-        self.assertEqual(nested_program.version, "0.0.0")
-        self.assertIsInstance(nested_program, NestedProgram)
+        quantum_function = repository.get_quantum_function("hello_world")
+        self.assertEqual(quantum_function.title, "hello_world")
+        self.assertEqual(quantum_function.version, "0.0.0")
+        self.assertIsInstance(quantum_function, QuantumFunction)
         self.assertEqual(len(mock_get.call_args_list), 2)

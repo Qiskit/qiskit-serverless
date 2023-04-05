@@ -17,7 +17,7 @@ import os
 from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
 
-from quantum_serverless import QuantumServerless, NestedProgram, Provider
+from quantum_serverless import QuantumServerless, QuantumFunction, Provider
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.state import RedisStateHandler
 from tests.utils import wait_for_job_client, wait_for_job_completion
@@ -57,7 +57,7 @@ def test_state():
         wait_for_job_client(serverless)
 
         job = serverless.run(
-            NestedProgram(
+            QuantumFunction(
                 "test", entrypoint="job_with_state.py", working_dir=resources_path
             )
         )
