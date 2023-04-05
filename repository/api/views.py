@@ -11,12 +11,12 @@ from rest_framework import viewsets
 from .models import QuantumFunction
 
 
-class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+class QuantumFunctionViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     """
-    Nested Program ViewSet configuration using ModelViewSet.
+    QuantumFunction ViewSet configuration using ModelViewSet.
     """
 
-    BASE_NAME = "nested-programs"
+    BASE_NAME = "quantum-functions"
 
     queryset = QuantumFunction.objects.all().order_by("created")
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]

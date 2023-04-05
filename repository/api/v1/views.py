@@ -6,8 +6,8 @@ from api import views
 from . import serializers as v1_serializers
 
 
-class NestedProgramViewSet(
-    views.NestedProgramViewSet
+class QuantumFunctionViewSet(
+    views.QuantumFunctionViewSet
 ):  # pylint: disable=too-many-ancestors
     """
     Nested program view set first version. Use QuantumFunctionSerializer V1.
