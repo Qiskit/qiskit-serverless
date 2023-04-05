@@ -5,8 +5,8 @@ from .models import Job, QuantumFunction, ComputeResource
 
 
 @admin.register(QuantumFunction)
-class ProgramAdmin(admin.ModelAdmin):
-    """ProgramAdmin."""
+class QuantumFunctionAdmin(admin.ModelAdmin):
+    """QuantumFunctionAdmin."""
 
 
 @admin.register(Job)
