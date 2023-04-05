@@ -15,11 +15,11 @@ class NestedProgramViewSet(
     views.NestedProgramViewSet
 ):  # pylint: disable=too-many-ancestors
     """
-    Quantum function view set first version. Use NestedProgramSerializer V1.
+    Quantum function view set first version. Use QuantumFunctionSerializer V1.
     """
 
     queryset = QuantumFunction.objects.all()
-    serializer_class = v1_serializers.NestedProgramSerializer
+    serializer_class = v1_serializers.QuantumFunctionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     @staticmethod
@@ -27,7 +27,7 @@ class NestedProgramViewSet(
         return v1_serializers.JobSerializer
 
     def get_serializer_class(self):
-        return v1_serializers.NestedProgramSerializer
+        return v1_serializers.QuantumFunctionSerializer
 
 
 class JobViewSet(views.JobViewSet):  # pylint: disable=too-many-ancestors
