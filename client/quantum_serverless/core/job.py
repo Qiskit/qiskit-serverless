@@ -64,7 +64,7 @@ class BaseJobClient:
         raise NotImplementedError
 
     def stop(self, job_id: str):
-        """Stops job/nested-program."""
+        """Stops job/quantum-function."""
         raise NotImplementedError
 
     def logs(self, job_id: str):

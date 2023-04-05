@@ -57,7 +57,7 @@ def test_quantum_function():
 
         wait_for_job_client(serverless)
 
-        nested_program = QuantumFunction(
+        quantum_function = QuantumFunction(
             title="simple_job",
             entrypoint="job.py",
             working_dir=resources_path,
@@ -65,7 +65,7 @@ def test_quantum_function():
             version="0.0.1",
         )
 
-        job = serverless.run(nested_program)
+        job = serverless.run(quantum_function)
 
         assert isinstance(job, Job)
 
