@@ -11,8 +11,8 @@ from api.permissions import IsOwner
 from . import serializers as v1_serializers
 
 
-class NestedProgramViewSet(
-    views.NestedProgramViewSet
+class QuantumFunctionViewSet(
+    views.QuantumFunctionViewSet
 ):  # pylint: disable=too-many-ancestors
     """
     Quantum function view set first version. Use QuantumFunctionSerializer V1.

@@ -29,17 +29,17 @@ from .serializers import JobSerializer
 from .utils import ray_job_status_to_model_job_status, try_json_loads
 
 
-class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+class QuantumFunctionViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     """
-    Nested Program ViewSet configuration using ModelViewSet.
+    QuantumFunction ViewSet configuration using ModelViewSet.
     """
 
-    BASE_NAME = "nested-programs"
+    BASE_NAME = "quantum-functions"
 
     @staticmethod
     def get_serializer_job_class():
         """
-        This method returns Job serializer to be used in Nested Program.
+        This method returns Job serializer to be used in QuantumFunction ViewSet.
         """
 
         return JobSerializer
@@ -60,22 +60,22 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             # create quantum_function
-            program = QuantumFunction(**serializer.data)
-            _, dependencies = try_json_loads(program.dependencies)
-            _, arguments = try_json_loads(program.arguments)
+            quantum_function = QuantumFunction(**serializer.data)
+            _, dependencies = try_json_loads(quantum_function.dependencies)
+            _, arguments = try_json_loads(quantum_function.arguments)
 
-            existing_programs = QuantumFunction.objects.filter(
-                author=request.user, title__exact=program.title
+            existing_quantum_functions = QuantumFunction.objects.filter(
+                author=request.user, title__exact=quantum_function.title
             )
-            if existing_programs.count() > 0:
+            if existing_quantum_functions.count() > 0:
                 # take existing one
-                existing_programs = existing_programs.first()
-                existing_programs.arguments = program.arguments
-                existing_programs.dependencies = program.dependencies
-                program = existing_programs
-            program.artifact = request.FILES.get("artifact")
-            program.author = request.user
-            program.save()
+                existing_quantum_functions = existing_quantum_functions.first()
+                existing_quantum_functions.arguments = quantum_function.arguments
+                existing_quantum_functions.dependencies = quantum_function.dependencies
+                quantum_function = existing_quantum_functions
+            quantum_function.artifact = request.FILES.get("artifact")
+            quantum_function.author = request.user
+            quantum_function.save()
 
             # get available compute resources
             resources = ComputeResource.objects.filter(users__in=[request.user])
@@ -89,14 +89,14 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
             # start job
             ray_client = JobSubmissionClient(compute_resource.host)
             # unpack data
-            with tarfile.open(program.artifact.path) as file:
+            with tarfile.open(quantum_function.artifact.path) as file:
                 extract_folder = os.path.join(
                     settings.MEDIA_ROOT, "tmp", str(uuid.uuid4())
                 )
                 file.extractall(extract_folder)
 
             job = Job(
-                program=program,
+                quantum_function=quantum_function,
                 author=request.user,
                 compute_resource=compute_resource,
             )
@@ -112,7 +112,7 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
                 arguments = " ".join(arg_list)
             else:
                 arguments = ""
-            entrypoint = f"python {program.entrypoint} {arguments}"
+            entrypoint = f"python {quantum_function.entrypoint} {arguments}"
 
             ray_job_id = ray_client.submit_job(
                 entrypoint=entrypoint,
