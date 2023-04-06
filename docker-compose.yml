@@ -86,7 +86,7 @@ services:
       always
   gateway:
     container_name: gateway
-    image: docker.io/qiskit/quantum-serverless-gateway:nightly
+    image: docker.io/qiskit/quantum-serverless-gateway:0.0.6
     command: python manage.py runserver 0.0.0.0:8000
     ports:
       - 8000:8000
