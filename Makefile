@@ -26,7 +26,7 @@ build-ray-node:
 	docker build -t $(rayNodeImageName):$(version) -f ./infrastructure/docker/Dockerfile-ray-qiskit .
 
 build-gateway:
-	docker build -t $(gatewayImageName):$(version) -f ./infrastructure/docker/Dockerfile-gateway .
+	docker build -t $(gatewayImageName):$(version) -f ./infrastructure/docker/Dockerfile-gateway ./gateway
 
 build-repository-server:
 	docker build -t $(repositoryServerImageName):$(version) -f ./infrastructure/docker/Dockerfile-repository-server .
