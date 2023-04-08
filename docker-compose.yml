@@ -1,4 +1,4 @@
-# compose config on nightly builds
+# compose config on latest release builds
 services:
   jupyter:
     container_name: qs-jupyter
