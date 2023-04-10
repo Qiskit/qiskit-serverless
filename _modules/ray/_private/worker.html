@@ -725,7 +725,7 @@
         <span class="p">)</span>
 
     <span class="nd">@Deprecated</span>
-    <span class="k">def</span> <span class="nf">run_function_on_all_workers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">callable</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">run_function_on_all_workers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="nb">callable</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;This function has been deprecated given the following issues:</span>
 <span class="sd">            - no guarantee that the function run before the remote function run.</span>
 <span class="sd">            - pubsub signal might be lost in some failure cases.</span>
@@ -3006,7 +3006,7 @@
 
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># &quot;callable&quot; returns true for both function and class.</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">callable</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">callable</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
         <span class="c1"># This is the case where the decorator is just @ray.remote.</span>
         <span class="c1"># &quot;args[0]&quot; is the class or function under the decorator.</span>
         <span class="k">return</span> <span class="n">_make_remote</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">{})</span>
