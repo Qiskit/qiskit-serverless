@@ -1,8 +1,8 @@
-# compose config on nightly builds
+# compose config on latest release builds
 services:
   jupyter:
     container_name: qs-jupyter
-    image: qiskit/quantum-serverless-notebook:nightly-py39
+    image: qiskit/quantum-serverless-notebook:0.0.6-py39
     volumes:
       - ./docs/getting_started:/home/jovyan/
     ports:
@@ -13,7 +13,7 @@ services:
       - safe-tier
   ray-head:
     container_name: ray-head
-    image: qiskit/quantum-serverless-ray-node:nightly-py39
+    image: qiskit/quantum-serverless-ray-node:0.0.6-py39
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
@@ -86,7 +86,7 @@ services:
       always
   gateway:
     container_name: gateway
-    image: docker.io/qiskit/quantum-serverless-gateway:nightly
+    image: docker.io/qiskit/quantum-serverless-gateway:0.0.6
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000
     ports:
       - 8000:8000
@@ -108,7 +108,7 @@ services:
       - keycloak
   repository-server:
     container_name: repository-server
-    image: docker.io/qiskit/quantum-repository-server:nightly
+    image: docker.io/qiskit/quantum-repository-server:0.0.6
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060
     ports:
       - 8060:8060

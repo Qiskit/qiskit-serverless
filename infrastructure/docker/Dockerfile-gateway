@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-39@sha256:89463fe3e086620617a4f6281640469ba7a7abd2f1b5be13e6cf0f46a6565516
+FROM python:3.9.16-slim-buster
 
 WORKDIR /usr/src/app
 
