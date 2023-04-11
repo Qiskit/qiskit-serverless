@@ -2,7 +2,7 @@
 # Constants
 # =========
 
-version=0.0.5
+version=0.0.6
 repository=qiskit
 
 notebookImageName=$(repository)/quantum-serverless-notebook

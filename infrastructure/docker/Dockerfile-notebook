@@ -1,6 +1,9 @@
 ARG IMAGE_PY_VERSION=3.9
 FROM jupyter/base-notebook:python-$IMAGE_PY_VERSION
 
+USER 0
+RUN apt-get -y update && apt-get -y install gcc build-essential libopenblas-dev
+
 USER $NB_UID
 
 COPY --chown=$NB_UID:$NB_UID ./client ./qs
