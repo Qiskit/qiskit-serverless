@@ -1,2 +1,5 @@
 .tox/
 __pycache__
+stats
+Dockerfile
+*.sqlite3
