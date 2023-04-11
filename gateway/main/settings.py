@@ -178,7 +178,7 @@ SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
 # Provider specific settings
 SETTING_KEYCLOAK_URL = "SETTING_KEYCLOAK_URL"
 SETTING_KEYCLOAK_REALM = "SETTING_KEYCLOAK_REALM"
-SETTINGS_KEYCLOAK_CLIENT_NAME = os.environ.get("CLIENT_ID", "gateway-client")
+SETTINGS_KEYCLOAK_CLIENT_ID = os.environ.get("CLIENT_ID", "gateway-client")
 SETTINGS_KEYCLOAK_CLIENT_SECRET = os.environ.get(
     "SETTINGS_KEYCLOAK_CLIENT_SECRET", "AQ3sZ4eiF7NhOtfxeUEGo0YN7uQBoUnO"
 )
