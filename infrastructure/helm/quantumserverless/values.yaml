@@ -23,7 +23,7 @@ gateway:
     rayHost: "http://serverless-cluster-kuberay-head-svc:8265"
     keycloak:
       clientId: "gateway-client"
-      url: "http://serverless-cluster-keycloak/"
+      url: "http://serverless-cluster-keycloak"
       realm: "quantumserverless"
       clientSecret: "secret"
       clientName: "gateway-client"

@@ -187,7 +187,7 @@ SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT = int(
 )
 SOCIALACCOUNT_PROVIDERS = {
     "keycloak": {
-        "KEYCLOAK_URL": os.environ.get(SETTING_KEYCLOAK_URL, "http://localhost:8085/"),
+        "KEYCLOAK_URL": os.environ.get(SETTING_KEYCLOAK_URL, "http://localhost:8085"),
         "KEYCLOAK_REALM": os.environ.get(SETTING_KEYCLOAK_REALM, "Test"),
     }
 }
