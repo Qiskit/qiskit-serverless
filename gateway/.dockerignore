@@ -26,3 +26,4 @@ web/static/CACHE
 stats
 Dockerfile
 *.sqlite3
+.tox/

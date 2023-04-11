@@ -20,7 +20,7 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
     condition: kuberayOperatorEnable
-    version: 0.4.0
+    version: 0.5.0
     repository: https://ray-project.github.io/kuberay-helm
   - name: kuberay-apiserver
     condition: kuberayApiServerEnable
@@ -28,7 +28,7 @@ dependencies:
     repository: https://ray-project.github.io/kuberay-helm
   - name: ray-cluster
     condition: rayClusterEnable
-    version: 0.4.0
+    version: 0.5.0
     repository: https://ray-project.github.io/kuberay-helm
   - name: redis
     condition: redisEnable
