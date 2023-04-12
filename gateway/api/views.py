@@ -62,7 +62,6 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
             # create program
             program = NestedProgram(**serializer.data)
             _, dependencies = try_json_loads(program.dependencies)
-            _, arguments = try_json_loads(program.arguments)
 
             existing_programs = NestedProgram.objects.filter(
                 author=request.user, title__exact=program.title
@@ -102,18 +101,7 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
             )
             job.save()
 
-            if arguments is not None:
-                arg_list = []
-                for key, value in arguments.items():
-                    if isinstance(value, dict):
-                        arg_list.append(f"--{key}='{json.dumps(value)}'")
-                    else:
-                        arg_list.append(f"--{key}={value}")
-                arguments = " ".join(arg_list)
-            else:
-                arguments = ""
-            entrypoint = f"python {program.entrypoint} {arguments}"
-
+            entrypoint = f"python {program.entrypoint}"
             ray_job_id = ray_client.submit_job(
                 entrypoint=entrypoint,
                 runtime_env={
@@ -122,6 +110,7 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
                         "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
                         "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
                         "ENV_JOB_ID_GATEWAY": str(job.id),
+                        "ENV_JOB_ARGUMENTS": program.arguments,
                     },
                     "pip": dependencies or [],
                 },
