@@ -87,7 +87,7 @@ services:
   gateway:
     container_name: gateway
     image: docker.io/qiskit/quantum-serverless-gateway:0.0.6
-    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000  --workers=4
     ports:
       - 8000:8000
     environment:
