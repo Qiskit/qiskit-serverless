@@ -1,0 +1,9 @@
+ARG IMAGE_PY_VERSION=py39
+FROM rayproject/ray:2.3.0-$IMAGE_PY_VERSION-aarch64
+USER $RAY_UID
+
+RUN apt-get -y update && apt-get -y install gcc build-essential libopenblas-dev
+COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
+RUN cd ./qs && pip install .
+RUN cd ../ 
+RUN rm -r ./qs
