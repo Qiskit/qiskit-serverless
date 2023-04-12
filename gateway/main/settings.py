@@ -142,6 +142,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
+
+MEDIA_URL = "media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
@@ -174,7 +178,7 @@ SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
 # Provider specific settings
 SETTING_KEYCLOAK_URL = "SETTING_KEYCLOAK_URL"
 SETTING_KEYCLOAK_REALM = "SETTING_KEYCLOAK_REALM"
-SETTINGS_KEYCLOAK_CLIENT_NAME = os.environ.get("CLIENT_ID", "gateway-client")
+SETTINGS_KEYCLOAK_CLIENT_ID = os.environ.get("CLIENT_ID", "gateway-client")
 SETTINGS_KEYCLOAK_CLIENT_SECRET = os.environ.get(
     "SETTINGS_KEYCLOAK_CLIENT_SECRET", "AQ3sZ4eiF7NhOtfxeUEGo0YN7uQBoUnO"
 )
@@ -183,7 +187,7 @@ SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT = int(
 )
 SOCIALACCOUNT_PROVIDERS = {
     "keycloak": {
-        "KEYCLOAK_URL": os.environ.get(SETTING_KEYCLOAK_URL, "http://localhost:8085/"),
+        "KEYCLOAK_URL": os.environ.get(SETTING_KEYCLOAK_URL, "http://localhost:8085"),
         "KEYCLOAK_REALM": os.environ.get(SETTING_KEYCLOAK_REALM, "Test"),
     }
 }

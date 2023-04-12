@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-o%6p_(-fq39^ihz_ca3@mp14%+nks%!a-i9gma@*1qp9g9-(p2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
 # allow connections from any kubernetes pod within the cluster
 # k8s pods are given an IP on the private 10. network, and 10.0.0.0/8
@@ -127,9 +127,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
+MEDIA_URL = "media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-MEDIA_URL = "/media/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
