@@ -93,7 +93,7 @@ services:
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-gateway
-    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000  --workers=4
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
     environment:
@@ -116,7 +116,7 @@ services:
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-repository-server
-    command: gunicorn main.wsgi:application --bind 0.0.0.0:8060
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
       - 8060:8060
     environment:
