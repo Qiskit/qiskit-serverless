@@ -1,7 +1,5 @@
-# pull official base image
 FROM python:3.9.16-slim-buster
 
-# set work directory
 WORKDIR /usr/src/app
 
 # set environment variables
@@ -12,16 +10,17 @@ ENV PYTHONUNBUFFERED 1
 RUN apt-get -y update \
     &&  apt-get -y install gcc python3-dev
 
-# install dependencies
-RUN pip install --upgrade pip
-COPY ./requirements.txt .
+USER 0
+COPY gateway .
+RUN chown -R 1001:0 /usr/src/app
+
 RUN pip install -r requirements.txt
 
-# copy project
-COPY . .
+USER 1001
 
 RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh
 RUN chmod +x /usr/src/app/entrypoint.sh
 
+EXPOSE 8000
 # run entrypoint.sh
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]

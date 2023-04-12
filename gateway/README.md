@@ -23,4 +23,3 @@ docker build -t qiskit/quantum-serverless-gateway:<VERSION> .
 | SETTING_KEYCLOAK_URL            | url to keycloak instance                                                        |
 | SETTING_KEYCLOAK_REALM          | Realm of keycloak to authenticate with                                          |
 | SETTINGS_KEYCLOAK_CLIENT_SECRET | client secret                                                                   | 
-| SETTINGS_KEYCLOAK_CLIENT_NAME   | client name                                                                     |

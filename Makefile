@@ -31,7 +31,7 @@ else
 endif
 
 build-gateway:
-	docker build -t $(gatewayImageName):$(version) -f ./infrastructure/docker/Dockerfile-gateway ./gateway
+	docker build -t $(gatewayImageName):$(version) -f ./infrastructure/docker/Dockerfile-gateway .
 
 build-repository-server:
 	docker build -t $(repositoryServerImageName):$(version) -f ./infrastructure/docker/Dockerfile-repository-server .
