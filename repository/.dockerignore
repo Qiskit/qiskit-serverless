@@ -18,8 +18,6 @@ docs
 Dockerfile
 env
 logs
-src/{{ project_name }}/settings/local.py
-src/node_modules
 media
 static
 stats
