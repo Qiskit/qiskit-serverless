@@ -12,9 +12,9 @@
 .project
 .pydevproject
 .sass-cache
+.tox
 __pycache__
 dist
-docs
 Dockerfile
 env
 logs
@@ -23,4 +23,3 @@ static
 stats
 *.sqlite3
 tests
-.tox/

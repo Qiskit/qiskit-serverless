@@ -30,6 +30,7 @@ docker-compose-dev.yml
 *.css.map
 *.egg-info
 *.sql.gz
+**/.tox
 .cache
 .idea/workspace.xml
 .project
@@ -43,5 +44,3 @@ static
 stats
 *.sqlite3
 tests
-.tox/
-
