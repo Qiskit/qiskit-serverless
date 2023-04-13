@@ -23,10 +23,9 @@ gateway:
     rayHost: "http://serverless-cluster-kuberay-head-svc:8265"
     keycloak:
       clientId: "gateway-client"
-      url: "http://serverless-cluster-keycloak/"
+      url: "http://serverless-cluster-keycloak"
       realm: "quantumserverless"
       clientSecret: "secret"
-      clientName: "gateway-client"
     superuser:
       username: "admin"
       password: "passw0rd"
@@ -144,6 +143,11 @@ kuberay-operator:
   nameOverride: "kuberay-operator"
   fullnameOverride: "kuberay-operator"
 
+  image:
+    repository: kuberay/operator
+    tag: 0.5.0
+    pullPolicy: IfNotPresent
+
   rbacEnable: true
   ## Install Default RBAC roles and bindings
   rbac:
@@ -187,7 +191,7 @@ kuberay-apiserver:
  
   image:
     repository: kuberay/apiserver
-    tag: v0.4.0
+    tag: v0.5.0
     pullPolicy: IfNotPresent
 
   rbacEnable: true

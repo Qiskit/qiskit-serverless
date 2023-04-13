@@ -63,8 +63,6 @@ spec:
               value: {{ .Values.application.keycloak.realm | quote }}
             - name: SETTINGS_KEYCLOAK_CLIENT_SECRET
               value: {{ .Values.application.keycloak.clientSecret | quote }}
-            - name: SETTINGS_KEYCLOAK_CLIENT_NAME
-              value: {{ .Values.application.keycloak.clientName | quote }}
             - name: DJANGO_SUPERUSER_USERNAME
               value: {{ .Values.application.superuser.username | quote }}
             - name: DJANGO_SUPERUSER_PASSWORD

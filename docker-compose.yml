@@ -1,8 +1,8 @@
-# compose config on nightly builds
+# compose config on latest release builds
 services:
   jupyter:
     container_name: qs-jupyter
-    image: qiskit/quantum-serverless-notebook:nightly-py39
+    image: qiskit/quantum-serverless-notebook:0.0.6-py39
     volumes:
       - ./docs/getting_started:/home/jovyan/
     ports:
@@ -13,7 +13,7 @@ services:
       - safe-tier
   ray-head:
     container_name: ray-head
-    image: qiskit/quantum-serverless-ray-node:nightly-py39
+    image: qiskit/quantum-serverless-ray-node:0.0.6-py39
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
@@ -86,21 +86,20 @@ services:
       always
   gateway:
     container_name: gateway
-    image: docker.io/qiskit/quantum-serverless-gateway:nightly
-    command: python manage.py runserver 0.0.0.0:8000
+    image: docker.io/qiskit/quantum-serverless-gateway:0.0.6
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
     environment:
       - DEBUG=0
       - RAY_HOST=http://ray-head:8265
-      - CLIENT_ID=rayclient
+      - CLIENT_ID=gateway-client
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
-      - SETTING_KEYCLOAK_URL=http://keycloak:8080/
+      - SETTING_KEYCLOAK_URL=http://keycloak:8080
       - SETTING_KEYCLOAK_REALM=quantumserverless
       - SETTINGS_KEYCLOAK_CLIENT_SECRET=supersecret
-      - SETTINGS_KEYCLOAK_CLIENT_NAME=rayclient
       - SITE_HOST=http://gateway:8000
     networks:
       - safe-tier
@@ -108,8 +107,8 @@ services:
       - keycloak
   repository-server:
     container_name: repository-server
-    image: docker.io/qiskit/quantum-repository-server:nightly
-    command: python manage.py runserver 0.0.0.0:8060
+    image: docker.io/qiskit/quantum-repository-server:0.0.6
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
       - 8060:8060
     environment:

@@ -16,19 +16,19 @@ dependencies:
     version: 0.1.0
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
-    version: 9.4.1
+    version: 9.5.1
     repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
     condition: kuberayOperatorEnable
-    version: 0.4.0
+    version: 0.5.0
     repository: https://ray-project.github.io/kuberay-helm
   - name: kuberay-apiserver
     condition: kuberayApiServerEnable
-    version: 0.4.0
+    version: 0.5.0
     repository: https://ray-project.github.io/kuberay-helm
   - name: ray-cluster
     condition: rayClusterEnable
-    version: 0.4.0
+    version: 0.5.0
     repository: https://ray-project.github.io/kuberay-helm
   - name: redis
     condition: redisEnable
@@ -43,7 +43,7 @@ dependencies:
     version: 0.1.0
   - name: kube-prometheus-stack
     condition: prometheusEnable
-    version: 45.8.1
+    version: 45.9.1
     repository: https://prometheus-community.github.io/helm-charts
   - name: loki
     condition: lokiEnable
@@ -51,7 +51,7 @@ dependencies:
     repository: https://grafana.github.io/helm-charts
   - name: promtail
     condition: promtailEnable
-    version: 6.9.3
+    version: 6.10.0
     repository: https://grafana.github.io/helm-charts
 
 

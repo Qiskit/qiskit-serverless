@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-39@sha256:89463fe3e086620617a4f6281640469ba7a7abd2f1b5be13e6cf0f46a6565516
+FROM python:3.9.16-slim-buster
 
 WORKDIR /usr/src/app
 
@@ -6,15 +6,21 @@ WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+# install psycopg2 dependencies
+RUN apt-get -y update \
+    &&  apt-get -y install gcc python3-dev
+
 USER 0
 COPY gateway .
 RUN chown -R 1001:0 /usr/src/app
+
+RUN pip install -r requirements.txt
+
 USER 1001
 
-RUN pip3 install -r requirements.txt
-RUN pip3 install -r requirements-dev.txt
-
-RUN python manage.py migrate
+RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh
+RUN chmod +x /usr/src/app/entrypoint.sh
 
 EXPOSE 8000
-CMD ["python3", "manage.py", "runserver", "0.0.0.0:8000"]
+# run entrypoint.sh
+ENTRYPOINT ["/usr/src/app/entrypoint.sh"]

@@ -207,7 +207,7 @@ class KeycloakUsersView(APIView):
         """
         keycloak_payload = {
             "grant_type": "password",
-            "client_id": settings.SETTINGS_KEYCLOAK_CLIENT_NAME,
+            "client_id": settings.SETTINGS_KEYCLOAK_CLIENT_ID,
             "client_secret": settings.SETTINGS_KEYCLOAK_CLIENT_SECRET,
             "scope": "openid",
         }
