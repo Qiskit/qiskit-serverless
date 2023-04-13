@@ -31,9 +31,7 @@ from .serializers import JobSerializer
 from .utils import ray_job_status_to_model_job_status, try_json_loads
 
 
-class ProgramViewSet(
-    viewsets.ModelViewSet
-):  # pylint: disable=too-many-ancestors
+class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     """
     Program ViewSet configuration using ModelViewSet.
     """

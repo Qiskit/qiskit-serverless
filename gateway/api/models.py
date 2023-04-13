@@ -68,9 +68,7 @@ class Job(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True)
 
-    program = models.ForeignKey(
-        to=Program, on_delete=models.SET_NULL, null=True
-    )
+    program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
     result = models.TextField(null=True, blank=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,

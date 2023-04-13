@@ -11,9 +11,7 @@ from api.permissions import IsOwner
 from . import serializers as v1_serializers
 
 
-class ProgramViewSet(
-    views.ProgramViewSet
-):  # pylint: disable=too-many-ancestors
+class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestors
     """
     Quantum function view set first version. Use ProgramSerializer V1.
     """

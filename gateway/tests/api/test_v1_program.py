@@ -26,9 +26,7 @@ class TestProgramApi(APITestCase):
         token = response.data.get("access_token")
         self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
-        programs_response = self.client.get(
-            reverse("v1:programs-list"), format="json"
-        )
+        programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.data.get("count"), 1)
@@ -54,9 +52,5 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            programs_response.data.get("title"), "program"
-        )
-        self.assertEqual(
-            programs_response.data.get("entrypoint"), "program.py"
-        )
+        self.assertEqual(programs_response.data.get("title"), "program")
+        self.assertEqual(programs_response.data.get("entrypoint"), "program.py")
