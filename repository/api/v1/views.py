@@ -10,7 +10,7 @@ class QuantumFunctionViewSet(
     views.QuantumFunctionViewSet
 ):  # pylint: disable=too-many-ancestors
     """
-    Program view set first version. Use QuantumFunctionSerializer V1.
+    Program view set first version. Use ProgramSerializer V1.
     """
 
-    serializer_class = v1_serializers.QuantumFunctionSerializer
+    serializer_class = v1_serializers.ProgramSerializer

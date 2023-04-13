@@ -5,12 +5,12 @@ Serializers api for V1.
 from api import serializers
 
 
-class QuantumFunctionSerializer(serializers.QuantumFunctionSerializer):
+class ProgramSerializer(serializers.ProgramSerializer):
     """
     Program serializer first version. Include basic fields from the initial model.
     """
 
-    class Meta(serializers.QuantumFunctionSerializer.Meta):
+    class Meta(serializers.ProgramSerializer.Meta):
         fields = (
             "id",
             "created",
