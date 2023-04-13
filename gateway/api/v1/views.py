@@ -6,7 +6,7 @@ from rest_framework import permissions
 
 
 from api import views
-from api.models import QuantumFunction, Job
+from api.models import Program, Job
 from api.permissions import IsOwner
 from . import serializers as v1_serializers
 
@@ -18,7 +18,7 @@ class QuantumFunctionViewSet(
     Quantum function view set first version. Use QuantumFunctionSerializer V1.
     """
 
-    queryset = QuantumFunction.objects.all()
+    queryset = Program.objects.all()
     serializer_class = v1_serializers.QuantumFunctionSerializer
     permission_classes = [permissions.IsAuthenticated]
 

@@ -26,7 +26,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
-from .models import QuantumFunction, Job, ComputeResource
+from .models import Program, Job, ComputeResource
 from .serializers import JobSerializer
 from .utils import ray_job_status_to_model_job_status, try_json_loads
 
@@ -52,7 +52,7 @@ class QuantumFunctionViewSet(
         return self.serializer_class
 
     def get_queryset(self):
-        return QuantumFunction.objects.all().filter(author=self.request.user)
+        return Program.objects.all().filter(author=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -63,12 +63,12 @@ class QuantumFunctionViewSet(
 
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            # create quantum_function
-            quantum_function = QuantumFunction(**serializer.data)
+            # create program
+            quantum_function = Program(**serializer.data)
             _, dependencies = try_json_loads(quantum_function.dependencies)
             _, arguments = try_json_loads(quantum_function.arguments)
 
-            existing_quantum_functions = QuantumFunction.objects.filter(
+            existing_quantum_functions = Program.objects.filter(
                 author=request.user, title__exact=quantum_function.title
             )
             if existing_quantum_functions.count() > 0:

@@ -8,7 +8,7 @@ Version serializers inherit from the different serializers.
 
 from rest_framework import serializers
 
-from .models import QuantumFunction, Job
+from .models import Program, Job
 
 
 class QuantumFunctionSerializer(serializers.ModelSerializer):
@@ -17,7 +17,7 @@ class QuantumFunctionSerializer(serializers.ModelSerializer):
     """
 
     class Meta:
-        model = QuantumFunction
+        model = Program
 
 
 class JobSerializer(serializers.ModelSerializer):
