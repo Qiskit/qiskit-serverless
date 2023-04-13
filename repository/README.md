@@ -7,7 +7,7 @@
 # Quantum Serverless repository
 
 Repository API for the quantum serverless project.
-It manages the access to resources like: quantum functions.
+It manages the access to resources like: programs.
 
 ### Table of Contents
 

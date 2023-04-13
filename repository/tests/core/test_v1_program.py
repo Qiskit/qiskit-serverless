@@ -116,9 +116,7 @@ class ProgramTests(APITestCase):
             "rb",
         ) as file:
             program_input["artifact"] = file
-            response = self.client.post(
-                url, data=program_input, format="multipart"
-            )
+            response = self.client.post(url, data=program_input, format="multipart")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Program.objects.count(), 2)
@@ -200,9 +198,7 @@ class ProgramTests(APITestCase):
             "rb",
         ) as file:
             program_input["artifact"] = file
-            response = self.client.post(
-                url, data=program_input, format="multipart"
-            )
+            response = self.client.post(url, data=program_input, format="multipart")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         failed_validation_fields_list = list(response.json().keys())
@@ -240,9 +236,7 @@ class ProgramTests(APITestCase):
             "rb",
         ) as file:
             program_input["artifact"] = file
-            response = self.client.post(
-                url, data=program_input, format="multipart"
-            )
+            response = self.client.post(url, data=program_input, format="multipart")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         failed_validation_fields_list = list(response.json().keys())
@@ -280,9 +274,7 @@ class ProgramTests(APITestCase):
             )
         ) as file:
             program_input["artifact"] = File(file)
-            response = self.client.post(
-                url, data=program_input, format="multipart"
-            )
+            response = self.client.post(url, data=program_input, format="multipart")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         failed_validation_fields_list = list(response.json().keys())

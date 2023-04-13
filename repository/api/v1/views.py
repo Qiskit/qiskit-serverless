@@ -6,9 +6,7 @@ from api import views
 from . import serializers as v1_serializers
 
 
-class ProgramViewSet(
-    views.ProgramViewSet
-):  # pylint: disable=too-many-ancestors
+class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestors
     """
     Program view set first version. Use ProgramSerializer V1.
     """

@@ -11,9 +11,7 @@ from rest_framework import viewsets
 from .models import Program
 
 
-class ProgramViewSet(
-    viewsets.ModelViewSet
-):  # pylint: disable=too-many-ancestors
+class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     """
     Program ViewSet configuration using ModelViewSet.
     """
