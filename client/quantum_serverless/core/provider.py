@@ -252,8 +252,8 @@ class Provider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run(self, quantum_function: Program) -> Job:
-        """Execute a quantum function as a async job.
+    def run(self, program: Program) -> Job:
+        """Execute a program as a async job.
 
         Example:
             >>> serverless = QuantumServerless()
@@ -266,7 +266,7 @@ class Provider(JsonSerializable):
             >>> # <Job | ...>
 
         Args:
-            quantum_function: quantum function object
+            program: Program object
 
         Returns:
             Job
@@ -281,7 +281,7 @@ class Provider(JsonSerializable):
             )
             return None
 
-        return job_client.run(quantum_function)
+        return job_client.run(program)
 
 
 class KuberayProvider(Provider):
@@ -544,23 +544,23 @@ class GatewayProvider(Provider):
 
         return job
 
-    def run(self, quantum_function: Program) -> Job:
-        url = f"{self.host}/api/{self.version}/quantum-functions/run/"
-        artifact_file_path = os.path.join(quantum_function.working_dir, "artifact.tar")
+    def run(self, program: Program) -> Job:
+        url = f"{self.host}/api/{self.version}/programs/run/"
+        artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
 
         with tarfile.open(artifact_file_path, "w") as tar:
-            for filename in os.listdir(quantum_function.working_dir):
-                fpath = os.path.join(quantum_function.working_dir, filename)
+            for filename in os.listdir(program.working_dir):
+                fpath = os.path.join(program.working_dir, filename)
                 tar.add(fpath, arcname=filename)
 
         with open(artifact_file_path, "rb") as file:
             response = requests.post(
                 url=url,
                 data={
-                    "title": quantum_function.title,
-                    "entrypoint": quantum_function.entrypoint,
-                    "arguments": json.dumps(quantum_function.arguments or {}),
-                    "dependencies": json.dumps(quantum_function.dependencies or []),
+                    "title": program.title,
+                    "entrypoint": program.entrypoint,
+                    "arguments": json.dumps(program.arguments or {}),
+                    "dependencies": json.dumps(program.dependencies or []),
                 },
                 files={"artifact": file},
                 headers={"Authorization": f"Bearer {self._token}"},
@@ -568,7 +568,7 @@ class GatewayProvider(Provider):
             )
             if not response.ok:
                 raise QuantumServerlessException(
-                    f"Something went wrong with quantum function execution. {response.text}"
+                    f"Something went wrong with program execution. {response.text}"
                 )
 
             json_response = json.loads(response.text)
