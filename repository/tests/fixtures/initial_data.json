@@ -8,14 +8,14 @@
     }
   },
   {
-    "model": "api.quantumfunction",
+    "model": "api.program",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
     "fields": {
       "created": "2023-02-01T15:30:43.281796Z",
       "updated": "2023-02-01T15:30:43.281830Z",
-      "title": "Quantum function",
-      "description": "Best quantum function in the world",
-      "entrypoint": "quantum_function.py",
+      "title": "Program",
+      "description": "Best program in the world",
+      "entrypoint": "program.py",
       "working_dir": "./",
       "version": "0.0.0",
       "dependencies": null,
