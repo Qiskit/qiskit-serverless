@@ -18,7 +18,7 @@ Provider (:mod:`quantum_serverless.core.program`)
 
 .. currentmodule:: quantum_serverless.core.program
 
-Quantum serverless quantum function
+Quantum serverless program
 ========================================
 
 .. autosummary::
@@ -49,18 +49,18 @@ from quantum_serverless.utils.json import is_jsonable
 
 @dataclass
 class Program:  # pylint: disable=too-many-instance-attributes
-    """Serverless quantum function.
+    """Serverless Program.
 
     Args:
-        title: quantum function name
+        title: program name
         entrypoint: is a script that will be executed as a job
             ex: job.py
         arguments: arguments for entrypoint script
         env_vars: env vars
-        dependencies: list of python dependencies to execute a quantum function
+        dependencies: list of python dependencies to execute a program
         working_dir: directory where entrypoint file is located
-        description: description of a quantum function
-        version: version of a quantum function
+        description: description of a program
+        version: version of a program
     """
 
     title: str
@@ -87,13 +87,13 @@ class Program:  # pylint: disable=too-many-instance-attributes
 
 
 class ProgramStorage(ABC):
-    """Base quantum function backend to save and load quantum functions from."""
+    """Base program backend to save and load programs from."""
 
     def save_program(self, program: Program) -> bool:
         """Save program in specified backend.
 
         Args:
-            program: quantum function object
+            program: program object
 
         Returns:
             success state
@@ -146,7 +146,7 @@ class ProgramRepository(ProgramStorage):
         self._host = host or os.environ.get(REPO_HOST_KEY, "http://localhost")
         self._port = port or os.environ.get(REPO_PORT_KEY, 80)
         self._token = token
-        self._base_url = f"{self._host}:{self._port}/api/v1/quantum-functions/"
+        self._base_url = f"{self._host}:{self._port}/api/v1/programs/"
 
     def save_program(self, program: Program) -> bool:
         raise NotImplementedError("Not implemented yet.")
@@ -174,7 +174,7 @@ class ProgramRepository(ProgramStorage):
                 artifact = results[0].get("artifact")
                 result = Program.from_json(results[0])
                 result.working_dir = download_and_unpack_artifact(
-                    artifact_url=artifact, quantum_function=result, folder=self.folder
+                    artifact_url=artifact, program=result, folder=self.folder
                 )
             else:
                 logging.warning("No entries were found for your request.")
@@ -183,7 +183,7 @@ class ProgramRepository(ProgramStorage):
 
 def download_and_unpack_artifact(
     artifact_url: str,
-    quantum_function: Program,
+    program: Program,
     folder: str,
     headers: Optional[Dict[str, Any]] = None,
 ) -> str:
@@ -191,19 +191,19 @@ def download_and_unpack_artifact(
 
     Args:
         artifact_url: url to get artifact from
-        quantum_function: quantum function object artifact belongs to
-        folder: root of quantum function folder a.k.a unpack destination
+        program: program object artifact belongs to
+        folder: root of program folder a.k.a unpack destination
         headers: optional headers needed for download requests
 
     Returns:
-        workdir for quantum function
+        workdir for program
     """
-    quantum_function_folder_path = os.path.join(folder, quantum_function.title)
+    program_folder_path = os.path.join(folder, program.title)
     artifact_file_name = "artifact"
-    tarfile_path = os.path.join(quantum_function_folder_path, artifact_file_name)
+    tarfile_path = os.path.join(program_folder_path, artifact_file_name)
 
-    # check if quantum function path already exist on the disc
-    if os.path.exists(quantum_function_folder_path):
+    # check if program path already exist on the disc
+    if os.path.exists(program_folder_path):
         logging.warning("Program folder already exist. Will be overwritten.")
 
     # download file
@@ -213,7 +213,7 @@ def download_and_unpack_artifact(
             f"Error during fetch of [{artifact_url}] file."
         )
 
-    Path(quantum_function_folder_path).mkdir(parents=True, exist_ok=True)
+    Path(program_folder_path).mkdir(parents=True, exist_ok=True)
 
     with open(tarfile_path, "wb") as file:
         for data in response.iter_content():
@@ -221,9 +221,9 @@ def download_and_unpack_artifact(
 
     # unpack tarfile
     with tarfile.open(tarfile_path, "r") as file_obj:
-        file_obj.extractall(quantum_function_folder_path)
+        file_obj.extractall(program_folder_path)
 
     # delete artifact
     if os.path.exists(tarfile_path):
         os.remove(tarfile_path)
-    return quantum_function_folder_path
+    return program_folder_path
