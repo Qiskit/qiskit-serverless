@@ -7,7 +7,7 @@ from api import serializers
 
 class ProgramSerializer(serializers.ProgramSerializer):
     """
-    Quantum function serializer first version. Include basic fields from the initial model.
+    Program serializer first version. Include basic fields from the initial model.
     """
 
     class Meta(serializers.ProgramSerializer.Meta):
