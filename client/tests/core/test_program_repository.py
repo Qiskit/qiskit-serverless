@@ -118,32 +118,32 @@ class TestRepository(TestCase):
         self.resources_folder = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "resources"
         )
-        self.quantum_functions_folder = os.path.join(
-            self.resources_folder, "quantum_functions"
+        self.program_folder = os.path.join(
+            self.resources_folder, "programs"
         )
-        Path(self.quantum_functions_folder).mkdir(parents=True, exist_ok=True)
+        Path(self.program_folder).mkdir(parents=True, exist_ok=True)
 
     def tearDown(self) -> None:
-        if os.path.exists(self.quantum_functions_folder):
-            shutil.rmtree(self.quantum_functions_folder)
+        if os.path.exists(self.program_folder):
+            shutil.rmtree(self.program_folder)
 
     @mock.patch("requests.get", side_effect=mocked_requests_get)
-    def test_repository_get_quantum_functions(self, mock_get):
+    def test_repository_get_programs(self, mock_get):
         """Tests quantum functions repository."""
 
         repository = ProgramRepository(host="http://localhost")
-        quantum_functions = repository.get_programs()
-        self.assertEqual(quantum_functions, ["hello_world", "Test"])
+        programs = repository.get_programs()
+        self.assertEqual(programs, ["hello_world", "Test"])
         self.assertEqual(len(mock_get.call_args_list), 1)
 
     @mock.patch("requests.get", side_effect=mocked_requests_get)
-    def test_repository_get_quantum_function(self, mock_get):
+    def test_repository_get_program(self, mock_get):
         """Tests single program fetch."""
         repository = ProgramRepository(
-            host="http://localhost", folder=self.quantum_functions_folder
+            host="http://localhost", folder=self.program_folder
         )
-        quantum_function = repository.get_program("hello_world")
-        self.assertEqual(quantum_function.title, "hello_world")
-        self.assertEqual(quantum_function.version, "0.0.0")
-        self.assertIsInstance(quantum_function, Program)
+        program = repository.get_program("hello_world")
+        self.assertEqual(program.title, "hello_world")
+        self.assertEqual(program.version, "0.0.0")
+        self.assertIsInstance(program, Program)
         self.assertEqual(len(mock_get.call_args_list), 2)

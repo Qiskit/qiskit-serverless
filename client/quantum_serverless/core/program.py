@@ -12,14 +12,14 @@
 
 
 """
-========================================================
+=================================================
 Provider (:mod:`quantum_serverless.core.program`)
-========================================================
+=================================================
 
 .. currentmodule:: quantum_serverless.core.program
 
 Quantum serverless program
-========================================
+==========================
 
 .. autosummary::
     :toctree: ../stubs/
@@ -192,7 +192,7 @@ def download_and_unpack_artifact(
     Args:
         artifact_url: url to get artifact from
         program: program object artifact belongs to
-        folder: root of program folder a.k.a unpack destination
+        folder: root of programs folder a.k.a unpack destination
         headers: optional headers needed for download requests
 
     Returns:

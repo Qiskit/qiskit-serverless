@@ -18,8 +18,8 @@ resources_path = os.path.join(
 )
 
 
-class TestQuantumFunction(TestCase):
-    """TestQuantumFunction."""
+class TestProgram(TestCase):
+    """TestProgram."""
 
     def test_arguments_validation(self):
         """Tests arguments validation."""
