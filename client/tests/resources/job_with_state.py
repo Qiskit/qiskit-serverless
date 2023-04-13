@@ -19,7 +19,7 @@ def other_func_with_state(state: RedisStateHandler, seed: int):
     return get(func_with_state(seed))
 
 
-with serverless:
+with serverless.context():
     result = get(other_func_with_state(42))
 
 print(result)

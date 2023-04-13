@@ -23,22 +23,22 @@ class TestQuantumFunction(TestCase):
 
     def test_arguments_validation(self):
         """Tests arguments validation."""
-        quantum_function = Program(
-            title="awesome_quantum_function",
+        program = Program(
+            title="awesome_program",
             entrypoint="awesome.py",
             arguments={"one": 1, "json": {"one": 1, "two": 2}},
         )
-        self.assertIsInstance(quantum_function, Program)
+        self.assertIsInstance(program, Program)
 
         with self.assertRaises(QuantumServerlessException):
             Program(
-                title="awesome_quantum_function",
+                title="awesome_program",
                 entrypoint="awesome.py",
                 arguments={"one": 1, "json": {"one": np.array([1]), "two": 2}},
             )
 
 
-def test_quantum_function():
+def test_program():
     """Integration test for quantum function."""
 
     with DockerCompose(
@@ -57,7 +57,7 @@ def test_quantum_function():
 
         wait_for_job_client(serverless)
 
-        quantum_function = Program(
+        program = Program(
             title="simple_job",
             entrypoint="job.py",
             working_dir=resources_path,
@@ -65,7 +65,7 @@ def test_quantum_function():
             version="0.0.1",
         )
 
-        job = serverless.run_program(quantum_function)
+        job = serverless.run_program(program)
 
         assert isinstance(job, Job)
 

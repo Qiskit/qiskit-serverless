@@ -37,7 +37,7 @@ class TestSerializers(TestCase):
     def test_quantum_circuit_serializers(self):
         """Tests quantum service serialization."""
         serverless = QuantumServerless()
-        with serverless:
+        with serverless.context():
             register_serializer(
                 QuantumCircuit,
                 serializer=circuit_serializer,
