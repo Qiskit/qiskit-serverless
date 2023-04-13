@@ -112,7 +112,7 @@ class RayJobClient(BaseJobClient):
             arguments = " ".join(arg_list)
         entrypoint = f"python {quantum_function.entrypoint} {arguments}"
 
-        # set quantum_function name so OT can use it as parent span name
+        # set program name so OT can use it as parent span name
         env_vars = {
             **(quantum_function.env_vars or {}),
             **{OT_PROGRAM_NAME: quantum_function.title},

@@ -1,4 +1,4 @@
-"""Test quantum_function repository."""
+"""Test program repository."""
 import json
 import os.path
 import shutil
@@ -105,7 +105,7 @@ def mocked_requests_get(**kwargs):
                 os.path.dirname(os.path.abspath(__file__)),
                 "..",
                 "resources",
-                "quantum_function.tar",
+                "program.tar",
             )
         )
     return result
@@ -132,17 +132,17 @@ class TestRepository(TestCase):
         """Tests quantum functions repository."""
 
         repository = ProgramRepository(host="http://localhost")
-        quantum_functions = repository.get_quantum_functions()
+        quantum_functions = repository.get_programs()
         self.assertEqual(quantum_functions, ["hello_world", "Test"])
         self.assertEqual(len(mock_get.call_args_list), 1)
 
     @mock.patch("requests.get", side_effect=mocked_requests_get)
     def test_repository_get_quantum_function(self, mock_get):
-        """Tests single quantum_function fetch."""
+        """Tests single program fetch."""
         repository = ProgramRepository(
             host="http://localhost", folder=self.quantum_functions_folder
         )
-        quantum_function = repository.get_quantum_function("hello_world")
+        quantum_function = repository.get_program("hello_world")
         self.assertEqual(quantum_function.title, "hello_world")
         self.assertEqual(quantum_function.version, "0.0.0")
         self.assertIsInstance(quantum_function, Program)

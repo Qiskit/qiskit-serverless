@@ -90,12 +90,12 @@ class QuantumServerless:
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> quantum_function = Program(
+            >>> program = Program(
             >>>     "job.py",
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
             >>> )
-            >>> job = serverless.run(quantum_function)
+            >>> job = serverless.run(program)
             >>> # <Job | ...>
 
         Args:

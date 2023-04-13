@@ -89,33 +89,33 @@ class Program:  # pylint: disable=too-many-instance-attributes
 class ProgramStorage(ABC):
     """Base quantum function backend to save and load quantum functions from."""
 
-    def save_quantum_function(self, quantum_function: Program) -> bool:
-        """Save quantum function in specified backend.
+    def save_program(self, program: Program) -> bool:
+        """Save program in specified backend.
 
         Args:
-            quantum_function: quantum function object
+            program: quantum function object
 
         Returns:
             success state
         """
         raise NotImplementedError
 
-    def get_quantum_functions(self, **kwargs) -> List[str]:
-        """Returns list of available quantum functions to get.
+    def get_programs(self, **kwargs) -> List[str]:
+        """Returns list of available programs to get.
 
         Args:
             kwargs: filtering criteria
 
         Returns:
-            List of names of quantum functions
+            List of names of programs
         """
         raise NotImplementedError
 
-    def get_quantum_function(self, title: str, **kwargs) -> Optional[Program]:
-        """Returns quantum function by name and other query criteria.
+    def get_program(self, title: str, **kwargs) -> Optional[Program]:
+        """Returns program by name and other query criteria.
 
         Args:
-            title: title of the quantum_function
+            title: title of the program
             **kwargs: other args
 
         Returns:
@@ -148,10 +148,10 @@ class ProgramRepository(ProgramStorage):
         self._token = token
         self._base_url = f"{self._host}:{self._port}/api/v1/quantum-functions/"
 
-    def save_quantum_function(self, quantum_function: Program) -> bool:
+    def save_program(self, program: Program) -> bool:
         raise NotImplementedError("Not implemented yet.")
 
-    def get_quantum_functions(self, **kwargs) -> List[str]:
+    def get_programs(self, **kwargs) -> List[str]:
         result = []
         response = requests.get(url=self._base_url, params=kwargs, timeout=10)
         if response.ok:
@@ -159,7 +159,7 @@ class ProgramRepository(ProgramStorage):
             result = [entry.get("title") for entry in response_data.get("results", [])]
         return result
 
-    def get_quantum_function(self, title: str, **kwargs) -> Optional[Program]:
+    def get_program(self, title: str, **kwargs) -> Optional[Program]:
         result = None
         response = requests.get(
             url=f"{self._base_url}",
