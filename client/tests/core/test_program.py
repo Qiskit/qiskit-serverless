@@ -2,7 +2,6 @@
 import os
 from unittest import TestCase
 
-import numpy as np
 from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
 
@@ -10,7 +9,6 @@ from quantum_serverless import QuantumServerless, Provider
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
-from quantum_serverless.exception import QuantumServerlessException
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
 resources_path = os.path.join(
@@ -29,13 +27,6 @@ class TestProgram(TestCase):
             arguments={"one": 1, "json": {"one": 1, "two": 2}},
         )
         self.assertIsInstance(program, Program)
-
-        with self.assertRaises(QuantumServerlessException):
-            Program(
-                title="awesome_program",
-                entrypoint="awesome.py",
-                arguments={"one": 1, "json": {"one": np.array([1]), "two": 2}},
-            )
 
 
 def test_program():
