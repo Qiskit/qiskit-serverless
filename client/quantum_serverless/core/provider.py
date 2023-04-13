@@ -252,7 +252,7 @@ class Provider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run(self, program: Program) -> Job:
+    def run_program(self, program: Program) -> Job:
         """Execute a program as a async job.
 
         Example:
@@ -262,7 +262,7 @@ class Provider(JsonSerializable):
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
             >>> )
-            >>> job = serverless.run(program)
+            >>> job = serverless.run_program(program)
             >>> # <Job | ...>
 
         Args:
@@ -281,7 +281,7 @@ class Provider(JsonSerializable):
             )
             return None
 
-        return job_client.run(program)
+        return job_client.run_program(program)
 
 
 class KuberayProvider(Provider):
@@ -544,7 +544,7 @@ class GatewayProvider(Provider):
 
         return job
 
-    def run(self, program: Program) -> Job:
+    def run_program(self, program: Program) -> Job:
         url = f"{self.host}/api/{self.version}/programs/run/"
         artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
 

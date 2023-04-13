@@ -85,7 +85,7 @@ class QuantumServerless:
         """Job client for given provider."""
         return self._selected_provider.job_client()
 
-    def run(self, program: Program) -> Optional[Job]:
+    def run_program(self, program: Program) -> Optional[Job]:
         """Execute a program as a async job
 
         Example:
@@ -95,7 +95,7 @@ class QuantumServerless:
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
             >>> )
-            >>> job = serverless.run(program)
+            >>> job = serverless.run_program(program)
             >>> # <Job | ...>
 
         Args:
@@ -104,7 +104,7 @@ class QuantumServerless:
         Returns:
             Job
         """
-        return self._selected_provider.run(program)
+        return self._selected_provider.run_program(program)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.

@@ -55,7 +55,7 @@ RuntimeEnv = ray.runtime_env.RuntimeEnv
 class BaseJobClient:
     """Base class for Job clients."""
 
-    def run(self, program: Program) -> "Job":
+    def run_program(self, program: Program) -> "Job":
         """Runs program."""
         raise NotImplementedError
 
@@ -100,7 +100,7 @@ class RayJobClient(BaseJobClient):
     def result(self, job_id: str):
         return self.logs(job_id)
 
-    def run(self, program: Program):
+    def run_program(self, program: Program):
         arguments = ""
         if program.arguments is not None:
             arg_list = []

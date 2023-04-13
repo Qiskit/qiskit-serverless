@@ -65,7 +65,7 @@ def test_quantum_function():
             version="0.0.1",
         )
 
-        job = serverless.run(quantum_function)
+        job = serverless.run_program(quantum_function)
 
         assert isinstance(job, Job)
 
