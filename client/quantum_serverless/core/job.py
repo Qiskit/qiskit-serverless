@@ -46,7 +46,7 @@ from quantum_serverless.core.constants import (
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
-from quantum_serverless.core.program import QuantumFunction
+from quantum_serverless.core.program import Program
 from quantum_serverless.utils.json import is_jsonable
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
@@ -55,7 +55,7 @@ RuntimeEnv = ray.runtime_env.RuntimeEnv
 class BaseJobClient:
     """Base class for Job clients."""
 
-    def run(self, quantum_function: QuantumFunction) -> "Job":
+    def run(self, quantum_function: Program) -> "Job":
         """Runs quantum function."""
         raise NotImplementedError
 
@@ -100,7 +100,7 @@ class RayJobClient(BaseJobClient):
     def result(self, job_id: str):
         return self.logs(job_id)
 
-    def run(self, quantum_function: QuantumFunction):
+    def run(self, quantum_function: Program):
         arguments = ""
         if quantum_function.arguments is not None:
             arg_list = []

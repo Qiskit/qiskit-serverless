@@ -35,7 +35,7 @@ import requests
 from ray._private.worker import BaseContext
 
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.program import QuantumFunction
+from quantum_serverless.core.program import Program
 from quantum_serverless.core.provider import Provider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
 
@@ -85,12 +85,12 @@ class QuantumServerless:
         """Job client for given provider."""
         return self._selected_provider.job_client()
 
-    def run(self, quantum_function: QuantumFunction) -> Optional[Job]:
+    def run(self, quantum_function: Program) -> Optional[Job]:
         """Execute a quantum function as a async job
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> quantum_function = QuantumFunction(
+            >>> quantum_function = Program(
             >>>     "job.py",
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]

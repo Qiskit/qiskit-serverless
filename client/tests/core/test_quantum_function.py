@@ -9,7 +9,7 @@ from testcontainers.compose import DockerCompose
 from quantum_serverless import QuantumServerless, Provider
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.program import QuantumFunction
+from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
@@ -23,15 +23,15 @@ class TestQuantumFunction(TestCase):
 
     def test_arguments_validation(self):
         """Tests arguments validation."""
-        quantum_function = QuantumFunction(
+        quantum_function = Program(
             title="awesome_quantum_function",
             entrypoint="awesome.py",
             arguments={"one": 1, "json": {"one": 1, "two": 2}},
         )
-        self.assertIsInstance(quantum_function, QuantumFunction)
+        self.assertIsInstance(quantum_function, Program)
 
         with self.assertRaises(QuantumServerlessException):
-            QuantumFunction(
+            Program(
                 title="awesome_quantum_function",
                 entrypoint="awesome.py",
                 arguments={"one": 1, "json": {"one": np.array([1]), "two": 2}},
@@ -57,7 +57,7 @@ def test_quantum_function():
 
         wait_for_job_client(serverless)
 
-        quantum_function = QuantumFunction(
+        quantum_function = Program(
             title="simple_job",
             entrypoint="job.py",
             working_dir=resources_path,

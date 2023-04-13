@@ -50,7 +50,7 @@ from quantum_serverless.core.job import (
     GatewayJobClient,
     BaseJobClient,
 )
-from quantum_serverless.core.program import QuantumFunction
+from quantum_serverless.core.program import Program
 from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
@@ -252,12 +252,12 @@ class Provider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run(self, quantum_function: QuantumFunction) -> Job:
+    def run(self, quantum_function: Program) -> Job:
         """Execute a quantum function as a async job.
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> quantum_function = QuantumFunction(
+            >>> quantum_function = Program(
             >>>     "job.py",
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
@@ -544,7 +544,7 @@ class GatewayProvider(Provider):
 
         return job
 
-    def run(self, quantum_function: QuantumFunction) -> Job:
+    def run(self, quantum_function: Program) -> Job:
         url = f"{self.host}/api/{self.version}/quantum-functions/run/"
         artifact_file_path = os.path.join(quantum_function.working_dir, "artifact.tar")
 

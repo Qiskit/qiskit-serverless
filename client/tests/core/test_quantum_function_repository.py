@@ -7,7 +7,7 @@ from unittest import TestCase, mock
 
 from quantum_serverless.core.program import (
     QuantumFunctionRepository,
-    QuantumFunction,
+    Program,
 )
 
 responses = {
@@ -145,5 +145,5 @@ class TestRepository(TestCase):
         quantum_function = repository.get_quantum_function("hello_world")
         self.assertEqual(quantum_function.title, "hello_world")
         self.assertEqual(quantum_function.version, "0.0.0")
-        self.assertIsInstance(quantum_function, QuantumFunction)
+        self.assertIsInstance(quantum_function, Program)
         self.assertEqual(len(mock_get.call_args_list), 2)

@@ -24,7 +24,7 @@ Quantum serverless quantum function
 .. autosummary::
     :toctree: ../stubs/
 
-    QuantumFunction
+    Program
 """
 import dataclasses
 import json
@@ -48,7 +48,7 @@ from quantum_serverless.utils.json import is_jsonable
 
 
 @dataclass
-class QuantumFunction:  # pylint: disable=too-many-instance-attributes
+class Program:  # pylint: disable=too-many-instance-attributes
     """Serverless quantum function.
 
     Args:
@@ -75,9 +75,9 @@ class QuantumFunction:  # pylint: disable=too-many-instance-attributes
 
     @classmethod
     def from_json(cls, data: Dict[str, Any]):
-        """Reconstructs QuantumFunction from dictionary."""
-        field_names = set(f.name for f in dataclasses.fields(QuantumFunction))
-        return QuantumFunction(**{k: v for k, v in data.items() if k in field_names})
+        """Reconstructs Program from dictionary."""
+        field_names = set(f.name for f in dataclasses.fields(Program))
+        return Program(**{k: v for k, v in data.items() if k in field_names})
 
     def __post_init__(self):
         if self.arguments is not None and not is_jsonable(self.arguments):
@@ -89,7 +89,7 @@ class QuantumFunction:  # pylint: disable=too-many-instance-attributes
 class QuantumFunctionStorage(ABC):
     """Base quantum function backend to save and load quantum functions from."""
 
-    def save_quantum_function(self, quantum_function: QuantumFunction) -> bool:
+    def save_quantum_function(self, quantum_function: Program) -> bool:
         """Save quantum function in specified backend.
 
         Args:
@@ -111,7 +111,7 @@ class QuantumFunctionStorage(ABC):
         """
         raise NotImplementedError
 
-    def get_quantum_function(self, title: str, **kwargs) -> Optional[QuantumFunction]:
+    def get_quantum_function(self, title: str, **kwargs) -> Optional[Program]:
         """Returns quantum function by name and other query criteria.
 
         Args:
@@ -119,7 +119,7 @@ class QuantumFunctionStorage(ABC):
             **kwargs: other args
 
         Returns:
-            QuantumFunction
+            Program
         """
         raise NotImplementedError
 
@@ -134,7 +134,7 @@ class QuantumFunctionRepository(QuantumFunctionStorage):
         token: Optional[str] = None,
         folder: Optional[str] = None,
     ):
-        """QuantumFunction repository implementation.
+        """Program repository implementation.
 
         Args:
             host: host of backend
@@ -148,7 +148,7 @@ class QuantumFunctionRepository(QuantumFunctionStorage):
         self._token = token
         self._base_url = f"{self._host}:{self._port}/api/v1/quantum-functions/"
 
-    def save_quantum_function(self, quantum_function: QuantumFunction) -> bool:
+    def save_quantum_function(self, quantum_function: Program) -> bool:
         raise NotImplementedError("Not implemented yet.")
 
     def get_quantum_functions(self, **kwargs) -> List[str]:
@@ -159,7 +159,7 @@ class QuantumFunctionRepository(QuantumFunctionStorage):
             result = [entry.get("title") for entry in response_data.get("results", [])]
         return result
 
-    def get_quantum_function(self, title: str, **kwargs) -> Optional[QuantumFunction]:
+    def get_quantum_function(self, title: str, **kwargs) -> Optional[Program]:
         result = None
         response = requests.get(
             url=f"{self._base_url}",
@@ -172,7 +172,7 @@ class QuantumFunctionRepository(QuantumFunctionStorage):
             results = response_data.get("results", [])
             if len(results) > 0:
                 artifact = results[0].get("artifact")
-                result = QuantumFunction.from_json(results[0])
+                result = Program.from_json(results[0])
                 result.working_dir = download_and_unpack_artifact(
                     artifact_url=artifact, quantum_function=result, folder=self.folder
                 )
@@ -183,7 +183,7 @@ class QuantumFunctionRepository(QuantumFunctionStorage):
 
 def download_and_unpack_artifact(
     artifact_url: str,
-    quantum_function: QuantumFunction,
+    quantum_function: Program,
     folder: str,
     headers: Optional[Dict[str, Any]] = None,
 ) -> str:
@@ -204,7 +204,7 @@ def download_and_unpack_artifact(
 
     # check if quantum function path already exist on the disc
     if os.path.exists(quantum_function_folder_path):
-        logging.warning("QuantumFunction folder already exist. Will be overwritten.")
+        logging.warning("Program folder already exist. Will be overwritten.")
 
     # download file
     response = requests.get(url=artifact_url, stream=True, headers=headers, timeout=100)
