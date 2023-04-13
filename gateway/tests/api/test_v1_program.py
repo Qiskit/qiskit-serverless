@@ -32,7 +32,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.data.get("count"), 1)
         self.assertEqual(
             programs_response.data.get("results")[0].get("title"),
-            "program",
+            "Program",
         )
 
     def test_program_detail(self):
@@ -52,5 +52,5 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("title"), "program")
+        self.assertEqual(programs_response.data.get("title"), "Program")
         self.assertEqual(programs_response.data.get("entrypoint"), "program.py")
