@@ -1,6 +1,6 @@
 """
 Django Rest framework views for api application:
-    - QuantumFunction ViewSet
+    - Program ViewSet
     - Job ViewSet
     - KeycloakUsers ApiView
 
@@ -31,19 +31,19 @@ from .serializers import JobSerializer
 from .utils import ray_job_status_to_model_job_status, try_json_loads
 
 
-class QuantumFunctionViewSet(
+class ProgramViewSet(
     viewsets.ModelViewSet
 ):  # pylint: disable=too-many-ancestors
     """
-    QuantumFunction ViewSet configuration using ModelViewSet.
+    Program ViewSet configuration using ModelViewSet.
     """
 
-    BASE_NAME = "quantum-functions"
+    BASE_NAME = "programs"
 
     @staticmethod
     def get_serializer_job_class():
         """
-        This method returns Job serializer to be used in QuantumFunction ViewSet.
+        This method returns Job serializer to be used in Program ViewSet.
         """
 
         return JobSerializer
