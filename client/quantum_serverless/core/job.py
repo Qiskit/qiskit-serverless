@@ -55,8 +55,8 @@ RuntimeEnv = ray.runtime_env.RuntimeEnv
 class BaseJobClient:
     """Base class for Job clients."""
 
-    def run(self, quantum_function: Program) -> "Job":
-        """Runs quantum function."""
+    def run(self, program: Program) -> "Job":
+        """Runs program."""
         raise NotImplementedError
 
     def status(self, job_id: str):
@@ -64,7 +64,7 @@ class BaseJobClient:
         raise NotImplementedError
 
     def stop(self, job_id: str):
-        """Stops job/quantum-function."""
+        """Stops job/program."""
         raise NotImplementedError
 
     def logs(self, job_id: str):
@@ -100,30 +100,30 @@ class RayJobClient(BaseJobClient):
     def result(self, job_id: str):
         return self.logs(job_id)
 
-    def run(self, quantum_function: Program):
+    def run(self, program: Program):
         arguments = ""
-        if quantum_function.arguments is not None:
+        if program.arguments is not None:
             arg_list = []
-            for key, value in quantum_function.arguments.items():
+            for key, value in program.arguments.items():
                 if isinstance(value, dict):
                     arg_list.append(f"--{key}='{json.dumps(value)}'")
                 else:
                     arg_list.append(f"--{key}={value}")
             arguments = " ".join(arg_list)
-        entrypoint = f"python {quantum_function.entrypoint} {arguments}"
+        entrypoint = f"python {program.entrypoint} {arguments}"
 
         # set program name so OT can use it as parent span name
         env_vars = {
-            **(quantum_function.env_vars or {}),
-            **{OT_PROGRAM_NAME: quantum_function.title},
+            **(program.env_vars or {}),
+            **{OT_PROGRAM_NAME: program.title},
         }
 
         job_id = self._job_client.submit_job(
             entrypoint=entrypoint,
             submission_id=f"qs_{uuid4()}",
             runtime_env={
-                "working_dir": quantum_function.working_dir,
-                "pip": quantum_function.dependencies,
+                "working_dir": program.working_dir,
+                "pip": program.dependencies,
                 "env_vars": env_vars,
             },
         )
