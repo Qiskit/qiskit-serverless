@@ -13,7 +13,7 @@
 """Program serializers tests."""
 import json
 import os
-from unittest import TestCase
+from unittest import TestCase, skip
 
 import numpy as np
 from qiskit.circuit.random import random_circuit
@@ -44,6 +44,7 @@ class TestProgramSerializers(TestCase):
         decoded_arguments = json.loads(encoded_arguments, cls=QiskitObjectsDecoder)
         self.assertTrue(all(np.equal(array, decoded_arguments.get("array"))))
 
+    @skip("External service call.")
     def test_runtime_service_serialization(self):
         """Tests runtime service serialization."""
         service = QiskitRuntimeService()

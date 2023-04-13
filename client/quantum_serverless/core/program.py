@@ -44,6 +44,7 @@ from quantum_serverless.core.constants import (
 )
 
 from quantum_serverless.exception import QuantumServerlessException
+from quantum_serverless.serializers.program_serializers import QiskitObjectsEncoder
 from quantum_serverless.utils.json import is_jsonable
 
 
@@ -80,7 +81,9 @@ class Program:  # pylint: disable=too-many-instance-attributes
         return Program(**{k: v for k, v in data.items() if k in field_names})
 
     def __post_init__(self):
-        if self.arguments is not None and not is_jsonable(self.arguments):
+        if self.arguments is not None and not is_jsonable(
+            self.arguments, cls=QiskitObjectsEncoder
+        ):
             raise QuantumServerlessException(
                 "Arguments provided are not json serializable."
             )

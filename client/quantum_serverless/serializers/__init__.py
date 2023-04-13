@@ -28,6 +28,7 @@ Quantum serverless serializers
     circuit_deserializer
     service_serializer
     service_deserializer
+    get_arguments
 """
 
 from .serializers import (
@@ -37,3 +38,5 @@ from .serializers import (
     service_serializer,
     service_deserializer,
 )
+
+from .program_serializers import get_arguments
