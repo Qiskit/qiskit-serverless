@@ -25,7 +25,7 @@ from .core import (
     save_result,
 )
 from .quantum_serverless import QuantumServerless
-from .core.quantum_function import QuantumFunction
+from .core.program import QuantumFunction
 
 try:
     __version__ = metadata_version("quantum_serverless")

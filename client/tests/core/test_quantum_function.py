@@ -9,7 +9,7 @@ from testcontainers.compose import DockerCompose
 from quantum_serverless import QuantumServerless, Provider
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.quantum_function import QuantumFunction
+from quantum_serverless.core.program import QuantumFunction
 from quantum_serverless.exception import QuantumServerlessException
 from tests.utils import wait_for_job_client, wait_for_job_completion
 

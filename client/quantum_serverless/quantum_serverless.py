@@ -35,7 +35,7 @@ import requests
 from ray._private.worker import BaseContext
 
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.quantum_function import QuantumFunction
+from quantum_serverless.core.program import QuantumFunction
 from quantum_serverless.core.provider import Provider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
 
