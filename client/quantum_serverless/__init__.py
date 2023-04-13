@@ -26,6 +26,7 @@ from .core import (
 )
 from .quantum_serverless import QuantumServerless
 from .core.program import Program
+from .serializers import get_arguments
 
 try:
     __version__ = metadata_version("quantum_serverless")

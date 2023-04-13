@@ -27,6 +27,8 @@ Quantum serverless json utilities
 """
 import json
 from abc import ABC
+from json import JSONEncoder
+from typing import Optional, Type
 
 
 class JsonSerializable(ABC):
@@ -58,10 +60,10 @@ class JsonSerializable(ABC):
         return result
 
 
-def is_jsonable(data):
+def is_jsonable(data, cls: Optional[Type[JSONEncoder]] = None):
     """Check if data can be serialized to json."""
     try:
-        json.dumps(data)
+        json.dumps(data, cls=cls)
         return True
     except (TypeError, OverflowError):
         return False

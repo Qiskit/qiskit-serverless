@@ -1,4 +1,4 @@
-import argparse
+from quantum_serverless import get_arguments
 
 from qiskit_nature.units import DistanceUnit
 from qiskit_nature.second_q.drivers import PySCFDriver
@@ -55,15 +55,7 @@ def run(bond_distance: float = 2.5):
     print(local_vqe_result)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--bond_length",
-        help="Bond length in Angstrom.",
-        default=2.5,
-        type=float,
-    )
-    args = parser.parse_args()
-
-    print(f"Running for bond length {args.bond_length}.")
-    run(args.bond_length)
+arguments = get_arguments()
+bond_length = arguments.get("bond_length", 2.55)
+print(f"Running for bond length {bond_length}.")
+run(bond_length)

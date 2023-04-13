@@ -53,6 +53,7 @@ from quantum_serverless.core.job import (
 from quantum_serverless.core.program import Program
 from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
+from quantum_serverless.serializers.program_serializers import QiskitObjectsEncoder
 from quantum_serverless.utils import JsonSerializable
 
 TIMEOUT = 30
@@ -558,7 +559,9 @@ class GatewayProvider(Provider):
                 data={
                     "title": program.title,
                     "entrypoint": program.entrypoint,
-                    "arguments": json.dumps(program.arguments or {}),
+                    "arguments": json.dumps(
+                        program.arguments or {}, cls=QiskitObjectsEncoder
+                    ),
                     "dependencies": json.dumps(program.dependencies or []),
                 },
                 files={"artifact": file},
