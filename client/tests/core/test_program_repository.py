@@ -118,18 +118,18 @@ class TestRepository(TestCase):
         self.resources_folder = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "resources"
         )
-        self.program_folder = os.path.join(
+        self.programs_folder = os.path.join(
             self.resources_folder, "programs"
         )
-        Path(self.program_folder).mkdir(parents=True, exist_ok=True)
+        Path(self.programs_folder).mkdir(parents=True, exist_ok=True)
 
     def tearDown(self) -> None:
-        if os.path.exists(self.program_folder):
-            shutil.rmtree(self.program_folder)
+        if os.path.exists(self.programs_folder):
+            shutil.rmtree(self.programs_folder)
 
     @mock.patch("requests.get", side_effect=mocked_requests_get)
     def test_repository_get_programs(self, mock_get):
-        """Tests quantum functions repository."""
+        """Tests programs repository."""
 
         repository = ProgramRepository(host="http://localhost")
         programs = repository.get_programs()
@@ -140,7 +140,7 @@ class TestRepository(TestCase):
     def test_repository_get_program(self, mock_get):
         """Tests single program fetch."""
         repository = ProgramRepository(
-            host="http://localhost", folder=self.program_folder
+            host="http://localhost", folder=self.programs_folder
         )
         program = repository.get_program("hello_world")
         self.assertEqual(program.title, "hello_world")
