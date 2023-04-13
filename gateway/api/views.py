@@ -59,27 +59,27 @@ class ProgramViewSet(
 
     @action(methods=["POST"], detail=False)
     def run(self, request):
-        """Runs provided quantum function on compute resources."""
+        """Runs provided program on compute resources."""
 
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             # create program
-            quantum_function = Program(**serializer.data)
-            _, dependencies = try_json_loads(quantum_function.dependencies)
-            _, arguments = try_json_loads(quantum_function.arguments)
+            program = Program(**serializer.data)
+            _, dependencies = try_json_loads(program.dependencies)
+            _, arguments = try_json_loads(program.arguments)
 
-            existing_quantum_functions = Program.objects.filter(
-                author=request.user, title__exact=quantum_function.title
+            existing_programs = Program.objects.filter(
+                author=request.user, title__exact=program.title
             )
-            if existing_quantum_functions.count() > 0:
+            if existing_programs.count() > 0:
                 # take existing one
-                existing_quantum_functions = existing_quantum_functions.first()
-                existing_quantum_functions.arguments = quantum_function.arguments
-                existing_quantum_functions.dependencies = quantum_function.dependencies
-                quantum_function = existing_quantum_functions
-            quantum_function.artifact = request.FILES.get("artifact")
-            quantum_function.author = request.user
-            quantum_function.save()
+                existing_programs = existing_programs.first()
+                existing_programs.arguments = program.arguments
+                existing_programs.dependencies = program.dependencies
+                program = existing_programs
+            program.artifact = request.FILES.get("artifact")
+            program.author = request.user
+            program.save()
 
             # get available compute resources
             resources = ComputeResource.objects.filter(users__in=[request.user])
@@ -93,14 +93,14 @@ class ProgramViewSet(
             # start job
             ray_client = JobSubmissionClient(compute_resource.host)
             # unpack data
-            with tarfile.open(quantum_function.artifact.path) as file:
+            with tarfile.open(program.artifact.path) as file:
                 extract_folder = os.path.join(
                     settings.MEDIA_ROOT, "tmp", str(uuid.uuid4())
                 )
                 file.extractall(extract_folder)
 
             job = Job(
-                quantum_function=quantum_function,
+                program=program,
                 author=request.user,
                 compute_resource=compute_resource,
             )
@@ -116,7 +116,7 @@ class ProgramViewSet(
                 arguments = " ".join(arg_list)
             else:
                 arguments = ""
-            entrypoint = f"python {quantum_function.entrypoint} {arguments}"
+            entrypoint = f"python {program.entrypoint} {arguments}"
 
             ray_job_id = ray_client.submit_job(
                 entrypoint=entrypoint,

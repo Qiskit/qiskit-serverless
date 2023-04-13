@@ -13,7 +13,7 @@ from .models import Program, Job
 
 class ProgramSerializer(serializers.ModelSerializer):
     """
-    Serializer for the quantum function model.
+    Serializer for the Program model.
     """
 
     class Meta:
