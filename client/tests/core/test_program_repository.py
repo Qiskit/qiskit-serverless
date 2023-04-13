@@ -118,9 +118,7 @@ class TestRepository(TestCase):
         self.resources_folder = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "resources"
         )
-        self.programs_folder = os.path.join(
-            self.resources_folder, "programs"
-        )
+        self.programs_folder = os.path.join(self.resources_folder, "programs")
         Path(self.programs_folder).mkdir(parents=True, exist_ok=True)
 
     def tearDown(self) -> None:
