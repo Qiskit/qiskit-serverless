@@ -34,10 +34,10 @@ docker-compose up
 
 #### Write your program
 
-Create python file with necessary code. Let's call in `quantum-function.py`
+Create python file with necessary code. Let's call in `program.py`
 
 ```python
-# quantum-function.py
+# program.py
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 from qiskit.quantum_info import SparsePauliOp
@@ -82,7 +82,7 @@ with serverless.context():
 Let's run our program now
 
 ```python
-from quantum_serverless import QuantumServerless, GatewayProvider, QuantumFunction
+from quantum_serverless import QuantumServerless, GatewayProvider, Program
 
 provider = GatewayProvider(
     username="user", # this username has already been defined in local docker setup and does not need to be changed
@@ -92,13 +92,13 @@ provider = GatewayProvider(
 serverless = QuantumServerless(provider)
 
 # create out program
-quantum_function = QuantumFunction(
+program = Program(
     name="my_program",
-    entrypoint="quantum_function.py", # set entrypoint as out quantum_function.py file
+    entrypoint="program.py", # set entrypoint as out program.py file
     working_dir="./"
 )
 
-job = serverless.run(quantum_function)
+job = serverless.run_program(program)
 
 job.status()
 # <JobStatus.SUCCEEDED: 'SUCCEEDED'>
