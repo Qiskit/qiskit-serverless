@@ -2,7 +2,8 @@
 services:
   jupyter:
     container_name: qs-jupyter
-    image: qiskit/quantum-serverless-notebook:0.0.6-py39
+    image: qiskit/quantum-serverless-notebook:${VERSION:-0.0.6}-py39
+    profiles: ["jupyter"]
     volumes:
       - ./docs/getting_started:/home/jovyan/
     ports:
@@ -13,7 +14,7 @@ services:
       - safe-tier
   ray-head:
     container_name: ray-head
-    image: qiskit/quantum-serverless-ray-node:0.0.6-py39
+    image: qiskit/quantum-serverless-ray-node:${VERSION:-0.0.6}-py39
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
@@ -27,17 +28,9 @@ services:
       - /dev/shm:/dev/shm
     networks:
       - safe-tier
-  redis:
-    image: bitnami/redis:latest
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-      - REDIS_PORT_NUMBER=6379
-    ports:
-      - 6379:6379
-    networks:
-      - safe-tier
   jaeger:
     image: jaegertracing/all-in-one:latest
+    profiles: [ "observability" ]
     environment:
       - COLLECTOR_ZIPKIN_HOST_PORT=:9411
     ports:
@@ -86,7 +79,7 @@ services:
       always
   gateway:
     container_name: gateway
-    image: docker.io/qiskit/quantum-serverless-gateway:0.0.6
+    image: docker.io/qiskit/quantum-serverless-gateway:${VERSION:-0.0.6}
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
@@ -107,7 +100,7 @@ services:
       - keycloak
   repository-server:
     container_name: repository-server
-    image: docker.io/qiskit/quantum-repository-server:0.0.6
+    image: docker.io/qiskit/quantum-repository-server:${VERSION:-0.0.6}
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
       - 8060:8060
@@ -120,10 +113,12 @@ services:
       - safe-tier
   prometheus:
     image: prom/prometheus:v2.43.0
+    profiles: [ "observability" ]
     ports:
       - 9000:9090
   loki:
     image: grafana/loki:2.7.5
+    profiles: [ "observability" ]
     ports:
       - 3100:3100
     command: -config.file=/etc/loki/local-config.yaml
@@ -131,6 +126,7 @@ services:
       - safe-tier
   promtail:
     image: grafana/promtail:2.7.5
+    profiles: [ "observability" ]
     volumes:
       - /var/log:/var/log
     command: -config.file=/etc/promtail/config.yml
@@ -138,6 +134,7 @@ services:
       - safe-tier
   grafana:
     image: grafana/grafana:latest
+    profiles: [ "observability" ]
     ports:
       - 3000:3000
     networks:

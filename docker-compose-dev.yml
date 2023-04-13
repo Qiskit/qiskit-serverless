@@ -5,6 +5,7 @@ services:
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-notebook
+    profiles: ["jupyter"]
     volumes:
       - ./docs/getting_started:/home/jovyan/
     ports:
@@ -31,17 +32,9 @@ services:
       - /dev/shm:/dev/shm
     networks:
       - safe-tier
-  redis:
-    image: bitnami/redis:latest
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-      - REDIS_PORT_NUMBER=6379
-    ports:
-      - 6379:6379
-    networks:
-      - safe-tier
   jaeger:
     image: jaegertracing/all-in-one:latest
+    profiles: [ "observability" ]
     environment:
       - COLLECTOR_ZIPKIN_HOST_PORT=:9411
     ports:
@@ -128,10 +121,12 @@ services:
       - safe-tier
   prometheus:
     image: prom/prometheus:v2.43.0
+    profiles: [ "observability" ]
     ports:
       - 9000:9090
   loki:
     image: grafana/loki:2.7.5
+    profiles: [ "observability" ]
     ports:
       - 3100:3100
     command: -config.file=/etc/loki/local-config.yaml
@@ -139,6 +134,7 @@ services:
       - safe-tier
   promtail:
     image: grafana/promtail:2.7.4
+    profiles: [ "observability" ]
     volumes:
       - /var/log:/var/log
     command: -config.file=/etc/promtail/config.yml
@@ -146,6 +142,7 @@ services:
       - safe-tier
   grafana:
     image: grafana/grafana:latest
+    profiles: [ "observability" ]
     ports:
       - 3000:3000
     networks:

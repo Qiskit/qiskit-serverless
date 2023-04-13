@@ -36,7 +36,7 @@ You don't have to worry about configuration or scaling up computational resource
 1. Prepare local infrastructure
 ```shell
 docker-compose pull
-docker-compose up
+VERSION=nightly docker-compose --profile jupyter --profile observability up
 ```
 
 2. Open jupyter notebook in browser at [http://localhost:8888/](http://localhost:8888/). Password for notebook is `123`
