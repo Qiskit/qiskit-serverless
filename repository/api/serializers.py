@@ -6,7 +6,7 @@ Version serializers inherit from the different serializers.
 """
 
 from rest_framework import serializers
-from .models import QuantumFunction
+from .models import Program
 from .validators import list_validator, dict_validator
 
 
@@ -16,7 +16,7 @@ class QuantumFunctionSerializer(serializers.ModelSerializer):
     """
 
     class Meta:
-        model = QuantumFunction
+        model = Program
         validators = [
             list_validator.ListValidator(
                 fields=["dependencies", "tags"], nullable=True

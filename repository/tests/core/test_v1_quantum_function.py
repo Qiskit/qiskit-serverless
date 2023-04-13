@@ -8,7 +8,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import QuantumFunction
+from api.models import Program
 
 
 class QuantumFunctionTests(APITestCase):
@@ -122,7 +122,7 @@ class QuantumFunctionTests(APITestCase):
             )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(QuantumFunction.objects.count(), 2)
+        self.assertEqual(Program.objects.count(), 2)
 
     def test_count_of_all_quantum_functions_created_must_be_one(self):
         """
@@ -167,7 +167,7 @@ class QuantumFunctionTests(APITestCase):
         url = reverse("v1:quantum-functions-detail", args=[quantum_function_id])
         response = self.client.delete(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(QuantumFunction.objects.count(), 0)
+        self.assertEqual(Program.objects.count(), 0)
 
     def test_quantum_function_list_validation_returns_400(self):
         """

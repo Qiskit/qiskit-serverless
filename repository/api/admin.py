@@ -3,9 +3,9 @@ Register the models for the admin panel.
 """
 
 from django.contrib import admin
-from .models import QuantumFunction
+from .models import Program
 
 
-@admin.register(QuantumFunction)
-class QuantumFunctionAdmin(admin.ModelAdmin):
-    """QuantumFunctionAdmin."""
+@admin.register(Program)
+class ProgramAdmin(admin.ModelAdmin):
+    """ProgramAdmin."""
