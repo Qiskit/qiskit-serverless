@@ -15,11 +15,11 @@ class QuantumFunctionViewSet(
     views.QuantumFunctionViewSet
 ):  # pylint: disable=too-many-ancestors
     """
-    Quantum function view set first version. Use QuantumFunctionSerializer V1.
+    Quantum function view set first version. Use ProgramSerializer V1.
     """
 
     queryset = Program.objects.all()
-    serializer_class = v1_serializers.QuantumFunctionSerializer
+    serializer_class = v1_serializers.ProgramSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     @staticmethod
@@ -27,7 +27,7 @@ class QuantumFunctionViewSet(
         return v1_serializers.JobSerializer
 
     def get_serializer_class(self):
-        return v1_serializers.QuantumFunctionSerializer
+        return v1_serializers.ProgramSerializer
 
 
 class JobViewSet(views.JobViewSet):  # pylint: disable=too-many-ancestors

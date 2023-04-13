@@ -1,6 +1,6 @@
 """
 Django Rest framework serializers for api application:
-    - QuantumFunctionSerializer
+    - ProgramSerializer
     - JobSerializer
 
 Version serializers inherit from the different serializers.
@@ -11,7 +11,7 @@ from rest_framework import serializers
 from .models import Program, Job
 
 
-class QuantumFunctionSerializer(serializers.ModelSerializer):
+class ProgramSerializer(serializers.ModelSerializer):
     """
     Serializer for the quantum function model.
     """
