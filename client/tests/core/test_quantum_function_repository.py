@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest import TestCase, mock
 
 from quantum_serverless.core.program import (
-    QuantumFunctionRepository,
+    ProgramRepository,
     Program,
 )
 
@@ -131,7 +131,7 @@ class TestRepository(TestCase):
     def test_repository_get_quantum_functions(self, mock_get):
         """Tests quantum functions repository."""
 
-        repository = QuantumFunctionRepository(host="http://localhost")
+        repository = ProgramRepository(host="http://localhost")
         quantum_functions = repository.get_quantum_functions()
         self.assertEqual(quantum_functions, ["hello_world", "Test"])
         self.assertEqual(len(mock_get.call_args_list), 1)
@@ -139,7 +139,7 @@ class TestRepository(TestCase):
     @mock.patch("requests.get", side_effect=mocked_requests_get)
     def test_repository_get_quantum_function(self, mock_get):
         """Tests single quantum_function fetch."""
-        repository = QuantumFunctionRepository(
+        repository = ProgramRepository(
             host="http://localhost", folder=self.quantum_functions_folder
         )
         quantum_function = repository.get_quantum_function("hello_world")

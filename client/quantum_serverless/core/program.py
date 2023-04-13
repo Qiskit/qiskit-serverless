@@ -13,10 +13,10 @@
 
 """
 ========================================================
-Provider (:mod:`quantum_serverless.core.quantum_function`)
+Provider (:mod:`quantum_serverless.core.program`)
 ========================================================
 
-.. currentmodule:: quantum_serverless.core.quantum_function
+.. currentmodule:: quantum_serverless.core.program
 
 Quantum serverless quantum function
 ========================================
@@ -86,7 +86,7 @@ class Program:  # pylint: disable=too-many-instance-attributes
             )
 
 
-class QuantumFunctionStorage(ABC):
+class ProgramStorage(ABC):
     """Base quantum function backend to save and load quantum functions from."""
 
     def save_quantum_function(self, quantum_function: Program) -> bool:
@@ -124,8 +124,8 @@ class QuantumFunctionStorage(ABC):
         raise NotImplementedError
 
 
-class QuantumFunctionRepository(QuantumFunctionStorage):
-    """QuantumFunctionRepository."""
+class ProgramRepository(ProgramStorage):
+    """ProgramRepository."""
 
     def __init__(
         self,
