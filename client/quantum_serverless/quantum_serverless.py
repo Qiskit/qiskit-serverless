@@ -99,7 +99,7 @@ class QuantumServerless:
             >>> # <Job | ...>
 
         Args:
-            program: quantum function object
+            program: Program object
 
         Returns:
             Job
