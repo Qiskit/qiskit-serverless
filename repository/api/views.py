@@ -1,6 +1,6 @@
 """
 Django Rest framework views for api application:
-    - Program ViewSet
+    - ProgramViewSet
 
 Version views inherit from the different views.
 """
@@ -11,14 +11,14 @@ from rest_framework import viewsets
 from .models import Program
 
 
-class QuantumFunctionViewSet(
+class ProgramViewSet(
     viewsets.ModelViewSet
 ):  # pylint: disable=too-many-ancestors
     """
     Program ViewSet configuration using ModelViewSet.
     """
 
-    BASE_NAME = "quantum-functions"
+    BASE_NAME = "programs"
 
     queryset = Program.objects.all().order_by("created")
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
