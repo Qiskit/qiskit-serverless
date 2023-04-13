@@ -3,7 +3,7 @@ services:
   jupyter:
     container_name: qs-jupyter
     image: qiskit/quantum-serverless-notebook:${VERSION:-0.0.6}-py39
-    profiles: ["jupyter"]
+    profiles: ["jupyter", "full"]
     volumes:
       - ./docs/getting_started:/home/jovyan/
     ports:
@@ -30,7 +30,7 @@ services:
       - safe-tier
   jaeger:
     image: jaegertracing/all-in-one:latest
-    profiles: [ "observability" ]
+    profiles: [ "full" ]
     environment:
       - COLLECTOR_ZIPKIN_HOST_PORT=:9411
     ports:
@@ -113,12 +113,12 @@ services:
       - safe-tier
   prometheus:
     image: prom/prometheus:v2.43.0
-    profiles: [ "observability" ]
+    profiles: [ "full" ]
     ports:
       - 9000:9090
   loki:
     image: grafana/loki:2.7.5
-    profiles: [ "observability" ]
+    profiles: [ "full" ]
     ports:
       - 3100:3100
     command: -config.file=/etc/loki/local-config.yaml
@@ -126,7 +126,7 @@ services:
       - safe-tier
   promtail:
     image: grafana/promtail:2.7.5
-    profiles: [ "observability" ]
+    profiles: [ "full" ]
     volumes:
       - /var/log:/var/log
     command: -config.file=/etc/promtail/config.yml
@@ -134,7 +134,7 @@ services:
       - safe-tier
   grafana:
     image: grafana/grafana:latest
-    profiles: [ "observability" ]
+    profiles: [ "full" ]
     ports:
       - 3000:3000
     networks:
