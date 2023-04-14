@@ -254,20 +254,20 @@ class Provider(JsonSerializable):
         return Job(job_id=job_id, job_client=job_client)
 
     def run_program(self, program: Program) -> Job:
-        """Execute program as a async job.
+        """Execute a program as a async job.
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> nested_program = Program(
+            >>> program = Program(
             >>>     "job.py",
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
             >>> )
-            >>> job = serverless.run_program(nested_program)
+            >>> job = serverless.run_program(program)
             >>> # <Job | ...>
 
         Args:
-            program: program object
+            program: Program object
 
         Returns:
             Job
@@ -546,8 +546,9 @@ class GatewayProvider(Provider):
         return job
 
     def run_program(self, program: Program) -> Job:
-        url = f"{self.host}/api/{self.version}/nested-programs/run/"
+        url = f"{self.host}/api/{self.version}/programs/run/"
         artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+
         with tarfile.open(artifact_file_path, "w") as tar:
             for filename in os.listdir(program.working_dir):
                 fpath = os.path.join(program.working_dir, filename)

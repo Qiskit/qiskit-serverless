@@ -18,8 +18,8 @@ Provider (:mod:`quantum_serverless.core.program`)
 
 .. currentmodule:: quantum_serverless.core.program
 
-Quantum serverless nested program
-=================================
+Quantum serverless program
+==========================
 
 .. autosummary::
     :toctree: ../stubs/
@@ -50,7 +50,7 @@ from quantum_serverless.utils.json import is_jsonable
 
 @dataclass
 class Program:  # pylint: disable=too-many-instance-attributes
-    """Serverless programs.
+    """Serverless Program.
 
     Args:
         title: program name
@@ -58,7 +58,7 @@ class Program:  # pylint: disable=too-many-instance-attributes
             ex: job.py
         arguments: arguments for entrypoint script
         env_vars: env vars
-        dependencies: list of python dependencies for program to execute
+        dependencies: list of python dependencies to execute a program
         working_dir: directory where entrypoint file is located
         description: description of a program
         version: version of a program
@@ -96,7 +96,7 @@ class ProgramStorage(ABC):
         """Save program in specified backend.
 
         Args:
-            program: program
+            program: program object
 
         Returns:
             success state
@@ -115,7 +115,7 @@ class ProgramStorage(ABC):
         raise NotImplementedError
 
     def get_program(self, title: str, **kwargs) -> Optional[Program]:
-        """Returns program by name of other query criteria.
+        """Returns program by name and other query criteria.
 
         Args:
             title: title of the program
@@ -149,7 +149,7 @@ class ProgramRepository(ProgramStorage):
         self._host = host or os.environ.get(REPO_HOST_KEY, "http://localhost")
         self._port = port or os.environ.get(REPO_PORT_KEY, 80)
         self._token = token
-        self._base_url = f"{self._host}:{self._port}/v1/api/nested-programs/"
+        self._base_url = f"{self._host}:{self._port}/api/v1/programs/"
 
     def save_program(self, program: Program) -> bool:
         raise NotImplementedError("Not implemented yet.")
@@ -205,7 +205,7 @@ def download_and_unpack_artifact(
     artifact_file_name = "artifact"
     tarfile_path = os.path.join(program_folder_path, artifact_file_name)
 
-    # check if program already exist on the disc
+    # check if program path already exist on the disc
     if os.path.exists(program_folder_path):
         logging.warning("Program folder already exist. Will be overwritten.")
 

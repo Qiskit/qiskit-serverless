@@ -5,10 +5,13 @@ import shutil
 from pathlib import Path
 from unittest import TestCase, mock
 
-from quantum_serverless.core.program import ProgramRepository, Program
+from quantum_serverless.core.program import (
+    ProgramRepository,
+    Program,
+)
 
 responses = {
-    "http://localhost:80/v1/api/nested-programs/": {
+    "http://localhost:80/api/v1/programs/": {
         "count": 2,
         "results": [
             {
@@ -124,7 +127,7 @@ class TestRepository(TestCase):
 
     @mock.patch("requests.get", side_effect=mocked_requests_get)
     def test_repository_get_programs(self, mock_get):
-        """Tests program repository."""
+        """Tests programs repository."""
 
         repository = ProgramRepository(host="http://localhost")
         programs = repository.get_programs()

@@ -33,7 +33,7 @@ schema = get_schema_view(  # pylint: disable=invalid-name
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    re_path(r"^v1/api/", include(("api.v1.urls", "api"), namespace="v1")),
+    re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("", include("django_prometheus.urls")),
     # docs

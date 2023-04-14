@@ -1,6 +1,8 @@
 """
 Django Rest framework views for api application:
-    - Nested Program ViewSet
+    - Program ViewSet
+    - Job ViewSet
+    - KeycloakUsers ApiView
 
 Version views inherit from the different views.
 """
@@ -24,22 +26,22 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
-from .models import NestedProgram, Job, ComputeResource
+from .models import Program, Job, ComputeResource
 from .serializers import JobSerializer
 from .utils import ray_job_status_to_model_job_status, try_json_loads
 
 
-class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     """
-    Nested Program ViewSet configuration using ModelViewSet.
+    Program ViewSet configuration using ModelViewSet.
     """
 
-    BASE_NAME = "nested-programs"
+    BASE_NAME = "programs"
 
     @staticmethod
     def get_serializer_job_class():
         """
-        This method returns Job serializer to be used in Nested Program.
+        This method returns Job serializer to be used in Program ViewSet.
         """
 
         return JobSerializer
@@ -48,7 +50,7 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
         return self.serializer_class
 
     def get_queryset(self):
-        return NestedProgram.objects.all().filter(author=self.request.user)
+        return Program.objects.all().filter(author=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -60,10 +62,10 @@ class NestedProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-a
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             # create program
-            program = NestedProgram(**serializer.data)
+            program = Program(**serializer.data)
             _, dependencies = try_json_loads(program.dependencies)
 
-            existing_programs = NestedProgram.objects.filter(
+            existing_programs = Program.objects.filter(
                 author=request.user, title__exact=program.title
             )
             if existing_programs.count() > 0:

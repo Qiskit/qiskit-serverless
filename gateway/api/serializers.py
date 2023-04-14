@@ -1,6 +1,6 @@
 """
 Django Rest framework serializers for api application:
-    - NestedProgramSerializer
+    - ProgramSerializer
     - JobSerializer
 
 Version serializers inherit from the different serializers.
@@ -8,16 +8,16 @@ Version serializers inherit from the different serializers.
 
 from rest_framework import serializers
 
-from .models import NestedProgram, Job
+from .models import Program, Job
 
 
-class NestedProgramSerializer(serializers.ModelSerializer):
+class ProgramSerializer(serializers.ModelSerializer):
     """
-    Serializer for the nested program model.
+    Serializer for the Program model.
     """
 
     class Meta:
-        model = NestedProgram
+        model = Program
 
 
 class JobSerializer(serializers.ModelSerializer):

@@ -5,12 +5,12 @@ Serializers api for V1.
 from api import serializers
 
 
-class NestedProgramSerializer(serializers.NestedProgramSerializer):
+class ProgramSerializer(serializers.ProgramSerializer):
     """
-    Nested program serializer first version. Include basic fields from the initial model.
+    Program serializer first version. Include basic fields from the initial model.
     """
 
-    class Meta(serializers.NestedProgramSerializer.Meta):
+    class Meta(serializers.ProgramSerializer.Meta):
         fields = ["title", "entrypoint", "artifact", "dependencies", "arguments"]
 
 

@@ -8,14 +8,14 @@
     }
   },
   {
-    "model": "api.nestedprogram",
+    "model": "api.program",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
     "fields": {
       "created": "2023-02-01T15:30:43.281796Z",
       "updated": "2023-02-01T15:30:43.281830Z",
-      "title": "Nested program",
-      "description": "Best nested program in the world",
-      "entrypoint": "nested_program.py",
+      "title": "Program",
+      "description": "Best program in the world",
+      "entrypoint": "program.py",
       "working_dir": "./",
       "version": "0.0.0",
       "dependencies": null,

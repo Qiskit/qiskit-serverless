@@ -30,7 +30,7 @@ class TestProgram(TestCase):
 
 
 def test_program():
-    """Integration test for programs."""
+    """Integration test for program."""
 
     with DockerCompose(
         resources_path, compose_file_name="test-compose.yml", pull=True

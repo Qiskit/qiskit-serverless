@@ -29,7 +29,7 @@ class TestQuantumServerless(TestCase):
         """Tests template class."""
         serverless = QuantumServerless()
 
-        with serverless:
+        with serverless.context():
             self.assertTrue(ray.is_initialized())
 
         self.assertFalse(ray.is_initialized())

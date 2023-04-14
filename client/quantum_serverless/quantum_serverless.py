@@ -86,20 +86,20 @@ class QuantumServerless:
         return self._selected_provider.job_client()
 
     def run_program(self, program: Program) -> Optional[Job]:
-        """Execute program as a async job
+        """Execute a program as a async job
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> nested_program = Program(
+            >>> program = Program(
             >>>     "job.py",
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
             >>> )
-            >>> job = serverless.run_program(nested_program)
+            >>> job = serverless.run_program(program)
             >>> # <Job | ...>
 
         Args:
-            program: program object
+            program: Program object
 
         Returns:
             Job
