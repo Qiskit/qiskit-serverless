@@ -7,7 +7,22 @@
 # ===================
 
 # Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
-nginxIngressControllerEnable: true
+nginxIngressControllerEnable: false
+ingress:
+  annotations:
+    # For IBM Cloud the valid ingress class values are: public-iks-k8s-nginx and private-iks-k8s-nginx
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "512k"
+  tls: []
+#  tls:
+#    - hosts:
+#      - "quantum-serverless-url.cloud"
+#      secretName: "tls-secret-name"
+  hosts: []
+#  hosts:
+#    - host: "quantum-serverless-url.cloud"
 
 # ===================
 # Gateway configs
@@ -30,6 +45,9 @@ gateway:
       username: "admin"
       password: "passw0rd"
       email: "admin@examplemail.io"
+    service:
+      type: ClusterIP
+      port: 8000
 
 # ===================
 # Redis configs
@@ -45,11 +63,6 @@ redis:
   
   auth:
     enabled: false
-  
-  master:
-    service:
-      ports:
-        redis: 7000
 
 # ===================
 # Jupyter configs
@@ -72,22 +85,6 @@ jupyter:
 
   service:
     port: 80
-
-  # If you enable it remember to enable nginx ingress controller if you need a controller for ingress
-  ingress:
-    enabled: false
-    className: "nginx"
-    annotations: {}
-      # kubernetes.io/ingress.class: nginx
-      # kubernetes.io/tls-acme: "true"
-    loadBalancer:
-      hostname: localhost
-    hosts:
-      - host: localhost
-        paths:
-          - path: /
-            pathType: Prefix
-
 
 # ===================
 # Ray Cluster
@@ -132,7 +129,6 @@ ray-cluster:
 
   service:
     type: ClusterIP
-
 
 # ===================
 # Kuberay Operator
@@ -273,8 +269,8 @@ keycloak:
   logging:
     level: DEBUG
   service:
-    type: NodePort
-    nodePorts:
+    type: ClusterIP
+    ports:
       http: 31059
   auth:
     adminUser: admin
@@ -294,7 +290,17 @@ keycloak:
 
 repositoryEnable: true
 repository:
-  tag: "nightly"
+  image:
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  application:
+    superuser:
+      username: "admin"
+      password: "passw0rd"
+      email: "admin@examplemail.io"
+  service:
+    type: ClusterIP
+    port: 8060
 
 # ===================
 # Prometheus 
@@ -305,8 +311,9 @@ kube-prometheus-stack:
   grafana:
     adminPassword: passw0rd
     service:
-      type: NodePort
-      nodePort: 32294
+      type: ClusterIP
+      ports:
+        http: 32294
     grafana.ini:
       auth:
         disable_login_form: "true"
@@ -353,7 +360,7 @@ loki:
     replicas: 1
   gateway:
     service:
-      type: NodePort
+      type: ClusterIP
 
 # ===================
 # promtail

@@ -47,6 +47,15 @@ spec:
           #    port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: DEBUG
+              value: { { .Values.application.debug | quote } }
+            - name: DJANGO_SUPERUSER_USERNAME
+              value: { { .Values.application.superuser.username | quote } }
+            - name: DJANGO_SUPERUSER_PASSWORD
+              value: { { .Values.application.superuser.password | quote } }
+            - name: DJANGO_SUPERUSER_EMAIL
+              value: { { .Values.application.superuser.email | quote } }
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
