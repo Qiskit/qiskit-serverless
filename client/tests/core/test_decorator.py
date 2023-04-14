@@ -20,6 +20,7 @@ from qiskit.circuit.random import random_circuit
 from quantum_serverless import QuantumServerless, get
 from quantum_serverless.core.decorators import (
     run_qiskit_remote,
+    distribute_task,
     Target,
     fetch_execution_meta,
 )
@@ -65,6 +66,34 @@ class TestDecorators(TestCase):
             )
             return mid_result
 
+        with self.assertWarns(Warning), serverless.context():
+            reference = ultimate_function(1)
+            result = get(reference)
+            self.assertEqual(result, 4)
+
+    def test_distribute_task(self):
+        """Test for run_qiskit_remote."""
+
+        serverless = QuantumServerless()
+
+        @distribute_task()
+        def another_function(
+            circuit: List[QuantumCircuit], other_circuit: QuantumCircuit
+        ):
+            """Another test function."""
+            return circuit[0].compose(other_circuit, range(5)).depth()
+
+        @distribute_task(target={"cpu": 1})
+        def ultimate_function(ultimate_argument: int):
+            """Test function."""
+            print("Printing function argument:", ultimate_argument)
+            mid_result = get(
+                another_function(
+                    [random_circuit(5, 2)], other_circuit=random_circuit(5, 2)
+                )
+            )
+            return mid_result
+
         with serverless.context():
             reference = ultimate_function(1)
             result = get(reference)
@@ -81,7 +110,7 @@ class TestDecorators(TestCase):
         serverless = QuantumServerless()
         state_handler = TestHandler()
 
-        @run_qiskit_remote(target={"cpu": 1}, state=state_handler)
+        @distribute_task(target={"cpu": 1}, state=state_handler)
         def ultimate_function_with_state(state: StateHandler, ultimate_argument: int):
             """Test function."""
             state.set("some_key", {"result": ultimate_argument})

@@ -29,6 +29,7 @@ Core abstractions
     Provider
     ComputeResource
 
+    distribute_task
     run_qiskit_remote
     get
     put
@@ -56,7 +57,14 @@ State classes
 """
 
 from .provider import Provider, ComputeResource, KuberayProvider, GatewayProvider
-from .decorators import remote, get, put, run_qiskit_remote, get_refs_by_status
+from .decorators import (
+    remote,
+    get,
+    put,
+    run_qiskit_remote,
+    get_refs_by_status,
+    distribute_task,
+)
 from .events import RedisEventHandler, EventHandler, ExecutionMessage
 from .state import RedisStateHandler, StateHandler
 from .job import save_result
