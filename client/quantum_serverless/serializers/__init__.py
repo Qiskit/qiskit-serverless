@@ -11,11 +11,11 @@
 # that they have been altered from the originals.
 
 """
-===============================================================
-Serializers (:mod:`quantum_serverless.serializers.serializers`)
-===============================================================
+===================================================
+Serializers (:mod:`quantum_serverless.serializers`)
+===================================================
 
-.. currentmodule:: quantum_serverless.serializers.serializers
+.. currentmodule:: quantum_serverless.serializers
 
 Quantum serverless serializers
 ==============================
