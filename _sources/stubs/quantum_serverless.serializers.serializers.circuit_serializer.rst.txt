@@ -1,6 +1,0 @@
-﻿quantum\_serverless.serializers.serializers.circuit\_serializer
-===============================================================
-
-.. currentmodule:: quantum_serverless.serializers.serializers
-
-.. autofunction:: circuit_serializer

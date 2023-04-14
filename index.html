@@ -87,7 +87,7 @@
 <span class="n">circuits</span> <span class="o">=</span> <span class="p">[</span><span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
 
 <span class="c1"># 3. create serverless context</span>
-<span class="k">with</span> <span class="n">serverless</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
     <span class="c1"># 4. let&#39;s put some shared objects into remote storage that will be shared among all executions</span>
     <span class="n">obs_ref</span> <span class="o">=</span> <span class="n">put</span><span class="p">(</span><span class="n">SparsePauliOp</span><span class="p">([</span><span class="s2">&quot;ZZ&quot;</span><span class="p">]))</span>
 
@@ -108,18 +108,14 @@
 <p>Step 3: run program</p>
 <div class="literal-block-wrapper docutils container" id="id4">
 <div class="code-block-caption"><span class="caption-number">Listing 4 </span><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">Program</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">GatewayProvider</span><span class="p">,</span> <span class="n">Program</span>
 
-<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">({</span>
-    <span class="s2">&quot;providers&quot;</span><span class="p">:</span> <span class="p">[{</span>
-        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;docker-compose&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;compute_resource&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;docker-compose&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;host&quot;</span><span class="p">:</span> <span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="c1"># using our docker-compose infrastructure</span>
-        <span class="p">}</span>
-    <span class="p">}]</span>
-<span class="p">})</span>
-<span class="n">serverless</span><span class="o">.</span><span class="n">set_provider</span><span class="p">(</span><span class="s2">&quot;docker-compose&quot;</span><span class="p">)</span> <span class="c1"># set provider as docker-compose</span>
+<span class="n">provider</span> <span class="o">=</span> <span class="n">GatewayProvider</span><span class="p">(</span>
+    <span class="n">username</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="c1"># this username has already been defined in local docker setup and does not need to be changed</span>
+    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password123&quot;</span><span class="p">,</span> <span class="c1"># this password has already been defined in local docker setup and does not need to be changed</span>
+    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://gateway:8000&quot;</span><span class="p">,</span> <span class="c1"># address of provider</span>
+<span class="p">)</span>
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
 
 <span class="c1"># create out program</span>
 <span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
@@ -136,6 +132,9 @@
 <span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span>
 <span class="c1"># Single execution: [1.]</span>
 <span class="c1"># N parallel executions: [array([1.]), array([0.]), array([-0.28650496])]</span>
+
+<span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+<span class="c1"># &#39;{&quot;status&quot;: &quot;ok&quot;, &quot;single&quot;: [1.0], &quot;parallel_result&quot;: [[1.0], [0.9740035726118753], [1.0]]}&#39;</span>
 </pre></div>
 </div>
 </div>

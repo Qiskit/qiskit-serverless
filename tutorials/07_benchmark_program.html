@@ -46,13 +46,13 @@
             
   <section id="Tutorial:-benchmark-program-to-stress-test-compute-resources">
 <h1>Tutorial: benchmark program to stress test compute resources<a class="headerlink" href="#Tutorial:-benchmark-program-to-stress-test-compute-resources" title="Permalink to this heading">¶</a></h1>
-<p>In order to test compute resources we need to have benchmark program.</p>
-<p>Below you can see executon graph of a program. Each of boxes is a task in a program. This program is designed to tests vertical and horizontal scalability of compute resources.</p>
-<p><img alt="program flow" src="../_images/benchmark_program.png" /></p>
-<p>Program accepts list of arguments to control stress levels: - <code class="docutils literal notranslate"><span class="pre">n_entries</span></code> - number of circuits and observables will be used in each iteration on generation task. - <code class="docutils literal notranslate"><span class="pre">depth_of_recursion</span></code> - defines how many recursive iterations generation task will have. (Number of generated circuits will be n_entries * depth_of_recursion). - <code class="docutils literal notranslate"><span class="pre">n_backends</span></code> - number of backends, which defines how many parallel trainspilation and estimations will happen. - <code class="docutils literal notranslate"><span class="pre">n_qubits</span></code> - number of qubits will be used in a
-program. Affects backends, circuits and observables. - <code class="docutils literal notranslate"><span class="pre">circuit_depth</span></code> - depth of generated circuits. - <code class="docutils literal notranslate"><span class="pre">size_of_observable</span></code> - size of generated observables. - <code class="docutils literal notranslate"><span class="pre">n_graphs</span></code> - number of times graph above will be executed within one program.</p>
+<p>In order to test compute resources we need to have a benchmark.</p>
+<p>Below you can see an execution graph. Each of these boxes is a task in a program. This benchmark is designed to tests vertical and horizontal scalability of compute resources.</p>
+<p><img alt="benchmark flow" src="../_images/benchmark_flow.png" /></p>
+<p>The benchmark accepts a list of arguments to control stress levels: - <code class="docutils literal notranslate"><span class="pre">n_entries</span></code> - number of circuits and observables will be used in each iteration on generation task. - <code class="docutils literal notranslate"><span class="pre">depth_of_recursion</span></code> - defines how many recursive iterations generation task will have. (Number of generated circuits will be n_entries * depth_of_recursion). - <code class="docutils literal notranslate"><span class="pre">n_backends</span></code> - number of backends, which defines how many parallel transpilations and estimations will happen. - <code class="docutils literal notranslate"><span class="pre">n_qubits</span></code> - number of qubits will be used in
+a program. Affects backends, circuits and observables. - <code class="docutils literal notranslate"><span class="pre">circuit_depth</span></code> - depth of generated circuits. - <code class="docutils literal notranslate"><span class="pre">size_of_observable</span></code> - size of generated observables. - <code class="docutils literal notranslate"><span class="pre">n_graphs</span></code> - number of times graph above will be executed within one program.</p>
 <hr class="docutils" />
-<p>Now let’s create serverless object and lunch execution of our test program</p>
+<p>Now let’s create serverless object and lunch execution of our benchmark.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
@@ -89,7 +89,7 @@ program. Affects backends, circuits and observables. - <code class="docutils lit
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;brnchmark_program&quot;</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;benchmark_program&quot;</span><span class="p">,</span>
     <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;benchmark.py&quot;</span><span class="p">,</span>
     <span class="n">arguments</span><span class="o">=</span><span class="p">{</span>
         <span class="s2">&quot;n_qubits&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>

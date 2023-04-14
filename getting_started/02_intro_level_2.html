@@ -50,7 +50,7 @@
 <p>Again we will start with writing code for our program and saving it to <a class="reference external" href="./source_files/gs_level_2.py">./source_files/gs_level_2.py</a> file. This time it will be VQE example from <a class="reference external" href="https://qiskit.org/documentation/nature/tutorials/07_leveraging_qiskit_runtime.html">Qiskit documentation</a> and we also introduce dependency management and arguments to our programs.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/gs_level_2.py</span>
 
-<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span>
 
 <span class="kn">from</span> <span class="nn">qiskit_nature.units</span> <span class="kn">import</span> <span class="n">DistanceUnit</span>
 <span class="kn">from</span> <span class="nn">qiskit_nature.second_q.drivers</span> <span class="kn">import</span> <span class="n">PySCFDriver</span>
@@ -107,22 +107,14 @@
     <span class="nb">print</span><span class="p">(</span><span class="n">local_vqe_result</span><span class="p">)</span>
 
 
-<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
-    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
-    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
-        <span class="s2">&quot;--bond_length&quot;</span><span class="p">,</span>
-        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Bond length in Angstrom.&quot;</span><span class="p">,</span>
-        <span class="n">default</span><span class="o">=</span><span class="mf">2.5</span><span class="p">,</span>
-        <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
-    <span class="p">)</span>
-    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
-
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running for bond length </span><span class="si">{</span><span class="n">args</span><span class="o">.</span><span class="n">bond_length</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
-    <span class="n">run</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">bond_length</span><span class="p">)</span>
+<span class="n">arguments</span> <span class="o">=</span> <span class="n">get_arguments</span><span class="p">()</span>
+<span class="n">bond_length</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bond_length&quot;</span><span class="p">,</span> <span class="mf">2.55</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running for bond length </span><span class="si">{</span><span class="n">bond_length</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+<span class="n">run</span><span class="p">(</span><span class="n">bond_length</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>As you can see here we used couple of additional things compared to <code class="docutils literal notranslate"><span class="pre">getting</span> <span class="pre">started</span> <span class="pre">level</span> <span class="pre">1</span></code>.</p>
-<p>First, we are introducing dependency management by using the <code class="docutils literal notranslate"><span class="pre">qiskit-nature</span></code> module and <code class="docutils literal notranslate"><span class="pre">pyscf</span></code> extension. We also using argument parsing to accept arguments to our program. In this case argument is <code class="docutils literal notranslate"><span class="pre">bond_length</span></code>. This means that we can, re-run our program over different bond lengths and produce a dissociation curve.</p>
+<p>First, we are introducing dependency management by using the <code class="docutils literal notranslate"><span class="pre">qiskit-nature</span></code> module and <code class="docutils literal notranslate"><span class="pre">pyscf</span></code> extension. We also using <code class="docutils literal notranslate"><span class="pre">get_arguments</span></code> function to parse arguments to our program, which return dictionary of arguments. In this case argument is <code class="docutils literal notranslate"><span class="pre">bond_length</span></code>. This means that we can, re-run our program over different bond lengths and produce a dissociation curve.</p>
 <p>Next we need to run this program. For that we need to import necessary modules and configure <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> client. We are doing so by providing name and host for deployed infrastructure.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
@@ -184,11 +176,11 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 40754290-9768-4ba2-9689-6d72e9197878&gt;
+&lt;Job | 3b7512fa-3d68-4572-86b1-3f36eb6517d4&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -196,7 +188,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -205,7 +197,7 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>
@@ -247,7 +239,7 @@ Running for bond length 2.55.
 <hr class="docutils" />
 <p>If you want to run this program with different bond length you can run it 3 times. Programs are asynchronous, therefore each of instance of program will be running in parallel.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">jobs</span> <span class="o">=</span> <span class="p">[]</span>
@@ -269,18 +261,18 @@ Running for bond length 2.55.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[&lt;Job | ddb7331c-6db2-4e44-9449-b58ba53bd6b8&gt;,
- &lt;Job | 52f77d9d-c669-4526-8b33-2fa9290b71dd&gt;,
- &lt;Job | c31428f3-8c15-4257-a53d-fd899d40e29f&gt;]
+[&lt;Job | 9b61a8cd-0c7e-4893-9891-f82d1185a168&gt;,
+ &lt;Job | 5da07955-28e1-4366-9290-3467e7c330c3&gt;,
+ &lt;Job | 5eb82323-d41d-42de-bae4-b7c2e67cf59e&gt;]
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">:</span>
@@ -293,13 +285,13 @@ Running for bond length 2.55.
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-RUNNING
-RUNNING
-RUNNING
+SUCCEEDED
+SUCCEEDED
+SUCCEEDED
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">:</span>

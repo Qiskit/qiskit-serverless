@@ -1,6 +1,0 @@
-﻿quantum\_serverless.serializers.serializers.register\_all\_serializers
-======================================================================
-
-.. currentmodule:: quantum_serverless.serializers.serializers
-
-.. autofunction:: register_all_serializers

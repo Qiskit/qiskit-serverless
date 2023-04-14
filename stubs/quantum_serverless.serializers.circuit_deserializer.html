@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
-    <title>Serializers (quantum_serverless.serializers) &#8212; Quantum serverless 0.0.0 documentation</title>
+    <title>quantum_serverless.serializers.circuit_deserializer &#8212; Quantum serverless 0.0.0 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
@@ -23,8 +23,8 @@
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="quantum_serverless.serializers.register_all_serializers" href="../stubs/quantum_serverless.serializers.register_all_serializers.html" />
-    <link rel="prev" title="quantum_serverless.library.parallel_transpile" href="../stubs/quantum_serverless.library.parallel_transpile.html" />
+    <link rel="next" title="quantum_serverless.serializers.service_serializer" href="quantum_serverless.serializers.service_serializer.html" />
+    <link rel="prev" title="quantum_serverless.serializers.circuit_serializer" href="quantum_serverless.serializers.circuit_serializer.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -41,33 +41,25 @@
 
           <div class="body" role="main">
             
-  <span class="target" id="module-quantum_serverless.serializers"></span><section id="serializers-quantum-serverless-serializers">
-<h1>Serializers (<a class="reference internal" href="#module-quantum_serverless.serializers" title="quantum_serverless.serializers"><code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.serializers</span></code></a>)<a class="headerlink" href="#serializers-quantum-serverless-serializers" title="Permalink to this heading">¶</a></h1>
-<section id="quantum-serverless-serializers">
-<h2>Quantum serverless serializers<a class="headerlink" href="#quantum-serverless-serializers" title="Permalink to this heading">¶</a></h2>
-<table class="autosummary longtable docutils align-default">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.serializers.register_all_serializers.html#quantum_serverless.serializers.register_all_serializers" title="quantum_serverless.serializers.register_all_serializers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register_all_serializers</span></code></a>()</p></td>
-<td><p>Registers all serializers.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.serializers.circuit_serializer.html#quantum_serverless.serializers.circuit_serializer" title="quantum_serverless.serializers.circuit_serializer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">circuit_serializer</span></code></a>(circuit)</p></td>
-<td><p>Serializes QuantumCircuit into string.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.serializers.circuit_deserializer.html#quantum_serverless.serializers.circuit_deserializer" title="quantum_serverless.serializers.circuit_deserializer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">circuit_deserializer</span></code></a>(encoded_circuit)</p></td>
-<td><p>Deserialize encoded QuantumCircuit object.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.serializers.service_serializer.html#quantum_serverless.serializers.service_serializer" title="quantum_serverless.serializers.service_serializer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">service_serializer</span></code></a>(service)</p></td>
-<td><p>Serializes QiskitRuntimeService.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.serializers.service_deserializer.html#quantum_serverless.serializers.service_deserializer" title="quantum_serverless.serializers.service_deserializer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">service_deserializer</span></code></a>(account)</p></td>
-<td><p>Deserializes QiskitRuntimeService.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.serializers.get_arguments.html#quantum_serverless.serializers.get_arguments" title="quantum_serverless.serializers.get_arguments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_arguments</span></code></a>()</p></td>
-<td><p>Parses arguments for program and returns them as dict.</p></td>
-</tr>
-</tbody>
-</table>
-</section>
+  <section id="quantum-serverless-serializers-circuit-deserializer">
+<h1>quantum_serverless.serializers.circuit_deserializer<a class="headerlink" href="#quantum-serverless-serializers-circuit-deserializer" title="Permalink to this heading">¶</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="quantum_serverless.serializers.circuit_deserializer">
+<span class="sig-name descname"><span class="pre">circuit_deserializer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">encoded_circuit</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/serializers/serializers.html#circuit_deserializer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.serializers.circuit_deserializer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deserialize encoded QuantumCircuit object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>encoded_circuit</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – encoded circuit</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>QuantumCircuit decoded object</p>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 
 
@@ -112,16 +104,18 @@
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/07_benchmark_program.html">Tutorial: benchmark program to stress test compute resources</a></li>
 </ul>
 <ul class="current">
-<li class="toctree-l1 current"><a class="reference internal" href="index.html">API References</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../apidocs/index.html">API References</a></li>
 </ul>
 
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
-  <li><a href="index.html">Quantum serverless API References</a><ul>
-      <li>Previous: <a href="../stubs/quantum_serverless.library.parallel_transpile.html" title="previous chapter">quantum_serverless.library.parallel_transpile</a></li>
-      <li>Next: <a href="../stubs/quantum_serverless.serializers.register_all_serializers.html" title="next chapter">quantum_serverless.serializers.register_all_serializers</a></li>
+  <li><a href="../apidocs/index.html">Quantum serverless API References</a><ul>
+  <li><a href="../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.serializers</span></code>)</a><ul>
+      <li>Previous: <a href="quantum_serverless.serializers.circuit_serializer.html" title="previous chapter">quantum_serverless.serializers.circuit_serializer</a></li>
+      <li>Next: <a href="quantum_serverless.serializers.service_serializer.html" title="next chapter">quantum_serverless.serializers.service_serializer</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
 </ul>
@@ -156,7 +150,7 @@
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
       
       |
-      <a href="../_sources/apidocs/serializers.rst.txt"
+      <a href="../_sources/stubs/quantum_serverless.serializers.circuit_deserializer.rst.txt"
           rel="nofollow">Page source</a>
     </div>
 

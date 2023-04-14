@@ -55,7 +55,7 @@ Step 2: write program
    circuits = [random_circuit(2, 2) for _ in range(3)]
 
    # 3. create serverless context
-   with serverless:
+   with serverless.context():
        # 4. let's put some shared objects into remote storage that will be shared among all executions
        obs_ref = put(SparsePauliOp(["ZZ"]))
 
@@ -76,18 +76,14 @@ Step 3: run program
 .. code-block:: python
    :caption: in jupyter notebook
 
-   from quantum_serverless import QuantumServerless, Program
+   from quantum_serverless import QuantumServerless, GatewayProvider, Program
 
-   serverless = QuantumServerless({
-       "providers": [{
-           "name": "docker-compose",
-           "compute_resource": {
-               "name": "docker-compose",
-               "host": "localhost", # using our docker-compose infrastructure
-           }
-       }]
-   })
-   serverless.set_provider("docker-compose") # set provider as docker-compose
+   provider = GatewayProvider(
+       username="user", # this username has already been defined in local docker setup and does not need to be changed
+       password="password123", # this password has already been defined in local docker setup and does not need to be changed
+       host="http://gateway:8000", # address of provider
+   )
+   serverless = QuantumServerless(provider)
 
    # create out program
    program = Program(
@@ -104,6 +100,9 @@ Step 3: run program
    job.logs()
    # Single execution: [1.]
    # N parallel executions: [array([1.]), array([0.]), array([-0.28650496])]
+
+   job.result()
+   # '{"status": "ok", "single": [1.0], "parallel_result": [[1.0], [0.9740035726118753], [1.0]]}'
 
 ------------
 

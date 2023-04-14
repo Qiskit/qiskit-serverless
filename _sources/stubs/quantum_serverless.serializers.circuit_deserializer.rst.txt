@@ -1,0 +1,6 @@
+﻿quantum\_serverless.serializers.circuit\_deserializer
+=====================================================
+
+.. currentmodule:: quantum_serverless.serializers
+
+.. autofunction:: circuit_deserializer

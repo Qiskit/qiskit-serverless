@@ -81,7 +81,7 @@
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.state</span> <span class="kn">import</span> <span class="n">RedisStateHandler</span>
 
 
-<div class="viewcode-block" id="circuit_serializer"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.serializers.circuit_serializer.html#quantum_serverless.serializers.serializers.circuit_serializer">[docs]</a><span class="k">def</span> <span class="nf">circuit_serializer</span><span class="p">(</span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="circuit_serializer"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.circuit_serializer.html#quantum_serverless.serializers.circuit_serializer">[docs]</a><span class="k">def</span> <span class="nf">circuit_serializer</span><span class="p">(</span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Serializes QuantumCircuit into string.</span>
 
 <span class="sd">    Args:</span>
@@ -99,7 +99,7 @@
     <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">standard_b64encode</span><span class="p">(</span><span class="n">serialized_data</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="circuit_deserializer"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.serializers.circuit_deserializer.html#quantum_serverless.serializers.serializers.circuit_deserializer">[docs]</a><span class="k">def</span> <span class="nf">circuit_deserializer</span><span class="p">(</span><span class="n">encoded_circuit</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QuantumCircuit</span><span class="p">:</span>
+<div class="viewcode-block" id="circuit_deserializer"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.circuit_deserializer.html#quantum_serverless.serializers.circuit_deserializer">[docs]</a><span class="k">def</span> <span class="nf">circuit_deserializer</span><span class="p">(</span><span class="n">encoded_circuit</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QuantumCircuit</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Deserialize encoded QuantumCircuit object.</span>
 
 <span class="sd">    Args:</span>
@@ -118,12 +118,12 @@
     <span class="k">return</span> <span class="n">orig</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="service_serializer"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.serializers.service_serializer.html#quantum_serverless.serializers.serializers.service_serializer">[docs]</a><span class="k">def</span> <span class="nf">service_serializer</span><span class="p">(</span><span class="n">service</span><span class="p">:</span> <span class="n">QiskitRuntimeService</span><span class="p">):</span>
+<div class="viewcode-block" id="service_serializer"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.service_serializer.html#quantum_serverless.serializers.service_serializer">[docs]</a><span class="k">def</span> <span class="nf">service_serializer</span><span class="p">(</span><span class="n">service</span><span class="p">:</span> <span class="n">QiskitRuntimeService</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Serializes QiskitRuntimeService.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">service</span><span class="o">.</span><span class="n">active_account</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="service_deserializer"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.serializers.service_deserializer.html#quantum_serverless.serializers.serializers.service_deserializer">[docs]</a><span class="k">def</span> <span class="nf">service_deserializer</span><span class="p">(</span><span class="n">account</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<div class="viewcode-block" id="service_deserializer"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.service_deserializer.html#quantum_serverless.serializers.service_deserializer">[docs]</a><span class="k">def</span> <span class="nf">service_deserializer</span><span class="p">(</span><span class="n">account</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Deserializes QiskitRuntimeService.</span>
 
 <span class="sd">    Args:</span>
@@ -156,7 +156,7 @@
     <span class="p">)</span>
 
 
-<div class="viewcode-block" id="register_all_serializers"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.serializers.register_all_serializers.html#quantum_serverless.serializers.serializers.register_all_serializers">[docs]</a><span class="k">def</span> <span class="nf">register_all_serializers</span><span class="p">():</span>
+<div class="viewcode-block" id="register_all_serializers"><a class="viewcode-back" href="../../../stubs/quantum_serverless.serializers.register_all_serializers.html#quantum_serverless.serializers.register_all_serializers">[docs]</a><span class="k">def</span> <span class="nf">register_all_serializers</span><span class="p">():</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Registers all serializers.&quot;&quot;&quot;</span>
     <span class="c1"># serialization for QiskitRuntimeService</span>
     <span class="n">ray</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">register_serializer</span><span class="p">(</span>
