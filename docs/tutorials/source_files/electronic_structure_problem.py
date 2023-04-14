@@ -23,11 +23,11 @@ from qiskit.algorithms.minimum_eigensolvers import VQE
 from qiskit_nature.drivers import Molecule
 from qiskit.algorithms.optimizers import SPSA
 
-from quantum_serverless import run_qiskit_remote, get, QuantumServerless
+from quantum_serverless import distribute_task, get, QuantumServerless
 from quantum_serverless.core import RedisStateHandler
 
 
-@run_qiskit_remote(target={"cpu": 2})
+@distribute_task(target={"cpu": 2})
 def ground_state_solve(
         molecule: Molecule,
         initial_point: Union[List[float], np.ndarray],

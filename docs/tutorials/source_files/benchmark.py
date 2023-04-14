@@ -22,10 +22,10 @@ from qiskit.primitives import Estimator
 from qiskit.providers import Backend
 from qiskit.providers.fake_provider import ConfigurableFakeBackend
 from qiskit.quantum_info.random import random_pauli_list
-from quantum_serverless import QuantumServerless, get, run_qiskit_remote, put
+from quantum_serverless import QuantumServerless, get, distribute_task, put
 
 
-@run_qiskit_remote()
+@distribute_task()
 def generate_circuits(
     depth_of_recursion: int, n_qubits: int, depth_of_circuit: int, n_circuits: int
 ):
@@ -41,7 +41,7 @@ def generate_circuits(
         )
 
 
-@run_qiskit_remote()
+@distribute_task()
 def generate_observables(
     depth_of_recursion: int, n_qubits: int, size: int, n_observables: int
 ):
@@ -55,7 +55,7 @@ def generate_observables(
         )
 
 
-@run_qiskit_remote()
+@distribute_task()
 def generate_data(
     depth_of_recursion: int,
     n_qubits: int,
@@ -87,7 +87,7 @@ def get_backends(n_backends: int, n_qubits: int):
     return [backend for _ in range(n_backends)]
 
 
-@run_qiskit_remote()
+@distribute_task()
 def transpile_remote(
     circuits: List[QuantumCircuit], backend: Backend
 ) -> List[QuantumCircuit]:
@@ -95,13 +95,13 @@ def transpile_remote(
     return transpile(circuits, backend)
 
 
-@run_qiskit_remote()
+@distribute_task()
 def estimate(circuits: list, observables: list):
     """Estimates expectation values of given circuit."""
     return Estimator().run(circuits, observables).result()
 
 
-@run_qiskit_remote()
+@distribute_task()
 def run_graph(
     depth_of_recursion: int,
     n_qubits: int,
