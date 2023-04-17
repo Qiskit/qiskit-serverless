@@ -84,7 +84,7 @@ variable "worker_nodes_per_zone" {
 variable "disable_pse" {
   description = "Disable public service endpoint for cluster. True or false"
   type        = bool
-  default     = true
+  default     = false
 }
 
 ##############################################################################
