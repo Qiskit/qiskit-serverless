@@ -31,12 +31,12 @@ from qiskit import QuantumCircuit, transpile
 from qiskit.providers import Backend
 
 from quantum_serverless.exception import QuantumServerlessException
-from quantum_serverless import run_qiskit_remote, get, put
+from quantum_serverless import distribute_task, get, put
 
-transpile_ray = run_qiskit_remote()(transpile)
+transpile_ray = distribute_task()(transpile)
 
 
-@run_qiskit_remote()
+@distribute_task()
 def remote_transpile(
     circuits: List[Union[QuantumCircuit, List[QuantumCircuit]]], backends: List[Backend]
 ) -> List[List[QuantumCircuit]]:
