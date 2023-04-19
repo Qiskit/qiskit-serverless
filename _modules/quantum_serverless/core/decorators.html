@@ -68,9 +68,11 @@
 <span class="sd">    put</span>
 <span class="sd">    run_qiskit_remote</span>
 <span class="sd">    get_refs_by_status</span>
+<span class="sd">    distribute_task</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">functools</span>
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Sequence</span>
 
@@ -249,13 +251,36 @@
     <span class="n">target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">Target</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">StateHandler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(Deprecated) Wraps local function as remote executable function.</span>
+<span class="sd">    New function will return reference object when called.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        target: target object or dictionary for requirements for node resources</span>
+<span class="sd">        state: state handler</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        object reference</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+        <span class="s2">&quot;Decorator `run_qiskit_remote` is deprecated. &quot;</span>
+        <span class="s2">&quot;Please, consider using `distribute_task` instead.&quot;</span><span class="p">,</span>
+        <span class="ne">DeprecationWarning</span><span class="p">,</span>
+        <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">distribute_task</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="distribute_task"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.distribute_task.html#quantum_serverless.core.distribute_task">[docs]</a><span class="k">def</span> <span class="nf">distribute_task</span><span class="p">(</span>
+    <span class="n">target</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">Target</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">StateHandler</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Wraps local function as remote executable function.</span>
 <span class="sd">    New function will return reference object when called.</span>
 
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; import quantum_serverless as qs</span>
 <span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; @run_qiskit_remote()</span>
+<span class="sd">        &gt;&gt;&gt; @distribute_task()</span>
 <span class="sd">        &gt;&gt;&gt; def awesome_function(seed: int):</span>
 <span class="sd">        &gt;&gt;&gt;     return 42</span>
 <span class="sd">        &gt;&gt;&gt;</span>
@@ -265,7 +290,6 @@
 <span class="sd">    Args:</span>
 <span class="sd">        target: target object or dictionary for requirements for node resources</span>
 <span class="sd">        state: state handler</span>
-<span class="sd">        events: events handler</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        object reference</span>

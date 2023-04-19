@@ -52,7 +52,7 @@
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">requests</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">run_qiskit_remote</span><span class="p">,</span> <span class="n">get</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span>
 </pre></div>
 </div>
 </div>
@@ -78,7 +78,7 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nd">@run_qiskit_remote</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;pip&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;requests&quot;</span><span class="p">]})</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nd">@distribute_task</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;pip&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;requests&quot;</span><span class="p">]})</span>
 <span class="k">def</span> <span class="nf">call_ibm</span><span class="p">():</span>
     <span class="k">return</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;https://ibm.com&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">status_code</span>
 </pre></div>

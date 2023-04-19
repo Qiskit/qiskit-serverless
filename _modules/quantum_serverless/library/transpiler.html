@@ -72,12 +72,12 @@
 <span class="kn">from</span> <span class="nn">qiskit.providers</span> <span class="kn">import</span> <span class="n">Backend</span>
 
 <span class="kn">from</span> <span class="nn">quantum_serverless.exception</span> <span class="kn">import</span> <span class="n">QuantumServerlessException</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">run_qiskit_remote</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">put</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">put</span>
 
-<span class="n">transpile_ray</span> <span class="o">=</span> <span class="n">run_qiskit_remote</span><span class="p">()(</span><span class="n">transpile</span><span class="p">)</span>
+<span class="n">transpile_ray</span> <span class="o">=</span> <span class="n">distribute_task</span><span class="p">()(</span><span class="n">transpile</span><span class="p">)</span>
 
 
-<span class="nd">@run_qiskit_remote</span><span class="p">()</span>
+<span class="nd">@distribute_task</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">remote_transpile</span><span class="p">(</span>
     <span class="n">circuits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">]]],</span> <span class="n">backends</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Backend</span><span class="p">]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">]]:</span>

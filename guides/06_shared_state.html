@@ -66,7 +66,7 @@
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">gateway_provider</span> <span class="o">=</span> <span class="n">GatewayProvider</span><span class="p">(</span>
-    <span class="n">username</span><span class="o">=</span><span class="s2">&quot;john&quot;</span><span class="p">,</span>
+    <span class="n">username</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span>
     <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password123&quot;</span><span class="p">,</span>
     <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">,</span>
 <span class="p">)</span>
@@ -105,7 +105,7 @@
 </div>
 <p>We will be running following <a class="reference external" href="./job_with_state.py">job</a>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># job_with_state.py</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">run_qiskit_remote</span><span class="p">,</span> <span class="n">get</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span>
 
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.state</span> <span class="kn">import</span> <span class="n">RedisStateHandler</span>
 
@@ -113,13 +113,13 @@
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">()</span>
 
 
-<span class="nd">@run_qiskit_remote</span><span class="p">(</span><span class="n">state</span><span class="o">=</span><span class="n">state_handler</span><span class="p">)</span>
+<span class="nd">@distribute_task</span><span class="p">(</span><span class="n">state</span><span class="o">=</span><span class="n">state_handler</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">func_with_state</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">RedisStateHandler</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;in_job&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;k&quot;</span><span class="p">:</span> <span class="n">seed</span><span class="p">})</span>
     <span class="k">return</span> <span class="n">seed</span>
 
 
-<span class="nd">@run_qiskit_remote</span><span class="p">(</span><span class="n">state</span><span class="o">=</span><span class="n">state_handler</span><span class="p">)</span>
+<span class="nd">@distribute_task</span><span class="p">(</span><span class="n">state</span><span class="o">=</span><span class="n">state_handler</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">other_func_with_state</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">RedisStateHandler</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
     <span class="n">state</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;in_other_job&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;other_k&quot;</span><span class="p">:</span> <span class="n">seed</span><span class="p">})</span>
     <span class="k">return</span> <span class="n">get</span><span class="p">(</span><span class="n">func_with_state</span><span class="p">(</span><span class="n">seed</span><span class="p">))</span>

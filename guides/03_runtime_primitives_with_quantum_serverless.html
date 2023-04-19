@@ -55,12 +55,12 @@
 <span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
 <span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">Estimator</span>
 
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">run_qiskit_remote</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">put</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">put</span>
 
 <span class="c1"># 1. let&#39;s annotate out function to convert it</span>
 <span class="c1"># to function that can be executed remotely</span>
 <span class="c1"># using `run_qiskit_remote` decorator</span>
-<span class="nd">@run_qiskit_remote</span><span class="p">()</span>
+<span class="nd">@distribute_task</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">my_function</span><span class="p">(</span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">:</span> <span class="n">SparsePauliOp</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">Estimator</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="n">circuit</span><span class="p">],</span> <span class="p">[</span><span class="n">obs</span><span class="p">])</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">values</span>
 

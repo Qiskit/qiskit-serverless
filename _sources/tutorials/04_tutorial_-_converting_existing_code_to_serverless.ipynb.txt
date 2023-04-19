@@ -20,7 +20,7 @@
     "\n",
     "warnings.filterwarnings('ignore')\n",
     "\n",
-    "from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put"
+    "from quantum_serverless import QuantumServerless, distribute_task, get, put"
    ]
   },
   {
@@ -172,7 +172,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "remote_transpile = run_qiskit_remote()(transpile)"
+    "remote_transpile = distribute_task()(transpile)"
    ]
   },
   {
@@ -386,7 +386,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "@run_qiskit_remote()\n",
+    "@distribute_task()\n",
     "def sum_remote(a: int, b: int):\n",
     "    return a + b\n",
     "\n",

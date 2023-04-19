@@ -70,7 +70,7 @@
 <p><code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> accepts <code class="docutils literal notranslate"><span class="pre">Provider</span></code> as a constructor argument. Provider stores configuration where our compute resources are and how to connect to them. For this example we will be using provider which is connected to local docker-compose setup. For more information on docker-compose check out <a class="reference external" href="https://docs.docker.com/compose/">docker docs</a>, but for now you can think of it as your local environment manager. So, in this example programs will be running locally on your machine. If you
 want to run it elsewhere, you need to provide corresponding host and authentication details.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">GatewayProvider</span>
@@ -78,7 +78,7 @@ want to run it elsewhere, you need to provide corresponding host and authenticat
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">provider</span> <span class="o">=</span> <span class="n">GatewayProvider</span><span class="p">(</span>
@@ -93,7 +93,7 @@ want to run it elsewhere, you need to provide corresponding host and authenticat
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -104,7 +104,7 @@ want to run it elsewhere, you need to provide corresponding host and authenticat
 <p>Now we need to run our program file, by creating an instance of <code class="docutils literal notranslate"><span class="pre">Program</span></code> and calling <code class="docutils literal notranslate"><span class="pre">run_program</span></code> method of our <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> client.</p>
 <p><code class="docutils literal notranslate"><span class="pre">Program</span></code> accepts couple of required parameters: - title - name of the program - entrypoint - name of python file you want to execute - working_dir - folder where your script is located. This is optional parameter and will be current folder by default.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
@@ -121,17 +121,17 @@ want to run it elsewhere, you need to provide corresponding host and authenticat
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | e4a801d2-f9eb-4392-b584-cbdd600755c8&gt;
+&lt;Job | aae3533f-ed0d-4e93-9247-4705d476ee97&gt;
 </pre></div></div>
 </div>
 <p>As result of <code class="docutils literal notranslate"><span class="pre">run</span></code> call we get <code class="docutils literal notranslate"><span class="pre">Job</span></code> which has <code class="docutils literal notranslate"><span class="pre">status</span></code> method to check status of program execution, <code class="docutils literal notranslate"><span class="pre">logs</span></code> to get logs of execution.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -139,7 +139,7 @@ want to run it elsewhere, you need to provide corresponding host and authenticat
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -148,7 +148,7 @@ want to run it elsewhere, you need to provide corresponding host and authenticat
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span>
@@ -156,7 +156,7 @@ want to run it elsewhere, you need to provide corresponding host and authenticat
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -166,7 +166,7 @@ want to run it elsewhere, you need to provide corresponding host and authenticat
 </div>
 <p>Also this object has <code class="docutils literal notranslate"><span class="pre">job_id</span></code> property that can be used if you want to access job results later. To do so we need to call <code class="docutils literal notranslate"><span class="pre">get_job_by_id</span></code> method of <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> client.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
@@ -174,17 +174,17 @@ want to run it elsewhere, you need to provide corresponding host and authenticat
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;e4a801d2-f9eb-4392-b584-cbdd600755c8&#39;
+&#39;aae3533f-ed0d-4e93-9247-4705d476ee97&#39;
 </pre></div></div>
 </div>
 <p>Users can fetch previously ran jobs from configured providers.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">get_job_by_id</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
@@ -192,12 +192,12 @@ want to run it elsewhere, you need to provide corresponding host and authenticat
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | e4a801d2-f9eb-4392-b584-cbdd600755c8&gt;
+&lt;Job | aae3533f-ed0d-4e93-9247-4705d476ee97&gt;
 </pre></div></div>
 </div>
 </section>

@@ -81,7 +81,7 @@
 <span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
 <span class="kn">from</span> <span class="nn">qiskit.opflow</span> <span class="kn">import</span> <span class="n">X</span><span class="p">,</span> <span class="n">I</span>
 
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">put</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">run_qiskit_remote</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">put</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">distribute_task</span>
 </pre></div>
 </div>
 </div>
@@ -90,13 +90,13 @@
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># classical funciton that will be executed as remote task</span>
-<span class="nd">@run_qiskit_remote</span><span class="p">()</span>
+<span class="nd">@distribute_task</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">add_prefix</span><span class="p">(</span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">prefix_depth</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QuantumCircuit</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">random_circuit</span><span class="p">(</span><span class="n">circuit</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">,</span> <span class="n">prefix_depth</span><span class="p">)</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
 
 <span class="c1"># quantum related compute that should be executed as closer to quantum as possible</span>
 <span class="c1"># using resource QPU</span>
-<span class="nd">@run_qiskit_remote</span><span class="p">()</span>
+<span class="nd">@distribute_task</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">measure_exp_val</span><span class="p">(</span><span class="n">circuits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">],</span> <span class="n">observable</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EstimatorResult</span><span class="p">:</span>
     <span class="k">with</span> <span class="n">Estimator</span><span class="p">(</span><span class="n">circuits</span><span class="p">,</span> <span class="n">observable</span><span class="p">)</span> <span class="k">as</span> <span class="n">estimator</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">estimator</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">circuits</span><span class="p">)),</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">circuits</span><span class="p">))</span>

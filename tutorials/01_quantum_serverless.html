@@ -88,7 +88,7 @@
 <p>All you need to do now is call this function and it will be executed as a remote procedure automatically.</p>
 <p>If you run N instances of this function in parallel you need just call it N times in a loop. The result of the following code will be a list of references to execution results.</p>
 <p>Example</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@quantum_serverless</span><span class="o">.</span><span class="n">run_qiskit_remote</span><span class="p">()</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@quantum_serverless</span><span class="o">.</span><span class="n">distribute_task</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">exp_val_remote</span><span class="p">(</span><span class="n">cirucit</span><span class="p">,</span> <span class="n">obs</span><span class="p">):</span>
     <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">estimator</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">)</span>
@@ -128,7 +128,7 @@
 <p>Some functions are more demanding than others. To allocate specific resources to a function, the decorator accepts <code class="docutils literal notranslate"><span class="pre">target</span></code> parameter. For example, your function may require 2 cpus to be executed. You can pass <code class="docutils literal notranslate"><span class="pre">target={'cpu':</span> <span class="pre">2}</span></code> to decorator and this function will request 2 cpus from your resource capacity to be executed.</p>
 <p><img alt="resource allocation diagram" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_resource_allocation.png" /></p>
 <p>Example</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@quantum_serverless</span><span class="o">.</span><span class="n">run_qiskit_remote</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;mem&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">})</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@quantum_serverless</span><span class="o">.</span><span class="n">distribute_task</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;mem&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">})</span>
 <span class="k">def</span> <span class="nf">exp_val_remote</span><span class="p">(</span><span class="n">cirucit</span><span class="p">,</span> <span class="n">obs</span><span class="p">):</span>
     <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
     <span class="n">exp_val_result</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">)</span>
@@ -165,17 +165,17 @@
 <div><p>NOTE: make sure to run docker-compose to use this example</p>
 </div></blockquote>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
 <span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Estimator</span>
 <span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">run_qiskit_remote</span><span class="p">,</span> <span class="n">put</span><span class="p">,</span> <span class="n">get</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">put</span><span class="p">,</span> <span class="n">get</span>
 
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">()</span>
 
-<span class="nd">@run_qiskit_remote</span><span class="p">()</span>
+<span class="nd">@distribute_task</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">exp_val_remote</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">):</span>
     <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">estimator</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -309,14 +309,6 @@ Results: [[EstimatorResult(values=array([-4.04804878e-01+6.73804871e-01j, -1.942
         9.06271517e-01-1.00000000e+00j,  1.69275103e-01+8.24470603e-01j]), metadata=[{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}])]]
 
 </pre></div></div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
-</pre></div>
-</div>
 </div>
 </section>
 </section>

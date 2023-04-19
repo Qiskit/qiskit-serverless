@@ -54,10 +54,10 @@
 <section id="Implementation">
 <h2>Implementation<a class="headerlink" href="#Implementation" title="Permalink to this heading">¶</a></h2>
 <p>Let’s see how we can implement this. For full implementation <a class="reference external" href="./source_files/electronic_structure_problem.py">see here</a>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">run_qiskit_remote</span><span class="p">,</span> <span class="n">get</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span>
 
 
-<span class="nd">@run_qiskit_remote</span><span class="p">()</span>
+<span class="nd">@distribute_task</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">ground_state_solve</span><span class="p">(</span>
     <span class="n">molecule</span><span class="p">:</span> <span class="n">Molecule</span><span class="p">,</span>
     <span class="n">initial_point</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>

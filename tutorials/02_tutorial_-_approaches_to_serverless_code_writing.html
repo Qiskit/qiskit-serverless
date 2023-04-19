@@ -69,7 +69,7 @@
 <span class="kn">from</span> <span class="nn">qiskit.providers.aer</span> <span class="kn">import</span> <span class="n">AerSimulator</span>
 <span class="kn">from</span> <span class="nn">qiskit.providers.fake_provider</span> <span class="kn">import</span> <span class="n">FakeVigo</span><span class="p">,</span> <span class="n">FakeAlmaden</span><span class="p">,</span> <span class="n">FakeBrooklyn</span><span class="p">,</span> <span class="n">FakeCasablanca</span>
 
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">run_qiskit_remote</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">put</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">put</span>
 </pre></div>
 </div>
 </div>
@@ -95,15 +95,15 @@
 
 <span class="c1"># your_module.transpiler</span>
 
-<span class="nd">@run_qiskit_remote</span><span class="p">()</span>
+<span class="nd">@distribute_task</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">remote_transpile</span><span class="p">(</span><span class="n">circuits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">],</span> <span class="n">backend</span><span class="p">:</span> <span class="n">Backend</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">transpile</span><span class="p">(</span><span class="n">circuits</span><span class="o">=</span><span class="n">circuits</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <p>Then the user will use this funciton in following way</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># ================</span>
@@ -138,14 +138,6 @@
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Results: [[&lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1e0696610&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c1290750&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c12900d0&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc170f95b50&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c19c5b50&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1b0a744d0&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1b0a74a50&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c11f1fd0&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c11f1d90&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c16b6a10&gt;], [&lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1d115f590&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c118ca90&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c118ca50&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c123fb10&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c123fe90&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc190855110&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc190855910&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1712482d0&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc171248ad0&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c1260d90&gt;], [&lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1e0696ed0&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c120f750&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c130e410&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1b0a5ba10&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1b0a8c8d0&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1b0a8ca50&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c146ad50&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c146a810&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c1168a90&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c117fbd0&gt;], [&lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c1290850&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c16ed2d0&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc170f7e410&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c11bff90&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c11a1310&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c11a1210&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c11dadd0&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c11da7d0&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1b0af9710&gt;, &lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1c127a250&gt;]]
-</pre></div></div>
-</div>
 <hr class="docutils" />
 <p>As you can see, the user has to create a lot of boilerplate code and to pass ray objects and pointers across the application.</p>
 </section>
@@ -162,7 +154,7 @@ Results: [[&lt;qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7fc1e069
 
 <span class="c1"># your_module.transpiler</span>
 
-<span class="nd">@run_qiskit_remote</span><span class="p">()</span>
+<span class="nd">@distribute_task</span><span class="p">()</span>
 <span class="k">def</span> <span class="nf">remote_transpile</span><span class="p">(</span><span class="n">circuits</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumCircuit</span><span class="p">],</span> <span class="n">backend</span><span class="p">:</span> <span class="n">Backend</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">transpile</span><span class="p">(</span><span class="n">circuits</span><span class="o">=</span><span class="n">circuits</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)</span>
 
