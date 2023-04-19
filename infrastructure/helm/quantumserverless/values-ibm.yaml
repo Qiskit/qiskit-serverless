@@ -102,7 +102,11 @@ ray-cluster:
   head:
     rayStartParams:
       dashboard-host: "0.0.0.0"
-    ports: [{containerPort: 8265, name: dashboard}]
+    ports: [
+      {containerPort: 10001, name: ray-client},
+      {containerPort: 8265, name: dashboard},
+      {containerPort: 6379, name: gcs-server}
+    ]
   worker:
     # If you want to disable the default workergroup
     # uncomment the line below
