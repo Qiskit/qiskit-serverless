@@ -246,7 +246,7 @@ repositoryEnable: true
 repository:
   image:
     pullPolicy: IfNotPresent
-    tag: "latest"
+    tag: "nightly"
   application:
     superuser:
       username: "admin"
