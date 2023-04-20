@@ -3,12 +3,12 @@ from qiskit.circuit.random import random_circuit
 from qiskit.quantum_info import SparsePauliOp
 from qiskit.primitives import Estimator
 
-from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put, save_result
+from quantum_serverless import QuantumServerless, distribute_task, get, put, save_result
 
 # 1. let's annotate out function to convert it
 # to function that can be executed remotely
-# using `run_qiskit_remote` decorator
-@run_qiskit_remote()
+# using `distribute_task` decorator
+@distribute_task()
 def my_function(circuit: QuantumCircuit, obs: SparsePauliOp):
     """Compute expectation value of an obs given a circuit"""
     return Estimator().run([circuit], [obs]).result().values

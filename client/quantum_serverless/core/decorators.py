@@ -27,9 +27,11 @@ Quantum serverless decorators
     put
     run_qiskit_remote
     get_refs_by_status
+    distribute_task
 """
 import functools
 import os
+import warnings
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List, Callable, Sequence
 
@@ -208,13 +210,36 @@ def run_qiskit_remote(
     target: Optional[Union[Dict[str, Any], Target]] = None,
     state: Optional[StateHandler] = None,
 ):
+    """(Deprecated) Wraps local function as remote executable function.
+    New function will return reference object when called.
+
+    Args:
+        target: target object or dictionary for requirements for node resources
+        state: state handler
+
+    Returns:
+        object reference
+    """
+    warnings.warn(
+        "Decorator `run_qiskit_remote` is deprecated. "
+        "Please, consider using `distribute_task` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return distribute_task(target, state)
+
+
+def distribute_task(
+    target: Optional[Union[Dict[str, Any], Target]] = None,
+    state: Optional[StateHandler] = None,
+):
     """Wraps local function as remote executable function.
     New function will return reference object when called.
 
     Example:
         >>> import quantum_serverless as qs
         >>>
-        >>> @run_qiskit_remote()
+        >>> @distribute_task()
         >>> def awesome_function(seed: int):
         >>>     return 42
         >>>
@@ -224,7 +249,6 @@ def run_qiskit_remote(
     Args:
         target: target object or dictionary for requirements for node resources
         state: state handler
-        events: events handler
 
     Returns:
         object reference
