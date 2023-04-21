@@ -47,7 +47,7 @@ gateway:
     rayHost: "http://RELEASE_NAME-kuberay-head-svc:8265"
     keycloak:
       clientId: "gateway-client"
-      url: "http://RELEASE_NAME-keycloak"
+      url: "http://RELEASE_NAME-keycloak:31059"
       realm: "quantumserverless"
       clientSecret: "secret"
     superuser:
@@ -301,7 +301,7 @@ loki:
     commonConfig:
       replication_factor: 1
     storage:
-      type: 'filesystem'
+      type: "filesystem"
     auth_enabled: false
   write:
     replicas: 0
