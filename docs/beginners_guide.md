@@ -43,12 +43,12 @@ from qiskit.circuit.random import random_circuit
 from qiskit.quantum_info import SparsePauliOp
 from qiskit.primitives import Estimator
 
-from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put
+from quantum_serverless import QuantumServerless, distribute_task, get, put
 
 # 1. let's annotate out function to convert it
 # to function that can be executed remotely
 # using `run_qiskit_remote` decorator
-@run_qiskit_remote()
+@distribute_task()
 def my_function(circuit: QuantumCircuit, obs: SparsePauliOp):
     return Estimator().run([circuit], [obs]).result().values
 
@@ -87,7 +87,7 @@ from quantum_serverless import QuantumServerless, GatewayProvider, Program
 provider = GatewayProvider(
     username="user", # this username has already been defined in local docker setup and does not need to be changed
     password="password123", # this password has already been defined in local docker setup and does not need to be changed
-    host="http://gateway:8000", # address of provider
+    host="http://gateway:8000", # address of provider ("http://localhost:8000" in local system command line)
 )
 serverless = QuantumServerless(provider)
 
