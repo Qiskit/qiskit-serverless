@@ -4,8 +4,6 @@ services:
     container_name: qs-jupyter
     image: qiskit/quantum-serverless-notebook:${VERSION:-0.0.7}-py39
     profiles: ["jupyter", "full"]
-    volumes:
-      - ./docs/getting_started:/home/jovyan/
     ports:
       - 8888:8888
     environment:
