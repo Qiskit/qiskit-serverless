@@ -6,8 +6,6 @@ services:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-notebook
     profiles: ["jupyter", "full"]
-    volumes:
-      - ./docs/getting_started:/home/jovyan/
     ports:
       - 8888:8888
     environment:
