@@ -31,7 +31,7 @@ import logging
 import os.path
 import tarfile
 from dataclasses import dataclass
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 import ray
 import requests
@@ -253,7 +253,9 @@ class Provider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run_program(self, program: Program) -> Job:
+    def run_program(
+        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+    ) -> Job:
         """Execute a program as a async job.
 
         Example:
@@ -267,6 +269,7 @@ class Provider(JsonSerializable):
             >>> # <Job | ...>
 
         Args:
+            arguments: arguments to run program with
             program: Program object
 
         Returns:
@@ -282,7 +285,7 @@ class Provider(JsonSerializable):
             )
             return None
 
-        return job_client.run_program(program)
+        return job_client.run_program(program, arguments)
 
 
 class KuberayProvider(Provider):
@@ -545,7 +548,9 @@ class GatewayProvider(Provider):
 
         return job
 
-    def run_program(self, program: Program) -> Job:
+    def run_program(
+        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+    ) -> Job:
         url = f"{self.host}/api/{self.version}/programs/run/"
         artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
 
@@ -560,9 +565,7 @@ class GatewayProvider(Provider):
                 data={
                     "title": program.title,
                     "entrypoint": program.entrypoint,
-                    "arguments": json.dumps(
-                        program.arguments or {}, cls=QiskitObjectsEncoder
-                    ),
+                    "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
                     "dependencies": json.dumps(program.dependencies or []),
                 },
                 files={"artifact": file},

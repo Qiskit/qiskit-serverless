@@ -31,6 +31,7 @@ import json
 import logging
 import os
 import tarfile
+import warnings
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,10 +43,7 @@ from quantum_serverless.core.constants import (
     REPO_HOST_KEY,
     REPO_PORT_KEY,
 )
-
 from quantum_serverless.exception import QuantumServerlessException
-from quantum_serverless.serializers.program_serializers import QiskitObjectsEncoder
-from quantum_serverless.utils.json import is_jsonable
 
 
 @dataclass
@@ -56,7 +54,7 @@ class Program:  # pylint: disable=too-many-instance-attributes
         title: program name
         entrypoint: is a script that will be executed as a job
             ex: job.py
-        arguments: arguments for entrypoint script
+        arguments: (deprecated) arguments for entrypoint script
         env_vars: env vars
         dependencies: list of python dependencies to execute a program
         working_dir: directory where entrypoint file is located
@@ -81,11 +79,13 @@ class Program:  # pylint: disable=too-many-instance-attributes
         return Program(**{k: v for k, v in data.items() if k in field_names})
 
     def __post_init__(self):
-        if self.arguments is not None and not is_jsonable(
-            self.arguments, cls=QiskitObjectsEncoder
-        ):
-            raise QuantumServerlessException(
-                "Arguments provided are not json serializable."
+        if self.arguments is not None:
+            warnings.warn(
+                "Passing `arguments` as constructor argument to `Program` is deprecated. "
+                "Please, consider passing `arguments` to `run_program` "
+                "method of `QuantumServerless` object.",
+                DeprecationWarning,
+                stacklevel=2,
             )
 
 

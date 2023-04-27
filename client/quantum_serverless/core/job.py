@@ -30,7 +30,7 @@ Quantum serverless job
 import json
 import logging
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from uuid import uuid4
 
 import ray.runtime_env
@@ -55,7 +55,9 @@ RuntimeEnv = ray.runtime_env.RuntimeEnv
 class BaseJobClient:
     """Base class for Job clients."""
 
-    def run_program(self, program: Program) -> "Job":
+    def run_program(
+        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+    ) -> "Job":
         """Runs program."""
         raise NotImplementedError
 
@@ -100,17 +102,18 @@ class RayJobClient(BaseJobClient):
     def result(self, job_id: str):
         return self.logs(job_id)
 
-    def run_program(self, program: Program):
-        arguments = ""
+    def run_program(self, program: Program, arguments: Optional[Dict[str, Any]] = None):
+        arguments = arguments or {}
+        arguments_string = ""
         if program.arguments is not None:
             arg_list = []
-            for key, value in program.arguments.items():
+            for key, value in arguments.items():
                 if isinstance(value, dict):
                     arg_list.append(f"--{key}='{json.dumps(value)}'")
                 else:
                     arg_list.append(f"--{key}={value}")
-            arguments = " ".join(arg_list)
-        entrypoint = f"python {program.entrypoint} {arguments}"
+            arguments_string = " ".join(arg_list)
+        entrypoint = f"python {program.entrypoint} {arguments_string}"
 
         # set program name so OT can use it as parent span name
         env_vars = {

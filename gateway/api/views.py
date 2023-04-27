@@ -99,6 +99,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
             job = Job(
                 program=program,
+                arguments=program.arguments,
                 author=request.user,
                 compute_resource=compute_resource,
             )
