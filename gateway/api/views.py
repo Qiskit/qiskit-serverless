@@ -175,6 +175,19 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         ray_client = JobSubmissionClient(job.compute_resource.host)
         return Response({"logs": ray_client.get_job_logs(job.ray_job_id)})
 
+    @action(methods=["POST"], detail=True)
+    def stop(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
+        """Stops job"""
+        job = self.get_object()
+        ray_client = JobSubmissionClient(job.compute_resource.host)
+        was_running = ray_client.stop_job(job.ray_job_id)
+        message = (
+            "Job has been stopped successfully."
+            if not was_running
+            else "Job was already not running."
+        )
+        return Response({"message": message})
+
 
 class KeycloakLogin(SocialLoginView):
     """KeycloakLogin."""

@@ -30,6 +30,7 @@ Quantum serverless job
 import json
 import logging
 import os
+import tarfile
 from typing import Dict, Any, Optional
 from uuid import uuid4
 
@@ -47,6 +48,8 @@ from quantum_serverless.core.constants import (
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 from quantum_serverless.core.program import Program
+from quantum_serverless.exception import QuantumServerlessException
+from quantum_serverless.serializers.program_serializers import QiskitObjectsEncoder
 from quantum_serverless.utils.json import is_jsonable
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
@@ -148,6 +151,43 @@ class GatewayJobClient(BaseJobClient):
         self.version = version
         self._token = token
 
+    def run_program(
+        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+    ) -> "Job":
+        url = f"{self.host}/api/{self.version}/programs/run/"
+        artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+
+        with tarfile.open(artifact_file_path, "w") as tar:
+            for filename in os.listdir(program.working_dir):
+                fpath = os.path.join(program.working_dir, filename)
+                tar.add(fpath, arcname=filename)
+
+        with open(artifact_file_path, "rb") as file:
+            response = requests.post(
+                url=url,
+                data={
+                    "title": program.title,
+                    "entrypoint": program.entrypoint,
+                    "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
+                    "dependencies": json.dumps(program.dependencies or []),
+                },
+                files={"artifact": file},
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
+            )
+            if not response.ok:
+                raise QuantumServerlessException(
+                    f"Something went wrong with program execution. {response.text}"
+                )
+
+            json_response = json.loads(response.text)
+            job_id = json_response.get("id")
+
+        if os.path.exists(artifact_file_path):
+            os.remove(artifact_file_path)
+
+        return Job(job_id, job_client=self)
+
     def status(self, job_id: str):
         default_status = "Unknown"
         status = default_status
@@ -165,7 +205,19 @@ class GatewayJobClient(BaseJobClient):
         return status
 
     def stop(self, job_id: str):
-        raise NotImplementedError
+        message = ""
+        response = requests.post(
+            f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
+            headers={"Authorization": f"Bearer {self._token}"},
+            timeout=REQUESTS_TIMEOUT,
+        )
+        if response.ok:
+            message = json.loads(response.text).get("message", None)
+        else:
+            logging.warning(
+                "Something went wrong during job stopping. %s", response.text
+            )
+        return message
 
     def logs(self, job_id: str):
         result = None
