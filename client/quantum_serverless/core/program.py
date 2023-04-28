@@ -81,7 +81,8 @@ class Program:  # pylint: disable=too-many-instance-attributes
     def __post_init__(self):
         if self.arguments is not None:
             warnings.warn(
-                "Passing `arguments` as constructor argument to `Program` is deprecated. "
+                "Passing `arguments` as constructor argument to `Program` is deprecated "
+                "and will be removed in v0.2. "
                 "Please, consider passing `arguments` to `run_program` "
                 "method of `QuantumServerless` object.",
                 DeprecationWarning,
