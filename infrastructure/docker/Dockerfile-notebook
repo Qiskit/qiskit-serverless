@@ -8,6 +8,7 @@ USER $NB_UID
 
 COPY --chown=$NB_UID:$NB_UID ./client ./qs
 RUN cd ./qs && pip install .
+RUN pip install ipywidgets
 RUN cd ../
 RUN rm -r ./qs
 
