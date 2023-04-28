@@ -91,18 +91,17 @@ a program. Affects backends, circuits and observables. - <code class="docutils l
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
     <span class="n">title</span><span class="o">=</span><span class="s2">&quot;benchmark_program&quot;</span><span class="p">,</span>
     <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;benchmark.py&quot;</span><span class="p">,</span>
-    <span class="n">arguments</span><span class="o">=</span><span class="p">{</span>
-        <span class="s2">&quot;n_qubits&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
-        <span class="s2">&quot;n_entries&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
-        <span class="s2">&quot;depth_of_recursion&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
-        <span class="s2">&quot;n_backends&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
-        <span class="s2">&quot;n_graphs&quot;</span><span class="p">:</span> <span class="mi">1</span>
-    <span class="p">},</span>
     <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files&quot;</span><span class="p">,</span>
     <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Benchmark program to test compute resources.&quot;</span>
 <span class="p">)</span>
 
-<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run_program</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run_program</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span>
+    <span class="s2">&quot;n_qubits&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;n_entries&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;depth_of_recursion&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="s2">&quot;n_backends&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="s2">&quot;n_graphs&quot;</span><span class="p">:</span> <span class="mi">1</span>
+<span class="p">})</span>
 <span class="n">job</span>
 </pre></div>
 </div>

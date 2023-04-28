@@ -39,7 +39,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 15,
+   "execution_count": 43,
    "id": "81dd7807-7180-4b87-bbf9-832b7cf29d69",
    "metadata": {},
    "outputs": [],
@@ -49,7 +49,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 16,
+   "execution_count": 68,
    "id": "acdec789-4967-48ee-8f6c-8d2b0ff57e91",
    "metadata": {},
    "outputs": [
@@ -59,7 +59,7 @@
        "<QuantumServerless | providers [gateway-provider]>"
       ]
      },
-     "execution_count": 16,
+     "execution_count": 68,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -90,17 +90,17 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 17,
+   "execution_count": 82,
    "id": "d51df836-3f22-467c-b637-5803145d5d8a",
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "<Job | aae3533f-ed0d-4e93-9247-4705d476ee97>"
+       "<Job | 72c73473-543a-436f-8920-251709ebc829>"
       ]
      },
-     "execution_count": 17,
+     "execution_count": 82,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -128,7 +128,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 19,
+   "execution_count": 85,
    "id": "cc7ccea6-bbae-4184-ba7f-67b6c20a0b0b",
    "metadata": {},
    "outputs": [
@@ -138,7 +138,7 @@
        "'SUCCEEDED'"
       ]
      },
-     "execution_count": 19,
+     "execution_count": 85,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -149,7 +149,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 14,
+   "execution_count": 86,
    "id": "ca76abfa-2ff5-425b-a225-058d91348e8b",
    "metadata": {},
    "outputs": [
@@ -159,7 +159,7 @@
        "'Quasi distribution: {0: 0.4999999999999999, 3: 0.4999999999999999}\\n'"
       ]
      },
-     "execution_count": 14,
+     "execution_count": 86,
      "metadata": {},
      "output_type": "execute_result"
     }
