@@ -73,6 +73,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                 existing_programs = existing_programs.first()
                 existing_programs.arguments = program.arguments
                 existing_programs.dependencies = program.dependencies
+                existing_programs.entrypoint = program.entrypoint
                 program = existing_programs
             program.artifact = request.FILES.get("artifact")
             program.author = request.user

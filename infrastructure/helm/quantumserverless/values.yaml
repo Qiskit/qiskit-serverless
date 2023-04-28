@@ -116,7 +116,7 @@ kuberay-operator:
   fullnameOverride: "kuberay-operator"
   image:
     repository: kuberay/operator
-    tag: 0.5.0
+    tag: v0.5.0
     pullPolicy: IfNotPresent
   rbacEnable: true
   ## Install Default RBAC roles and bindings
