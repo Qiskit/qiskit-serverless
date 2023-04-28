@@ -83,7 +83,7 @@
 <p>Now we know how to move local object to remote compute resource. Next we need to do something with it. For this we will have remote functions.</p>
 <p><strong>Functions</strong></p>
 <p>As a second step we need to know how to transform our local function into remote one.</p>
-<p>In order to do that you need to annotate function with <code class="docutils literal notranslate"><span class="pre">run_qiskit_remote</span></code> decorator. This will turn your function into remote executable.</p>
+<p>In order to do that you need to annotate function with <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator. This will turn your function into remote executable.</p>
 <p><img alt="functions diagram" src="https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/tutorials/images/diagrams_function.png" /></p>
 <p>All you need to do now is call this function and it will be executed as a remote procedure automatically.</p>
 <p>If you run N instances of this function in parallel you need just call it N times in a loop. The result of the following code will be a list of references to execution results.</p>
@@ -207,13 +207,13 @@
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span><span class="p">,</span> <span class="n">GatewayProvider</span>
 
 <span class="n">gateway_provider</span> <span class="o">=</span> <span class="n">GatewayProvider</span><span class="p">(</span>
-    <span class="n">username</span><span class="o">=</span><span class="s2">&quot;john&quot;</span><span class="p">,</span>
+    <span class="n">username</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span>
     <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password123&quot;</span><span class="p">,</span>
-    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://gateway:8000&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;brnchmark_program&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;brnchmark_program&quot;</span><span class="p">,</span>
     <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;benchmark.py&quot;</span><span class="p">,</span>
     <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
     <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Benchmark program&quot;</span>
