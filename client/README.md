@@ -7,69 +7,119 @@
 
 # Quantum Serverless client
 
-Client part of quantum serverless project. 
-Installable python library to communicate with provisioned infrastructure.
+![diagram](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/images/qs_diagram.png)
 
-### Table of Contents
-
-1. [Installation](#installation)
-2. [Usage](#usage)
-
-----------------------------------------------------------------------------------------------------
-
-### Installation
+# Installation
 
 ```shell
 pip install quantum_serverless
 ```
 
-or local installation from source
+## Documentation
 
-```shell
-pip install -e .
-```
+Full docs can be found at https://qiskit-extensions.github.io/quantum-serverless/
 
-----------------------------------------------------------------------------------------------------
+## Usage
 
-
-### Usage
+### Step 1: write program
 
 ```python
-from qiskit import QuantumCircuit
-from qiskit.circuit.random import random_circuit
-from qiskit.quantum_info import SparsePauliOp
-from qiskit_ibm_runtime import Estimator
+  from quantum_serverless import distribute_task, get, get_arguments, save_result
 
-from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put
+   from qiskit import QuantumCircuit
+   from qiskit.circuit.random import random_circuit
+   from qiskit.primitives import Sampler
+   from qiskit.quantum_info import SparsePauliOp
 
-# 1. let's annotate out function to convert it
-# to function that can be executed remotely
-# using `run_qiskit_remote` decorator
-@run_qiskit_remote()
-def my_function(circuit: QuantumCircuit, obs: SparsePauliOp):
-	return Estimator().run([circuit], [obs]).result().values
+   # 1. let's annotate out function to convert it
+   # to distributed async function
+   # using `distribute_task` decorator
+   @distribute_task()
+   def distributed_sample(circuit: QuantumCircuit):
+       """Calculates quasi dists as a distributed function."""
+       return Sampler().run(circuit).result().quasi_dists[0]
 
 
-# 2. Next let's create out serverless object to control
-# where our remote function will be executed
-serverless = QuantumServerless()
+   # 2. our program will have one arguments
+   # `circuits` which will store list of circuits
+   # we want to sample in parallel.
+   # Let's use `get_arguments` funciton
+   # to access all program arguments
+   arguments = get_arguments()
+   circuits = arguments.get("circuits", [])
 
-circuits = [random_circuit(2, 2) for _ in range(3)]
+   # 3. run our functions in a loop
+   # and get execution references back
+   function_references = [
+       distributed_sample(circuit)
+       for circuit in circuits
+   ]
 
-# 3. create serverless context
-with serverless:
-	# 4. let's put some shared objects into remote storage that will be shared among all executions
-	obs_ref = put(SparsePauliOp(["ZZ"]))
+   # 4. `get` function will collect all
+   # results from distributed functions
+   collected_results = get(function_references)
 
-    # 4. run our function and get back reference to it
-    # as now our function it remote one
-	function_reference = my_function(circuits[0], obs_ref)
+   # 5. `save_result` will save results of program execution
+   # so we can access it later
+   save_result({
+       "quasi_dists": collected_results
+   })
+```
+ 
 
-    # 4.1 or we can run N of them in parallel (for all circuits)
-	function_references = [my_function(circ, obs_ref) for circ in circuits]
+### Step 2: run program
 
-	# 5. to get results back from reference
-    # we need to call `get` on function reference
-	print("Single execution:", get(function_reference))
-	print("N parallel executions:", get(function_references))
+```python
+   from quantum_serverless import QuantumServerless, GatewayProvider
+   from qiskit.circuit.random import random_circuit
+
+   serverless = QuantumServerless(GatewayProvider(
+       username="<USERNAME>", 
+       password="<PASSWORD>",
+       host="<GATEWAY_ADDRESS>",
+   ))
+
+   # create program
+   program = Program(
+       title="Quickstart",
+       entrypoint="program.py",
+       working_dir="./src"
+   )
+
+   # create inputs to our program
+   circuits = []
+   for _ in range(3):
+       circuit = random_circuit(3, 2)
+       circuit.measure_all()
+       circuits.append(circuit)
+
+   # run program
+   job = serverless.run_program(
+       program=program,
+       arguments={
+           "circuits": circuits
+       }
+   )
+```
+
+### Step 3: monitor job status
+
+```python
+   job.status()
+   # <JobStatus.SUCCEEDED: 'SUCCEEDED'>
+    
+   # or get logs
+   job.logs()
+```
+
+
+### Step 4: get results
+
+```python
+   job.result()
+   # {"quasi_dists": [
+   #  {"0": 0.25, "1": 0.25, "2": 0.2499999999999999, "3": 0.2499999999999999},
+   #  {"0": 0.1512273969460124, "1": 0.0400459556274728, "6": 0.1693190975212014, "7": 0.6394075499053132},
+   #  {"0": 0.25, "1": 0.25, "4": 0.2499999999999999, "5": 0.2499999999999999}
+   # ]}
 ```

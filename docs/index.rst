@@ -2,9 +2,23 @@
 Quantum serverless
 ##################
 
-Quantum Serverless is a programming model for leveraging quantum and classical resources
+.. image:: /images/animation.gif
 
-.. image:: /images/qs_diagram.png
+Quantum Serverless is a programming model for leveraging quantum and classical resources.
+
+When to use quantum serverless? If you need to perform complex, long-running tasks on a regular basis.
+
+Here are some reasons why:
+
+1. `Remote scheduling`: When you have long running scripts/jobs that you want to run somewhere and get back results later.
+Quantum serverless provides `asynchronous remote job execution`.
+
+2. `Scalability`: Quantum Serverless allows users to easily scale their jobs by running them in parallel across multiple machines or general compute resources.
+This can significantly improve performance and reduce the time it takes to complete a job.
+So, when you hit resource limits of your local machine Quantum Serverless provides `horizontal scalability` of quantum and classical workloads.
+
+3. `Workflow management`: Quantum Serverless provides a way to define and manage complex workflows of interdependent tasks,
+making it easy to express complex problems in efficient modular way.
 
 The source code to the project is available `on GitHub <https://github.com/Qiskit-Extensions/quantum-serverless>`_.
 
@@ -17,7 +31,7 @@ Step 0: install package
 .. code-block::
    :caption: pip install
 
-      pip install quantum_serverless
+      pip install quantum_serverless==0.0.7
 
 
 Step 1: run infrastructure
@@ -25,84 +39,112 @@ Step 1: run infrastructure
 .. code-block::
    :caption: run docker compose from a root of the project
 
-      docker-compose pull
-      docker-compose up
+      VERSION=0.0.7 docker-compose --profile full up
+
 
 Step 2: write program
 
 .. code-block:: python
    :caption: program.py
 
+   from quantum_serverless import distribute_task, get, get_arguments, save_result
+
    from qiskit import QuantumCircuit
    from qiskit.circuit.random import random_circuit
+   from qiskit.primitives import Sampler
    from qiskit.quantum_info import SparsePauliOp
-   from qiskit.primitives import Estimator
-
-   from quantum_serverless import QuantumServerless, run_qiskit_remote, get, put
 
    # 1. let's annotate out function to convert it
-   # to function that can be executed remotely
-   # using `run_qiskit_remote` decorator
-   @run_qiskit_remote()
-   def my_function(circuit: QuantumCircuit, obs: SparsePauliOp):
-       return Estimator().run([circuit], [obs]).result().values
+   # to distributed async function
+   # using `distribute_task` decorator
+   @distribute_task()
+   def distributed_sample(circuit: QuantumCircuit):
+       """Calculates quasi dists as a distributed function."""
+       return Sampler().run(circuit).result().quasi_dists[0]
 
 
-   # 2. Next let's create out serverless object to control
-   # where our remote function will be executed
-   serverless = QuantumServerless()
+   # 2. our program will have one arguments
+   # `circuits` which will store list of circuits
+   # we want to sample in parallel.
+   # Let's use `get_arguments` funciton
+   # to access all program arguments
+   arguments = get_arguments()
+   circuits = arguments.get("circuits", [])
 
-   circuits = [random_circuit(2, 2) for _ in range(3)]
+   # 3. run our functions in a loop
+   # and get execution references back
+   function_references = [
+       distributed_sample(circuit)
+       for circuit in circuits
+   ]
 
-   # 3. create serverless context
-   with serverless.context():
-       # 4. let's put some shared objects into remote storage that will be shared among all executions
-       obs_ref = put(SparsePauliOp(["ZZ"]))
+   # 4. `get` function will collect all
+   # results from distributed functions
+   collected_results = get(function_references)
 
-       # 4. run our function and get back reference to it
-       # as now our function it remote one
-       function_reference = my_function(circuits[0], obs_ref)
-
-       # 4.1 or we can run N of them in parallel (for all circuits)
-       function_references = [my_function(circ, obs_ref) for circ in circuits]
-
-       # 5. to get results back from reference
-       # we need to call `get` on function reference
-       print("Single execution:", get(function_reference))
-       print("N parallel executions:", get(function_references))
+   # 5. `save_result` will save results of program execution
+   # so we can access it later
+   save_result({
+       "quasi_dists": collected_results
+   })
 
 Step 3: run program
 
 .. code-block:: python
    :caption: in jupyter notebook
 
-   from quantum_serverless import QuantumServerless, GatewayProvider, Program
+   from quantum_serverless import QuantumServerless, GatewayProvider
+   from qiskit.circuit.random import random_circuit
 
-   provider = GatewayProvider(
+   serverless = QuantumServerless(GatewayProvider(
        username="user", # this username has already been defined in local docker setup and does not need to be changed
        password="password123", # this password has already been defined in local docker setup and does not need to be changed
        host="http://gateway:8000", # address of provider
-   )
-   serverless = QuantumServerless(provider)
+   ))
 
-   # create out program
+   # create program
    program = Program(
-       name="my_program",
-       entrypoint="program.py", # set entrypoint as out program.py file
-       working_dir="./"
+       title="Quickstart",
+       entrypoint="program.py",
+       working_dir="./" # or where your program file is located
    )
 
-   job = serverless.run_program(program)
+   # create inputs to our program
+   circuits = []
+   for _ in range(3):
+       circuit = random_circuit(3, 2)
+       circuit.measure_all()
+       circuits.append(circuit)
+
+   # run program
+   job = serverless.run_program(
+       program=program,
+       arguments={
+           "circuits": circuits
+       }
+   )
+
+Step 4: monitor job status
+
+.. code-block:: python
+   :caption: in jupyter notebook
 
    job.status()
    # <JobStatus.SUCCEEDED: 'SUCCEEDED'>
 
    job.logs()
-   # Single execution: [1.]
-   # N parallel executions: [array([1.]), array([0.]), array([-0.28650496])]
+
+Step 5: get results
+
+.. code-block:: python
+   :caption: in jupyter notebook
 
    job.result()
-   # '{"status": "ok", "single": [1.0], "parallel_result": [[1.0], [0.9740035726118753], [1.0]]}'
+   # {"quasi_dists": [
+   #  {"0": 0.25, "1": 0.25, "2": 0.2499999999999999, "3": 0.2499999999999999},
+   #  {"0": 0.1512273969460124, "1": 0.0400459556274728, "6": 0.1693190975212014, "7": 0.6394075499053132},
+   #  {"0": 0.25, "1": 0.25, "4": 0.2499999999999999, "5": 0.2499999999999999}
+   # ]}
 
 ------------
 
