@@ -12,6 +12,8 @@ RUN pip install ipywidgets
 RUN cd ../
 RUN rm -r ./qs
 
+RUN git clone https://github.com/Qiskit-Extensions/circuit-knitting-toolbox.git ckt && cd ckt && pip install . && cd ../ && rm -r ./ckt
+
 COPY --chown=$NB_UID:$NB_UID ./docs/tutorials/ ./serverless/tutorials/
 COPY --chown=$NB_UID:$NB_UID ./docs/guides/ ./serverless/guides/
 COPY --chown=$NB_UID:$NB_UID ./docs/getting_started/ ./serverless/getting_started/
