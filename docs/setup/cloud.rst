@@ -1,6 +1,6 @@
-===========
-Cloud setup
-===========
+==========================
+Cloud infrastructure setup
+==========================
 
 
 ``Quantum Serverless`` is a project that contains different resources. One of the most important ones is the ``client``
