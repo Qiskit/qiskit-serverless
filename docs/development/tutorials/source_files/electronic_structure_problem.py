@@ -226,7 +226,3 @@ if __name__ == '__main__':
     print("Shifts: ", [e[1] for e in energies])
     print("Energy + shift: ", [e[0] + e[1] for e in energies])
 
-    state_handler.set("results", {
-        "energies": [e[0] for e in energies],
-        "shifts": [e[1] for e in energies]
-    })

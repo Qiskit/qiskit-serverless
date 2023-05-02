@@ -1,6 +1,7 @@
-####################################
-Guide: multi cloud deployment
-####################################
+===========
+Cloud setup
+===========
+
 
 ``Quantum Serverless`` is a project that contains different resources. One of the most important ones is the ``client``
 that you can connect with local and non-local resources.
