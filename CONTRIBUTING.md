@@ -13,8 +13,10 @@ Following these guidelines communicates you value the time and effort of the cor
 - [Before you start](#before-you-start)
 - [Opening issues](#opening-issues)
 - [Contributing code](#contributing-code)
+  - [Tools](#tools)
   - [Deciding what to work on](#deciding-what-to-work-on)
-  - [Setup](#setup)
+  - [Clone the repo](#clone-the-repo)
+  - [Development environment](#development-environment)
   - [Assigning yourself](#assigning-yourself)
   - [Working on an issue](#working-on-an-issue)
   - [Adding tests](#adding-tests)
@@ -62,6 +64,16 @@ if needed.
 
 ## Contributing code
 
+### Tools
+
+You'll need to install these tools on your development environment:
+
+1. [python](https://www.python.org/): the language quantum-serverless is written in
+1. [git](https://git-scm.com/): for source control
+1. [docker](https://docs.docker.com/engine/install/) or [podman](https://podman.io/): for building dev environment
+
+Note: Installing the `pip` and `venv` python libraries will also be useful
+
 
 ### Deciding what to work on
 
@@ -73,7 +85,7 @@ workflow or our codebase, feel free to view issues tagged with the
 label.
 
 
-### Setup
+### Clone the repo
 
 So you decided to get your hands dirty and start working on a patch? Then you
 need to know that the project follows the
@@ -100,12 +112,27 @@ As a core contributor due to some access limitations between forks and the head 
 [clone](https://support.atlassian.com/bitbucket-cloud/docs/clone-a-repository/) the repository
 instead of forking it.
 
+### Development environment
+
 This repository contains several projects with different technologies. Depending on the project that you selected
 you will run:
-- `pip install -r requirements.txt requirements-dev.txt` for python projects.
+- `pip install -r requirements.txt requirements-dev.txt` for python projects (strongly consider using a [virtual environment](https://docs.python.org/3/library/venv.html)!).
 - `helm dependency build` for helm.
 -  `terraform init` for terraform.
 
+To set up a local development environment for the quantum-serverless components (including the gateway, repository, ray nodes, etc.) using the latest changes you've made, use `docker-compose` or `podman-compose`.
+
+To build the images, run the following command from the root directory:
+
+```docker-compose -f docker-compose-dev.yml build```
+
+And to deploy your code, run the following command:
+
+```docker-compose -f docker-compose-dev.yml up```
+
+If you wish to rebuild only a specific component (for example, the `gateway`), you can do so as follows:
+
+```docker-compose -f docker-compose-dev.yml build gateway```
 
 ### Assigning yourself
 
