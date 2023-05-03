@@ -1,6 +1,7 @@
 # compose config for running images based on local files
 services:
   jupyter:
+    platform: linux/amd64
     container_name: qs-jupyter
     build:
       context: ./
@@ -13,6 +14,7 @@ services:
     networks:
       - safe-tier
   ray-head:
+    platform: linux/amd64
     container_name: ray-head
     build:
       context: ./
@@ -31,6 +33,7 @@ services:
     networks:
       - safe-tier
   jaeger:
+    platform: linux/amd64
     image: jaegertracing/all-in-one:latest
     profiles: [ "full" ]
     environment:
@@ -47,6 +50,7 @@ services:
     networks:
       - safe-tier
   postgres:
+    platform: linux/amd64
     image: postgres
     environment:
       POSTGRES_DB: testkeycloakdb
@@ -57,6 +61,7 @@ services:
     restart:
       always
   keycloak:
+    platform: linux/amd64
     container_name: keycloak
     image: bitnami/keycloak:20.0.5-debian-11-r4
     volumes:
@@ -80,6 +85,7 @@ services:
     restart:
       always
   gateway:
+    platform: linux/amd64
     container_name: gateway
     build:
       context: ./
@@ -103,6 +109,7 @@ services:
     depends_on:
       - keycloak
   repository-server:
+    platform: linux/amd64
     container_name: repository-server
     build:
       context: ./
@@ -118,11 +125,13 @@ services:
     networks:
       - safe-tier
   prometheus:
+    platform: linux/amd64
     image: prom/prometheus:v2.43.0
     profiles: [ "full" ]
     ports:
       - 9000:9090
   loki:
+    platform: linux/amd64
     image: grafana/loki:2.7.5
     profiles: [ "full" ]
     ports:
@@ -131,6 +140,7 @@ services:
     networks:
       - safe-tier
   promtail:
+    platform: linux/amd64
     image: grafana/promtail:2.7.4
     profiles: [ "full" ]
     volumes:
@@ -139,6 +149,7 @@ services:
     networks:
       - safe-tier
   grafana:
+    platform: linux/amd64
     image: grafana/grafana:latest
     profiles: [ "full" ]
     ports:

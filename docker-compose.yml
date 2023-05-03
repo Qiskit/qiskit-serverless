@@ -1,6 +1,7 @@
 # compose config on latest release builds
 services:
   jupyter:
+    platform: linux/amd64
     container_name: qs-jupyter
     image: qiskit/quantum-serverless-notebook:${VERSION:-0.0.7}-py39
     profiles: ["jupyter", "full"]
@@ -11,6 +12,7 @@ services:
     networks:
       - safe-tier
   ray-head:
+    platform: linux/amd64    
     container_name: ray-head
     image: qiskit/quantum-serverless-ray-node:${VERSION:-0.0.7}-py39
     entrypoint: [
@@ -27,6 +29,7 @@ services:
     networks:
       - safe-tier
   jaeger:
+    platform: linux/amd64    
     image: jaegertracing/all-in-one:latest
     profiles: [ "full" ]
     environment:
@@ -43,6 +46,7 @@ services:
     networks:
       - safe-tier
   postgres:
+    platform: linux/amd64
     image: postgres
     environment:
       POSTGRES_DB: testkeycloakdb
@@ -53,6 +57,7 @@ services:
     restart:
       always
   keycloak:
+    platform: linux/amd64
     container_name: keycloak
     image: bitnami/keycloak:20.0.5-debian-11-r4
     volumes:
@@ -76,6 +81,7 @@ services:
     restart:
       always
   gateway:
+    platform: linux/amd64
     container_name: gateway
     image: docker.io/qiskit/quantum-serverless-gateway:${VERSION:-0.0.7}
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
@@ -97,6 +103,7 @@ services:
     depends_on:
       - keycloak
   repository-server:
+    platform: linux/amd64
     container_name: repository-server
     image: docker.io/qiskit/quantum-repository-server:${VERSION:-0.0.7}
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
@@ -110,11 +117,13 @@ services:
     networks:
       - safe-tier
   prometheus:
+    platform: linux/amd64
     image: prom/prometheus:v2.43.0
     profiles: [ "full" ]
     ports:
       - 9000:9090
   loki:
+    platform: linux/amd64
     image: grafana/loki:2.7.5
     profiles: [ "full" ]
     ports:
@@ -123,6 +132,7 @@ services:
     networks:
       - safe-tier
   promtail:
+    platform: linux/amd64
     image: grafana/promtail:2.7.5
     profiles: [ "full" ]
     volumes:
@@ -131,6 +141,7 @@ services:
     networks:
       - safe-tier
   grafana:
+    platform: linux/amd64
     image: grafana/grafana:latest
     profiles: [ "full" ]
     ports:
