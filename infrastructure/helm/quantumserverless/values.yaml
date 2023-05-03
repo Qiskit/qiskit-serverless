@@ -239,6 +239,7 @@ kuberay-apiserver:
 keycloakEnable: true
 keycloakClientSecret: CLIENTSECRET-CHANGEME
 keycloakApiServerSecret: APISERVERSECRET-CHANGEME
+gatewayClientSecret: GATEWAYSECRET-CHANGEME
 grafanaClientSecret: GRAFANASECRET-CHANGEME
 keycloakAdminID: admin
 keycloakAdminPassword: passw0rd

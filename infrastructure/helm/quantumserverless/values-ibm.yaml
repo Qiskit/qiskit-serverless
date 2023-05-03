@@ -250,6 +250,7 @@ keycloakEnable: true
 keycloakClientSecret: CLIENTSECRET-CHANGEME
 keycloakApiServerSecret: APISERVERSECRET-CHANGEME
 grafanaClientSecret: GRAFANASECRET-CHANGEME
+gatewayClientSecret: GATEWAYSECRET-CHANGEME
 keycloakAdminID: admin
 keycloakAdminPassword: passw0rd
 keycloakUserID: user
