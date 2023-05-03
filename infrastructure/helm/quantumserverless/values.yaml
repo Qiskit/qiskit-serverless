@@ -112,37 +112,10 @@ ray-cluster:
 
 kuberayOperatorEnable: true
 kuberay-operator:
-  nameOverride: "kuberay-operator"
-  fullnameOverride: "kuberay-operator"
   image:
     repository: kuberay/operator
     tag: v0.5.0
     pullPolicy: IfNotPresent
-  rbacEnable: true
-  ## Install Default RBAC roles and bindings
-  rbac:
-    create: true
-    apiVersion: v1
-  serviceAccount:
-    # Specifies whether a service account should be created
-    create: true
-    # The name of the service account to use.
-    # If not set and create is true, a name is generated using the fullname template
-    name: "kuberay-operator"
-  service:
-    type: ClusterIP
-    port: 8080
-  livenessProbe:
-    initialDelaySeconds: 10
-    periodSeconds: 5
-    failureThreshold: 5
-  readinessProbe:
-    initialDelaySeconds: 10
-    periodSeconds: 5
-    failureThreshold: 5
-  createCustomResource: true
-  batchScheduler:
-    enabled: false
 
 # ===================
 # Kuberay API Server
