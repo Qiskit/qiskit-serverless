@@ -191,28 +191,10 @@ kuberay-apiserver:
     repository: kuberay/apiserver
     tag: v0.5.0
     pullPolicy: IfNotPresent
-  rbacEnable: true
-  ## Install Default RBAC roles and bindings
-  rbac:
-    create: true
-    apiVersion: v1
-  serviceAccount:
-    # Specifies whether a service account should be created
-    create: true
-    # The name of the service account to use.
-    # If not set and create is true, a name is generated using the fullname template
-    name: "kuberay-apiserver"
   containerPort:
     - containerPort: 8888
     - containerPort: 8887
     - containerPort: 4180
-  resources:
-    limits:
-      cpu: 500m
-      memory: 500Mi
-    requests:
-      cpu: 300m
-      memory: 300Mi
   service:
     type: NodePort
     ports:
@@ -228,9 +210,6 @@ kuberay-apiserver:
         port: 4180
         targetPort: 4180
         nodePort: 30634
-  ingress:
-    enabled: false
-  replicaCount: 1
 
 # ===================
 # Keycloak 
