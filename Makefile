@@ -4,7 +4,6 @@
 
 version=0.0.7
 repository=qiskit
-arch=$(shell uname -p)
 
 notebookImageName=$(repository)/quantum-serverless-notebook
 rayNodeImageName=$(repository)/quantum-serverless-ray-node
@@ -21,20 +20,16 @@ build-all: build-notebook build-ray-node build-gateway build-repository-server
 push-all: push-notebook push-ray-node push-gateway push-repository-server
 
 build-notebook:
-	docker build -t $(notebookImageName):$(version) -f ./infrastructure/docker/Dockerfile-notebook .
+	docker build -t $(notebookImageName):$(version) -f ./infrastructure/docker/Dockerfile-notebook --platform=linux/amd64 .
 
 build-ray-node:
-ifeq ($(arch),arm)
-	docker build -t $(rayNodeImageName):$(version) -f ./infrastructure/docker/Dockerfile-ray-qiskit-arm64 .
-else
-	docker build -t $(rayNodeImageName):$(version) -f ./infrastructure/docker/Dockerfile-ray-qiskit .
-endif
+	docker build -t $(rayNodeImageName):$(version) -f ./infrastructure/docker/Dockerfile-ray-qiskit --platform=linux/amd64 .
 
 build-gateway:
-	docker build -t $(gatewayImageName):$(version) -f ./infrastructure/docker/Dockerfile-gateway .
+	docker build -t $(gatewayImageName):$(version) -f ./infrastructure/docker/Dockerfile-gateway --platform=linux/amd64 .
 
 build-repository-server:
-	docker build -t $(repositoryServerImageName):$(version) -f ./infrastructure/docker/Dockerfile-repository-server .
+	docker build -t $(repositoryServerImageName):$(version) -f ./infrastructure/docker/Dockerfile-repository-server --platform=linux/amd64 .
 
 push-notebook:
 	docker push $(notebookImageName):$(version)
