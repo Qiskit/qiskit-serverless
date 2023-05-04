@@ -10,6 +10,4 @@ redis>=4.5.4
 # opentelemetry
 opentelemetry-api>=1.15.0
 opentelemetry-sdk>=1.15.0
-opentelemetry-exporter-jaeger>=1.15.0
-opentelemetry-exporter-jaeger-proto-grpc>=1.15.0
-opentelemetry-exporter-jaeger-thrift>=1.15.0
+opentelemetry-exporter-otlp-proto-grpc>=1.15.0
