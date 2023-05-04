@@ -243,7 +243,7 @@ class GatewayJobClient(BaseJobClient):
         )
         if response.ok:
             json_result = json.loads(response.text).get("result", "{}")
-            result = json.loads(json_result)
+            result = json.loads(json_result or "{}")
         else:
             logging.warning(
                 "Something went wrong during job result fetching. %s", response.text

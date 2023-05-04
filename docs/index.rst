@@ -36,17 +36,12 @@ The source code to the project is available `on GitHub <https://github.com/Qiski
 .. toctree::
   :maxdepth: 2
 
-  Concepts <concepts/index>
-
-.. toctree::
-  :maxdepth: 2
-
   Development <development/index>
 
 .. toctree::
   :maxdepth: 2
 
-  Setup <setup/index>
+  Deployment <deployment/index>
 
 .. toctree::
   :maxdepth: 1
