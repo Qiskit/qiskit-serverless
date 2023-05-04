@@ -2,9 +2,9 @@
 Quantum serverless
 ##################
 
-.. image:: /images/animation.gif
-
 Quantum Serverless is a programming model for leveraging quantum and classical resources.
+
+.. image:: /images/animation.gif
 
 When to use quantum serverless? If you need to perform complex, long-running tasks on a regular basis.
 
@@ -17,11 +17,6 @@ So, when you hit resource limits of your local machine Quantum Serverless provid
 
 2. `Remote scheduling`: When you have long running scripts/jobs that you want to run somewhere and get back results later.
 Quantum serverless provides `asynchronous remote job execution`.
-
-
-The source code to the project is available `on GitHub <https://github.com/Qiskit-Extensions/quantum-serverless>`_.
-
-------------
 
 .. toctree::
   :maxdepth: 2
@@ -48,7 +43,12 @@ The source code to the project is available `on GitHub <https://github.com/Qiski
 
   API References <apidocs/index>
 
+------------
+
+The source code to the project is available `on GitHub <https://github.com/Qiskit-Extensions/quantum-serverless>`_.
+
 .. Hiding - Indices and tables
    :ref:`genindex`
    :ref:`modindex`
    :ref:`search`
+

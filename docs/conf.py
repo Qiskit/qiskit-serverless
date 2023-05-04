@@ -44,6 +44,17 @@ modindex_common_prefix = ["quantum_serverless_project."]
 # html theme options
 html_static_path = ["_static"]
 # html_logo = "_static/images/logo.png"
+html_theme_options = {
+    'github_button': True,
+    'github_user': 'Qiskit-Extensions',
+    'github_repo': 'quantum-serverless',
+    'github_type': 'star',
+    'github_count': False,
+    'extra_nav_links': {
+        'Repository': 'https://github.com/Qiskit-Extensions/quantum-serverless',
+        'Report issues': 'https://github.com/Qiskit-Extensions/quantum-serverless/issues/new?assignees=&labels=bug&template=bug_report.md'
+    }
+}
 
 # autodoc/autosummary options
 autosummary_generate = True
@@ -55,3 +66,4 @@ nbsphinx_timeout = 180
 nbsphinx_execute = "never"
 nbsphinx_widgets_path = ""
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
+
