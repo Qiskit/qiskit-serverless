@@ -90,7 +90,7 @@ data:
           }
         ],
         "client": {
-          "{{ .Values.gateway.application.keycloak.clientName }}": [],
+          "{{ .Values.gateway.application.keycloak.clientId }}": [],
           "realm-management": [
             {
               "id": "4354f1b3-b8d1-45c0-996f-2b37282b2039",
@@ -743,7 +743,7 @@ data:
         },
         {
           "id": "0bba5367-21c5-4223-98b7-2b47b30b6f69",
-          "clientId": "{{ .Values.gateway.application.keycloak.clientName }}",
+          "clientId": "{{ .Values.gateway.application.keycloak.clientId }}",
           "name": "",
           "description": "",
           "rootUrl": "",
