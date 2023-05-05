@@ -2,26 +2,27 @@
 Local infrastructure setup
 ==========================
 
-Local setup (on your notebook/machine) for quantum-serverless is configured using `docker-compose`_.
+To set up Quantum Serverless on your local machine, you will need to use `docker-compose`_.
 
 .. _docker-compose: https://docs.docker.com/compose/
 
-Once you have docker and docker-compose install you can run instrastructure for quantum-serverless using following command.
+Once you have Docker and docker-compose installed, you can run the following command to set up the infrastructure:
 
 .. code-block::
 
         $ VERSION=<VERSION> docker-compose [--profile <PROFILE>] up
 
-Available profiles are `full` and `jupyter`.
-`jupyter` profile will install core services and jupyter notebook.
-`full` profile will install all core services, jupyter + logging and monitoring systems.
+The available profiles are `full` and `jupyter`.
+The jupyter profile installs core services and Jupyter Notebook,
+while the full profile installs all core services,
+Jupyter Notebook, and logging and monitoring systems.
 
 Available version can be found in `GitHub releases`_ page.
 
 .. _GitHub releases: https://github.com/Qiskit-Extensions/quantum-serverless/releases
 
-Having that in mind let's say we want to install version `0.0.7` with all services.
-Then command will be
+For example, if you want to install version `0.0.7` with all services,
+the command would be:
 
 .. code-block::
 

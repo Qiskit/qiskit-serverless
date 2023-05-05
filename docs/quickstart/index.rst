@@ -30,36 +30,27 @@ Step 2: write program
    from qiskit.primitives import Sampler
    from qiskit.quantum_info import SparsePauliOp
 
-   # 1. let's annotate out function to convert it
-   # to distributed async function
-   # using `distribute_task` decorator
+   # 1. Define a distributed function using the `distribute_task` decorator
    @distribute_task()
    def distributed_sample(circuit: QuantumCircuit):
        """Calculates quasi dists as a distributed function."""
        return Sampler().run(circuit).result().quasi_dists[0]
 
 
-   # 2. our program will have one arguments
-   # `circuits` which will store list of circuits
-   # we want to sample in parallel.
-   # Let's use `get_arguments` funciton
-   # to access all program arguments
+   # 2. Get the program arguments using `get_arguments`
    arguments = get_arguments()
    circuits = arguments.get("circuits", [])
 
-   # 3. run our functions in a loop
-   # and get execution references back
+   # 3. Run the distributed function for each circuit in parallel and get execution references
    function_references = [
        distributed_sample(circuit)
        for circuit in circuits
    ]
 
-   # 4. `get` function will collect all
-   # results from distributed functions
+   # 4. Collect all results using `get`
    collected_results = get(function_references)
 
-   # 5. `save_result` will save results of program execution
-   # so we can access it later
+   # 5. Save the results using `save_result`
    save_result({
        "quasi_dists": collected_results
    })
@@ -121,5 +112,3 @@ Step 5: get results
    #  {"0": 0.1512273969460124, "1": 0.0400459556274728, "6": 0.1693190975212014, "7": 0.6394075499053132},
    #  {"0": 0.25, "1": 0.25, "4": 0.2499999999999999, "5": 0.2499999999999999}
    # ]}
-
-

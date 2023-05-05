@@ -2,30 +2,34 @@
 Client configuration
 ====================
 
-Quantum serverless has client-server architecture, which means
-in order to interact with computational resources you need to have
-client library installed on your machine and then configured to talk to computational resources.
+Quantum Serverless has a client-server architecture,
+which means that in order to interact with computational
+resources, you need to have the client library
+installed on your machine and configured to communicate with the provider.
 
-
-Installation of client can be achieved by running
+To install the client library, run:
 
 .. code-block::
 
         pip install quantum_serverless
 
 
-Next we will need to configure our client to talk to computational resources.
-This is happening through `Provider` configuration.
+Next, we need to configure the client to communicate with the provider.
+This is done through the `GatewayProvider` configuration.
 
-Before we configure our client and provider we need to know couple of things:
-`username`/`password` a.k.a authentication details and `host` of our gateway server.
+Before we can configure the client and provider,
+we need to know two things: the `username/password`
+(authentication details) and the `host` of our gateway server.
 
-If you are using local docker-compose setup your user/password would be
-`user`/`password123` and host would be http://gateway:8000.
+If you are using the local docker-compose setup,
+your username and password would be `user` and `password123`,
+respectively, and the host would be `http://gateway:8000`.
 
-If you are using cloud deployment your cloud administrator will provide details on host and authentication.
+If you are using a cloud deployment, your cloud administrator
+will provide you with the details of the host and authentication.
 
-Will all necessary information in place we can start configuring our client
+Once you have all the necessary information,
+you can start configuring the client:
 
 .. code-block::
 
@@ -39,5 +43,5 @@ Will all necessary information in place we can start configuring our client
 
 		client = QuantumServerless(provider)
 
-With that you can run your programs against provider.
-
+With this configuration in place, you can run your programs
+against the provider.

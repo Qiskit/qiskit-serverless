@@ -2,9 +2,10 @@
 Deployment
 ==========
 
-This section covers setup procedures for quantum serverless.
-
-Those procedures include deployment to local machine and to cloud services as well as setting up client to communicate with compute resources.
+This section provides instructions for setting up Quantum Serverless.
+These procedures include deploying it to your local machine or to
+cloud services, as well as setting up the client to communicate with
+compute resources.
 
 .. toctree::
    :maxdepth: 1

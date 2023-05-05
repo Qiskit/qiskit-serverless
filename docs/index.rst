@@ -6,17 +6,20 @@ Quantum Serverless is a programming model for leveraging quantum and classical r
 
 .. image:: /images/animation.gif
 
-When to use quantum serverless? If you need to perform complex, long-running tasks on a regular basis.
+It is particularly useful for performing complex, long-running tasks on a regular basis.
 
-Here are some reasons why:
+Here are some reasons why you might want to consider using Quantum Serverless:
 
-1. `Scalability`: Quantum Serverless allows users to easily scale their jobs by running them in parallel across multiple machines or general compute resources.
-This can significantly improve performance and reduce the time it takes to complete a job.
-So, when you hit resource limits of your local machine Quantum Serverless provides `horizontal scalability` of quantum and classical workloads.
+`Scalability`: Quantum Serverless allows users to easily scale their jobs by running them in
+parallel across multiple machines or general compute resources.
+This can significantly improve performance and reduce the time it takes to
+complete a job. When you hit the resource limits of your local machine,
+Quantum Serverless provides horizontal scalability for both quantum and classical workloads.
 
-
-2. `Remote scheduling`: When you have long running scripts/jobs that you want to run somewhere and get back results later.
-Quantum serverless provides `asynchronous remote job execution`.
+`Remote execution`: Quantum Serverless also provides asynchronous remote job execution,
+making it ideal for long-running scripts or jobs that you want to run somewhere and
+retrieve the results later. This means that you can offload compute-intensive tasks
+to a remote system and receive the results when they are ready.
 
 .. toctree::
   :maxdepth: 2

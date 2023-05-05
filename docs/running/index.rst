@@ -2,7 +2,7 @@
 Running
 =======
 
-This section is a set of short examples of running serverless programs which highlight main features of this package.
+This section contains a series of short examples that demonstrate how to run serverless programs and showcase the main features of this package.
 
 .. toctree::
   :maxdepth: 2

@@ -2,8 +2,8 @@
 Development
 ===========
 
-This section covers examples which can be treated as end-to-end tutorials and
-guide which are short explanations of specific functions/guides of quantum serverless.
+This section includes both end-to-end tutorials and short guides
+that provide specific explanations of functions and features in Quantum Serverless.
 
 **Examples**
 
