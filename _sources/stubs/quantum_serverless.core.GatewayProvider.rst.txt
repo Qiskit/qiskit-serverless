@@ -1,0 +1,32 @@
+﻿quantum\_serverless.core.GatewayProvider
+========================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: GatewayProvider
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~GatewayProvider.__init__
+      ~GatewayProvider.context
+      ~GatewayProvider.create_compute_resource
+      ~GatewayProvider.delete_compute_resource
+      ~GatewayProvider.from_dict
+      ~GatewayProvider.get_compute_resources
+      ~GatewayProvider.get_job_by_id
+      ~GatewayProvider.get_jobs
+      ~GatewayProvider.job_client
+      ~GatewayProvider.run_program
+      ~GatewayProvider.to_dict
+   
+   
+
+   
+   
+   

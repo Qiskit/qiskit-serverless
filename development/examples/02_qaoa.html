@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Example: QAOA program &#8212; Quantum serverless 0.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/nbsphinx-code-cells.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/thebelab-helper.js"></script>
+    <script src="../../_static/clipboard.min.js"></script>
+    <script src="../../_static/copybutton.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Example: solving electronic structure problem" href="06_electronic_structure_problem.html" />
+    <link rel="prev" title="Example: VQE program" href="01_vqe.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="Example:-QAOA-program">
+<h1>Example: QAOA program<a class="headerlink" href="#Example:-QAOA-program" title="Permalink to this heading">¶</a></h1>
+<p>This tutorial will be demonstation of creating QAOA Program as well as migration guide on how you can replicate IBM Quantum QAOA custom runtime program.</p>
+<p>Let’s first get information on what is QAOA runtime program and what inputs and outputs it has. We will not be implementing full set of input/outputs, but we will cover most important ones. Later on we can recover full functionality if needed.</p>
+<p><strong>Description</strong>: Qiskit Runtime QAOA program.</p>
+<p><strong>Inputs</strong>:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>initial_point</p></td>
+<td><p>[array,string]</p></td>
+<td><p>Initial parameters of the ansatz. Can be an array or the string <code class="docutils literal notranslate"><span class="pre">'random'</span></code> to choose random initial parameters. The type must be numpy.ndarray or str.</p></td>
+</tr>
+<tr class="row-odd"><td><p>operator</p></td>
+<td><p>object</p></td>
+<td><p>The cost Hamiltonian, consisting of Pauli I and Z operators, whose smallest eigenvalue we’re trying to find. The type must be a PauliSumOp.</p></td>
+</tr>
+<tr class="row-even"><td><p>optimization_level</p></td>
+<td><p>integer</p></td>
+<td><p>The optimization level to run if the swap strategies are not used. This value is 1 by default. This is an integer.</p></td>
+</tr>
+<tr class="row-odd"><td><p>optimizer</p></td>
+<td><p>object</p></td>
+<td><p>The classical optimizer used to update the parameters in each iteration. Per default, SPSA with automatic calibration of the learning rate is used. The type must be a qiskit.algorithms.optimizers.Optimizer.</p></td>
+</tr>
+<tr class="row-even"><td><p>reps</p></td>
+<td><p>integer</p></td>
+<td><p>The number of QAOA repetitions, i.e. the QAOA depth typically labeled p. This value defaults to 1. This is an integer.</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Return values</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>cost_function_evals</p></td>
+<td><p>number</p></td>
+<td><p>The number of cost function (energy) evaluations. This is an integer.</p></td>
+</tr>
+<tr class="row-odd"><td><p>eigenstate</p></td>
+<td><p>object</p></td>
+<td><p>The square root of sampling probabilities for each computational basis state of the circuit with optimal parameters.</p></td>
+</tr>
+<tr class="row-even"><td><p>eigenvalue</p></td>
+<td><p>number</p></td>
+<td><p>The estimated smallest eigenvalue.</p></td>
+</tr>
+<tr class="row-odd"><td><p>optimal_parameters</p></td>
+<td><p>null</p></td>
+<td><p>Not supported at the moment, therefore <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>optimal_point</p></td>
+<td><p>array</p></td>
+<td><p>The optimal parameter values found during the optimization.</p></td>
+</tr>
+<tr class="row-odd"><td><p>optimal_value</p></td>
+<td><p>number</p></td>
+<td><p>The smallest value found during the optimization. Equal to the <code class="docutils literal notranslate"><span class="pre">eigenvalue</span></code> attribute.</p></td>
+</tr>
+<tr class="row-even"><td><p>optimizer_time</p></td>
+<td><p>number</p></td>
+<td><p>The total time taken by the optimizer.</p></td>
+</tr>
+</tbody>
+</table>
+<p>We will also add optional <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> as an argument to use that to access real devices.</p>
+<p>With that information we can start drafting our program implementation in <code class="docutils literal notranslate"><span class="pre">qaoa.py</span></code> file.</p>
+<p>What our program should do: 1. parse input arguments 2. create run_qaoa function that accepts estimator instance, creates VQE and runs calculation 3. decide which sampler to use and run vqe - if runtime service was passed then create a session and run <code class="docutils literal notranslate"><span class="pre">run_qaoa</span></code> function - if runtime service was not passed then use stantard qiskit sampler 4. save results from qaoa</p>
+<p>Roughly our QAOA program will look like this</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># qaoa.py</span>
+
+<span class="kn">import</span> <span class="nn">...</span>
+
+<span class="k">def</span> <span class="nf">run_qaoa</span><span class="p">(</span><span class="n">sampler</span><span class="p">:</span> <span class="n">BaseSampler</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span><span class="p">,</span> <span class="n">reps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">operator</span><span class="p">:</span> <span class="n">PauliSumOp</span><span class="p">):</span>
+    <span class="n">qaoa</span> <span class="o">=</span> <span class="n">QAOA</span><span class="p">(</span><span class="n">sampler</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">reps</span><span class="o">=</span><span class="n">reps</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">qaoa</span><span class="o">.</span><span class="n">compute_minimum_eigenvalue</span><span class="p">(</span><span class="n">operator</span><span class="p">)</span>
+
+
+<span class="n">arguments</span> <span class="o">=</span> <span class="n">get_arguments</span><span class="p">()</span>
+<span class="n">service</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">)</span>
+<span class="n">operator</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;operator&quot;</span><span class="p">)</span>
+<span class="n">initial_point</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;initial_point&quot;</span><span class="p">)</span>
+<span class="n">reps</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;reps&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">optimizer</span> <span class="o">=</span> <span class="o">...</span>
+<span class="o">...</span>
+<span class="k">if</span> <span class="n">service</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="c1"># if we have service we need to open a session and create sampler</span>
+    <span class="n">service</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">)</span>
+    <span class="n">backend</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;backend&quot;</span><span class="p">,</span> <span class="s2">&quot;ibmq_qasm_simulator&quot;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="n">service</span><span class="o">=</span><span class="n">service</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+        <span class="n">sampler</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">run_qaoa</span><span class="p">(</span><span class="n">sampler</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">reps</span><span class="p">,</span> <span class="n">operator</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="c1"># if we do not have a service let&#39;s use standart local sampler</span>
+    <span class="n">sampler</span> <span class="o">=</span> <span class="n">QiskitSampler</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">run_qaoa</span><span class="p">(</span><span class="n">sampler</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">reps</span><span class="p">,</span> <span class="n">operator</span><span class="p">)</span>
+
+<span class="n">save_result</span><span class="p">({</span>
+    <span class="s2">&quot;cost_function_evals&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">cost_function_evals</span><span class="p">,</span>
+    <span class="s2">&quot;eigenstate&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">eigenstate</span><span class="p">,</span>
+    <span class="s2">&quot;eigenvalue&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">eigenvalue</span><span class="p">,</span>
+    <span class="s2">&quot;optimal_parameters&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">optimal_parameters</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span>
+    <span class="s2">&quot;optimal_point&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">optimal_point</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+    <span class="s2">&quot;optimal_value&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">optimal_value</span><span class="p">,</span>
+    <span class="s2">&quot;optimizer_time&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">optimizer_time</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+<p>At this point we have our program implemented. Now we need to actually run it. But before let’s prepare input arguments from our QAOA program.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
+<span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
+
+<span class="n">USE_RUNTIME_SERVICE</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="n">service</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="n">backend</span> <span class="o">=</span> <span class="s2">&quot;ibmq_qasm_simulator&quot;</span>
+<span class="k">if</span> <span class="n">USE_RUNTIME_SERVICE</span><span class="p">:</span>
+    <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">()</span>
+
+<span class="n">input_arguments</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;initial_point&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="s2">&quot;operator&quot;</span><span class="p">:</span> <span class="n">SparsePauliOp</span><span class="p">(</span><span class="s2">&quot;ZIIZ&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;optimization_level&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="s2">&quot;cobyla&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;reps&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">service</span><span class="p">,</span>
+    <span class="s2">&quot;backend&quot;</span><span class="p">:</span> <span class="n">backend</span>
+<span class="p">}</span>
+<span class="n">input_arguments</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;initial_point&#39;: None,
+ &#39;operator&#39;: SparsePauliOp([&#39;ZIIZ&#39;],
+               coeffs=[1.+0.j]),
+ &#39;optimization_level&#39;: 1,
+ &#39;optimizer&#39;: &#39;cobyla&#39;,
+ &#39;reps&#39;: 2,
+ &#39;service&#39;: None,
+ &#39;backend&#39;: &#39;ibmq_qasm_simulator&#39;}
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">GatewayProvider</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">provider</span> <span class="o">=</span> <span class="n">GatewayProvider</span><span class="p">(</span>
+    <span class="n">username</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span>
+    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password123&quot;</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
+<span class="n">serverless</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;QuantumServerless | providers [gateway-provider]&gt;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
+
+<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;QAOA&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;qaoa.py&quot;</span><span class="p">,</span>
+    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/qaoa/&quot;</span>
+<span class="p">)</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run_program</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">input_arguments</span><span class="p">)</span>
+<span class="n">job</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Job | 8cd76a64-64ea-468f-a295-114dcc5abd2a&gt;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;SUCCEEDED&#39;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;cost_function_evals&#39;: 56,
+ &#39;eigenstate&#39;: {&#39;0&#39;: 2.6425405e-09,
+  &#39;1&#39;: 0.1249999973574594,
+  &#39;2&#39;: 2.6425405e-09,
+  &#39;3&#39;: 0.1249999973574594,
+  &#39;4&#39;: 2.6425405e-09,
+  &#39;5&#39;: 0.1249999973574594,
+  &#39;6&#39;: 2.6425405e-09,
+  &#39;7&#39;: 0.1249999973574594,
+  &#39;8&#39;: 0.1249999973574594,
+  &#39;9&#39;: 2.6425405e-09,
+  &#39;10&#39;: 0.1249999973574594,
+  &#39;11&#39;: 2.6425405e-09,
+  &#39;12&#39;: 0.1249999973574594,
+  &#39;13&#39;: 2.6425405e-09,
+  &#39;14&#39;: 0.1249999973574594,
+  &#39;15&#39;: 2.6425405e-09},
+ &#39;eigenvalue&#39;: -0.9999999577193509,
+ &#39;optimal_parameters&#39;: [-4.261262774122553,
+  -1.7722068719193094,
+  2.7455687782210543,
+  0.6701009936251439],
+ &#39;optimal_point&#39;: [-4.261262774122553,
+  -1.7722068719193094,
+  2.7455687782210543,
+  0.6701009936251439],
+ &#39;optimal_value&#39;: -0.9999999577193509,
+ &#39;optimizer_time&#39;: 0.46456098556518555}
+</pre></div></div>
+</div>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Quantum serverless</a></h1>
+
+
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Qiskit-Extensions&repo=quantum-serverless&type=star&count=False&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart/index.html">Quickstart</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../running/index.html">Running</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Development</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="01_vqe.html">Example: VQE program</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Example: QAOA program</a></li>
+<li class="toctree-l2"><a class="reference internal" href="06_electronic_structure_problem.html">Example: solving electronic structure problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="07_benchmark_program.html">Example: complex workflows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guides/07_working_with_datasets.html">Guide: working with large datasets</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../deployment/index.html">Deployment</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../apidocs/index.html">API References</a></li>
+</ul>
+
+
+<hr />
+<ul>
+    
+    <li class="toctree-l1"><a href="https://github.com/Qiskit-Extensions/quantum-serverless">Repository</a></li>
+    
+    <li class="toctree-l1"><a href="https://github.com/Qiskit-Extensions/quantum-serverless/issues/new?assignees=&labels=bug&template=bug_report.md">Report issues</a></li>
+    
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Development</a><ul>
+  <li><a href="index.html">&lt;no title&gt;</a><ul>
+      <li>Previous: <a href="01_vqe.html" title="previous chapter">Example: VQE program</a></li>
+      <li>Next: <a href="06_electronic_structure_problem.html" title="next chapter">Example: solving electronic structure problem</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2022.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.0.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../../_sources/development/examples/02_qaoa.ipynb.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

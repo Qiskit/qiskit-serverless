@@ -1,0 +1,6 @@
+﻿quantum\_serverless.core.save\_result
+=====================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autofunction:: save_result

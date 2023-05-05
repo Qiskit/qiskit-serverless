@@ -46,6 +46,7 @@
  | <a href="#D"><strong>D</strong></a>
  | <a href="#E"><strong>E</strong></a>
  | <a href="#G"><strong>G</strong></a>
+ | <a href="#K"><strong>K</strong></a>
  | <a href="#M"><strong>M</strong></a>
  | <a href="#P"><strong>P</strong></a>
  | <a href="#Q"><strong>Q</strong></a>
@@ -63,7 +64,13 @@
 </li>
         <li><a href="stubs/quantum_serverless.core.ExecutionMessage.html#quantum_serverless.core.ExecutionMessage.__init__">(ExecutionMessage method)</a>
 </li>
+        <li><a href="stubs/quantum_serverless.core.GatewayProvider.html#quantum_serverless.core.GatewayProvider.__init__">(GatewayProvider method)</a>
+</li>
+        <li><a href="stubs/quantum_serverless.core.KuberayProvider.html#quantum_serverless.core.KuberayProvider.__init__">(KuberayProvider method)</a>
+</li>
         <li><a href="stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider.__init__">(Provider method)</a>
+</li>
+        <li><a href="stubs/quantum_serverless.QuantumServerless.html#quantum_serverless.QuantumServerless.__init__">(QuantumServerless method)</a>
 </li>
         <li><a href="stubs/quantum_serverless.core.RedisEventHandler.html#quantum_serverless.core.RedisEventHandler.__init__">(RedisEventHandler method)</a>
 </li>
@@ -112,6 +119,8 @@
 <h2 id="G">G</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="stubs/quantum_serverless.core.GatewayProvider.html#quantum_serverless.core.GatewayProvider">GatewayProvider (class in quantum_serverless.core)</a>
+</li>
       <li><a href="stubs/quantum_serverless.core.get.html#quantum_serverless.core.get">get() (in module quantum_serverless.core)</a>
 </li>
   </ul></td>
@@ -119,6 +128,14 @@
       <li><a href="stubs/quantum_serverless.serializers.get_arguments.html#quantum_serverless.serializers.get_arguments">get_arguments() (in module quantum_serverless.serializers)</a>
 </li>
       <li><a href="stubs/quantum_serverless.core.get_refs_by_status.html#quantum_serverless.core.get_refs_by_status">get_refs_by_status() (in module quantum_serverless.core)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="K">K</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="stubs/quantum_serverless.core.KuberayProvider.html#quantum_serverless.core.KuberayProvider">KuberayProvider (class in quantum_serverless.core)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -189,6 +206,8 @@
         <li><a href="apidocs/serializers.html#module-quantum_serverless.serializers">module</a>
 </li>
       </ul></li>
+      <li><a href="stubs/quantum_serverless.QuantumServerless.html#quantum_serverless.QuantumServerless">QuantumServerless (class in quantum_serverless)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -211,6 +230,8 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="stubs/quantum_serverless.core.save_result.html#quantum_serverless.core.save_result">save_result() (in module quantum_serverless.core)</a>
+</li>
       <li><a href="stubs/quantum_serverless.serializers.service_deserializer.html#quantum_serverless.serializers.service_deserializer">service_deserializer() (in module quantum_serverless.serializers)</a>
 </li>
   </ul></td>
@@ -237,37 +258,41 @@
 
 
 
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Qiskit-Extensions&repo=quantum-serverless&type=star&count=False&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
 
 
 <h3>Navigation</h3>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/01_intro_level_1.html">Getting started - level 1</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/02_intro_level_2.html">Getting started - level 2</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/03_intro_level_3.html">Getting started - level 3</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/index.html">Quickstart</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="guides/01_run_anything_in_distributed_fashion.html">Guide: run anything in distributed fashion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/02_specific_resource_allocation.html">Guide: specific resource requirements</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/03_runtime_primitives_with_quantum_serverless.html">Guide: Qiskit Runtime Primitives with QuantumServerless</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/03_specific_package_installation.html">Guide: specific package requirements</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/04_run_programs.html">Guide: run async programs</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/05_get_finished_tasks.html">Guide: get finished remote tasks</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/06_shared_state.html">Guide: state handling</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/07_working_with_datasets.html">Guide: working with large datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/08_multi_cloud_deployment.html">Guide: multi cloud deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="running/index.html">Running</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/01_quantum_serverless.html">Tutorial: Overview of Quantum Serverless</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/02_tutorial_-_approaches_to_serverless_code_writing.html">Tutorial: approaches to serverless code writing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/03_tutorial_writing_serverless_pacakge_from_scratch.html">Tutorial: writing serverless package from scratch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/04_tutorial_-_converting_existing_code_to_serverless.html">Tutorial: converting existing code to serverless without internal code modifications</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html">Tutorial: solving electronic structure problem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/07_benchmark_program.html">Tutorial: benchmark program to stress test compute resources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development/index.html">Development</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="deployment/index.html">Deployment</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="apidocs/index.html">API References</a></li>
 </ul>
 
+
+<hr />
+<ul>
+    
+    <li class="toctree-l1"><a href="https://github.com/Qiskit-Extensions/quantum-serverless">Repository</a></li>
+    
+    <li class="toctree-l1"><a href="https://github.com/Qiskit-Extensions/quantum-serverless/issues/new?assignees=&labels=bug&template=bug_report.md">Report issues</a></li>
+    
+</ul>
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>

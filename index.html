@@ -22,7 +22,7 @@
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="&lt;no title&gt;" href="getting_started/index.html" />
+    <link rel="next" title="Quickstart" href="quickstart/index.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -41,169 +41,64 @@
             
   <section id="quantum-serverless">
 <h1>Quantum serverless<a class="headerlink" href="#quantum-serverless" title="Permalink to this heading">¶</a></h1>
-<p>Quantum Serverless is a programming model for leveraging quantum and classical resources</p>
-<img alt="_images/qs_diagram.png" src="_images/qs_diagram.png" />
-<p>The source code to the project is available <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless">on GitHub</a>.</p>
-<hr class="docutils" />
-<p><strong>Quickstart</strong></p>
-<p>Step 0: install package</p>
-<div class="literal-block-wrapper docutils container" id="id1">
-<div class="code-block-caption"><span class="caption-number">Listing 1 </span><span class="caption-text">pip install</span><a class="headerlink" href="#id1" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">pip</span> <span class="n">install</span> <span class="n">quantum_serverless</span>
-</pre></div>
-</div>
-</div>
-<p>Step 1: run infrastructure</p>
-<div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-number">Listing 2 </span><span class="caption-text">run docker compose from a root of the project</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">docker</span><span class="o">-</span><span class="n">compose</span> <span class="n">pull</span>
-   <span class="n">docker</span><span class="o">-</span><span class="n">compose</span> <span class="n">up</span>
-</pre></div>
-</div>
-</div>
-<p>Step 2: write program</p>
-<div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-number">Listing 3 </span><span class="caption-text">program.py</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
-<span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
-<span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
-<span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Estimator</span>
-
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">run_qiskit_remote</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">put</span>
-
-<span class="c1"># 1. let&#39;s annotate out function to convert it</span>
-<span class="c1"># to function that can be executed remotely</span>
-<span class="c1"># using `run_qiskit_remote` decorator</span>
-<span class="nd">@run_qiskit_remote</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">my_function</span><span class="p">(</span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">obs</span><span class="p">:</span> <span class="n">SparsePauliOp</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">Estimator</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="n">circuit</span><span class="p">],</span> <span class="p">[</span><span class="n">obs</span><span class="p">])</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">values</span>
-
-
-<span class="c1"># 2. Next let&#39;s create out serverless object to control</span>
-<span class="c1"># where our remote function will be executed</span>
-<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">()</span>
-
-<span class="n">circuits</span> <span class="o">=</span> <span class="p">[</span><span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
-
-<span class="c1"># 3. create serverless context</span>
-<span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
-    <span class="c1"># 4. let&#39;s put some shared objects into remote storage that will be shared among all executions</span>
-    <span class="n">obs_ref</span> <span class="o">=</span> <span class="n">put</span><span class="p">(</span><span class="n">SparsePauliOp</span><span class="p">([</span><span class="s2">&quot;ZZ&quot;</span><span class="p">]))</span>
-
-    <span class="c1"># 4. run our function and get back reference to it</span>
-    <span class="c1"># as now our function it remote one</span>
-    <span class="n">function_reference</span> <span class="o">=</span> <span class="n">my_function</span><span class="p">(</span><span class="n">circuits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">obs_ref</span><span class="p">)</span>
-
-    <span class="c1"># 4.1 or we can run N of them in parallel (for all circuits)</span>
-    <span class="n">function_references</span> <span class="o">=</span> <span class="p">[</span><span class="n">my_function</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span> <span class="n">obs_ref</span><span class="p">)</span> <span class="k">for</span> <span class="n">circ</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">]</span>
-
-    <span class="c1"># 5. to get results back from reference</span>
-    <span class="c1"># we need to call `get` on function reference</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Single execution:&quot;</span><span class="p">,</span> <span class="n">get</span><span class="p">(</span><span class="n">function_reference</span><span class="p">))</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;N parallel executions:&quot;</span><span class="p">,</span> <span class="n">get</span><span class="p">(</span><span class="n">function_references</span><span class="p">))</span>
-</pre></div>
-</div>
-</div>
-<p>Step 3: run program</p>
-<div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-number">Listing 4 </span><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">GatewayProvider</span><span class="p">,</span> <span class="n">Program</span>
-
-<span class="n">provider</span> <span class="o">=</span> <span class="n">GatewayProvider</span><span class="p">(</span>
-    <span class="n">username</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="c1"># this username has already been defined in local docker setup and does not need to be changed</span>
-    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password123&quot;</span><span class="p">,</span> <span class="c1"># this password has already been defined in local docker setup and does not need to be changed</span>
-    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://gateway:8000&quot;</span><span class="p">,</span> <span class="c1"># address of provider</span>
-<span class="p">)</span>
-<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
-
-<span class="c1"># create out program</span>
-<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;my_program&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program.py&quot;</span><span class="p">,</span> <span class="c1"># set entrypoint as out program.py file</span>
-    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./&quot;</span>
-<span class="p">)</span>
-
-<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run_program</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
-
-<span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
-<span class="c1"># &lt;JobStatus.SUCCEEDED: &#39;SUCCEEDED&#39;&gt;</span>
-
-<span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span>
-<span class="c1"># Single execution: [1.]</span>
-<span class="c1"># N parallel executions: [array([1.]), array([0.]), array([-0.28650496])]</span>
-
-<span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
-<span class="c1"># &#39;{&quot;status&quot;: &quot;ok&quot;, &quot;single&quot;: [1.0], &quot;parallel_result&quot;: [[1.0], [0.9740035726118753], [1.0]]}&#39;</span>
-</pre></div>
-</div>
-</div>
-<hr class="docutils" />
-<p><strong>Getting started</strong></p>
+<p>Quantum Serverless is a programming model for leveraging quantum and classical resources.</p>
+<img alt="_images/animation.gif" src="_images/animation.gif" />
+<p>It is particularly useful for performing complex, long-running tasks on a regular basis.</p>
+<p>Here are some reasons why you might want to consider using Quantum Serverless:</p>
+<p><cite>Scalability</cite>: Quantum Serverless allows users to easily scale their jobs by running them in
+parallel across multiple machines or general compute resources.
+This can significantly improve performance and reduce the time it takes to
+complete a job. When you hit the resource limits of your local machine,
+Quantum Serverless provides horizontal scalability for both quantum and classical workloads.</p>
+<p><cite>Remote execution</cite>: Quantum Serverless also provides asynchronous remote job execution,
+making it ideal for long-running scripts or jobs that you want to run somewhere and
+retrieve the results later. This means that you can offload compute-intensive tasks
+to a remote system and receive the results when they are ready.</p>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/01_intro_level_1.html">Getting started - level 1</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/02_intro_level_2.html">Getting started - level 2</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/03_intro_level_3.html">Getting started - level 3</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/index.html">Quickstart</a></li>
 </ul>
 </div>
-<p><strong>Guides</strong></p>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="guides/01_run_anything_in_distributed_fashion.html">Guide: run anything in distributed fashion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/02_specific_resource_allocation.html">Guide: specific resource requirements</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/03_runtime_primitives_with_quantum_serverless.html">Guide: Qiskit Runtime Primitives with QuantumServerless</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/03_specific_package_installation.html">Guide: specific package requirements</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/04_run_programs.html">Guide: run async programs</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/05_get_finished_tasks.html">Guide: get finished remote tasks</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/06_shared_state.html">Guide: state handling</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/07_working_with_datasets.html">Guide: working with large datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/08_multi_cloud_deployment.html">Guide: multi cloud deployment</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="guides/08_multi_cloud_deployment.html#installation-requirements">Installation requirements</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/08_multi_cloud_deployment.html#docker-an-easy-to-go-option-for-local-development">Docker: an easy to go option for local development</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/08_multi_cloud_deployment.html#helm-to-use-your-own-cluster-locally-or-in-the-cloud">Helm: to use your own cluster locally or in the cloud</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/08_multi_cloud_deployment.html#terraform-deploy-all-the-infrastructure-in-your-favourite-cloud-provider">Terraform: deploy all the infrastructure in your favourite cloud provider</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/08_multi_cloud_deployment.html#quantum-serverless-configuration">Quantum Serverless configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="running/index.html">Running</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="running/notebooks/01_running_program.html">Running a program remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="running/notebooks/02_distributed_workloads.html">Parallel workflows in programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="running/notebooks/03_arguments_and_results.html">Programs with arguments and saved results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="running/notebooks/04_dependencies.html">Dependency management for programs</a></li>
 </ul>
 </li>
 </ul>
 </div>
-<p><strong>Tutorials</strong></p>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/01_quantum_serverless.html">Tutorial: Overview of Quantum Serverless</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Background,-motivation-and-goals">Background, motivation and goals</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Building-blocks-of-distributed-computation">Building blocks of distributed computation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Resource-allocation-and-execution-management">Resource allocation and execution management</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Assembling-all-together">Assembling all together</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/01_quantum_serverless.html#Running-as-async-program">Running as async program</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development/index.html">Development</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="development/examples/01_vqe.html">Example: VQE program</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/examples/02_qaoa.html">Example: QAOA program</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/examples/06_electronic_structure_problem.html">Example: solving electronic structure problem</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/examples/07_benchmark_program.html">Example: complex workflows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development/guides/07_working_with_datasets.html">Guide: working with large datasets</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/02_tutorial_-_approaches_to_serverless_code_writing.html">Tutorial: approaches to serverless code writing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/02_tutorial_-_approaches_to_serverless_code_writing.html#Approach-#1:-revealing-details-of-implementations-to-user">Approach #1: revealing details of implementations to user</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/02_tutorial_-_approaches_to_serverless_code_writing.html#Approach-#2:-hiding-details-of-implementations-from-user">Approach #2: hiding details of implementations from user</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/03_tutorial_writing_serverless_pacakge_from_scratch.html">Tutorial: writing serverless package from scratch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/04_tutorial_-_converting_existing_code_to_serverless.html">Tutorial: converting existing code to serverless without internal code modifications</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/04_tutorial_-_converting_existing_code_to_serverless.html#Approach-#1:-wrapping-function-/-classes-as-tasks-/-actors">Approach #1: wrapping function / classes as tasks / actors</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/04_tutorial_-_converting_existing_code_to_serverless.html#Approach-#2:-Monkey-patching">Approach #2: Monkey-patching</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html">Tutorial: solving electronic structure problem</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html#Overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html#Implementation">Implementation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html#Execution">Execution</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/07_benchmark_program.html">Tutorial: benchmark program to stress test compute resources</a></li>
 </ul>
 </div>
-<p><strong>API references</strong></p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="deployment/index.html">Deployment</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="deployment/local.html">Local infrastructure setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="deployment/cloud.html">Cloud infrastructure setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="deployment/client_configuration.html">Client configuration</a></li>
+</ul>
+</li>
+</ul>
+</div>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="apidocs/index.html">API References</a></li>
 </ul>
 </div>
+<hr class="docutils" />
+<p>The source code to the project is available <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless">on GitHub</a>.</p>
 </section>
 
 
@@ -220,42 +115,46 @@
 
 
 
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Qiskit-Extensions&repo=quantum-serverless&type=star&count=False&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
 
 
 <h3>Navigation</h3>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/01_intro_level_1.html">Getting started - level 1</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/02_intro_level_2.html">Getting started - level 2</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/03_intro_level_3.html">Getting started - level 3</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart/index.html">Quickstart</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="guides/01_run_anything_in_distributed_fashion.html">Guide: run anything in distributed fashion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/02_specific_resource_allocation.html">Guide: specific resource requirements</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/03_runtime_primitives_with_quantum_serverless.html">Guide: Qiskit Runtime Primitives with QuantumServerless</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/03_specific_package_installation.html">Guide: specific package requirements</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/04_run_programs.html">Guide: run async programs</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/05_get_finished_tasks.html">Guide: get finished remote tasks</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/06_shared_state.html">Guide: state handling</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/07_working_with_datasets.html">Guide: working with large datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/08_multi_cloud_deployment.html">Guide: multi cloud deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="running/index.html">Running</a></li>
 </ul>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/01_quantum_serverless.html">Tutorial: Overview of Quantum Serverless</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/02_tutorial_-_approaches_to_serverless_code_writing.html">Tutorial: approaches to serverless code writing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/03_tutorial_writing_serverless_pacakge_from_scratch.html">Tutorial: writing serverless package from scratch</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/04_tutorial_-_converting_existing_code_to_serverless.html">Tutorial: converting existing code to serverless without internal code modifications</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/06_electronic_structure_problem.html">Tutorial: solving electronic structure problem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/07_benchmark_program.html">Tutorial: benchmark program to stress test compute resources</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development/index.html">Development</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="deployment/index.html">Deployment</a></li>
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="apidocs/index.html">API References</a></li>
 </ul>
 
+
+<hr />
+<ul>
+    
+    <li class="toctree-l1"><a href="https://github.com/Qiskit-Extensions/quantum-serverless">Repository</a></li>
+    
+    <li class="toctree-l1"><a href="https://github.com/Qiskit-Extensions/quantum-serverless/issues/new?assignees=&labels=bug&template=bug_report.md">Report issues</a></li>
+    
+</ul>
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="#">Documentation overview</a><ul>
-      <li>Next: <a href="getting_started/index.html" title="next chapter">&lt;no title&gt;</a></li>
+      <li>Next: <a href="quickstart/index.html" title="next chapter">Quickstart</a></li>
   </ul></li>
 </ul>
 </div>

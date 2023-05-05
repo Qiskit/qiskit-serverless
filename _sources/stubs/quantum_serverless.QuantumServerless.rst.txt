@@ -1,0 +1,36 @@
+﻿quantum\_serverless.QuantumServerless
+=====================================
+
+.. currentmodule:: quantum_serverless
+
+.. autoclass:: QuantumServerless
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~QuantumServerless.__init__
+      ~QuantumServerless.add_provider
+      ~QuantumServerless.context
+      ~QuantumServerless.get_job_by_id
+      ~QuantumServerless.get_jobs
+      ~QuantumServerless.provider
+      ~QuantumServerless.providers
+      ~QuantumServerless.run_program
+      ~QuantumServerless.set_provider
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~QuantumServerless.job_client
+   
+   
