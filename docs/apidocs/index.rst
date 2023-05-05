@@ -1,10 +1,12 @@
-.. quantum_serverless:
-
-.. module:: quantum_serverless
-
 =================================
 Quantum serverless API References
 =================================
+
+.. automodule:: quantum_serverless
+   :no-members:
+   :no-inherited-members:
+   :no-special-members:
+
 
 .. toctree::
    :maxdepth: 1

@@ -27,8 +27,11 @@ Core abstractions
     :toctree: ../stubs/
 
     Provider
+    GatewayProvider
+    KuberayProvider
     ComputeResource
 
+    save_result
     distribute_task
     run_qiskit_remote
     get

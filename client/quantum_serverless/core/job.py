@@ -242,7 +242,8 @@ class GatewayJobClient(BaseJobClient):
             timeout=REQUESTS_TIMEOUT,
         )
         if response.ok:
-            result = json.loads(response.text).get("result", None)
+            json_result = json.loads(response.text).get("result", "{}")
+            result = json.loads(json_result or "{}")
         else:
             logging.warning(
                 "Something went wrong during job result fetching. %s", response.text

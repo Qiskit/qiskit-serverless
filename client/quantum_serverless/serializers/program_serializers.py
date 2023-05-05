@@ -23,7 +23,8 @@ Quantum serverless program serializers
 .. autosummary::
     :toctree: ../stubs/
 
-
+    QiskitObjectsDecoder
+    QiskitObjectsEncoder
 """
 import json
 import os
