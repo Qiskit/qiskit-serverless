@@ -464,6 +464,54 @@ data:
       "webAuthnPolicyPasswordlessCreateTimeout": 0,
       "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
       "webAuthnPolicyPasswordlessAcceptableAaguids": [],
+      "users": [
+        {
+          "username": "{{ .Values.keycloakUserID }}",
+          "enabled": true,
+          "email": "user@quantumserverless.org",
+          "emailVerified": true,
+          "credentials": [
+            {
+              "type": "password",
+              "value": "{{ .Values.keycloakUserPassword }}"
+            }
+          ],
+          "clientRoles": {
+            "realm-management": [
+              "realm-admin"
+            ],
+            "grafana": [
+              "editor"
+            ],
+            "account": [
+              "manage-account"
+            ]
+          }
+        },
+        {
+          "username": "{{ .Values.keycloak.auth.adminUser }}",
+          "enabled": true,
+          "email": "admin@quantumserverless.org",
+          "emailVerified": true,
+          "credentials": [
+            {
+              "type": "password",
+              "value": "{{ .Values.keycloak.auth.adminPassword }}"
+            }
+          ],
+          "clientRoles": {
+            "realm-management": [
+              "realm-admin"
+            ],
+            "grafana": [
+              "grafanaadmin"
+            ],
+            "account": [
+              "manage-account"
+            ]
+          }
+        }
+      ],
       "scopeMappings": [
         {
           "clientScope": "offline_access",
