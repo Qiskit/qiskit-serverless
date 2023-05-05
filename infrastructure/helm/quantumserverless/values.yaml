@@ -303,6 +303,10 @@ keycloak:
       mountPath: /opt/bitnami/keycloak/data/import
   extraStartupArgs: "--import-realm"
 
+  postgresql:
+    nameOverride: "postgresql"
+    fullnameOverride: "postgresql"
+
 # ===================
 # Quantum Repository
 # ===================
@@ -392,7 +396,14 @@ loki:
   gateway:
     service:
       type: NodePort
+  monitoring:
+    selfMonitoring:
+      grafanaAgent:
+        installOperator: false
+  test:
+    enabled: false
 
+  
 # ===================
 # promtail
 # ===================
