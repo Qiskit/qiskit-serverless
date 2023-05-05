@@ -402,7 +402,6 @@ loki:
         installOperator: false
   test:
     enabled: false
-
   
 # ===================
 # promtail
@@ -413,4 +412,3 @@ promtailEnable: true
 promtail:
   nameOverride: "promtail"
   fullnameOverride: "promtail"
-
