@@ -9,7 +9,9 @@ https://docs.djangoproject.com/en/4.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
+import os
 import os.path
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -54,6 +56,7 @@ INSTALLED_APPS = [
     "dj_rest_auth",
     "dj_rest_auth.registration",
     "api",
+    "psycopg2",
 ]
 
 MIDDLEWARE = [
@@ -89,17 +92,40 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "main.wsgi.application"
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "DEBUG",
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
 DATABASES = {
     "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DATABASE_NAME", "bitnami_keycloak"),
+        "USER": os.environ.get("DATABASE_USER", "bn_keycloak"),
+        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "wHXJPZSOGV"),
+        "HOST": os.environ.get("DATABASE_HOST", "postgresql"),
+        "PORT": os.environ.get("DATABASE_PORT", "5432"),
+    },
+    "test": {
         "ENGINE": "django_prometheus.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
-    }
+    },
 }
 
+if "test" in sys.argv:
+    DATABASES["default"] = DATABASES["test"]
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators

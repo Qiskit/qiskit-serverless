@@ -84,10 +84,16 @@ services:
       - SITE_HOST=http://gateway:8000
 #      - SETTINGS_AUTH_MECHANISM=default #custom_token
 #      - SETTINGS_TOKEN_AUTH_URL=<URL_FOR_TOKEN_VERIFICATION>
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=testkeycloakdb
+      - DATABASE_USER=testkeycloakuser
+      - DATABASE_PASSWORD=testkeycloakpassword
     networks:
       - safe-tier
     depends_on:
       - keycloak
+      - postgres
   repository-server:
     container_name: repository-server
     build:
@@ -101,6 +107,13 @@ services:
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=testkeycloakdb
+      - DATABASE_USER=testkeycloakuser
+      - DATABASE_PASSWORD=testkeycloakpassword
+    depends_on:
+      - postgres
     networks:
       - safe-tier
   prometheus:
