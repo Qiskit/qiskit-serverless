@@ -90,7 +90,6 @@ data:
           }
         ],
         "client": {
-          "{{ .Values.gateway.application.keycloak.clientName }}": [],
           "realm-management": [
             {
               "id": "4354f1b3-b8d1-45c0-996f-2b37282b2039",
@@ -477,14 +476,11 @@ data:
             }
           ],
           "clientRoles": {
-            "realm-management": [
-              "realm-admin"
+            "gateway-client": [
+              "default-roles-quantumserverless"
             ],
-            "grafana": [
-              "editor"
-            ],
-            "account": [
-              "manage-account"
+            "grafana-client": [
+              "default-roles-quantumserverless"
             ]
           }
         },
@@ -502,9 +498,6 @@ data:
           "clientRoles": {
             "realm-management": [
               "realm-admin"
-            ],
-            "grafana": [
-              "grafanaadmin"
             ],
             "account": [
               "manage-account"
