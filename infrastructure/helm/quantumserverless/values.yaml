@@ -8,6 +8,9 @@
 
 # Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
 nginxIngressControllerEnable: true
+nginx-ingress-controller:
+  nameOverride: "nginx-ingress-controller"
+  fullnameOverride: "nginx-ingress-controller"
 
 # ===================
 # Gateway configs
@@ -15,6 +18,9 @@ nginxIngressControllerEnable: true
 
 gatewayEnable: true
 gateway:
+  nameOverride: "gateway"
+  fullnameOverride: "gateway"
+  
   image:
     pullPolicy: IfNotPresent
     tag: "0.0.7"
@@ -37,6 +43,9 @@ gateway:
 
 redisEnable: true
 redis:
+  nameOverride: "redis"
+  fullnameOverride: "redis"
+
   architecture: "standalone"
 
   global:
@@ -58,6 +67,9 @@ redis:
 jupyterEnable: true
 
 jupyter:
+  nameOverride: "jupyter"
+  fullnameOverride: "jupyter"
+
   jupyterToken: "<YOUR_JUPYTER_PASSWORD_HERE>"
 
   image:
@@ -96,7 +108,7 @@ jupyter:
 rayClusterEnable: true
 ray-cluster:
   nameOverride: "kuberay"
-  fullnameOverride: ""
+  fullnameOverride: "kuberay"
 
   image:
     repository: "qiskit/quantum-serverless-ray-node"
@@ -270,6 +282,9 @@ keycloakUserID: user
 keycloakUserPassword: passw0rd
 
 keycloak:
+  nameOverride: "keycloak"
+  fullnameOverride: "keycloak"
+
   logging:
     level: DEBUG
   service:
@@ -288,12 +303,19 @@ keycloak:
       mountPath: /opt/bitnami/keycloak/data/import
   extraStartupArgs: "--import-realm"
 
+  postgresql:
+    nameOverride: "postgresql"
+    fullnameOverride: "postgresql"
+
 # ===================
 # Quantum Repository
 # ===================
 
 repositoryEnable: true
 repository:
+  nameOverride: "repository"
+  fullnameOverride: "repository"
+
   repository: "qiskit/quantum-repository-server"
   pullPolicy: IfNotPresent
   tag: "0.0.7"
@@ -304,7 +326,21 @@ repository:
 
 prometheusEnable: true
 kube-prometheus-stack:
+  nameOverride: "prometheus"
+  fullnameOverride: "prometheus"
+
+  kube-state-metrics:
+    nameOverride: "kube-state-metrics"
+    fullnameOverride: "kube-state-metrics"
+
+  prometheus-node-exporter:
+    nameOverride: "prometheus-node-exporter"
+    fullnameOverride: "prometheus-node-exporter"
+
   grafana:
+    nameOverride: "grafana"
+    fullnameOverride: "grafana"
+
     adminPassword: passw0rd
     service:
       type: NodePort
@@ -331,6 +367,7 @@ kube-prometheus-stack:
         level: debug
       server:
         root_url: "http://localhost:32294/"
+    
 
 # ===================
 # loki
@@ -339,6 +376,9 @@ kube-prometheus-stack:
 lokiEnable: true
 
 loki:
+  nameOverride: "loki"
+  fullnameOverride: "loki"
+
   loki:
     commonConfig:
       replication_factor: 1
@@ -356,9 +396,19 @@ loki:
   gateway:
     service:
       type: NodePort
-
+  monitoring:
+    selfMonitoring:
+      grafanaAgent:
+        installOperator: false
+  test:
+    enabled: false
+  
 # ===================
 # promtail
 # ===================
 
 promtailEnable: true
+
+promtail:
+  nameOverride: "promtail"
+  fullnameOverride: "promtail"

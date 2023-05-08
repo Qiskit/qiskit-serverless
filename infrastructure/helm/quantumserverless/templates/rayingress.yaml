@@ -14,7 +14,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: {{ .Release.Name }}-kuberay-head-svc 
+            name: kuberay-head-svc 
             port:
               number: 4180
 {{- end }}
