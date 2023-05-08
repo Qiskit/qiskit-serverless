@@ -24,13 +24,13 @@ ingress:
       paths:
       - path: /
         pathType: Prefix
-        serviceName: "RELEASE_NAME-gateway"
+        serviceName: "gateway"
         servicePort: 8000
     - host: "repository.YOUR_INGRESS_PUBLIC_END_POINT"
       paths:
       - path: /
         pathType: Prefix
-        serviceName: "RELEASE_NAME-repository"
+        serviceName: "repository"
         servicePort: 8060
 
 # ===================
@@ -44,10 +44,10 @@ gateway:
     tag: "nightly"
   application:
     siteHost: "http://localhost:8000"
-    rayHost: "http://RELEASE_NAME-kuberay-head-svc:8265"
+    rayHost: "http://kuberay-head-svc:8265"
     keycloak:
       clientId: "gateway-client"
-      url: "http://RELEASE_NAME-keycloak:31059"
+      url: "http://keycloak:31059"
       realm: "quantumserverless"
       clientSecret: GATEWAYSECRET-CHANGEME
     superuser:
@@ -288,9 +288,9 @@ kube-prometheus-stack:
         allow_sign_up: "true"
         client_id: grafana-client
         client_secret: GRAFANASECRET-CHANGEME
-        api_url: "http://RELEASE_NAME-keycloak:31059/realms/quantumserverless/protocol/openid-connect/userinfo"
-        auth_url: "http://RELEASE_NAME-keycloak:31059/realms/quantumserverless/protocol/openid-connect/auth"
-        token_url: "http://RELEASE_NAME-keycloak:31059/realms/quantumserverless/protocol/openid-connect/token"
+        api_url: "http://keycloak:31059/realms/quantumserverless/protocol/openid-connect/userinfo"
+        auth_url: "http://keycloak:31059/realms/quantumserverless/protocol/openid-connect/auth"
+        token_url: "http://keycloak:31059/realms/quantumserverless/protocol/openid-connect/token"
         role_attribute_path: "contains(roles[*], 'grafana-admin') && 'GrafanaAdmin' || contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'"
         allow_assign_grafana_admin: "true"
         scopes: openid email profile roles
