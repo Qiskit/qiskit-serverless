@@ -23,7 +23,7 @@ class TestProgramApi(APITestCase):
         response = self.client.post(
             auth, {"username": "test_user", "password": "123"}, format="json"
         )
-        token = response.data.get("access_token")
+        token = response.data.get("access")
         self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
         programs_response = self.client.get(reverse("v1:programs-list"), format="json")
@@ -41,7 +41,7 @@ class TestProgramApi(APITestCase):
         response = self.client.post(
             auth, {"username": "test_user", "password": "123"}, format="json"
         )
-        token = response.data.get("access_token")
+        token = response.data.get("access")
         self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
         programs_response = self.client.get(
