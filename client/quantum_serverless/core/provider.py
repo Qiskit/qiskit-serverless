@@ -584,5 +584,5 @@ class GatewayProvider(Provider):
         if not gateway_response.ok:
             raise QuantumServerlessException(gateway_response.text)
 
-        gateway_token = json.loads(gateway_response.text).get("access_token")
+        gateway_token = json.loads(gateway_response.text).get("access")
         self._token = gateway_token

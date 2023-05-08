@@ -159,7 +159,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
             job.save()
         return Response(serializer.data)
 
-    @action(methods=["POST"], detail=True, permission_classes=[permissions.AllowAny])
+    @action(methods=["POST"], detail=True)
     def result(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Save result of a job."""
         job = self.get_object()

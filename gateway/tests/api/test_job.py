@@ -16,7 +16,7 @@ class TestJobApi(APITestCase):
         resp = self.client.post(
             auth, {"username": "test_user", "password": "123"}, format="json"
         )
-        token = resp.data.get("access_token")
+        token = resp.data.get("access")
         self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
     def test_job_non_auth_user(self):
