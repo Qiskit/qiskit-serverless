@@ -27,7 +27,7 @@ schema = get_schema_view(  # pylint: disable=invalid-name
         default_version="v1",
         description="List of available API endpoint for Program repository.",
     ),
-    public=False,
+    public=True,
     permission_classes=[permissions.AllowAny],
 )
 
