@@ -53,7 +53,6 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.keycloak",
     "dj_rest_auth",
     "dj_rest_auth.registration",
-    "drf_yasg",
     "api",
 ]
 
@@ -200,5 +199,3 @@ SIMPLE_JWT = {
 
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 MEDIA_URL = "/media/"
-
-SWAGGER_SETTINGS = {"LOGIN_URL": "/api-auth/login/", "LOGOUT_URL": "/api-auth/logout/"}

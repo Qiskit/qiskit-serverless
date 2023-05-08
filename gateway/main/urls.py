@@ -17,23 +17,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include, re_path
-from rest_framework import routers, permissions
-from drf_yasg.views import get_schema_view
-from drf_yasg import openapi
+from rest_framework import routers
 
 from api.views import KeycloakLogin, KeycloakUsersView
 
 router = routers.DefaultRouter()
 
-schema = get_schema_view(  # pylint: disable=invalid-name
-    openapi.Info(
-        title="Gateway API",
-        default_version="v1",
-        description="List of available API endpoints for the Gateway.",
-    ),
-    public=True,
-    permission_classes=[permissions.AllowAny],
-)
 
 urlpatterns = [
     path("dj-rest-auth/", include("dj_rest_auth.urls")),
@@ -44,17 +33,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("django_prometheus.urls")),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
-    # docs
-    re_path(
-        r"^swagger(?P<format>\.json|\.yaml)$",
-        schema.without_ui(cache_timeout=0),
-        name="schema-json",
-    ),
-    re_path(
-        r"^swagger/$",
-        schema.with_ui("swagger", cache_timeout=0),
-        name="schema-swagger-ui",
-    ),
 ]
 
 if settings.DEBUG:
