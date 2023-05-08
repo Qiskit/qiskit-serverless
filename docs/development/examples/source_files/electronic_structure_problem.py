@@ -23,8 +23,7 @@ from qiskit.algorithms.minimum_eigensolvers import VQE
 from qiskit_nature.drivers import Molecule
 from qiskit.algorithms.optimizers import SPSA
 
-from quantum_serverless import distribute_task, get, QuantumServerless
-from quantum_serverless.core import RedisStateHandler
+from quantum_serverless import distribute_task, get, QuantumServerless, save_result
 
 
 @distribute_task(target={"cpu": 2})
@@ -189,8 +188,6 @@ def electronic_structure_problem(
 
 if __name__ == '__main__':
     serverless = QuantumServerless()
-    state_handler = RedisStateHandler("redis", 6379)
-
     USE_RUNTIME = False
 
     service = None
@@ -221,12 +218,8 @@ if __name__ == '__main__':
             use_local_simulator=not USE_RUNTIME
         )
 
-    print("LiH experiment results:")
-    print("Energies: ", [e[0] for e in energies])
-    print("Shifts: ", [e[1] for e in energies])
-    print("Energy + shift: ", [e[0] + e[1] for e in energies])
-
-    state_handler.set("results", {
+    save_result({
         "energies": [e[0] for e in energies],
-        "shifts": [e[1] for e in energies]
+        "shifts": [e[1] for e in energies],
+        "result": [e[0] + e[1] for e in energies]
     })

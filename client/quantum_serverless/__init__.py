@@ -10,7 +10,14 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Quantum serverless."""
+"""
+.. currentmodule:: quantum_serverless
+
+.. autosummary::
+    :toctree: ../stubs/
+
+    QuantumServerless
+"""
 
 from importlib_metadata import version as metadata_version, PackageNotFoundError
 

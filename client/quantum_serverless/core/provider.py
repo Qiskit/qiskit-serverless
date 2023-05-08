@@ -29,9 +29,8 @@ Quantum serverless provider
 import json
 import logging
 import os.path
-import tarfile
 from dataclasses import dataclass
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 import ray
 import requests
@@ -53,7 +52,6 @@ from quantum_serverless.core.job import (
 from quantum_serverless.core.program import Program
 from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
-from quantum_serverless.serializers.program_serializers import QiskitObjectsEncoder
 from quantum_serverless.utils import JsonSerializable
 
 TIMEOUT = 30
@@ -253,7 +251,9 @@ class Provider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run_program(self, program: Program) -> Job:
+    def run_program(
+        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+    ) -> Job:
         """Execute a program as a async job.
 
         Example:
@@ -267,6 +267,7 @@ class Provider(JsonSerializable):
             >>> # <Job | ...>
 
         Args:
+            arguments: arguments to run program with
             program: Program object
 
         Returns:
@@ -282,7 +283,7 @@ class Provider(JsonSerializable):
             )
             return None
 
-        return job_client.run_program(program)
+        return job_client.run_program(program, arguments)
 
 
 class KuberayProvider(Provider):
@@ -517,6 +518,8 @@ class GatewayProvider(Provider):
         if token is None:
             self._fetch_token(username, password)
 
+        self._job_client = GatewayJobClient(self.host, self._token, self.version)
+
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
 
@@ -538,51 +541,17 @@ class GatewayProvider(Provider):
             data = json.loads(response.text)
             job = Job(
                 job_id=data.get("id"),
-                job_client=GatewayJobClient(self.host, self._token, self.version),
+                job_client=self._job_client,
             )
         else:
             logging.warning(response.text)
 
         return job
 
-    def run_program(self, program: Program) -> Job:
-        url = f"{self.host}/api/{self.version}/programs/run/"
-        artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
-
-        with tarfile.open(artifact_file_path, "w") as tar:
-            for filename in os.listdir(program.working_dir):
-                fpath = os.path.join(program.working_dir, filename)
-                tar.add(fpath, arcname=filename)
-
-        with open(artifact_file_path, "rb") as file:
-            response = requests.post(
-                url=url,
-                data={
-                    "title": program.title,
-                    "entrypoint": program.entrypoint,
-                    "arguments": json.dumps(
-                        program.arguments or {}, cls=QiskitObjectsEncoder
-                    ),
-                    "dependencies": json.dumps(program.dependencies or []),
-                },
-                files={"artifact": file},
-                headers={"Authorization": f"Bearer {self._token}"},
-                timeout=REQUESTS_TIMEOUT,
-            )
-            if not response.ok:
-                raise QuantumServerlessException(
-                    f"Something went wrong with program execution. {response.text}"
-                )
-
-            json_response = json.loads(response.text)
-            job_id = json_response.get("id")
-
-        if os.path.exists(artifact_file_path):
-            os.remove(artifact_file_path)
-
-        return Job(
-            job_id, job_client=GatewayJobClient(self.host, self._token, self.version)
-        )
+    def run_program(
+        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+    ) -> Job:
+        return self._job_client.run_program(program, arguments)
 
     def get_jobs(self, **kwargs) -> List[Job]:
         jobs = []
@@ -596,7 +565,7 @@ class GatewayProvider(Provider):
             jobs = [
                 Job(
                     job_id=job.get("id"),
-                    job_client=GatewayJobClient(self.host, self._token, self.version),
+                    job_client=self._job_client,
                 )
                 for job in json.loads(response.text).get("results", [])
             ]

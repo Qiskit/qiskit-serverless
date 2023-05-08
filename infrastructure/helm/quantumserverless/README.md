@@ -56,12 +56,12 @@ kind-control-plane   Ready    control-plane   5d6h   v1.25.3   172.18.0.2    <no
 
 Install from the default values file
 ```shell
-helm -n ray install quantum-serverless --create-namespace .
+helm -n quantum-serverless install quantum-serverless --create-namespace .
 ```
 
 Install from specific values file
 ```shell
- helm -n ray install quantum-serverless -f <PATH_TO_VALUES_FILE> --create-namespace .
+ helm -n quantum-serverless install quantum-serverless -f <PATH_TO_VALUES_FILE> --create-namespace .
 ```
 
 ## Helm chart versions

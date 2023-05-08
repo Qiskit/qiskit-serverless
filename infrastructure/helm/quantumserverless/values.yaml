@@ -8,6 +8,9 @@
 
 # Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
 nginxIngressControllerEnable: true
+nginx-ingress-controller:
+  nameOverride: "nginx-ingress-controller"
+  fullnameOverride: "nginx-ingress-controller"
 ingress:
   annotations:
     # For IBM Cloud the valid ingress class values are: public-iks-k8s-nginx and private-iks-k8s-nginx
@@ -29,9 +32,12 @@ ingress:
 
 gatewayEnable: true
 gateway:
+  nameOverride: "gateway"
+  fullnameOverride: "gateway"
+  
   image:
     pullPolicy: IfNotPresent
-    tag: "nightly"
+    tag: "0.0.7"
   application:
     siteHost: "http://localhost:8000"
     rayHost: "http://RELEASE_NAME-kuberay-head-svc:8265"
@@ -54,6 +60,9 @@ gateway:
 
 redisEnable: true
 redis:
+  nameOverride: "redis"
+  fullnameOverride: "redis"
+
   architecture: "standalone"
   global:
     redis:
@@ -67,10 +76,14 @@ redis:
 
 jupyterEnable: true
 jupyter:
+  nameOverride: "jupyter"
+  fullnameOverride: "jupyter"
+
   jupyterToken: "YOUR_JUPYTER_PASSWORD_HERE"
+
   image:
     repository: "qiskit/quantum-serverless-notebook"
-    tag: "nightly-py39"
+    tag: "0.0.7-py39"
     pullPolicy: IfNotPresent
   container:
     port: 8888
@@ -83,9 +96,12 @@ jupyter:
 
 rayClusterEnable: true
 ray-cluster:
+  nameOverride: "kuberay"
+  fullnameOverride: "kuberay"
+
   image:
     repository: "qiskit/quantum-serverless-ray-node"
-    tag: "nightly-py39"
+    tag: "0.0.7-py39"
     pullPolicy: IfNotPresent
   head:
     rayStartParams:
@@ -221,6 +237,9 @@ grafanaClientSecret: GRAFANASECRET-CHANGEME
 keycloakUserID: user
 keycloakUserPassword: passw0rd
 keycloak:
+  nameOverride: "keycloak"
+  fullnameOverride: "keycloak"
+
   logging:
     level: DEBUG
   service:
@@ -239,12 +258,19 @@ keycloak:
       mountPath: /opt/bitnami/keycloak/data/import
   extraStartupArgs: "--import-realm"
 
+  postgresql:
+    nameOverride: "postgresql"
+    fullnameOverride: "postgresql"
+
 # ===================
 # Quantum Repository
 # ===================
 
 repositoryEnable: true
 repository:
+  nameOverride: "repository"
+  fullnameOverride: "repository"
+
   image:
     pullPolicy: IfNotPresent
     tag: "latest"
@@ -263,7 +289,21 @@ repository:
 
 prometheusEnable: true
 kube-prometheus-stack:
+  nameOverride: "prometheus"
+  fullnameOverride: "prometheus"
+
+  kube-state-metrics:
+    nameOverride: "kube-state-metrics"
+    fullnameOverride: "kube-state-metrics"
+
+  prometheus-node-exporter:
+    nameOverride: "prometheus-node-exporter"
+    fullnameOverride: "prometheus-node-exporter"
+
   grafana:
+    nameOverride: "grafana"
+    fullnameOverride: "grafana"
+
     adminPassword: passw0rd
     service:
       type: ClusterIP
@@ -298,6 +338,9 @@ kube-prometheus-stack:
 
 lokiEnable: true
 loki:
+  nameOverride: "loki"
+  fullnameOverride: "loki"
+
   loki:
     commonConfig:
       replication_factor: 1
@@ -315,9 +358,18 @@ loki:
   gateway:
     service:
       type: ClusterIP
-
+  monitoring:
+    selfMonitoring:
+      grafanaAgent:
+        installOperator: false
+  test:
+    enabled: false
+  
 # ===================
 # promtail
 # ===================
 
 promtailEnable: true
+promtail:
+  nameOverride: "promtail"
+  fullnameOverride: "promtail"

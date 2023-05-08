@@ -30,12 +30,10 @@ import os
 from typing import Dict, Optional
 
 from opentelemetry import trace
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import (
-    SimpleSpanProcessor,
-)
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
@@ -75,11 +73,10 @@ def get_tracer(
     )
     provider = TracerProvider(resource=resource)
     if agent_host is not None and agent_port is not None:
-        jaeger_exporter = JaegerExporter(
-            agent_host_name=agent_host,
-            agent_port=agent_port,
+        otel_exporter = BatchSpanProcessor(
+            OTLPSpanExporter(endpoint=f"{agent_host}:{agent_port}")
         )
-        provider.add_span_processor(SimpleSpanProcessor(jaeger_exporter))
+        provider.add_span_processor(otel_exporter)
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
     return trace.get_tracer(instrumenting_module_name)
 
