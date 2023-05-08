@@ -624,7 +624,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">gateway_response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">QuantumServerlessException</span><span class="p">(</span><span class="n">gateway_response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
 
-        <span class="n">gateway_token</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">gateway_response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;access_token&quot;</span><span class="p">)</span>
+        <span class="n">gateway_token</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">gateway_response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;access&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_token</span> <span class="o">=</span> <span class="n">gateway_token</span></div>
 </pre></div>
 
