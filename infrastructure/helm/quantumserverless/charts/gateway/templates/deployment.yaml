@@ -33,7 +33,7 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args: [ "gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=4" ]
+          args: [ "gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:{{ .Values.service.port }}", "--workers=4" ]
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
