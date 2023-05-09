@@ -4,16 +4,14 @@
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | ~> 1.2 |
-| <a name="requirement_helm"></a> [helm](#requirement\_helm) | >= 2.8.0 |
-| <a name="requirement_ibm"></a> [ibm](#requirement\_ibm) | >= 1.50.0 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | ~> 1.4 |
+| <a name="requirement_ibm"></a> [ibm](#requirement\_ibm) | >= 1.51.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_helm"></a> [helm](#provider\_helm) | 2.8.0 |
-| <a name="provider_ibm"></a> [ibm](#provider\_ibm) | 1.50.0 |
+| <a name="provider_ibm"></a> [ibm](#provider\_ibm) | 1.52.1 |
 
 ## Modules
 
@@ -26,7 +24,6 @@
 
 | Name | Type |
 |------|------|
-| [helm_release.quantum_serverless_release](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
 | [ibm_container_cluster_config.quantum_serverless_cluster_config](https://registry.terraform.io/providers/IBM-Cloud/ibm/latest/docs/data-sources/container_cluster_config) | data source |
 | [ibm_resource_group.ibmcloud_resource_group](https://registry.terraform.io/providers/IBM-Cloud/ibm/latest/docs/data-sources/resource_group) | data source |
 
@@ -40,11 +37,11 @@
 | <a name="input_ibmcloud_resource_group"></a> [ibmcloud\_resource\_group](#input\_ibmcloud\_resource\_group) | Name of resource group to provision resources | `string` | `"Default"` | no |
 | <a name="input_ibmcloud_timeout"></a> [ibmcloud\_timeout](#input\_ibmcloud\_timeout) | The general timeout to operate with the IBMCloud provider | `number` | `60` | no |
 | <a name="input_locations"></a> [locations](#input\_locations) | The locations for the subnets and nodes | `list(string)` | <pre>[<br>  "us-south-1",<br>  "us-south-2"<br>]</pre> | no |
-| <a name="input_machine_type"></a> [machine\_type](#input\_machine\_type) | Machine type for the IKS Cluster | `string` | `"cx2.2x4"` | no |
-| <a name="input_name"></a> [name](#input\_name) | The prefix name for all the resources | `string` | `"qserverless"` | no |
+| <a name="input_machine_type"></a> [machine\_type](#input\_machine\_type) | Machine type for the IKS Cluster | `string` | `"cx2.8x16"` | no |
+| <a name="input_name"></a> [name](#input\_name) | The prefix name for all the resources | `string` | `"quantum-serverless-test"` | no |
 | <a name="input_number_of_addresses"></a> [number\_of\_addresses](#input\_number\_of\_addresses) | The number of addresses by subnet | `number` | `64` | no |
-| <a name="input_tags"></a> [tags](#input\_tags) | The list of tags | `list(string)` | <pre>[<br>  "env:dev",<br>  "project:qserverless"<br>]</pre> | no |
-| <a name="input_worker_nodes_per_zone"></a> [worker\_nodes\_per\_zone](#input\_worker\_nodes\_per\_zone) | Number of workers per zone | `number` | `1` | no |
+| <a name="input_tags"></a> [tags](#input\_tags) | The list of tags | `list(string)` | <pre>[<br>  "env:dev",<br>  "project:middleware"<br>]</pre> | no |
+| <a name="input_worker_nodes_per_zone"></a> [worker\_nodes\_per\_zone](#input\_worker\_nodes\_per\_zone) | Number of workers per zone | `number` | `2` | no |
 
 ## Outputs
 
