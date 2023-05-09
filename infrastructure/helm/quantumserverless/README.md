@@ -20,7 +20,6 @@ Update values.yaml file. Find and replace the following strings
 - **APISERVERSECRET-CHANGEME**: string used as the secret for a OIDC protocol for apiserver
 - **SECRET-CHANGEME**: string used as the secret for a OIDC protocol
 - **GRAFANASECRET-CHANGEME**: string used as the secret for a OIDC protocol for Grafana
-- **HELM-RELEASE**: release name used in the helm install command
 - **LOCAL-IP**: IP address that can be accessed from both outside of the cluster and inside of the cluster.  
 
 **LOCAL-IP Example**
