@@ -23,7 +23,7 @@ gateway:
   
   image:
     pullPolicy: IfNotPresent
-    tag: "0.0.7"
+    tag: "0.0.8"
   application:
     siteHost: "http://127.0.0.1:8000"
     rayHost: "http://serverless-cluster-kuberay-head-svc:8265"
@@ -74,7 +74,7 @@ jupyter:
 
   image:
     repository: "qiskit/quantum-serverless-notebook"
-    tag: "0.0.7-py39"
+    tag: "0.0.8-py39"
     pullPolicy: IfNotPresent
   
   imagePullSecrets: []
@@ -112,7 +112,7 @@ ray-cluster:
 
   image:
     repository: "qiskit/quantum-serverless-ray-node"
-    tag: "0.0.7-py39"
+    tag: "0.0.8-py39"
     pullPolicy: IfNotPresent
 
   head:
@@ -318,7 +318,7 @@ repository:
 
   repository: "qiskit/quantum-repository-server"
   pullPolicy: IfNotPresent
-  tag: "0.0.7"
+  tag: "0.0.8"
 
 # ===================
 # Prometheus 
