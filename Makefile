@@ -2,7 +2,7 @@
 # Constants
 # =========
 
-version=0.0.7
+version=0.0.8
 repository=qiskit
 arch=$(shell uname -p)
 
