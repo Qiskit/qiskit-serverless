@@ -133,7 +133,7 @@ ray-cluster:
           - --cookie-secret=SECRET0123456789
           - --provider=keycloak-oidc
           - --client-id=rayclient
-          - --upstream="http://HELM-RELEASE-kuberay-head-svc:8265"
+          - --upstream="http://kuberay-head-svc:8265"
           - --redirect-url=http://localhost/oauth2/callback
   worker:
     # If you want to disable the default workergroup
