@@ -22,20 +22,22 @@ the different Python executions that you can send to your [k8s](https://kubernet
 
 
 ## Docker folder
-In [this folder](./docker) you will find the resources related with the creation of the docker images that the infrastructure requires to deploy. There are two main images:
+In [this folder](./docker) you will find the resources related with the creation of the docker images that the infrastructure requires to deploy. There are four main images:
 - **Jupyter notebook**: an image to be able to deploy a jupyter notebook in the infrastructure and make use of the project in a easy way without install anything locally.
 - **Ray**: an image that contains the ray library to be used in the infrastructure.
+- **Gateway**: the API of the project that will provide you access to ray.
+- **Repository**: a repository backend where to store Programs and share them.
 
 
 ## Helm folder
-In [this folder](./helm) you will find the main configuration to set up your k8s cluster and the services that this project uses. There are 5 main configurations:
+In [this folder](./helm) you will find the main configuration to set up your k8s cluster and the services that this project uses. There are 7 main services:
 - **Jupyter**: this configuration deploys in your cluster the service that provides you with a notebook to work easily with the project.
-- **Manager**: this configuration deploys the API to handle your Ray cluster.
-- **Operator**: a standard ray configuration to set up the KubeRay operator in the k8s cluster. This resource provides a Kubernetes-native way to manage Ray clusters.
+- **Gateway**: this configuration deploys the API to handle your Ray cluster.
+- **Kuberay Operator**: a standard ray configuration to set up the KubeRay operator in the k8s cluster. This resource provides a Kubernetes-native way to manage Ray clusters.
 - **Ray cluster**: standard configuration to set up and deploy your Ray cluster in a k8s environment.
 - **Kuberay API server**: a standard configuration to manage KubeRay resources using gRPC and HTTP APIs.
 - **Keycloak**: a standard configuration to manage access to the resources.
-- **Prometheus**: a systems and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions, displays the results, and can trigger alerts if some condition is observed to be true.
+- **Grafana / Prometheus**: a systems and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions, displays the results, and can trigger alerts if some condition is observed to be true.
 
 ## Terraform
 The [folder](./terraform) contains the configuration that helps you to create your k8s and Ray clusters. Currently, the project supports deployments in:
