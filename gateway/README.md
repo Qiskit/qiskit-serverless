@@ -25,4 +25,5 @@ docker build -t qiskit/quantum-serverless-gateway:<VERSION> .
 | SETTINGS_KEYCLOAK_CLIENT_SECRET | client secret                                                                                                                                                         |
 | SETTINGS_TOKEN_AUTH_URL         | URL for custom token authentication                                                                                                                                   |
 | SETTINGS_TOKEN_AUTH_USER_FIELD  | user field name for custom token authentication mechanism. Default `userId`.                                                                                          |
+| SETTINGS_TOKEN_AUTH_TOKEN_FIELD | user field name for custom token authentication mechanism. Default `apiToken`.                                                                                        |
 | SETTINGS_AUTH_MECHANISM         | authentication backend mechanism. Default `default`. Options: `default` and `custom_token`. If `custom_token` is selected then `SETTINGS_TOKEN_AUTH_URL` must be set. |

@@ -201,6 +201,9 @@ SETTINGS_TOKEN_AUTH_URL = os.environ.get("SETTINGS_TOKEN_AUTH_URL", None)
 SETTINGS_TOKEN_AUTH_USER_FIELD = os.environ.get(
     "SETTINGS_TOKEN_AUTH_USER_FIELD", "userId"
 )
+SETTINGS_TOKEN_AUTH_TOKEN_FIELD = os.environ.get(
+    "SETTINGS_TOKEN_AUTH_TOKEN_FIELD", "apiToken"
+)
 SOCIALACCOUNT_PROVIDERS = {
     "keycloak": {
         "KEYCLOAK_URL": os.environ.get(SETTING_KEYCLOAK_URL, "http://localhost:8085"),

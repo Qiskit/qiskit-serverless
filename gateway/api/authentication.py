@@ -31,7 +31,11 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         if auth_header is not None and auth_url is not None:
             token = auth_header.split(" ")[-1]
 
-            response = requests.post(auth_url, json={"apiToken": token}, timeout=60)
+            response = requests.post(
+                auth_url,
+                json={settings.SETTINGS_TOKEN_AUTH_TOKEN_FIELD: token},
+                timeout=60,
+            )
             if response.ok:
                 try:
                     json_response = json.loads(response.text)
