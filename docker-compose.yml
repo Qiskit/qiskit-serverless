@@ -76,6 +76,8 @@ services:
       - SETTING_KEYCLOAK_REALM=quantumserverless
       - SETTINGS_KEYCLOAK_CLIENT_SECRET=supersecret
       - SITE_HOST=http://gateway:8000
+#      - SETTINGS_AUTH_MECHANISM=default #custom_token
+#      - SETTINGS_TOKEN_AUTH_URL=<URL_FOR_TOKEN_VERIFICATION>
     networks:
       - safe-tier
     depends_on:
