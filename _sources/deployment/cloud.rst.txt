@@ -61,8 +61,7 @@ If you have ``make`` available you can run the next commands in your terminal:
 .. code-block::
    :caption: run the commands from the root of the project
 
-        $ make build-notebook
-        $ make build-ray-node
+        $ make build-all
 
 Or if you don't have it (Windows for example), you can always build the images manually:
 
@@ -71,13 +70,14 @@ Or if you don't have it (Windows for example), you can always build the images m
 
         $ docker build -t qiskit/quantum-serverless-notebook -f ./infrastructure/docker/Dockerfile-notebook .
         $ docker build -t qiskit/quantum-serverless-ray-node -f ./infrastructure/docker/Dockerfile-ray-qiskit .
+        $ ...
 
 Now that you have built the needed Docker images you can run **docker-compose** to deploy locally the project:
 
 .. code-block::
    :caption: run the command from the root of the project
 
-        $ docker-compose up
+        $ docker-compose --profile full up
 
 And once time finished the execution of the command if everything went well you are going to be able to open the browser
 and have access to:
@@ -110,6 +110,8 @@ and run the next commands:
 
         $ helm repo add bitnami https://charts.bitnami.com/bitnami
         $ helm repo add kuberay https://ray-project.github.io/kuberay-helm
+        $ helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        $ helm repo add grafana https://grafana.github.io/helm-charts
         $ helm dependency build
         $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace .
 
@@ -123,8 +125,8 @@ always will work is to use the ``port-forward`` command:
 
         $ kubectl get pod -o wide
         $ > ...
-        $ > <NAMESPACE>-jupyter-<POD_ID>
-        $ > <NAMESPACE>-kuberay-head-<POD_ID>
+        $ > jupyter-<POD_ID>
+        $ > kuberay-head-<POD_ID>
         $ > ...
 
 Now that we have the desired pods we can expose their ports:
@@ -132,8 +134,8 @@ Now that we have the desired pods we can expose their ports:
 .. code-block::
    :caption: ports 8265 and 8888 are the the default ports for each service
 
-        $  kubectl port-forward <NAMESPACE>-kuberay-head-<POD_ID> 8265
-        $  kubectl port-forward <NAMESPACE>-jupyter-<POD_ID> 8888
+        $  kubectl port-forward kuberay-head-<POD_ID> 8265
+        $  kubectl port-forward jupyter-<POD_ID> 8888
 
 This way you will be able to access to your cluster services from localhost.
 
@@ -183,9 +185,7 @@ with the next content:
 **In AWS** case instead to create a file you will need to configure a set of environment variables in your terminal as it
 is defined `here <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set>`_.
 
-Once time your account is configured to be used by terraform just check that in your provider folder you have configured
-your desired values for your services in ``values.yaml`` before the deployment process. To confirm the configuration
-just run terraform:
+To confirm the configuration just run terraform:
 
 .. code-block::
     :caption: always run a plan before an apply, this will compare your current configuration with the new one
@@ -202,6 +202,16 @@ And as final step:
 When the process finishes you should be able to see the cluster with the resources in your provider information:
     * `IBM Cloud cluster access guide <https://cloud.ibm.com/docs/containers?topic=containers-access_cluster>`_
     * `AWS cluster connection guide <https://aws.amazon.com/premiumsupport/knowledge-center/eks-cluster-connection/>`_
+
+Now that you have a cluster you just will need to run the previous `helm` steps to deploy the different applications.
+
+For IBM Cloud in particular we provided you with a specific values with a default configuration in `values-ibm.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values-ibm.yaml>`_
+
+The only thing that you will need to check in this case are some placeholders:
+    * YOUR_INGRESS_PUBLIC_END_POINT: this value can be obtained from your Ingress configuration of your cluster
+    * YOUR-INGRESS-SECRET: this value can be obtained from your Ingress configuration of your cluster
+    * GATEWAYSECRET-CHANGEME: the secret that your application will use to connect `Gateway` with `Keycloak`
+    * GRAFANASECRET-CHANGEME: the secret that your application will use to connect `Grafana` with `Keycloak`
 
 Quantum Serverless configuration
 ==================================

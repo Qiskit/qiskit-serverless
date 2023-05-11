@@ -92,8 +92,7 @@ tools installed!</p>
 <p>If you have <code class="docutils literal notranslate"><span class="pre">make</span></code> available you can run the next commands in your terminal:</p>
 <div class="literal-block-wrapper docutils container" id="id2">
 <div class="code-block-caption"><span class="caption-number">Listing 7 </span><span class="caption-text">run the commands from the root of the project</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ make build-notebook
-     $ make build-ray-node
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ make build-all
 </pre></div>
 </div>
 </div>
@@ -102,13 +101,14 @@ tools installed!</p>
 <div class="code-block-caption"><span class="caption-number">Listing 8 </span><span class="caption-text">run the commands from the root of the project</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker build -t qiskit/quantum-serverless-notebook -f ./infrastructure/docker/Dockerfile-notebook .
      $ docker build -t qiskit/quantum-serverless-ray-node -f ./infrastructure/docker/Dockerfile-ray-qiskit .
+     $ ...
 </pre></div>
 </div>
 </div>
 <p>Now that you have built the needed Docker images you can run <strong>docker-compose</strong> to deploy locally the project:</p>
 <div class="literal-block-wrapper docutils container" id="id4">
 <div class="code-block-caption"><span class="caption-number">Listing 9 </span><span class="caption-text">run the command from the root of the project</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker-compose up
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker-compose --profile full up
 </pre></div>
 </div>
 </div>
@@ -143,6 +143,8 @@ and run the next commands:</p>
 <div class="code-block-caption"><span class="caption-number">Listing 10 </span><span class="caption-text">run these commands from ./infrastructure/helm/quantumserverless folder</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ helm repo add bitnami https://charts.bitnami.com/bitnami
      $ helm repo add kuberay https://ray-project.github.io/kuberay-helm
+     $ helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+     $ helm repo add grafana https://grafana.github.io/helm-charts
      $ helm dependency build
      $ helm -n &lt;INSERT_YOUR_NAMESPACE&gt; install quantum-serverless --create-namespace .
 </pre></div>
@@ -155,8 +157,8 @@ always will work is to use the <code class="docutils literal notranslate"><span 
 <div class="code-block-caption"><span class="caption-number">Listing 11 </span><span class="caption-text">get kuberay-head and jupyter pods</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ kubectl get pod -o wide
      $ &gt; ...
-     $ &gt; &lt;NAMESPACE&gt;-jupyter-&lt;POD_ID&gt;
-     $ &gt; &lt;NAMESPACE&gt;-kuberay-head-&lt;POD_ID&gt;
+     $ &gt; jupyter-&lt;POD_ID&gt;
+     $ &gt; kuberay-head-&lt;POD_ID&gt;
      $ &gt; ...
 </pre></div>
 </div>
@@ -164,8 +166,8 @@ always will work is to use the <code class="docutils literal notranslate"><span 
 <p>Now that we have the desired pods we can expose their ports:</p>
 <div class="literal-block-wrapper docutils container" id="id7">
 <div class="code-block-caption"><span class="caption-number">Listing 12 </span><span class="caption-text">ports 8265 and 8888 are the the default ports for each service</span><a class="headerlink" href="#id7" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $  kubectl port-forward &lt;NAMESPACE&gt;-kuberay-head-&lt;POD_ID&gt; 8265
-     $  kubectl port-forward &lt;NAMESPACE&gt;-jupyter-&lt;POD_ID&gt; 8888
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $  kubectl port-forward kuberay-head-&lt;POD_ID&gt; 8265
+     $  kubectl port-forward jupyter-&lt;POD_ID&gt; 8888
 </pre></div>
 </div>
 </div>
@@ -214,9 +216,7 @@ with the next content:</p>
 </ul>
 <p><strong>In AWS</strong> case instead to create a file you will need to configure a set of environment variables in your terminal as it
 is defined <a class="reference external" href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set">here</a>.</p>
-<p>Once time your account is configured to be used by terraform just check that in your provider folder you have configured
-your desired values for your services in <code class="docutils literal notranslate"><span class="pre">values.yaml</span></code> before the deployment process. To confirm the configuration
-just run terraform:</p>
+<p>To confirm the configuration just run terraform:</p>
 <div class="literal-block-wrapper docutils container" id="id8">
 <div class="code-block-caption"><span class="caption-number">Listing 13 </span><span class="caption-text">always run a plan before an apply, this will compare your current configuration with the new one</span><a class="headerlink" href="#id8" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    $ terraform plan
@@ -234,6 +234,17 @@ just run terraform:</p>
 <dt>When the process finishes you should be able to see the cluster with the resources in your provider information:</dt><dd><ul class="simple">
 <li><p><a class="reference external" href="https://cloud.ibm.com/docs/containers?topic=containers-access_cluster">IBM Cloud cluster access guide</a></p></li>
 <li><p><a class="reference external" href="https://aws.amazon.com/premiumsupport/knowledge-center/eks-cluster-connection/">AWS cluster connection guide</a></p></li>
+</ul>
+</dd>
+</dl>
+<p>Now that you have a cluster you just will need to run the previous <cite>helm</cite> steps to deploy the different applications.</p>
+<p>For IBM Cloud in particular we provided you with a specific values with a default configuration in <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values-ibm.yaml">values-ibm.yaml</a></p>
+<dl class="simple">
+<dt>The only thing that you will need to check in this case are some placeholders:</dt><dd><ul class="simple">
+<li><p>YOUR_INGRESS_PUBLIC_END_POINT: this value can be obtained from your Ingress configuration of your cluster</p></li>
+<li><p>YOUR-INGRESS-SECRET: this value can be obtained from your Ingress configuration of your cluster</p></li>
+<li><p>GATEWAYSECRET-CHANGEME: the secret that your application will use to connect <cite>Gateway</cite> with <cite>Keycloak</cite></p></li>
+<li><p>GRAFANASECRET-CHANGEME: the secret that your application will use to connect <cite>Grafana</cite> with <cite>Keycloak</cite></p></li>
 </ul>
 </dd>
 </dl>
