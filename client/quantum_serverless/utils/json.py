@@ -28,7 +28,12 @@ Quantum serverless json utilities
 import json
 from abc import ABC
 from json import JSONEncoder
-from typing import Optional, Type
+from typing import Optional, Type, Callable, Dict, Any
+
+import requests
+
+from quantum_serverless.exception import QuantumServerlessException
+from quantum_serverless.utils.errors import format_err_msg
 
 
 class JsonSerializable(ABC):
@@ -67,3 +72,56 @@ def is_jsonable(data, cls: Optional[Type[JSONEncoder]] = None):
         return True
     except (TypeError, OverflowError):
         return False
+
+
+def safe_json_request(request: Callable) -> Dict[str, Any]:
+    """Returns parsed json data from request.
+
+    Args:
+        request: callable for request.
+
+    Example:
+        >>> safe_json_request(request=lambda: requests.get("https://ibm.com"))
+
+    Returns:
+        parsed json response
+    """
+    error_message: Optional[str] = None
+    try:
+        response = request()
+    except requests.exceptions.RequestException as request_exception:
+        error_message = format_err_msg(
+            "Connection error. Make sure configuration (host"
+            " and auth details) is correct.",
+            504,
+            str(request_exception.args),
+        )
+        response = None
+
+    if error_message:
+        raise QuantumServerlessException(error_message)
+
+    if response is not None and not response.ok:
+        raise QuantumServerlessException(
+            format_err_msg(
+                "Bad request",
+                response.status_code,
+                str(response.text),
+            )
+        )
+
+    decoding_error_message: Optional[str] = None
+    try:
+        json_data = json.loads(response.text)
+    except json.JSONDecodeError as json_error:
+        decoding_error_message = format_err_msg(
+            "Error occurred during decoding server response",
+            420,
+            str(json_error.args),
+        )
+        json_data = {}
+
+    if decoding_error_message:
+        raise QuantumServerlessException(decoding_error_message)
+
+    return json_data

@@ -15,9 +15,9 @@ def format_err_msg(
     Returns:
         formatted string
     """
-    result = f"\nMessage: {message}"
+    result = f"\n| Message: {message}"
     if code:
-        result += f"\nCode: {code}"
+        result += f"\n| Code: {code}"
     if extra:
-        result += f"\nInfo: {extra}"
+        result += f"\n| Details: {extra}"
     return result

@@ -48,10 +48,8 @@ from quantum_serverless.core.constants import (
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 from quantum_serverless.core.program import Program
-from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers.program_serializers import QiskitObjectsEncoder
-from quantum_serverless.utils.errors import format_err_msg
-from quantum_serverless.utils.json import is_jsonable
+from quantum_serverless.utils.json import is_jsonable, safe_json_request
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
@@ -180,9 +178,8 @@ class GatewayJobClient(BaseJobClient):
                 tar.add(fpath, arcname=filename)
 
         with open(artifact_file_path, "rb") as file:
-            error_message: Optional[str] = None
-            try:
-                response = requests.post(
+            response_data = safe_json_request(
+                request=lambda: requests.post(
                     url=url,
                     data={
                         "title": program.title,
@@ -196,41 +193,8 @@ class GatewayJobClient(BaseJobClient):
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
-            except requests.exceptions.RequestException as request_exception:
-                error_message = format_err_msg(
-                    "Connection error. Make sure configuration (host"
-                    " and auth details) is correct.",
-                    504,
-                    str(request_exception.args),
-                )
-                response = None
-
-            if error_message:
-                raise QuantumServerlessException(error_message)
-
-            if not response.ok:
-                raise QuantumServerlessException(
-                    format_err_msg(
-                        "Something went wrong during program submission.",
-                        response.status_code,
-                        response.text,
-                    )
-                )
-
-            decoding_error_message: Optional[str] = None
-            try:
-                json_response = json.loads(response.text)
-                job_id = json_response.get("id")
-            except json.JSONDecodeError as json_error:
-                decoding_error_message = format_err_msg(
-                    "Error occurred during decoding server response",
-                    420,
-                    str(json_error.args),
-                )
-                job_id = None
-
-            if decoding_error_message:
-                raise QuantumServerlessException(decoding_error_message)
+            )
+            job_id = response_data.get("id")
 
         if os.path.exists(artifact_file_path):
             os.remove(artifact_file_path)
@@ -239,105 +203,79 @@ class GatewayJobClient(BaseJobClient):
 
     def status(self, job_id: str):
         default_status = "Unknown"
-        status = default_status
-        response = requests.get(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/",
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.ok:
-            status = json.loads(response.text).get("status", default_status)
-        else:
-            logging.warning(
-                "Something went wrong during job status fetching. %s", response.text
+        response_data = safe_json_request(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
-        return status
+        )
+
+        return response_data.get("status", default_status)
 
     def stop(self, job_id: str):
-        message = ""
-        response = requests.post(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.ok:
-            message = json.loads(response.text).get("message", None)
-        else:
-            logging.warning(
-                "Something went wrong during job stopping. %s", response.text
+        response_data = safe_json_request(
+            request=lambda: requests.post(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
-        return message
+        )
+
+        return response_data.get("message")
 
     def logs(self, job_id: str):
-        result = None
-        response = requests.get(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.ok:
-            result = json.loads(response.text).get("logs", None)
-        else:
-            logging.warning(
-                "Something went wrong during job result fetching. %s", response.text
+        response_data = safe_json_request(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
-        return result
+        )
+        return response_data.get("logs")
 
     def result(self, job_id: str):
-        result = None
-        response = requests.get(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/",
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.ok:
-            json_result = json.loads(response.text).get("result", "{}")
-            result = json.loads(json_result or "{}")
-        else:
-            logging.warning(
-                "Something went wrong during job result fetching. %s", response.text
+        response_data = safe_json_request(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
-        return result
+        )
+        return json.loads(response_data.get("result", "{}") or "{}")
 
     def get(self, job_id) -> Optional["Job"]:
-        job = None
         url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
-        response = requests.get(
-            url,
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
+        response_data = safe_json_request(
+            request=lambda: requests.get(
+                url,
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
+            )
         )
-        if response.ok:
-            data = json.loads(response.text)
+
+        job = None
+        job_id = response_data.get("id")
+        if job_id is not None:
             job = Job(
-                job_id=data.get("id"),
+                job_id=response_data.get("id"),
                 job_client=self,
             )
-        else:
-            logging.warning(response.text)
 
         return job
 
     def list(self, **kwargs) -> List["Job"]:
-        jobs = []
-        url = f"{self.host}/api/{self.version}/jobs/"
-        response = requests.get(
-            url,
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
+        response_data = safe_json_request(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
+            )
         )
-        if response.ok:
-            jobs = [
-                Job(
-                    job_id=job.get("id"),
-                    job_client=self,
-                )
-                for job in json.loads(response.text).get("results", [])
-            ]
-        else:
-            logging.warning(response.text)
-
-        return jobs
+        return [
+            Job(job.get("id"), job_client=self)
+            for job in response_data.get("results", [])
+        ]
 
 
 class Job:
