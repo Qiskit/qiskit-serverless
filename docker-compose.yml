@@ -96,7 +96,7 @@ services:
     networks:
       - safe-tier
   prometheus:
-    image: prom/prometheus:v2.43.0
+    image: prom/prometheus:v2.43.1
     profiles: [ "full" ]
     ports:
       - 9000:9090
