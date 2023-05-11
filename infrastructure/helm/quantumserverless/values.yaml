@@ -39,7 +39,7 @@ gateway:
     pullPolicy: IfNotPresent
     tag: "0.0.8"
   application:
-    siteHost: "http://localhost:8000"
+    siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
     keycloak:
       clientId: "gateway-client"
