@@ -53,6 +53,7 @@ from quantum_serverless.core.program import Program
 from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
+from quantum_serverless.utils.errors import format_err_msg
 
 TIMEOUT = 30
 
@@ -483,6 +484,7 @@ class GatewayProvider(Provider):
         username: Optional[str] = None,
         password: Optional[str] = None,
         token: Optional[str] = None,
+        verbose: bool = False,
     ):
         """GatewayProvider.
 
@@ -512,6 +514,7 @@ class GatewayProvider(Provider):
             )
 
         super().__init__(name)
+        self.verbose = verbose
         self.host = host
         self.version = version
         self._token = token
@@ -530,23 +533,7 @@ class GatewayProvider(Provider):
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
-        job = None
-        url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
-        response = requests.get(
-            url,
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.ok:
-            data = json.loads(response.text)
-            job = Job(
-                job_id=data.get("id"),
-                job_client=self._job_client,
-            )
-        else:
-            logging.warning(response.text)
-
-        return job
+        return self._job_client.get(job_id)
 
     def run_program(
         self, program: Program, arguments: Optional[Dict[str, Any]] = None
@@ -554,35 +541,49 @@ class GatewayProvider(Provider):
         return self._job_client.run_program(program, arguments)
 
     def get_jobs(self, **kwargs) -> List[Job]:
-        jobs = []
-        url = f"{self.host}/api/{self.version}/jobs/"
-        response = requests.get(
-            url,
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.ok:
-            jobs = [
-                Job(
-                    job_id=job.get("id"),
-                    job_client=self._job_client,
-                )
-                for job in json.loads(response.text).get("results", [])
-            ]
-        else:
-            logging.warning(response.text)
-
-        return jobs
+        return self._job_client.list(**kwargs)
 
     def _fetch_token(self, username: str, password: str):
-        gateway_response = requests.post(
-            url=f"{self.host}/dj-rest-auth/keycloak/login/",
-            data={"username": username, "password": password},
-            timeout=REQUESTS_TIMEOUT,
-        )
+        error_message: Optional[str] = None
+        try:
+            gateway_response = requests.post(
+                url=f"{self.host}/dj-rest-auth/keycloak/login/",
+                data={"username": username, "password": password},
+                timeout=REQUESTS_TIMEOUT,
+            )
+        except requests.exceptions.RequestException as request_exception:
+            error_message = format_err_msg(
+                "Connection error. Make sure configuration"
+                "(host and auth details) is correct.",
+                504,
+                str(request_exception.args) if self.verbose else None,
+            )
+            gateway_response = None
 
-        if not gateway_response.ok:
-            raise QuantumServerlessException(gateway_response.text)
+        if error_message:
+            raise QuantumServerlessException(error_message)
 
-        gateway_token = json.loads(gateway_response.text).get("access")
+        if gateway_response and not gateway_response.ok:
+            raise QuantumServerlessException(
+                format_err_msg(
+                    "Response from server was not successful",
+                    gateway_response.status_code,
+                    gateway_response.text if self.verbose else None,
+                )
+            )
+
+        decoding_error_message: Optional[str] = None
+        try:
+            gateway_token = json.loads(gateway_response.text).get("access")
+        except json.JSONDecodeError as json_error:
+            decoding_error_message = format_err_msg(
+                "Error occurred during decoding server response",
+                420,
+                str(json_error.args) if self.verbose else None,
+            )
+            gateway_token = None
+
+        if decoding_error_message:
+            raise QuantumServerlessException(decoding_error_message)
+
         self._token = gateway_token
