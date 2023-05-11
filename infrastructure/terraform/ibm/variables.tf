@@ -42,13 +42,13 @@ variable "ibmcloud_timeout" {
 variable "name" {
   description = "The prefix name for all the resources"
   type        = string
-  default     = "qserverless"
+  default     = "quantum-serverless"
 }
 
 variable "tags" {
   description = "The list of tags"
   type        = list(string)
-  default     = ["env:dev", "project:qserverless"]
+  default     = ["env:dev", "project:middleware"]
 }
 
 variable "locations" {
@@ -72,13 +72,13 @@ variable "number_of_addresses" {
 variable "machine_type" {
   description = "Machine type for the IKS Cluster"
   type        = string
-  default     = "cx2.2x4"
+  default     = "cx2.8x16"
 }
 
 variable "worker_nodes_per_zone" {
   description = "Number of workers per zone"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "disable_pse" {
