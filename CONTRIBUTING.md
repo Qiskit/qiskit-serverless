@@ -134,6 +134,8 @@ If you wish to rebuild only a specific component (for example, the `gateway`), y
 
 ```docker-compose -f docker-compose-dev.yml build gateway```
 
+For Apple Silicon system (arm64 / aarch64), use `docker-compose-dev-arm64.yml` instead of `docker-compose-dev.yml`
+
 ### Assigning yourself
 
 The very first step to working on an issue is
