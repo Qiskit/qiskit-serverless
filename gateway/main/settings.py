@@ -152,16 +152,28 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "default")
+SETTINGS_DEFAULT_AUTH_CLASSES = [
+    "rest_framework_simplejwt.authentication.JWTAuthentication",
+    "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+]
+ALL_AUTH_CLASSES_CONFIGURATION = {
+    "default": SETTINGS_DEFAULT_AUTH_CLASSES,
+    "custom_token": [
+        "api.authentication.CustomTokenBackend",
+    ],
+}
+DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
+    SETTINGS_AUTH_MECHANISM, SETTINGS_DEFAULT_AUTH_CLASSES
+)
+
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"
     ],
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
-    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": DJR_DEFAULT_AUTHENTICATION_CLASSES,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 100,
 }
@@ -184,6 +196,13 @@ SETTINGS_KEYCLOAK_CLIENT_SECRET = os.environ.get(
 )
 SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT = int(
     os.environ.get("SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT", 15)
+)
+SETTINGS_TOKEN_AUTH_URL = os.environ.get("SETTINGS_TOKEN_AUTH_URL", None)
+SETTINGS_TOKEN_AUTH_USER_FIELD = os.environ.get(
+    "SETTINGS_TOKEN_AUTH_USER_FIELD", "userId"
+)
+SETTINGS_TOKEN_AUTH_TOKEN_FIELD = os.environ.get(
+    "SETTINGS_TOKEN_AUTH_TOKEN_FIELD", "apiToken"
 )
 SOCIALACCOUNT_PROVIDERS = {
     "keycloak": {
