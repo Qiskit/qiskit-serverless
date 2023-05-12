@@ -286,13 +286,11 @@ class Job:
                 while waiting for job result to populate
         """
         counter = 0
-        print(self._job_client.status(job_id))
         if wait and self._job_client.result(self.job_id) == "{}":
             logging.info("Waiting for job result.")
             counter = 0
             # Check every 3s, log a heartbeat every 30s
             while self._job_client.result(self.job_id) == "{}":
-                print(self._job_client.status(job_id))
                 time.sleep(3)
                 counter += 1
                 if counter % 10 == 0:
