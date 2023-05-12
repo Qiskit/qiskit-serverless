@@ -276,8 +276,27 @@ class Job:
         """Returns logs of the job."""
         return self._job_client.logs(self.job_id)
 
-    def result(self):
-        """Return results of the job."""
+    def result(self, wait: bool = True, verbose: bool = False):
+        """Return results of the job.
+
+        Args:
+            wait: flag denoting whether to wait for the
+                job result to be populated before returning
+            verbose: flag denoting whether to log a heartbeat
+                while waiting for job result to populate
+        """
+        counter = 0
+        print(self._job_client.status(job_id))
+        if wait and self._job_client.result(self.job_id) == "{}":
+            logging.info("Waiting for job result.")
+            counter = 0
+            # Check every 3s, log a heartbeat every 30s
+            while self._job_client.result(self.job_id) == "{}":
+                print(self._job_client.status(job_id))
+                time.sleep(3)
+                counter += 1
+                if counter % 10 == 0:
+                    logging.info(".")
         return self._job_client.result(self.job_id)
 
     def __repr__(self):
