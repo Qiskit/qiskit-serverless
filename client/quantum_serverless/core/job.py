@@ -31,6 +31,7 @@ import json
 import logging
 import os
 import tarfile
+import time
 from typing import Dict, Any, Optional
 from uuid import uuid4
 
@@ -293,7 +294,7 @@ class Job:
             while self._job_client.result(self.job_id) == "{}":
                 time.sleep(3)
                 counter += 1
-                if counter % 10 == 0:
+                if verbose and counter % 10 == 0:
                     logging.info(".")
         return self._job_client.result(self.job_id)
 
