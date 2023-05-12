@@ -19,6 +19,12 @@ application:
     password: "passw0rd"
     email: "admin@examplemail.io"
 
+database:
+  host: postgresql
+  port: 5432
+  user: bn_keycloak
+  name: bitnami_keycloak
+
 image:
   repository: qiskit/quantum-serverless-gateway
   pullPolicy: IfNotPresent
