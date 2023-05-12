@@ -20,6 +20,7 @@ from django.urls import path, include, re_path
 from rest_framework import routers
 
 from api.views import KeycloakLogin, KeycloakUsersView
+import probes.views
 
 router = routers.DefaultRouter()
 
@@ -31,6 +32,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("api-auth/", include("rest_framework.urls")),
     path("admin/", admin.site.urls),
+    path("readiness/", probes.views.readiness, name="readiness"),
+    path("liveness/", probes.views.liveness, name="liveness"),
     path("", include("django_prometheus.urls")),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
 ]
