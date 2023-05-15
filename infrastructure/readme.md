@@ -44,4 +44,21 @@ The [folder](./terraform) contains the configuration that helps you to create yo
 - [IBM Cloud](https://cloud.ibm.com/login)
 - [AWS](https://aws.amazon.com/)
 
+## Installation script
+In this folder in addition with `helm` and `terraform` folders there are a set of scripts called `install.sh` that will provide you a step by step guide to create your own `quantum-serverless` cluster.
+For that you have three different scripts:
+- In `infrastructure` the script will create for you the cluster + helm installations
+- In `terraform/ibm` the script will only install the cluster for you
+- In `helm/quantumserverless` the script will install only the application in the cluster where you are log-in. Very useful when you just have a cluster ready to go.
+
+### Variables & requirements
+In general the scripts will ask you for all the required information but that information can be provided to the scripts using environment variables:
+- $IBMCLOUD_API_TOKEN
+- $INGRESS_PUBLIC_END_POINT
+- $INGRESS_SECRET
+- $GATEWAY_SECRET
+- $GRAFANA_SECRET
+
+Apart from that the scripts will check for the requirements to be run: `terraform`, `helm` and `ibmcloud-cli`.
+
 :memo: For more advanced ways to deploy the project you have the guide: [Multi cloud deployment](https://qiskit-extensions.github.io/quantum-serverless/guides/08_multi_cloud_deployment.html).
