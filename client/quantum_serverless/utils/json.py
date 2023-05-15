@@ -33,7 +33,7 @@ from typing import Optional, Type, Callable, Dict, Any
 import requests
 
 from quantum_serverless.exception import QuantumServerlessException
-from quantum_serverless.utils.errors import format_err_msg
+from quantum_serverless.utils.errors import format_err_msg, ErrorCodes
 
 
 class JsonSerializable(ABC):
@@ -91,9 +91,7 @@ def safe_json_request(request: Callable) -> Dict[str, Any]:
         response = request()
     except requests.exceptions.RequestException as request_exception:
         error_message = format_err_msg(
-            "Connection error. Make sure configuration (host"
-            " and auth details) is correct.",
-            504,
+            ErrorCodes.AUTH1001,
             str(request_exception.args),
         )
         response = None
@@ -104,7 +102,6 @@ def safe_json_request(request: Callable) -> Dict[str, Any]:
     if response is not None and not response.ok:
         raise QuantumServerlessException(
             format_err_msg(
-                "Bad request",
                 response.status_code,
                 str(response.text),
             )
@@ -115,8 +112,7 @@ def safe_json_request(request: Callable) -> Dict[str, Any]:
         json_data = json.loads(response.text)
     except json.JSONDecodeError as json_error:
         decoding_error_message = format_err_msg(
-            "Error occurred during decoding server response",
-            420,
+            ErrorCodes.JSON1001,
             str(json_error.args),
         )
         json_data = {}
