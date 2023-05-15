@@ -19,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Login to IBM Cloud
-        uses: actions/ibmcloud-action@v1
+        uses: IBM/actions-ibmcloud-cli@0.0.8
         with:
           APIKEY: ${{ secrets.IBMCLOUD_API_KEY }}
           CLOUD_REGION: global
