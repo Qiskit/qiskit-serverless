@@ -121,6 +121,31 @@ ray-cluster:
       requests:
         cpu: "1"
         memory: "2G"
+    sidecarContainers:
+    - name: ray-head-logs
+      image: fluent/fluent-bit:1.9.6
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+      volumeMounts:
+      - mountPath: /tmp/ray
+        name: log-volume
+      - mountPath: /fluent-bit/etc/fluent-bit.conf
+        subPath: fluent-bit.conf
+        name: fluentbit-config
+    volumeMounts:
+    - mountPath: /tmp/ray
+      name: log-volume
+    volumes:
+      - name: log-volume
+        emptyDir: {}
+      - name: fluentbit-config
+        configMap:
+          name: fluentbit-config
   worker:
     # If you want to disable the default workergroup
     # uncomment the line below
