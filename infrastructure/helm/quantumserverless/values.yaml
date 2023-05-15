@@ -37,7 +37,7 @@ gateway:
   
   image:
     pullPolicy: IfNotPresent
-    tag: "0.0.8"
+    tag: "0.0.9"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
@@ -83,7 +83,7 @@ jupyter:
 
   image:
     repository: "qiskit/quantum-serverless-notebook"
-    tag: "0.0.8-py39"
+    tag: "0.0.9-py39"
     pullPolicy: IfNotPresent
   container:
     port: 8888
@@ -101,7 +101,7 @@ ray-cluster:
 
   image:
     repository: "qiskit/quantum-serverless-ray-node"
-    tag: "0.0.8-py39"
+    tag: "0.0.9-py39"
     pullPolicy: IfNotPresent
   head:
     rayStartParams:
@@ -272,7 +272,7 @@ repository:
   fullnameOverride: "repository"
   image:
     pullPolicy: IfNotPresent
-    tag: "0.0.8"
+    tag: "0.0.9"
   application:
     superuser:
       username: "admin"
