@@ -25,11 +25,35 @@ fi
 
 # Ask for the minimum information to configure the values
 echo "
-All the requirements all fulfilled. Please provide to quantum-serverless the next information to continue:"
-read -p "* Ingress public end-point of your cluster: " INGRESS_PUBLIC_END_POINT
-read -p "* Your Ingress' secret: " INGRESS_SECRET
-read -p "* Gateway's API secret: " GATEWAY_SECRET
-read -p "* Grafana's secret: " GRAFANA_SECRET
+All the requirements all fulfilled. Now you are going to be asked for some information to continue:"
+
+# Looking for ingress public end-point
+if [ -z "$INGRESS_PUBLIC_END_POINT" ]
+then
+  read -p "
+  * Ingress public end-point of your cluster: " INGRESS_PUBLIC_END_POINT
+fi
+
+# Looking for ingress secret
+if [ -z "$INGRESS_SECRET" ]
+then
+  read -p "
+  * Your Ingress' secret: " INGRESS_SECRET
+fi
+
+# Looking for gateway secret
+if [ -z "$GATEWAY_SECRET" ]
+then
+  read -p "
+  * Gateway's API secret: " GATEWAY_SECRET
+fi
+
+# Looking for grafana secret
+if [ -z "$GRAFANA_SECRET" ]
+then
+  read -p "
+  * Grafana's secret: " GRAFANA_SECRET
+fi
 
 # Variables definition
 GATEWAY_HOST="gateway.$INGRESS_PUBLIC_END_POINT"
