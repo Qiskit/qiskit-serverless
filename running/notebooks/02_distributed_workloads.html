@@ -3,7 +3,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Parallel workflows in programs &#8212; Quantum serverless 0.0.0 documentation</title>
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
@@ -123,33 +123,31 @@
 </div>
 <p>Let’s create list of random circuit which we will be using as arguments</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
 
-<span class="n">circuits</span> <span class="o">=</span> <span class="p">[</span><span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">)]</span>
+<span class="n">circuits</span> <span class="o">=</span> <span class="p">[</span><span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
 <span class="p">[</span><span class="n">circuit</span><span class="o">.</span><span class="n">measure_all</span><span class="p">()</span> <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">]</span>
 <span class="n">circuits</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[&lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdac1c5e850&gt;,
- &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdab1a5fb50&gt;,
- &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdac1c5e8d0&gt;,
- &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdac1c5ea90&gt;,
- &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdac1c5ec10&gt;]
+[&lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fbfa85664d0&gt;,
+ &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fbf794c6450&gt;,
+ &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fbfa9781390&gt;]
 </pre></div></div>
 </div>
 <p>Run program as usual</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
@@ -166,16 +164,16 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 6bd54632-bce0-4214-a5e1-04f931ab7dcb&gt;
+&lt;Job | 1d472ab5-6cf6-47c4-8166-8162e043c4bd&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -183,7 +181,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -192,7 +190,7 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -200,12 +198,17 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;{&#34;results&#34;: [{&#34;0&#34;: 0.0019388099833208, &#34;1&#34;: 0.0246690007437, &#34;2&#34;: 0.0709273872101196, &#34;3&#34;: 0.9024648020628592}, {&#34;0&#34;: 0.4999999999999999, &#34;2&#34;: 0.4999999999999999}, {&#34;0&#34;: 0.0008967561725936, &#34;1&#34;: 2.42854928976e-05, &#34;3&#34;: 0.9990789583345085}, {&#34;0&#34;: 0.0769441987062216, &#34;1&#34;: 0.0769441987062216, &#34;2&#34;: 0.4230558012937782, &#34;3&#34;: 0.4230558012937782}, {&#34;0&#34;: 0.1019745637494164, &#34;1&#34;: 0.2181326517505121, &#34;2&#34;: 0.216589213671712, &#34;3&#34;: 0.4633035708283594}]}&#39;
+{&#39;results&#39;: [{&#39;0&#39;: 0.25, &#39;1&#39;: 0.25, &#39;2&#39;: 0.25, &#39;3&#39;: 0.25},
+  {&#39;0&#39;: 0.4931987115505575,
+   &#39;1&#39;: 0.4931987115505575,
+   &#39;2&#39;: 0.0068012884494424,
+   &#39;3&#39;: 0.0068012884494424},
+  {&#39;0&#39;: 1.0}]}
 </pre></div></div>
 </div>
 </section>
@@ -304,7 +307,7 @@
       &copy;2022.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.0.0</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.0.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
       
       |

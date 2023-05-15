@@ -60,7 +60,7 @@ Step 3: run program
 .. code-block:: python
    :caption: in jupyter notebook
 
-   from quantum_serverless import QuantumServerless, GatewayProvider
+   from quantum_serverless import QuantumServerless, GatewayProvider, Program
    from qiskit.circuit.random import random_circuit
 
    serverless = QuantumServerless(GatewayProvider(

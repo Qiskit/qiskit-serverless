@@ -113,20 +113,18 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 12,
+   "execution_count": 3,
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "[<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdac1c5e850>,\n",
-       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdab1a5fb50>,\n",
-       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdac1c5e8d0>,\n",
-       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdac1c5ea90>,\n",
-       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fdac1c5ec10>]"
+       "[<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fbfa85664d0>,\n",
+       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fbf794c6450>,\n",
+       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fbfa9781390>]"
       ]
      },
-     "execution_count": 12,
+     "execution_count": 3,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -134,7 +132,7 @@
    "source": [
     "from qiskit.circuit.random import random_circuit\n",
     "\n",
-    "circuits = [random_circuit(2, 2) for _ in range(5)]\n",
+    "circuits = [random_circuit(2, 2) for _ in range(3)]\n",
     "[circuit.measure_all() for circuit in circuits]\n",
     "circuits"
    ]
@@ -148,16 +146,16 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 13,
+   "execution_count": 4,
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "<Job | 6bd54632-bce0-4214-a5e1-04f931ab7dcb>"
+       "<Job | 1d472ab5-6cf6-47c4-8166-8162e043c4bd>"
       ]
      },
-     "execution_count": 13,
+     "execution_count": 4,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -177,7 +175,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 18,
+   "execution_count": 6,
    "metadata": {},
    "outputs": [
     {
@@ -186,7 +184,7 @@
        "'SUCCEEDED'"
       ]
      },
-     "execution_count": 18,
+     "execution_count": 6,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -197,16 +195,21 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 20,
+   "execution_count": 7,
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "'{\"results\": [{\"0\": 0.0019388099833208, \"1\": 0.0246690007437, \"2\": 0.0709273872101196, \"3\": 0.9024648020628592}, {\"0\": 0.4999999999999999, \"2\": 0.4999999999999999}, {\"0\": 0.0008967561725936, \"1\": 2.42854928976e-05, \"3\": 0.9990789583345085}, {\"0\": 0.0769441987062216, \"1\": 0.0769441987062216, \"2\": 0.4230558012937782, \"3\": 0.4230558012937782}, {\"0\": 0.1019745637494164, \"1\": 0.2181326517505121, \"2\": 0.216589213671712, \"3\": 0.4633035708283594}]}'"
+       "{'results': [{'0': 0.25, '1': 0.25, '2': 0.25, '3': 0.25},\n",
+       "  {'0': 0.4931987115505575,\n",
+       "   '1': 0.4931987115505575,\n",
+       "   '2': 0.0068012884494424,\n",
+       "   '3': 0.0068012884494424},\n",
+       "  {'0': 1.0}]}"
       ]
      },
-     "execution_count": 20,
+     "execution_count": 7,
      "metadata": {},
      "output_type": "execute_result"
     }

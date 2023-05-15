@@ -3,7 +3,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Running a program remotely &#8212; Quantum serverless 0.0.0 documentation</title>
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
@@ -74,7 +74,7 @@
 <p>To run the program, we need to import the necessary classes and configure them. One of these classes is QuantumServerless, which is a client class for interacting with compute resources.</p>
 <p>QuantumServerless takes a Provider object as a constructor argument. The Provider object stores configuration information about our compute resources, such as where they are located and how to connect to them. In this example, we will use a provider that is connected to a local Docker Compose setup. In this case, it allows us to run the program locally on our machine. If you want to run the program elsewhere, you will need to provide the corresponding host and authentication details.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">GatewayProvider</span>
@@ -82,7 +82,7 @@
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">provider</span> <span class="o">=</span> <span class="n">GatewayProvider</span><span class="p">(</span>
@@ -97,7 +97,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -108,7 +108,7 @@
 <p>After importing the necessary classes and configuring them, we can run the program by calling the <code class="docutils literal notranslate"><span class="pre">run_program()</span></code> method of the <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> object:</p>
 <p><code class="docutils literal notranslate"><span class="pre">Program</span></code> accepts couple of required parameters: - title - name of the program - entrypoint - name of python file you want to execute - working_dir - folder where your script is located. This is optional parameter and will be current folder by default.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
@@ -125,17 +125,17 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | abff8a68-39d5-4e0b-8e3e-8b55e63dcd9e&gt;
+&lt;Job | 3bbb5ced-06d7-44ff-a08c-58266881d54c&gt;
 </pre></div></div>
 </div>
 <p>As result of <code class="docutils literal notranslate"><span class="pre">run</span></code> call we get <code class="docutils literal notranslate"><span class="pre">Job</span></code> which has <code class="docutils literal notranslate"><span class="pre">status</span></code> method to check status of program execution, <code class="docutils literal notranslate"><span class="pre">logs</span></code> to get logs of execution.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -143,7 +143,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -152,7 +152,7 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span>
@@ -160,7 +160,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -170,7 +170,7 @@
 </div>
 <p>Also this object has <code class="docutils literal notranslate"><span class="pre">job_id</span></code> property that can be used if you want to access job results later. To do so we need to call <code class="docutils literal notranslate"><span class="pre">get_job_by_id</span></code> method of <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> client.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
@@ -178,17 +178,17 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;abff8a68-39d5-4e0b-8e3e-8b55e63dcd9e&#39;
+&#39;3bbb5ced-06d7-44ff-a08c-58266881d54c&#39;
 </pre></div></div>
 </div>
 <p>Users can fetch previously ran jobs from configured providers.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">get_job_by_id</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
@@ -196,17 +196,17 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | abff8a68-39d5-4e0b-8e3e-8b55e63dcd9e&gt;
+&lt;Job | 3bbb5ced-06d7-44ff-a08c-58266881d54c&gt;
 </pre></div></div>
 </div>
 <p>To get a list of previously ran jobs client has <code class="docutils literal notranslate"><span class="pre">get_jobs</span></code> method.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">get_jobs</span><span class="p">()</span>
@@ -214,12 +214,17 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[&lt;Job | abff8a68-39d5-4e0b-8e3e-8b55e63dcd9e&gt;]
+[&lt;Job | 9ad485a3-9537-4098-8253-bdc7146cd8c9&gt;,
+ &lt;Job | 89a97a04-bf1c-4389-b245-5e6d017b0dd7&gt;,
+ &lt;Job | 722707ff-1bfa-4f51-8cc8-bef96be88f6a&gt;,
+ &lt;Job | 5bee2875-24e5-42c8-964f-9b55e300fd54&gt;,
+ &lt;Job | de5e8dd3-e622-4e3e-9eaf-dd96c93299dd&gt;,
+ &lt;Job | 3bbb5ced-06d7-44ff-a08c-58266881d54c&gt;]
 </pre></div></div>
 </div>
 </section>
@@ -319,7 +324,7 @@
       &copy;2022.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.0.0</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.0.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
       
       |
