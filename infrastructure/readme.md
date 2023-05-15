@@ -53,11 +53,11 @@ For that you have three different scripts:
 
 ### Variables & requirements
 In general the scripts will ask you for all the required information but that information can be provided to the scripts using environment variables:
-- $IBMCLOUD_API_TOKEN
-- $INGRESS_PUBLIC_END_POINT
-- $INGRESS_SECRET
-- $GATEWAY_SECRET
-- $GRAFANA_SECRET
+- $IBMCLOUD_API_TOKEN: the API Token from your IBM Cloud account, a non-real example: "abcdefgh-AB-A1BcdEFgHIJKLMNO6AbCdEGHIJkLmNoPQRS3"
+- $INGRESS_PUBLIC_END_POINT: your ingress public end-point, a non-real example: quantum-serverless-test-abcde12345abc12345abcde01234a20b-0000.us-south.containers.appdomain.cloud
+- $INGRESS_SECRET: key to the ingress secret, a non-real example: quantum-serverless-test-abcde12345abc12345abcde01234a20b-0000
+- $GATEWAY_SECRET: random secret for the gateway, a non-real example: sZoBnUdrewDMtGp0b5J6aAEDebcEu2b7
+- $GRAFANA_SECRET: random secret for grafana, a non-real example: iDMNkPjeWJs0lWnZYaP10RxdEVptpM2G
 
 Apart from that the scripts will check for the requirements to be run: `terraform`, `helm` and `ibmcloud-cli`.
 
