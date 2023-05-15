@@ -1,0 +1,40 @@
+name: ICR | build and push
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag for images'
+        required: true
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '30 1 * * *'
+
+jobs:
+  icr_build_and_push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Login to IBM Cloud
+        uses: actions/ibmcloud-action@v1
+        with:
+          APIKEY: ${{ secrets.IBMCLOUD_API_KEY }}
+          CLOUD_REGION: global
+      - name: Build and push nightly
+        if: github.event_name == 'schedule'
+        uses: ./.github/actions/icr-build-and-push-images
+        with:
+          tag: nightly
+      - name: Build and push latest
+        if : github.event_name == 'push'
+        uses: ./.github/actions/icr-build-and-push-images
+        with:
+          tag: latest
+      - name: Build and push on dispatch
+        if : github.event_name == 'workflow_dispatch'
+        uses: ./.github/actions/icr-build-and-push-images
+        with:
+          tag: ${{ github.event.inputs.tag }}
