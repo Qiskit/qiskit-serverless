@@ -18,11 +18,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Login to IBM Cloud
-        uses: IBM/actions-ibmcloud-cli@0.0.8
+      - name: Login to IBM Container Registry
+        uses: docker/login-action@v2
         with:
-          APIKEY: ${{ secrets.IBMCLOUD_API_KEY }}
-          CLOUD_REGION: global
+          registry: icr.io
+          username: iamapikey
+          password: ${{ secrets.IBMCLOUD_API_KEY }}
       - name: Build and push nightly
         if: github.event_name == 'schedule'
         uses: ./.github/actions/icr-build-and-push-images
