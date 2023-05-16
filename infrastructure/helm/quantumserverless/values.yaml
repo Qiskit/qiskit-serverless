@@ -82,7 +82,7 @@ jupyter:
   jupyterToken: "YOUR_JUPYTER_PASSWORD_HERE"
 
   image:
-    repository: "qiskit/quantum-serverless-notebook"
+    repository: "icr.io/quantum-public/quantum-serverless-notebook"
     tag: "0.0.9-py39"
     pullPolicy: IfNotPresent
   container:
@@ -100,7 +100,7 @@ ray-cluster:
   fullnameOverride: "kuberay"
 
   image:
-    repository: "qiskit/quantum-serverless-ray-node"
+    repository: "icr.io/quantum-public/quantum-serverless-ray-node"
     tag: "0.0.9-py39"
     pullPolicy: IfNotPresent
   head:
