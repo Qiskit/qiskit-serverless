@@ -303,7 +303,7 @@ class Job:
         """Returns logs of the job."""
         return self._job_client.logs(self.job_id)
 
-    def result(self, wait = True, cadence = 5, verbose = False):
+    def result(self, wait=True, cadence=5, verbose=False):
         """Return results of the job.
         Args:
             wait: flag denoting whether to wait for the
