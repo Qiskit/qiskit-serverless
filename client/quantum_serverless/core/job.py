@@ -309,10 +309,10 @@ class Job:
         Args:
             wait: flag denoting whether to wait for the
                 job result to be populated before returning
-            verbose: flag denoting whether to log a heartbeat
-                while waiting for job result to populate
             cadence: time to wait between checking if job has
                 been terminated
+            verbose: flag denoting whether to log a heartbeat
+                while waiting for job result to populate
         """
         if wait:
             while self._in_terminal_state():
