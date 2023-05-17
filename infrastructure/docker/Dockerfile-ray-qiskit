@@ -1,5 +1,5 @@
 ARG IMAGE_PY_VERSION=py39
-FROM rayproject/ray:2.3.0-$IMAGE_PY_VERSION
+FROM rayproject/ray:2.4.0-$IMAGE_PY_VERSION
 
 USER $RAY_UID
 
