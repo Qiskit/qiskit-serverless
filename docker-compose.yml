@@ -8,6 +8,7 @@ services:
       - 8888:8888
     environment:
       - JUPYTER_TOKEN=123
+      - GATEWAY_HOST=http://gateway:8000      
     networks:
       - safe-tier
   ray-head:
