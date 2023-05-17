@@ -5,6 +5,7 @@
 jupyterToken: "123"
 managerHost: ""
 managerPort: 5000
+GATEWAY_HOST: http://gateway:8000
 
 replicaCount: 1
 
