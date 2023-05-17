@@ -34,6 +34,15 @@ runs:
         tags: qiskit/quantum-serverless-ray-node:${{inputs.tag}}-py310
         build-args:
           IMAGE_PY_VERSION=py310
+    - name: Build and push node image [3.11]
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./infrastructure/docker/Dockerfile-ray-qiskit
+        push: true
+        tags: qiskit/quantum-serverless-ray-node:${{inputs.tag}}-py311
+        build-args:
+          IMAGE_PY_VERSION=py311
     - name: Build and push jupyter [3.8]
       uses: docker/build-push-action@v3
       with:
@@ -61,6 +70,15 @@ runs:
         tags: qiskit/quantum-serverless-notebook:${{inputs.tag}}-py310
         build-args:
           IMAGE_PY_VERSION=3.10
+    - name: Build and push jupyter [3.11]
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./infrastructure/docker/Dockerfile-notebook
+        push: true
+        tags: qiskit/quantum-serverless-notebook:${{inputs.tag}}-py311
+        build-args:
+          IMAGE_PY_VERSION=3.11          
     - name: Build and push repository server
       uses: docker/build-push-action@v3
       with:
