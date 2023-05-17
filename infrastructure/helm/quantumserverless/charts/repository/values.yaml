@@ -11,7 +11,7 @@ database:
   name: bitnami_keycloak
 
 image:
-  repository: qiskit/quantum-repository-server
+  repository: icr.io/quantum-public/quantum-repository-server
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "nightly"
