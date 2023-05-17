@@ -42,14 +42,14 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
-#          livenessProbe:
-#            httpGet:
-#              path: /metrics
-#              port: http
-#          readinessProbe:
-#            httpGet:
-#              path: /metrics
-#              port: http
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
