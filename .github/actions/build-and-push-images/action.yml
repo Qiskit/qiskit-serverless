@@ -34,6 +34,33 @@ runs:
         tags: qiskit/quantum-serverless-ray-node:${{inputs.tag}}-py310
         build-args:
           IMAGE_PY_VERSION=py310
+    - name: Build and push ARM node image [3.8]
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./infrastructure/docker/Dockerfile-ray-qiskit-arm64
+        push: true
+        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py38-arm64
+        build-args:
+          IMAGE_PY_VERSION=py38
+    - name: Build and push ARM node image [3.9]
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./infrastructure/docker/Dockerfile-ray-qiskit-arm64
+        push: true
+        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py39-arm64
+        build-args:
+          IMAGE_PY_VERSION=py39
+    - name: Build and push ARM node image [3.10]
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./infrastructure/docker/Dockerfile-ray-qiskit-arm64
+        push: true
+        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py310-arm64
+        build-args:
+          IMAGE_PY_VERSION=py310
     - name: Build and push jupyter [3.8]
       uses: docker/build-push-action@v3
       with:
