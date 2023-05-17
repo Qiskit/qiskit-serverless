@@ -57,11 +57,13 @@ class Job(models.Model):
     STOPPED = "STOPPED"
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
+    QUEUED = "QUEUED"
     JOB_STATUSES = [
         (PENDING, "Pending"),
         (RUNNING, "Running"),
         (STOPPED, "Stopped"),
         (SUCCEEDED, "Succeeded"),
+        (QUEUED, "Queued"),
         (FAILED, "Failed"),
     ]
 

@@ -29,6 +29,7 @@ from rest_framework.views import APIView
 from .models import Program, Job, ComputeResource
 from .serializers import JobSerializer
 from .utils import ray_job_status_to_model_job_status, try_json_loads
+from .scheduling import is_hitting_limits, upsert_program, execute_program
 
 
 class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
@@ -130,6 +131,33 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             return Response(job_serializer.data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=["POST"], detail=False)
+    def schedule(self, request):
+        """Schedules program for execution."""
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        program = upsert_program(serializer=serializer)
+
+        if is_hitting_limits(user=request.user):
+            # save program with in queue status.
+            # programs in queue status will be handled by process
+            #   which will be running them once resources are available
+            job = Job(
+                program=program,
+                arguments=program.arguments,
+                author=request.user,
+                status=Job.QUEUED
+            )
+            job.save()
+        else:
+            # if enough resources execute program
+            job = execute_program(user=request.user, program=program)
+
+        job_serializer = self.get_serializer_job_class()(job)
+        return Response(job_serializer.data)
 
 
 class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
