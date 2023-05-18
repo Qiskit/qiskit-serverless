@@ -30,18 +30,10 @@ jobs:
           platforms: 'arm64,amd64'
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      - name: Build and push nightly
-        if: github.event_name == 'schedule'
-        uses: ./.github/actions/icr-build-and-push-images
+      - name: Build and push gateway
+        uses: docker/build-push-action@v3
         with:
-          tag: test
-      - name: Build and push latest
-        if : github.event_name == 'push'
-        uses: ./.github/actions/icr-build-and-push-images
-        with:
-          tag: test
-      - name: Build and push on dispatch
-        if : github.event_name == 'workflow_dispatch'
-        uses: ./.github/actions/icr-build-and-push-images
-        with:
-          tag: test
+          context: .
+          file: ./infrastructure/docker/Dockerfile-gateway
+          push: true
+          tags: icr.io/quantum-public/quantum-serverless-gateway:test
