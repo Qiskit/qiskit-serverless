@@ -10,6 +10,7 @@ runs:
     - name: Build and push gateway
       uses: docker/build-push-action@v3
       with:
+        platforms: linux/amd64,linux/arm64
         context: .
         file: ./infrastructure/docker/Dockerfile-gateway
         push: true
