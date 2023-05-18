@@ -12,8 +12,8 @@ import os.path
 import shutil
 import tarfile
 import uuid
-import requests
 
+import requests
 from allauth.socialaccount.providers.keycloak.views import KeycloakOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
@@ -25,11 +25,10 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-
 from .models import Program, Job, ComputeResource
+from .schedule import save_program
 from .serializers import JobSerializer
 from .utils import ray_job_status_to_model_job_status, try_json_loads
-from .scheduling import is_hitting_limits, upsert_program, execute_program
 
 
 class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
@@ -133,28 +132,20 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(methods=["POST"], detail=False)
-    def schedule(self, request):
-        """Schedules program for execution."""
+    def enqueue(self, request):
+        """Enqueues program for execution."""
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        program = upsert_program(serializer=serializer)
-
-        if is_hitting_limits(user=request.user):
-            # save program with in queue status.
-            # programs in queue status will be handled by process
-            #   which will be running them once resources are available
-            job = Job(
-                program=program,
-                arguments=program.arguments,
-                author=request.user,
-                status=Job.QUEUED
-            )
-            job.save()
-        else:
-            # if enough resources execute program
-            job = execute_program(user=request.user, program=program)
+        program = save_program(serializer=serializer)
+        job = Job(
+            program=program,
+            arguments=program.arguments,
+            author=request.user,
+            status=Job.QUEUED,
+        )
+        job.save()
 
         job_serializer = self.get_serializer_job_class()(job)
         return Response(job_serializer.data)
@@ -200,8 +191,13 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     def logs(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Returns logs from job."""
         job = self.get_object()
-        ray_client = JobSubmissionClient(job.compute_resource.host)
-        return Response({"logs": ray_client.get_job_logs(job.ray_job_id)})
+        logs = job.logs
+        if job.compute_resource:
+            ray_client = JobSubmissionClient(job.compute_resource.host)
+            logs = ray_client.get_job_logs(job.ray_job_id)
+            job.logs = logs
+            job.save()
+        return Response({"logs": logs})
 
     @action(methods=["POST"], detail=True)
     def stop(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument

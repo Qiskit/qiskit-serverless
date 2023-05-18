@@ -43,7 +43,8 @@ class ComputeResource(models.Model):
     title = models.CharField(max_length=100, blank=False, null=False)
     host = models.CharField(max_length=100, blank=False, null=False)
 
-    users = models.ManyToManyField(settings.AUTH_USER_MODEL)
+    # users = models.ManyToManyField(settings.AUTH_USER_MODEL)
+    owner = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.title
@@ -67,6 +68,9 @@ class Job(models.Model):
         (FAILED, "Failed"),
     ]
 
+    TERMINAL_STATES = [SUCCEEDED, FAILED, STOPPED]
+    RUNNING_STATES = [RUNNING, PENDING]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True)
 
@@ -86,6 +90,7 @@ class Job(models.Model):
         ComputeResource, on_delete=models.SET_NULL, null=True, blank=True
     )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
+    logs = models.TextField(default="Here goes nothing.")
 
     def __str__(self):
-        return f"Job <{self.pk}> {self.program}"
+        return f"<Job {self.pk} | {self.status} | {self.program.title}>"
