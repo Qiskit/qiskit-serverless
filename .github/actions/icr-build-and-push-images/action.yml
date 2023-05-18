@@ -7,11 +7,13 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Build and push gateway
+    - name: Build and push node image [3.9]
       uses: docker/build-push-action@v3
       with:
         platforms: linux/amd64,linux/arm64
         context: .
-        file: ./infrastructure/docker/Dockerfile-gateway
+        file: ./infrastructure/docker/Dockerfile-ray-qiskit
         push: true
-        tags: icr.io/quantum-public/quantum-serverless-gateway:${{inputs.tag}}
+        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}
+        build-args:
+          IMAGE_PY_VERSION=py39
