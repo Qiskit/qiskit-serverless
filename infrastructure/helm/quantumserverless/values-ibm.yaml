@@ -229,7 +229,7 @@ keycloakEnable: true
 gatewayClientSecret: GATEWAYSECRET-CHANGEME
 grafanaClientSecret: GRAFANASECRET-CHANGEME
 keycloakUserID: user
-keycloakUserPassword: passw0rd
+keycloakUserPassword: password123
 keycloak:
   logging:
     level: DEBUG
