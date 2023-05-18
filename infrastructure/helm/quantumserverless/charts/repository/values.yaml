@@ -4,6 +4,9 @@
 
 replicaCount: 1
 
+application:
+  debug: 0
+
 database:
   host: postgresql
   port: 5432
