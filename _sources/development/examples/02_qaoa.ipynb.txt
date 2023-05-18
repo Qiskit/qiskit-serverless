@@ -157,7 +157,8 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "from quantum_serverless import QuantumServerless, GatewayProvider"
+    "from quantum_serverless import QuantumServerless, GatewayProvider\n",
+    "import os"
    ]
   },
   {
@@ -180,7 +181,7 @@
     "provider = GatewayProvider(\n",
     "    username=\"user\",\n",
     "    password=\"password123\",\n",
-    "    host=\"http://localhost:8000\",\n",
+    "    host=os.environ.get(\"GATEWAY_HOST\", \"http://localhost:8000\"),\n",
     ")\n",
     "\n",
     "serverless = QuantumServerless(provider)\n",
