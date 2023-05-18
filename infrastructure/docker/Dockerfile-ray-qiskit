@@ -15,7 +15,7 @@ USER $RAY_UID
 RUN apt-get -y update && apt-get -y install gcc build-essential libopenblas-dev cmake
 COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 RUN cd ./qs && pip install .
-RUN if [ $TARGETARCH=arm64 ] ; then pip install git+https://github.com/pyscf/pyscf@v2.2.1; fi
+RUN if [ $TARGETARCH == arm64 ] ; then pip install git+https://github.com/pyscf/pyscf@v2.2.1; fi
 RUN cd ../
 RUN rm -r ./qs
 
