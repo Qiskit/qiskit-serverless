@@ -17,3 +17,10 @@ runs:
         tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}
         build-args:
           IMAGE_PY_VERSION=py39
+    - name: Build and push gateway
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./infrastructure/docker/Dockerfile-gateway
+        push: true
+        tags: icr.io/quantum-public/quantum-serverless-gateway:${{inputs.tag}}
