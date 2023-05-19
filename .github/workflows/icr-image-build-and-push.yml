@@ -24,6 +24,12 @@ jobs:
           registry: icr.io
           username: iamapikey
           password: ${{ secrets.IBMCLOUD_API_KEY }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: 'arm64,amd64'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - name: Build and push nightly
         if: github.event_name == 'schedule'
         uses: ./.github/actions/icr-build-and-push-images
