@@ -1,10 +1,8 @@
 """Scheduling related functions."""
-import logging
 from typing import List
 
-import requests
-
 from api.models import Job, Program
+from api.ray import submit_ray_job, create_ray_cluster
 
 
 def save_program(serializer) -> Program:
@@ -22,42 +20,27 @@ def save_program(serializer) -> Program:
 def execute_job(job: Job) -> Job:
     """Executes program.
 
+    1. check if cluster exists
+       1.1 if not: create cluster
+    2. connect to cluster
+    3. run a job
+    4. set status to pending
+
     Args:
         job: job to execute
 
     Returns:
         job of program execution
     """
-    # check if cluster exists
-    #   if not: create cluster
-    # connect to cluster
-    # run a job
-    # set status to pending
-    raise NotImplementedError
-
-
-def kill_ray_cluster(cluster_name: str) -> bool:
-    """Kills ray cluster by calling kuberay api.
-
-    Args:
-        cluster_name: cluster name
-
-    Returns:
-        number of killed clusters
-    """
-    success = False
-    kube_ray_api_server_host = ""
-    namespace = ""
-    url = f"{kube_ray_api_server_host}/apis/v1alpha2/namespaces/{namespace}/clusters/{cluster_name}"
-    delete_response = requests.delete(url=url, timeout=30)
-    if delete_response.ok:
-        success = True
+    if job.compute_resource:
+        job = submit_ray_job(job)
     else:
-        logging.error(
-            "Something went wrong during ray cluster deletion request: %s",
-            delete_response.text,
-        )
-    return success
+        compute_resource = create_ray_cluster(job.author.name)
+        job.compute_resource = compute_resource
+        job.save()
+        job = submit_ray_job(job)
+
+    return job
 
 
 def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:

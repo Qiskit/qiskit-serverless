@@ -259,3 +259,6 @@ LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "20"))
 
 # ray cluster management
 RAY_KUBERAY_API_SERVER_URL = os.environ.get("RAY_KUBERAY_API_SERVER_URL")
+RAY_KUBERAY_DEFAULT_TEMPLATE_NAME = os.environ.get("RAY_KUBERAY_DEFAULT_TEMPLATE_NAME", "default-sq-template")
+RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "quantumserverless")
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:latest")
