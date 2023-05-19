@@ -359,6 +359,7 @@ loki:
       type: ClusterIP
   monitoring:
     selfMonitoring:
+      enabled: false
       grafanaAgent:
         installOperator: false
   test:
