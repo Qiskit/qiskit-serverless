@@ -7,7 +7,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-     - name: Build and push node image [3.8]
+    - name: Build and push node image [3.8]
       uses: docker/build-push-action@v3
       with:
         context: .
