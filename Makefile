@@ -47,13 +47,3 @@ push-gateway:
 
 push-repository-server:
 	docker push $(repositoryServerImageName):$(version)
-
-compose-up:
-ifeq ($(arch),arm)
-	docker-compose -f docker-compose-dev-arm64.yml --profile full up
-else
-	docker-compose -f docker-compose-dev.yml --profile full up
-endif
-
-compose-down:
-	docker-compose down

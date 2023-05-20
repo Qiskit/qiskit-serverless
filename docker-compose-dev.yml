@@ -18,6 +18,8 @@ services:
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-ray-qiskit
+      args:
+        TARGETARCH: <Please set amd64 or arm64 here in the docker-compose-dev.yml>
     entrypoint: [
       "env", "RAY_LOG_TO_STDERR=1", "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
