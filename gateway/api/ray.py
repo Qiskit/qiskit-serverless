@@ -1,3 +1,5 @@
+"""Ray cluster related functions."""
+
 import logging
 import os
 import shutil
@@ -27,9 +29,7 @@ def submit_ray_job(job: Job) -> Job:
 
     _, dependencies = try_json_loads(program.dependencies)
     with tarfile.open(program.artifact.path) as file:
-        extract_folder = os.path.join(
-            settings.MEDIA_ROOT, "tmp", str(uuid.uuid4())
-        )
+        extract_folder = os.path.join(settings.MEDIA_ROOT, "tmp", str(uuid.uuid4()))
         file.extractall(extract_folder)
 
     entrypoint = f"python {program.entrypoint}"
@@ -61,19 +61,26 @@ def create_compute_template_if_not_exists():
     namespace = settings.RAY_KUBERAY_NAMESPACE
     template_name = settings.RAY_KUBERAY_DEFAULT_TEMPLATE_NAME
 
-    template_url = f"{kube_ray_api_server_host}/apis/v1alpha2/namespaces/{namespace}/compute_templates"
-    response = requests.get(f"{template_url}/{template_name}")
+    template_url = (
+        f"{kube_ray_api_server_host}/apis/v1alpha2/"
+        f"namespaces/{namespace}/compute_templates"
+    )
+    response = requests.get(f"{template_url}/{template_name}", timeout=30)
     if not response.ok:
-        creation_response = requests.post(template_url, data={
-          "name": template_name,
-          "namespace": namespace,
-          "cpu": 4,
-          "memory": 4,
-          "gpu": 0
-        })
+        creation_response = requests.post(
+            template_url,
+            data={
+                "name": template_name,
+                "namespace": namespace,
+                "cpu": 4,
+                "memory": 4,
+                "gpu": 0,
+            },
+            timeout=30,
+        )
 
         if not creation_response.ok:
-            raise Exception("Cannot create compute template.")
+            raise RuntimeError("Cannot create compute template.")
 
 
 def create_ray_cluster(user: Any) -> ComputeResource:
@@ -94,38 +101,48 @@ def create_ray_cluster(user: Any) -> ComputeResource:
     image = settings.RAY_NODE_IMAGE
     template_name = settings.RAY_KUBERAY_DEFAULT_TEMPLATE_NAME
 
-    clusters_url = f"{kube_ray_api_server_host}/apis/v1alpha2/namespaces/{namespace}/clusters"
+    clusters_url = (
+        f"{kube_ray_api_server_host}/apis/v1alpha2/namespaces/{namespace}/clusters"
+    )
 
     create_compute_template_if_not_exists()
 
-    response = requests.post(clusters_url, data={
-      "name": user.name,
-      "namespace": namespace,
-      "user": user.name,
-      "version": "1.9.2",
-      "environment": "DEV",
-      "clusterSpec": {
-        "headGroupSpec": {
-          "computeTemplate": "head-template",
-          "image": image,
-          "serviceType": "NodePort",
-          "rayStartParams": {}
+    response = requests.post(
+        clusters_url,
+        data={
+            "name": user.name,
+            "namespace": namespace,
+            "user": user.name,
+            "version": "1.9.2",
+            "environment": "DEV",
+            "clusterSpec": {
+                "headGroupSpec": {
+                    "computeTemplate": "head-template",
+                    "image": image,
+                    "serviceType": "NodePort",
+                    "rayStartParams": {},
+                },
+                "workerGroupSpec": [
+                    {
+                        "groupName": "default-worker-group",
+                        "computeTemplate": template_name,
+                        "image": image,
+                        "replicas": 0,
+                        "minReplicas": 0,
+                        "maxReplicas": 4,
+                        "rayStartParams": {},
+                    }
+                ],
+            },
         },
-        "workerGroupSpec": [
-          {
-            "groupName": "default-worker-group",
-            "computeTemplate": template_name,
-            "image": image,
-            "replicas": 0,
-            "minReplicas": 0,
-            "maxReplicas": 4,
-            "rayStartParams": {}
-          }
-        ]
-      }
-    })
+        timeout=30,
+    )
     if not response.ok:
-        raise Exception(f"Something went wrong during cluster creation: {response.text}")
+        raise RuntimeError(
+            f"Something went wrong during cluster creation: {response.text}"
+        )
+
+    # TODO: check for readiness
 
     resource = ComputeResource()
     resource.owner = user

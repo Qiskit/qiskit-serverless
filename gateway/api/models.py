@@ -44,7 +44,9 @@ class ComputeResource(models.Model):
     host = models.CharField(max_length=100, blank=False, null=False)
 
     # users = models.ManyToManyField(settings.AUTH_USER_MODEL)
-    owner = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    owner = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, default=None
+    )
 
     def __str__(self):
         return self.title

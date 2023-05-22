@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
 from api.models import ComputeResource, Job
-from api.schedule import kill_ray_cluster
+from api.ray import kill_ray_cluster
 from api.utils import ray_job_status_to_model_job_status
 
 
