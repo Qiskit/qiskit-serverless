@@ -7,6 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 USER 0
+RUN apt-get -y update && apt-get -y upgrade
 COPY repository .
 RUN chown -R 1001:0 /usr/src/app
 
