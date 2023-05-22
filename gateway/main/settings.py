@@ -258,7 +258,7 @@ LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "20"))
 
 # ray cluster management
-RAY_KUBERAY_API_SERVER_URL = os.environ.get("RAY_KUBERAY_API_SERVER_URL")
+RAY_KUBERAY_API_SERVER_URL = os.environ.get("RAY_KUBERAY_API_SERVER_URL", "http://kuberay")
 RAY_KUBERAY_DEFAULT_TEMPLATE_NAME = os.environ.get(
     "RAY_KUBERAY_DEFAULT_TEMPLATE_NAME", "default-sq-template"
 )

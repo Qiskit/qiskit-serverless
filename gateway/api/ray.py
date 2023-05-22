@@ -110,9 +110,9 @@ def create_ray_cluster(user: Any) -> ComputeResource:
     response = requests.post(
         clusters_url,
         data={
-            "name": user.name,
+            "name": user.username,
             "namespace": namespace,
-            "user": user.name,
+            "user": user.username,
             "version": "1.9.2",
             "environment": "DEV",
             "clusterSpec": {
@@ -146,7 +146,7 @@ def create_ray_cluster(user: Any) -> ComputeResource:
 
     resource = ComputeResource()
     resource.owner = user
-    resource.title = user.name
+    resource.title = user.username
     resource.host = ""  # TODO: fix name
     resource.save()
     return resource
