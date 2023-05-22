@@ -10,11 +10,12 @@ from django.db.models import Q
 
 from api.models import Job, Program
 from api.ray import submit_ray_job, create_ray_cluster
+from api.utils import try_json_loads
 
 User: Model = get_user_model()
 
 
-def save_program(serializer) -> Program:
+def save_program(serializer, request) -> Program:
     """Save program.
 
     Args:
@@ -23,7 +24,12 @@ def save_program(serializer) -> Program:
     Returns:
         saved program
     """
-    raise NotImplementedError
+    program = Program(**serializer.data)
+    _, dependencies = try_json_loads(program.dependencies)
+    program.artifact = request.FILES.get("artifact")
+    program.author = request.user
+    program.save()
+    return program
 
 
 def execute_job(job: Job) -> Job:
@@ -44,18 +50,18 @@ def execute_job(job: Job) -> Job:
     if job.compute_resource:
         job = submit_ray_job(job)
     else:
-        compute_resource = create_ray_cluster(job.author.name)
+        compute_resource = create_ray_cluster(job.author.username)
         job.compute_resource = compute_resource
         job.save()
         job = submit_ray_job(job)
 
+    job.status = Job.PENDING
+    job.save()
     return job
 
 
 def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
     """Returns jobs for execution based on fair share distribution of resources.
-
-
 
     Args:
         slots: max number of users to query
@@ -85,6 +91,9 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
         .values("author")
         .annotate(job_date=Min("created"))[:max_limit]
     )
+
+    if len(author_date_pull) == 0:
+        return []
 
     author_date_list = random.choices(list(author_date_pull), k=slots)
 

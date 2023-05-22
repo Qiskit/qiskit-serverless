@@ -138,7 +138,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        program = save_program(serializer=serializer)
+        program = save_program(serializer=serializer, request=request)
         job = Job(
             program=program,
             arguments=program.arguments,

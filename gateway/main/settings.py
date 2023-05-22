@@ -266,3 +266,7 @@ RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "quantumserverle
 RAY_NODE_IMAGE = os.environ.get(
     "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:latest"
 )
+RAY_CLUSTER_MODE = {
+    "local": True,
+    "ray_local_host": "http://localhost:8265"
+}
