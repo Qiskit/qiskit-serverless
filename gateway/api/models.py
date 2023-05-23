@@ -103,4 +103,4 @@ class Job(models.Model):
     logs = models.TextField(default="Here goes nothing.")
 
     def __str__(self):
-        return f"<Job {self.pk} | {self.status} | {self.program.title}>"
+        return f"<Job {self.pk} | {self.status}>"

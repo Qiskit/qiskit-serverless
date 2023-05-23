@@ -271,6 +271,6 @@ RAY_NODE_IMAGE = os.environ.get(
 RAY_CLUSTER_MODE = {
     "local": True,
     "ray_local_host": os.environ.get(
-        "RAY_CLUSTER_MODE_LOCAL_HOST", "http://ray-head:8265"
+        "RAY_CLUSTER_MODE_LOCAL_HOST", "http://localhost:8265"
     ),
 }

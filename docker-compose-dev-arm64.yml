@@ -84,8 +84,29 @@ services:
       - SITE_HOST=http://gateway:8000
     networks:
       - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
     depends_on:
       - keycloak
+  gateway_scheduler:
+    container_name: gateway_scheduler
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.1.0}
+    entrypoint: "./scripts/scheduler.sh"
+    environment:
+      - DEBUG=0
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=testkeycloakdb
+      - DATABASE_USER=testkeycloakuser
+      - DATABASE_PASSWORD=testkeycloakpassword
+      - RAY_CLUSTER_MODE_LOCAL_HOST=http://ray-head:8265
+    networks:
+      - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
+    depends_on:
+      - keycloak
+      - postgres
   repository-server:
     container_name: repository-server
     build:
@@ -148,3 +169,5 @@ services:
       - safe-tier
 networks:
   safe-tier:
+volumes:
+  program-artifacts:
