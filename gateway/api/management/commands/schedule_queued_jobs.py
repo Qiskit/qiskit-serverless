@@ -22,6 +22,7 @@ class Command(BaseCommand):
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         number_of_clusters_running = ComputeResource.objects.count()
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
+        self.stdout.write(f"{free_clusters_slots} free cluster slots.")
 
         if free_clusters_slots < 1:
             # no available resources
