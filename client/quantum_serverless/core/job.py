@@ -317,7 +317,7 @@ class Job:
         if wait:
             if verbose:
                 logging.info("Waiting for job result.")
-            while self._in_terminal_state():
+            while not self._in_terminal_state():
                 time.sleep(cadence)
                 if verbose:
                     logging.info(".")
