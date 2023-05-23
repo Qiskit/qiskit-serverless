@@ -268,11 +268,9 @@ keycloak:
   logging:
     level: DEBUG
   service:
-    type: NodePort
+    type: ClusterIP
     ports:
       http: 31059
-    nodePorts:
-      http: 32059
   auth:
     adminUser: admin
     adminPassword: passw0rd
@@ -336,7 +334,10 @@ kube-prometheus-stack:
     #
     # To enable sign-on by Keycloak for Grafana console
     # 1. replace <Non-Loopback local IP> with the local IP address
-    # 2. uncomment following lines
+    # 2. change the keycloak service to NodePort type and add
+    #    nodePorts
+    #      http: 32059
+    # 3. uncomment following lines
     #
     #service:
     #  type: NodePort
