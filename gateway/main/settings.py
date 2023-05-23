@@ -269,7 +269,7 @@ RAY_NODE_IMAGE = os.environ.get(
     "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:latest"
 )
 RAY_CLUSTER_MODE = {
-    "local": True,
+    "local": int(os.environ.get("RAY_CLUSTER_MODE_LOCAL", 0)),
     "ray_local_host": os.environ.get(
         "RAY_CLUSTER_MODE_LOCAL_HOST", "http://localhost:8265"
     ),

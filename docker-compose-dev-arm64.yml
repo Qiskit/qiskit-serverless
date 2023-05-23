@@ -100,6 +100,7 @@ services:
       - DATABASE_USER=testkeycloakuser
       - DATABASE_PASSWORD=testkeycloakpassword
       - RAY_CLUSTER_MODE_LOCAL_HOST=http://ray-head:8265
+      - RAY_CLUSTER_MODE_LOCAL=1
     networks:
       - safe-tier
     volumes:
