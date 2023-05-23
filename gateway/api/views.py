@@ -8,10 +8,6 @@ Version views inherit from the different views.
 """
 
 import json
-import os.path
-import shutil
-import tarfile
-import uuid
 
 import requests
 from allauth.socialaccount.providers.keycloak.views import KeycloakOAuth2Adapter
@@ -25,10 +21,10 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Program, Job, ComputeResource
+from .models import Program, Job
 from .schedule import save_program
 from .serializers import JobSerializer
-from .utils import ray_job_status_to_model_job_status, try_json_loads
+from .utils import ray_job_status_to_model_job_status
 
 
 class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
@@ -57,82 +53,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
     @action(methods=["POST"], detail=False)
     def run(self, request):
-        """Runs provided program on compute resources."""
-
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            # create program
-            program = Program(**serializer.data)
-            _, dependencies = try_json_loads(program.dependencies)
-
-            existing_programs = Program.objects.filter(
-                author=request.user, title__exact=program.title
-            )
-            if existing_programs.count() > 0:
-                # take existing one
-                existing_programs = existing_programs.first()
-                existing_programs.arguments = program.arguments
-                existing_programs.dependencies = program.dependencies
-                existing_programs.entrypoint = program.entrypoint
-                program = existing_programs
-            program.artifact = request.FILES.get("artifact")
-            program.author = request.user
-            program.save()
-
-            # get available compute resources
-            resources = ComputeResource.objects.filter(users__in=[request.user])
-            if resources.count() == 0:
-                return Response(
-                    {"error": "user do not have any resources in account"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            compute_resource = resources.first()
-
-            # start job
-            ray_client = JobSubmissionClient(compute_resource.host)
-            # unpack data
-            with tarfile.open(program.artifact.path) as file:
-                extract_folder = os.path.join(
-                    settings.MEDIA_ROOT, "tmp", str(uuid.uuid4())
-                )
-                file.extractall(extract_folder)
-
-            job = Job(
-                program=program,
-                arguments=program.arguments,
-                author=request.user,
-                compute_resource=compute_resource,
-            )
-            job.save()
-
-            entrypoint = f"python {program.entrypoint}"
-            ray_job_id = ray_client.submit_job(
-                entrypoint=entrypoint,
-                runtime_env={
-                    "working_dir": extract_folder,
-                    "env_vars": {
-                        "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
-                        "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
-                        "ENV_JOB_ID_GATEWAY": str(job.id),
-                        "ENV_JOB_ARGUMENTS": program.arguments,
-                    },
-                    "pip": dependencies or [],
-                },
-            )
-            job.ray_job_id = ray_job_id
-            job.save()
-
-            # remote temp data
-            if os.path.exists(extract_folder):
-                shutil.rmtree(extract_folder)
-
-            job_serializer = self.get_serializer_job_class()(job)
-            return Response(job_serializer.data)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(methods=["POST"], detail=False)
-    def enqueue(self, request):
         """Enqueues program for execution."""
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():

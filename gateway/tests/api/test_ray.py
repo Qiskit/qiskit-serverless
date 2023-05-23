@@ -8,7 +8,11 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
 from api.models import ComputeResource
-from api.ray import create_compute_template_if_not_exists, create_ray_cluster, kill_ray_cluster
+from api.ray import (
+    create_compute_template_if_not_exists,
+    create_ray_cluster,
+    kill_ray_cluster,
+)
 
 
 class TestRayUtils(APITestCase):

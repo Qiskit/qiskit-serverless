@@ -7,6 +7,11 @@ from django.conf import settings
 from django_prometheus.models import ExportModelOperationsMixin
 
 
+def get_upload_path(instance, filename):
+    """Returns save path for artifacts."""
+    return f"{instance.author.username}/{instance.id}/{filename}"
+
+
 class Program(ExportModelOperationsMixin("program"), models.Model):
     """Program model."""
 
@@ -16,7 +21,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     title = models.CharField(max_length=255)
     entrypoint = models.CharField(max_length=255)
     artifact = models.FileField(
-        upload_to="artifacts_%Y_%m_%d",
+        upload_to=get_upload_path,
         null=False,
         blank=False,
         validators=[FileExtensionValidator(allowed_extensions=["tar"])],
@@ -43,9 +48,12 @@ class ComputeResource(models.Model):
     title = models.CharField(max_length=100, blank=False, null=False)
     host = models.CharField(max_length=100, blank=False, null=False)
 
-    # users = models.ManyToManyField(settings.AUTH_USER_MODEL)
     owner = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, default=None
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        default=None,
+        null=True,
+        blank=True,
     )
 
     def __str__(self):

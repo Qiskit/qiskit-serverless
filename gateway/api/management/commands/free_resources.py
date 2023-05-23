@@ -1,11 +1,9 @@
 """Cleanup resources command."""
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
 from api.models import ComputeResource, Job
 from api.ray import kill_ray_cluster
-from api.utils import ray_job_status_to_model_job_status
 
 
 class Command(BaseCommand):
@@ -23,7 +21,10 @@ class Command(BaseCommand):
             )
 
             # only kill cluster if not in local mode and no jobs are running there
-            if len(alive_jobs) == 0 and settings.RAY_CLUSTER_MODE.get("local") is not True:
+            if (
+                len(alive_jobs) == 0
+                and settings.RAY_CLUSTER_MODE.get("local") is not True
+            ):
                 kill_ray_cluster(compute_resource.title)
                 counter += 1
                 self.stdout.write(

@@ -35,15 +35,19 @@ class Command(BaseCommand):
             jobs = get_jobs_to_schedule_fair_share(slots=free_clusters_slots)
 
             for job in jobs:
-                # TODO: check if local mode -> run on single cluster
-                if settings.RAY_CLUSTER_MODE.get("local") and settings.RAY_CLUSTER_MODE.get("ray_local_host"):
+                # only for local mode
+                if settings.RAY_CLUSTER_MODE.get(
+                    "local"
+                ) and settings.RAY_CLUSTER_MODE.get("ray_local_host"):
                     self.stdout.write(self.style.WARNING("Running in local mode"))
-                    compute_resource = ComputeResource.objects.filter(host=settings.RAY_CLUSTER_MODE.get("ray_local_host")).first()
+                    compute_resource = ComputeResource.objects.filter(
+                        host=settings.RAY_CLUSTER_MODE.get("ray_local_host")
+                    ).first()
                     if compute_resource is None:
                         compute_resource = ComputeResource(
                             host=settings.RAY_CLUSTER_MODE.get("ray_local_host"),
                             title="Local compute resource",
-                            owner=job.author
+                            owner=job.author,
                         )
                         compute_resource.save()
                     job.compute_resource = compute_resource

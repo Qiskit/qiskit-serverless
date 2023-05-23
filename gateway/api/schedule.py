@@ -5,8 +5,8 @@ from typing import List
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Model
-from django.db.models.aggregates import Count, Max, Min
 from django.db.models import Q
+from django.db.models.aggregates import Count, Min
 
 from api.models import Job, Program
 from api.ray import submit_ray_job, create_ray_cluster
@@ -28,6 +28,7 @@ def save_program(serializer, request) -> Program:
     _, dependencies = try_json_loads(program.dependencies)
     program.artifact = request.FILES.get("artifact")
     program.author = request.user
+    program.dependencies = dependencies
     program.save()
     return program
 
