@@ -268,9 +268,11 @@ keycloak:
   logging:
     level: DEBUG
   service:
-    type: ClusterIP
+    type: NodePort
     ports:
       http: 31059
+    nodePorts:
+      http: 32059
   auth:
     adminUser: admin
     adminPassword: passw0rd
@@ -329,32 +331,38 @@ kube-prometheus-stack:
     fullnameOverride: "grafana"
 
     adminPassword: passw0rd
-    service:
-      type: ClusterIP
-      ports:
-        http: 32294
-    grafana.ini:
-      auth:
-        disable_login_form: "true"
-      auth.generic_oauth:
-        enabled: "true"
-        name: Keycloak-OAuth
-        allow_sign_up: "true"
-        client_id: grafana-client
-        client_secret: GRAFANASECRET-CHANGEME
-        api_url: "http://keycloak:31059/realms/quantumserverless/protocol/openid-connect/userinfo"
-        auth_url: "http://keycloak:31059/realms/quantumserverless/protocol/openid-connect/auth"
-        token_url: "http://keycloak:31059/realms/quantumserverless/protocol/openid-connect/token"
-        role_attribute_path: "contains(roles[*], 'grafana-admin') && 'GrafanaAdmin' || contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'"
-        allow_assign_grafana_admin: "true"
-        scopes: openid email profile roles
-        email_attribute_path: user@quatunserverless.org
-        login_attribute_path: user
-        name_attribute_path: none
-      log:
-        level: debug
-      server:
-        root_url: "http://localhost:32294/"
+
+    # Keycloak Sign-on for Grafana console
+    #
+    # To enable sign-on by Keycloak for Grafana console
+    # 1. replace <Non-Loopback local IP> with the local IP address
+    # 2. uncomment following lines
+    #
+    #service:
+    #  type: NodePort
+    #  nodePort: 32294
+    #grafana.ini:
+    #  auth:
+    #    disable_login_form: "true"
+    #  auth.generic_oauth:
+    #    enabled: "true"
+    #    name: Keycloak-OAuth
+    #    allow_sign_up: "true"
+    #    client_id: grafana-client
+    #    client_secret: GRAFANASECRET-CHANGEME
+    #    api_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/userinfo"
+    #    auth_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/auth"
+    #    token_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/token"
+    #    role_attribute_path: "contains(roles[*], 'grafana-admin') && 'GrafanaAdmin' || contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'"
+    #    allow_assign_grafana_admin: "true"
+    #    scopes: openid email profile roles
+    #    email_attribute_path: user@quatunserverless.org
+    #    login_attribute_path: user
+    #    name_attribute_path: none
+    #  log:
+    #    level: debug
+    #  server:
+    #    root_url: "http://localhost:32294/"
 
 # ===================
 # loki
