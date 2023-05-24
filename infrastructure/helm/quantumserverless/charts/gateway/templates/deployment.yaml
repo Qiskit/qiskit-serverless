@@ -31,30 +31,40 @@ spec:
         - name: waitpostresql
           image: actions/pg_isready
           command: ['sh', '-c', 'until pg_isready -U {{ .Values.database.user | quote }} -d "dbname={{ .Values.database.name }}" -h {{ .Values.database.host }} -p {{ .Values.database.port | quote }}; do echo waiting for myservice; sleep 2; done']
+          volumeMounts:
+          - name: gateway-pv-storage
+            mountPath: /usr/src/app/media/
+      volumes:
+        - name: gateway-pv-storage
+          persistentVolumeClaim:
+            claimName: gateway-claim
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args: [ "gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:{{ .Values.service.port }}", "--workers=4" ]
+          args: ["python", "manage.py", "runserver", "0.0.0.0:{{ .Values.service.port }}"] #[ "gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:{{ .Values.service.port }}", "--workers=4" ]
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /liveness
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /readiness
-              port: http
+#          livenessProbe:
+#            httpGet:
+#              path: /liveness
+#              port: http
+#          readinessProbe:
+#            httpGet:
+#              path: /readiness
+#              port: http
+          volumeMounts:
+            - mountPath: "/usr/src/app/media/"
+              name: gateway-pv-storage
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
             - name: DEBUG
-              value: {{ .Values.application.debug | quote }}
+              value: "1" #{{ .Values.application.debug | quote }}
             - name: SITE_HOST
               value: {{ .Values.application.siteHost | quote }}
             - name: RAY_HOST

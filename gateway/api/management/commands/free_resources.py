@@ -25,11 +25,13 @@ class Command(BaseCommand):
                 len(alive_jobs) == 0
                 and not settings.RAY_CLUSTER_MODE.get("local")
             ):
-                kill_ray_cluster(compute_resource.title)
+                is_killed = kill_ray_cluster(compute_resource.title)
+                if is_killed:
+                    compute_resource.delete()
                 counter += 1
                 self.stdout.write(
                     f"Cluster [{compute_resource.title}] "
-                    f"is free after usage from [{compute_resource.users}]"
+                    f"is free after usage from [{compute_resource.owner}]"
                 )
 
         self.stdout.write(

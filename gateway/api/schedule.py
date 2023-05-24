@@ -51,7 +51,7 @@ def execute_job(job: Job) -> Job:
     if job.compute_resource:
         job = submit_ray_job(job)
     else:
-        compute_resource = create_ray_cluster(job.author.username)
+        compute_resource = create_ray_cluster(job.author)
         job.compute_resource = compute_resource
         job.save()
         job = submit_ray_job(job)

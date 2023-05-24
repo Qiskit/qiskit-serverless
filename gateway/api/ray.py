@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import tarfile
+import time
 import uuid
 from typing import Any
 
@@ -69,18 +70,18 @@ def create_compute_template_if_not_exists():
     if not response.ok:
         creation_response = requests.post(
             template_url,
-            data={
+            json={
                 "name": template_name,
                 "namespace": namespace,
-                "cpu": 4,
-                "memory": 4,
+                "cpu": 2,
+                "memory": 2,
                 "gpu": 0,
             },
             timeout=30,
         )
 
         if not creation_response.ok:
-            raise RuntimeError("Cannot create compute template.")
+            raise RuntimeError(f"Cannot create compute template: {creation_response.text}")
 
 
 def create_ray_cluster(user: Any) -> ComputeResource:
@@ -109,7 +110,7 @@ def create_ray_cluster(user: Any) -> ComputeResource:
 
     response = requests.post(
         clusters_url,
-        data={
+        json={
             "name": user.username,
             "namespace": namespace,
             "user": user.username,
@@ -117,10 +118,14 @@ def create_ray_cluster(user: Any) -> ComputeResource:
             "environment": "DEV",
             "clusterSpec": {
                 "headGroupSpec": {
-                    "computeTemplate": "head-template",
+                    "computeTemplate": template_name,
                     "image": image,
                     "serviceType": "NodePort",
-                    "rayStartParams": {},
+                    "rayStartParams": {
+                        "dashboard-host": "0.0.0.0",
+                        "node-ip-address": "$MY_POD_IP",
+                        "port": "6379",
+                    },
                 },
                 "workerGroupSpec": [
                     {
@@ -130,7 +135,9 @@ def create_ray_cluster(user: Any) -> ComputeResource:
                         "replicas": 0,
                         "minReplicas": 0,
                         "maxReplicas": 4,
-                        "rayStartParams": {},
+                        "rayStartParams": {
+                            "node-ip-address": "$MY_POD_IP"
+                        },
                     }
                 ],
             },
@@ -143,13 +150,34 @@ def create_ray_cluster(user: Any) -> ComputeResource:
         )
 
     # TODO: check for readiness
+    host = wait_for_cluster_ready(user.username)
 
     resource = ComputeResource()
     resource.owner = user
     resource.title = user.username
-    resource.host = ""  # TODO: fix name
+    resource.host = host
     resource.save()
     return resource
+
+
+def wait_for_cluster_ready(cluster_name: str):
+    url = f"http://{cluster_name}-head-svc:8265/"
+    success = False
+    attempts = 0
+    while not success:
+        attempts += 1
+
+        if attempts >= 60:
+            raise RuntimeError(f"Waiting too long for cluster creation. {url}")
+
+        try:
+            response = requests.get(url, timeout=5)
+            if response.ok:
+                success = True
+        except:
+            pass
+        time.sleep(1)
+    return url
 
 
 def kill_ray_cluster(cluster_name: str) -> bool:

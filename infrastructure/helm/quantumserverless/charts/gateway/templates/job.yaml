@@ -5,10 +5,17 @@ metadata:
 spec:
   template:
     spec:
+      volumes:
+        - name: gateway-pv-storage
+          persistentVolumeClaim:
+            claimName: gateway-claim
       containers:
       - name: gateway-scheduler
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         command: ["./scripts/scheduler.sh"]
+        volumeMounts:
+          - mountPath: "/usr/src/app/media/"
+            name: gateway-pv-storage
         env:
         - name: DEBUG
           value: {{ .Values.application.debug | quote }}
@@ -20,6 +27,12 @@ spec:
           value: {{ .Values.database.name | quote }}
         - name: DATABASE_USER
           value: {{ .Values.database.user | quote }}
+        - name: RAY_KUBERAY_API_SERVER_URL
+          value: "http://kuberay-apiserver-service:8888" # TODO: config
+        - name: RAY_KUBERAY_NAMESPACE
+          value: {{ .Release.Namespace }}
+        - name: RAY_NODE_IMAGE
+          value: "icr.io/quantum-public/quantum-serverless-ray-node:0.1.0-py39" # TODO: config
         - name: DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:

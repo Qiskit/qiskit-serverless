@@ -13,6 +13,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # update job statuses
+        # TODO: update logs too
         updated_jobs_counter = 0
         for job in Job.objects.filter(status__in=Job.RUNNING_STATES):
             if job.compute_resource:
