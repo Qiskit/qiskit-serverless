@@ -20,6 +20,7 @@
       ~QuantumServerless.get_jobs
       ~QuantumServerless.provider
       ~QuantumServerless.providers
+      ~QuantumServerless.run
       ~QuantumServerless.run_program
       ~QuantumServerless.set_provider
    

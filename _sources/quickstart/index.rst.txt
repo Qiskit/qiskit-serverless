@@ -84,7 +84,7 @@ Step 3: run program
        circuits.append(circuit)
 
    # run program
-   job = serverless.run_program(
+   job = serverless.run(
        program=program,
        arguments={
            "circuits": circuits

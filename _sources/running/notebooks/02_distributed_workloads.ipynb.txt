@@ -170,7 +170,7 @@
     "    working_dir=\"./source_files/\"\n",
     ")\n",
     "\n",
-    "job = serverless.run_program(program, arguments={\"circuits\": circuits})\n",
+    "job = serverless.run(program, arguments={\"circuits\": circuits})\n",
     "job"
    ]
   },

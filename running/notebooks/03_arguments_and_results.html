@@ -137,7 +137,7 @@
 meas: 2/══════════════╩══╩═
                       0  1 </pre></div>
 </div>
-<p>And finally we are creating our program and running it using <code class="docutils literal notranslate"><span class="pre">run_program</span></code> method and passing <code class="docutils literal notranslate"><span class="pre">arguments</span></code> parameter in form of dictionary with <code class="docutils literal notranslate"><span class="pre">circuit</span></code> key and our circuit as value</p>
+<p>And finally we are creating our program and running it using <code class="docutils literal notranslate"><span class="pre">run</span></code> method and passing <code class="docutils literal notranslate"><span class="pre">arguments</span></code> parameter in form of dictionary with <code class="docutils literal notranslate"><span class="pre">circuit</span></code> key and our circuit as value</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
@@ -150,7 +150,7 @@ meas: 2/══════════════╩══╩═
     <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
 <span class="p">)</span>
 
-<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run_program</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;circuit&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="p">})</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;circuit&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="p">})</span>
 <span class="n">job</span>
 </pre></div>
 </div>
