@@ -94,7 +94,7 @@ Full docs can be found at https://qiskit-extensions.github.io/quantum-serverless
        circuits.append(circuit)
 
    # run program
-   job = serverless.run_program(
+   job = serverless.run(
        program=program,
        arguments={
            "circuits": circuits
