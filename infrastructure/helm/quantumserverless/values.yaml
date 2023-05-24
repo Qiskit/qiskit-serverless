@@ -311,7 +311,7 @@ repository:
 # Prometheus 
 # ===================
 
-prometheusEnable: true
+prometheusEnable: false
 kube-prometheus-stack:
   nameOverride: "prometheus"
   fullnameOverride: "prometheus"
@@ -369,7 +369,7 @@ kube-prometheus-stack:
 # loki
 # ===================
 
-lokiEnable: true
+lokiEnable: false
 loki:
   nameOverride: "loki"
   fullnameOverride: "loki"
@@ -403,7 +403,7 @@ loki:
 # promtail
 # ===================
 
-promtailEnable: true
+promtailEnable: false
 promtail:
   nameOverride: "promtail"
   fullnameOverride: "promtail"
