@@ -21,9 +21,9 @@ Available version can be found in `GitHub releases`_ page.
 
 .. _GitHub releases: https://github.com/Qiskit-Extensions/quantum-serverless/releases
 
-For example, if you want to install version `0.0.8` with all services,
+For example, if you want to install version `0.1.0` with all services,
 the command would be:
 
 .. code-block::
 
-        $ VERSION=0.0.8 docker-compose --profile full up
+        $ VERSION=0.1.0 docker-compose --profile full up
