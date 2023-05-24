@@ -7,7 +7,7 @@ Step 0: install package
 .. code-block::
    :caption: pip install
 
-      pip install quantum_serverless==0.0.8
+      pip install quantum_serverless==0.1.0
 
 
 Step 1: run infrastructure
