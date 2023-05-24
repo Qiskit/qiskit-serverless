@@ -31,6 +31,7 @@ import json
 import logging
 import os
 import tarfile
+import time
 from typing import Dict, Any, Optional, List
 from uuid import uuid4
 import warnings
@@ -385,9 +386,29 @@ class Job:
         """Returns logs of the job."""
         return self._job_client.logs(self.job_id)
 
-    def result(self):
-        """Return results of the job."""
+    def result(self, wait=True, cadence=5, verbose=False):
+        """Return results of the job.
+        Args:
+            wait: flag denoting whether to wait for the
+                job result to be populated before returning
+            cadence: time to wait between checking if job has
+                been terminated
+            verbose: flag denoting whether to log a heartbeat
+                while waiting for job result to populate
+        """
+        if wait:
+            if verbose:
+                logging.info("Waiting for job result.")
+            while not self._in_terminal_state():
+                time.sleep(cadence)
+                if verbose:
+                    logging.info(".")
         return self._job_client.result(self.job_id)
+
+    def _in_terminal_state(self) -> bool:
+        """Checks if job is in terminal state"""
+        terminal_states = ["STOPPED", "SUCCEEDED", "FAILED"]
+        return self.status() in terminal_states
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"
