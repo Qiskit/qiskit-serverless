@@ -26,4 +26,4 @@ the command would be:
 
 .. code-block::
 
-        $ VERSION=0.0.8 docker-compose --profile full up
+        $ VERSION=0.1.0 docker-compose --profile full up

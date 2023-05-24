@@ -110,7 +110,3 @@ job.logs()
 job.result()
 # '{"status": "ok", "single": [1.0], "parallel_result": [[1.0], [0.9740035726118753], [1.0]]}'
 ```
-
-
-
-For more examples refer to [guides](./guides) and [tutorials](./tutorials).

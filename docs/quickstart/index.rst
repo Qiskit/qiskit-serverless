@@ -15,7 +15,7 @@ Step 1: run infrastructure
 .. code-block::
    :caption: run docker compose from a root of the project
 
-      VERSION=0.0.8 docker-compose --profile full up
+      VERSION=0.1.0 docker-compose --profile full up
 
 
 Step 2: write program
