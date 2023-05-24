@@ -98,7 +98,7 @@ program = Program(
     working_dir="./"
 )
 
-job = serverless.run_program(program)
+job = serverless.run(program)
 
 job.status()
 # <JobStatus.SUCCEEDED: 'SUCCEEDED'>
