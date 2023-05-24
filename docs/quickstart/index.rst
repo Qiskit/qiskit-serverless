@@ -2,6 +2,11 @@
 Quickstart
 ==========
 
+.. note::
+   These instructions describe a fully local workflow. To run on remote
+   resources, users may either `configure their resources themselves <https://qiskit-extensions.github.io/quantum-serverless/deployment/cloud.html>`_ or ask
+   their provider or dev ops team.
+
 Step 0: install package
 
 .. code-block::
