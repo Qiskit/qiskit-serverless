@@ -7,32 +7,35 @@ Quickstart
    resources, users may either `configure their resources themselves <https://qiskit-extensions.github.io/quantum-serverless/deployment/cloud.html>`_ or ask
    their provider or dev ops team.
 
-Step 0: close any running jupyter notebooks
+Step 0: Close any running jupyter notebooks.
 
-Step 1: close running containers
+Step 1: Close any running containers.
 .. code-block::
-   :caption: clean up running containers
+   :caption: Clean up running containers.
     
       docker rm -f $(docker ps -aq)
 
-Step 2: install quantum serverless package
+Step 2: Install the quantum serverless package.
 
 .. code-block::
-   :caption: pip install
+   :caption: Install quantum_serverless via pip.
 
       pip install quantum_serverless==0.1.0
 
 
-Step 3: run infrastructure
+Step 3: Run infrastructure.
 
 .. code-block::
-   :caption: run docker compose from the root of the quantum serverless project
-
+   :caption: Run docker compose from the root of the quantum serverless project.
+      cd quantum-serverless/
       VERSION=0.1.0 docker-compose --profile full up
 
-Step 4: open the jupyter lab environment by going to ``localhost:8888`` via your favorite browser
+Step 4: Open the jupyter lab environment by going to ``localhost:8888`` via your favorite browser.
 
-Step 5: write program in containerized environment
+Step 5: Write your program in containerized environment.
+.. code-block::
+   :caption: Create a Python file using your favorite text editor. Here we use vim.
+      vim program.py
 
 .. code-block:: python
    :caption: program.py

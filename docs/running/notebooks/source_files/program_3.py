@@ -1,4 +1,4 @@
-# source_files/program_2.py
+# source_files/program_3.py
 
 from quantum_serverless import get_arguments, save_result
 
