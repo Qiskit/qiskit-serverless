@@ -1,5 +1,5 @@
 ray[default,data]>=2.4.0, <3
-requests>=2.30.0
+requests>=2.31.0
 importlib-metadata>=4.13.0
 qiskit-terra>=0.24.0
 qiskit-nature>=0.5.2
