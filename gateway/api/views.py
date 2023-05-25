@@ -66,6 +66,13 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             status=Job.QUEUED,
         )
         job.save()
+        job.env_vars = json.dumps({
+            "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
+            "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
+            "ENV_JOB_ID_GATEWAY": str(job.id),
+            "ENV_JOB_ARGUMENTS": program.arguments,
+        })
+        job.save()
 
         job_serializer = self.get_serializer_job_class()(job)
         return Response(job_serializer.data)
@@ -92,10 +99,13 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         job: Job = get_object_or_404(queryset, pk=pk)
         serializer = self.get_serializer(job)
         if job.compute_resource:
-            ray_client = JobSubmissionClient(job.compute_resource.host)
-            ray_job_status = ray_client.get_job_status(job.ray_job_id)
-            job.status = ray_job_status_to_model_job_status(ray_job_status)
-            job.save()
+            try:
+                ray_client = JobSubmissionClient(job.compute_resource.host)
+                ray_job_status = ray_client.get_job_status(job.ray_job_id)
+                job.status = ray_job_status_to_model_job_status(ray_job_status)
+                job.save()
+            except Exception:
+                pass
         return Response(serializer.data)
 
     @action(methods=["POST"], detail=True)
@@ -113,10 +123,13 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         job = self.get_object()
         logs = job.logs
         if job.compute_resource:
-            ray_client = JobSubmissionClient(job.compute_resource.host)
-            logs = ray_client.get_job_logs(job.ray_job_id)
-            job.logs = logs
-            job.save()
+            try:
+                ray_client = JobSubmissionClient(job.compute_resource.host)
+                logs = ray_client.get_job_logs(job.ray_job_id)
+                job.logs = logs
+                job.save()
+            except Exception:
+                pass
         return Response({"logs": logs})
 
     @action(methods=["POST"], detail=True)

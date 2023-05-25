@@ -1,5 +1,5 @@
 """Ray cluster related functions."""
-
+import json
 import logging
 import os
 import shutil
@@ -38,16 +38,12 @@ def submit_ray_job(job: Job) -> Job:
         entrypoint=entrypoint,
         runtime_env={
             "working_dir": extract_folder,
-            "env_vars": {
-                # "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),  # TODO: get token
-                "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
-                "ENV_JOB_ID_GATEWAY": str(job.id),
-                "ENV_JOB_ARGUMENTS": program.arguments,
-            },
+            "env_vars": json.loads(job.env_vars),
             "pip": dependencies or [],
         },
     )
     job.ray_job_id = ray_job_id
+    job.status = Job.PENDING
     job.save()
 
     if os.path.exists(extract_folder):
@@ -108,10 +104,12 @@ def create_ray_cluster(user: Any) -> ComputeResource:
 
     create_compute_template_if_not_exists()
 
+    cluster_name = f"{user.username}-{str(uuid.uuid4())[:8]}"
+
     response = requests.post(
         clusters_url,
         json={
-            "name": user.username,
+            "name": cluster_name,
             "namespace": namespace,
             "user": user.username,
             "version": "1.9.2",
@@ -149,18 +147,19 @@ def create_ray_cluster(user: Any) -> ComputeResource:
             f"Something went wrong during cluster creation: {response.text}"
         )
 
-    # TODO: check for readiness
-    host = wait_for_cluster_ready(user.username)
+    # wait for cluster to be up and running
+    host = wait_for_cluster_ready(cluster_name)
 
     resource = ComputeResource()
     resource.owner = user
-    resource.title = user.username
+    resource.title = cluster_name
     resource.host = host
     resource.save()
     return resource
 
 
 def wait_for_cluster_ready(cluster_name: str):
+    """Waits for cluster to became available."""
     url = f"http://{cluster_name}-head-svc:8265/"
     success = False
     attempts = 0
@@ -174,8 +173,8 @@ def wait_for_cluster_ready(cluster_name: str):
             response = requests.get(url, timeout=5)
             if response.ok:
                 success = True
-        except:
-            pass
+        except Exception:
+            logging.debug(f"Head node {url} is not ready yet.")
         time.sleep(1)
     return url
 

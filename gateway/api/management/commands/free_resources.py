@@ -25,9 +25,8 @@ class Command(BaseCommand):
                 len(alive_jobs) == 0
                 and not settings.RAY_CLUSTER_MODE.get("local")
             ):
-                is_killed = kill_ray_cluster(compute_resource.title)
-                if is_killed:
-                    compute_resource.delete()
+                kill_ray_cluster(compute_resource.title)
+                compute_resource.delete()
                 counter += 1
                 self.stdout.write(
                     f"Cluster [{compute_resource.title}] "

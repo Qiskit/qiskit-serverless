@@ -57,6 +57,8 @@ gateway:
     service:
       type: ClusterIP
       port: 8000
+    ray:
+      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.1.0-py39"
 
 # ===================
 # Redis configs

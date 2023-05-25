@@ -28,11 +28,11 @@ spec:
         - name: DATABASE_USER
           value: {{ .Values.database.user | quote }}
         - name: RAY_KUBERAY_API_SERVER_URL
-          value: "http://kuberay-apiserver-service:8888" # TODO: config
+          value: {{ .Values.application.ray.kubeRayHost | quote }}
         - name: RAY_KUBERAY_NAMESPACE
           value: {{ .Release.Namespace }}
         - name: RAY_NODE_IMAGE
-          value: "icr.io/quantum-public/quantum-serverless-ray-node:0.1.0-py39" # TODO: config
+          value: {{ .Values.application.ray.nodeImage | quote }}
         - name: DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:

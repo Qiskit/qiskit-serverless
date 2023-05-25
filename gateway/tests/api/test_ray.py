@@ -50,16 +50,18 @@ class TestRayUtils(APITestCase):
             f"{kube_ray_api_server_host}/apis/v1alpha2/"
             f"namespaces/{namespace}/compute_templates"
         )
+        head_node_url = "http://test_user-head-svc:8265/"
         with requests_mock.Mocker() as mocker:
             mocker.get(f"{template_url}/{template_name}", status_code=404)
             mocker.post(template_url)
             mocker.post(clusters_url, status_code=200)
+            mocker.get(head_node_url, status_code=200)
 
             user = get_user_model().objects.first()
             compute_resource = create_ray_cluster(user)
             self.assertIsInstance(compute_resource, ComputeResource)
             self.assertEqual(user.username, compute_resource.title)
-            # self.assertEqual(compute_resource.host, "<TODO: add host here>")  # TODO: add host
+            self.assertEqual(compute_resource.host, head_node_url)
 
     def test_kill_cluster(self):
         """Tests cluster deletion."""

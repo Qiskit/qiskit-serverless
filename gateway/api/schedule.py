@@ -8,7 +8,7 @@ from django.db.models import Model
 from django.db.models import Q
 from django.db.models.aggregates import Count, Min
 
-from api.models import Job, Program
+from api.models import Job, Program, ComputeResource
 from api.ray import submit_ray_job, create_ray_cluster
 from api.utils import try_json_loads
 
@@ -25,10 +25,8 @@ def save_program(serializer, request) -> Program:
         saved program
     """
     program = Program(**serializer.data)
-    _, dependencies = try_json_loads(program.dependencies)
     program.artifact = request.FILES.get("artifact")
     program.author = request.user
-    program.dependencies = dependencies
     program.save()
     return program
 
@@ -48,7 +46,10 @@ def execute_job(job: Job) -> Job:
     Returns:
         job of program execution
     """
-    if job.compute_resource:
+    authors_resource = ComputeResource.objects.filter(owner=job.author).first()
+
+    if authors_resource:
+        job.compute_resource = authors_resource
         job = submit_ray_job(job)
     else:
         compute_resource = create_ray_cluster(job.author)

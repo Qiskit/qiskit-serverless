@@ -86,6 +86,7 @@ class Job(models.Model):
 
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
     arguments = models.TextField(null=False, blank=True, default="{}")
+    env_vars = models.TextField(null=False, blank=True, default="{}")
     result = models.TextField(null=True, blank=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
