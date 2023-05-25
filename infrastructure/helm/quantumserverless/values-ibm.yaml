@@ -39,11 +39,14 @@ ingress:
 
 gatewayEnable: true
 gateway:
+  nameOverride: "gateway"
+  fullnameOverride: "gateway"
+
   image:
     pullPolicy: IfNotPresent
     tag: "0.1.0"
   application:
-    siteHost: "http://localhost:8000"
+    siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
     keycloak:
       clientId: "gateway-client"
@@ -64,6 +67,9 @@ gateway:
 
 redisEnable: true
 redis:
+  nameOverride: "redis"
+  fullnameOverride: "redis"
+
   architecture: "standalone"
   global:
     redis:
@@ -75,9 +81,13 @@ redis:
 # Jupyter configs
 # ===================
 
-jupyterEnable: false
+jupyterEnable: true
 jupyter:
+  nameOverride: "jupyter"
+  fullnameOverride: "jupyter"
+
   jupyterToken: "YOUR_JUPYTER_PASSWORD_HERE"
+
   image:
     repository: "icr.io/quantum-public/quantum-serverless-notebook"
     tag: "0.1.0-py39"
@@ -93,6 +103,9 @@ jupyter:
 
 rayClusterEnable: true
 ray-cluster:
+  nameOverride: "kuberay"
+  fullnameOverride: "kuberay"
+
   image:
     repository: "icr.io/quantum-public/quantum-serverless-ray-node"
     tag: "0.1.0-py39"
@@ -117,7 +130,7 @@ ray-cluster:
         memory: "8G"
     sidecarContainers:
     - name: ray-head-logs
-      image: fluent/fluent-bit:1.9.6
+      image: fluent/fluent-bit:1.9.10
       resources:
         requests:
           cpu: 100m
@@ -247,7 +260,7 @@ kuberay-apiserver:
         nodePort: 30634
 
 # ===================
-# Keycloak 
+# Keycloak
 # ===================
 
 keycloakEnable: true
@@ -256,6 +269,9 @@ grafanaClientSecret: GRAFANASECRET-CHANGEME
 keycloakUserID: user
 keycloakUserPassword: password123
 keycloak:
+  nameOverride: "keycloak"
+  fullnameOverride: "keycloak"
+
   logging:
     level: DEBUG
   service:
@@ -274,12 +290,19 @@ keycloak:
       mountPath: /opt/bitnami/keycloak/data/import
   extraStartupArgs: "--import-realm"
 
+  postgresql:
+    nameOverride: "postgresql"
+    fullnameOverride: "postgresql"
+
 # ===================
 # Quantum Repository
 # ===================
 
 repositoryEnable: true
 repository:
+  nameOverride: "repository"
+  fullnameOverride: "repository"
+
   image:
     pullPolicy: IfNotPresent
     tag: "0.1.0"
@@ -293,46 +316,73 @@ repository:
     port: 8060
 
 # ===================
-# Prometheus 
+# Prometheus
 # ===================
 
-prometheusEnable: true
+prometheusEnable: false
 kube-prometheus-stack:
+  nameOverride: "prometheus"
+  fullnameOverride: "prometheus"
+
+  kube-state-metrics:
+    nameOverride: "kube-state-metrics"
+    fullnameOverride: "kube-state-metrics"
+
+  prometheus-node-exporter:
+    nameOverride: "prometheus-node-exporter"
+    fullnameOverride: "prometheus-node-exporter"
+
   grafana:
+    nameOverride: "grafana"
+    fullnameOverride: "grafana"
+
+
     adminPassword: passw0rd
-    service:
-      type: ClusterIP
-      ports:
-        http: 32294
-    grafana.ini:
-      auth:
-        disable_login_form: "true"
-      auth.generic_oauth:
-        enabled: "true"
-        name: Keycloak-OAuth
-        allow_sign_up: "true"
-        client_id: grafana-client
-        client_secret: GRAFANASECRET-CHANGEME
-        api_url: "http://keycloak:31059/realms/quantumserverless/protocol/openid-connect/userinfo"
-        auth_url: "http://keycloak:31059/realms/quantumserverless/protocol/openid-connect/auth"
-        token_url: "http://keycloak:31059/realms/quantumserverless/protocol/openid-connect/token"
-        role_attribute_path: "contains(roles[*], 'grafana-admin') && 'GrafanaAdmin' || contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'"
-        allow_assign_grafana_admin: "true"
-        scopes: openid email profile roles
-        email_attribute_path: user@quatunserverless.org
-        login_attribute_path: user
-        name_attribute_path: none
-      log:
-        level: debug
-      server:
-        root_url: "http://localhost:32294/"
+
+    # Keycloak Sign-on for Grafana console
+    #
+    # To enable sign-on by Keycloak for Grafana console
+    # 1. replace <Non-Loopback local IP> with the local IP address
+    # 2. change the keycloak service to NodePort type and add
+    #    nodePorts
+    #      http: 32059
+    # 3. uncomment following lines
+    #
+    # service:
+    #   type: NodePort
+    #   nodePort: 32294
+    # grafana.ini:
+    #   auth:
+    #     disable_login_form: "true"
+    #   auth.generic_oauth:
+    #     enabled: "true"
+    #     name: Keycloak-OAuth
+    #     allow_sign_up: "true"
+    #     client_id: grafana-client
+    #     client_secret: GRAFANASECRET-CHANGEME
+    #     api_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/userinfo"
+    #     auth_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/auth"
+    #     token_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/token"
+    #     role_attribute_path: "contains(roles[*], 'grafana-admin') && 'GrafanaAdmin' || contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'"
+    #     allow_assign_grafana_admin: "true"
+    #     scopes: openid email profile roles
+    #     email_attribute_path: user@quatunserverless.org
+    #     login_attribute_path: user
+    #     name_attribute_path: none
+    #   log:
+    #     level: debug
+    #   server:
+    #     root_url: "http://localhost:32294/"
 
 # ===================
 # loki
 # ===================
 
-lokiEnable: true
+lokiEnable: false
 loki:
+  nameOverride: "loki"
+  fullnameOverride: "loki"
+
   loki:
     commonConfig:
       replication_factor: 1
@@ -350,9 +400,20 @@ loki:
   gateway:
     service:
       type: ClusterIP
+  monitoring:
+    selfMonitoring:
+      enabled: false
+      grafanaAgent:
+        installOperator: false
+  test:
+    enabled: false
+
 
 # ===================
 # promtail
 # ===================
 
-promtailEnable: true
+promtailEnable: false
+promtail:
+  nameOverride: "promtail"
+  fullnameOverride: "promtail"
