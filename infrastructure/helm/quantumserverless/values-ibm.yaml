@@ -60,6 +60,8 @@ gateway:
     service:
       type: ClusterIP
       port: 8000
+  database:
+    name: gateway_db
 
 # ===================
 # Redis configs
@@ -293,6 +295,13 @@ keycloak:
   postgresql:
     nameOverride: "postgresql"
     fullnameOverride: "postgresql"
+    primary:
+      initdb:
+        scripts:
+          create_db.sh: |
+            #!/bin/bash
+            PGUSER=$POSTGRES_USER PGPASSWORD=$POSTGRES_PASSWORD createdb -w "repository_db"
+            PGUSER=$POSTGRES_USER PGPASSWORD=$POSTGRES_PASSWORD createdb -w "gateway_db"
 
 # ===================
 # Quantum Repository
@@ -314,6 +323,8 @@ repository:
   service:
     type: ClusterIP
     port: 8060
+  database:
+    name: repository_db
 
 # ===================
 # Prometheus
