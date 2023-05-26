@@ -8,6 +8,7 @@ services:
       - 8888:8888
     environment:
       - JUPYTER_TOKEN=123
+      - GATEWAY_HOST=http://gateway:8000      
     networks:
       - safe-tier
   ray-head:
@@ -150,7 +151,7 @@ services:
     ports:
       - 9000:9090
   loki:
-    image: grafana/loki:2.7.5
+    image: grafana/loki:2.8.2
     profiles: [ "full" ]
     ports:
       - 3100:3100
@@ -158,7 +159,7 @@ services:
     networks:
       - safe-tier
   promtail:
-    image: grafana/promtail:2.7.5
+    image: grafana/promtail:2.8.2
     profiles: [ "full" ]
     volumes:
       - /var/log:/var/log

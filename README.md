@@ -42,7 +42,7 @@ VERSION=nightly docker-compose --profile full up
 2. Open jupyter notebook in browser at [http://localhost:8888/](http://localhost:8888/). Password for notebook is `123`
 3. Explore 3 getting started tutorials.
 
-For more detailed examples and explanations refer to [Beginners Guide](docs/beginners_guide.md), [Getting started examples](docs/getting_started/), [Guides](docs/guides) and [Tutorials](docs/tutorials).
+For more detailed examples and explanations refer to the [Beginners Guide](docs/beginners_guide.md).
 
 ----------------------------------------------------------------------------------------------------
 

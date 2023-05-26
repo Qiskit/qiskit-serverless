@@ -30,6 +30,7 @@ import logging
 import os.path
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
+import warnings
 
 import ray
 import requests
@@ -254,7 +255,7 @@ class Provider(JsonSerializable):
     def run_program(
         self, program: Program, arguments: Optional[Dict[str, Any]] = None
     ) -> Job:
-        """Execute a program as a async job.
+        """(Deprecated) Execute a program as a async job.
 
         Example:
             >>> serverless = QuantumServerless()
@@ -264,6 +265,43 @@ class Provider(JsonSerializable):
             >>>     dependencies=["requests"]
             >>> )
             >>> job = serverless.run_program(program)
+            >>> # <Job | ...>
+
+        Args:
+            arguments: arguments to run program with
+            program: Program object
+
+        Returns:
+            Job
+        """
+        warnings.warn(
+            "`run_program` is deprecated. Please, consider using `run` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        job_client = self.job_client()
+
+        if job_client is None:
+            logging.warning(  # pylint: disable=logging-fstring-interpolation
+                f"Job has not been submitted as no provider "
+                f"with remote host has been configured. "
+                f"Selected provider: {self}"
+            )
+            return None
+
+        return job_client.run_program(program, arguments)
+
+    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+        """Execute a program as a async job.
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> program = Program(
+            >>>     "job.py",
+            >>>     arguments={"arg1": "val1"},
+            >>>     dependencies=["requests"]
+            >>> )
+            >>> job = serverless.run(program)
             >>> # <Job | ...>
 
         Args:
@@ -283,7 +321,7 @@ class Provider(JsonSerializable):
             )
             return None
 
-        return job_client.run_program(program, arguments)
+        return job_client.run(program, arguments)
 
 
 class KuberayProvider(Provider):
@@ -537,7 +575,15 @@ class GatewayProvider(Provider):
     def run_program(
         self, program: Program, arguments: Optional[Dict[str, Any]] = None
     ) -> Job:
+        warnings.warn(
+            "`run_program` is deprecated. Please, consider using `run` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._job_client.run_program(program, arguments)
+
+    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+        return self._job_client.run(program, arguments)
 
     def get_jobs(self, **kwargs) -> List[Job]:
         return self._job_client.list(**kwargs)

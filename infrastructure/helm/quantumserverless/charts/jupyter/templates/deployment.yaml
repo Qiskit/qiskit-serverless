@@ -44,6 +44,8 @@ spec:
               value: {{ .Values.jupyterToken | quote }}
             - name: QS_CLUSTER_MANAGER_ADDRESS
               value: "http://{{ .Release.Name }}-manager:{{ .Values.managerPort }}"
+            - name: GATEWAY_HOST
+              value: {{ .Values.gatewayHost }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

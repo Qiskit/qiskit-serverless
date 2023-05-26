@@ -7,7 +7,7 @@ Step 0: install package
 .. code-block::
    :caption: pip install
 
-      pip install quantum_serverless==0.0.8
+      pip install quantum_serverless==0.1.0
 
 
 Step 1: run infrastructure
@@ -15,7 +15,7 @@ Step 1: run infrastructure
 .. code-block::
    :caption: run docker compose from a root of the project
 
-      VERSION=0.0.8 docker-compose --profile full up
+      VERSION=0.1.0 docker-compose --profile full up
 
 
 Step 2: write program
@@ -84,7 +84,7 @@ Step 3: run program
        circuits.append(circuit)
 
    # run program
-   job = serverless.run_program(
+   job = serverless.run(
        program=program,
        arguments={
            "circuits": circuits
