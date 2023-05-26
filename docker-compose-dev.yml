@@ -5,7 +5,6 @@ services:
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-notebook
-    profiles: ["jupyter", "full"]
     ports:
       - 8888:8888
     environment:
@@ -126,7 +125,7 @@ services:
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-repository-server
-    profiles: [ "full" ]
+    profiles: [ "full", "repo" ]
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
       - 8060:8060
@@ -146,7 +145,7 @@ services:
       - safe-tier
   repository-postgres:
     image: postgres
-    profiles: [ "full" ]
+    profiles: [ "full", "repo" ]
     environment:
       POSTGRES_DB: repository_db
       POSTGRES_USER: repository_user

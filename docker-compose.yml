@@ -3,7 +3,6 @@ services:
   jupyter:
     container_name: qs-jupyter
     image: icr.io/quantum-public/quantum-serverless-notebook:${VERSION:-0.1.2}-py39
-    profiles: ["jupyter", "full"]
     ports:
       - 8888:8888
     environment:
