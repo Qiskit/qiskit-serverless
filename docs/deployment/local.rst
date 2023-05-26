@@ -10,7 +10,7 @@ Once you have Docker and docker-compose installed, you can run the following com
 
 .. code-block::
 
-        $ VERSION=<VERSION> docker-compose [--profile <PROFILE>] up
+        $ VERSION=<VERSION> docker compose [--profile <PROFILE>] up
 
 The available profiles are `full` and `repo`.
 The repo profile installs core services and the program repository,
@@ -26,4 +26,4 @@ the command would be:
 
 .. code-block::
 
-        $ VERSION=0.1.2 docker-compose --profile full up
+        $ VERSION=0.1.2 docker compose --profile full up

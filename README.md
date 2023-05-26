@@ -35,7 +35,7 @@ You don't have to worry about configuration or scaling up computational resource
 
 1. Prepare local infrastructure
 ```shell
-docker-compose pull
+docker compose pull
 docker compose up
 ```
 
