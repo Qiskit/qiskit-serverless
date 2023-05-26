@@ -43,7 +43,7 @@ dependencies:
     version: 0.1.0
   - name: kube-prometheus-stack
     condition: prometheusEnable
-    version: 45.10.1
+    version: 45.31.1
     repository: https://prometheus-community.github.io/helm-charts
   - name: loki
     condition: lokiEnable
