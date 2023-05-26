@@ -10,7 +10,6 @@ from django.db.models.aggregates import Count, Min
 
 from api.models import Job, Program, ComputeResource
 from api.ray import submit_ray_job, create_ray_cluster
-from api.utils import try_json_loads
 
 User: Model = get_user_model()
 

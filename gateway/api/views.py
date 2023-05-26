@@ -8,6 +8,7 @@ Version views inherit from the different views.
 """
 
 import json
+import logging
 
 import requests
 from allauth.socialaccount.providers.keycloak.views import KeycloakOAuth2Adapter
@@ -66,12 +67,14 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             status=Job.QUEUED,
         )
         job.save()
-        job.env_vars = json.dumps({
-            "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
-            "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
-            "ENV_JOB_ID_GATEWAY": str(job.id),
-            "ENV_JOB_ARGUMENTS": program.arguments,
-        })
+        job.env_vars = json.dumps(
+            {
+                "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
+                "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
+                "ENV_JOB_ID_GATEWAY": str(job.id),
+                "ENV_JOB_ARGUMENTS": program.arguments,
+            }
+        )
         job.save()
 
         job_serializer = self.get_serializer_job_class()(job)
@@ -104,8 +107,8 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                 ray_job_status = ray_client.get_job_status(job.ray_job_id)
                 job.status = ray_job_status_to_model_job_status(ray_job_status)
                 job.save()
-            except Exception:
-                pass
+            except Exception:  # pylint: disable=broad-exception-caught
+                logging.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response(serializer.data)
 
     @action(methods=["POST"], detail=True)
@@ -128,8 +131,8 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                 logs = ray_client.get_job_logs(job.ray_job_id)
                 job.logs = logs
                 job.save()
-            except Exception:
-                pass
+            except Exception:  # pylint: disable=broad-exception-caught
+                logging.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response({"logs": logs})
 
     @action(methods=["POST"], detail=True)

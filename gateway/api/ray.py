@@ -6,7 +6,7 @@ import shutil
 import tarfile
 import time
 import uuid
-from typing import Any
+from typing import Any, Optional
 
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
@@ -77,10 +77,14 @@ def create_compute_template_if_not_exists():
         )
 
         if not creation_response.ok:
-            raise RuntimeError(f"Cannot create compute template: {creation_response.text}")
+            raise RuntimeError(
+                f"Cannot create compute template: {creation_response.text}"
+            )
 
 
-def create_ray_cluster(user: Any) -> ComputeResource:
+def create_ray_cluster(
+    user: Any, cluster_name: Optional[str] = None
+) -> ComputeResource:
     """Creates ray cluster.
 
     1. check if compute template exists
@@ -89,6 +93,8 @@ def create_ray_cluster(user: Any) -> ComputeResource:
 
     Args:
         user: user cluster belongs to
+        cluster_name: optional cluster name.
+            by default username+uuid will be used
 
     Returns:
         returns compute resource associated with ray cluster
@@ -104,7 +110,7 @@ def create_ray_cluster(user: Any) -> ComputeResource:
 
     create_compute_template_if_not_exists()
 
-    cluster_name = f"{user.username}-{str(uuid.uuid4())[:8]}"
+    cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
 
     response = requests.post(
         clusters_url,
@@ -133,9 +139,7 @@ def create_ray_cluster(user: Any) -> ComputeResource:
                         "replicas": 0,
                         "minReplicas": 0,
                         "maxReplicas": 4,
-                        "rayStartParams": {
-                            "node-ip-address": "$MY_POD_IP"
-                        },
+                        "rayStartParams": {"node-ip-address": "$MY_POD_IP"},
                     }
                 ],
             },
@@ -173,8 +177,8 @@ def wait_for_cluster_ready(cluster_name: str):
             response = requests.get(url, timeout=5)
             if response.ok:
                 success = True
-        except Exception:
-            logging.debug(f"Head node {url} is not ready yet.")
+        except Exception:  # pylint: disable=broad-exception-caught
+            logging.debug("Head node %s is not ready yet.", url)
         time.sleep(1)
     return url
 

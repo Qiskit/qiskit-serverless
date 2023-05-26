@@ -21,10 +21,7 @@ class Command(BaseCommand):
             )
 
             # only kill cluster if not in local mode and no jobs are running there
-            if (
-                len(alive_jobs) == 0
-                and not settings.RAY_CLUSTER_MODE.get("local")
-            ):
+            if len(alive_jobs) == 0 and not settings.RAY_CLUSTER_MODE.get("local"):
                 kill_ray_cluster(compute_resource.title)
                 compute_resource.delete()
                 counter += 1
