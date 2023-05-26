@@ -255,7 +255,7 @@ SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get(
 
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
-LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "20"))
+LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 
 # ray cluster management
 RAY_KUBERAY_API_SERVER_URL = os.environ.get(
