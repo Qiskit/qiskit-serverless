@@ -14,6 +14,7 @@ Following these guidelines communicates you value the time and effort of the cor
 - [Opening issues](#opening-issues)
 - [Contributing code](#contributing-code)
   - [Tools](#tools)
+    - [For non-Linux users](#for-non-linux-users)
   - [Deciding what to work on](#deciding-what-to-work-on)
   - [Clone the repo](#clone-the-repo)
   - [Development environment](#development-environment)
@@ -71,9 +72,22 @@ You'll need to install these tools on your development environment:
 1. [python](https://www.python.org/): the language quantum-serverless is written in
 1. [git](https://git-scm.com/): for source control
 1. [docker](https://docs.docker.com/engine/install/) or [podman](https://podman.io/): for building dev environment
+1. [kubectl](https://kubectl.docs.kubernetes.io/): for interacting with Kubernetes clusters
+1. [helm](https://helm.sh/): to install quantum-serverless on Kubernetes
 
 Note: Installing the `pip` and `venv` python libraries will also be useful
 
+#### For non-Linux users
+
+If you are on a Windows machine, it is recommended to use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install).
+
+If you are on a Mac machine, it is recommended to use [Colima](https://github.com/abiosoft/colima), which can be set up as follows:
+
+```bash
+brew install colima
+brew install docker
+colima start -- cpu 4 --memory 8
+```
 
 ### Deciding what to work on
 
