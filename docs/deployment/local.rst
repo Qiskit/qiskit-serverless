@@ -12,8 +12,8 @@ Once you have Docker and docker-compose installed, you can run the following com
 
         $ VERSION=<VERSION> docker-compose [--profile <PROFILE>] up
 
-The available profiles are `full` and `jupyter`.
-The jupyter profile installs core services and Jupyter Notebook,
+The available profiles are `full` and `repo`.
+The repo profile installs core services and the program repository,
 while the full profile installs all core services,
 Jupyter Notebook, and logging and monitoring systems.
 
