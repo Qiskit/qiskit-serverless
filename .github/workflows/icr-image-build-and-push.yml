@@ -13,6 +13,10 @@ jobs:
         uses: actions/checkout@v3
       - name: Build Helm Package
         run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add kuberay https://ray-project.github.io/kuberay-helm
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add grafana https://grafana.github.io/helm-charts
           helm package ./infrastructure/helm/quantumserverless -u --version 0.1.0 --app-version 0.1.0
       - name: Upload Helm Package
         uses: actions/upload-artifact@v2
