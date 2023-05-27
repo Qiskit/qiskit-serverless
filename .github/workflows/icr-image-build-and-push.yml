@@ -1,47 +1,21 @@
-name: ICR | build and push
+name: Helm Package
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag for images'
-        required: true
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: '30 1 * * *'
 
 jobs:
-  icr_build_and_push:
+  package:
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Helm
+        uses: azure/setup-helm@v1
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Login to IBM Container Registry
-        uses: docker/login-action@v2
+      - name: Build Helm Package
+        run: |
+          helm package ./infrastructure/helm/quantumserverless --version 0.1.0 --app-version 0.1.0
+      - name: Upload Helm Package
+        uses: actions/upload-artifact@v2:
         with:
-          registry: icr.io
-          username: iamapikey
-          password: ${{ secrets.IBMCLOUD_API_KEY }}
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: 'arm64,amd64'
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Build and push nightly
-        if: github.event_name == 'schedule'
-        uses: ./.github/actions/icr-build-and-push-images
-        with:
-          tag: nightly
-      - name: Build and push latest
-        if : github.event_name == 'push'
-        uses: ./.github/actions/icr-build-and-push-images
-        with:
-          tag: latest
-      - name: Build and push on dispatch
-        if : github.event_name == 'workflow_dispatch'
-        uses: ./.github/actions/icr-build-and-push-images
-        with:
-          tag: ${{ github.event.inputs.tag }}
+          name: helm-package
+          path: ./infrastructure/helm/quantum-serverless-0.1.0.tgz
