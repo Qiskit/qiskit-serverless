@@ -17,7 +17,7 @@ jobs:
         run: |
           helm package ./infrastructure/helm/quantumserverless -u --version 0.1.0 --app-version 0.1.0
       - name: Upload Helm Package
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: helm-package
           path: ./quantum-serverless-0.1.0.tgz
