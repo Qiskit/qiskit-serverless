@@ -20,14 +20,14 @@ provider "registry.terraform.io/hashicorp/helm" {
 }
 
 provider "registry.terraform.io/ibm-cloud/ibm" {
-  version     = "1.51.0"
-  constraints = ">= 1.51.0"
+  version     = "1.53.0"
+  constraints = ">= 1.53.0"
   hashes = [
-    "h1:2TiiV20JseAsljVDNHyZi8u52W+sbiuwsGopotLi5cw=",
-    "h1:9vNiC4M6wta9SleY6sGR7aR9OV17tyEOrUFjt4girPo=",
-    "h1:YiJV3XR07ZJlasi/aoqg6X1rbtj3pSoQ7ht6k5zXBbc=",
-    "h1:ZjSGqFOSAQEkXU3Oo4qBvU1kFaj6+1LIariz+8WFwxE=",
-    "h1:mvYYHhUy1X1GiiLaMB1uDe/pz1CgakmA8PLWQx98TfE=",
-    "h1:n5crlE0iLyfCCACQk4WKu6j+0zCOXEpB3FcjaWJnOh0=",
+    "h1:+tZbBJTWr623kbItsLmsg0Vd29p+AEB9esL61T14ek0=",
+    "h1:0bO+HwddIsudz2UaEbPPencG9SF0LVolkbGI7ud4vas=",
+    "h1:UDBKXSvZEJAHZJVOygvAiCcJU89L1FgQpfRjF6ux26Q=",
+    "h1:VFh42+ujNxCMulb9q8zjPU8QzEDy6gh2T1zHwcbXLBU=",
+    "h1:guE4KGL+k9O1Wn2CaPA8IaPt83rB3m+iKfMrJ5EH7CU=",
+    "h1:raMsNFAKBBJ+SkA5bkYeP4tPyzCN1xqLiPUvgClYaOQ=",
   ]
 }
