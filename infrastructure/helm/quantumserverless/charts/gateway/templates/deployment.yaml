@@ -49,14 +49,14 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
-#          livenessProbe:
-#            httpGet:
-#              path: /liveness
-#              port: http
-#          readinessProbe:
-#            httpGet:
-#              path: /readiness
-#              port: http
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: http
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
