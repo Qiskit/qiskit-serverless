@@ -139,13 +139,18 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     def stop(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Stops job"""
         job = self.get_object()
-        ray_client = JobSubmissionClient(job.compute_resource.host)
-        was_running = ray_client.stop_job(job.ray_job_id)
-        message = (
-            "Job has been stopped successfully."
-            if not was_running
-            else "Job was already not running."
-        )
+        message = "Job was already not running."
+        if job.compute_resource:
+            try:
+                ray_client = JobSubmissionClient(job.compute_resource.host)
+                was_running = ray_client.stop_job(job.ray_job_id)
+                message = (
+                    "Job has been stopped successfully."
+                    if not was_running
+                    else "Job was already not running."
+                )
+            except Exception:  # pylint: disable=broad-exception-caught
+                logging.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response({"message": message})
 
 
