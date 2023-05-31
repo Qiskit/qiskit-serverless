@@ -114,14 +114,14 @@ kind: Deployment
 metadata:
   name: {{ include "gateway.fullname" . }}-scheduler
   labels:
-    {{- include "gateway.labels" . | nindent 4 }}
+    {{- include "gateway.labels" . | nindent 4 }}-scheduler
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: 1
   {{- end }}
   selector:
     matchLabels:
-      {{- include "gateway.selectorLabels" . | nindent 6 }}
+      {{- include "gateway.selectorLabels" . | nindent 6 }}-scheduler
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -129,7 +129,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "gateway.selectorLabels" . | nindent 8 }}
+        {{- include "gateway.selectorLabels" . | nindent 8 }}-scheduler
     spec:
       volumes:
         - name: gateway-pv-storage
@@ -142,6 +142,7 @@ spec:
       containers:
         - name: gateway-scheduler
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["./scripts/scheduler.sh"]
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
