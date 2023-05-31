@@ -32,20 +32,14 @@ import s3fs
 class PersistentStorage:
     """Class for storing objects in a non-temporary manner."""
 
-    def __init__(
-            self,
-            endpoint: str,
-            bucket: str
-    ):
+    def __init__(self, endpoint: str, bucket: str):
         """Long-term storage for serverless computation."""
         self.endpoint = endpoint
         self.bucket = bucket
         self.key = os.getenv("ACCESSKEY")
         self.secret = os.getenv("SECRETKEY")
         self.storage = s3fs.core.S3FileSystem(
-            endpoint_url=self.endpoint,
-            key=self.key,
-            secret=self.secret
+            endpoint_url=self.endpoint, key=self.key, secret=self.secret
         )
 
     def persist_data(self, filename, data):
