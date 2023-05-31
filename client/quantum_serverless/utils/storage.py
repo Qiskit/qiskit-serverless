@@ -50,10 +50,10 @@ class PersistentStorage:
 
     def persist_data(self, filename, data):
         """Store data in persistent storage."""
-        with self.storage.open(f"{self.bucket}/{filename}", 'w') as f:
+        with self.storage.open(f"{self.bucket}/{filename}", "w") as f:
             f.write(data)
 
     def retrieve_data(self, filename):
         """Get data from persistent storage."""
-        with self.storage.open(f"{self.bucket}/{filename}", 'r') as f:
+        with self.storage.open(f"{self.bucket}/{filename}", "r") as f:
             print(f.read())
