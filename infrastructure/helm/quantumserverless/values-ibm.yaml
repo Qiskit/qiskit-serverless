@@ -109,7 +109,7 @@ jupyter:
 # Ray Cluster
 # ===================
 
-rayClusterEnable: true
+rayClusterEnable: false
 ray-cluster:
   nameOverride: "kuberay"
   fullnameOverride: "kuberay"
