@@ -25,7 +25,6 @@ from rest_framework.views import APIView
 from .models import Program, Job
 from .schedule import save_program
 from .serializers import JobSerializer
-from .utils import ray_job_status_to_model_job_status
 
 
 class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
@@ -101,14 +100,6 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         queryset = Job.objects.all()
         job: Job = get_object_or_404(queryset, pk=pk)
         serializer = self.get_serializer(job)
-        if job.compute_resource:
-            try:
-                ray_client = JobSubmissionClient(job.compute_resource.host)
-                ray_job_status = ray_client.get_job_status(job.ray_job_id)
-                job.status = ray_job_status_to_model_job_status(ray_job_status)
-                job.save()
-            except Exception:  # pylint: disable=broad-exception-caught
-                logging.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response(serializer.data)
 
     @action(methods=["POST"], detail=True)
