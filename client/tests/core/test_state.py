@@ -56,7 +56,7 @@ def test_state():
 
         wait_for_job_client(serverless)
 
-        job = serverless.run_program(
+        job = serverless.run(
             Program("test", entrypoint="job_with_state.py", working_dir=resources_path)
         )
 

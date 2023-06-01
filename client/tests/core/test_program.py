@@ -56,7 +56,7 @@ def test_program():
             version="0.0.1",
         )
 
-        job = serverless.run_program(program)
+        job = serverless.run(program)
 
         assert isinstance(job, Job)
 

@@ -42,8 +42,6 @@ add_module_names = False
 modindex_common_prefix = ["quantum_serverless_project."]
 
 # html theme options
-html_static_path = ["_static"]
-# html_logo = "_static/images/logo.png"
 html_theme_options = {
     'github_button': True,
     'github_user': 'Qiskit-Extensions',

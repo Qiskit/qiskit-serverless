@@ -83,7 +83,7 @@ class Program:  # pylint: disable=too-many-instance-attributes
             warnings.warn(
                 "Passing `arguments` as constructor argument to `Program` is deprecated "
                 "and will be removed in v0.2. "
-                "Please, consider passing `arguments` to `run_program` "
+                "Please, consider passing `arguments` to `run` "
                 "method of `QuantumServerless` object.",
                 DeprecationWarning,
                 stacklevel=2,

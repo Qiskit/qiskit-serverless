@@ -31,8 +31,10 @@ import json
 import logging
 import os
 import tarfile
-from typing import Dict, Any, Optional
+import time
+from typing import Dict, Any, Optional, List
 from uuid import uuid4
+import warnings
 
 import ray.runtime_env
 import requests
@@ -48,9 +50,8 @@ from quantum_serverless.core.constants import (
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 from quantum_serverless.core.program import Program
-from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers.program_serializers import QiskitObjectsEncoder
-from quantum_serverless.utils.json import is_jsonable
+from quantum_serverless.utils.json import is_jsonable, safe_json_request
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
@@ -62,6 +63,20 @@ class BaseJobClient:
         self, program: Program, arguments: Optional[Dict[str, Any]] = None
     ) -> "Job":
         """Runs program."""
+        raise NotImplementedError
+
+    def run(
+        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+    ) -> "Job":
+        """Runs program."""
+        raise NotImplementedError
+
+    def get(self, job_id) -> Optional["Job"]:
+        """Returns job by job id"""
+        raise NotImplementedError
+
+    def list(self, **kwargs) -> List["Job"]:
+        """Returns list of jobs."""
         raise NotImplementedError
 
     def status(self, job_id: str):
@@ -105,7 +120,50 @@ class RayJobClient(BaseJobClient):
     def result(self, job_id: str):
         return self.logs(job_id)
 
+    def get(self, job_id) -> Optional["Job"]:
+        return Job(self._job_client.get_job_info(job_id).job_id, job_client=self)
+
+    def list(self, **kwargs) -> List["Job"]:
+        return [
+            Job(job.job_id, job_client=self) for job in self._job_client.list_jobs()
+        ]
+
     def run_program(self, program: Program, arguments: Optional[Dict[str, Any]] = None):
+        warnings.warn(
+            "`run_program` is deprecated. Please, consider using `run` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        arguments = arguments or {}
+        arguments_string = ""
+        if program.arguments is not None:
+            arg_list = []
+            for key, value in arguments.items():
+                if isinstance(value, dict):
+                    arg_list.append(f"--{key}='{json.dumps(value)}'")
+                else:
+                    arg_list.append(f"--{key}={value}")
+            arguments_string = " ".join(arg_list)
+        entrypoint = f"python {program.entrypoint} {arguments_string}"
+
+        # set program name so OT can use it as parent span name
+        env_vars = {
+            **(program.env_vars or {}),
+            **{OT_PROGRAM_NAME: program.title},
+        }
+
+        job_id = self._job_client.submit_job(
+            entrypoint=entrypoint,
+            submission_id=f"qs_{uuid4()}",
+            runtime_env={
+                "working_dir": program.working_dir,
+                "pip": program.dependencies,
+                "env_vars": env_vars,
+            },
+        )
+        return Job(job_id=job_id, job_client=self)
+
+    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None):
         arguments = arguments or {}
         arguments_string = ""
         if program.arguments is not None:
@@ -151,7 +209,47 @@ class GatewayJobClient(BaseJobClient):
         self.version = version
         self._token = token
 
-    def run_program(
+    def run_program(  # pylint: disable=too-many-locals
+        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+    ) -> "Job":
+        warnings.warn(
+            "`run_program` is deprecated. Please, consider using `run` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        url = f"{self.host}/api/{self.version}/programs/run/"
+        artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+
+        with tarfile.open(artifact_file_path, "w") as tar:
+            for filename in os.listdir(program.working_dir):
+                fpath = os.path.join(program.working_dir, filename)
+                tar.add(fpath, arcname=filename)
+
+        with open(artifact_file_path, "rb") as file:
+            response_data = safe_json_request(
+                request=lambda: requests.post(
+                    url=url,
+                    data={
+                        "title": program.title,
+                        "entrypoint": program.entrypoint,
+                        "arguments": json.dumps(
+                            arguments or {}, cls=QiskitObjectsEncoder
+                        ),
+                        "dependencies": json.dumps(program.dependencies or []),
+                    },
+                    files={"artifact": file},
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            job_id = response_data.get("id")
+
+        if os.path.exists(artifact_file_path):
+            os.remove(artifact_file_path)
+
+        return Job(job_id, job_client=self)
+
+    def run(  # pylint: disable=too-many-locals
         self, program: Program, arguments: Optional[Dict[str, Any]] = None
     ) -> "Job":
         url = f"{self.host}/api/{self.version}/programs/run/"
@@ -163,25 +261,23 @@ class GatewayJobClient(BaseJobClient):
                 tar.add(fpath, arcname=filename)
 
         with open(artifact_file_path, "rb") as file:
-            response = requests.post(
-                url=url,
-                data={
-                    "title": program.title,
-                    "entrypoint": program.entrypoint,
-                    "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
-                    "dependencies": json.dumps(program.dependencies or []),
-                },
-                files={"artifact": file},
-                headers={"Authorization": f"Bearer {self._token}"},
-                timeout=REQUESTS_TIMEOUT,
-            )
-            if not response.ok:
-                raise QuantumServerlessException(
-                    f"Something went wrong with program execution. {response.text}"
+            response_data = safe_json_request(
+                request=lambda: requests.post(
+                    url=url,
+                    data={
+                        "title": program.title,
+                        "entrypoint": program.entrypoint,
+                        "arguments": json.dumps(
+                            arguments or {}, cls=QiskitObjectsEncoder
+                        ),
+                        "dependencies": json.dumps(program.dependencies or []),
+                    },
+                    files={"artifact": file},
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
                 )
-
-            json_response = json.loads(response.text)
-            job_id = json_response.get("id")
+            )
+            job_id = response_data.get("id")
 
         if os.path.exists(artifact_file_path):
             os.remove(artifact_file_path)
@@ -190,65 +286,79 @@ class GatewayJobClient(BaseJobClient):
 
     def status(self, job_id: str):
         default_status = "Unknown"
-        status = default_status
-        response = requests.get(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/",
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.ok:
-            status = json.loads(response.text).get("status", default_status)
-        else:
-            logging.warning(
-                "Something went wrong during job status fetching. %s", response.text
+        response_data = safe_json_request(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
-        return status
+        )
+
+        return response_data.get("status", default_status)
 
     def stop(self, job_id: str):
-        message = ""
-        response = requests.post(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.ok:
-            message = json.loads(response.text).get("message", None)
-        else:
-            logging.warning(
-                "Something went wrong during job stopping. %s", response.text
+        response_data = safe_json_request(
+            request=lambda: requests.post(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
-        return message
+        )
+
+        return response_data.get("message")
 
     def logs(self, job_id: str):
-        result = None
-        response = requests.get(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.ok:
-            result = json.loads(response.text).get("logs", None)
-        else:
-            logging.warning(
-                "Something went wrong during job result fetching. %s", response.text
+        response_data = safe_json_request(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
-        return result
+        )
+        return response_data.get("logs")
 
     def result(self, job_id: str):
-        result = None
-        response = requests.get(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/",
-            headers={"Authorization": f"Bearer {self._token}"},
-            timeout=REQUESTS_TIMEOUT,
-        )
-        if response.ok:
-            json_result = json.loads(response.text).get("result", "{}")
-            result = json.loads(json_result or "{}")
-        else:
-            logging.warning(
-                "Something went wrong during job result fetching. %s", response.text
+        response_data = safe_json_request(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
-        return result
+        )
+        return json.loads(response_data.get("result", "{}") or "{}")
+
+    def get(self, job_id) -> Optional["Job"]:
+        url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
+        response_data = safe_json_request(
+            request=lambda: requests.get(
+                url,
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
+        job = None
+        job_id = response_data.get("id")
+        if job_id is not None:
+            job = Job(
+                job_id=response_data.get("id"),
+                job_client=self,
+            )
+
+        return job
+
+    def list(self, **kwargs) -> List["Job"]:
+        response_data = safe_json_request(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        return [
+            Job(job.get("id"), job_client=self)
+            for job in response_data.get("results", [])
+        ]
 
 
 class Job:
@@ -276,9 +386,29 @@ class Job:
         """Returns logs of the job."""
         return self._job_client.logs(self.job_id)
 
-    def result(self):
-        """Return results of the job."""
+    def result(self, wait=True, cadence=5, verbose=False):
+        """Return results of the job.
+        Args:
+            wait: flag denoting whether to wait for the
+                job result to be populated before returning
+            cadence: time to wait between checking if job has
+                been terminated
+            verbose: flag denoting whether to log a heartbeat
+                while waiting for job result to populate
+        """
+        if wait:
+            if verbose:
+                logging.info("Waiting for job result.")
+            while not self._in_terminal_state():
+                time.sleep(cadence)
+                if verbose:
+                    logging.info(".")
         return self._job_client.result(self.job_id)
+
+    def _in_terminal_state(self) -> bool:
+        """Checks if job is in terminal state"""
+        terminal_states = ["STOPPED", "SUCCEEDED", "FAILED"]
+        return self.status() in terminal_states
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"

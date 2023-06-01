@@ -1,4 +1,4 @@
-name: Docker | build and push
+name: ICR | build and push
 
 on:
   workflow_dispatch:
@@ -10,31 +10,38 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 1 * * *'
+    - cron: '30 1 * * *'
 
 jobs:
-  docker_build_and_push:
+  icr_build_and_push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Login to Docker Hub
+      - name: Login to IBM Container Registry
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: icr.io
+          username: iamapikey
+          password: ${{ secrets.IBMCLOUD_API_KEY }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: 'arm64,amd64'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - name: Build and push nightly
         if: github.event_name == 'schedule'
-        uses: ./.github/actions/build-and-push-images
+        uses: ./.github/actions/icr-build-and-push-images
         with:
           tag: nightly
       - name: Build and push latest
         if : github.event_name == 'push'
-        uses: ./.github/actions/build-and-push-images
+        uses: ./.github/actions/icr-build-and-push-images
         with:
           tag: latest
       - name: Build and push on dispatch
         if : github.event_name == 'workflow_dispatch'
-        uses: ./.github/actions/build-and-push-images
+        uses: ./.github/actions/icr-build-and-push-images
         with:
           tag: ${{ github.event.inputs.tag }}

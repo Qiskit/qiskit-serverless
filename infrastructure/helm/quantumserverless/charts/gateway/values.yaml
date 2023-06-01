@@ -19,8 +19,14 @@ application:
     password: "passw0rd"
     email: "admin@examplemail.io"
 
+database:
+  host: postgresql
+  port: 5432
+  user: bn_keycloak
+  name: bitnami_keycloak
+
 image:
-  repository: qiskit/quantum-serverless-gateway
+  repository: icr.io/quantum-public/quantum-serverless-gateway
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "nightly"

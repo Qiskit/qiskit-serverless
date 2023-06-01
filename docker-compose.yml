@@ -2,17 +2,18 @@
 services:
   jupyter:
     container_name: qs-jupyter
-    image: qiskit/quantum-serverless-notebook:${VERSION:-0.0.8}-py39
+    image: icr.io/quantum-public/quantum-serverless-notebook:${VERSION:-0.1.0}-py39
     profiles: ["jupyter", "full"]
     ports:
       - 8888:8888
     environment:
       - JUPYTER_TOKEN=123
+      - GATEWAY_HOST=http://gateway:8000      
     networks:
       - safe-tier
   ray-head:
     container_name: ray-head
-    image: qiskit/quantum-serverless-ray-node:${VERSION:-0.0.8}-py39
+    image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.1.0}-py39
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
@@ -38,7 +39,7 @@ services:
       always
   keycloak:
     container_name: keycloak
-    image: bitnami/keycloak:20.0.5-debian-11-r4
+    image: bitnami/keycloak:21.1.1-debian-11-r4
     volumes:
       - ./realm-export.json:/opt/keycloak/data/import/realm-export.json
     environment:
@@ -61,7 +62,7 @@ services:
       always
   gateway:
     container_name: gateway
-    image: docker.io/qiskit/quantum-serverless-gateway:${VERSION:-0.0.8}
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.1.0}
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
@@ -78,13 +79,20 @@ services:
       - SITE_HOST=http://gateway:8000
 #      - SETTINGS_AUTH_MECHANISM=default #custom_token
 #      - SETTINGS_TOKEN_AUTH_URL=<URL_FOR_TOKEN_VERIFICATION>
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=testkeycloakdb
+      - DATABASE_USER=testkeycloakuser
+      - DATABASE_PASSWORD=testkeycloakpassword
     networks:
       - safe-tier
     depends_on:
       - keycloak
+      - postgres
   repository-server:
     container_name: repository-server
-    image: docker.io/qiskit/quantum-repository-server:${VERSION:-0.0.8}
+    image: icr.io/quantum-public/quantum-repository-server:${VERSION:-0.1.0}
+    profiles: [ "full" ]
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
       - 8060:8060
@@ -93,15 +101,33 @@ services:
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
+      - DATABASE_HOST=repository-postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=repository_db
+      - DATABASE_USER=repository_user
+      - DATABASE_PASSWORD=repository_password
+    depends_on:
+      - postgres
     networks:
       - safe-tier
+  repository-postgres:
+    image: postgres
+    profiles: [ "full" ]
+    environment:
+      POSTGRES_DB: repository_db
+      POSTGRES_USER: repository_user
+      POSTGRES_PASSWORD: repository_password
+    networks:
+      - safe-tier
+    restart:
+      always
   prometheus:
-    image: prom/prometheus:v2.43.1
+    image: prom/prometheus:v2.44.0
     profiles: [ "full" ]
     ports:
       - 9000:9090
   loki:
-    image: grafana/loki:2.7.5
+    image: grafana/loki:2.8.2
     profiles: [ "full" ]
     ports:
       - 3100:3100
@@ -109,7 +135,7 @@ services:
     networks:
       - safe-tier
   promtail:
-    image: grafana/promtail:2.7.5
+    image: grafana/promtail:2.8.2
     profiles: [ "full" ]
     volumes:
       - /var/log:/var/log

@@ -4,8 +4,17 @@
 
 replicaCount: 1
 
+application:
+  debug: 0
+
+database:
+  host: postgresql
+  port: 5432
+  user: bn_keycloak
+  name: bitnami_keycloak
+
 image:
-  repository: qiskit/quantum-repository-server
+  repository: icr.io/quantum-public/quantum-repository-server
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "nightly"

@@ -4,7 +4,11 @@
 
 version=0.0.8
 repository=qiskit
-arch=$(shell uname -p)
+ifeq ($(shell uname -p), arm)
+	arch="arm64"
+else
+	arch="amd64"
+endif
 
 notebookImageName=$(repository)/quantum-serverless-notebook
 rayNodeImageName=$(repository)/quantum-serverless-ray-node
@@ -24,11 +28,7 @@ build-notebook:
 	docker build -t $(notebookImageName):$(version) -f ./infrastructure/docker/Dockerfile-notebook .
 
 build-ray-node:
-ifeq ($(arch),arm)
-	docker build -t $(rayNodeImageName):$(version) -f ./infrastructure/docker/Dockerfile-ray-qiskit-arm64 .
-else
-	docker build -t $(rayNodeImageName):$(version) -f ./infrastructure/docker/Dockerfile-ray-qiskit .
-endif
+	docker build -t $(rayNodeImageName):$(version) --build-arg TARGETARCH=$(arch) -f ./infrastructure/docker/Dockerfile-ray-qiskit .
 
 build-gateway:
 	docker build -t $(gatewayImageName):$(version) -f ./infrastructure/docker/Dockerfile-gateway .
