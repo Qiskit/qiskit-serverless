@@ -40,7 +40,7 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
   - name: repository
     condition: repositoryEnable
-    version: 0.1.0
+    version: 0.1.1
   - name: kube-prometheus-stack
     condition: prometheusEnable
     version: 45.31.1
