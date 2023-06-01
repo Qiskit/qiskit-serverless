@@ -1,4 +1,4 @@
-name: Verify building spinx docs
+name: Verify building sphinx docs
 
 on:
   pull_request:
