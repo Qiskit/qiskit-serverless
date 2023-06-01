@@ -121,7 +121,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "gateway.selectorLabels" . | nindent 6 }}-scheduler
+      {{- include "gateway.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -129,7 +129,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "gateway.selectorLabels" . | nindent 8 }}-scheduler
+        {{- include "gateway.selectorLabels" . | nindent 8 }}
     spec:
       volumes:
         - name: gateway-pv-storage
