@@ -10,10 +10,10 @@ appVersion: "0.1.1"
 dependencies:
   - name: gateway
     condition: gatewayEnable
-    version: 0.1.0
+    version: 0.1.1
   - name: jupyter
     condition: jupyterEnable
-    version: 0.1.0
+    version: 0.1.1
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
     version: 9.7.2
