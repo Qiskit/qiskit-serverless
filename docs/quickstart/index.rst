@@ -14,7 +14,7 @@ Step 1: Install the quantum serverless package.
 .. code-block::
    :caption: Install quantum_serverless via pip.
 
-      pip install quantum_serverless==0.1.0
+      pip install quantum_serverless==0.1.1
 
 
 Step 2: Run infrastructure.
@@ -22,13 +22,14 @@ Step 2: Run infrastructure.
 .. code-block::
    :caption: Run docker compose from the root of the quantum serverless project.
       cd quantum-serverless/
-      VERSION=0.1.0 docker-compose --profile full up
+      docker compose --profile full up
 
 Step 3: Open the jupyter lab environment by going to ``localhost:8888`` via your favorite browser.
 
 Step 4: Write your program in containerized environment.
+
 .. code-block::
-   :caption: Create a Python file using your favorite text editor. Here we use vim.
+   :caption: Create a Python file using a text editor. Here we use vim.
       vim program.py
 
 .. code-block:: python
@@ -66,7 +67,7 @@ Step 4: Write your program in containerized environment.
        "quasi_dists": collected_results
    })
 
-Step 5: run program
+Step 5: Run the program.
 
 .. code-block:: python
    :caption: in jupyter notebook
@@ -102,7 +103,7 @@ Step 5: run program
        }
    )
 
-Step 6: monitor job status
+Step 6: Monitor the job status.
 
 .. code-block:: python
    :caption: in jupyter notebook
@@ -112,7 +113,7 @@ Step 6: monitor job status
 
    job.logs()
 
-Step 7: get results
+Step 7: Get the results.
 
 .. code-block:: python
    :caption: in jupyter notebook
