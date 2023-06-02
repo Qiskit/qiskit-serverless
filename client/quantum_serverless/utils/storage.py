@@ -11,14 +11,14 @@
 # that they have been altered from the originals.
 
 """
-=====================================================
+===========================================================
 Storage utilities (:mod:`quantum_serverless.utils.storage`)
-=====================================================
+===========================================================
 
 .. currentmodule:: quantum_serverless.utils.storage
 
 Quantum serverless storage utilities
-=================================
+====================================
 
 .. autosummary::
     :toctree: ../stubs/
@@ -26,28 +26,38 @@ Quantum serverless storage utilities
     PersistentStorage
 """
 import os
+from typing import Optional
 import s3fs
 
 
-class PersistentStorage:
-    """Class for storing objects in a non-temporary manner."""
+class BaseStorage:
+    @abstractmethod
+    def save(self, path: str, data: BytesIO):
+        raise NotImplementedError
 
-    def __init__(self, endpoint: str, bucket: str):
+    @abstractmethod
+    def load(self, path: str):
+        raise NotImplementedError
+
+class S3Storage(BaseStorage):
+    """Class for storing s3 objects in a non-temporary manner."""
+
+    def __init__(self, endpoint: str, key: Optional[str] = None, secret: Optional[str] = None, bucket: str):
         """Long-term storage for serverless computation."""
         self.endpoint = endpoint
         self.bucket = bucket
-        self.key = os.getenv("ACCESSKEY")
-        self.secret = os.getenv("SECRETKEY")
+        self.key = key or os.getenv("AWS_ACCESS_KEY")
+        self.secret = secret or os.getenv("AWS_SECRET_ACCESS_KEY")
         self.storage = s3fs.core.S3FileSystem(
             endpoint_url=self.endpoint, key=self.key, secret=self.secret
         )
 
-    def persist_data(self, filename, data):
-        """Store data in persistent storage."""
-        with self.storage.open(f"{self.bucket}/{filename}", "w") as f:
+    def save(self, filename, data):
+        """Store binary data in persistent storage."""
+        with self.storage.open(f"{self.bucket}/{filename}", "wb") as f:
             f.write(data)
 
-    def retrieve_data(self, filename):
-        """Get data from persistent storage."""
-        with self.storage.open(f"{self.bucket}/{filename}", "r") as f:
+    def load(self, filename):
+        """Get binary data from persistent storage."""
+        with self.storage.open(f"{self.bucket}/{filename}", "rb") as f:
             print(f.read())
