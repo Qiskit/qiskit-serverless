@@ -88,7 +88,7 @@ class QuantumServerless:
     def run_program(
         self, program: Program, arguments: Optional[Dict[str, Any]] = None
     ) -> Optional[Job]:
-        """Execute a program as a async job
+        """(Deprecated) Execute a program as a async job
 
         Example:
             >>> serverless = QuantumServerless()
@@ -106,9 +106,39 @@ class QuantumServerless:
         Returns:
             Job
         """
+        warnings.warn(
+            "`run_program` is deprecated. Please, consider using `run` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if program.arguments is not None:
             arguments = program.arguments
         return self._selected_provider.run_program(program, arguments)
+
+    def run(
+        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+    ) -> Optional[Job]:
+        """Execute a program as a async job
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> program = Program(
+            >>>     "job.py",
+            >>>     dependencies=["requests"]
+            >>> )
+            >>> job = serverless.run(program, {"arg1": 1})
+            >>> # <Job | ...>
+
+        Args:
+            arguments: arguments to run program with
+            program: Program object
+
+        Returns:
+            Job
+        """
+        if program.arguments is not None:
+            arguments = program.arguments
+        return self._selected_provider.run(program, arguments)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.

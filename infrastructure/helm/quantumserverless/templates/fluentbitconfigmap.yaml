@@ -1,0 +1,16 @@
+# Fluent Bit ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentbit-config
+data:
+  fluent-bit.conf: |
+    [INPUT]
+        Name tail
+        Path /tmp/ray/session_latest/logs/job-driver-raysubmit_*
+        Tag ray
+        Path_Key true
+        Refresh_Interval 5
+    [OUTPUT]
+        Name stdout
+        Match *

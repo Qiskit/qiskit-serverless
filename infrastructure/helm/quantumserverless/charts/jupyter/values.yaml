@@ -5,6 +5,7 @@
 jupyterToken: "123"
 managerHost: ""
 managerPort: 5000
+gatewayHost: http://gateway:8000
 
 replicaCount: 1
 
@@ -12,7 +13,7 @@ image:
   repository: "<JUPYTER_NOTEBOOK_IMAGE>"
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "nightly-py39"
+  tag: "latest-py39"
 
 container:
   port: 8888
