@@ -25,9 +25,11 @@ Quantum serverless storage utilities
 
     PersistentStorage
 """
+from io import BytesIO
 import os
 from typing import Optional
 import s3fs
+from abc import abstractmethod
 
 
 class BaseStorage:
@@ -48,7 +50,7 @@ class S3Storage(BaseStorage):
         endpoint: str,
         bucket: str,
         key: Optional[str] = None,
-        secret: Optional[str] = None
+        secret: Optional[str] = None,
     ):
         """Long-term storage for serverless computation."""
         self.endpoint = endpoint
