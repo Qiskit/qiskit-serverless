@@ -27,4 +27,4 @@ Quantum serverless utilities
 """
 
 from .json import JsonSerializable
-from .storage import PersistentStorage
+from .storage import S3Storage
