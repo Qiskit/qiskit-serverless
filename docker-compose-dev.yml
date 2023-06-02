@@ -45,7 +45,7 @@ services:
       always
   keycloak:
     container_name: keycloak
-    image: bitnami/keycloak:21.1.1-debian-11-r4
+    image: bitnami/keycloak:20.0.5-debian-11-r4
     volumes:
       - ./realm-export.json:/opt/keycloak/data/import/realm-export.json
     environment:
