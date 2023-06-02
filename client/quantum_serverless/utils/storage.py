@@ -28,17 +28,22 @@ Quantum serverless storage utilities
 from io import BytesIO
 import os
 from typing import Optional
-import s3fs
+
 from abc import abstractmethod
+import s3fs
 
 
 class BaseStorage:
+    """Base class for persistent storage."""
+
     @abstractmethod
     def save(self, path: str, data: BytesIO):
+        """Save data."""
         raise NotImplementedError
 
     @abstractmethod
     def load(self, path: str):
+        """Load data."""
         raise NotImplementedError
 
 
@@ -61,12 +66,12 @@ class S3Storage(BaseStorage):
             endpoint_url=self.endpoint, key=self.key, secret=self.secret
         )
 
-    def save(self, filename, data):
+    def save(self, path, data):
         """Store binary data in persistent storage."""
-        with self.storage.open(f"{self.bucket}/{filename}", "wb") as f:
+        with self.storage.open(f"{self.bucket}/{path}", "wb") as f:
             f.write(data)
 
-    def load(self, filename):
+    def load(self, path):
         """Get binary data from persistent storage."""
-        with self.storage.open(f"{self.bucket}/{filename}", "rb") as f:
+        with self.storage.open(f"{self.bucket}/{path}", "rb") as f:
             print(f.read())
