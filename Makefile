@@ -2,8 +2,8 @@
 # Constants
 # =========
 
-version=0.0.8
-repository=qiskit
+version=latest
+repository=icr.io/quantum-public
 ifeq ($(shell uname -p), arm)
 	arch="arm64"
 else
