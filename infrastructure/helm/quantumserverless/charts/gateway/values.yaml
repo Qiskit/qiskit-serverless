@@ -29,7 +29,7 @@ image:
   repository: icr.io/quantum-public/quantum-serverless-gateway
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "nightly"
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""

@@ -13,7 +13,7 @@ image:
   repository: "<JUPYTER_NOTEBOOK_IMAGE>"
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "nightly-py39"
+  tag: "latest-py39"
 
 container:
   port: 8888
