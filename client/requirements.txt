@@ -1,7 +1,7 @@
 ray[default,data]>=2.4.0, <3
 requests>=2.31.0
 importlib-metadata>=4.13.0
-qiskit-terra>=0.24.0
+qiskit-terra>=0.24.1
 qiskit-ibm-runtime>=0.10.0
 redis>=4.5.5
 # opentelemetry
