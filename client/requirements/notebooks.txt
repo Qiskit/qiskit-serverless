@@ -1,3 +1,0 @@
-# Contains requirements only required for notebooks
--r common.txt
-qiskit-nature>=0.5.2
