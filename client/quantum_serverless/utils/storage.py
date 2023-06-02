@@ -42,7 +42,7 @@ class BaseStorage:
 class S3Storage(BaseStorage):
     """Class for storing s3 objects in a non-temporary manner."""
 
-    def __init__(self, endpoint: str, key: Optional[str] = None, secret: Optional[str] = None, bucket: str):
+    def __init__(self, endpoint: str, bucket: str, key: Optional[str] = None, secret: Optional[str] = None):
         """Long-term storage for serverless computation."""
         self.endpoint = endpoint
         self.bucket = bucket
