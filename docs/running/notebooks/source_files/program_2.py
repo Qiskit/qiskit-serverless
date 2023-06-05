@@ -1,22 +1,31 @@
 # source_files/program_2.py
 
-from quantum_serverless import get_arguments, save_result
+from quantum_serverless import get_arguments, save_result, distribute_task, get
 
+from qiskit import QuantumCircuit
 from qiskit.primitives import Sampler
+from qiskit.circuit.random import random_circuit
 
-# get all arguments passed to this program
-arguments = get_arguments()
+@distribute_task()
+def distributed_sample(circuit: QuantumCircuit):
+    """Distributed task that returns quasi distribution for given circuit."""
+    return Sampler().run(circuit).result().quasi_dists[0]
 
-# get specific argument that we are interested in
-circuit = arguments.get("circuit")
 
-sampler = Sampler()
+circuits = [random_circuit(2, 2) for _ in range(3)]
+[circuit.measure_all() for circuit in circuits]
 
-quasi_dists = sampler.run(circuit).result().quasi_dists
 
-print(f"Quasi distribution: {quasi_dists[0]}")
+# run distributed tasks as async function
+# we get task references as a return type
+sample_task_references = [
+    distributed_sample(circuit)
+    for circuit in circuits
+]
 
-# saving results of a program
+# now we need to collect results from task references
+results = get(sample_task_references)
+
 save_result({
-    "quasi_dists": quasi_dists[0]
+    "results": results
 })
