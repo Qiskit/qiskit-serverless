@@ -55,6 +55,7 @@ def submit_ray_job(job: Job) -> Job:
 
     return job
 
+
 def create_ray_cluster(
     user: Any, cluster_name: Optional[str] = None
 ) -> ComputeResource:
