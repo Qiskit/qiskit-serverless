@@ -53,6 +53,12 @@ gateway:
     service:
       type: ClusterIP
       port: 8000
+    ray:
+      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.1.0-py39"
+      kubeRayHost: "http://kuberay-apiserver-service:8888"
+    limits:
+      maxJobsPerUser: 2
+      maxComputeResources: 4
   database:
     name: gateway_db
 
@@ -96,7 +102,7 @@ jupyter:
 # Ray Cluster
 # ===================
 
-rayClusterEnable: true
+rayClusterEnable: false
 ray-cluster:
   nameOverride: "kuberay"
   fullnameOverride: "kuberay"

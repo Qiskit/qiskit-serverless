@@ -13,6 +13,7 @@ RUN apt-get -y update \
 USER 0
 COPY gateway .
 RUN chown -R 1001:0 /usr/src/app
+RUN mkdir /usr/src/app/media && chown 1001:0 /usr/src/app/media
 
 RUN pip install -r requirements.txt
 

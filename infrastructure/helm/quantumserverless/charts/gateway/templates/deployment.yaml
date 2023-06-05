@@ -31,6 +31,13 @@ spec:
         - name: waitpostresql
           image: actions/pg_isready
           command: ['sh', '-c', 'until pg_isready -U {{ .Values.database.user | quote }} -d "dbname={{ .Values.database.name }}" -h {{ .Values.database.host }} -p {{ .Values.database.port | quote }}; do echo waiting for myservice; sleep 2; done']
+          volumeMounts:
+          - name: gateway-pv-storage
+            mountPath: /usr/src/app/media/
+      volumes:
+        - name: gateway-pv-storage
+          persistentVolumeClaim:
+            claimName: gateway-claim
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -50,6 +57,9 @@ spec:
             httpGet:
               path: /readiness
               port: http
+          volumeMounts:
+            - mountPath: "/usr/src/app/media/"
+              name: gateway-pv-storage
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
@@ -86,6 +96,83 @@ spec:
                 secretKeyRef:
                   name: postgresql
                   key: password
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gateway.fullname" . }}-scheduler
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}-scheduler
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "gateway.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "gateway.selectorLabels" . | nindent 8 }}
+    spec:
+      volumes:
+        - name: gateway-pv-storage
+          persistentVolumeClaim:
+            claimName: gateway-claim
+      initContainers:
+        - name: waitpostresql
+          image: actions/pg_isready
+          command: ['sh', '-c', 'until pg_isready -U {{ .Values.database.user | quote }} -d "dbname={{ .Values.database.name }}" -h {{ .Values.database.host }} -p {{ .Values.database.port | quote }}; do echo waiting for myservice; sleep 2; done']
+      containers:
+        - name: gateway-scheduler
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["./scripts/scheduler.sh"]
+          volumeMounts:
+            - mountPath: "/usr/src/app/media/"
+              name: gateway-pv-storage
+          env:
+            - name: DEBUG
+              value: {{ .Values.application.debug | quote }}
+            - name: DATABASE_HOST
+              value: {{ .Values.database.host }}
+            - name: DATABASE_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: DATABASE_USER
+              value: {{ .Values.database.user | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: password
+            - name: RAY_KUBERAY_API_SERVER_URL
+              value: {{ .Values.application.ray.kubeRayHost | quote }}
+            - name: RAY_KUBERAY_NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: RAY_NODE_IMAGE
+              value: {{ .Values.application.ray.nodeImage | quote }}
+            - name: LIMITS_JOBS_PER_USER
+              value: {{ .Values.application.limits.maxJobsPerUser | quote }}
+            - name: LIMITS_MAX_CLUSTERS
+              value: {{ .Values.application.limits.maxComputeResources | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

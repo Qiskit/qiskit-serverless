@@ -35,6 +35,8 @@ services:
       POSTGRES_PASSWORD: testkeycloakpassword
     networks:
       - safe-tier
+    ports:
+      - 5432:5432
     restart:
       always
   keycloak:
@@ -86,6 +88,28 @@ services:
       - DATABASE_PASSWORD=testkeycloakpassword
     networks:
       - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
+    depends_on:
+      - keycloak
+      - postgres
+  gateway_scheduler:
+    container_name: gateway_scheduler
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.1.0}
+    entrypoint: "./scripts/scheduler.sh"
+    environment:
+      - DEBUG=0
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=testkeycloakdb
+      - DATABASE_USER=testkeycloakuser
+      - DATABASE_PASSWORD=testkeycloakpassword
+      - RAY_CLUSTER_MODE_LOCAL_HOST=http://ray-head:8265
+      - RAY_CLUSTER_MODE_LOCAL=1
+    networks:
+      - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
     depends_on:
       - keycloak
       - postgres
@@ -151,3 +175,5 @@ services:
       - safe-tier
 networks:
   safe-tier:
+volumes:
+  program-artifacts:
