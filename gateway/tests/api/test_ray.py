@@ -22,15 +22,16 @@ class response:
     status = "Success"
     metadata = client.V1ObjectMeta(name="test_user")
 
-class  mock_create(MagicMock):
+class mock_create(MagicMock):
 
     def create(self, namespace, body):
         return response()
 
-class  mock_delete(MagicMock):
+class mock_delete(MagicMock):
 
     def delete(self, namespace, name):
         return response()
+
 
 class TestRayUtils(APITestCase):
     """Tests for ray utils."""
