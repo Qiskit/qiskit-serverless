@@ -19,7 +19,7 @@ application:
     password: "passw0rd"
     email: "admin@examplemail.io"
   ray:
-    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.1.0-py39"
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.1.1-py39"
     kubeRayHost: "http://kuberay-apiserver-service:8888"
   limits:
     maxJobsPerUser: 2
