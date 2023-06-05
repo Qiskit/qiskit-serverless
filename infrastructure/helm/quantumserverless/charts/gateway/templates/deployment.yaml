@@ -135,6 +135,7 @@ spec:
         - name: gateway-pv-storage
           persistentVolumeClaim:
             claimName: gateway-claim
+      serviceAccountName: {{ include "gateway.serviceAccountName" . }}
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
@@ -163,8 +164,6 @@ spec:
                 secretKeyRef:
                   name: postgresql
                   key: password
-            - name: RAY_KUBERAY_API_SERVER_URL
-              value: {{ .Values.application.ray.kubeRayHost | quote }}
             - name: RAY_KUBERAY_NAMESPACE
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE
