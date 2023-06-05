@@ -69,8 +69,8 @@ def create_compute_template_if_not_exists():
             json={
                 "name": template_name,
                 "namespace": namespace,
-                "cpu": 2,
-                "memory": 2,
+                "cpu": settings.RAY_CLUSTER_TEMPLATE_CPU,
+                "memory": settings.RAY_CLUSTER_TEMPLATE_MEM,
                 "gpu": 0,
             },
             timeout=30,
@@ -136,9 +136,9 @@ def create_ray_cluster(
                         "groupName": "default-worker-group",
                         "computeTemplate": template_name,
                         "image": image,
-                        "replicas": 0,
-                        "minReplicas": 0,
-                        "maxReplicas": 4,
+                        "replicas": settings.RAY_CLUSTER_WORKER_REPLICAS,
+                        "minReplicas": settings.RAY_CLUSTER_WORKER_MIN_REPLICAS,
+                        "maxReplicas": settings.RAY_CLUSTER_WORKER_MAX_REPLICAS,
                         "rayStartParams": {"node-ip-address": "$MY_POD_IP"},
                     }
                 ],

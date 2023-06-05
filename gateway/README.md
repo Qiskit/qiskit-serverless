@@ -37,3 +37,8 @@ docker build -t qiskit/quantum-serverless-gateway:<VERSION> .
 | RAY_CLUSTER_MODE_LOCAL_HOST            | if `RAY_CLUSTER_MODE_LOCAL` set to 1, then this host for ray head node will be used to run all workloads                                                              |
 | LIMITS_JOBS_PER_USER                   | number of concurrent programs/jobs user can run at single point of time                                                                                               |
 | LIMITS_MAX_CLUSTERS                    | number of compute resources can be allocated in single point of time                                                                                                  | 
+| RAY_CLUSTER_TEMPLATE_CPU               | default compute kuberay template cpu setting                                                                                                                          |
+| RAY_CLUSTER_TEMPLATE_MEM               | default compute kuberay template memory setting                                                                                                                       |
+| RAY_CLUSTER_WORKER_REPLICAS            | worker replicas per cluster                                                                                                                                           |
+| RAY_CLUSTER_WORKER_MIN_REPLICAS        | min worker replicas per cluster                                                                                                                                       |
+| RAY_CLUSTER_WORKER_MAX_REPLICAS        | max replicas per cluster                                                                                                                                              |
