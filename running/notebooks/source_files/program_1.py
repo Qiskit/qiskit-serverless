@@ -1,6 +1,8 @@
 from qiskit import QuantumCircuit
 from qiskit.primitives import Sampler
 
+from quantum_serverless import save_result
+
 circuit = QuantumCircuit(2)
 circuit.h(0)
 circuit.cx(0, 1)
@@ -11,4 +13,4 @@ sampler = Sampler()
 
 quasi_dists = sampler.run(circuit).result().quasi_dists
 
-print(f"Quasi distribution: {quasi_dists[0]}")
+save_result(quasi_dists)

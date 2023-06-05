@@ -91,14 +91,14 @@ tools installed!</p>
 <p>This section will describe you the steps that you can follow to build and deploy the infrastructure with <strong>Docker</strong>.</p>
 <p>If you have <code class="docutils literal notranslate"><span class="pre">make</span></code> available you can run the next commands in your terminal:</p>
 <div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-number">Listing 7 </span><span class="caption-text">run the commands from the root of the project</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 8 </span><span class="caption-text">run the commands from the root of the project</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ make build-all
 </pre></div>
 </div>
 </div>
 <p>Or if you don’t have it (Windows for example), you can always build the images manually:</p>
 <div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-number">Listing 8 </span><span class="caption-text">run the commands from the root of the project</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 9 </span><span class="caption-text">run the commands from the root of the project</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker build -t qiskit/quantum-serverless-notebook -f ./infrastructure/docker/Dockerfile-notebook .
      $ docker build -t qiskit/quantum-serverless-ray-node -f ./infrastructure/docker/Dockerfile-ray-qiskit .
      $ ...
@@ -107,7 +107,7 @@ tools installed!</p>
 </div>
 <p>Now that you have built the needed Docker images you can run <strong>docker-compose</strong> to deploy locally the project:</p>
 <div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-number">Listing 9 </span><span class="caption-text">run the command from the root of the project</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 10 </span><span class="caption-text">run the command from the root of the project</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker-compose --profile full up
 </pre></div>
 </div>
@@ -140,7 +140,7 @@ customizable on a local or cloud <strong>k8s cluster</strong>.</p>
 <p>Once time you have your cluster the installation it’s relatively easy with Helm. You just need to access to your cluster
 and run the next commands:</p>
 <div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-number">Listing 10 </span><span class="caption-text">run these commands from ./infrastructure/helm/quantumserverless folder</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 11 </span><span class="caption-text">run these commands from ./infrastructure/helm/quantumserverless folder</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ helm repo add bitnami https://charts.bitnami.com/bitnami
      $ helm repo add kuberay https://ray-project.github.io/kuberay-helm
      $ helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -154,7 +154,7 @@ and run the next commands:</p>
 <p>To connect with the different services you have some options depending of your environment. The easiest approach that
 always will work is to use the <code class="docutils literal notranslate"><span class="pre">port-forward</span></code> command:</p>
 <div class="literal-block-wrapper docutils container" id="id6">
-<div class="code-block-caption"><span class="caption-number">Listing 11 </span><span class="caption-text">get kuberay-head and jupyter pods</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 12 </span><span class="caption-text">get kuberay-head and jupyter pods</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ kubectl get pod -o wide
      $ &gt; ...
      $ &gt; jupyter-&lt;POD_ID&gt;
@@ -165,7 +165,7 @@ always will work is to use the <code class="docutils literal notranslate"><span 
 </div>
 <p>Now that we have the desired pods we can expose their ports:</p>
 <div class="literal-block-wrapper docutils container" id="id7">
-<div class="code-block-caption"><span class="caption-number">Listing 12 </span><span class="caption-text">ports 8265 and 8888 are the the default ports for each service</span><a class="headerlink" href="#id7" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 13 </span><span class="caption-text">ports 8265 and 8888 are the the default ports for each service</span><a class="headerlink" href="#id7" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $  kubectl port-forward kuberay-head-&lt;POD_ID&gt; 8265
      $  kubectl port-forward jupyter-&lt;POD_ID&gt; 8888
 </pre></div>
@@ -218,14 +218,14 @@ with the next content:</p>
 is defined <a class="reference external" href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set">here</a>.</p>
 <p>To confirm the configuration just run terraform:</p>
 <div class="literal-block-wrapper docutils container" id="id8">
-<div class="code-block-caption"><span class="caption-number">Listing 13 </span><span class="caption-text">always run a plan before an apply, this will compare your current configuration with the new one</span><a class="headerlink" href="#id8" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 14 </span><span class="caption-text">always run a plan before an apply, this will compare your current configuration with the new one</span><a class="headerlink" href="#id8" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    $ terraform plan
 </pre></div>
 </div>
 </div>
 <p>And as final step:</p>
 <div class="literal-block-wrapper docutils container" id="id9">
-<div class="code-block-caption"><span class="caption-number">Listing 14 </span><span class="caption-text">this command will deploy the plan in your account</span><a class="headerlink" href="#id9" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 15 </span><span class="caption-text">this command will deploy the plan in your account</span><a class="headerlink" href="#id9" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    $ terraform apply
 </pre></div>
 </div>
@@ -256,7 +256,7 @@ It is easy to do with constructor arguments.</p>
 <p>Let’s see how to do that.</p>
 <p>First option is to pass configuration to constructor of <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code>:</p>
 <div class="literal-block-wrapper docutils container" id="id10">
-<div class="code-block-caption"><span class="caption-number">Listing 15 </span><span class="caption-text">constructor arguments example</span><a class="headerlink" href="#id10" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 16 </span><span class="caption-text">constructor arguments example</span><a class="headerlink" href="#id10" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">({</span>
         <span class="s2">&quot;providers&quot;</span><span class="p">:</span> <span class="p">[{</span>
             <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;my_provider&quot;</span><span class="p">,</span>  <span class="c1"># provider name</span>
@@ -272,7 +272,7 @@ It is easy to do with constructor arguments.</p>
 <p>Other option will be creating an instance from configuration file, which has exactly the same structure as example
 above.</p>
 <div class="literal-block-wrapper docutils container" id="id11">
-<div class="code-block-caption"><span class="caption-number">Listing 16 </span><span class="caption-text">config.json example</span><a class="headerlink" href="#id11" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 17 </span><span class="caption-text">config.json example</span><a class="headerlink" href="#id11" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="p">{</span>
         <span class="s2">&quot;providers&quot;</span><span class="p">:</span> <span class="p">[{</span>
             <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;my_provider&quot;</span><span class="p">,</span>
@@ -287,14 +287,14 @@ above.</p>
 </div>
 <p>Then load this file:</p>
 <div class="literal-block-wrapper docutils container" id="id12">
-<div class="code-block-caption"><span class="caption-number">Listing 17 </span><span class="caption-text">verify the name and the path to load the file</span><a class="headerlink" href="#id12" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 18 </span><span class="caption-text">verify the name and the path to load the file</span><a class="headerlink" href="#id12" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="o">.</span><span class="n">load_configuration</span><span class="p">(</span><span class="s2">&quot;./config.json&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <p>And use it as follow:</p>
 <div class="literal-block-wrapper docutils container" id="id13">
-<div class="code-block-caption"><span class="caption-number">Listing 18 </span><span class="caption-text">remember to use the same provider name</span><a class="headerlink" href="#id13" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 19 </span><span class="caption-text">remember to use the same provider name</span><a class="headerlink" href="#id13" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">provider</span><span class="p">(</span><span class="s2">&quot;my_provider&quot;</span><span class="p">):</span>
     <span class="o">...</span>
 </pre></div>

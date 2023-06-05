@@ -26,7 +26,7 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="Development" href="../../development/index.html" />
-    <link rel="prev" title="Programs with arguments and saved results" href="03_arguments_and_results.html" />
+    <link rel="prev" title="Programs with arguments" href="03_arguments_and_results.html" />
    
   <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
   
@@ -46,10 +46,10 @@
   <section id="Dependency-management-for-programs">
 <h1>Dependency management for programs<a class="headerlink" href="#Dependency-management-for-programs" title="Permalink to this heading">¶</a></h1>
 <p>In this document, we will learn how to install custom dependencies to your program.</p>
-<p>Let’s create another file with our new program <a class="reference external" href="./source_files/program_3.py">./source_files/program_3.py</a>.</p>
-<p>For the sake of this example, let’s use <code class="docutils literal notranslate"><span class="pre">qiskit-experiments</span></code> as our custom dependency. We will use randomized benchmarking (RB) circuits from qiskit-experiments, composed with the circuit from the input arguments for measurement.</p>
+<p>Let’s create another file with our new program <a class="reference external" href="./source_files/program_4.py">./source_files/program_4.py</a>.</p>
+<p>For the sake of this example, let’s use the <code class="docutils literal notranslate"><span class="pre">qiskit-experiments</span></code> package as our custom dependency. We will use randomized benchmarking (RB) circuits from <code class="docutils literal notranslate"><span class="pre">qiskit-experiments</span></code>, composed with the circuit from the input arguments for measurement.</p>
 <p>Here’s what the file would look like:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/program_3.py</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/program_4.py</span>
 
 <span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span>
 
@@ -80,10 +80,26 @@
 <span class="p">})</span>
 </pre></div>
 </div>
-<p>As you can see, we’ve imported our custom dependency <code class="docutils literal notranslate"><span class="pre">qiskit-experiments</span></code> and used its <code class="docutils literal notranslate"><span class="pre">StandardRB</span></code> module to generate an RB circuit, which we’ve composed with the circuit provided in the input arguments.</p>
-<p>Let’s create and configure out client</p>
+<p>As you can see, we’ve imported our custom dependency, <code class="docutils literal notranslate"><span class="pre">qiskit-experiments</span></code>, and used its <code class="docutils literal notranslate"><span class="pre">StandardRB</span></code> module to generate an RB circuit, which we’ve composed with the circuit provided in the input arguments.</p>
+<p>Now, let’s create and configure our client</p>
+<p>To install a custom dependency that our program might use we need to pass it as the <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> argument to the <code class="docutils literal notranslate"><span class="pre">Program</span></code> class constructor. You can pass multiple dependencies and specify versions.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
+
+<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Program with dependencies&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program_4.py&quot;</span><span class="p">,</span>
+    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
+    <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;qiskit-experiments==0.5.2&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">GatewayProvider</span>
@@ -91,8 +107,8 @@
 </pre></div>
 </div>
 </div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">provider</span> <span class="o">=</span> <span class="n">GatewayProvider</span><span class="p">(</span>
@@ -106,17 +122,8 @@
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&lt;QuantumServerless | providers [gateway-provider]&gt;
-</pre></div></div>
-</div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
@@ -124,67 +131,29 @@
 </pre></div>
 </div>
 </div>
-<p>To install custom dependency that our program might use we need to pass it as <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> constructor argument for <code class="docutils literal notranslate"><span class="pre">Program</span></code> class. You can pass multiple dependencies and specify versions.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
-
-<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Program with dependencies&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program_3.py&quot;</span><span class="p">,</span>
-    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
-    <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;qiskit-experiments&quot;</span><span class="p">]</span>
-<span class="p">)</span>
-
-<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;circuit&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="p">})</span>
-<span class="n">job</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;circuit&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="p">})</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&lt;Job | 7b175969-98fb-45b4-8d5f-1f9c3d4e63ab&gt;
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&#39;SUCCEEDED&#39;
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>
 </pre></div>
 </div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Quasi distribution: {0: 1.0}
-
-</pre></div></div>
 </div>
 </section>
 
@@ -219,7 +188,7 @@ Quasi distribution: {0: 1.0}
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">Running</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a program remotely</a></li>
 <li class="toctree-l2"><a class="reference internal" href="02_distributed_workloads.html">Parallel workflows in programs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="03_arguments_and_results.html">Programs with arguments and saved results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_arguments_and_results.html">Programs with arguments</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Dependency management for programs</a></li>
 </ul>
 </li>
@@ -249,7 +218,7 @@ Quasi distribution: {0: 1.0}
   <li><a href="../../index.html">Documentation overview</a><ul>
   <li><a href="../index.html">Running</a><ul>
   <li><a href="index.html">&lt;no title&gt;</a><ul>
-      <li>Previous: <a href="03_arguments_and_results.html" title="previous chapter">Programs with arguments and saved results</a></li>
+      <li>Previous: <a href="03_arguments_and_results.html" title="previous chapter">Programs with arguments</a></li>
       <li>Next: <a href="../../development/index.html" title="next chapter">Development</a></li>
   </ul></li>
   </ul></li>

@@ -3,23 +3,16 @@
 from quantum_serverless import get_arguments, save_result
 
 from qiskit.primitives import Sampler
-from qiskit_experiments.library import StandardRB
 
-
+# get all arguments passed to this program
 arguments = get_arguments()
 
+# get specific argument that we are interested in
 circuit = arguments.get("circuit")
-
-rb = StandardRB(
-    physical_qubits=(1,),
-    lengths=list(range(1, 300, 30)),
-    seed=42
-)
-composed = circuit.compose(rb.circuits()[0])
 
 sampler = Sampler()
 
-quasi_dists = sampler.run(composed).result().quasi_dists
+quasi_dists = sampler.run(circuit).result().quasi_dists
 
 print(f"Quasi distribution: {quasi_dists[0]}")
 

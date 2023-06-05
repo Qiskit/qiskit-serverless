@@ -25,7 +25,7 @@
     <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Programs with arguments and saved results" href="03_arguments_and_results.html" />
+    <link rel="next" title="Programs with arguments" href="03_arguments_and_results.html" />
     <link rel="prev" title="Running a program remotely" href="01_running_program.html" />
    
   <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
@@ -45,9 +45,9 @@
             
   <section id="Parallel-workflows-in-programs">
 <h1>Parallel workflows in programs<a class="headerlink" href="#Parallel-workflows-in-programs" title="Permalink to this heading">¶</a></h1>
-<p>In this document, we will learn how to run distributed workflows inside a program.</p>
-<p>Let’s take a look at the program file <a class="reference external" href="./source_files/program_4.py">./source_files/program_4.py</a>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/program_4.py</span>
+<p>In this document, we will learn how to run distributed workflows inside a program. In this case, we will compute the quasi-probability distribution in parallel for a list of quantum circuits.</p>
+<p>Let’s take a look at the program file <a class="reference external" href="./source_files/program_2.py">./source_files/program_2.py</a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/program_2.py</span>
 
 <span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span>
 
@@ -82,15 +82,15 @@
 </div>
 <p>There are a lot of new concepts introduced in this program, so let’s go over them in more detail:</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator converts a function into a distributed task. This means that the function will be executed on compute resources asynchronously and in parallel to the main context of the program.</p>
-<p>When you call a converted function, it will return a reference to the function execution instead of the result. In order to get the result back, you need to call the get function on the function reference. get will wait until the function is finished and return the result of the function execution.</p>
+<p>When you call a converted function, it will return a reference to the function execution instead of the result. In order to get the result back, you need to call the <code class="docutils literal notranslate"><span class="pre">get</span></code> function on the function reference. <code class="docutils literal notranslate"><span class="pre">get</span></code> will wait until the function is finished and return the result of the function execution.</p>
 <p>In the program above, we have applied the <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator to the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function. This function takes a <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code> as input and returns the quasi distribution for that circuit.</p>
-<p>After we have defined the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function, we read the circuits from the program arguments using the <code class="docutils literal notranslate"><span class="pre">get_arguments</span></code> function. We then call the distributed_sample function for each of the circuits, which creates a reference to each of the function executions.</p>
+<p>After we have defined the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function, we read the circuits from the program arguments using the <code class="docutils literal notranslate"><span class="pre">get_arguments</span></code> function. We then call the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function for each of the circuits, which creates a reference to each of the function executions.</p>
 <p>These function executions will run in parallel on compute resources, and we get task references as the return type. We store these task references in the <code class="docutils literal notranslate"><span class="pre">sample_task_references</span></code> list.</p>
 <p>After we have created the task references for each of the function executions, we need to collect the results from these tasks. We do this by calling the <code class="docutils literal notranslate"><span class="pre">get</span></code> function on the list of task references, which waits until all the tasks have completed and returns the results.</p>
 <p>Once we have the results, we can save them using the <code class="docutils literal notranslate"><span class="pre">save_result</span></code> function.</p>
-<p>Essentially, this program reads the circuits from the program arguments, executes the distributed_sample function on each circuit in parallel, collects the results from the function executions, and saves the results.</p>
+<p>Essentially, this program reads the circuits from the program arguments, executes the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function on each circuit in parallel, collects the results from the function executions, and saves the results.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">GatewayProvider</span>
@@ -98,8 +98,8 @@
 </pre></div>
 </div>
 </div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">provider</span> <span class="o">=</span> <span class="n">GatewayProvider</span><span class="p">(</span>
@@ -113,18 +113,9 @@
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&lt;QuantumServerless | providers [gateway-provider]&gt;
-</pre></div></div>
-</div>
 <p>Let’s create list of random circuit which we will be using as arguments</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
@@ -135,27 +126,16 @@
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-[&lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fbfa85664d0&gt;,
- &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fbf794c6450&gt;,
- &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fbfa9781390&gt;]
-</pre></div></div>
-</div>
 <p>Run program as usual</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
 
 <span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
     <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Program with distributed workflow&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program_4.py&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program_2.py&quot;</span><span class="p">,</span>
     <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
 <span class="p">)</span>
 
@@ -164,53 +144,21 @@
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&lt;Job | 1d472ab5-6cf6-47c4-8166-8162e043c4bd&gt;
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&#39;SUCCEEDED&#39;
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-{&#39;results&#39;: [{&#39;0&#39;: 0.25, &#39;1&#39;: 0.25, &#39;2&#39;: 0.25, &#39;3&#39;: 0.25},
-  {&#39;0&#39;: 0.4931987115505575,
-   &#39;1&#39;: 0.4931987115505575,
-   &#39;2&#39;: 0.0068012884494424,
-   &#39;3&#39;: 0.0068012884494424},
-  {&#39;0&#39;: 1.0}]}
-</pre></div></div>
 </div>
 </section>
 
@@ -245,7 +193,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">Running</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a program remotely</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Parallel workflows in programs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="03_arguments_and_results.html">Programs with arguments and saved results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_arguments_and_results.html">Programs with arguments</a></li>
 <li class="toctree-l2"><a class="reference internal" href="04_dependencies.html">Dependency management for programs</a></li>
 </ul>
 </li>
@@ -276,7 +224,7 @@
   <li><a href="../index.html">Running</a><ul>
   <li><a href="index.html">&lt;no title&gt;</a><ul>
       <li>Previous: <a href="01_running_program.html" title="previous chapter">Running a program remotely</a></li>
-      <li>Next: <a href="03_arguments_and_results.html" title="next chapter">Programs with arguments and saved results</a></li>
+      <li>Next: <a href="03_arguments_and_results.html" title="next chapter">Programs with arguments</a></li>
   </ul></li>
   </ul></li>
   </ul></li>
