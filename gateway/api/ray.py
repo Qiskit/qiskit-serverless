@@ -71,6 +71,8 @@ def create_ray_cluster(
     """
     namespace = settings.RAY_KUBERAY_NAMESPACE
     image = settings.RAY_NODE_IMAGE
+    cpu = settings.RAY_CLUSTER_TEMPLATE_CPU
+    memory = f"{settings.RAY_CLUSTER_TEMPLATE_MEM}Gi"
 
     cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
     cluster = """
@@ -104,11 +106,11 @@ def create_ray_cluster(
                 protocol: TCP
               resources:
                 limits:
-                  cpu: '1'
-                  memory: 2G
+                  cpu: {3}
+                  memory: {4}
                 requests:
-                  cpu: '1'
-                  memory: 2G
+                  cpu: {3}
+                  memory: {4}
               securityContext: {{}}
               volumeMounts:
               - mountPath: /tmp/ray
@@ -154,11 +156,11 @@ def create_ray_cluster(
               name: ray-worker
               resources:
                 limits:
-                  cpu: 1
-                  memory: 2G
+                  cpu: {3}
+                  memory: {4}
                 requests:
-                  cpu: 1
-                  memory: 2G
+                  cpu: {3}
+                  memory: {4}
               securityContext: {{}}
               volumeMounts:
               - mountPath: /tmp/ray
@@ -176,7 +178,7 @@ def create_ray_cluster(
     raycluster_client = dyn_client.resources.get(
         api_version="v1alpha1", kind="RayCluster"
     )
-    cluster_data = yaml.safe_load(cluster.format(cluster_name, namespace, image))
+    cluster_data = yaml.safe_load(cluster.format(cluster_name, namespace, image, cpu, memory))
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
     if response.metadata.name != cluster_name:
         raise RuntimeError(
