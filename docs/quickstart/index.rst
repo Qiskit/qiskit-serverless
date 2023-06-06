@@ -21,6 +21,7 @@ Step 2: Run infrastructure.
 
 .. code-block::
    :caption: Run docker compose from the root of the quantum serverless project.
+   
       cd quantum-serverless/
       docker compose --profile full up
 
@@ -30,6 +31,7 @@ Step 4: Write your program in containerized environment.
 
 .. code-block::
    :caption: Create a Python file using a text editor. Here we use vim.
+   
       vim program.py
 
 .. code-block:: python
