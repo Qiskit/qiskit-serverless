@@ -178,7 +178,9 @@ def create_ray_cluster(
     raycluster_client = dyn_client.resources.get(
         api_version="v1alpha1", kind="RayCluster"
     )
-    cluster_data = yaml.safe_load(cluster.format(cluster_name, namespace, image, cpu, memory))
+    cluster_data = yaml.safe_load(
+        cluster.format(cluster_name, namespace, image, cpu, memory)
+    )
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
     if response.metadata.name != cluster_name:
         raise RuntimeError(
