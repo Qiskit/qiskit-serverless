@@ -1,0 +1,130 @@
+[
+  {
+    "model": "auth.user",
+    "pk": 1,
+    "fields": {
+      "email": "test_user@email.com",
+      "username": "test_user",
+      "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
+      "is_active": true
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 2,
+    "fields": {
+      "email": "test2_user@email.com",
+      "username": "test2_user",
+      "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
+      "is_active": true
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 3,
+    "fields": {
+      "email": "test3_user@email.com",
+      "username": "test3_user",
+      "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
+      "is_active": true
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 4,
+    "fields": {
+      "email": "test4_user@email.com",
+      "username": "test4_user",
+      "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
+      "is_active": true
+    }
+  },
+  {
+    "model": "api.program",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+    "fields": {
+      "created": "2023-02-01T15:30:43.281796Z",
+      "title": "Program",
+      "entrypoint": "program.py",
+      "artifact": "path",
+      "author": 1
+    }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+    "fields": {
+      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "created": "2023-02-01T15:31:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "QUEUED",
+      "author": 1
+    }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec89",
+    "fields": {
+      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "created": "2023-02-01T15:33:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "QUEUED",
+      "author": 1
+    }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
+    "fields": {
+      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "created": "2023-02-01T15:32:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "PENDING",
+      "author": 2
+    }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84",
+    "fields": {
+      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "RUNNING",
+      "author": 3
+    }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec85",
+    "fields": {
+      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "created": "2023-02-01T15:32:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "RUNNING",
+      "author": 3
+    }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec90",
+    "fields": {
+      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "created": "2023-02-01T15:34:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "QUEUED",
+      "author": 4
+    }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec91",
+    "fields": {
+      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "created": "2023-02-01T15:35:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "QUEUED",
+      "author": 4
+    }
+  }
+]
