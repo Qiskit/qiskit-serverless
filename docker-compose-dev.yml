@@ -5,6 +5,7 @@ services:
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-notebook
+    profiles: ["jupyter", "full"]
     ports:
       - 8888:8888
     environment:
