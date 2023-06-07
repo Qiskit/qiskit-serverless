@@ -2,10 +2,6 @@ name: Docker notebook tests
 
 on:
   pull_request:
-  # push:
-    # branches: [ main ]
-    # paths: ['infrastructure/docker/Dockerfile*, '.dockerignore', 'docker-compose.yml']
-
 
 jobs:
   tests:
