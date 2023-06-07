@@ -29,7 +29,7 @@ REPO_PORT_KEY = "REPO_PORT_KEY"
 
 
 # container image
-RAY_IMAGE = "qiskit/quantum-serverless-ray-node:latest-py39"
+RAY_IMAGE = "icr.io/quantum-public/quantum-serverless-ray-node:latest-py39"
 
 # keycloak
 ENV_KEYCLOAK_REALM = "ENV_KEYCLOAK_REALM"
