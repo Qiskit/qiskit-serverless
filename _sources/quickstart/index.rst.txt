@@ -23,7 +23,7 @@ Step 2: Run infrastructure.
    :caption: Run docker compose from the root of the quantum serverless project.
    
       cd quantum-serverless/
-      docker compose --profile full up
+      docker compose --profile jupyter up
 
 Step 3: Open the jupyter lab environment by going to ``localhost:8888`` via your favorite browser.
 

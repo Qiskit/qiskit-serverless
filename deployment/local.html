@@ -42,19 +42,20 @@
             
   <section id="local-infrastructure-setup">
 <h1>Local infrastructure setup<a class="headerlink" href="#local-infrastructure-setup" title="Permalink to this heading">¶</a></h1>
-<p>To set up Quantum Serverless on your local machine, you will need to use <a class="reference external" href="https://docs.docker.com/compose/">docker-compose</a>.</p>
+<p>To set up Quantum Serverless on your local machine, you will need to use <a class="reference external" href="https://docs.docker.com/compose/">docker compose</a>.</p>
 <p>Once you have Docker and docker-compose installed, you can run the following command to set up the infrastructure:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ VERSION=&lt;VERSION&gt; docker-compose [--profile &lt;PROFILE&gt;] up
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ VERSION=&lt;VERSION&gt; docker compose [--profile &lt;PROFILE&gt;] up
 </pre></div>
 </div>
-<p>The available profiles are <cite>full</cite> and <cite>jupyter</cite>.
-The jupyter profile installs core services and Jupyter Notebook,
-while the full profile installs all core services,
+<p>The available profiles are <cite>full</cite>, <cite>jupyter</cite>, and <cite>repo</cite>.
+The repo profile installs core services and the program repository,
+the jupyter profile installs core services and Jupyter Notebook,
+and the full profile installs all core services,
 Jupyter Notebook, and logging and monitoring systems.</p>
 <p>Available version can be found in <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/releases">GitHub releases</a> page.</p>
 <p>For example, if you want to install version <cite>0.1.2</cite> with all services,
 the command would be:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ VERSION=0.1.2 docker-compose --profile full up
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ VERSION=0.1.2 docker compose --profile full up
 </pre></div>
 </div>
 </section>
