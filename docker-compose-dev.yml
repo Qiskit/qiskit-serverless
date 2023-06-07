@@ -24,8 +24,6 @@ services:
       "env", "RAY_LOG_TO_STDERR=1", "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
     ]
-    environment:
-      - OT_JAEGER_HOST_KEY=jaeger
     ports:
       - 8265:8265
     privileged: true
