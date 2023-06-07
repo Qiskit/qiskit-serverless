@@ -8,6 +8,10 @@ import time
 import uuid
 from typing import Any, Optional
 
+import yaml
+from kubernetes import client, config
+from openshift.dynamic import DynamicClient
+
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
@@ -52,44 +56,10 @@ def submit_ray_job(job: Job) -> Job:
     return job
 
 
-def create_compute_template_if_not_exists():
-    """Creates default compute template for kuberay."""
-    kube_ray_api_server_host = settings.RAY_KUBERAY_API_SERVER_URL
-    namespace = settings.RAY_KUBERAY_NAMESPACE
-    template_name = settings.RAY_KUBERAY_DEFAULT_TEMPLATE_NAME
-
-    template_url = (
-        f"{kube_ray_api_server_host}/apis/v1alpha2/"
-        f"namespaces/{namespace}/compute_templates"
-    )
-    response = requests.get(f"{template_url}/{template_name}", timeout=30)
-    if not response.ok:
-        creation_response = requests.post(
-            template_url,
-            json={
-                "name": template_name,
-                "namespace": namespace,
-                "cpu": settings.RAY_CLUSTER_TEMPLATE_CPU,
-                "memory": settings.RAY_CLUSTER_TEMPLATE_MEM,
-                "gpu": 0,
-            },
-            timeout=30,
-        )
-
-        if not creation_response.ok:
-            raise RuntimeError(
-                f"Cannot create compute template: {creation_response.text}"
-            )
-
-
 def create_ray_cluster(
     user: Any, cluster_name: Optional[str] = None
 ) -> ComputeResource:
     """Creates ray cluster.
-
-    1. check if compute template exists
-        1.1 if not create compute tempalte
-    2. create cluster
 
     Args:
         user: user cluster belongs to
@@ -99,54 +69,120 @@ def create_ray_cluster(
     Returns:
         returns compute resource associated with ray cluster
     """
-    kube_ray_api_server_host = settings.RAY_KUBERAY_API_SERVER_URL
     namespace = settings.RAY_KUBERAY_NAMESPACE
     image = settings.RAY_NODE_IMAGE
-    template_name = settings.RAY_KUBERAY_DEFAULT_TEMPLATE_NAME
-
-    clusters_url = (
-        f"{kube_ray_api_server_host}/apis/v1alpha2/namespaces/{namespace}/clusters"
-    )
-
-    create_compute_template_if_not_exists()
+    cpu = settings.RAY_CLUSTER_TEMPLATE_CPU
+    memory = f"{settings.RAY_CLUSTER_TEMPLATE_MEM}Gi"
 
     cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
-
-    response = requests.post(
-        clusters_url,
-        json={
-            "name": cluster_name,
-            "namespace": namespace,
-            "user": user.username,
-            "version": "1.9.2",
-            "environment": "DEV",
-            "clusterSpec": {
-                "headGroupSpec": {
-                    "computeTemplate": template_name,
-                    "image": image,
-                    "serviceType": "NodePort",
-                    "rayStartParams": {
-                        "dashboard-host": "0.0.0.0",
-                        "node-ip-address": "$MY_POD_IP",
-                        "port": "6379",
-                    },
-                },
-                "workerGroupSpec": [
-                    {
-                        "groupName": "default-worker-group",
-                        "computeTemplate": template_name,
-                        "image": image,
-                        "replicas": settings.RAY_CLUSTER_WORKER_REPLICAS,
-                        "minReplicas": settings.RAY_CLUSTER_WORKER_MIN_REPLICAS,
-                        "maxReplicas": settings.RAY_CLUSTER_WORKER_MAX_REPLICAS,
-                        "rayStartParams": {"node-ip-address": "$MY_POD_IP"},
-                    }
-                ],
-            },
-        },
-        timeout=30,
+    cluster = """
+    apiVersion: ray.io/v1alpha1
+    kind: RayCluster
+    metadata:
+      name: {0}
+      namespace: {1}
+    spec:
+      headGroupSpec:
+        rayStartParams:
+          dashboard-host: 0.0.0.0
+        serviceType: ClusterIP
+        template:
+          spec:
+            affinity: {{}}
+            containers:
+            - env: []
+              image: {2}
+              imagePullPolicy: IfNotPresent
+              name: ray-head
+              ports:
+              - containerPort: 6379
+                name: gcs
+                protocol: TCP
+              - containerPort: 8265
+                name: dashboard
+                protocol: TCP
+              - containerPort: 10001
+                name: client
+                protocol: TCP
+              resources:
+                limits:
+                  cpu: {3}
+                  memory: {4}
+                requests:
+                  cpu: {3}
+                  memory: {4}
+              securityContext: {{}}
+              volumeMounts:
+              - mountPath: /tmp/ray
+                name: log-volume
+            - image: fluent/fluent-bit:1.9.10
+              name: ray-head-logs
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+              volumeMounts:
+              - mountPath: /tmp/ray
+                name: log-volume
+              - mountPath: /fluent-bit/etc/fluent-bit.conf
+                name: fluentbit-config
+                subPath: fluent-bit.conf
+            imagePullSecrets: []
+            nodeSelector: {{}}
+            tolerations: []
+            volumes:
+            - emptyDir: {{}}
+              name: log-volume
+            - configMap:
+                name: fluentbit-config
+              name: fluentbit-config
+      workerGroupSpecs:
+      - groupName: smallWorkerGroup
+        maxReplicas: 4
+        minReplicas: 1
+        rayStartParams:
+          block: 'true'
+        replicas: 1
+        template:
+          spec:
+            affinity: {{}}
+            containers:
+            - env: []
+              image: {2}
+              imagePullPolicy: IfNotPresent
+              name: ray-worker
+              resources:
+                limits:
+                  cpu: {3}
+                  memory: {4}
+                requests:
+                  cpu: {3}
+                  memory: {4}
+              securityContext: {{}}
+              volumeMounts:
+              - mountPath: /tmp/ray
+                name: log-volume
+            imagePullSecrets: []
+            nodeSelector: {{}}
+            tolerations: []
+            volumes:
+            - emptyDir: {{}}
+              name: log-volume
+    """
+    config.load_incluster_config()
+    k8s_client = client.api_client.ApiClient()
+    dyn_client = DynamicClient(k8s_client)
+    raycluster_client = dyn_client.resources.get(
+        api_version="v1alpha1", kind="RayCluster"
     )
-    if not response.ok:
+    cluster_data = yaml.safe_load(
+        cluster.format(cluster_name, namespace, image, cpu, memory)
+    )
+    response = raycluster_client.create(body=cluster_data, namespace=namespace)
+    if response.metadata.name != cluster_name:
         raise RuntimeError(
             f"Something went wrong during cluster creation: {response.text}"
         )
@@ -193,11 +229,16 @@ def kill_ray_cluster(cluster_name: str) -> bool:
         number of killed clusters
     """
     success = False
-    kube_ray_api_server_host = settings.RAY_KUBERAY_API_SERVER_URL
     namespace = settings.RAY_KUBERAY_NAMESPACE
-    url = f"{kube_ray_api_server_host}/apis/v1alpha2/namespaces/{namespace}/clusters/{cluster_name}"
-    delete_response = requests.delete(url=url, timeout=30)
-    if delete_response.ok:
+
+    config.load_incluster_config()
+    k8s_client = client.api_client.ApiClient()
+    dyn_client = DynamicClient(k8s_client)
+    raycluster_client = dyn_client.resources.get(
+        api_version="v1alpha1", kind="RayCluster"
+    )
+    delete_response = raycluster_client.delete(name=cluster_name, namespace=namespace)
+    if delete_response.status == "Success":
         success = True
     else:
         logging.error(
