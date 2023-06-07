@@ -2,11 +2,11 @@ name: Docker notebook tests
 
 on:
   push:
-    branches: [ main ]
-    paths: ['Dockerfile', '.dockerignore', 'docker-compose.yml']
+      #branches: [ main ]
+    paths: ['infrastructure/docker/Dockerfile*', '.dockerignore', 'docker-compose.yml']
   pull_request:
-    branches: [ main ]
-    paths: ['Dockerfile', '.dockerignore', 'docker-compose.yml']
+      #branches: [ main ]
+    paths: ['infrastructure/docker/Dockerfile*', '.dockerignore', 'docker-compose.yml']
   schedule:
     - cron: '0 20 * * 3'
 
