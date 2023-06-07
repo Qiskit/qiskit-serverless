@@ -12,7 +12,7 @@ jobs:
       - name: Build the containers
         run: docker compose -f docker-compose-dev.yml --profile jupyter build
       - name: Run the jupyter profile
-        run: docker compose -f docker-compose-dev.yml --profile jupyter up
+        run: docker compose -f docker-compose-dev.yml --profile jupyter up -d
       - name: Test notebooks in the docker environment
         shell: bash
         run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake /home/jovyan/serverless/"
