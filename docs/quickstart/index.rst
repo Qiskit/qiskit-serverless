@@ -14,7 +14,7 @@ Step 1: Install the quantum serverless package.
 .. code-block::
    :caption: Install quantum_serverless via pip.
 
-      pip install quantum_serverless==0.1.1
+      pip install quantum_serverless
 
 
 Step 2: Run infrastructure.
