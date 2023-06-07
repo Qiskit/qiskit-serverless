@@ -13,4 +13,4 @@ jobs:
         run: docker compose --profile full up -d
       - name: Test notebooks in the docker environment
         shell: bash
-        run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake /home/jovyan/serverless/running/"
+        run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake /home/jovyan/serverless/"
