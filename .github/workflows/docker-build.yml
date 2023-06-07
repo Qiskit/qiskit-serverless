@@ -1,0 +1,23 @@
+name: Docker notebook tests
+
+on:
+  push:
+    branches: [ main ]
+    paths: ['Dockerfile', '.dockerignore', 'docker-compose.yml']
+  pull_request:
+    branches: [ main ]
+    paths: ['Dockerfile', '.dockerignore', 'docker-compose.yml']
+  schedule:
+    - cron: '0 20 * * 3'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run the full docker profile
+        run: docker compose --profile full up
+      - name: Test notebooks
+        shell: bash
+        run: docker exec qs-jupyter "bash" "-c" "pip install pytest && pip install nbmake && pytest --nbmake /home/jovyan/serverless/running/"
