@@ -3,8 +3,8 @@ name: Docker notebook tests
 on:
   pull_request:
   # push:
-  # branches: [ main ]
-  # paths: ['infrastructure/docker/Dockerfile*'.dockerignore', 'docker-compose.yml']
+    # branches: [ main ]
+    # paths: ['infrastructure/docker/Dockerfile*, '.dockerignore', 'docker-compose.yml']
 
 
 jobs:
@@ -13,8 +13,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
-      - name: Run the full docker profile
-        run: docker compose --profile jupyter up -d
+      - name: Build the containers
+        run: docker compose -f docker-compose-dev.yml --profile jupyter build
+      - name: Run the jupyter profile
+        run: docker compose -f docker-compose-dev.yml --profile jupyter up
       - name: Test notebooks in the docker environment
         shell: bash
         run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake /home/jovyan/serverless/"
