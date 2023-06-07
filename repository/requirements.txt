@@ -1,5 +1,5 @@
 asgiref>=3.7.2
-Django>=4.2.1
+Django>=4.2.2
 django-allow-cidr>=0.6
 django-filter>=23.2
 django_prometheus>=2.3.1
