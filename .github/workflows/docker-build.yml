@@ -21,6 +21,6 @@ jobs:
         run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake /home/jovyan/serverless/"
       - name: Dump logs on failure
         if: ${{ failure() }}
-        run:
+        run: |
           docker compose logs gateway
           docker compose logs jupyter
