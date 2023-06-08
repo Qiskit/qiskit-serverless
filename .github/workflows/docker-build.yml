@@ -13,6 +13,14 @@ jobs:
         run: docker compose -f docker-compose-dev.yml --profile jupyter build
       - name: Run the jupyter profile
         run: docker compose -f docker-compose-dev.yml --profile jupyter up -d
+      - name: Give containers time to initialize
+        shell: bash
+        run: sleep 60
       - name: Test notebooks in the docker environment
         shell: bash
         run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake /home/jovyan/serverless/"
+      - name: Dump logs on failure
+        if: ${{ failure() }}
+        run:
+          docker compose logs gateway
+          docker compose logs jupyter
