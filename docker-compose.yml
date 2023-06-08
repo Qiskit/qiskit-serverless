@@ -18,8 +18,6 @@ services:
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
     ]
-    environment:
-      - OT_JAEGER_HOST_KEY=jaeger
     ports:
       - 8265:8265
     privileged: true
@@ -116,7 +114,7 @@ services:
   repository-server:
     container_name: repository-server
     image: icr.io/quantum-public/quantum-repository-server:${VERSION:-0.1.2}
-    profiles: [ "full" ]
+    profiles: [ "full", "repo" ]
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
       - 8060:8060
@@ -136,7 +134,7 @@ services:
       - safe-tier
   repository-postgres:
     image: postgres
-    profiles: [ "full" ]
+    profiles: [ "full", "repo" ]
     environment:
       POSTGRES_DB: repository_db
       POSTGRES_USER: repository_user
