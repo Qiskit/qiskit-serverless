@@ -1,6 +1,7 @@
 # ===================
 # Quantum Serverless configs
 # ===================
+platform: default
 
 # ===================
 # Ingress Nginx controller configs
