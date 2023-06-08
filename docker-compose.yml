@@ -2,7 +2,7 @@
 services:
   jupyter:
     container_name: qs-jupyter
-    image: icr.io/quantum-public/quantum-serverless-notebook:${VERSION:-0.1.1}-py39
+    image: icr.io/quantum-public/quantum-serverless-notebook:${VERSION:-0.1.2}-py39
     profiles: ["jupyter", "full"]
     ports:
       - 8888:8888
@@ -13,13 +13,11 @@ services:
       - safe-tier
   ray-head:
     container_name: ray-head
-    image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.1.1}-py39
+    image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.1.2}-py39
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
     ]
-    environment:
-      - OT_JAEGER_HOST_KEY=jaeger
     ports:
       - 8265:8265
     privileged: true
@@ -35,11 +33,13 @@ services:
       POSTGRES_PASSWORD: testkeycloakpassword
     networks:
       - safe-tier
+    ports:
+      - 5432:5432
     restart:
       always
   keycloak:
     container_name: keycloak
-    image: bitnami/keycloak:21.1.1-debian-11-r4
+    image: bitnami/keycloak:20.0.5-debian-11-r4
     volumes:
       - ./realm-export.json:/opt/keycloak/data/import/realm-export.json
     environment:
@@ -62,7 +62,7 @@ services:
       always
   gateway:
     container_name: gateway
-    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.1.1}
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.1.2}
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
@@ -86,13 +86,35 @@ services:
       - DATABASE_PASSWORD=testkeycloakpassword
     networks:
       - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
+    depends_on:
+      - keycloak
+      - postgres
+  gateway_scheduler:
+    container_name: gateway_scheduler
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.1.2}
+    entrypoint: "./scripts/scheduler.sh"
+    environment:
+      - DEBUG=0
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=testkeycloakdb
+      - DATABASE_USER=testkeycloakuser
+      - DATABASE_PASSWORD=testkeycloakpassword
+      - RAY_CLUSTER_MODE_LOCAL_HOST=http://ray-head:8265
+      - RAY_CLUSTER_MODE_LOCAL=1
+    networks:
+      - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
     depends_on:
       - keycloak
       - postgres
   repository-server:
     container_name: repository-server
-    image: icr.io/quantum-public/quantum-repository-server:${VERSION:-0.1.0}
-    profiles: [ "full" ]
+    image: icr.io/quantum-public/quantum-repository-server:${VERSION:-0.1.2}
+    profiles: [ "full", "repo" ]
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
       - 8060:8060
@@ -112,7 +134,7 @@ services:
       - safe-tier
   repository-postgres:
     image: postgres
-    profiles: [ "full" ]
+    profiles: [ "full", "repo" ]
     environment:
       POSTGRES_DB: repository_db
       POSTGRES_USER: repository_user
@@ -151,3 +173,5 @@ services:
       - safe-tier
 networks:
   safe-tier:
+volumes:
+  program-artifacts:

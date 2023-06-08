@@ -16,4 +16,4 @@ class TestProbes(APITestCase):
     def test_readiness(self):
         """Tests readiness."""
         jobs_response = self.client.get(reverse("readiness"))
-        self.assertEqual(jobs_response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)

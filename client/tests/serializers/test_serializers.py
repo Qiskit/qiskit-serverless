@@ -18,14 +18,14 @@ from ray.util import register_serializer
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 
-from quantum_serverless import QuantumServerless, run_qiskit_remote, get
+from quantum_serverless import QuantumServerless, distribute_task, get
 from quantum_serverless.serializers.serializers import (
     circuit_serializer,
     circuit_deserializer,
 )
 
 
-@run_qiskit_remote()
+@distribute_task()
 def circuit_function(circuit: QuantumCircuit):
     """Test function."""
     return circuit.name

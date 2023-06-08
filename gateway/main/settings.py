@@ -112,10 +112,10 @@ LOGGING = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DATABASE_NAME", "bitnami_keycloak"),
-        "USER": os.environ.get("DATABASE_USER", "bn_keycloak"),
-        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "wHXJPZSOGV"),
-        "HOST": os.environ.get("DATABASE_HOST", "postgresql"),
+        "NAME": os.environ.get("DATABASE_NAME", "testkeycloakdb"),
+        "USER": os.environ.get("DATABASE_USER", "testkeycloakuser"),
+        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "testkeycloakpassword"),
+        "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
     },
     "test": {
@@ -251,4 +251,29 @@ SETTINGS_TOKEN_AUTH_VERIFICATION_URL = os.environ.get(
 )
 SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get(
     "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None
+)
+
+# resources limitations
+LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
+LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
+
+# ray cluster management
+RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "quantumserverless")
+RAY_NODE_IMAGE = os.environ.get(
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:latest"
+)
+RAY_CLUSTER_MODE = {
+    "local": int(os.environ.get("RAY_CLUSTER_MODE_LOCAL", 0)),
+    "ray_local_host": os.environ.get(
+        "RAY_CLUSTER_MODE_LOCAL_HOST", "http://localhost:8265"
+    ),
+}
+RAY_CLUSTER_TEMPLATE_CPU = int(os.environ.get("RAY_CLUSTER_TEMPLATE_CPU", "2"))
+RAY_CLUSTER_TEMPLATE_MEM = int(os.environ.get("RAY_CLUSTER_TEMPLATE_MEM", "2"))
+RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "0"))
+RAY_CLUSTER_WORKER_MIN_REPLICAS = int(
+    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "0")
+)
+RAY_CLUSTER_WORKER_MAX_REPLICAS = int(
+    os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4")
 )

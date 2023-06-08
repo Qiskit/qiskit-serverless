@@ -18,6 +18,12 @@ application:
     username: "admin"
     password: "passw0rd"
     email: "admin@examplemail.io"
+  ray:
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.1.2-py39"
+    kubeRayHost: "http://kuberay-apiserver-service:8888"
+  limits:
+    maxJobsPerUser: 2
+    maxComputeResources: 4
 
 database:
   host: postgresql
@@ -47,7 +53,10 @@ serviceAccount:
 podAnnotations: {}
 
 podSecurityContext: {}
-  # fsGroup: 2000
+#  fsGroup: 1001
+#  runAsUser: 1001
+#  runAsGroup: 1001
+#  fsGroupChangePolicy: "OnRootMismatch"
 
 securityContext: {}
   # capabilities:

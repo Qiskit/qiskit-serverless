@@ -1,20 +1,14 @@
 dependencies:
 - name: gateway
   repository: ""
-  version: 0.1.0
+  version: 0.1.2
 - name: jupyter
   repository: ""
-  version: 0.1.0
+  version: 0.1.2
 - name: nginx-ingress-controller
   repository: https://charts.bitnami.com/bitnami
   version: 9.7.2
 - name: kuberay-operator
-  repository: https://ray-project.github.io/kuberay-helm
-  version: 0.5.1
-- name: kuberay-apiserver
-  repository: https://ray-project.github.io/kuberay-helm
-  version: 0.5.1
-- name: ray-cluster
   repository: https://ray-project.github.io/kuberay-helm
   version: 0.5.1
 - name: redis
@@ -25,7 +19,7 @@ dependencies:
   version: 13.4.1
 - name: repository
   repository: ""
-  version: 0.1.0
+  version: 0.1.2
 - name: kube-prometheus-stack
   repository: https://prometheus-community.github.io/helm-charts
   version: 45.31.1
@@ -34,6 +28,6 @@ dependencies:
   version: 4.10.0
 - name: promtail
   repository: https://grafana.github.io/helm-charts
-  version: 6.11.2
-digest: sha256:eb89985b263952a2a2b75132f03039e5be84cf8966ba5da1d81ffb25f582decd
-generated: "2023-05-31T13:14:17.868727633Z"
+  version: 6.11.3
+digest: sha256:4891a552f25ab53da992fe949138e4c4943839558d3a55e4f7b18c03470748fb
+generated: "2023-06-08T06:45:19.964312227Z"

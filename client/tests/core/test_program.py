@@ -1,6 +1,5 @@
 """Tests jobs."""
 import os
-from unittest import TestCase
 
 from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
@@ -14,19 +13,6 @@ from tests.utils import wait_for_job_client, wait_for_job_completion
 resources_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "../resources"
 )
-
-
-class TestProgram(TestCase):
-    """TestProgram."""
-
-    def test_arguments_validation(self):
-        """Tests arguments validation."""
-        program = Program(
-            title="awesome_program",
-            entrypoint="awesome.py",
-            arguments={"one": 1, "json": {"one": 1, "two": 2}},
-        )
-        self.assertIsInstance(program, Program)
 
 
 def test_program():
