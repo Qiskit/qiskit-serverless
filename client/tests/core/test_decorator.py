@@ -19,7 +19,6 @@ from qiskit.circuit.random import random_circuit
 
 from quantum_serverless import QuantumServerless, get
 from quantum_serverless.core.decorators import (
-    run_qiskit_remote,
     distribute_task,
     Target,
     fetch_execution_meta,
@@ -27,7 +26,7 @@ from quantum_serverless.core.decorators import (
 from quantum_serverless.core.state import StateHandler
 
 
-class TestHandler(StateHandler):
+class DemoHandler(StateHandler):
     """TestHandler"""
 
     def __init__(self):
@@ -42,34 +41,6 @@ class TestHandler(StateHandler):
 
 class TestDecorators(TestCase):
     """Test decorators."""
-
-    def test_run_qiskit_remote(self):
-        """Test for run_qiskit_remote."""
-
-        serverless = QuantumServerless()
-
-        @run_qiskit_remote()
-        def another_function(
-            circuit: List[QuantumCircuit], other_circuit: QuantumCircuit
-        ):
-            """Another test function."""
-            return circuit[0].compose(other_circuit, range(5)).depth()
-
-        @run_qiskit_remote(target={"cpu": 1})
-        def ultimate_function(ultimate_argument: int):
-            """Test function."""
-            print("Printing function argument:", ultimate_argument)
-            mid_result = get(
-                another_function(
-                    [random_circuit(5, 2)], other_circuit=random_circuit(5, 2)
-                )
-            )
-            return mid_result
-
-        with self.assertWarns(Warning), serverless.context():
-            reference = ultimate_function(1)
-            result = get(reference)
-            self.assertEqual(result, 4)
 
     def test_distribute_task(self):
         """Test for run_qiskit_remote."""
@@ -108,7 +79,7 @@ class TestDecorators(TestCase):
     def test_remote_with_state_injection(self):
         """Tests remote with state injection."""
         serverless = QuantumServerless()
-        state_handler = TestHandler()
+        state_handler = DemoHandler()
 
         @distribute_task(target={"cpu": 1}, state=state_handler)
         def ultimate_function_with_state(state: StateHandler, ultimate_argument: int):
