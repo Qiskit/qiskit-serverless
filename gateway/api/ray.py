@@ -59,7 +59,7 @@ def submit_ray_job(job: Job) -> Job:
 
 
 def create_ray_cluster(
-        user: Any, cluster_name: Optional[str] = None, cluster_data: Optional[str] = None
+    user: Any, cluster_name: Optional[str] = None, cluster_data: Optional[str] = None
 ) -> Optional[ComputeResource]:
     """Creates ray cluster.
 

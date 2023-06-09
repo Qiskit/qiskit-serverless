@@ -51,7 +51,9 @@ class TestRayUtils(APITestCase):
         with requests_mock.Mocker() as mocker:
             mocker.get(head_node_url, status_code=200)
             user = get_user_model().objects.first()
-            compute_resource = create_ray_cluster(user, "test_user", "dummy yaml file contents")
+            compute_resource = create_ray_cluster(
+                user, "test_user", "dummy yaml file contents"
+            )
             self.assertIsInstance(compute_resource, ComputeResource)
             self.assertEqual(user.username, compute_resource.title)
             self.assertEqual(compute_resource.host, head_node_url)
