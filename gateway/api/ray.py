@@ -73,15 +73,11 @@ def create_ray_cluster(
         or None if something went wrong with cluster creation.
     """
     namespace = settings.RAY_KUBERAY_NAMESPACE
-    image = settings.RAY_NODE_IMAGE
-    cpu = settings.RAY_CLUSTER_TEMPLATE_CPU
-    memory = f"{settings.RAY_CLUSTER_TEMPLATE_MEM}Gi"
-
     cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
     cluster = get_template("rayclustertemplate.yaml")
     cluster_data = yaml.safe_load(
         cluster.render(
-            {"cluster_name": cluster_name, "namespace": namespace, "image": image, "cpu": cpu, "memory": memory}
+            {"cluster_name": cluster_name}
         )
     )
 

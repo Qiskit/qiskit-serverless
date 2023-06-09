@@ -5,7 +5,7 @@ data:
     kind: RayCluster
     metadata:
       name: {{`{{ cluster_name }}`}}
-      namespace: {{`{{ namespace }}`}}
+      namespace: {{ .Release.Namespace }}
     spec:
       headGroupSpec:
         rayStartParams:
@@ -16,7 +16,7 @@ data:
             affinity:
             containers:
             - env: []
-              image: {{`{{ image }}`}}
+              image: {{  .Values.application.ray.nodeImage | quote  }}
               imagePullPolicy: IfNotPresent
               name: ray-head
               ports:
@@ -31,11 +31,11 @@ data:
                 protocol: TCP
               resources:
                 limits:
-                  cpu: {{`{{ cpu }}`}}
-                  memory: {{`{{ memory }}`}}
+                  cpu: {{ .Values.application.ray.cpu }}
+                  memory: {{ .Values.application.ray.memory }}Gi
                 requests:
-                  cpu: {{`{{ cpu }}`}}
-                  memory: {{`{{ memory }}`}}
+                  cpu: {{ .Values.application.ray.cpu }}
+                  memory: {{ .Values.application.ray.memory }}Gi
               securityContext:
               volumeMounts:
               - mountPath: /tmp/ray
@@ -76,16 +76,16 @@ data:
             affinity:
             containers:
             - env: []
-              image: {{`{{ image }}`}}
+              image: {{ .Values.application.ray.nodeImage | quote}}
               imagePullPolicy: IfNotPresent
               name: ray-worker
               resources:
                 limits:
-                  cpu: {{`{{ cpu }}`}}
-                  memory: {{`{{ memory }}`}}
+                  cpu: {{ .Values.application.ray.cpu }}
+                  memory: {{ .Values.application.ray.memory }}Gi
                 requests:
-                  cpu: {{`{{ cpu }}`}}
-                  memory: {{`{{ memory }}`}}
+                  cpu: {{ .Values.application.ray.cpu }}
+                  memory: {{ .Values.application.ray.memory }}Gi
               securityContext:
               volumeMounts:
               - mountPath: /tmp/ray
