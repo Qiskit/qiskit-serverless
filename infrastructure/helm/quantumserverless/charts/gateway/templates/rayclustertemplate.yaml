@@ -1,0 +1,102 @@
+apiVersion: v1
+data:
+  rayclustertemplate.yaml: |
+    apiVersion: ray.io/v1alpha1
+    kind: RayCluster
+    metadata:
+      name: {{`{{ cluster_name }}`}}
+      namespace: {{`{{ namespace }}`}}
+    spec:
+      headGroupSpec:
+        rayStartParams:
+          dashboard-host: 0.0.0.0
+        serviceType: ClusterIP
+        template:
+          spec:
+            affinity:
+            containers:
+            - env: []
+              image: {{`{{ image }}`}}
+              imagePullPolicy: IfNotPresent
+              name: ray-head
+              ports:
+              - containerPort: 6379
+                name: gcs
+                protocol: TCP
+              - containerPort: 8265
+                name: dashboard
+                protocol: TCP
+              - containerPort: 10001
+                name: client
+                protocol: TCP
+              resources:
+                limits:
+                  cpu: {{`{{ cpu }}`}}
+                  memory: {{`{{ memory }}`}}
+                requests:
+                  cpu: {{`{{ cpu }}`}}
+                  memory: {{`{{ memory }}`}}
+              securityContext:
+              volumeMounts:
+              - mountPath: /tmp/ray
+                name: log-volume
+            - image: fluent/fluent-bit:1.9.10
+              name: ray-head-logs
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+              volumeMounts:
+              - mountPath: /tmp/ray
+                name: log-volume
+              - mountPath: /fluent-bit/etc/fluent-bit.conf
+                name: fluentbit-config
+                subPath: fluent-bit.conf
+            imagePullSecrets: []
+            nodeSelector:
+            tolerations: []
+            volumes:
+            - emptyDir:
+              name: log-volume
+            - configMap:
+                name: fluentbit-config
+              name: fluentbit-config
+      workerGroupSpecs:
+      - groupName: smallWorkerGroup
+        maxReplicas: 4
+        minReplicas: 1
+        rayStartParams:
+          block: 'true'
+        replicas: 1
+        template:
+          spec:
+            affinity:
+            containers:
+            - env: []
+              image: {{`{{ image }}`}}
+              imagePullPolicy: IfNotPresent
+              name: ray-worker
+              resources:
+                limits:
+                  cpu: {{`{{ cpu }}`}}
+                  memory: {{`{{ memory }}`}}
+                requests:
+                  cpu: {{`{{ cpu }}`}}
+                  memory: {{`{{ memory }}`}}
+              securityContext:
+              volumeMounts:
+              - mountPath: /tmp/ray
+                name: log-volume
+            imagePullSecrets: []
+            nodeSelector:
+            tolerations: []
+            volumes:
+            - emptyDir:
+              name: log-volume
+kind: ConfigMap
+metadata:
+  name: rayclustertemplate
+

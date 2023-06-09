@@ -10,10 +10,12 @@ from typing import Any, Optional
 
 import yaml
 from kubernetes import client, config
-from openshift.dynamic import DynamicClient
+from kubernetes.dynamic.client import DynamicClient
 
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
+
+from django.template.loader import get_template
 
 from api.models import ComputeResource, Job
 from api.utils import try_json_loads
@@ -76,111 +78,18 @@ def create_ray_cluster(
     memory = f"{settings.RAY_CLUSTER_TEMPLATE_MEM}Gi"
 
     cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
-    cluster = """
-    apiVersion: ray.io/v1alpha1
-    kind: RayCluster
-    metadata:
-      name: {0}
-      namespace: {1}
-    spec:
-      headGroupSpec:
-        rayStartParams:
-          dashboard-host: 0.0.0.0
-        serviceType: ClusterIP
-        template:
-          spec:
-            affinity: {{}}
-            containers:
-            - env: []
-              image: {2}
-              imagePullPolicy: IfNotPresent
-              name: ray-head
-              ports:
-              - containerPort: 6379
-                name: gcs
-                protocol: TCP
-              - containerPort: 8265
-                name: dashboard
-                protocol: TCP
-              - containerPort: 10001
-                name: client
-                protocol: TCP
-              resources:
-                limits:
-                  cpu: {3}
-                  memory: {4}
-                requests:
-                  cpu: {3}
-                  memory: {4}
-              securityContext: {{}}
-              volumeMounts:
-              - mountPath: /tmp/ray
-                name: log-volume
-            - image: fluent/fluent-bit:1.9.10
-              name: ray-head-logs
-              resources:
-                limits:
-                  cpu: 100m
-                  memory: 128Mi
-                requests:
-                  cpu: 100m
-                  memory: 128Mi
-              volumeMounts:
-              - mountPath: /tmp/ray
-                name: log-volume
-              - mountPath: /fluent-bit/etc/fluent-bit.conf
-                name: fluentbit-config
-                subPath: fluent-bit.conf
-            imagePullSecrets: []
-            nodeSelector: {{}}
-            tolerations: []
-            volumes:
-            - emptyDir: {{}}
-              name: log-volume
-            - configMap:
-                name: fluentbit-config
-              name: fluentbit-config
-      workerGroupSpecs:
-      - groupName: smallWorkerGroup
-        maxReplicas: 4
-        minReplicas: 1
-        rayStartParams:
-          block: 'true'
-        replicas: 1
-        template:
-          spec:
-            affinity: {{}}
-            containers:
-            - env: []
-              image: {2}
-              imagePullPolicy: IfNotPresent
-              name: ray-worker
-              resources:
-                limits:
-                  cpu: {3}
-                  memory: {4}
-                requests:
-                  cpu: {3}
-                  memory: {4}
-              securityContext: {{}}
-              volumeMounts:
-              - mountPath: /tmp/ray
-                name: log-volume
-            imagePullSecrets: []
-            nodeSelector: {{}}
-            tolerations: []
-            volumes:
-            - emptyDir: {{}}
-              name: log-volume
-    """
+    cluster = get_template("rayclustertemplate.yaml")
+    cluster_data = yaml.safe_load(
+        cluster.render(
+            {"cluster_name": cluster_name, "namespace": namespace, "image": image, "cpu": cpu, "memory": memory}
+        )
+    )
+
     config.load_incluster_config()
     k8s_client = client.api_client.ApiClient()
     dyn_client = DynamicClient(k8s_client)
     raycluster_client = dyn_client.resources.get(
         api_version="v1alpha1", kind="RayCluster"
-    )
-    cluster_data = yaml.safe_load(
-        cluster.format(cluster_name, namespace, image, cpu, memory)
     )
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
     if response.metadata.name != cluster_name:
