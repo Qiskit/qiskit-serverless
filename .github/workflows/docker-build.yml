@@ -15,7 +15,7 @@ jobs:
         run: docker compose -f docker-compose-dev.yml --profile jupyter up -d
       - name: Give containers time to initialize
         shell: bash
-        run: sleep 120
+        run: sleep 30
       - name: Test notebooks in the docker environment
         shell: bash
         run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake /home/jovyan/serverless/ --ignore=/home/jovyan/serverless/examples/06_electronic_structure_problem.ipynb"
