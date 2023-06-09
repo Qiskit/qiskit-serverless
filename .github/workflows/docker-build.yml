@@ -1,17 +1,11 @@
 name: Docker notebook tests
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   tests:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10"]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
@@ -21,7 +15,7 @@ jobs:
         run: docker compose -f docker-compose-dev.yml --profile jupyter up -d
       - name: Give containers time to initialize
         shell: bash
-        run: sleep 60
+        run: sleep 90
       - name: Test notebooks in the docker environment
         shell: bash
         run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake /home/jovyan/serverless/ --ignore =/home/jovyan/serverless/guides/07_working_with_datasets.ipynb --ignore=/home/jovyan/serverless/examples/06_electronic_structure_problem.ipynb"
