@@ -17,7 +17,6 @@ ingress:
   tls:
     - hosts:
         - "gateway.YOUR_INGRESS_PUBLIC_END_POINT"
-        - "repository.YOUR_INGRESS_PUBLIC_END_POINT"
       secretName: "YOUR-INGRESS-SECRET"
   hosts:
     - host: "gateway.YOUR_INGRESS_PUBLIC_END_POINT"
@@ -26,12 +25,6 @@ ingress:
         pathType: Prefix
         serviceName: "gateway"
         servicePort: 8000
-    - host: "repository.YOUR_INGRESS_PUBLIC_END_POINT"
-      paths:
-      - path: /
-        pathType: Prefix
-        serviceName: "repository"
-        servicePort: 8060
 
 # ===================
 # Gateway configs
@@ -48,11 +41,12 @@ gateway:
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
-    keycloak:
-      clientId: "gateway-client"
-      url: "http://keycloak:31059"
-      realm: "quantumserverless"
-      clientSecret: GATEWAYSECRET-CHANGEME
+    auth:
+      mechanism: "custom_token"
+    token:
+      url: "https://auth-dev.quantum-computing.ibm.com/api/users/loginWithToken"
+      verificationUrl: "https://auth-dev.quantum-computing.ibm.com/api/users/me"
+      verificationField: "ibmQNetwork"
     superuser:
       username: "admin"
       password: "passw0rd"
@@ -62,7 +56,6 @@ gateway:
       port: 8000
     ray:
       nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.1.2-py39"
-      kubeRayHost: "http://kuberay-apiserver-service:8888"
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
@@ -73,7 +66,7 @@ gateway:
 # Redis configs
 # ===================
 
-redisEnable: true
+redisEnable: false
 redis:
   nameOverride: "redis"
   fullnameOverride: "redis"
@@ -89,7 +82,7 @@ redis:
 # Jupyter configs
 # ===================
 
-jupyterEnable: true
+jupyterEnable: false
 jupyter:
   nameOverride: "jupyter"
   fullnameOverride: "jupyter"
@@ -120,7 +113,7 @@ kuberay-operator:
 # Keycloak
 # ===================
 
-keycloakEnable: true
+keycloakEnable: false
 gatewayClientSecret: GATEWAYSECRET-CHANGEME
 grafanaClientSecret: GRAFANASECRET-CHANGEME
 keycloakUserID: user
@@ -162,11 +155,10 @@ keycloak:
 # Quantum Repository
 # ===================
 
-repositoryEnable: true
+repositoryEnable: false
 repository:
   nameOverride: "repository"
   fullnameOverride: "repository"
-
   image:
     pullPolicy: IfNotPresent
     tag: "0.1.2"
@@ -201,7 +193,6 @@ kube-prometheus-stack:
   grafana:
     nameOverride: "grafana"
     fullnameOverride: "grafana"
-
 
     adminPassword: passw0rd
 
@@ -274,7 +265,6 @@ loki:
   test:
     enabled: false
 
-
 # ===================
 # promtail
 # ===================
@@ -283,3 +273,14 @@ promtailEnable: false
 promtail:
   nameOverride: "promtail"
   fullnameOverride: "promtail"
+
+# ===================
+# COS
+# ===================
+
+cosEnable: true
+cos:
+  bucket: BUCKETNAME-CHANGEME
+  endpoint: ENDPOINT-CHANGEME
+  secretName: SECRETNAME-CHANGEME
+  storageClassName: STORAGECLASSNAME-CHANGEME
