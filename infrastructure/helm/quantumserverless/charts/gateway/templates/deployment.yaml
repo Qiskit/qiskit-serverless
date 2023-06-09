@@ -112,7 +112,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "gateway.fullname" . }}-scheduler
+  name: scheduler
   labels:
     {{- include "gateway.labels" . | nindent 4 }}-scheduler
 spec:
