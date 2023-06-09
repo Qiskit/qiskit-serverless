@@ -40,3 +40,4 @@ docker build -t qiskit/quantum-serverless-gateway:<VERSION> .
 | RAY_CLUSTER_WORKER_REPLICAS            | worker replicas per cluster                                                                                                                                           |
 | RAY_CLUSTER_WORKER_MIN_REPLICAS        | min worker replicas per cluster                                                                                                                                       |
 | RAY_CLUSTER_WORKER_MAX_REPLICAS        | max replicas per cluster                                                                                                                                              |
+| RAY_CLUSTER_MAX_READINESS_TIME         | max time in seconds to wait for cluster readiness. Will fail job if cluster is not ready in time.                                                                     |

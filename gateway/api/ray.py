@@ -206,7 +206,7 @@ def wait_for_cluster_ready(cluster_name: str):
     url = f"http://{cluster_name}-head-svc:8265/"
     success = False
     attempts = 0
-    max_attempts = 120
+    max_attempts = settings.RAY_CLUSTER_MAX_READINESS_TIME
     while not success:
         attempts += 1
 
