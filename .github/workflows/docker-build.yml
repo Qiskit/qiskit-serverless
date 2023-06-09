@@ -1,8 +1,9 @@
 name: Docker notebook tests
 
 on:
-  pull_request:
-
+  push:
+    [ main ]
+    
 jobs:
   tests:
     runs-on: ubuntu-latest
