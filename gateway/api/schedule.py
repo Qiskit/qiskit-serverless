@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.db.models.aggregates import Count, Min
 
 from api.models import Job, Program, ComputeResource
-from api.ray import submit_ray_job, create_ray_cluster
+from api.ray import submit_ray_job, create_ray_cluster, kill_ray_cluster
 
 User: Model = get_user_model()
 
@@ -50,14 +50,24 @@ def execute_job(job: Job) -> Job:
     if authors_resource:
         job.compute_resource = authors_resource
         job = submit_ray_job(job)
+        job.status = Job.PENDING
+        job.save()
     else:
         compute_resource = create_ray_cluster(job.author)
-        job.compute_resource = compute_resource
-        job.save()
-        job = submit_ray_job(job)
-
-    job.status = Job.PENDING
-    job.save()
+        if compute_resource:
+            # if compute resource was created in time with no problems
+            job.compute_resource = compute_resource
+            job.save()
+            job = submit_ray_job(job)
+            job.status = Job.PENDING
+            job.save()
+        else:
+            # if something went wrong
+            #   try to kill resource if it was allocated
+            kill_ray_cluster(job.author.username)
+            job.status = Job.FAILED
+            job.logs = "Something went wrong during compute resource allocation."
+            job.save()
     return job
 
 
@@ -96,7 +106,9 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
     if len(author_date_pull) == 0:
         return []
 
-    author_date_list = random.choices(list(author_date_pull), k=slots)
+    author_date_list = list(author_date_pull)
+    if len(author_date_pull) >= slots:
+        author_date_list = random.sample(author_date_list, k=slots)
 
     job_filter = Q()
     for entry in author_date_list:

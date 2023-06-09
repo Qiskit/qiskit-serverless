@@ -58,7 +58,7 @@ def submit_ray_job(job: Job) -> Job:
 
 def create_ray_cluster(
     user: Any, cluster_name: Optional[str] = None
-) -> ComputeResource:
+) -> Optional[ComputeResource]:
     """Creates ray cluster.
 
     Args:
@@ -68,6 +68,7 @@ def create_ray_cluster(
 
     Returns:
         returns compute resource associated with ray cluster
+        or None if something went wrong with cluster creation.
     """
     namespace = settings.RAY_KUBERAY_NAMESPACE
     image = settings.RAY_NODE_IMAGE
@@ -188,13 +189,15 @@ def create_ray_cluster(
         )
 
     # wait for cluster to be up and running
-    host = wait_for_cluster_ready(cluster_name)
+    host, cluster_is_ready = wait_for_cluster_ready(cluster_name)
 
-    resource = ComputeResource()
-    resource.owner = user
-    resource.title = cluster_name
-    resource.host = host
-    resource.save()
+    resource = None
+    if cluster_is_ready:
+        resource = ComputeResource()
+        resource.owner = user
+        resource.title = cluster_name
+        resource.host = host
+        resource.save()
     return resource
 
 
@@ -203,20 +206,21 @@ def wait_for_cluster_ready(cluster_name: str):
     url = f"http://{cluster_name}-head-svc:8265/"
     success = False
     attempts = 0
+    max_attempts = settings.RAY_CLUSTER_MAX_READINESS_TIME
     while not success:
         attempts += 1
 
-        if attempts >= 60:
-            raise RuntimeError(f"Waiting too long for cluster creation. {url}")
-
-        try:
-            response = requests.get(url, timeout=5)
-            if response.ok:
-                success = True
-        except Exception:  # pylint: disable=broad-exception-caught
-            logging.debug("Head node %s is not ready yet.", url)
-        time.sleep(1)
-    return url
+        if attempts <= max_attempts:
+            try:
+                response = requests.get(url, timeout=5)
+                if response.ok:
+                    success = True
+            except Exception:  # pylint: disable=broad-exception-caught
+                logging.debug("Head node %s is not ready yet.", url)
+            time.sleep(1)
+        else:
+            logging.warning("Waiting too long for cluster [%s] creation", cluster_name)
+    return url, success
 
 
 def kill_ray_cluster(cluster_name: str) -> bool:
