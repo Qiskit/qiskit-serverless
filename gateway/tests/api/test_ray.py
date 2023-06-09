@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
 from kubernetes import client, config
-from openshift.dynamic import DynamicClient
+from kubernetes.dynamic.client import DynamicClient
 
 from api.models import ComputeResource
 from api.ray import (
@@ -41,7 +41,6 @@ class TestRayUtils(APITestCase):
     def test_create_cluster(self):
         """Tests for cluster creation."""
         namespace = settings.RAY_KUBERAY_NAMESPACE
-
         config.load_incluster_config = MagicMock()
         client.api_client.ApiClient = MagicMock()
         DynamicClient.__init__ = lambda x, y: None
@@ -52,7 +51,7 @@ class TestRayUtils(APITestCase):
         with requests_mock.Mocker() as mocker:
             mocker.get(head_node_url, status_code=200)
             user = get_user_model().objects.first()
-            compute_resource = create_ray_cluster(user, "test_user")
+            compute_resource = create_ray_cluster(user, "test_user", "dummy yaml file contents")
             self.assertIsInstance(compute_resource, ComputeResource)
             self.assertEqual(user.username, compute_resource.title)
             self.assertEqual(compute_resource.host, head_node_url)

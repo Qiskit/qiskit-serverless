@@ -59,7 +59,7 @@ def submit_ray_job(job: Job) -> Job:
 
 
 def create_ray_cluster(
-    user: Any, cluster_name: Optional[str] = None
+        user: Any, cluster_name: Optional[str] = None, cluster_data: Optional[str] = None
 ) -> Optional[ComputeResource]:
     """Creates ray cluster.
 
@@ -67,6 +67,7 @@ def create_ray_cluster(
         user: user cluster belongs to
         cluster_name: optional cluster name.
             by default username+uuid will be used
+        cluster_data: optional cluster data
 
     Returns:
         returns compute resource associated with ray cluster
@@ -74,8 +75,9 @@ def create_ray_cluster(
     """
     namespace = settings.RAY_KUBERAY_NAMESPACE
     cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
-    cluster = get_template("rayclustertemplate.yaml")
-    cluster_data = yaml.safe_load(cluster.render({"cluster_name": cluster_name}))
+    if not cluster_data:
+        cluster = get_template("rayclustertemplate.yaml")
+        cluster_data = yaml.safe_load(cluster.render({"cluster_name": cluster_name}))
 
     config.load_incluster_config()
     k8s_client = client.api_client.ApiClient()
