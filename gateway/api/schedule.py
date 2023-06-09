@@ -106,7 +106,9 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
     if len(author_date_pull) == 0:
         return []
 
-    author_date_list = random.choices(list(author_date_pull), k=slots)
+    author_date_list = list(author_date_pull)
+    if len(author_date_pull) >= slots:
+        author_date_list = random.sample(author_date_list, k=slots)
 
     job_filter = Q()
     for entry in author_date_list:
