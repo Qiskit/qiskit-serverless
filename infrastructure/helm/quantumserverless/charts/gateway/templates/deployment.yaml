@@ -69,22 +69,22 @@ spec:
               value: {{ .Values.application.siteHost | quote }}
             - name: RAY_HOST
               value: {{ .Values.application.rayHost | quote }}
-            - name: CLIENT_ID
-              value: {{ .Values.application.keycloak.clientId | quote }}
             - name: SETTINGS_AUTH_MECHANISM
               value: {{ .Values.application.auth.mechanism | quote }}
             - name: SETTINGS_TOKEN_AUTH_URL
-              value: {{ .Values.application.token.url | quote }}
+              value: {{ .Values.application.auth.token.url | quote }}
             - name: SETTINGS_TOKEN_AUTH_VERIFICATION_URL
-              value: {{ .Values.application.token.verificationUrl | quote }}
+              value: {{ .Values.application.auth.token.verificationUrl | quote }}
             - name: SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD
-              value: {{ .Values.application.token.verificationField | quote }}
+              value: {{ .Values.application.auth.token.verificationField | quote }}
+            - name: CLIENT_ID
+              value: { { .Values.application.auth.keycloak.clientId | quote } }
             - name: SETTING_KEYCLOAK_URL
-              value: {{ .Values.application.keycloak.url | quote }}
+              value: {{ .Values.application.auth.keycloak.url | quote }}
             - name: SETTING_KEYCLOAK_REALM
-              value: {{ .Values.application.keycloak.realm | quote }}
+              value: {{ .Values.application.auth.keycloak.realm | quote }}
             - name: SETTINGS_KEYCLOAK_CLIENT_SECRET
-              value: {{ .Values.application.keycloak.clientSecret | quote }}
+              value: {{ .Values.application.auth.keycloak.clientSecret | quote }}
             - name: DJANGO_SUPERUSER_USERNAME
               value: {{ .Values.application.superuser.username | quote }}
             - name: DJANGO_SUPERUSER_PASSWORD

@@ -43,10 +43,10 @@ gateway:
     rayHost: "http://kuberay-head-svc:8265"
     auth:
       mechanism: "custom_token"
-    token:
-      url: "https://auth-dev.quantum-computing.ibm.com/api/users/loginWithToken"
-      verificationUrl: "https://auth-dev.quantum-computing.ibm.com/api/users/me"
-      verificationField: "ibmQNetwork"
+      token:
+        url: "https://auth-dev.quantum-computing.ibm.com/api/users/loginWithToken"
+        verificationUrl: "https://auth-dev.quantum-computing.ibm.com/api/users/me"
+        verificationField: "ibmQNetwork"
     superuser:
       username: "admin"
       password: "passw0rd"
