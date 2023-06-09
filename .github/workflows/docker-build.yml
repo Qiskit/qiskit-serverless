@@ -24,7 +24,7 @@ jobs:
         run: sleep 60
       - name: Test notebooks in the docker environment
         shell: bash
-        run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake /home/jovyan/serverless/ --ignore =/home/jovyan/serverless/guides/07* --ignore=/home/jovyan/serverless/examples/06*"
+        run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake /home/jovyan/serverless/ --ignore =/home/jovyan/serverless/guides/07_working_with_datasets.ipynb --ignore=/home/jovyan/serverless/examples/06_electronic_structure_problem.ipynb"
       - name: Dump logs on failure
         if: ${{ failure() }}
         run: |
