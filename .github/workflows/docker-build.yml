@@ -1,8 +1,6 @@
 name: Docker notebook tests
 
 on:
-  push:
-    [ main ]
   pull_request:
     
 jobs:
