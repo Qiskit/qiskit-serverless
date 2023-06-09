@@ -75,11 +75,7 @@ def create_ray_cluster(
     namespace = settings.RAY_KUBERAY_NAMESPACE
     cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
     cluster = get_template("rayclustertemplate.yaml")
-    cluster_data = yaml.safe_load(
-        cluster.render(
-            {"cluster_name": cluster_name}
-        )
-    )
+    cluster_data = yaml.safe_load(cluster.render({"cluster_name": cluster_name}))
 
     config.load_incluster_config()
     k8s_client = client.api_client.ApiClient()
