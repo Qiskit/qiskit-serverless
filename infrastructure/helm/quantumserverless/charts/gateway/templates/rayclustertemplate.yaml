@@ -55,6 +55,9 @@ data:
               - mountPath: /fluent-bit/etc/fluent-bit.conf
                 name: fluentbit-config
                 subPath: fluent-bit.conf
+              - mountPath: /data
+                name: gateway-pv-storage
+                subPath: {{`{{ user_id }}`}}
             imagePullSecrets: []
             nodeSelector:
             tolerations: []
@@ -64,6 +67,9 @@ data:
             - configMap:
                 name: fluentbit-config
               name: fluentbit-config
+            - name: gateway-pv-storage
+              persistentVolumeClaim:
+                claimName: gateway-claim
       workerGroupSpecs:
       - groupName: smallWorkerGroup
         maxReplicas: 4
@@ -90,12 +96,18 @@ data:
               volumeMounts:
               - mountPath: /tmp/ray
                 name: log-volume
+              - mountPath: /data
+                name: gateway-pv-storage
+                subPath: {{`{{ user_id }}`}}
             imagePullSecrets: []
             nodeSelector:
             tolerations: []
             volumes:
             - emptyDir:
               name: log-volume
+            - name: gateway-pv-storage
+              persistentVolumeClaim:
+                claimName: gateway-claim
 kind: ConfigMap
 metadata:
   name: rayclustertemplate
