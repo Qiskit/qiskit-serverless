@@ -26,15 +26,20 @@ Step 0 [Optional]: Pre-Installation
       python3 -m venv c:\path\to\virtual\environment
       c:\path\to\virtual\environment\Scripts\Activate.ps1
 
-.. note::
+.. code-block::
+   :caption: Clone the Quantum Serverless repository.
 
-   Docker is required to run the quickstart tutorials. If Docker is not installed on your system, following the directions
+      cd /path/to/workspace/
+      git clone git@github.com:Qiskit-Extensions/quantum-serverless.git
+
+Step 1: Install Docker.
+
+   If Docker is not installed on your system, following the directions
    on the `Docker website <https://docs.docker.com/engine/install/) to install Docker on your system>`_.
 
-Step 1: Stop any running jupyter notebook servers.
+Step 2: Stop any running jupyter notebook servers.
 
-
-Step 2: Install the quantum serverless package.
+Step 3: Install the quantum serverless package.
 
 .. code-block::
    :caption: Install quantum_serverless via pip.
@@ -43,7 +48,7 @@ Step 2: Install the quantum serverless package.
       pip install quantum_serverless
 
 
-Step 3: Run infrastructure.
+Step 4: Run infrastructure.
 
 .. code-block::
    :caption: Run docker compose from the root of the quantum serverless project.
@@ -51,9 +56,9 @@ Step 3: Run infrastructure.
       cd quantum-serverless/
       docker compose --profile jupyter up
 
-Step 4: Open the jupyter lab environment by going to ``localhost:8888`` via your favorite browser.
+Step 5: Open the jupyter lab environment by going to ``localhost:8888`` via your favorite browser.
 
-Step 5: Write your program in containerized environment.
+Step 6: Write your program in containerized environment.
 
 .. code-block::
    :caption: Create a Python file using a text editor. Here we use vim.
