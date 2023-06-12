@@ -97,8 +97,8 @@ services:
     depends_on:
       - keycloak
       - postgres
-  gateway_scheduler:
-    container_name: gateway_scheduler
+  scheduler:
+    container_name: scheduler
     build:
       context: ./
       dockerfile: infrastructure/docker/Dockerfile-gateway

@@ -120,7 +120,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "gateway.fullname" . }}-scheduler
+  name: scheduler
   labels:
     {{- include "gateway.labels" . | nindent 4 }}-scheduler
 spec:
@@ -143,6 +143,9 @@ spec:
         - name: gateway-pv-storage
           persistentVolumeClaim:
             claimName: gateway-claim
+        - name: ray-cluster-template
+          configMap:
+            name: rayclustertemplate
       serviceAccountName: {{ include "gateway.serviceAccountName" . }}
       initContainers:
         - name: waitpostresql
@@ -156,6 +159,9 @@ spec:
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
+            - mountPath: "/tmp/templates/rayclustertemplate.yaml"
+              name: ray-cluster-template
+              subPath: rayclustertemplate.yaml
           env:
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
