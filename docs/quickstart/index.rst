@@ -3,6 +3,7 @@ Quickstart
 ==========
 
 .. note::
+
    These instructions describe a fully local workflow. To run on remote
    resources, users may either `configure their resources themselves <https://qiskit-extensions.github.io/quantum-serverless/deployment/cloud.html>`_ or ask
    their provider or dev ops team.
@@ -26,6 +27,7 @@ Step 0 [Optional]: Pre-Installation
       c:\path\to\virtual\environment\Scripts\Activate.ps1
 
 .. note::
+
    Docker is required to run the quickstart tutorials. If Docker is not installed on your system, following the directions
    on the `Docker website <https://docs.docker.com/engine/install/) to install Docker on your system>`_.
 
