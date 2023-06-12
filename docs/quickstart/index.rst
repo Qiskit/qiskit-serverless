@@ -10,7 +10,7 @@ Quickstart
 Step 0 [Optional]: Pre-Installation
 
 .. code-block::
-   :caption: Create a minimal environment with only Python installed in it. We recommend using [Python virtual environments](https://docs.python.org/3.10/tutorial/venv.html).
+   :caption: Create a minimal environment with only Python installed in it. We recommend using `Python virtual environments <https://docs.python.org/3.10/tutorial/venv.html>`_.
 
       python3 -m venv /path/to/virtual/environment
 
@@ -27,7 +27,7 @@ Step 0 [Optional]: Pre-Installation
 
 .. note::
    Docker is required to run the quickstart tutorials. If Docker is not installed on your system, following the directions
-   on the [Docker website](https://docs.docker.com/engine/install/) to install Docker on your system.
+   on the `Docker website <https://docs.docker.com/engine/install/) to install Docker on your system>`_.
 
 Step 1: Stop any running jupyter notebook servers.
 
