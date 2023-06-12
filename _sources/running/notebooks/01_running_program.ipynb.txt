@@ -142,6 +142,24 @@
    "source": [
     "job.result()"
    ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "719d3572",
+   "metadata": {},
+   "source": [
+    "To inspect the logs from a program, access them from the ``Job`` instance."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "eb5ec85f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "print(job.logs())"
+   ]
   }
  ],
  "metadata": {

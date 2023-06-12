@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Running a program remotely &#8212; Quantum serverless 0.0.0 documentation</title>
+    <title>Retrieving Results from Old Jobs &#8212; Quantum serverless 0.0.0 documentation</title>
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/jupyter-sphinx.css" />
@@ -25,8 +25,8 @@
     <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Parallel workflows in programs" href="02_distributed_workloads.html" />
-    <link rel="prev" title="&lt;no title&gt;" href="index.html" />
+    <link rel="next" title="Development" href="../../development/index.html" />
+    <link rel="prev" title="Dependency management for programs" href="04_dependencies.html" />
    
   <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
   
@@ -43,42 +43,9 @@
 
           <div class="body" role="main">
             
-  <section id="Running-a-program-remotely">
-<h1>Running a program remotely<a class="headerlink" href="#Running-a-program-remotely" title="Permalink to this heading">¶</a></h1>
-<p>In this tutorial, we will write a basic program using Quantum Serverless. We will show how to run the program remotely and retrieve the results from the serverless client.</p>
-<section id="Writing-the-Program">
-<h2>Writing the Program<a class="headerlink" href="#Writing-the-Program" title="Permalink to this heading">¶</a></h2>
-<p>First, we need to write the program code and save it to a file called <a class="reference external" href="./source_files/program_1.py">program_1.py</a>. This program creates a two-qubit quantum circuit that prepares a Bell state, measures the result, and saves the measured probability distribution.</p>
-<p>The code for the program is shown below:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/program_1.py</span>
-
-<span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
-<span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
-
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">save_result</span>
-
-<span class="c1"># Create a circuit</span>
-<span class="n">circuit</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
-<span class="n">circuit</span><span class="o">.</span><span class="n">h</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-<span class="n">circuit</span><span class="o">.</span><span class="n">cx</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-<span class="n">circuit</span><span class="o">.</span><span class="n">measure_all</span><span class="p">()</span>
-<span class="n">circuit</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
-
-<span class="c1"># Instantiate a Sampler to generate a quasi-distribution of the circuit&#39;s outputs</span>
-<span class="n">sampler</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">()</span>
-
-<span class="c1"># Run the circuit and retrieve the quasi-distribution</span>
-<span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
-
-<span class="c1"># Save the result to the serverless client</span>
-<span class="n">save_result</span><span class="p">(</span><span class="n">quasi_dists</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="Running-the-Program">
-<h2>Running the Program<a class="headerlink" href="#Running-the-Program" title="Permalink to this heading">¶</a></h2>
-<p>To run the program, we need to import the necessary classes and configure them. One of these classes is QuantumServerless, which is a client class for interacting with compute resources.</p>
-<p>QuantumServerless takes a Provider object as a constructor argument. The Provider object stores configuration information about our compute resources, such as where they are located and how to connect to them. In this example, we will use a provider that is connected to a local Docker Compose setup. In this case, it allows us to run the program locally on our machine. If you want to run the program elsewhere, you will need to provide the corresponding host and authentication details.</p>
+  <section id="Retrieving-Results-from-Old-Jobs">
+<h1>Retrieving Results from Old Jobs<a class="headerlink" href="#Retrieving-Results-from-Old-Jobs" title="Permalink to this heading">¶</a></h1>
+<p>In this tutorial, we will run two programs and then retrieve the results of each program using the job IDs and the serverless client.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -88,6 +55,7 @@
 </pre></div>
 </div>
 </div>
+<p>First, create <code class="docutils literal notranslate"><span class="pre">GatewayProvider</span></code> and <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> instances.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
@@ -99,44 +67,69 @@
 <span class="p">)</span>
 
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
-<span class="n">serverless</span>
 </pre></div>
 </div>
 </div>
-<p>After importing the necessary classes and configuring them, we can run the program by calling the <code class="docutils literal notranslate"><span class="pre">run()</span></code> method of the <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> object:</p>
-<p><code class="docutils literal notranslate"><span class="pre">Program</span></code> accepts couple of required parameters: - title - name of the program - entrypoint - name of python file you want to execute - working_dir - folder where your script is located. This is optional parameter and will be current folder by default.</p>
+<p>Run two programs in parallel.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
 
-<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;First program&quot;</span><span class="p">,</span>
+<span class="n">program1</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Program 1&quot;</span><span class="p">,</span>
     <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program_1.py&quot;</span><span class="p">,</span>
     <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
 <span class="p">)</span>
+<span class="n">program2</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Program 2&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program_2.py&quot;</span><span class="p">,</span>
+    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
+<span class="p">)</span>
 
-<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
-<span class="n">job</span>
+<span class="n">job1</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program1</span><span class="p">)</span>
+<span class="n">job2</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program2</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">Job</span></code> instances have a <code class="docutils literal notranslate"><span class="pre">status()</span></code> method to check status of program execution.</p>
+<p>Retrieve the job IDs for each of the running programs.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job_id1</span> <span class="o">=</span> <span class="n">job1</span><span class="o">.</span><span class="n">job_id</span>
+<span class="n">job_id2</span> <span class="o">=</span> <span class="n">job2</span><span class="o">.</span><span class="n">job_id</span>
 </pre></div>
 </div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">Job</span></code> instances also have a <code class="docutils literal notranslate"><span class="pre">result()</span></code> method for retrieving results. The <code class="docutils literal notranslate"><span class="pre">result()</span></code> method will not return until the job is done running the program.</p>
+<p>Call the blocking comand, <code class="docutils literal notranslate"><span class="pre">Job.result()</span></code>, to ensure the results are ready in the following cells.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job1</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+<span class="n">job2</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<p>Retrieve the completed jobs through the serverless client, using the job IDs.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">retrieved_job1</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get_job_by_id</span><span class="p">(</span><span class="n">job_id1</span><span class="p">)</span>
+<span class="n">retrieved_job2</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get_job_by_id</span><span class="p">(</span><span class="n">job_id2</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Inspect the results of the retrieved jobs.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job 1 results: </span><span class="si">{</span><span class="n">retrieved_job1</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job 2 results: </span><span class="si">{</span><span class="n">retrieved_job2</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -145,11 +138,10 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job 1 logs: </span><span class="si">{</span><span class="n">retrieved_job1</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-</section>
 </section>
 
 
@@ -181,11 +173,11 @@
 </ul>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">Running</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Running a program remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a program remotely</a></li>
 <li class="toctree-l2"><a class="reference internal" href="02_distributed_workloads.html">Parallel workflows in programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="03_arguments_and_results.html">Programs with arguments</a></li>
 <li class="toctree-l2"><a class="reference internal" href="04_dependencies.html">Dependency management for programs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Retrieving Results from Old Jobs</a></li>
 </ul>
 </li>
 </ul>
@@ -214,8 +206,8 @@
   <li><a href="../../index.html">Documentation overview</a><ul>
   <li><a href="../index.html">Running</a><ul>
   <li><a href="index.html">&lt;no title&gt;</a><ul>
-      <li>Previous: <a href="index.html" title="previous chapter">&lt;no title&gt;</a></li>
-      <li>Next: <a href="02_distributed_workloads.html" title="next chapter">Parallel workflows in programs</a></li>
+      <li>Previous: <a href="04_dependencies.html" title="previous chapter">Dependency management for programs</a></li>
+      <li>Next: <a href="../../development/index.html" title="next chapter">Development</a></li>
   </ul></li>
   </ul></li>
   </ul></li>
@@ -251,7 +243,7 @@
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
       
       |
-      <a href="../../_sources/running/notebooks/01_running_program.ipynb.txt"
+      <a href="../../_sources/running/notebooks/05_retrieving_past_results.ipynb.txt"
           rel="nofollow">Page source</a>
     </div>
 
