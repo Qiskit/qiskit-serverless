@@ -1,4 +1,6 @@
-{{ if .Values.cosEnable }}
+{{ if eq .Values.platform "kind" }}
+{{end}}
+{{ if eq .Values.platform "ibm" }}
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
