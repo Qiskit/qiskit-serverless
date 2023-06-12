@@ -67,8 +67,6 @@ spec:
               value: {{ .Values.application.debug | quote }}
             - name: SITE_HOST
               value: {{ .Values.application.siteHost | quote }}
-            - name: RAY_HOST
-              value: {{ .Values.application.rayHost | quote }}
             - name: CLIENT_ID
               value: {{ .Values.application.keycloak.clientId | quote }}
             - name: SETTING_KEYCLOAK_URL
@@ -135,6 +133,9 @@ spec:
         - name: gateway-pv-storage
           persistentVolumeClaim:
             claimName: gateway-claim
+        - name: ray-cluster-template
+          configMap:
+            name: rayclustertemplate
       serviceAccountName: {{ include "gateway.serviceAccountName" . }}
       initContainers:
         - name: waitpostresql
@@ -148,6 +149,9 @@ spec:
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
+            - mountPath: "/tmp/templates/rayclustertemplate.yaml"
+              name: ray-cluster-template
+              subPath: rayclustertemplate.yaml
           env:
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
