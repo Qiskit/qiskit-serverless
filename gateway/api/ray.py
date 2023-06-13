@@ -77,10 +77,10 @@ def create_ray_cluster(
     cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
     if not cluster_data:
         cluster = get_template("rayclustertemplate.yaml")
-        cluster_data = yaml.safe_load(cluster.render({
-            "cluster_name": cluster_name,
-            "user_id": user.username
-        }))
+        manifest = cluster.render(
+            {"cluster_name": cluster_name, "user_id": user.username}
+        )
+        cluster_data = yaml.safe_load(manifest)
 
     config.load_incluster_config()
     k8s_client = client.api_client.ApiClient()

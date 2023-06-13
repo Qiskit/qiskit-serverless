@@ -40,6 +40,9 @@ data:
               volumeMounts:
               - mountPath: /tmp/ray
                 name: log-volume
+              - mountPath: /data
+                name: user-storage
+                subPath: {{`{{ user_id }}`}}
             - image: fluent/fluent-bit:1.9.10
               name: ray-head-logs
               resources:
@@ -55,9 +58,6 @@ data:
               - mountPath: /fluent-bit/etc/fluent-bit.conf
                 name: fluentbit-config
                 subPath: fluent-bit.conf
-              - mountPath: /data
-                name: gateway-pv-storage
-                subPath: {{`{{ user_id }}`}}
             imagePullSecrets: []
             nodeSelector:
             tolerations: []
@@ -67,7 +67,7 @@ data:
             - configMap:
                 name: fluentbit-config
               name: fluentbit-config
-            - name: gateway-pv-storage
+            - name: user-storage
               persistentVolumeClaim:
                 claimName: gateway-claim
       workerGroupSpecs:
@@ -97,7 +97,7 @@ data:
               - mountPath: /tmp/ray
                 name: log-volume
               - mountPath: /data
-                name: gateway-pv-storage
+                name: user-storage
                 subPath: {{`{{ user_id }}`}}
             imagePullSecrets: []
             nodeSelector:
@@ -105,10 +105,9 @@ data:
             volumes:
             - emptyDir:
               name: log-volume
-            - name: gateway-pv-storage
+            - name: user-storage
               persistentVolumeClaim:
                 claimName: gateway-claim
 kind: ConfigMap
 metadata:
   name: rayclustertemplate
-
