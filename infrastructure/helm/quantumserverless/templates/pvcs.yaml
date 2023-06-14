@@ -28,7 +28,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: {{ .Values.cos.secretSize | quote }}
+      storage: {{ .Values.cos.storageSize | quote }}
   storageClassName: {{ .Values.cos.storageClassName | quote }}
 {{ else }}
 apiVersion: v1
