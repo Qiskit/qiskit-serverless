@@ -1,6 +1,7 @@
 # ===================
 # Quantum Serverless configs
 # ===================
+platform: ibm
 
 # ===================
 # Ingress Nginx controller configs
