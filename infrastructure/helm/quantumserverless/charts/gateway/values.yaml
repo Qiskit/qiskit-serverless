@@ -9,11 +9,9 @@ application:
   debug: 0
   siteHost: "http://127.0.0.1:8000"
   rayHost: "http://ray:8265/"
-  keycloak:
-    clientId: "quantumserverless"
-    url: "http://keycloak:8080/"
-    realm: "quantumserverless"
-    clientSecret: "secret"
+  auth:
+    token: {}
+    keycloak: {}
   superuser:
     username: "admin"
     password: "passw0rd"
