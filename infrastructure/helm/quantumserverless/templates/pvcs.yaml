@@ -18,7 +18,7 @@ metadata:
   labels:
     type: local
   annotations:
-    pv.beta.kubernetes.io/gid: "1001"
+    pv.beta.kubernetes.io/gid: "100"
 spec:
   storageClassName: manual
   capacity:
