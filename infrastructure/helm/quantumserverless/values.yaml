@@ -284,3 +284,4 @@ cos:
   endpoint: ENDPOINT-CHANGEME
   secretName: SECRETNAME-CHANGEME
   storageClassName: STORAGECLASSNAME-CHANGEME
+  storageSize: 10Gi
