@@ -48,6 +48,7 @@ gateway:
         url: "https://auth-dev.quantum-computing.ibm.com/api/users/loginWithToken"
         verificationUrl: "https://auth-dev.quantum-computing.ibm.com/api/users/me"
         verificationField: "ibmQNetwork"
+      keycloak: {}
     superuser:
       username: "admin"
       password: "passw0rd"

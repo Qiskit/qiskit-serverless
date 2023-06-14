@@ -43,6 +43,7 @@ gateway:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
     auth:
+      token: {}
       keycloak:
         clientId: "gateway-client"
         url: "http://keycloak:31059"
