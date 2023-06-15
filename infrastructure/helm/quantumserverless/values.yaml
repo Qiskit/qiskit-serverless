@@ -1,6 +1,7 @@
 # ===================
 # Quantum Serverless configs
 # ===================
+platform: default
 
 # ===================
 # Ingress Nginx controller configs
@@ -34,18 +35,19 @@ gatewayEnable: true
 gateway:
   nameOverride: "gateway"
   fullnameOverride: "gateway"
-  
+
   image:
     pullPolicy: IfNotPresent
     tag: "0.1.2"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
-    keycloak:
-      clientId: "gateway-client"
-      url: "http://keycloak:31059"
-      realm: "quantumserverless"
-      clientSecret: GATEWAYSECRET-CHANGEME
+    auth:
+      keycloak:
+        clientId: "gateway-client"
+        url: "http://keycloak:31059"
+        realm: "quantumserverless"
+        clientSecret: GATEWAYSECRET-CHANGEME
     superuser:
       username: "admin"
       password: "passw0rd"
@@ -173,7 +175,7 @@ repository:
     name: repository_db
 
 # ===================
-# Prometheus 
+# Prometheus
 # ===================
 
 prometheusEnable: false
@@ -263,7 +265,7 @@ loki:
         installOperator: false
   test:
     enabled: false
-  
+
 # ===================
 # promtail
 # ===================
@@ -272,3 +274,14 @@ promtailEnable: false
 promtail:
   nameOverride: "promtail"
   fullnameOverride: "promtail"
+
+# ===================
+# COS
+# ===================
+
+cos:
+  bucket: BUCKETNAME-CHANGEME
+  endpoint: ENDPOINT-CHANGEME
+  secretName: SECRETNAME-CHANGEME
+  storageClassName: STORAGECLASSNAME-CHANGEME
+  storageSize: 10Gi

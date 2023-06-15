@@ -77,7 +77,7 @@ ROOT_URLCONF = "main.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [BASE_DIR / "templates", "/tmp/templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -259,21 +259,19 @@ LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "quantumserverless")
-RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:latest"
-)
 RAY_CLUSTER_MODE = {
     "local": int(os.environ.get("RAY_CLUSTER_MODE_LOCAL", 0)),
     "ray_local_host": os.environ.get(
         "RAY_CLUSTER_MODE_LOCAL_HOST", "http://localhost:8265"
     ),
 }
-RAY_CLUSTER_TEMPLATE_CPU = int(os.environ.get("RAY_CLUSTER_TEMPLATE_CPU", "2"))
-RAY_CLUSTER_TEMPLATE_MEM = int(os.environ.get("RAY_CLUSTER_TEMPLATE_MEM", "2"))
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "0"))
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(
     os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "0")
 )
 RAY_CLUSTER_WORKER_MAX_REPLICAS = int(
     os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4")
+)
+RAY_CLUSTER_MAX_READINESS_TIME = int(
+    os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "120")
 )

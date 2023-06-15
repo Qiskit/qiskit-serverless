@@ -1,3 +1,36 @@
+{{ if eq .Values.platform "kind" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gateway-claim
+spec:
+  storageClassName: standard 
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+{{ else if eq .Values.platform "ibm" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gateway-claim
+  annotations:
+    ibm.io/auto-create-bucket: "false"
+    ibm.io/auto-delete-bucket: "false"
+    ibm.io/bucket: {{ .Values.cos.bucket | quote }}
+    ibm.io/quota-limit: "false"
+    ibm.io/endpoint: {{ .Values.cos.endpoint | quote }}
+    ibm.io/tls-cipher-suite: "default"
+    ibm.io/secret-name: {{ .Values.cos.secretName | quote }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.cos.storageSize | quote }}
+  storageClassName: {{ .Values.cos.storageClassName | quote }}
+{{ else }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -26,3 +59,4 @@ spec:
   resources:
     requests:
       storage: 1Gi
+{{ end }}

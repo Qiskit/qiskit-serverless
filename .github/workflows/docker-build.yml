@@ -1,0 +1,27 @@
+name: Docker notebook tests
+
+on:
+  pull_request:
+    branches: [ main ]
+    
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build the containers
+        run: docker compose -f docker-compose-dev.yml --profile jupyter build
+      - name: Run the jupyter profile
+        run: docker compose -f docker-compose-dev.yml --profile jupyter up -d
+      - name: Give containers time to initialize
+        shell: bash
+        run: sleep 90
+      - name: Test notebooks in the docker environment
+        shell: bash
+        run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake --ignore=/home/jovyan/serverless/guides/07_working_with_datasets.ipynb /home/jovyan/serverless/"
+      - name: Dump logs on failure
+        if: ${{ failure() }}
+        run: |
+          docker compose logs gateway
+          docker compose logs jupyter
