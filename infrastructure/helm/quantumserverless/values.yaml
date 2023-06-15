@@ -37,6 +37,7 @@ gateway:
   fullnameOverride: "gateway"
 
   image:
+    repository: "icr.io/quantum-public/quantum-serverless-gateway"
     pullPolicy: IfNotPresent
     tag: "0.1.2"
   application:
