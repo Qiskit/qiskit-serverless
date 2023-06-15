@@ -25,20 +25,16 @@ Quantum serverless widgets
 
     Widget
 """
-from typing import List
-
 from IPython.display import display, clear_output
 from ipywidgets import GridspecLayout, widgets, Layout
 
-from quantum_serverless import Provider
-from quantum_serverless.core.job import Job
 from quantum_serverless.exception import QuantumServerlessException
 
 
 class Widget:
     """Widget for displaying information related to provider."""
 
-    def __init__(self, provider: Provider):
+    def __init__(self, provider):
         """Constructor for widget.
 
         Args:
@@ -52,7 +48,7 @@ class Widget:
 
         self.offset = 0
         self.limit = 10
-        self.jobs: List[Job] = self.provider.get_jobs()
+        self.jobs = self.provider.get_jobs()
 
         self.list_view = widgets.Output()
         with self.list_view:
@@ -65,7 +61,7 @@ class Widget:
     def render_list(self):
         """Renders list of jobs."""
 
-        def render_details(job: Job):
+        def render_details(job):
             """Renders single instance of job."""
             return widgets.HTML(
                 f"""
