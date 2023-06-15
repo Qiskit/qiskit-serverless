@@ -38,6 +38,7 @@ from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
 from quantum_serverless.core.provider import Provider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
+from quantum_serverless.visualizaiton import Widget
 
 Context = Union[BaseContext]
 
@@ -268,6 +269,10 @@ class QuantumServerless:
             list of providers
         """
         return self._providers
+
+    def widget(self):
+        """Widget for information about provider and jobs."""
+        return Widget(self._selected_provider).show()
 
     def __repr__(self):
         providers = ", ".join(provider.name for provider in self.providers())
