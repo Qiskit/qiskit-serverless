@@ -141,10 +141,20 @@ class Widget:
 
         return widgets.HBox([prev_page, pagination_number, next_page])
 
+    def header_view(self):
+        """Renders header of widget."""
+        return widgets.Button(
+            description=f"QuantumServerless [{self.provider.name}]",
+            button_style="info",
+            layout=Layout(height="auto", width="auto"),
+            disabled=True,
+        )
+
     def show(self):
         """Displays widget."""
         grid = GridspecLayout(10, 1, height="500px", width="600px")
-        grid[:1, 0] = self.pagination_view
-        grid[1:, 0] = self.list_view
+        grid[:1, 0] = self.header_view()
+        grid[1:2, 0] = self.pagination_view
+        grid[2:, 0] = self.list_view
 
         return grid
