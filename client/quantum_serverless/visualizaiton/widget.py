@@ -25,12 +25,29 @@ Quantum serverless widgets
 
     Widget
 """
+import os
 from datetime import datetime
 
 from IPython.display import display, clear_output
 from ipywidgets import GridspecLayout, widgets, Layout
 
 from quantum_serverless.exception import QuantumServerlessException
+
+TABLE_STYLE = """
+<style>
+    table {
+        width: 100% !important;
+        font-family:IBM Plex Sans, Arial, sans-serif !important;
+    }
+
+    th, td {
+        text-align: left !important;
+        padding: 5px !important;
+    }
+
+    tr:nth-child(even) {background-color: #f6f6f6 !important;}
+</style>
+"""
 
 
 class Widget:
@@ -60,45 +77,46 @@ class Widget:
         with self.pagination_view:
             display(self.render_pagination())
 
+        self.information_view = widgets.Output()
+        with self.information_view:
+            display(self.render_information())
+
     def render_list(self):
         """Renders list of jobs."""
 
-        def render_details(job):
-            """Renders single instance of job."""
-            return widgets.HTML(
-                f"""
-                <div>
-                    <div>
-                        <b>ID</b>: {job.job_id}
-                        <br/>
-                        <b>Title</b>: {job.raw_data.get("program", {}).get("title", "Job")}
-                        <br/>
-                        <b>Status</b>: {job.raw_data.get("status", "")}
-                        <br/>
-                        <b>Result</b>: {job.raw_data.get("result", "")}
-                        <br/>
-                        <b>Arguments</b>: {job.raw_data.get("program", {}).get("arguments", "")}
-                        <br/>
-                    </div>
-                </div>
-                """
-            )
-
-        accordion = widgets.Accordion(
-            children=[render_details(job) for job in self.jobs]
-        )
-
-        for idx, job in enumerate(self.jobs):
+        def render_html_row(job):
             title = job.raw_data.get("program", {}).get("title", "Job")
             status = job.raw_data.get("status", "").lower()
             date = datetime.strptime(
                 job.raw_data.get("created", "2011-11-11T11:11:11.000Z"),
                 "%Y-%m-%dT%H:%M:%S.%fZ",
             ).strftime("%m/%d/%Y")
-            accordion.set_title(
-                idx, f'#{job.job_id[:8]} | {status} | {date} | "{title}" '
-            )
-        return accordion
+            status_style_map = {"succeeded": "color:green;", "failed": "color:red;"}
+
+            return f"""
+                <tr>
+                    <td>{job.job_id}</td>
+                    <td>{title}</td>
+                    <td style={status_style_map.get(status, "")}>{status}</td>
+                    <td>{date}</td>
+                </tr>
+            """
+
+        rows = "\n".join([render_html_row(job) for job in self.jobs])
+
+        table = f"""
+            <table>
+                {TABLE_STYLE}
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Creation date</th>
+                </tr>
+                {rows}
+            </table>
+        """
+        return widgets.HTML(table)
 
     def render_pagination(self):
         """Renders pagination."""
@@ -162,11 +180,44 @@ class Widget:
             disabled=True,
         )
 
+    def render_information(self):
+        """Renders information widget."""
+        client_version = "Unknown"
+        version_file_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "..", "VERSION.txt"
+        )
+        if os.path.exists(version_file_path):
+            with open(version_file_path, "r", encoding="utf-8") as version_file:
+                client_version = version_file.read().strip()
+
+        table = f"""
+            <table>
+                {TABLE_STYLE}
+                <tr>
+                    <th>Parameter</th>
+                    <th>Value</th>
+                </tr>
+                <tr>
+                    <td>Provider</td>
+                    <td>{self.provider.name}</td>
+                </tr>
+                <tr>
+                    <td>Software version</td>
+                    <td>{client_version}</td>
+                </tr>
+            </table>
+        """
+        return widgets.HTML(table)
+
     def show(self):
         """Displays widget."""
-        grid = GridspecLayout(10, 1, height="500px", width="600px")
-        grid[:1, 0] = self.header_view()
-        grid[1:2, 0] = self.pagination_view
-        grid[2:, 0] = self.list_view
+        job_list_widget = GridspecLayout(10, 2)
+        job_list_widget[:9, :] = self.list_view
+        job_list_widget[9:, 1] = self.pagination_view
 
-        return grid
+        tab_nest = widgets.Tab()
+        tab_nest.children = [job_list_widget, self.render_information()]
+        tab_nest.set_title(0, "Program runs")
+        tab_nest.set_title(1, "Info")
+
+        return tab_nest
