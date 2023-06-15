@@ -22,4 +22,4 @@ class JobSerializer(serializers.JobSerializer):
     program = ProgramSerializer(many=False)
 
     class Meta(serializers.JobSerializer.Meta):
-        fields = ["id", "result", "status", "program"]
+        fields = ["id", "result", "status", "program", "created"]

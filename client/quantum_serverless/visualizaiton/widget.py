@@ -25,6 +25,8 @@ Quantum serverless widgets
 
     Widget
 """
+from datetime import datetime
+
 from IPython.display import display, clear_output
 from ipywidgets import GridspecLayout, widgets, Layout
 
@@ -67,9 +69,16 @@ class Widget:
                 f"""
                 <div>
                     <div>
+                        <b>ID</b>: {job.job_id}
+                        <br/>
+                        <b>Title</b>: {job.raw_data.get("program", {}).get("title", "Job")}
+                        <br/>
                         <b>Status</b>: {job.raw_data.get("status", "")}
                         <br/>
                         <b>Result</b>: {job.raw_data.get("result", "")}
+                        <br/>
+                        <b>Arguments</b>: {job.raw_data.get("program", {}).get("arguments", "")}
+                        <br/>
                     </div>
                 </div>
                 """
@@ -80,8 +89,15 @@ class Widget:
         )
 
         for idx, job in enumerate(self.jobs):
-            prefix = job.raw_data.get("program", {}).get("title", "Job")
-            accordion.set_title(idx, f'"{prefix}" #{job.job_id}')
+            title = job.raw_data.get("program", {}).get("title", "Job")
+            status = job.raw_data.get("status", "").lower()
+            date = datetime.strptime(
+                job.raw_data.get("created", "2011-11-11T11:11:11.000Z"),
+                "%Y-%m-%dT%H:%M:%S.%fZ",
+            ).strftime("%m/%d/%Y")
+            accordion.set_title(
+                idx, f'#{job.job_id[:8]} | {status} | {date} | "{title}" '
+            )
         return accordion
 
     def render_pagination(self):
