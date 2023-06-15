@@ -74,6 +74,9 @@ data:
                   value: "/etc/ray/tls/tls.key"
                 - name: RAY_TLS_CA_CERT
                   value: "/etc/ca/tls/ca.crt"
+              - mountPath: /data
+                name: user-storage
+                subPath: {{`{{ user_id }}`}}
             - image: fluent/fluent-bit:1.9.10
               name: ray-head-logs
               resources:
@@ -112,6 +115,9 @@ data:
                 items:
                 - key: gencert_head.sh
                   path: gencert_head.sh
+            - name: user-storage
+              persistentVolumeClaim:
+                claimName: gateway-claim
       workerGroupSpecs:
       - groupName: smallWorkerGroup
         maxReplicas: 4
@@ -182,6 +188,9 @@ data:
               volumeMounts:
               - mountPath: /tmp/ray
                 name: log-volume
+              - mountPath: /data
+                name: user-storage
+                subPath: {{`{{ user_id }}`}}
             imagePullSecrets: []
             nodeSelector:
             tolerations: []
@@ -202,7 +211,9 @@ data:
                 items:
                 - key: gencert_worker.sh
                   path: gencert_worker.sh
+            - name: user-storage
+              persistentVolumeClaim:
+                claimName: gateway-claim
 kind: ConfigMap
 metadata:
   name: rayclustertemplate
-

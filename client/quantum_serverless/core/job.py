@@ -348,15 +348,17 @@ class GatewayJobClient(BaseJobClient):
         return job
 
     def list(self, **kwargs) -> List["Job"]:
+        limit = kwargs.get("limit", 10)
+        offset = kwargs.get("offset", 0)
         response_data = safe_json_request(
             request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/",
+                f"{self.host}/api/{self.version}/jobs/?limit={limit}&offset={offset}",
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_TIMEOUT,
             )
         )
         return [
-            Job(job.get("id"), job_client=self)
+            Job(job.get("id"), job_client=self, raw_data=job)
             for job in response_data.get("results", [])
         ]
 
@@ -364,7 +366,12 @@ class GatewayJobClient(BaseJobClient):
 class Job:
     """Job."""
 
-    def __init__(self, job_id: str, job_client: BaseJobClient):
+    def __init__(
+        self,
+        job_id: str,
+        job_client: BaseJobClient,
+        raw_data: Optional[Dict[str, Any]] = None,
+    ):
         """Job class for async script execution.
 
         Args:
@@ -373,6 +380,7 @@ class Job:
         """
         self.job_id = job_id
         self._job_client = job_client
+        self.raw_data = raw_data or {}
 
     def status(self):
         """Returns status of the job."""

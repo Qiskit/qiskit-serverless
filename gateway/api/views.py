@@ -91,7 +91,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         return self.serializer_class
 
     def get_queryset(self):
-        return Job.objects.all().filter(author=self.request.user)
+        return Job.objects.all().filter(author=self.request.user).order_by("-created")
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
