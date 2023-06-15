@@ -1,6 +1,7 @@
 # ===================
 # Quantum Serverless configs
 # ===================
+platform: ibm
 
 # ===================
 # Ingress Nginx controller configs
@@ -17,7 +18,6 @@ ingress:
   tls:
     - hosts:
         - "gateway.YOUR_INGRESS_PUBLIC_END_POINT"
-        - "repository.YOUR_INGRESS_PUBLIC_END_POINT"
       secretName: "YOUR-INGRESS-SECRET"
   hosts:
     - host: "gateway.YOUR_INGRESS_PUBLIC_END_POINT"
@@ -26,12 +26,6 @@ ingress:
         pathType: Prefix
         serviceName: "gateway"
         servicePort: 8000
-    - host: "repository.YOUR_INGRESS_PUBLIC_END_POINT"
-      paths:
-      - path: /
-        pathType: Prefix
-        serviceName: "repository"
-        servicePort: 8060
 
 # ===================
 # Gateway configs
@@ -48,11 +42,12 @@ gateway:
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
-    keycloak:
-      clientId: "gateway-client"
-      url: "http://keycloak:31059"
-      realm: "quantumserverless"
-      clientSecret: GATEWAYSECRET-CHANGEME
+    auth:
+      mechanism: "custom_token"
+      token:
+        url: "https://auth-dev.quantum-computing.ibm.com/api/users/loginWithToken"
+        verificationUrl: "https://auth-dev.quantum-computing.ibm.com/api/users/me"
+        verificationField: "ibmQNetwork"
     superuser:
       username: "admin"
       password: "passw0rd"
@@ -62,7 +57,6 @@ gateway:
       port: 8000
     ray:
       nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.1.2-py39"
-      kubeRayHost: "http://kuberay-apiserver-service:8888"
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
@@ -73,37 +67,13 @@ gateway:
 # Redis configs
 # ===================
 
-redisEnable: true
-redis:
-  nameOverride: "redis"
-  fullnameOverride: "redis"
-
-  architecture: "standalone"
-  global:
-    redis:
-      password: ""
-  auth:
-    enabled: false
+redisEnable: false
 
 # ===================
 # Jupyter configs
 # ===================
 
-jupyterEnable: true
-jupyter:
-  nameOverride: "jupyter"
-  fullnameOverride: "jupyter"
-
-  jupyterToken: "YOUR_JUPYTER_PASSWORD_HERE"
-
-  image:
-    repository: "icr.io/quantum-public/quantum-serverless-notebook"
-    tag: "0.1.2-py39"
-    pullPolicy: IfNotPresent
-  container:
-    port: 8888
-  service:
-    port: 80
+jupyterEnable: false
 
 # ===================
 # Kuberay Operator
@@ -120,166 +90,39 @@ kuberay-operator:
 # Keycloak
 # ===================
 
-keycloakEnable: true
-gatewayClientSecret: GATEWAYSECRET-CHANGEME
-grafanaClientSecret: GRAFANASECRET-CHANGEME
-keycloakUserID: user
-keycloakUserPassword: password123
-keycloak:
-  nameOverride: "keycloak"
-  fullnameOverride: "keycloak"
-
-  logging:
-    level: DEBUG
-  service:
-    type: ClusterIP
-    ports:
-      http: 31059
-  auth:
-    adminUser: admin
-    adminPassword: passw0rd
-  extraVolumes:
-    - name: realm
-      configMap:
-        name: keycloakrealm
-  extraVolumeMounts:
-    - name: realm
-      mountPath: /opt/bitnami/keycloak/data/import
-  extraStartupArgs: "--import-realm"
-
-  postgresql:
-    nameOverride: "postgresql"
-    fullnameOverride: "postgresql"
-    primary:
-      initdb:
-        scripts:
-          create_db.sh: |
-            #!/bin/bash
-            PGUSER=$POSTGRES_USER PGPASSWORD=$POSTGRES_PASSWORD createdb -w "repository_db"
-            PGUSER=$POSTGRES_USER PGPASSWORD=$POSTGRES_PASSWORD createdb -w "gateway_db"
+keycloakEnable: false
 
 # ===================
 # Quantum Repository
 # ===================
 
-repositoryEnable: true
-repository:
-  nameOverride: "repository"
-  fullnameOverride: "repository"
-
-  image:
-    pullPolicy: IfNotPresent
-    tag: "0.1.2"
-  application:
-    superuser:
-      username: "admin"
-      password: "passw0rd"
-      email: "admin@examplemail.io"
-  service:
-    type: ClusterIP
-    port: 8060
-  database:
-    name: repository_db
+repositoryEnable: false
 
 # ===================
 # Prometheus
 # ===================
 
 prometheusEnable: false
-kube-prometheus-stack:
-  nameOverride: "prometheus"
-  fullnameOverride: "prometheus"
-
-  kube-state-metrics:
-    nameOverride: "kube-state-metrics"
-    fullnameOverride: "kube-state-metrics"
-
-  prometheus-node-exporter:
-    nameOverride: "prometheus-node-exporter"
-    fullnameOverride: "prometheus-node-exporter"
-
-  grafana:
-    nameOverride: "grafana"
-    fullnameOverride: "grafana"
-
-
-    adminPassword: passw0rd
-
-    # Keycloak Sign-on for Grafana console
-    #
-    # To enable sign-on by Keycloak for Grafana console
-    # 1. replace <Non-Loopback local IP> with the local IP address
-    # 2. change the keycloak service to NodePort type and add
-    #    nodePorts
-    #      http: 32059
-    # 3. uncomment following lines
-    #
-    # service:
-    #   type: NodePort
-    #   nodePort: 32294
-    # grafana.ini:
-    #   auth:
-    #     disable_login_form: "true"
-    #   auth.generic_oauth:
-    #     enabled: "true"
-    #     name: Keycloak-OAuth
-    #     allow_sign_up: "true"
-    #     client_id: grafana-client
-    #     client_secret: GRAFANASECRET-CHANGEME
-    #     api_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/userinfo"
-    #     auth_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/auth"
-    #     token_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/token"
-    #     role_attribute_path: "contains(roles[*], 'grafana-admin') && 'GrafanaAdmin' || contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'"
-    #     allow_assign_grafana_admin: "true"
-    #     scopes: openid email profile roles
-    #     email_attribute_path: user@quatunserverless.org
-    #     login_attribute_path: user
-    #     name_attribute_path: none
-    #   log:
-    #     level: debug
-    #   server:
-    #     root_url: "http://localhost:32294/"
 
 # ===================
 # loki
 # ===================
 
 lokiEnable: false
-loki:
-  nameOverride: "loki"
-  fullnameOverride: "loki"
-
-  loki:
-    commonConfig:
-      replication_factor: 1
-    storage:
-      type: "filesystem"
-    auth_enabled: false
-  write:
-    replicas: 0
-  read:
-    replicas: 0
-  backend:
-    replicas: 0
-  singleBinary:
-    replicas: 1
-  gateway:
-    service:
-      type: ClusterIP
-  monitoring:
-    selfMonitoring:
-      enabled: false
-      grafanaAgent:
-        installOperator: false
-  test:
-    enabled: false
-
 
 # ===================
 # promtail
 # ===================
 
 promtailEnable: false
-promtail:
-  nameOverride: "promtail"
-  fullnameOverride: "promtail"
+
+# ===================
+# COS
+# ===================
+
+cos:
+  bucket: BUCKETNAME-CHANGEME
+  endpoint: ENDPOINT-CHANGEME
+  secretName: SECRETNAME-CHANGEME
+  storageClassName: STORAGECLASSNAME-CHANGEME
+  storageSize: 10Gi
