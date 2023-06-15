@@ -388,15 +388,17 @@
         <span class="k">return</span> <span class="n">job</span>
 
     <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;Job&quot;</span><span class="p">]:</span>
+        <span class="n">limit</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/?limit=</span><span class="si">{</span><span class="n">limit</span><span class="si">}</span><span class="s2">&amp;offset=</span><span class="si">{</span><span class="n">offset</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
                 <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="p">[</span>
-            <span class="n">Job</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">Job</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">=</span><span class="n">job</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])</span>
         <span class="p">]</span>
 
@@ -404,7 +406,12 @@
 <span class="k">class</span> <span class="nc">Job</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Job.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">job_client</span><span class="p">:</span> <span class="n">BaseJobClient</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">job_client</span><span class="p">:</span> <span class="n">BaseJobClient</span><span class="p">,</span>
+        <span class="n">raw_data</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Job class for async script execution.</span>
 
 <span class="sd">        Args:</span>
@@ -413,6 +420,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span> <span class="o">=</span> <span class="n">job_client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span> <span class="o">=</span> <span class="n">raw_data</span> <span class="ow">or</span> <span class="p">{}</span>
 
     <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns status of the job.&quot;&quot;&quot;</span>

@@ -23,6 +23,7 @@
       ~QuantumServerless.run
       ~QuantumServerless.run_program
       ~QuantumServerless.set_provider
+      ~QuantumServerless.widget
    
    
 
