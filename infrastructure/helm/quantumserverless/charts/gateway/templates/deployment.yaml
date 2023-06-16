@@ -159,9 +159,8 @@ spec:
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
-            - mountPath: "/tmp/templates/rayclustertemplate.yaml"
+            - mountPath: "/tmp/templates/"
               name: ray-cluster-template
-              subPath: rayclustertemplate.yaml
           env:
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}

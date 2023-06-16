@@ -2,6 +2,7 @@
 # Quantum Serverless configs
 # ===================
 platform: default
+useCertManager: false
 
 # ===================
 # Ingress Nginx controller configs

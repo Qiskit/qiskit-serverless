@@ -12,5 +12,25 @@ rules:
   - delete
   - get
   - list
+{{- if .Values.useCertManager }}
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+{{- end }}
 
 
