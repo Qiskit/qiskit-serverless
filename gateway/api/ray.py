@@ -41,13 +41,13 @@ def submit_ray_job(job: Job) -> Job:
         runs += 1
         if runs > settings.RAY_SETUP_MAX_RETRIES:
             logging.error("Unable to set up ray client")
-            raise Exception(err_msg)
+            raise ConnectionError(err_msg)
         logging.debug("Client setup attempt %d", runs)
         try:
             ray_client = JobSubmissionClient(job.compute_resource.host)
             logging.debug("Ray JobClientSubmission setup succeeded")
             success = True
-        except Exception as err:
+        except Exception as err:  # pylint-disable: broad-exception-caught
             logging.debug("Ray JobClientSubmission setup failed, retrying")
             err_msg = str(err)
             time.sleep(1)
@@ -70,7 +70,7 @@ def submit_ray_job(job: Job) -> Job:
         runs += 1
         if runs > settings.RAY_SETUP_MAX_RETRIES:
             logging.error("Unable to submit ray job")
-            raise Exception(err_msg)
+            raise ConnectionError(err_msg)
         logging.debug("Job submission attempt %d", runs)
         try:
             ray_job_id = ray_client.submit_job(
@@ -83,7 +83,7 @@ def submit_ray_job(job: Job) -> Job:
             )
             logging.debug("Submitting ray job succeeded")
             success = True
-        except Exception as err:
+        except Exception as err:  # pylint-disable: broad-exception-caught
             logging.debug("Ray job submission failed, retrying")
             err_msg = str(err)
             time.sleep(1)
