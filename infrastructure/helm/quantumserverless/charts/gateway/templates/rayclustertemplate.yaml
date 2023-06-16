@@ -51,8 +51,7 @@ data:
 {{- end }}
             affinity:
             containers:
-            - env: []
-              image: {{  .Values.application.ray.nodeImage | quote  }}
+            - image: {{  .Values.application.ray.nodeImage | quote  }}
               imagePullPolicy: IfNotPresent
               name: ray-head
               ports:
