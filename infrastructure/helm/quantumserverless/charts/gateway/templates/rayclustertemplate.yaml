@@ -33,8 +33,7 @@ data:
                         fieldPath: status.podIP
             affinity:
             containers:
-            - env: []
-              image: {{  .Values.application.ray.nodeImage | quote  }}
+            - image: {{  .Values.application.ray.nodeImage | quote  }}
               imagePullPolicy: IfNotPresent
               name: ray-head
               ports:
@@ -63,6 +62,9 @@ data:
                 readOnly: true
               - mountPath: /etc/ray/tls
                 name: ray-tls
+              - mountPath: /data
+                name: user-storage
+                subPath: {{`{{ user_id }}`}}
               env:
                 # Environment variables for Ray TLS authentication.
                 # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
@@ -73,10 +75,7 @@ data:
                 - name: RAY_TLS_SERVER_KEY
                   value: "/etc/ray/tls/tls.key"
                 - name: RAY_TLS_CA_CERT
-                  value: "/etc/ca/tls/ca.crt"
-              - mountPath: /data
-                name: user-storage
-                subPath: {{`{{ user_id }}`}}
+                  value: "/etc/ca/tls/ca.crt"                
             - image: fluent/fluent-bit:1.9.10
               name: ray-head-logs
               resources:
