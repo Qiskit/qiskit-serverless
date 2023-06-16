@@ -47,7 +47,7 @@ def submit_ray_job(job: Job) -> Job:
             ray_client = JobSubmissionClient(job.compute_resource.host)
             logging.debug("Ray JobClientSubmission setup succeeded")
             success = True
-        except Exception as err:  # pylint-disable: broad-exception-caught
+        except Exception as err:  # pylint: disable=broad-exception-caught
             logging.debug("Ray JobClientSubmission setup failed, retrying")
             err_msg = str(err)
             time.sleep(1)
@@ -83,7 +83,7 @@ def submit_ray_job(job: Job) -> Job:
             )
             logging.debug("Submitting ray job succeeded")
             success = True
-        except Exception as err:  # pylint-disable: broad-exception-caught
+        except Exception as err:  # pylint: disable=broad-exception-caught
             logging.debug("Ray job submission failed, retrying")
             err_msg = str(err)
             time.sleep(1)
