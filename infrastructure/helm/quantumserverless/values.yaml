@@ -2,7 +2,6 @@
 # Quantum Serverless configs
 # ===================
 platform: default
-useCertManager: false
 
 # ===================
 # Ingress Nginx controller configs
@@ -36,6 +35,7 @@ gatewayEnable: true
 gateway:
   nameOverride: "gateway"
   fullnameOverride: "gateway"
+  useCertManager: false
 
   image:
     repository: "icr.io/quantum-public/quantum-serverless-gateway"
