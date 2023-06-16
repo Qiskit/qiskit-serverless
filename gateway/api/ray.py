@@ -196,9 +196,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
             delete_response.text,
         )
     try:
-        cert_client = dyn_client.resources.get(
-            api_version="v1", kind="Certificate"
-        )
+        cert_client = dyn_client.resources.get(api_version="v1", kind="Certificate")
     except Exception:
         return success
 
@@ -211,7 +209,9 @@ def kill_ray_cluster(cluster_name: str) -> bool:
             delete_response.text,
         )
 
-    delete_response = cert_client.delete(name=f"{cluster_name}-worker", namespace=namespace)
+    delete_response = cert_client.delete(
+        name=f"{cluster_name}-worker", namespace=namespace
+    )
     if delete_response.status == "Success":
         success = True
     else:
@@ -221,7 +221,9 @@ def kill_ray_cluster(cluster_name: str) -> bool:
         )
 
     v1 = client.CoreV1Api()
-    delete_response = v1.delete_namespaced_secret(name=cluster_name, namespace=namespace)
+    delete_response = v1.delete_namespaced_secret(
+        name=cluster_name, namespace=namespace
+    )
     if delete_response.status == "Success":
         success = True
     else:
@@ -229,7 +231,9 @@ def kill_ray_cluster(cluster_name: str) -> bool:
             "Something went wrong during certification secret deletion request: %s",
             delete_response.text,
         )
-    delete_response = v1.delete_namespaced_secret(name=f"{cluster_name}-worker", namespace=namespace)
+    delete_response = v1.delete_namespaced_secret(
+        name=f"{cluster_name}-worker", namespace=namespace
+    )
     if delete_response.status == "Success":
         success = True
     else:
