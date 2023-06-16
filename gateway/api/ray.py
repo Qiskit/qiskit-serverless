@@ -42,7 +42,7 @@ def submit_ray_job(job: Job) -> Job:
         if runs > settings.RAY_SETUP_MAX_RETRIES:
             logging.error("Unable to set up ray client")
             raise Exception(err_msg)
-        logging.debug(f"Client setup attempt {runs}")
+        logging.debug("Client setup attempt %d", runs)
         try:
             ray_client = JobSubmissionClient(job.compute_resource.host)
             logging.debug("Ray JobClientSubmission setup succeeded")
@@ -71,7 +71,7 @@ def submit_ray_job(job: Job) -> Job:
         if runs > settings.RAY_SETUP_MAX_RETRIES:
             logging.error("Unable to submit ray job")
             raise Exception(err_msg)
-        logging.debug(f"Job submission attempt {runs}")
+        logging.debug("Job submission attempt %d", runs)
         try:
             ray_job_id = ray_client.submit_job(
                 entrypoint=entrypoint,
