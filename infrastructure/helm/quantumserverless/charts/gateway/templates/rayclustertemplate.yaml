@@ -18,6 +18,21 @@ data:
           spec:
             initContainers:
               # Generate head's private key and certificate before `ray start`.
+{{- if .Values.useCertManager }}
+              - name: ray-head-cert
+                image: rayproject/ray:2.4.0
+                command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_head.sh /tmp/tls {{`{{ cluster_name }}`}} $POD_IP {{ .Release.Namespace }}"]
+                volumeMounts:
+                  - mountPath: /tmp/tls
+                    name: cert-tls
+                  - mountPath: /etc/gen/tls
+                    name: gen-tls-script
+                env:
+                  - name: POD_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
+{{- else }}
               - name: ray-head-tls
                 image: rayproject/ray:2.4.0
                 command: ["/bin/sh", "-c", "cp -R /etc/ca/tls /etc/ray && /etc/gen/tls/gencert_head.sh"]
@@ -27,20 +42,6 @@ data:
                     readOnly: true
                   - mountPath: /etc/ray/tls
                     name: ray-tls
-                  - mountPath: /etc/gen/tls
-                    name: gen-tls-script
-                env:
-                  - name: POD_IP
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: status.podIP
-{{- if .Values.useCertManager }}
-              - name: ray-head-cert
-                image: rayproject/ray:2.4.0
-                command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_head.sh /tmp/tls {{`{{ cluster_name }}`}} $POD_IP {{ .Release.Namespace }}"]
-                volumeMounts:
-                  - mountPath: /tmp/tls
-                    name: cert-tls
                   - mountPath: /etc/gen/tls
                     name: gen-tls-script
                 env:
@@ -171,6 +172,22 @@ data:
           spec:
             initContainers:
               # Generate worker's private key and certificate before `ray start`.
+{{- if .Values.useCertManager }}
+            initContainers:
+              - name: ray-worker-cert
+                image: rayproject/ray:2.4.0
+                command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_head.sh /tmp/tls {{`{{ cluster_name }}`}}-worker $POD_IP {{ .Release.Namespace }}"]
+                volumeMounts:
+                  - mountPath: /tmp/tls
+                    name: cert-tls
+                  - mountPath: /etc/gen/tls
+                    name: gen-tls-script
+                env:
+                  - name: POD_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
+{{- else }}
               - name: ray-worker-tls
                 image: rayproject/ray:2.4.0
                 command: ["/bin/sh", "-c", "cp -R /etc/ca/tls /etc/ray && /etc/gen/tls/gencert_worker.sh"]
@@ -180,21 +197,6 @@ data:
                     readOnly: true
                   - mountPath: /etc/ray/tls
                     name: ray-tls
-                  - mountPath: /etc/gen/tls
-                    name: gen-tls-script
-                env:
-                  - name: POD_IP
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: status.podIP
-{{- if .Values.useCertManager }}
-            initContainers:
-              - name: ray-worker-cert
-                image: rayproject/ray:2.4.0
-                command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_head.sh /tmp/tls {{`{{ cluster_name }}`}}-worker $POD_IP {{ .Release.Namespace }}"]
-                volumeMounts:
-                  - mountPath: /tmp/tls
-                    name: cert-tls
                   - mountPath: /etc/gen/tls
                     name: gen-tls-script
                 env:
