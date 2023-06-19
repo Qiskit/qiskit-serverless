@@ -4,12 +4,12 @@ Cloud infrastructure setup
 
 
 ``Quantum Serverless`` is a project that contains different resources. One of the most important ones is the ``client``
-that you can connect with local and non-local resources.
+that you can use to connect with local and non-local resources.
 
-The main purpose of this guide is explain you step by step how to deploy these resources to be able to load and use that
+The main purpose of this guide is to explain to you, step-by-step, how to deploy these resources to be able to load and use that
 ``client`` with your desired configuration.
 
-So, you will be able to look up information in this guide for:
+This guide contains:
 
 * :ref:`installation_requirements`
 * Step by step commands to deploy using:
@@ -20,20 +20,19 @@ So, you will be able to look up information in this guide for:
 .. _installation_requirements:
 
 Installation requirements
-===========================
+=========================
 
-To deploy the required infrastructure by ``Quantum Serverless`` you need to have installed three main tools:
+To deploy the infrastructure required for ``Quantum Serverless`` you need to have installed three main tools:
 
 * `Docker <https://www.docker.com/>`_
 * `Helm <https://helm.sh/>`_
 * `Terraform <https://www.terraform.io/>`_
 
-For both tools in their respectively webpages you have the required steps to install them in different OS: Windows, Mac
-and Linux.
+Each of these tools' webpages contain instructions for installing on Windows, MacOS, and Linux.
 
-* **Important**: before download them check the versions `on our GitHub <https://github.com/Qiskit-Extensions/quantum-serverless/tree/main/infrastructure#tools>`_ of each tool to verify that you download a compatible version.
+* **Important**: before you download the above packages, check the `versions listed in our Github <https://github.com/Qiskit-Extensions/quantum-serverless/tree/main/infrastructure#tools>`_ of each tool to ensure that you download a compatible version.
 
-Once time you have these tools installed you can check the installation running the next commands in your terminal:
+Once you have these tools installed, you can check the installation by running the following commands in a terminal:
 
 .. code-block::
 
@@ -46,15 +45,14 @@ Once time you have these tools installed you can check the installation running 
         $ terraform version
         $ > Terraform X
 
-If all the commands returns you something similar with the version that you downloaded congratulations, you have the
-tools installed!
+If all the commands return the correct versions, then congratulations, you have the tools installed!
 
 .. _docker-deployment:
 
-Docker: an easy to go option for local development
-===================================================
+Docker: An easy option for local development
+============================================
 
-This section will describe you the steps that you can follow to build and deploy the infrastructure with **Docker**.
+This section will describe the steps to build and deploy the infrastructure with **Docker**.
 
 If you have ``make`` available you can run the next commands in your terminal:
 
@@ -63,7 +61,7 @@ If you have ``make`` available you can run the next commands in your terminal:
 
         $ make build-all
 
-Or if you don't have it (Windows for example), you can always build the images manually:
+If you do not have ``make`` available (Windows for example), you can build the images manually:
 
 .. code-block::
    :caption: run the commands from the root of the project
@@ -72,14 +70,14 @@ Or if you don't have it (Windows for example), you can always build the images m
         $ docker build -t qiskit/quantum-serverless-ray-node -f ./infrastructure/docker/Dockerfile-ray-qiskit .
         $ ...
 
-Now that you have built the needed Docker images you can run **docker-compose** to deploy locally the project:
+Now that you have built the necessary Docker images you can run **docker-compose** to deploy the project locally:
 
 .. code-block::
    :caption: run the command from the root of the project
 
         $ docker-compose --profile full up
 
-And once time finished the execution of the command if everything went well you are going to be able to open the browser
+Once the execution of the command has finished, if everything went well you should be able to open the browser
 and have access to:
 
 * Jupyter notebook: http://localhost:8888
@@ -87,11 +85,11 @@ and have access to:
 
 .. _helm-deployment:
 
-Helm: to use your own cluster locally or in the cloud
-=======================================================
+Helm: Use your own cluster locally or in the cloud
+==================================================
 
 Until now you deployed ``Quantum Serverless`` locally with a default configuration and minimum customization. With
-**Helm** you are going to be able to deploy this project with a **production** ready configuration and fully
+**Helm** you are going to be able to deploy this project with a **production**-ready configuration and make it fully
 customizable on a local or cloud **k8s cluster**.
 
 In this step your only requirement is to have a *k8s cluster* available. You have a tons of options for it:
@@ -102,11 +100,11 @@ In this step your only requirement is to have a *k8s cluster* available. You hav
     * `Amazon EKS cluster <https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html>`_
     * `Azure AKS cluster <https://learn.microsoft.com/en-us/azure/aks/tutorial-kubernetes-deploy-cluster?tabs=azure-cli>`_
 
-Once time you have your cluster the installation it's relatively easy with Helm. You just need to access to your cluster
+Once your cluster is ready, the installation is relatively straightforward with Helm. You just need to access to your cluster
 and run the next commands:
 
 .. code-block::
-   :caption: run these commands from ./infrastructure/helm/quantumserverless folder
+   :caption: run these commands from ./infrastructure/helm/quantumserverless directory
 
         $ helm repo add bitnami https://charts.bitnami.com/bitnami
         $ helm repo add kuberay https://ray-project.github.io/kuberay-helm
@@ -115,10 +113,10 @@ and run the next commands:
         $ helm dependency build
         $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace .
 
-And this will deploy the required infrastructure in your cluster.
+This will deploy the required components to your cluster.
 
-To connect with the different services you have some options depending of your environment. The easiest approach that
-always will work is to use the ``port-forward`` command:
+To connect with the different services, you have some options depending on your environment. The easiest and most consistent
+approach is to use the ``port-forward`` command:
 
 .. code-block::
    :caption: get kuberay-head and jupyter pods
@@ -129,7 +127,7 @@ always will work is to use the ``port-forward`` command:
         $ > kuberay-head-<POD_ID>
         $ > ...
 
-Now that we have the desired pods we can expose their ports:
+Now that we have the desired pods, we can expose their ports:
 
 .. code-block::
    :caption: ports 8265 and 8888 are the the default ports for each service
@@ -137,42 +135,41 @@ Now that we have the desired pods we can expose their ports:
         $  kubectl port-forward kuberay-head-<POD_ID> 8265
         $  kubectl port-forward jupyter-<POD_ID> 8888
 
-This way you will be able to access to your cluster services from localhost.
+Now you may access your cluster services from localhost.
 
-For development this is more than enough but if you are thinking in deploying in it somewhere probably you will need to
-configure the different ``ingress`` properties in the `values.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values.yaml>`_
-of the project with the configuration of your domain and provider. In the ``Jupyter configs`` section you have a
+For development this is more than enough, but if you are considering deploying it remotely you will need to
+configure the various ``ingress`` properties in `values.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values.yaml>`_
+with the configuration of your domain and provider. In the ``Jupyter configs`` section you have a
 configuration example to expose through ``ingress`` in ``localhost`` the Jupyter service (disabled by default).
 
 * **Important**: ``nginx-ingress-controller`` is disabled by default because third party providers should provide its own Ingress controller. To use it locally you need to activate it too.
 
 .. _terraform-deployment:
 
-Terraform: deploy all the infrastructure in your favourite cloud provider
-===========================================================================
+Terraform: Deploy all the infrastructure in your preferred cloud provider
+=========================================================================
 
-This approach is very useful when you don't have anything where to deploy the infrastructure so let's go step by step.
+This approach is useful if you have a cloud provider account and also need to set up a cluster.
 
-Before anything the first thing that you should do is to create an account in your favourite cloud provider:
+First, create an account with some cloud provider:
     * `IBM Cloud registration process <https://cloud.ibm.com/registration>`_
     * `AWS registration process <https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account/>`_
-    * Azure is not supported in this process by now but we have plans to include it soon.
+    * Azure will be supported in a future release.
 
-Once time you have created an account, you will need to configure an API key/Access key to access from your terminal to your selected provider account:
+Once you have created an account, you will need to configure an API key/access key:
     * `IBM Cloud API key creation <https://cloud.ibm.com/docs/account?topic=account-userapikey&interface=ui#create_user_key>`_
     * `AWS Access key creation <https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html#access-keys-about>`_
 
-And as last setup step install the provider's CLI:
+Finally, install the provider's CLI:
     * `IBM Cloud CLI <https://cloud.ibm.com/docs/cli?topic=cli-getting-started>`_
     * `AWS CLI <https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html>`_
 
-Now you have all the configuration needed from your cloud provider. The next step will be configure the terraform to
-deploy the infrastructure where you want.
+Now that your cloud provider is configured, you may configure ``terraform`` to
+deploy the infrastructure where you want. Depending on the provider, you need to
+apply different configurations:
 
-For that, depending of the provider, you need apply different configurations:
-
-**For IBM Cloud** is the easiest one. Just go to ``./infrastructure/terraform/ibm`` and create the file ``terraform.tfvars``
-with the next content:
+The easiest option is to use **IBM Cloud**. Just go to ``./infrastructure/terraform/ibm`` and create the file ``terraform.tfvars``
+with the following contents:
 
 .. code-block::
 
@@ -180,30 +177,29 @@ with the next content:
         ibm_region = "YOUR_REGION"
         resource_group = "YOUR_RESOURCE_GROUP"
 
-* **Note**: check in the next links to know the `region <https://cloud.ibm.com/docs/openwhisk?topic=openwhisk-cloudfunctions_regions>`_ and the `resource group <https://cloud.ibm.com/docs/account?topic=account-rgs&interface=cli>`_ that your account have configured.
+* Note the `region <https://cloud.ibm.com/docs/openwhisk?topic=openwhisk-cloudfunctions_regions>`_ and the `resource group <https://cloud.ibm.com/docs/account?topic=account-rgs&interface=cli>`_ associated with your account.
 
-**In AWS** case instead to create a file you will need to configure a set of environment variables in your terminal as it
-is defined `here <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set>`_.
+To use **AWS**, configure environment variables, depending on your system, in accordance with the instructions `here <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set>`_.
 
-To confirm the configuration just run terraform:
+To confirm the configuration just run ``terraform plan``:
 
 .. code-block::
     :caption: always run a plan before an apply, this will compare your current configuration with the new one
 
         $ terraform plan
 
-And as final step:
+Finally, deploy the plan to your account:
 
 .. code-block::
-    :caption: this command will deploy the plan in your account
+    :caption: deploy the plan to your account
 
         $ terraform apply
 
-When the process finishes you should be able to see the cluster with the resources in your provider information:
+When the process finishes, you should be able to see the cluster with the resources in your provider information:
     * `IBM Cloud cluster access guide <https://cloud.ibm.com/docs/containers?topic=containers-access_cluster>`_
     * `AWS cluster connection guide <https://aws.amazon.com/premiumsupport/knowledge-center/eks-cluster-connection/>`_
 
-Now that you have a cluster you just will need to run the previous `helm` steps to deploy the different applications.
+Now that you have a cluster you can follow the steps in the :ref:`helm-deployment` section for using helm to deploy the different applications.
 
 For IBM Cloud in particular we provided you with a specific values with a default configuration in `values-ibm.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values-ibm.yaml>`_
 
@@ -216,12 +212,10 @@ The only thing that you will need to check in this case are some placeholders:
 Quantum Serverless configuration
 ==================================
 
-Once time you have your resources deployed it reaches the time to configure the ``Quantum Serverless client`` package.
-It is easy to do with constructor arguments.
+Once your resources are deployed, we can configure the Quantum Serverless ``client`` package.
+There are a couple of simple ways to do this.
 
-Let’s see how to do that.
-
-First option is to pass configuration to constructor of ``QuantumServerless``:
+One option is to pass the configuration as arguments to the constructor of a ``QuantumServerless`` instance:
 
 .. code-block::
     :caption: constructor arguments example
@@ -236,8 +230,7 @@ First option is to pass configuration to constructor of ``QuantumServerless``:
             }]
         })
 
-Other option will be creating an instance from configuration file, which has exactly the same structure as example
-above.
+Another option is to create an instance from a configuration file, which has exactly the same structure as the constructor argument in the above example.
 
 .. code-block::
     :caption: config.json example
@@ -252,14 +245,14 @@ above.
             }]
         }
 
-Then load this file:
+Instantiate the ``QuantumServerless`` instance from the configuration file:
 
 .. code-block::
     :caption: verify the name and the path to load the file
 
         serverless = QuantumServerless.load_configuration("./config.json")
 
-And use it as follow:
+And use it as follows:
 
 .. code-block::
     :caption: remember to use the same provider name

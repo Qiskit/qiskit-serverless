@@ -43,17 +43,17 @@
   <section id="cloud-infrastructure-setup">
 <h1>Cloud infrastructure setup<a class="headerlink" href="#cloud-infrastructure-setup" title="Permalink to this heading">¶</a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">Quantum</span> <span class="pre">Serverless</span></code> is a project that contains different resources. One of the most important ones is the <code class="docutils literal notranslate"><span class="pre">client</span></code>
-that you can connect with local and non-local resources.</p>
-<p>The main purpose of this guide is explain you step by step how to deploy these resources to be able to load and use that
+that you can use to connect with local and non-local resources.</p>
+<p>The main purpose of this guide is to explain to you, step-by-step, how to deploy these resources to be able to load and use that
 <code class="docutils literal notranslate"><span class="pre">client</span></code> with your desired configuration.</p>
-<p>So, you will be able to look up information in this guide for:</p>
+<p>This guide contains:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="#installation-requirements"><span class="std std-ref">Installation requirements</span></a></p></li>
 <li><dl class="simple">
 <dt>Step by step commands to deploy using:</dt><dd><ul>
-<li><p><a class="reference internal" href="#docker-deployment"><span class="std std-ref">Docker: an easy to go option for local development</span></a></p></li>
-<li><p><a class="reference internal" href="#helm-deployment"><span class="std std-ref">Helm: to use your own cluster locally or in the cloud</span></a></p></li>
-<li><p><a class="reference internal" href="#terraform-deployment"><span class="std std-ref">Terraform: deploy all the infrastructure in your favourite cloud provider</span></a></p></li>
+<li><p><a class="reference internal" href="#docker-deployment"><span class="std std-ref">Docker: An easy option for local development</span></a></p></li>
+<li><p><a class="reference internal" href="#helm-deployment"><span class="std std-ref">Helm: Use your own cluster locally or in the cloud</span></a></p></li>
+<li><p><a class="reference internal" href="#terraform-deployment"><span class="std std-ref">Terraform: Deploy all the infrastructure in your preferred cloud provider</span></a></p></li>
 </ul>
 </dd>
 </dl>
@@ -61,18 +61,17 @@ that you can connect with local and non-local resources.</p>
 </ul>
 <section id="installation-requirements">
 <span id="id1"></span><h2>Installation requirements<a class="headerlink" href="#installation-requirements" title="Permalink to this heading">¶</a></h2>
-<p>To deploy the required infrastructure by <code class="docutils literal notranslate"><span class="pre">Quantum</span> <span class="pre">Serverless</span></code> you need to have installed three main tools:</p>
+<p>To deploy the infrastructure required for <code class="docutils literal notranslate"><span class="pre">Quantum</span> <span class="pre">Serverless</span></code> you need to have installed three main tools:</p>
 <ul class="simple">
 <li><p><a class="reference external" href="https://www.docker.com/">Docker</a></p></li>
 <li><p><a class="reference external" href="https://helm.sh/">Helm</a></p></li>
 <li><p><a class="reference external" href="https://www.terraform.io/">Terraform</a></p></li>
 </ul>
-<p>For both tools in their respectively webpages you have the required steps to install them in different OS: Windows, Mac
-and Linux.</p>
+<p>Each of these tools’ webpages contain instructions for installing on Windows, MacOS, and Linux.</p>
 <ul class="simple">
-<li><p><strong>Important</strong>: before download them check the versions <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/tree/main/infrastructure#tools">on our GitHub</a> of each tool to verify that you download a compatible version.</p></li>
+<li><p><strong>Important</strong>: before you download the above packages, check the <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/tree/main/infrastructure#tools">versions listed in our Github</a> of each tool to ensure that you download a compatible version.</p></li>
 </ul>
-<p>Once time you have these tools installed you can check the installation running the next commands in your terminal:</p>
+<p>Once you have these tools installed, you can check the installation by running the following commands in a terminal:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker --version
 $ &gt; Docker version X, build Y
 $
@@ -83,12 +82,11 @@ $ terraform version
 $ &gt; Terraform X
 </pre></div>
 </div>
-<p>If all the commands returns you something similar with the version that you downloaded congratulations, you have the
-tools installed!</p>
+<p>If all the commands return the correct versions, then congratulations, you have the tools installed!</p>
 </section>
-<section id="docker-an-easy-to-go-option-for-local-development">
-<span id="docker-deployment"></span><h2>Docker: an easy to go option for local development<a class="headerlink" href="#docker-an-easy-to-go-option-for-local-development" title="Permalink to this heading">¶</a></h2>
-<p>This section will describe you the steps that you can follow to build and deploy the infrastructure with <strong>Docker</strong>.</p>
+<section id="docker-an-easy-option-for-local-development">
+<span id="docker-deployment"></span><h2>Docker: An easy option for local development<a class="headerlink" href="#docker-an-easy-option-for-local-development" title="Permalink to this heading">¶</a></h2>
+<p>This section will describe the steps to build and deploy the infrastructure with <strong>Docker</strong>.</p>
 <p>If you have <code class="docutils literal notranslate"><span class="pre">make</span></code> available you can run the next commands in your terminal:</p>
 <div class="literal-block-wrapper docutils container" id="id2">
 <div class="code-block-caption"><span class="caption-number">Listing 12 </span><span class="caption-text">run the commands from the root of the project</span><a class="headerlink" href="#id2" title="Permalink to this code">¶</a></div>
@@ -96,7 +94,7 @@ tools installed!</p>
 </pre></div>
 </div>
 </div>
-<p>Or if you don’t have it (Windows for example), you can always build the images manually:</p>
+<p>If you do not have <code class="docutils literal notranslate"><span class="pre">make</span></code> available (Windows for example), you can build the images manually:</p>
 <div class="literal-block-wrapper docutils container" id="id3">
 <div class="code-block-caption"><span class="caption-number">Listing 13 </span><span class="caption-text">run the commands from the root of the project</span><a class="headerlink" href="#id3" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker build -t qiskit/quantum-serverless-notebook -f ./infrastructure/docker/Dockerfile-notebook .
@@ -105,24 +103,24 @@ tools installed!</p>
 </pre></div>
 </div>
 </div>
-<p>Now that you have built the needed Docker images you can run <strong>docker-compose</strong> to deploy locally the project:</p>
+<p>Now that you have built the necessary Docker images you can run <strong>docker-compose</strong> to deploy the project locally:</p>
 <div class="literal-block-wrapper docutils container" id="id4">
 <div class="code-block-caption"><span class="caption-number">Listing 14 </span><span class="caption-text">run the command from the root of the project</span><a class="headerlink" href="#id4" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker-compose --profile full up
 </pre></div>
 </div>
 </div>
-<p>And once time finished the execution of the command if everything went well you are going to be able to open the browser
+<p>Once the execution of the command has finished, if everything went well you should be able to open the browser
 and have access to:</p>
 <ul class="simple">
 <li><p>Jupyter notebook: <a class="reference external" href="http://localhost:8888">http://localhost:8888</a></p></li>
 <li><p>Ray dashboard: <a class="reference external" href="http://localhost:8265">http://localhost:8265</a></p></li>
 </ul>
 </section>
-<section id="helm-to-use-your-own-cluster-locally-or-in-the-cloud">
-<span id="helm-deployment"></span><h2>Helm: to use your own cluster locally or in the cloud<a class="headerlink" href="#helm-to-use-your-own-cluster-locally-or-in-the-cloud" title="Permalink to this heading">¶</a></h2>
+<section id="helm-use-your-own-cluster-locally-or-in-the-cloud">
+<span id="helm-deployment"></span><h2>Helm: Use your own cluster locally or in the cloud<a class="headerlink" href="#helm-use-your-own-cluster-locally-or-in-the-cloud" title="Permalink to this heading">¶</a></h2>
 <p>Until now you deployed <code class="docutils literal notranslate"><span class="pre">Quantum</span> <span class="pre">Serverless</span></code> locally with a default configuration and minimum customization. With
-<strong>Helm</strong> you are going to be able to deploy this project with a <strong>production</strong> ready configuration and fully
+<strong>Helm</strong> you are going to be able to deploy this project with a <strong>production</strong>-ready configuration and make it fully
 customizable on a local or cloud <strong>k8s cluster</strong>.</p>
 <p>In this step your only requirement is to have a <em>k8s cluster</em> available. You have a tons of options for it:</p>
 <ul class="simple">
@@ -137,10 +135,10 @@ customizable on a local or cloud <strong>k8s cluster</strong>.</p>
 </dl>
 </li>
 </ul>
-<p>Once time you have your cluster the installation it’s relatively easy with Helm. You just need to access to your cluster
+<p>Once your cluster is ready, the installation is relatively straightforward with Helm. You just need to access to your cluster
 and run the next commands:</p>
 <div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-number">Listing 15 </span><span class="caption-text">run these commands from ./infrastructure/helm/quantumserverless folder</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 15 </span><span class="caption-text">run these commands from ./infrastructure/helm/quantumserverless directory</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ helm repo add bitnami https://charts.bitnami.com/bitnami
      $ helm repo add kuberay https://ray-project.github.io/kuberay-helm
      $ helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -150,9 +148,9 @@ and run the next commands:</p>
 </pre></div>
 </div>
 </div>
-<p>And this will deploy the required infrastructure in your cluster.</p>
-<p>To connect with the different services you have some options depending of your environment. The easiest approach that
-always will work is to use the <code class="docutils literal notranslate"><span class="pre">port-forward</span></code> command:</p>
+<p>This will deploy the required components to your cluster.</p>
+<p>To connect with the different services, you have some options depending on your environment. The easiest and most consistent
+approach is to use the <code class="docutils literal notranslate"><span class="pre">port-forward</span></code> command:</p>
 <div class="literal-block-wrapper docutils container" id="id6">
 <div class="code-block-caption"><span class="caption-number">Listing 16 </span><span class="caption-text">get kuberay-head and jupyter pods</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ kubectl get pod -o wide
@@ -163,7 +161,7 @@ always will work is to use the <code class="docutils literal notranslate"><span 
 </pre></div>
 </div>
 </div>
-<p>Now that we have the desired pods we can expose their ports:</p>
+<p>Now that we have the desired pods, we can expose their ports:</p>
 <div class="literal-block-wrapper docutils container" id="id7">
 <div class="code-block-caption"><span class="caption-number">Listing 17 </span><span class="caption-text">ports 8265 and 8888 are the the default ports for each service</span><a class="headerlink" href="#id7" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $  kubectl port-forward kuberay-head-&lt;POD_ID&gt; 8265
@@ -171,73 +169,72 @@ always will work is to use the <code class="docutils literal notranslate"><span 
 </pre></div>
 </div>
 </div>
-<p>This way you will be able to access to your cluster services from localhost.</p>
-<p>For development this is more than enough but if you are thinking in deploying in it somewhere probably you will need to
-configure the different <code class="docutils literal notranslate"><span class="pre">ingress</span></code> properties in the <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values.yaml">values.yaml</a>
-of the project with the configuration of your domain and provider. In the <code class="docutils literal notranslate"><span class="pre">Jupyter</span> <span class="pre">configs</span></code> section you have a
+<p>Now you may access your cluster services from localhost.</p>
+<p>For development this is more than enough, but if you are considering deploying it remotely you will need to
+configure the various <code class="docutils literal notranslate"><span class="pre">ingress</span></code> properties in <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values.yaml">values.yaml</a>
+with the configuration of your domain and provider. In the <code class="docutils literal notranslate"><span class="pre">Jupyter</span> <span class="pre">configs</span></code> section you have a
 configuration example to expose through <code class="docutils literal notranslate"><span class="pre">ingress</span></code> in <code class="docutils literal notranslate"><span class="pre">localhost</span></code> the Jupyter service (disabled by default).</p>
 <ul class="simple">
 <li><p><strong>Important</strong>: <code class="docutils literal notranslate"><span class="pre">nginx-ingress-controller</span></code> is disabled by default because third party providers should provide its own Ingress controller. To use it locally you need to activate it too.</p></li>
 </ul>
 </section>
-<section id="terraform-deploy-all-the-infrastructure-in-your-favourite-cloud-provider">
-<span id="terraform-deployment"></span><h2>Terraform: deploy all the infrastructure in your favourite cloud provider<a class="headerlink" href="#terraform-deploy-all-the-infrastructure-in-your-favourite-cloud-provider" title="Permalink to this heading">¶</a></h2>
-<p>This approach is very useful when you don’t have anything where to deploy the infrastructure so let’s go step by step.</p>
+<section id="terraform-deploy-all-the-infrastructure-in-your-preferred-cloud-provider">
+<span id="terraform-deployment"></span><h2>Terraform: Deploy all the infrastructure in your preferred cloud provider<a class="headerlink" href="#terraform-deploy-all-the-infrastructure-in-your-preferred-cloud-provider" title="Permalink to this heading">¶</a></h2>
+<p>This approach is useful if you have a cloud provider account and also need to set up a cluster.</p>
 <dl class="simple">
-<dt>Before anything the first thing that you should do is to create an account in your favourite cloud provider:</dt><dd><ul class="simple">
+<dt>First, create an account with some cloud provider:</dt><dd><ul class="simple">
 <li><p><a class="reference external" href="https://cloud.ibm.com/registration">IBM Cloud registration process</a></p></li>
 <li><p><a class="reference external" href="https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account/">AWS registration process</a></p></li>
-<li><p>Azure is not supported in this process by now but we have plans to include it soon.</p></li>
+<li><p>Azure will be supported in a future release.</p></li>
 </ul>
 </dd>
-<dt>Once time you have created an account, you will need to configure an API key/Access key to access from your terminal to your selected provider account:</dt><dd><ul class="simple">
+<dt>Once you have created an account, you will need to configure an API key/access key:</dt><dd><ul class="simple">
 <li><p><a class="reference external" href="https://cloud.ibm.com/docs/account?topic=account-userapikey&amp;interface=ui#create_user_key">IBM Cloud API key creation</a></p></li>
 <li><p><a class="reference external" href="https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html#access-keys-about">AWS Access key creation</a></p></li>
 </ul>
 </dd>
-<dt>And as last setup step install the provider’s CLI:</dt><dd><ul class="simple">
+<dt>Finally, install the provider’s CLI:</dt><dd><ul class="simple">
 <li><p><a class="reference external" href="https://cloud.ibm.com/docs/cli?topic=cli-getting-started">IBM Cloud CLI</a></p></li>
 <li><p><a class="reference external" href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">AWS CLI</a></p></li>
 </ul>
 </dd>
 </dl>
-<p>Now you have all the configuration needed from your cloud provider. The next step will be configure the terraform to
-deploy the infrastructure where you want.</p>
-<p>For that, depending of the provider, you need apply different configurations:</p>
-<p><strong>For IBM Cloud</strong> is the easiest one. Just go to <code class="docutils literal notranslate"><span class="pre">./infrastructure/terraform/ibm</span></code> and create the file <code class="docutils literal notranslate"><span class="pre">terraform.tfvars</span></code>
-with the next content:</p>
+<p>Now that your cloud provider is configured, you may configure <code class="docutils literal notranslate"><span class="pre">terraform</span></code> to
+deploy the infrastructure where you want. Depending on the provider, you need to
+apply different configurations:</p>
+<p>The easiest option is to use <strong>IBM Cloud</strong>. Just go to <code class="docutils literal notranslate"><span class="pre">./infrastructure/terraform/ibm</span></code> and create the file <code class="docutils literal notranslate"><span class="pre">terraform.tfvars</span></code>
+with the following contents:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ibmcloud_api_key</span> <span class="o">=</span> <span class="s2">&quot;YOUR_API_KEY&quot;</span>
 <span class="n">ibm_region</span> <span class="o">=</span> <span class="s2">&quot;YOUR_REGION&quot;</span>
 <span class="n">resource_group</span> <span class="o">=</span> <span class="s2">&quot;YOUR_RESOURCE_GROUP&quot;</span>
 </pre></div>
 </div>
 <ul class="simple">
-<li><p><strong>Note</strong>: check in the next links to know the <a class="reference external" href="https://cloud.ibm.com/docs/openwhisk?topic=openwhisk-cloudfunctions_regions">region</a> and the <a class="reference external" href="https://cloud.ibm.com/docs/account?topic=account-rgs&amp;interface=cli">resource group</a> that your account have configured.</p></li>
+<li><p>Note the <a class="reference external" href="https://cloud.ibm.com/docs/openwhisk?topic=openwhisk-cloudfunctions_regions">region</a> and the <a class="reference external" href="https://cloud.ibm.com/docs/account?topic=account-rgs&amp;interface=cli">resource group</a> associated with your account.</p></li>
 </ul>
-<p><strong>In AWS</strong> case instead to create a file you will need to configure a set of environment variables in your terminal as it
-is defined <a class="reference external" href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set">here</a>.</p>
-<p>To confirm the configuration just run terraform:</p>
+<p>To use <strong>AWS</strong>, configure environment variables, depending on your system, in accordance with the instructions <a class="reference external" href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set">here</a>.</p>
+<p>To confirm the configuration just run <code class="docutils literal notranslate"><span class="pre">terraform</span> <span class="pre">plan</span></code>:</p>
 <div class="literal-block-wrapper docutils container" id="id8">
 <div class="code-block-caption"><span class="caption-number">Listing 18 </span><span class="caption-text">always run a plan before an apply, this will compare your current configuration with the new one</span><a class="headerlink" href="#id8" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    $ terraform plan
 </pre></div>
 </div>
 </div>
-<p>And as final step:</p>
+<p>Finally, deploy the plan to your account:</p>
 <div class="literal-block-wrapper docutils container" id="id9">
-<div class="code-block-caption"><span class="caption-number">Listing 19 </span><span class="caption-text">this command will deploy the plan in your account</span><a class="headerlink" href="#id9" title="Permalink to this code">¶</a></div>
+<div class="code-block-caption"><span class="caption-number">Listing 19 </span><span class="caption-text">deploy the plan to your account</span><a class="headerlink" href="#id9" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    $ terraform apply
 </pre></div>
 </div>
 </div>
 <dl class="simple">
-<dt>When the process finishes you should be able to see the cluster with the resources in your provider information:</dt><dd><ul class="simple">
+<dt>When the process finishes, you should be able to see the cluster with the resources in your provider information:</dt><dd><ul class="simple">
 <li><p><a class="reference external" href="https://cloud.ibm.com/docs/containers?topic=containers-access_cluster">IBM Cloud cluster access guide</a></p></li>
 <li><p><a class="reference external" href="https://aws.amazon.com/premiumsupport/knowledge-center/eks-cluster-connection/">AWS cluster connection guide</a></p></li>
 </ul>
 </dd>
 </dl>
-<p>Now that you have a cluster you just will need to run the previous <cite>helm</cite> steps to deploy the different applications.</p>
+<p>Now that you have a cluster you can follow the steps in the <a class="reference internal" href="#helm-deployment"><span class="std std-ref">Helm: Use your own cluster locally or in the cloud</span></a> section for using helm to deploy the different applications.</p>
 <p>For IBM Cloud in particular we provided you with a specific values with a default configuration in <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values-ibm.yaml">values-ibm.yaml</a></p>
 <dl class="simple">
 <dt>The only thing that you will need to check in this case are some placeholders:</dt><dd><ul class="simple">
@@ -251,10 +248,9 @@ is defined <a class="reference external" href="https://docs.aws.amazon.com/cli/l
 </section>
 <section id="quantum-serverless-configuration">
 <h2>Quantum Serverless configuration<a class="headerlink" href="#quantum-serverless-configuration" title="Permalink to this heading">¶</a></h2>
-<p>Once time you have your resources deployed it reaches the time to configure the <code class="docutils literal notranslate"><span class="pre">Quantum</span> <span class="pre">Serverless</span> <span class="pre">client</span></code> package.
-It is easy to do with constructor arguments.</p>
-<p>Let’s see how to do that.</p>
-<p>First option is to pass configuration to constructor of <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code>:</p>
+<p>Once your resources are deployed, we can configure the Quantum Serverless <code class="docutils literal notranslate"><span class="pre">client</span></code> package.
+There are a couple of simple ways to do this.</p>
+<p>One option is to pass the configuration as arguments to the constructor of a <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> instance:</p>
 <div class="literal-block-wrapper docutils container" id="id10">
 <div class="code-block-caption"><span class="caption-number">Listing 20 </span><span class="caption-text">constructor arguments example</span><a class="headerlink" href="#id10" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">({</span>
@@ -269,8 +265,7 @@ It is easy to do with constructor arguments.</p>
 </pre></div>
 </div>
 </div>
-<p>Other option will be creating an instance from configuration file, which has exactly the same structure as example
-above.</p>
+<p>Another option is to create an instance from a configuration file, which has exactly the same structure as the constructor argument in the above example.</p>
 <div class="literal-block-wrapper docutils container" id="id11">
 <div class="code-block-caption"><span class="caption-number">Listing 21 </span><span class="caption-text">config.json example</span><a class="headerlink" href="#id11" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="p">{</span>
@@ -285,14 +280,14 @@ above.</p>
 </pre></div>
 </div>
 </div>
-<p>Then load this file:</p>
+<p>Instantiate the <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> instance from the configuration file:</p>
 <div class="literal-block-wrapper docutils container" id="id12">
 <div class="code-block-caption"><span class="caption-number">Listing 22 </span><span class="caption-text">verify the name and the path to load the file</span><a class="headerlink" href="#id12" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="o">.</span><span class="n">load_configuration</span><span class="p">(</span><span class="s2">&quot;./config.json&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<p>And use it as follow:</p>
+<p>And use it as follows:</p>
 <div class="literal-block-wrapper docutils container" id="id13">
 <div class="code-block-caption"><span class="caption-number">Listing 23 </span><span class="caption-text">remember to use the same provider name</span><a class="headerlink" href="#id13" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">provider</span><span class="p">(</span><span class="s2">&quot;my_provider&quot;</span><span class="p">):</span>
