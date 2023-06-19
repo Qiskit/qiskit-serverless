@@ -22,7 +22,7 @@ This guide contains:
 Installation requirements
 =========================
 
-To deploy the required infrastructure with ``Quantum Serverless`` you need to have installed three main tools:
+To deploy the infrastructure required for ``Quantum Serverless`` you need to have installed three main tools:
 
 * `Docker <https://www.docker.com/>`_
 * `Helm <https://helm.sh/>`_
