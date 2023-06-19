@@ -115,7 +115,7 @@ and run the next commands:
 
 This will deploy the required components to your cluster.
 
-To connect with the different services, you have some options depending of your environment. The easiest and most consistent
+To connect with the different services, you have some options depending on your environment. The easiest and most consistent
 approach is to use the ``port-forward`` command:
 
 .. code-block::
@@ -149,7 +149,7 @@ configuration example to expose through ``ingress`` in ``localhost`` the Jupyter
 Terraform: Deploy all the infrastructure in your preferred cloud provider
 =========================================================================
 
-This approach is useful if you have a cloud cluster to which you want to deploy the infrastructure.
+This approach is useful if you have a cloud provider account and also need to set up a cluster.
 
 First, create an account with some cloud provider:
     * `IBM Cloud registration process <https://cloud.ibm.com/registration>`_
@@ -199,7 +199,7 @@ When the process finishes, you should be able to see the cluster with the resour
     * `IBM Cloud cluster access guide <https://cloud.ibm.com/docs/containers?topic=containers-access_cluster>`_
     * `AWS cluster connection guide <https://aws.amazon.com/premiumsupport/knowledge-center/eks-cluster-connection/>`_
 
-Now that you have a cluster you just need to run the previous `helm` steps to deploy the different applications.
+Now that you have a cluster you can follow the steps in the :ref:`helm-deployment` section for using helm to deploy the different applications.
 
 For IBM Cloud in particular we provided you with a specific values with a default configuration in `values-ibm.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values-ibm.yaml>`_
 
