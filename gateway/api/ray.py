@@ -31,23 +31,63 @@ def submit_ray_job(job: Job) -> Job:
     Returns:
         submitted job
     """
-    ray_client = JobSubmissionClient(job.compute_resource.host)
-    program = job.program
+    # If setting up the client fails, it kills the pods, which
+    # becomes a vicious circle. So we retry the setup a few times
+    # before throwing an exception.
+    success = False
+    runs = 0
+    err_msg = ""
+    while not success:
+        runs += 1
+        if runs > settings.RAY_SETUP_MAX_RETRIES:
+            logging.error("Unable to set up ray client")
+            raise ConnectionError(err_msg)
+        logging.debug("Client setup attempt %d", runs)
+        try:
+            ray_client = JobSubmissionClient(job.compute_resource.host)
+            logging.debug("Ray JobClientSubmission setup succeeded")
+            success = True
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            logging.debug("Ray JobClientSubmission setup failed, retrying")
+            err_msg = str(err)
+            time.sleep(1)
 
+    program = job.program
     _, dependencies = try_json_loads(program.dependencies)
     with tarfile.open(program.artifact.path) as file:
         extract_folder = os.path.join(settings.MEDIA_ROOT, "tmp", str(uuid.uuid4()))
         file.extractall(extract_folder)
 
     entrypoint = f"python {program.entrypoint}"
-    ray_job_id = ray_client.submit_job(
-        entrypoint=entrypoint,
-        runtime_env={
-            "working_dir": extract_folder,
-            "env_vars": json.loads(job.env_vars),
-            "pip": dependencies or [],
-        },
-    )
+
+    # If submitting the job fails, it kills the pods, which
+    # becomes a vicious circle. So we retry the submission a
+    # few times before throwing an exception.
+    success = False
+    runs = 0
+    err_msg = None
+    while not success:
+        runs += 1
+        if runs > settings.RAY_SETUP_MAX_RETRIES:
+            logging.error("Unable to submit ray job")
+            raise ConnectionError(err_msg)
+        logging.debug("Job submission attempt %d", runs)
+        try:
+            ray_job_id = ray_client.submit_job(
+                entrypoint=entrypoint,
+                runtime_env={
+                    "working_dir": extract_folder,
+                    "env_vars": json.loads(job.env_vars),
+                    "pip": dependencies or [],
+                },
+            )
+            logging.debug("Submitting ray job succeeded")
+            success = True
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            logging.debug("Ray job submission failed, retrying")
+            err_msg = str(err)
+            time.sleep(1)
+
     job.ray_job_id = ray_job_id
     job.status = Job.PENDING
     job.save()
@@ -77,7 +117,10 @@ def create_ray_cluster(
     cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
     if not cluster_data:
         cluster = get_template("rayclustertemplate.yaml")
-        cluster_data = yaml.safe_load(cluster.render({"cluster_name": cluster_name}))
+        manifest = cluster.render(
+            {"cluster_name": cluster_name, "user_id": user.username}
+        )
+        cluster_data = yaml.safe_load(manifest)
 
     config.load_incluster_config()
     k8s_client = client.api_client.ApiClient()

@@ -11,13 +11,13 @@ RUN apt-get -y update \
     &&  apt-get -y install gcc python3-dev
 
 USER 0
-COPY gateway .
-RUN chown -R 1001:0 /usr/src/app
-RUN mkdir /usr/src/app/media && chown 1001:0 /usr/src/app/media
-
+COPY gateway/requirements.txt .
 RUN pip install -r requirements.txt
+COPY gateway .
+RUN chown -R 1000:100 /usr/src/app
+RUN mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
 
-USER 1001
+USER 1000:100
 
 RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh
 RUN chmod +x /usr/src/app/entrypoint.sh
