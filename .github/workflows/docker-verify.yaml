@@ -7,13 +7,17 @@ env:
   HADOLINT_VERSION: v2.12.0
   HADOLINT_DOCKER_IMAGE: hadolint/hadolint:$HADOLINT_VERSION
 
+defaults:
+  run:
+    working-directory: ./infrastructure/docker
+
 jobs:
   gateway-lint:
     name: gateway lint
     runs-on: ubuntu-latest
 
     env:
-      DOCKER_FILE: ./infrastructure/docker/Dockerfile-gateway
+      DOCKER_FILE: Dockerfile-gateway
 
     steps:
       - uses: actions/checkout@v3
@@ -24,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DOCKER_FILE: ./infrastructure/docker/Dockerfile-notebook
+      DOCKER_FILE: Dockerfile-notebook
 
     steps:
       - uses: actions/checkout@v3
@@ -35,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DOCKER_FILE: ./infrastructure/docker/Dockerfile-ray-qiskit
+      DOCKER_FILE: Dockerfile-ray-qiskit
 
     steps:
       - uses: actions/checkout@v3
@@ -46,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DOCKER_FILE: ./infrastructure/docker/Dockerfile-repository-server
+      DOCKER_FILE: Dockerfile-repository-server
 
     steps:
       - uses: actions/checkout@v3
