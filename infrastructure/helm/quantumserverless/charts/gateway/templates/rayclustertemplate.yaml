@@ -119,11 +119,11 @@ data:
                 claimName: gateway-claim
       workerGroupSpecs:
       - groupName: smallWorkerGroup
-        maxReplicas: 4
-        minReplicas: 1
+        maxReplicas: {{ .Values.application.ray.maxReplicas }}
+        minReplicas: {{ .Values.application.ray.minReplicas }}
         rayStartParams:
           block: 'true'
-        replicas: 1
+        replicas: {{ .Values.application.ray.replicas }}
         template:
           spec:
             initContainers:
