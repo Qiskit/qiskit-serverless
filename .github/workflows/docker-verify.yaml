@@ -11,47 +11,18 @@ defaults:
     working-directory: ./infrastructure/docker
 
 jobs:
-  gateway-lint:
-    name: gateway lint
+  lint:
+    strategy:
+      matrix:
+        dockerfile:
+          [
+            Dockerfile-gateway,
+            Dockerfile-notebook,
+            Dockerfile-ray-qiskit,
+            Dockerfile-repository-server,
+          ]
     runs-on: ubuntu-latest
-
-    env:
-      DOCKER_FILE: Dockerfile-gateway
-
     steps:
       - uses: actions/checkout@v3
-      - name: Run lint on gateway's Dockerfile
-        run: docker run --name hadolint --rm --interactive ${{env.HADOLINT_DOCKER_IMAGE}} < ${{env.DOCKER_FILE}}
-  notebook-lint:
-    name: notebook lint
-    runs-on: ubuntu-latest
-
-    env:
-      DOCKER_FILE: Dockerfile-notebook
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run lint on notebook's Dockerfile
-        run: docker run --name hadolint --rm --interactive ${{env.HADOLINT_DOCKER_IMAGE}} < ${{env.DOCKER_FILE}}
-  ray-lint:
-    name: ray lint
-    runs-on: ubuntu-latest
-
-    env:
-      DOCKER_FILE: Dockerfile-ray-qiskit
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run lint on ray's Dockerfile
-        run: docker run --name hadolint --rm --interactive ${{env.HADOLINT_DOCKER_IMAGE}} < ${{env.DOCKER_FILE}}
-  repository-lint:
-    name: repository lint
-    runs-on: ubuntu-latest
-
-    env:
-      DOCKER_FILE: Dockerfile-repository-server
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run lint on repository's Dockerfile
-        run: docker run --name hadolint --rm --interactive ${{env.HADOLINT_DOCKER_IMAGE}} < ${{env.DOCKER_FILE}}
+      - name: Run hadolint in ${{ matrix.dockerfile }}
+        run: docker run --name hadolint --rm --interactive ${{ env.HADOLINT_DOCKER_IMAGE }} < ${{ matrix.dockerfile }}
