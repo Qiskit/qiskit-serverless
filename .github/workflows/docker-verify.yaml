@@ -1,0 +1,54 @@
+name: Docker verify process
+
+on:
+  pull_request:
+
+env:
+  HADOLINT_VERSION: v2.12.0
+  HADOLINT_DOCKER_IMAGE: hadolint/hadolint:$HADOLINT_VERSION
+
+jobs:
+  gateway-lint:
+    name: gateway lint
+    runs-on: ubuntu-latest
+
+    env:
+      DOCKER_FILE: ./infrastructure/docker/Dockerfile-gateway
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run lint on gateway's Dockerfile
+        run: docker run --name hadolint --rm --interactive $HADOLINT_DOCKER_IMAGE < $DOCKER_FILE
+  notebook-lint:
+    name: notebook lint
+    runs-on: ubuntu-latest
+
+    env:
+      DOCKER_FILE: ./infrastructure/docker/Dockerfile-notebook
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run lint on notebook's Dockerfile
+        run: docker run --name hadolint --rm --interactive $HADOLINT_DOCKER_IMAGE < $DOCKER_FILE
+  ray-lint:
+    name: ray lint
+    runs-on: ubuntu-latest
+
+    env:
+      DOCKER_FILE: ./infrastructure/docker/Dockerfile-ray-qiskit
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run lint on ray's Dockerfile
+        run: docker run --name hadolint --rm --interactive $HADOLINT_DOCKER_IMAGE < $DOCKER_FILE
+  repository-lint:
+    name: repository lint
+    runs-on: ubuntu-latest
+
+    env:
+      DOCKER_FILE: ./infrastructure/docker/Dockerfile-repository-server
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run lint on repository's Dockerfile
+        run: docker run --name hadolint --rm --interactive $HADOLINT_DOCKER_IMAGE < $DOCKER_FILE
