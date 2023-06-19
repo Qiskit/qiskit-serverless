@@ -5,7 +5,7 @@ on:
 
 env:
   HADOLINT_VERSION: v2.12.0
-  HADOLINT_DOCKER_IMAGE: hadolint/hadolint:$HADOLINT_VERSION
+  HADOLINT_DOCKER_IMAGE: hadolint/hadolint:${{env.HADOLINT_VERSION}}
 
 defaults:
   run:
@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Run lint on gateway's Dockerfile
-        run: docker run --name hadolint --rm --interactive $HADOLINT_DOCKER_IMAGE < $DOCKER_FILE
+        run: docker run --name hadolint --rm --interactive ${{env.HADOLINT_DOCKER_IMAGE}} < ${{env.DOCKER_FILE}}
   notebook-lint:
     name: notebook lint
     runs-on: ubuntu-latest
@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Run lint on notebook's Dockerfile
-        run: docker run --name hadolint --rm --interactive $HADOLINT_DOCKER_IMAGE < $DOCKER_FILE
+        run: docker run --name hadolint --rm --interactive ${{env.HADOLINT_DOCKER_IMAGE}} < ${{env.DOCKER_FILE}}
   ray-lint:
     name: ray lint
     runs-on: ubuntu-latest
@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Run lint on ray's Dockerfile
-        run: docker run --name hadolint --rm --interactive $HADOLINT_DOCKER_IMAGE < $DOCKER_FILE
+        run: docker run --name hadolint --rm --interactive ${{env.HADOLINT_DOCKER_IMAGE}} < ${{env.DOCKER_FILE}}
   repository-lint:
     name: repository lint
     runs-on: ubuntu-latest
@@ -55,4 +55,4 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Run lint on repository's Dockerfile
-        run: docker run --name hadolint --rm --interactive $HADOLINT_DOCKER_IMAGE < $DOCKER_FILE
+        run: docker run --name hadolint --rm --interactive ${{env.HADOLINT_DOCKER_IMAGE}} < ${{env.DOCKER_FILE}}
