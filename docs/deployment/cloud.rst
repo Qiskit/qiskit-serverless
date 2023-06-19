@@ -28,7 +28,7 @@ To deploy the infrastructure required for ``Quantum Serverless`` you need to hav
 * `Helm <https://helm.sh/>`_
 * `Terraform <https://www.terraform.io/>`_
 
-Each of these tools' webpages contains instructions for installing on Windows, MacOS, and Linux.
+Each of these tools' webpages contain instructions for installing on Windows, MacOS, and Linux.
 
 * **Important**: before you download the above packages, check the `versions listed in our Github <https://github.com/Qiskit-Extensions/quantum-serverless/tree/main/infrastructure#tools>`_ of each tool to ensure that you download a compatible version.
 
