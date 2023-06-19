@@ -4,8 +4,7 @@ on:
   pull_request:
 
 env:
-  HADOLINT_VERSION: v2.12.0
-  HADOLINT_DOCKER_IMAGE: hadolint/hadolint:${{env.HADOLINT_VERSION}}
+  HADOLINT_DOCKER_IMAGE: hadolint/hadolint:v2.12.0
 
 defaults:
   run:
