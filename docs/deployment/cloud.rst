@@ -181,7 +181,7 @@ with the following contents:
 
 To use **AWS**, configure environment variables, depending on your system, in accordance with the instructions `here <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set>`_.
 
-To confirm the configuration just run ``terraform``:
+To confirm the configuration just run ``terraform plan``:
 
 .. code-block::
     :caption: always run a plan before an apply, this will compare your current configuration with the new one
