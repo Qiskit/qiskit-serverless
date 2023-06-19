@@ -137,7 +137,7 @@ Now that we have the desired pods, we can expose their ports:
 
 Now you may access your cluster services from localhost.
 
-For development this is more than enough, but if you are considering deploying it remotely, you will need to
+For development this is more than enough, but if you are considering deploying it remotely you will need to
 configure the various ``ingress`` properties in `values.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values.yaml>`_
 with the configuration of your domain and provider. In the ``Jupyter configs`` section you have a
 configuration example to expose through ``ingress`` in ``localhost`` the Jupyter service (disabled by default).
