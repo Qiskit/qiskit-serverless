@@ -113,7 +113,7 @@ and run the next commands:
         $ helm dependency build
         $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace .
 
-This will deploy the required infrastructure in your cluster.
+This will deploy the required components to your cluster.
 
 To connect with the different services, you have some options depending of your environment. The easiest and most consistent
 approach is to use the ``port-forward`` command:
