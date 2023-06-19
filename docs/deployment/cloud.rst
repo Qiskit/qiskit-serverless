@@ -77,7 +77,7 @@ Now that you have built the necessary Docker images you can run **docker-compose
 
         $ docker-compose --profile full up
 
-Once the execution of the command has finished, if everything went well, you should be able to open the browser
+Once the execution of the command has finished, if everything went well you should be able to open the browser
 and have access to:
 
 * Jupyter notebook: http://localhost:8888
