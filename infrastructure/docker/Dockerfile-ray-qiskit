@@ -23,9 +23,7 @@ USER $RAY_UID
 RUN apt-get -y update &&\ 
     apt-get install --no-install-recommends -y \ 
     gcc=4:9.3.0-1ubuntu2 \ 
-    build-essential=12.8ubuntu1 \
-    libopenblas-dev=0.3.8+ds-1 \
-    cmake=3.16.3-1ubuntu1
+    build-essential=12.8ubuntu1
 COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 
 WORKDIR /qs
