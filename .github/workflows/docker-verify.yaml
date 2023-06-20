@@ -1,0 +1,30 @@
+name: Docker verify process
+
+on:
+  push:
+    paths:
+      - 'infrastructure/docker/**'
+
+env:
+  HADOLINT_DOCKER_IMAGE: hadolint/hadolint:v2.12.0
+
+defaults:
+  run:
+    working-directory: ./infrastructure/docker
+
+jobs:
+  lint:
+    strategy:
+      matrix:
+        dockerfile:
+          [
+            Dockerfile-gateway,
+            Dockerfile-notebook,
+            Dockerfile-ray-qiskit,
+            Dockerfile-repository-server,
+          ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run hadolint in ${{ matrix.dockerfile }}
+        run: docker run --name hadolint --rm --interactive ${{ env.HADOLINT_DOCKER_IMAGE }} < ${{ matrix.dockerfile }}
