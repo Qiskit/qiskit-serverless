@@ -39,7 +39,7 @@ gateway:
   image:
     repository: "icr.io/quantum-public/quantum-serverless-gateway"
     pullPolicy: IfNotPresent
-    tag: "0.1.2"
+    tag: "0.2.0"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
@@ -57,7 +57,7 @@ gateway:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.1.2-py39"
+      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.2.0-py39"
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
@@ -93,7 +93,7 @@ jupyter:
 
   image:
     repository: "icr.io/quantum-public/quantum-serverless-notebook"
-    tag: "0.1.2-py39"
+    tag: "0.2.0-py39"
     pullPolicy: IfNotPresent
   container:
     port: 8888
@@ -163,7 +163,7 @@ repository:
   fullnameOverride: "repository"
   image:
     pullPolicy: IfNotPresent
-    tag: "0.1.2"
+    tag: "0.2.0"
   application:
     superuser:
       username: "admin"
