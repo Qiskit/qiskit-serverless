@@ -182,3 +182,54 @@ data:
         -CAcreateserial -out /etc/ray/tls/tls.crt \
         -days 365 \
         -sha256 -extfile /etc/ray/tls/cert.conf
+{{- if .Values.useCertManager }}
+  gencert_cert_head.sh: |
+    #!/bin/sh
+    BASE_DIR=$1
+    CLUSTER_NAME=$2
+    IP_ADDRESS=$3
+    NAMESPACE=$4
+
+    kubectl apply -f - <<EOF
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: $CLUSTER_NAME
+    spec:
+      commonName: quantummiddleware.com
+      dnsNames:
+      - $CLUSTER_NAME-svc.$NAMESPACE.svc.cluster.local
+      duration: 2160h0m0s
+      ipAddresses:
+      - $IP_ADDRESS
+      issuerRef:
+        group: cert-manager.io
+        kind: Issuer
+        name: ray-ca-issuer
+      privateKey:
+        algorithm: RSA
+        encoding: PKCS1
+        size: 2048
+      renewBefore: 360h0m0s
+      secretName: $CLUSTER_NAME
+      subject:
+        organizations:
+        - quantummiddleware
+      usages:
+      - server auth
+      - client auth
+    EOF
+
+    status="False"
+    while [ $status = "False" ]
+    do
+        status=$(kubectl get cert $CLUSTER_NAME -o=jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+    done
+
+    echo "Certificate for $CLUSTER_NAME is ready"
+    kubectl get cert $CLUSTER_NAME -o json
+
+    kubectl get secret $CLUSTER_NAME -o=jsonpath='{.data.ca\.crt}' | base64 -d > $BASE_DIR/ca.crt
+    kubectl get secret $CLUSTER_NAME -o=jsonpath='{.data.tls\.crt}' | base64 -d > $BASE_DIR/tls.crt
+    kubectl get secret $CLUSTER_NAME -o=jsonpath='{.data.tls\.key}' | base64 -d > $BASE_DIR/tls.key
+{{- end }}

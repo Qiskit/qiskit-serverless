@@ -68,6 +68,8 @@ For our Ray Charts dependencies we are using the configuration created by the Ra
 
 - For Ray Api Server you can read their [values.yaml](https://github.com/ray-project/kuberay-helm/blob/main/helm-chart/kuberay-apiserver/values.yaml).
 
+TLS is enabled for the gRPC communication among Ray components.  It uses a self-signed certificate by derault.  It can optionally use certificates signed by the cert manager in the environment that has the cert manager installed. The option is `gateway.useCertManager: ture`
+
 **Keycloak**
 
 - The initial user ID and password for both keycload console(adminUser/adminPassword) and Ray dashboard(keycloakUserID/keycloakPassword) can be changed in the values.yaml file. It is good to change them before apply the helm.

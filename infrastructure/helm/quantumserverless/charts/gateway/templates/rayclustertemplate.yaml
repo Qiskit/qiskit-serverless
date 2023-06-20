@@ -1,4 +1,7 @@
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rayclustertemplate
 data:
   rayclustertemplate.yaml: |
     apiVersion: ray.io/v1alpha1
@@ -15,6 +18,21 @@ data:
           spec:
             initContainers:
               # Generate head's private key and certificate before `ray start`.
+{{- if .Values.useCertManager }}
+              - name: ray-head-cert
+                image: rayproject/ray:2.4.0
+                command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_head.sh /tmp/tls {{`{{ cluster_name }}`}} $POD_IP {{ .Release.Namespace }}"]
+                volumeMounts:
+                  - mountPath: /tmp/tls
+                    name: cert-tls
+                  - mountPath: /etc/gen/tls
+                    name: gen-tls-script
+                env:
+                  - name: POD_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
+{{- else }}
               - name: ray-head-tls
                 image: rayproject/ray:2.4.0
                 command: ["/bin/sh", "-c", "cp -R /etc/ca/tls /etc/ray && /etc/gen/tls/gencert_head.sh"]
@@ -31,6 +49,7 @@ data:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
+{{- end }}
             affinity:
             containers:
             - image: {{  .Values.application.ray.nodeImage | quote  }}
@@ -62,6 +81,10 @@ data:
                 readOnly: true
               - mountPath: /etc/ray/tls
                 name: ray-tls
+{{- if .Values.useCertManager }}
+              - mountPath: /tmp/tls
+                name: cert-tls
+{{- end }}
               - mountPath: /data
                 name: user-storage
                 subPath: {{`{{ user_id }}`}}
@@ -70,12 +93,21 @@ data:
                 # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
                 - name: RAY_USE_TLS
                   value: "1"
+{{- if .Values.useCertManager }}
+                - name: RAY_TLS_SERVER_CERT
+                  value: "/tmp/tls/tls.crt"
+                - name: RAY_TLS_SERVER_KEY
+                  value: "/tmp/tls/tls.key"
+                - name: RAY_TLS_CA_CERT
+                  value: "/tmp/tls/ca.crt"
+{{- else }}
                 - name: RAY_TLS_SERVER_CERT
                   value: "/etc/ray/tls/tls.crt"
                 - name: RAY_TLS_SERVER_KEY
                   value: "/etc/ray/tls/tls.key"
                 - name: RAY_TLS_CA_CERT
-                  value: "/etc/ca/tls/ca.crt"                
+                  value: "/etc/ca/tls/ca.crt"
+{{- end }}
             - image: fluent/fluent-bit:1.9.10
               name: ray-head-logs
               resources:
@@ -92,6 +124,10 @@ data:
                 name: fluentbit-config
                 subPath: fluent-bit.conf
             imagePullSecrets: []
+{{- if .Values.useCertManager }}
+            serviceAccountName: ray-cluster-sa
+            serviceAccount: ray-cluster-sa
+{{- end }}
             nodeSelector:
             tolerations: []
             volumes:
@@ -107,6 +143,10 @@ data:
             - name: ray-tls
               emptyDir: {}
             # `gencert_head.sh` is a script to generate head Pod's private key and head's certificate.
+{{- if .Values.useCertManager }}
+            - name: cert-tls
+              emptyDir: {}
+{{- end }}
             - name: gen-tls-script
               configMap:
                 name: tls
@@ -114,6 +154,10 @@ data:
                 items:
                 - key: gencert_head.sh
                   path: gencert_head.sh
+{{- if .Values.useCertManager }}
+                - key: gencert_cert_head.sh
+                  path: gencert_cert_head.sh
+{{- end }}
             - name: user-storage
               persistentVolumeClaim:
                 claimName: gateway-claim
@@ -128,6 +172,22 @@ data:
           spec:
             initContainers:
               # Generate worker's private key and certificate before `ray start`.
+{{- if .Values.useCertManager }}
+            initContainers:
+              - name: ray-worker-cert
+                image: rayproject/ray:2.4.0
+                command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_head.sh /tmp/tls {{`{{ cluster_name }}`}}-worker $POD_IP {{ .Release.Namespace }}"]
+                volumeMounts:
+                  - mountPath: /tmp/tls
+                    name: cert-tls
+                  - mountPath: /etc/gen/tls
+                    name: gen-tls-script
+                env:
+                  - name: POD_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
+{{- else }}
               - name: ray-worker-tls
                 image: rayproject/ray:2.4.0
                 command: ["/bin/sh", "-c", "cp -R /etc/ca/tls /etc/ray && /etc/gen/tls/gencert_worker.sh"]
@@ -144,6 +204,7 @@ data:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
+{{- end }}
             affinity:
             containers:
             - resources:
@@ -162,17 +223,30 @@ data:
                 readOnly: true
               - mountPath: /etc/ray/tls
                 name: ray-tls
+{{- if .Values.useCertManager }}
+              - mountPath: /tmp/tls
+                name: cert-tls
+{{- end }}
               env:
                 # Environment variables for Ray TLS authentication.
                 # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
                 - name: RAY_USE_TLS
                   value: "1"
+{{- if .Values.useCertManager }}
+                - name: RAY_TLS_SERVER_CERT
+                  value: "/tmp/tls/tls.crt"
+                - name: RAY_TLS_SERVER_KEY
+                  value: "/tmp/tls/tls.key"
+                - name: RAY_TLS_CA_CERT
+                  value: "/tmp/tls/ca.crt"
+{{- else }}
                 - name: RAY_TLS_SERVER_CERT
                   value: "/etc/ray/tls/tls.crt"
                 - name: RAY_TLS_SERVER_KEY
                   value: "/etc/ray/tls/tls.key"
                 - name: RAY_TLS_CA_CERT
                   value: "/etc/ca/tls/ca.crt"
+{{- end }}
               image: {{ .Values.application.ray.nodeImage | quote}}
               imagePullPolicy: IfNotPresent
               name: ray-worker
@@ -191,6 +265,10 @@ data:
                 name: user-storage
                 subPath: {{`{{ user_id }}`}}
             imagePullSecrets: []
+{{- if .Values.useCertManager }}
+            serviceAccountName: ray-cluster-sa
+            serviceAccount: ray-cluster-sa
+{{- end }}
             nodeSelector:
             tolerations: []
             volumes:
@@ -201,6 +279,10 @@ data:
                 secretName: ca-tls
             - name: ray-tls
               emptyDir: {}
+{{- if .Values.useCertManager }}
+            - name: cert-tls
+              emptyDir: {}
+{{- end }}
             # `gencert_worker.sh` is a script to generate worker Pod's private key and worker's certificate.
             - name: gen-tls-script
               configMap:
@@ -210,9 +292,10 @@ data:
                 items:
                 - key: gencert_worker.sh
                   path: gencert_worker.sh
+{{- if .Values.useCertManager }}
+                - key: gencert_cert_head.sh
+                  path: gencert_cert_head.sh
+{{- end }}
             - name: user-storage
               persistentVolumeClaim:
                 claimName: gateway-claim
-kind: ConfigMap
-metadata:
-  name: rayclustertemplate
