@@ -33,7 +33,6 @@ Core abstractions
 
     save_result
     distribute_task
-    run_qiskit_remote
     get
     put
     get_refs_by_status
