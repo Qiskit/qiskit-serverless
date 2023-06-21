@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'infrastructure/docker/**'
+      - '.github/scripts/dockerfile-security.rego'
 
 env:
   HADOLINT_DOCKER_IMAGE: hadolint/hadolint:v2.12.0
