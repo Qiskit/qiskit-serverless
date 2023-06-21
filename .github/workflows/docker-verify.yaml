@@ -31,10 +31,10 @@ jobs:
       matrix:
         dockerfile:
           [
-            infrastructure/docker/Dockerfile-gateway,
-            infrastructure/docker/Dockerfile-notebook,
-            infrastructure/docker/Dockerfile-ray-qiskit,
-            infrastructure/docker/Dockerfile-repository-server,
+            Dockerfile-gateway,
+            Dockerfile-notebook,
+            Dockerfile-ray-qiskit,
+            Dockerfile-repository-server,
           ]
     runs-on: ubuntu-latest
     steps:
