@@ -23,7 +23,6 @@ from importlib_metadata import version as metadata_version, PackageNotFoundError
 
 from .core import (
     Provider,
-    run_qiskit_remote,
     distribute_task,
     get,
     put,
