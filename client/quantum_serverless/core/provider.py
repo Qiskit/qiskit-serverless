@@ -325,7 +325,7 @@ class Provider(JsonSerializable):
 
 
 class KuberayProvider(Provider):
-    """Implements CRUD for Kuberay API server."""
+    """(Deprecated) Implements CRUD for Kuberay API server."""
 
     def __init__(
         self,
@@ -337,7 +337,7 @@ class KuberayProvider(Provider):
         compute_resource: Optional[ComputeResource] = None,
         available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
-        """Kuberay provider for serverless computation.
+        """(Deprecated) Kuberay provider for serverless computation.
 
         Example:
             >>> provider = Provider(
@@ -361,6 +361,14 @@ class KuberayProvider(Provider):
             available_compute_resources: available clusters in provider
         """
         super().__init__(name)
+        warnings.warn(
+            "`KuberayProvider` is deprecated "
+            "and will be removed in v0.3. "
+            "Please, consider using `GatewayProvider`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.name = name
         self.host = host
         self.token = token
