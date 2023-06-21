@@ -30,6 +30,7 @@ import logging
 import os.path
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
+import warnings
 
 import ray
 import requests
@@ -321,6 +322,14 @@ class KuberayProvider(Provider):
             available_compute_resources: available clusters in provider
         """
         super().__init__(name)
+        warnings.warn(
+            "`KuberayProvider` is deprecated "
+            "and will be removed in v0.3. "
+            "Please, consider using `GatewayProvider`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.name = name
         self.host = host
         self.token = token
