@@ -100,18 +100,13 @@ In this step your only requirement is to have a *k8s cluster* available. You hav
     * `Amazon EKS cluster <https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html>`_
     * `Azure AKS cluster <https://learn.microsoft.com/en-us/azure/aks/tutorial-kubernetes-deploy-cluster?tabs=azure-cli>`_
 
-Once your cluster is ready, the installation is relatively straightforward with Helm. You just need to access to your cluster
+Once your cluster is ready, the installation is relatively straightforward with Helm. To install a released version, You just need to access to your cluster
 and run the next commands:
 
 .. code-block::
-   :caption: run these commands from ./infrastructure/helm/quantumserverless directory
+   :caption: run this commands with the release version like 0.2.0 in x.y.z (2 places)
 
-        $ helm repo add bitnami https://charts.bitnami.com/bitnami
-        $ helm repo add kuberay https://ray-project.github.io/kuberay-helm
-        $ helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        $ helm repo add grafana https://grafana.github.io/helm-charts
-        $ helm dependency build
-        $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace .
+        $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/quantum-serverless-x.y.z.tgz
 
 This will deploy the required components to your cluster.
 
@@ -119,21 +114,21 @@ To connect with the different services, you have some options depending on your 
 approach is to use the ``port-forward`` command:
 
 .. code-block::
-   :caption: get kuberay-head and jupyter pods
+   :caption: get gateway and jupyter pods
 
-        $ kubectl get pod -o wide
+        $ kubectl get service
         $ > ...
-        $ > jupyter-<POD_ID>
-        $ > kuberay-head-<POD_ID>
+        $ > jupyter ClusterIP 10.43.74.253 <none>   80/TCP
+        $ > gateway ClusterIP 10.43.86.146 <none> 8000/TCP
         $ > ...
 
-Now that we have the desired pods, we can expose their ports:
+Now that we have the desired services, we can expose their ports:
 
 .. code-block::
    :caption: ports 8265 and 8888 are the the default ports for each service
 
-        $  kubectl port-forward kuberay-head-<POD_ID> 8265
-        $  kubectl port-forward jupyter-<POD_ID> 8888
+        $  kubectl port-forward service/gateway  3333:8000
+        $  kubectl port-forward jupyter-<POD_ID> 4444:80
 
 Now you may access your cluster services from localhost.
 
