@@ -1,12 +1,12 @@
-from quantum_serverless import QuantumServerless, run_qiskit_remote, get
+from quantum_serverless import QuantumServerless, distribute_task, get
 
 
-@run_qiskit_remote()
+@distribute_task()
 def ultimate():
     return 42
 
 
-with QuantumServerless():
+with QuantumServerless().context():
     result = get([ultimate() for _ in range(10)])
 
 print(result)

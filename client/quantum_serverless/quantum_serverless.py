@@ -27,8 +27,6 @@ Quantum serverless
 """
 import json
 import logging
-import os
-import warnings
 from typing import Optional, Union, List, Dict, Any
 
 import requests
@@ -65,55 +63,10 @@ class QuantumServerless:
 
         self._allocated_context: Optional[Context] = None
 
-    def __enter__(self):
-        warnings.warn(
-            "Calling `with serverless: ...` is deprecated. "
-            "Please, consider using `with serverless.context(): ...`",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._allocated_context = self._selected_provider.context()
-        return self._allocated_context
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._allocated_context:
-            self._allocated_context.disconnect()
-        self._allocated_context = None
-
     @property
     def job_client(self):
         """Job client for given provider."""
         return self._selected_provider.job_client()
-
-    def run_program(
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
-    ) -> Optional[Job]:
-        """(Deprecated) Execute a program as a async job
-
-        Example:
-            >>> serverless = QuantumServerless()
-            >>> program = Program(
-            >>>     "job.py",
-            >>>     dependencies=["requests"]
-            >>> )
-            >>> job = serverless.run_program(program, {"arg1": 1})
-            >>> # <Job | ...>
-
-        Args:
-            arguments: arguments to run program with
-            program: Program object
-
-        Returns:
-            Job
-        """
-        warnings.warn(
-            "`run_program` is deprecated. Please, consider using `run` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if program.arguments is not None:
-            arguments = program.arguments
-        return self._selected_provider.run_program(program, arguments)
 
     def run(
         self, program: Program, arguments: Optional[Dict[str, Any]] = None
@@ -136,8 +89,6 @@ class QuantumServerless:
         Returns:
             Job
         """
-        if program.arguments is not None:
-            arguments = program.arguments
         return self._selected_provider.run(program, arguments)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
@@ -272,60 +223,6 @@ class QuantumServerless:
     def __repr__(self):
         providers = ", ".join(provider.name for provider in self.providers())
         return f"<QuantumServerless | providers [{providers}]>"
-
-
-def load_config(config: Optional[Dict[str, Any]] = None) -> List[Provider]:
-    """Loads providers from configuration."""
-    local_provider = Provider(
-        name="local",
-        compute_resource=ComputeResource(name="local"),
-        available_compute_resources=[ComputeResource(name="local")],
-    )
-    providers = [local_provider]
-
-    if config is not None:
-        for provider_config in config.get("providers", []):
-            compute_resource = None
-            if provider_config.get("compute_resource"):
-                compute_resource = ComputeResource(
-                    **provider_config.get("compute_resource")
-                )
-            # support compute_resource definition
-            if provider_config.get("cluster"):
-                warnings.warn(
-                    "Clusters has been deprecated in favor of compute resources."
-                    "Use `compute_resource` instead of `compute_resource`.",
-                    DeprecationWarning,
-                )
-                compute_resource = ComputeResource(
-                    **provider_config.get("compute_resource")
-                )
-
-            available_compute_resources = []
-            if provider_config.get("available_compute_resources"):
-                for resource_json in provider_config.get("available_compute_resources"):
-                    available_compute_resources.append(ComputeResource(**resource_json))
-            providers.append(
-                Provider(
-                    **{
-                        **provider_config,
-                        **{
-                            "compute_resource": compute_resource,
-                            "available_compute_resources": available_compute_resources,
-                        },
-                    }
-                )
-            )
-
-    if os.environ.get("QS_CLUSTER_MANAGER_ADDRESS", None):
-        auto_discovered_provider = get_auto_discovered_provider(
-            manager_address=os.environ.get("QS_CLUSTER_MANAGER_ADDRESS"),
-            token=os.environ.get("QS_CLUSTER_MANAGER_TOKEN"),
-        )
-        if auto_discovered_provider is not None:
-            providers.append(auto_discovered_provider)
-
-    return providers
 
 
 def get_auto_discovered_provider(
