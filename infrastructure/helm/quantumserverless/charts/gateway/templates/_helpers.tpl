@@ -41,12 +41,25 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
+{{- define "scheduler.labels" -}}
+helm.sh/chart: {{ include "gateway.chart" . }}
+{{ include "scheduler.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
 
 {{/*
 Selector labels
 */}}
 {{- define "gateway.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "gateway.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+gateway: "true"
+{{- end }}
+{{- define "scheduler.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "gateway.name" . }}-scheduler
 app.kubernetes.io/instance: {{ .Release.Name }}
 gateway: "true"
 {{- end }}

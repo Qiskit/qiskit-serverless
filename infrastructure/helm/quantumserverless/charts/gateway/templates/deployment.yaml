@@ -122,14 +122,14 @@ kind: Deployment
 metadata:
   name: scheduler
   labels:
-    {{- include "gateway.labels" . | nindent 4 }}-scheduler
+    {{- include "scheduler.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: 1
   {{- end }}
   selector:
     matchLabels:
-      {{- include "gateway.selectorLabels" . | nindent 6 }}
+      {{- include "scheduler.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -137,7 +137,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "gateway.selectorLabels" . | nindent 8 }}
+        {{- include "scheduler.selectorLabels" . | nindent 8 }}
     spec:
       volumes:
         - name: gateway-pv-storage
