@@ -33,7 +33,6 @@ Core abstractions
 
     save_result
     distribute_task
-    run_qiskit_remote
     get
     put
     get_refs_by_status
@@ -64,7 +63,6 @@ from .decorators import (
     remote,
     get,
     put,
-    run_qiskit_remote,
     get_refs_by_status,
     distribute_task,
 )

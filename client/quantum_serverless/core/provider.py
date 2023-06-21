@@ -30,7 +30,6 @@ import logging
 import os.path
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
-import warnings
 
 import ray
 import requests
@@ -252,45 +251,6 @@ class Provider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run_program(
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
-    ) -> Job:
-        """(Deprecated) Execute a program as a async job.
-
-        Example:
-            >>> serverless = QuantumServerless()
-            >>> program = Program(
-            >>>     "job.py",
-            >>>     arguments={"arg1": "val1"},
-            >>>     dependencies=["requests"]
-            >>> )
-            >>> job = serverless.run_program(program)
-            >>> # <Job | ...>
-
-        Args:
-            arguments: arguments to run program with
-            program: Program object
-
-        Returns:
-            Job
-        """
-        warnings.warn(
-            "`run_program` is deprecated. Please, consider using `run` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        job_client = self.job_client()
-
-        if job_client is None:
-            logging.warning(  # pylint: disable=logging-fstring-interpolation
-                f"Job has not been submitted as no provider "
-                f"with remote host has been configured. "
-                f"Selected provider: {self}"
-            )
-            return None
-
-        return job_client.run_program(program, arguments)
-
     def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
         """Execute a program as a async job.
 
@@ -325,7 +285,7 @@ class Provider(JsonSerializable):
 
 
 class KuberayProvider(Provider):
-    """Implements CRUD for Kuberay API server."""
+    """(Deprecated) Implements CRUD for Kuberay API server."""
 
     def __init__(
         self,
@@ -337,7 +297,7 @@ class KuberayProvider(Provider):
         compute_resource: Optional[ComputeResource] = None,
         available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
-        """Kuberay provider for serverless computation.
+        """(Deprecated) Kuberay provider for serverless computation.
 
         Example:
             >>> provider = Provider(
@@ -361,6 +321,14 @@ class KuberayProvider(Provider):
             available_compute_resources: available clusters in provider
         """
         super().__init__(name)
+        warnings.warn(
+            "`KuberayProvider` is deprecated "
+            "and will be removed in v0.3. "
+            "Please, consider using `GatewayProvider`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.name = name
         self.host = host
         self.token = token
@@ -571,16 +539,6 @@ class GatewayProvider(Provider):
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self._job_client.get(job_id)
-
-    def run_program(
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
-    ) -> Job:
-        warnings.warn(
-            "`run_program` is deprecated. Please, consider using `run` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._job_client.run_program(program, arguments)
 
     def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
         return self._job_client.run(program, arguments)
