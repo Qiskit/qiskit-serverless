@@ -67,8 +67,6 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
 
 <span class="kn">import</span> <span class="nn">requests</span>
@@ -106,55 +104,10 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_allocated_context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Context</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
 
-    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;Calling `with serverless: ...` is deprecated. &quot;</span>
-            <span class="s2">&quot;Please, consider using `with serverless.context(): ...`&quot;</span><span class="p">,</span>
-            <span class="ne">DeprecationWarning</span><span class="p">,</span>
-            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_allocated_context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selected_provider</span><span class="o">.</span><span class="n">context</span><span class="p">()</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_allocated_context</span>
-
-    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_allocated_context</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_allocated_context</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_allocated_context</span> <span class="o">=</span> <span class="kc">None</span>
-
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">job_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Job client for given provider.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selected_provider</span><span class="o">.</span><span class="n">job_client</span><span class="p">()</span>
-
-    <span class="k">def</span> <span class="nf">run_program</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">Program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;(Deprecated) Execute a program as a async job</span>
-
-<span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; serverless = QuantumServerless()</span>
-<span class="sd">            &gt;&gt;&gt; program = Program(</span>
-<span class="sd">            &gt;&gt;&gt;     &quot;job.py&quot;,</span>
-<span class="sd">            &gt;&gt;&gt;     dependencies=[&quot;requests&quot;]</span>
-<span class="sd">            &gt;&gt;&gt; )</span>
-<span class="sd">            &gt;&gt;&gt; job = serverless.run_program(program, {&quot;arg1&quot;: 1})</span>
-<span class="sd">            &gt;&gt;&gt; # &lt;Job | ...&gt;</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            arguments: arguments to run program with</span>
-<span class="sd">            program: Program object</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            Job</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;`run_program` is deprecated. Please, consider using `run` instead.&quot;</span><span class="p">,</span>
-            <span class="ne">DeprecationWarning</span><span class="p">,</span>
-            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">arguments</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">arguments</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">arguments</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selected_provider</span><span class="o">.</span><span class="n">run_program</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">Program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
@@ -177,8 +130,6 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Job</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">arguments</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">arguments</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">arguments</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selected_provider</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_job_by_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
@@ -317,60 +268,6 @@
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">providers</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">provider</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">provider</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">providers</span><span class="p">())</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;QuantumServerless | providers [</span><span class="si">{</span><span class="n">providers</span><span class="si">}</span><span class="s2">]&gt;&quot;</span></div>
-
-
-<span class="k">def</span> <span class="nf">load_config</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Provider</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Loads providers from configuration.&quot;&quot;&quot;</span>
-    <span class="n">local_provider</span> <span class="o">=</span> <span class="n">Provider</span><span class="p">(</span>
-        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;local&quot;</span><span class="p">,</span>
-        <span class="n">compute_resource</span><span class="o">=</span><span class="n">ComputeResource</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;local&quot;</span><span class="p">),</span>
-        <span class="n">available_compute_resources</span><span class="o">=</span><span class="p">[</span><span class="n">ComputeResource</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;local&quot;</span><span class="p">)],</span>
-    <span class="p">)</span>
-    <span class="n">providers</span> <span class="o">=</span> <span class="p">[</span><span class="n">local_provider</span><span class="p">]</span>
-
-    <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">provider_config</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;providers&quot;</span><span class="p">,</span> <span class="p">[]):</span>
-            <span class="n">compute_resource</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="k">if</span> <span class="n">provider_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;compute_resource&quot;</span><span class="p">):</span>
-                <span class="n">compute_resource</span> <span class="o">=</span> <span class="n">ComputeResource</span><span class="p">(</span>
-                    <span class="o">**</span><span class="n">provider_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;compute_resource&quot;</span><span class="p">)</span>
-                <span class="p">)</span>
-            <span class="c1"># support compute_resource definition</span>
-            <span class="k">if</span> <span class="n">provider_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cluster&quot;</span><span class="p">):</span>
-                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                    <span class="s2">&quot;Clusters has been deprecated in favor of compute resources.&quot;</span>
-                    <span class="s2">&quot;Use `compute_resource` instead of `compute_resource`.&quot;</span><span class="p">,</span>
-                    <span class="ne">DeprecationWarning</span><span class="p">,</span>
-                <span class="p">)</span>
-                <span class="n">compute_resource</span> <span class="o">=</span> <span class="n">ComputeResource</span><span class="p">(</span>
-                    <span class="o">**</span><span class="n">provider_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;compute_resource&quot;</span><span class="p">)</span>
-                <span class="p">)</span>
-
-            <span class="n">available_compute_resources</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">if</span> <span class="n">provider_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;available_compute_resources&quot;</span><span class="p">):</span>
-                <span class="k">for</span> <span class="n">resource_json</span> <span class="ow">in</span> <span class="n">provider_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;available_compute_resources&quot;</span><span class="p">):</span>
-                    <span class="n">available_compute_resources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ComputeResource</span><span class="p">(</span><span class="o">**</span><span class="n">resource_json</span><span class="p">))</span>
-            <span class="n">providers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                <span class="n">Provider</span><span class="p">(</span>
-                    <span class="o">**</span><span class="p">{</span>
-                        <span class="o">**</span><span class="n">provider_config</span><span class="p">,</span>
-                        <span class="o">**</span><span class="p">{</span>
-                            <span class="s2">&quot;compute_resource&quot;</span><span class="p">:</span> <span class="n">compute_resource</span><span class="p">,</span>
-                            <span class="s2">&quot;available_compute_resources&quot;</span><span class="p">:</span> <span class="n">available_compute_resources</span><span class="p">,</span>
-                        <span class="p">},</span>
-                    <span class="p">}</span>
-                <span class="p">)</span>
-            <span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;QS_CLUSTER_MANAGER_ADDRESS&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
-        <span class="n">auto_discovered_provider</span> <span class="o">=</span> <span class="n">get_auto_discovered_provider</span><span class="p">(</span>
-            <span class="n">manager_address</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;QS_CLUSTER_MANAGER_ADDRESS&quot;</span><span class="p">),</span>
-            <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;QS_CLUSTER_MANAGER_TOKEN&quot;</span><span class="p">),</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="n">auto_discovered_provider</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">providers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">auto_discovered_provider</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">providers</span>
 
 
 <span class="k">def</span> <span class="nf">get_auto_discovered_provider</span><span class="p">(</span>

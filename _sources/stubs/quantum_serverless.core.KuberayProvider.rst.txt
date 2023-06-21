@@ -24,7 +24,6 @@
       ~KuberayProvider.get_jobs
       ~KuberayProvider.job_client
       ~KuberayProvider.run
-      ~KuberayProvider.run_program
       ~KuberayProvider.to_dict
    
    

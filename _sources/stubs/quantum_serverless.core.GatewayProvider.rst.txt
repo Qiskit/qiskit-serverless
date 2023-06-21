@@ -23,7 +23,6 @@
       ~GatewayProvider.get_jobs
       ~GatewayProvider.job_client
       ~GatewayProvider.run
-      ~GatewayProvider.run_program
       ~GatewayProvider.to_dict
    
    

@@ -23,7 +23,6 @@
       ~Provider.get_jobs
       ~Provider.job_client
       ~Provider.run
-      ~Provider.run_program
       ~Provider.to_dict
    
    
