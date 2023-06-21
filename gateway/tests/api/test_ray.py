@@ -71,9 +71,14 @@ class TestRayUtils(APITestCase):
         DynamicClient.resources = MagicMock()
         mock = mock_delete()
         DynamicClient.resources.get = MagicMock(return_value=mock)
+        client.CoreV1Api = MagicMock()
 
         success = kill_ray_cluster("some_cluster")
         self.assertTrue(success)
-        DynamicClient.resources.get.assert_called_once_with(
+        DynamicClient.resources.get.assert_any_call(
             api_version="v1alpha1", kind="RayCluster"
         )
+        DynamicClient.resources.get.assert_any_call(
+            api_version="v1", kind="Certificate"
+        )
+        client.CoreV1Api.assert_called()

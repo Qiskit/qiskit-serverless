@@ -11,6 +11,7 @@ from typing import Any, Optional
 import yaml
 from kubernetes import client, config
 from kubernetes.dynamic.client import DynamicClient
+from kubernetes.dynamic.exceptions import ResourceNotFoundError
 
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
@@ -193,6 +194,52 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     else:
         logging.error(
             "Something went wrong during ray cluster deletion request: %s",
+            delete_response.text,
+        )
+    try:
+        cert_client = dyn_client.resources.get(api_version="v1", kind="Certificate")
+    except ResourceNotFoundError:
+        return success
+
+    delete_response = cert_client.delete(name=cluster_name, namespace=namespace)
+    if delete_response.status == "Success":
+        success = True
+    else:
+        logging.error(
+            "Something went wrong during ray certification deletion request: %s",
+            delete_response.text,
+        )
+
+    delete_response = cert_client.delete(
+        name=f"{cluster_name}-worker", namespace=namespace
+    )
+    if delete_response.status == "Success":
+        success = True
+    else:
+        logging.error(
+            "Something went wrong during ray certification deletion request: %s",
+            delete_response.text,
+        )
+
+    corev1 = client.CoreV1Api()
+    delete_response = corev1.delete_namespaced_secret(
+        name=cluster_name, namespace=namespace
+    )
+    if delete_response.status == "Success":
+        success = True
+    else:
+        logging.error(
+            "Something went wrong during certification secret deletion request: %s",
+            delete_response.text,
+        )
+    delete_response = corev1.delete_namespaced_secret(
+        name=f"{cluster_name}-worker", namespace=namespace
+    )
+    if delete_response.status == "Success":
+        success = True
+    else:
+        logging.error(
+            "Something went wrong during certification secret deletion request: %s",
             delete_response.text,
         )
     return success

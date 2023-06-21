@@ -2,16 +2,34 @@ ARG IMAGE_PY_VERSION=3.9
 FROM jupyter/base-notebook:python-$IMAGE_PY_VERSION
 
 USER 0
-RUN apt-get -y update && apt-get -y install gcc build-essential libopenblas-dev
+RUN apt-get -y update &&\ 
+    apt-get install --no-install-recommends -y \ 
+    gcc=4:11.2.0-1ubuntu1 \
+    build-essential=12.9ubuntu3 \ 
+    libopenblas-dev=0.3.20+ds-1 &&\
+    apt-get clean &&\
+    rm -rf /var/lib/apt/lists/*
 
+WORKDIR /
 USER $NB_UID
-
 COPY --chown=$NB_UID:$NB_UID ./client ./qs
-RUN cd ./qs && pip install .
-RUN pip install ipywidgets circuit-knitting-toolbox matplotlib pyscf qiskit-ibmq-provider>=0.20.2 qiskit-aer>=0.12.0
-RUN cd ../
+
+WORKDIR /qs
+RUN pip install . --no-cache-dir &&\
+    pip install --no-cache-dir \
+    ipywidgets==8.0.6 \
+    circuit-knitting-toolbox==0.2.0 \
+    matplotlib==3.7.1 \
+    pyscf==2.2.1 \
+    qiskit-ibmq-provider==0.20.2 \
+    qiskit-aer==0.12.0
+
+WORKDIR /
+USER 0
 RUN rm -r ./qs
 
+WORKDIR /home/$NB_USER
+USER $NB_UID
 COPY --chown=$NB_UID:$NB_UID ./docs/running/notebooks/ ./serverless/running/
 COPY --chown=$NB_UID:$NB_UID ./docs/development/examples/ ./serverless/examples/
 COPY --chown=$NB_UID:$NB_UID ./docs/development/guides/ ./serverless/guides/
