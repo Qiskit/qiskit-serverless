@@ -1,9 +1,7 @@
 name: Docker verify process
 
 on:
-  push:
-    paths:
-      - 'infrastructure/docker/**'
+  pull_request:
 
 env:
   HADOLINT_DOCKER_IMAGE: hadolint/hadolint:v2.12.0
