@@ -167,6 +167,7 @@ def wait_for_cluster_ready(cluster_name: str):
             time.sleep(1)
         else:
             logging.warning("Waiting too long for cluster [%s] creation", cluster_name)
+            break
     return url, success
 
 
