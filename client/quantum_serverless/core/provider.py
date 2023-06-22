@@ -28,7 +28,6 @@ Quantum serverless provider
 """
 import logging
 import os.path
-import warnings
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
