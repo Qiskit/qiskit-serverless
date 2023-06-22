@@ -1,5 +1,6 @@
 """Scheduling related functions."""
 import random
+import uuid
 from typing import List
 
 from django.conf import settings
@@ -47,13 +48,14 @@ def execute_job(job: Job) -> Job:
     """
     authors_resource = ComputeResource.objects.filter(owner=job.author).first()
 
+    cluster_name = f"cluster-{job.author.username}-{str(uuid.uuid4())[:8]}"
     if authors_resource:
         job.compute_resource = authors_resource
         job = submit_ray_job(job)
         job.status = Job.PENDING
         job.save()
     else:
-        compute_resource = create_ray_cluster(job.author)
+        compute_resource = create_ray_cluster(job.author, cluster_name=cluster_name)
         if compute_resource:
             # if compute resource was created in time with no problems
             job.compute_resource = compute_resource
@@ -64,7 +66,7 @@ def execute_job(job: Job) -> Job:
         else:
             # if something went wrong
             #   try to kill resource if it was allocated
-            kill_ray_cluster(job.author.username)
+            kill_ray_cluster(cluster_name)
             job.status = Job.FAILED
             job.logs = "Something went wrong during compute resource allocation."
             job.save()
