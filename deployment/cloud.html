@@ -135,16 +135,11 @@ customizable on a local or cloud <strong>k8s cluster</strong>.</p>
 </dl>
 </li>
 </ul>
-<p>Once your cluster is ready, the installation is relatively straightforward with Helm. You just need to access to your cluster
+<p>Once your cluster is ready, the installation is relatively straightforward with Helm. To install a released version, You just need to access to your cluster
 and run the next commands:</p>
 <div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-number">Listing 15 </span><span class="caption-text">run these commands from ./infrastructure/helm/quantumserverless directory</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ helm repo add bitnami https://charts.bitnami.com/bitnami
-     $ helm repo add kuberay https://ray-project.github.io/kuberay-helm
-     $ helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-     $ helm repo add grafana https://grafana.github.io/helm-charts
-     $ helm dependency build
-     $ helm -n &lt;INSERT_YOUR_NAMESPACE&gt; install quantum-serverless --create-namespace .
+<div class="code-block-caption"><span class="caption-number">Listing 15 </span><span class="caption-text">run this commands with the release version like 0.2.0 in x.y.z (2 places)</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ helm -n &lt;INSERT_YOUR_NAMESPACE&gt; install quantum-serverless --create-namespace https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/quantum-serverless-x.y.z.tgz
 </pre></div>
 </div>
 </div>
@@ -152,20 +147,20 @@ and run the next commands:</p>
 <p>To connect with the different services, you have some options depending on your environment. The easiest and most consistent
 approach is to use the <code class="docutils literal notranslate"><span class="pre">port-forward</span></code> command:</p>
 <div class="literal-block-wrapper docutils container" id="id6">
-<div class="code-block-caption"><span class="caption-number">Listing 16 </span><span class="caption-text">get kuberay-head and jupyter pods</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ kubectl get pod -o wide
+<div class="code-block-caption"><span class="caption-number">Listing 16 </span><span class="caption-text">get gateway and jupyter pods</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ kubectl get service
      $ &gt; ...
-     $ &gt; jupyter-&lt;POD_ID&gt;
-     $ &gt; kuberay-head-&lt;POD_ID&gt;
+     $ &gt; jupyter ClusterIP 10.43.74.253 &lt;none&gt;   80/TCP
+     $ &gt; gateway ClusterIP 10.43.86.146 &lt;none&gt; 8000/TCP
      $ &gt; ...
 </pre></div>
 </div>
 </div>
-<p>Now that we have the desired pods, we can expose their ports:</p>
+<p>Now that we have the desired services, we can expose their ports:</p>
 <div class="literal-block-wrapper docutils container" id="id7">
 <div class="code-block-caption"><span class="caption-number">Listing 17 </span><span class="caption-text">ports 8265 and 8888 are the the default ports for each service</span><a class="headerlink" href="#id7" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $  kubectl port-forward kuberay-head-&lt;POD_ID&gt; 8265
-     $  kubectl port-forward jupyter-&lt;POD_ID&gt; 8888
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $  kubectl port-forward service/gateway  3333:8000
+     $  kubectl port-forward jupyter-&lt;POD_ID&gt; 4444:80
 </pre></div>
 </div>
 </div>
