@@ -321,7 +321,7 @@ class KuberayProvider(Provider):
             available_compute_resources: available clusters in provider
         """
         super().__init__(name)
-        warnings.warn(
+        logging.warn(
             "`KuberayProvider` is deprecated "
             "and will be removed in v0.3. "
             "Please, consider using `GatewayProvider`.",
