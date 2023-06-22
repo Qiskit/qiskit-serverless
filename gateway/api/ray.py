@@ -211,9 +211,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
             cluster_name,
         )
     try:
-        cert_client.delete(
-            name=f"{cluster_name}-worker", namespace=namespace
-        )
+        cert_client.delete(name=f"{cluster_name}-worker", namespace=namespace)
         success = True
     except NotFoundError:
         logging.error(
@@ -223,9 +221,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
 
     corev1 = client.CoreV1Api()
     try:
-        corev1.delete_namespaced_secret(
-            name=cluster_name, namespace=namespace
-        )
+        corev1.delete_namespaced_secret(name=cluster_name, namespace=namespace)
         success = True
     except ApiException:
         logging.error(
