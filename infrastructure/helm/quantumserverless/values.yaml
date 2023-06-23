@@ -59,8 +59,8 @@ gateway:
       port: 8000
     ray:
       nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.2.0-py39"
-      opensslImage: rayproject/ray:2.4.0
-      kubectlImage: rayproject/ray:2.4.0
+      opensslImage: finalgene/openssh:9.1
+      kubectlImage: alpine/k8s:1.27.3
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
