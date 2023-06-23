@@ -24,7 +24,7 @@ application:
     replicas: 1
     minReplicas: 1
     maxReplicas: 4
-    opensslImage: finalgene/openssh:9.1
+    opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-3
     kubectlImage: alpine/k8s:1.27.3
   limits:
     maxJobsPerUser: 2
