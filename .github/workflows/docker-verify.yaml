@@ -55,17 +55,17 @@ jobs:
   vscan:
     strategy:
       matrix:
-        image: 
-        [
-          icr.io/quantum-public/quantum-serverless-gateway:latest,
-          icr.io/quantum-public/quantum-serverless-notebook:latest-py38,
-          icr.io/quantum-public/quantum-serverless-notebook:latest-py39,
-          icr.io/quantum-public/quantum-serverless-notebook:latest-py310,
-          icr.io/quantum-public/quantum-serverless-ray-node:latest-py38,
-          icr.io/quantum-public/quantum-serverless-ray-node:latest-py39,
-          icr.io/quantum-public/quantum-serverless-ray-node:latest-py310,
-          icr.io/quantum-public/quantum-repository-server:latest,
-        ]
+        image:
+          [
+            icr.io/quantum-public/quantum-serverless-gateway:latest,
+            icr.io/quantum-public/quantum-serverless-notebook:latest-py38,
+            icr.io/quantum-public/quantum-serverless-notebook:latest-py39,
+            icr.io/quantum-public/quantum-serverless-notebook:latest-py310,
+            icr.io/quantum-public/quantum-serverless-ray-node:latest-py38,
+            icr.io/quantum-public/quantum-serverless-ray-node:latest-py39,
+            icr.io/quantum-public/quantum-serverless-ray-node:latest-py310,
+            icr.io/quantum-public/quantum-repository-server:latest,
+          ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
