@@ -3,9 +3,9 @@ name: Docker verify process
 on:
   push:
     paths:
-      - 'infrastructure/docker/**'
-      - '.github/scripts/dockerfile-security.rego'
-      - '.github/workflows/docker-verify.yaml'
+      - "infrastructure/docker/**"
+      - ".github/scripts/dockerfile-security.rego"
+      - ".github/workflows/docker-verify.yaml"
 
 env:
   HADOLINT_DOCKER_IMAGE: hadolint/hadolint:v2.12.0
@@ -58,14 +58,14 @@ jobs:
       matrix:
         image:
           [
-            icr.io/quantum-public/quantum-serverless-gateway:latest,
-            icr.io/quantum-public/quantum-serverless-notebook:latest-py38,
-            icr.io/quantum-public/quantum-serverless-notebook:latest-py39,
-            icr.io/quantum-public/quantum-serverless-notebook:latest-py310,
-            icr.io/quantum-public/quantum-serverless-ray-node:latest-py38,
-            icr.io/quantum-public/quantum-serverless-ray-node:latest-py39,
-            icr.io/quantum-public/quantum-serverless-ray-node:latest-py310,
-            icr.io/quantum-public/quantum-repository-server:latest,
+            "icr.io/quantum-public/quantum-serverless-gateway:latest",
+            "icr.io/quantum-public/quantum-serverless-notebook:latest-py38",
+            "icr.io/quantum-public/quantum-serverless-notebook:latest-py39",
+            "icr.io/quantum-public/quantum-serverless-notebook:latest-py310",
+            "icr.io/quantum-public/quantum-serverless-ray-node:latest-py38",
+            "icr.io/quantum-public/quantum-serverless-ray-node:latest-py39",
+            "icr.io/quantum-public/quantum-serverless-ray-node:latest-py310",
+            "icr.io/quantum-public/quantum-repository-server:latest",
           ]
     runs-on: ubuntu-latest
     steps:
