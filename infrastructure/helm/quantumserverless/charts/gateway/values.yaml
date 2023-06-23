@@ -60,7 +60,7 @@ podAnnotations: {}
 podSecurityContext: 
   runAsUser: 1000
   runAsGroup: 100
-  fsGroup: 100
+  fsGroup: 1000
 #  fsGroupChangePolicy: "OnRootMismatch"
 
 securityContext: {}
