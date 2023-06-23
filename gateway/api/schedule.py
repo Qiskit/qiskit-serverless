@@ -48,10 +48,17 @@ def execute_job(job: Job) -> Job:
     authors_resource = ComputeResource.objects.filter(owner=job.author).first()
 
     if authors_resource:
-        job.compute_resource = authors_resource
-        job = submit_ray_job(job)
-        job.status = Job.PENDING
-        job.save()
+        try:
+            job.compute_resource = authors_resource
+            job = submit_ray_job(job)
+            job.status = Job.PENDING
+            job.save()
+        except Exception:
+            authors_resource.delete()
+            kill_ray_cluster(cluster_name)
+            job.status = Job.FAILED
+            job.logs = "Something went wrong during compute resource allocation."
+            job.save()
     else:
         compute_resource = create_ray_cluster(job.author)
         if compute_resource:
