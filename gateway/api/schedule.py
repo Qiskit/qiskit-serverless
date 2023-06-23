@@ -50,10 +50,17 @@ def execute_job(job: Job) -> Job:
 
     cluster_name = f"cluster-{job.author.username}-{str(uuid.uuid4())[:8]}"
     if authors_resource:
-        job.compute_resource = authors_resource
-        job = submit_ray_job(job)
-        job.status = Job.PENDING
-        job.save()
+        try:
+            job.compute_resource = authors_resource
+            job = submit_ray_job(job)
+            job.status = Job.PENDING
+            job.save()
+        except Exception:  # pylint: disable=broad-exception-caught
+            kill_ray_cluster(authors_resource.title)
+            authors_resource.delete()
+            job.status = Job.FAILED
+            job.logs = "Something went wrong during compute resource allocation."
+            job.save()
     else:
         compute_resource = create_ray_cluster(job.author, cluster_name=cluster_name)
         if compute_resource:

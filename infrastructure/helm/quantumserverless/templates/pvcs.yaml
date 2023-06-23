@@ -25,7 +25,7 @@ metadata:
     ibm.io/secret-name: {{ .Values.cos.secretName | quote }}
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: {{ .Values.cos.storageSize | quote }}
