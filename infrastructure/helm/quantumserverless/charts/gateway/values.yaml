@@ -24,6 +24,8 @@ application:
     replicas: 1
     minReplicas: 1
     maxReplicas: 4
+    opensslImage: rayproject/ray:2.4.0
+    kubectlImage: rayproject/ray:2.4.0
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
