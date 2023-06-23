@@ -10,8 +10,9 @@ from typing import Any, Optional
 
 import yaml
 from kubernetes import client, config
+from kubernetes.client.exceptions import ApiException
 from kubernetes.dynamic.client import DynamicClient
-from kubernetes.dynamic.exceptions import ResourceNotFoundError
+from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
 
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
@@ -202,45 +203,40 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     except ResourceNotFoundError:
         return success
 
-    delete_response = cert_client.delete(name=cluster_name, namespace=namespace)
-    if delete_response.status == "Success":
+    try:
+        cert_client.delete(name=cluster_name, namespace=namespace)
         success = True
-    else:
+    except NotFoundError:
         logging.error(
             "Something went wrong during ray certification deletion request: %s",
-            delete_response.text,
+            cluster_name,
         )
-
-    delete_response = cert_client.delete(
-        name=f"{cluster_name}-worker", namespace=namespace
-    )
-    if delete_response.status == "Success":
+    try:
+        cert_client.delete(name=f"{cluster_name}-worker", namespace=namespace)
         success = True
-    else:
+    except NotFoundError:
         logging.error(
             "Something went wrong during ray certification deletion request: %s",
-            delete_response.text,
+            f"{cluster_name}-worker",
         )
 
     corev1 = client.CoreV1Api()
-    delete_response = corev1.delete_namespaced_secret(
-        name=cluster_name, namespace=namespace
-    )
-    if delete_response.status == "Success":
+    try:
+        corev1.delete_namespaced_secret(name=cluster_name, namespace=namespace)
         success = True
-    else:
+    except ApiException:
         logging.error(
-            "Something went wrong during certification secret deletion request: %s",
-            delete_response.text,
+            "Something went wrong during ray secret deletion request: %s",
+            cluster_name,
         )
-    delete_response = corev1.delete_namespaced_secret(
-        name=f"{cluster_name}-worker", namespace=namespace
-    )
-    if delete_response.status == "Success":
+    try:
+        corev1.delete_namespaced_secret(
+            name=f"{cluster_name}-worker", namespace=namespace
+        )
         success = True
-    else:
+    except ApiException:
         logging.error(
-            "Something went wrong during certification secret deletion request: %s",
-            delete_response.text,
+            "Something went wrong during ray secret deletion request: %s",
+            f"{cluster_name}-worker",
         )
     return success
