@@ -53,9 +53,9 @@ def execute_job(job: Job) -> Job:
             job = submit_ray_job(job)
             job.status = Job.PENDING
             job.save()
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
+            kill_ray_cluster(authors_resource.title)
             authors_resource.delete()
-            kill_ray_cluster(cluster_name)
             job.status = Job.FAILED
             job.logs = "Something went wrong during compute resource allocation."
             job.save()
