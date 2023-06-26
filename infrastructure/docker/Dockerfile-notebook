@@ -15,6 +15,7 @@ USER $NB_UID
 COPY --chown=$NB_UID:$NB_UID ./client ./qs
 
 WORKDIR /qs
+# TODO: scipy version pinned to 1.10, pyscf depends on. More info in #722
 RUN pip install . --no-cache-dir &&\
     pip install --no-cache-dir \
     ipywidgets==8.0.6 \
