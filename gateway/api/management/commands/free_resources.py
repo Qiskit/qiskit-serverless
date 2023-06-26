@@ -1,9 +1,14 @@
 """Cleanup resources command."""
+import logging
+
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from api.models import ComputeResource, Job
 from api.ray import kill_ray_cluster
+
+
+logger = logging.getLogger("commands")
 
 
 class Command(BaseCommand):
@@ -25,11 +30,9 @@ class Command(BaseCommand):
                 kill_ray_cluster(compute_resource.title)
                 compute_resource.delete()
                 counter += 1
-                self.stdout.write(
+                logger.info(
                     f"Cluster [{compute_resource.title}] "
                     f"is free after usage from [{compute_resource.owner}]"
                 )
 
-        self.stdout.write(
-            self.style.SUCCESS(f"Deallocated {counter} compute resources.")
-        )
+        logger.info(f"Deallocated {counter} compute resources.")
