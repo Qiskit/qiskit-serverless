@@ -29,7 +29,7 @@ COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 WORKDIR /qs
 RUN pip install . --no-cache-dir &&\
     if [ "$TARGETARCH" = "arm64" ] ; \
-        then pip install --no-cache-dir pyscf==2.2.1 scipy==1.10 \
+        then pip install --no-cache-dir pyscf==2.2.1 scipy==1.10 ; \
     fi
 
 WORKDIR /
