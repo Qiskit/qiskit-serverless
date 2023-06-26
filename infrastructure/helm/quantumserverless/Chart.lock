@@ -1,10 +1,10 @@
 dependencies:
 - name: gateway
   repository: ""
-  version: 0.2.0
+  version: 0.2.1
 - name: jupyter
   repository: ""
-  version: 0.2.0
+  version: 0.2.1
 - name: nginx-ingress-controller
   repository: https://charts.bitnami.com/bitnami
   version: 9.7.2
@@ -19,7 +19,7 @@ dependencies:
   version: 13.4.1
 - name: repository
   repository: ""
-  version: 0.2.0
+  version: 0.2.1
 - name: kube-prometheus-stack
   repository: https://prometheus-community.github.io/helm-charts
   version: 45.31.1
