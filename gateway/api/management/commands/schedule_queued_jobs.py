@@ -25,13 +25,14 @@ class Command(BaseCommand):
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         number_of_clusters_running = ComputeResource.objects.count()
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
-        logger.info(f"{free_clusters_slots} free cluster slots.")
+        logger.info("%s free cluster slots.", free_clusters_slots)
 
         if free_clusters_slots < 1:
             # no available resources
             logger.info(
-                f"No clusters available. Resource consumption: "
-                f"{number_of_clusters_running}/{max_ray_clusters_possible}"
+                "No clusters available. Resource consumption: %s / %s",
+                number_of_clusters_running,
+                max_ray_clusters_possible,
             )
         else:
             # we have available resources
@@ -57,8 +58,6 @@ class Command(BaseCommand):
                     job.save()
 
                 job = execute_job(job)
-                logger.info(f"Executing {job}")
+                logger.info("Executing %s", job)
 
-            logger.info(
-                f"{len(jobs)} are scheduled for execution."
-            )
+            logger.info("%s are scheduled for execution.", len(jobs))

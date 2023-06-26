@@ -31,8 +31,9 @@ class Command(BaseCommand):
                 compute_resource.delete()
                 counter += 1
                 logger.info(
-                    f"Cluster [{compute_resource.title}] "
-                    f"is free after usage from [{compute_resource.owner}]"
+                    "Cluster [%s] is free after usage from [%s]",
+                    compute_resource.title,
+                    compute_resource.owner,
                 )
 
-        logger.info(f"Deallocated {counter} compute resources.")
+        logger.info("Deallocated %s compute resources.", counter)

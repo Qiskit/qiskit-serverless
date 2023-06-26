@@ -97,7 +97,7 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "simple": {
-            'format': '%(levelname)s %(asctime)s %(filename)s:%(lineno)s : %(message)s'
+            "format": "%(levelname)s %(asctime)s %(filename)s:%(lineno)s : %(message)s"
         },
     },
     "handlers": {

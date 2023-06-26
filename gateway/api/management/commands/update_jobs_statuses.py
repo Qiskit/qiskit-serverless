@@ -39,7 +39,10 @@ class Command(BaseCommand):
 
                 if ray_job_status != job.status:
                     logger.info(
-                        f"Job [{job.id}] status changed from [{job.status}] to [{ray_job_status}]"
+                        "Job [%s] status changed from [%s] to [%s]",
+                        job.id,
+                        job.status,
+                        ray_job_status,
                     )
                     updated_jobs_counter += 1
                 # cleanup env vars
@@ -49,8 +52,8 @@ class Command(BaseCommand):
                 job.save()
             else:
                 logger.warning(
-                    f"Job [{job.id}] does not have compute resource associated with it."
-                    f"Skipping."
+                    "Job [%s] does not have compute resource associated with it. Skipping.",
+                    job.id,
                 )
 
-        logger.info(f"Updated {updated_jobs_counter} jobs.")
+        logger.info("Updated %s jobs.", updated_jobs_counter)
