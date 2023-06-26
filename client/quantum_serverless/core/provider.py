@@ -492,7 +492,7 @@ class Provider(BaseProvider):
         token: Optional[str] = None,
         verbose: bool = False,
     ):
-        """GatewayProvider.
+        """Provider.
 
         Args:
             name: name of provider

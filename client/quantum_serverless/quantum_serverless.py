@@ -45,7 +45,7 @@ class QuantumServerless:
     """QuantumServerless class."""
 
     def __init__(
-            self, providers: Optional[Union[BaseProvider, List[BaseProvider]]] = None
+        self, providers: Optional[Union[BaseProvider, List[BaseProvider]]] = None
     ):
         """Quantum serverless management class.
 
@@ -183,7 +183,7 @@ class QuantumServerless:
         return self
 
     def set_provider(
-            self, provider: Union[str, int, BaseProvider]
+        self, provider: Union[str, int, BaseProvider]
     ) -> "QuantumServerless":
         """Set provider for default context allocation.
 
