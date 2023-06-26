@@ -104,7 +104,7 @@ Once your cluster is ready, the installation is relatively straightforward with 
 and run the next commands:
 
 .. code-block::
-   :caption: run this commands with the release version like 0.2.0 in x.y.z (2 places)
+   :caption: run this commands with the release version like 0.2.1 in x.y.z (2 places)
 
         $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/quantum-serverless-x.y.z.tgz
 
