@@ -72,6 +72,7 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">tarfile</span>
 <span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span>
 <span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">uuid4</span>
 
@@ -87,8 +88,10 @@
     <span class="n">ENV_JOB_ID_GATEWAY</span><span class="p">,</span>
     <span class="n">ENV_GATEWAY_PROVIDER_VERSION</span><span class="p">,</span>
     <span class="n">GATEWAY_PROVIDER_VERSION_DEFAULT</span><span class="p">,</span>
+    <span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.program</span> <span class="kn">import</span> <span class="n">Program</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless.exception</span> <span class="kn">import</span> <span class="n">QuantumServerlessException</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.serializers.program_serializers</span> <span class="kn">import</span> <span class="n">QiskitObjectsEncoder</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.utils.json</span> <span class="kn">import</span> <span class="n">is_jsonable</span><span class="p">,</span> <span class="n">safe_json_request</span>
 
@@ -213,10 +216,26 @@
         <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs/run/&quot;</span>
         <span class="n">artifact_file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="s2">&quot;artifact.tar&quot;</span><span class="p">)</span>
 
+        <span class="c1"># check if entrypoint exists</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="n">QuantumServerlessException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Entrypoint file [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">] does not exist &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;in [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="si">}</span><span class="s2">] working directory.&quot;</span>
+            <span class="p">)</span>
+
         <span class="k">with</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tar</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">):</span>
                 <span class="n">fpath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
                 <span class="n">tar</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="n">arcname</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="c1"># check file size</span>
+        <span class="n">size_in_mb</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">2</span>
+        <span class="k">if</span> <span class="n">size_in_mb</span> <span class="o">&gt;</span> <span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QuantumServerlessException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Artifact size is </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">size_in_mb</span><span class="p">)</span><span class="si">}</span><span class="s2"> Mb, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;which is greater than </span><span class="si">{</span><span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="si">}</span><span class="s2"> allowed. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Try to reduce size of `working_dir`.&quot;</span>
+            <span class="p">)</span>
 
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
             <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
