@@ -45,15 +45,21 @@ def submit_ray_job(job: Job) -> Job:
     while not success:
         runs += 1
         if runs > settings.RAY_SETUP_MAX_RETRIES:
-            logger.error("Unable to set up ray client")
+            logger.error("Unable to set up ray client [%s]", job.compute_resource)
             raise ConnectionError(err_msg)
         logger.debug("Client setup attempt %d", runs)
         try:
             ray_client = JobSubmissionClient(job.compute_resource.host)
-            logger.debug("Ray JobClientSubmission setup succeeded")
+            logger.debug(
+                "Ray JobClientSubmission setup succeeded for compute resource [%s]",
+                job.compute_resource,
+            )
             success = True
         except Exception as err:  # pylint: disable=broad-exception-caught
-            logger.debug("Ray JobClientSubmission setup failed, retrying")
+            logger.debug(
+                "Ray JobClientSubmission setup failed for [%s], retrying",
+                job.compute_resource,
+            )
             err_msg = str(err)
             time.sleep(1)
 
@@ -74,9 +80,9 @@ def submit_ray_job(job: Job) -> Job:
     while not success:
         runs += 1
         if runs > settings.RAY_SETUP_MAX_RETRIES:
-            logger.error("Unable to submit ray job")
+            logger.error("Unable to submit ray job [%s]", job.id)
             raise ConnectionError(err_msg)
-        logger.debug("Job submission attempt %d", runs)
+        logger.debug("Job [%s] submission attempt %d", job.id, runs)
         try:
             ray_job_id = ray_client.submit_job(
                 entrypoint=entrypoint,
@@ -86,10 +92,10 @@ def submit_ray_job(job: Job) -> Job:
                     "pip": dependencies or [],
                 },
             )
-            logger.debug("Submitting ray job succeeded")
+            logger.debug("Submitting job [%s] to ray cluster succeeded", job.id)
             success = True
         except Exception as err:  # pylint: disable=broad-exception-caught
-            logger.debug("Ray job submission failed, retrying")
+            logger.debug("Ray job [%s] submission failed, retrying", job.id)
             err_msg = str(err)
             time.sleep(1)
 

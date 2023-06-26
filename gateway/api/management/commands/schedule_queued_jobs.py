@@ -43,7 +43,7 @@ class Command(BaseCommand):
                 if settings.RAY_CLUSTER_MODE.get(
                     "local"
                 ) and settings.RAY_CLUSTER_MODE.get("ray_local_host"):
-                    logger.warning("Running in local mode")
+                    logger.info("Running in local mode")
                     compute_resource = ComputeResource.objects.filter(
                         host=settings.RAY_CLUSTER_MODE.get("ray_local_host")
                     ).first()
