@@ -142,7 +142,7 @@ class ComputeResource:
         return f"<ComputeResource: {self.name}>"
 
 
-class Provider(JsonSerializable):
+class BaseProvider(JsonSerializable):
     """Provider."""
 
     def __init__(
@@ -186,7 +186,7 @@ class Provider(JsonSerializable):
 
     @classmethod
     def from_dict(cls, dictionary: dict):
-        return Provider(**dictionary)
+        return BaseProvider(**dictionary)
 
     def job_client(self):
         """Return job client for configured compute resource of provider.
@@ -205,7 +205,7 @@ class Provider(JsonSerializable):
         return self.compute_resource.context(**kwargs)
 
     def __eq__(self, other):
-        if isinstance(other, Provider):
+        if isinstance(other, BaseProvider):
             return self.name == other.name
 
         return False
@@ -285,7 +285,7 @@ class Provider(JsonSerializable):
         return job_client.run(program, arguments)
 
 
-class KuberayProvider(Provider):
+class KuberayProvider(BaseProvider):
     """(Deprecated) Implements CRUD for Kuberay API server."""
 
     def __init__(
@@ -325,7 +325,7 @@ class KuberayProvider(Provider):
         warnings.warn(
             "`KuberayProvider` is deprecated "
             "and will be removed in v0.3. "
-            "Please, consider using `GatewayProvider`.",
+            "Please, consider using `Provider`.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -479,8 +479,8 @@ class KuberayProvider(Provider):
         raise NotImplementedError
 
 
-class GatewayProvider(Provider):
-    """GatewayProvider."""
+class Provider(BaseProvider):
+    """Provider."""
 
     def __init__(
         self,
@@ -492,7 +492,7 @@ class GatewayProvider(Provider):
         token: Optional[str] = None,
         verbose: bool = False,
     ):
-        """GatewayProvider.
+        """Provider.
 
         Args:
             name: name of provider
