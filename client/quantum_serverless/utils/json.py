@@ -74,11 +74,12 @@ def is_jsonable(data, cls: Optional[Type[JSONEncoder]] = None):
         return False
 
 
-def safe_json_request(request: Callable) -> Dict[str, Any]:
+def safe_json_request(request: Callable, verbose: bool = False) -> Dict[str, Any]:
     """Returns parsed json data from request.
 
     Args:
         request: callable for request.
+        verbose: post reason in error message
 
     Example:
         >>> safe_json_request(request=lambda: requests.get("https://ibm.com"))
@@ -92,7 +93,7 @@ def safe_json_request(request: Callable) -> Dict[str, Any]:
     except requests.exceptions.RequestException as request_exception:
         error_message = format_err_msg(
             ErrorCodes.AUTH1001,
-            str(request_exception.args),
+            str(request_exception.args) if verbose else None,
         )
         response = None
 
@@ -103,7 +104,7 @@ def safe_json_request(request: Callable) -> Dict[str, Any]:
         raise QuantumServerlessException(
             format_err_msg(
                 response.status_code,
-                str(response.text),
+                str(response.text) if verbose else None,
             )
         )
 
@@ -113,7 +114,7 @@ def safe_json_request(request: Callable) -> Dict[str, Any]:
     except json.JSONDecodeError as json_error:
         decoding_error_message = format_err_msg(
             ErrorCodes.JSON1001,
-            str(json_error.args),
+            str(json_error.args) if verbose else None,
         )
         json_data = {}
 

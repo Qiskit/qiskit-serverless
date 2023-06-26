@@ -523,6 +523,8 @@ class Provider(BaseProvider):
         self.verbose = verbose
         self.host = host
         self.version = version
+        if token is not None:
+            self._verify_token(token)
         self._token = token
         if token is None:
             self._fetch_token(username, password)
@@ -553,7 +555,22 @@ class Provider(BaseProvider):
                 url=f"{self.host}/dj-rest-auth/keycloak/login/",
                 data={"username": username, "password": password},
                 timeout=REQUESTS_TIMEOUT,
-            )
+            ),
+            verbose=self.verbose,
         )
 
         self._token = response_data.get("access")
+
+    def _verify_token(self, token: str):
+        """Verify token."""
+        try:
+            safe_json_request(
+                request=lambda: requests.get(
+                    url=f"{self.host}/api/v1/programs/",
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                ),
+                verbose=self.verbose,
+            )
+        except QuantumServerlessException as reason:
+            raise QuantumServerlessException("Cannot verify token.") from reason
