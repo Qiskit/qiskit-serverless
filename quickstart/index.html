@@ -144,10 +144,10 @@ on the <a class="reference external" href="https://docs.docker.com/engine/instal
 <p>Step 5: Run the program.</p>
 <div class="literal-block-wrapper docutils container" id="id9">
 <div class="code-block-caption"><span class="caption-number">Listing 9 </span><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id9" title="Permalink to this code">¶</a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">GatewayProvider</span><span class="p">,</span> <span class="n">Program</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">Provider</span><span class="p">,</span> <span class="n">Program</span>
 <span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
 
-<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">GatewayProvider</span><span class="p">(</span>
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">Provider</span><span class="p">(</span>
     <span class="n">username</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="c1"># this username has already been defined in local docker setup and does not need to be changed</span>
     <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password123&quot;</span><span class="p">,</span> <span class="c1"># this password has already been defined in local docker setup and does not need to be changed</span>
     <span class="n">host</span><span class="o">=</span><span class="s2">&quot;http://gateway:8000&quot;</span><span class="p">,</span> <span class="c1"># address of provider</span>

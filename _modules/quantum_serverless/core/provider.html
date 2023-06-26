@@ -182,10 +182,10 @@
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;ComputeResource: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&gt;&quot;</span></div>
 
 
-<div class="viewcode-block" id="Provider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider">[docs]</a><span class="k">class</span> <span class="nc">Provider</span><span class="p">(</span><span class="n">JsonSerializable</span><span class="p">):</span>
+<div class="viewcode-block" id="BaseProvider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.BaseProvider.html#quantum_serverless.core.BaseProvider">[docs]</a><span class="k">class</span> <span class="nc">BaseProvider</span><span class="p">(</span><span class="n">JsonSerializable</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Provider.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="Provider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<div class="viewcode-block" id="BaseProvider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.BaseProvider.html#quantum_serverless.core.BaseProvider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">host</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -226,7 +226,7 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">Provider</span><span class="p">(</span><span class="o">**</span><span class="n">dictionary</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">BaseProvider</span><span class="p">(</span><span class="o">**</span><span class="n">dictionary</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">job_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return job client for configured compute resource of provider.</span>
@@ -245,7 +245,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_resource</span><span class="o">.</span><span class="n">context</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Provider</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">BaseProvider</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">name</span>
 
         <span class="k">return</span> <span class="kc">False</span>
@@ -325,7 +325,7 @@
         <span class="k">return</span> <span class="n">job_client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="KuberayProvider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.KuberayProvider.html#quantum_serverless.core.KuberayProvider">[docs]</a><span class="k">class</span> <span class="nc">KuberayProvider</span><span class="p">(</span><span class="n">Provider</span><span class="p">):</span>
+<div class="viewcode-block" id="KuberayProvider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.KuberayProvider.html#quantum_serverless.core.KuberayProvider">[docs]</a><span class="k">class</span> <span class="nc">KuberayProvider</span><span class="p">(</span><span class="n">BaseProvider</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;(Deprecated) Implements CRUD for Kuberay API server.&quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="KuberayProvider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.KuberayProvider.html#quantum_serverless.core.KuberayProvider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
@@ -365,7 +365,7 @@
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
             <span class="s2">&quot;`KuberayProvider` is deprecated &quot;</span>
             <span class="s2">&quot;and will be removed in v0.3. &quot;</span>
-            <span class="s2">&quot;Please, consider using `GatewayProvider`.&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Please, consider using `Provider`.&quot;</span><span class="p">,</span>
             <span class="ne">DeprecationWarning</span><span class="p">,</span>
             <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
         <span class="p">)</span>
@@ -519,10 +519,10 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 
-<div class="viewcode-block" id="GatewayProvider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.GatewayProvider.html#quantum_serverless.core.GatewayProvider">[docs]</a><span class="k">class</span> <span class="nc">GatewayProvider</span><span class="p">(</span><span class="n">Provider</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;GatewayProvider.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Provider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider">[docs]</a><span class="k">class</span> <span class="nc">Provider</span><span class="p">(</span><span class="n">BaseProvider</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Provider.&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="GatewayProvider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.GatewayProvider.html#quantum_serverless.core.GatewayProvider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<div class="viewcode-block" id="Provider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">host</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -532,7 +532,7 @@
         <span class="n">token</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;GatewayProvider.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Provider.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            name: name of provider</span>

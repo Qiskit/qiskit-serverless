@@ -105,10 +105,10 @@ Step 5: Run the program.
 .. code-block:: python
    :caption: in jupyter notebook
 
-   from quantum_serverless import QuantumServerless, GatewayProvider, Program
+   from quantum_serverless import QuantumServerless, Provider, Program
    from qiskit.circuit.random import random_circuit
 
-   serverless = QuantumServerless(GatewayProvider(
+   serverless = QuantumServerless(Provider(
        username="user", # this username has already been defined in local docker setup and does not need to be changed
        password="password123", # this password has already been defined in local docker setup and does not need to be changed
        host="http://gateway:8000", # address of provider

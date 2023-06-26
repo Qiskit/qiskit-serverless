@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>quantum_serverless.core.KuberayProvider &#8212; Quantum serverless 0.0.0 documentation</title>
+    <title>quantum_serverless.core.BaseProvider &#8212; Quantum serverless 0.0.0 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
@@ -22,8 +22,8 @@
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="quantum_serverless.core.ComputeResource" href="quantum_serverless.core.ComputeResource.html" />
-    <link rel="prev" title="quantum_serverless.core.BaseProvider" href="quantum_serverless.core.BaseProvider.html" />
+    <link rel="next" title="quantum_serverless.core.KuberayProvider" href="quantum_serverless.core.KuberayProvider.html" />
+    <link rel="prev" title="quantum_serverless.core.Provider" href="quantum_serverless.core.Provider.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -40,18 +40,17 @@
 
           <div class="body" role="main">
             
-  <section id="quantum-serverless-core-kuberayprovider">
-<h1>quantum_serverless.core.KuberayProvider<a class="headerlink" href="#quantum-serverless-core-kuberayprovider" title="Permalink to this heading">¶</a></h1>
+  <section id="quantum-serverless-core-baseprovider">
+<h1>quantum_serverless.core.BaseProvider<a class="headerlink" href="#quantum-serverless-core-baseprovider" title="Permalink to this heading">¶</a></h1>
 <dl class="py class">
-<dt class="sig sig-object py" id="quantum_serverless.core.KuberayProvider">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">KuberayProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'icr.io/quantum-public/quantum-serverless-ray-node:latest-py39'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_resource</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">available_compute_resources</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#KuberayProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.KuberayProvider" title="Permalink to this definition">¶</a></dt>
-<dd><p>(Deprecated) Implements CRUD for Kuberay API server.</p>
-<p>(Deprecated) Kuberay provider for serverless computation.</p>
+<dt class="sig sig-object py" id="quantum_serverless.core.BaseProvider">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BaseProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_resource</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">available_compute_resources</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#BaseProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.BaseProvider" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provider.</p>
+<p>Provider for serverless computation.</p>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">provider</span> <span class="o">=</span> <span class="n">Provider</span><span class="p">(</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&lt;NAME&gt;&quot;</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;HOST&gt;&quot;</span><span class="p">,</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;&lt;NAMESPACE&gt;&quot;</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">compute_resource</span><span class="o">=</span><span class="n">ComputeResource</span><span class="p">(</span>
 <span class="gp">&gt;&gt;&gt; </span>       <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&lt;COMPUTE_RESOURCE_NAME&gt;&quot;</span><span class="p">,</span>
@@ -65,8 +64,6 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – name of provider</p></li>
 <li><p><strong>host</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – host of provider a.k.a managers host</p></li>
-<li><p><strong>namespace</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – namespace to deploy provider in</p></li>
-<li><p><strong>image</strong> – container image to use for ray cluster</p></li>
 <li><p><strong>token</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – authentication token for manager</p></li>
 <li><p><strong>compute_resource</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<a class="reference internal" href="quantum_serverless.core.ComputeResource.html#quantum_serverless.core.ComputeResource" title="quantum_serverless.core.provider.ComputeResource"><code class="xref py py-class docutils literal notranslate"><span class="pre">ComputeResource</span></code></a>]) – selected compute_resource from provider</p></li>
 <li><p><strong>available_compute_resources</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<a class="reference internal" href="quantum_serverless.core.ComputeResource.html#quantum_serverless.core.ComputeResource" title="quantum_serverless.core.provider.ComputeResource"><code class="xref py py-class docutils literal notranslate"><span class="pre">ComputeResource</span></code></a>]]) – available clusters in provider</p></li>
@@ -74,14 +71,13 @@
 </dd>
 </dl>
 <dl class="py method">
-<dt class="sig sig-object py" id="quantum_serverless.core.KuberayProvider.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'icr.io/quantum-public/quantum-serverless-ray-node:latest-py39'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_resource</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">available_compute_resources</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#KuberayProvider.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.KuberayProvider.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><p>(Deprecated) Kuberay provider for serverless computation.</p>
+<dt class="sig sig-object py" id="quantum_serverless.core.BaseProvider.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_resource</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">available_compute_resources</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#BaseProvider.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.BaseProvider.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provider for serverless computation.</p>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">provider</span> <span class="o">=</span> <span class="n">Provider</span><span class="p">(</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&lt;NAME&gt;&quot;</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;HOST&gt;&quot;</span><span class="p">,</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;&lt;NAMESPACE&gt;&quot;</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">compute_resource</span><span class="o">=</span><span class="n">ComputeResource</span><span class="p">(</span>
 <span class="gp">&gt;&gt;&gt; </span>       <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&lt;COMPUTE_RESOURCE_NAME&gt;&quot;</span><span class="p">,</span>
@@ -95,8 +91,6 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>name</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – name of provider</p></li>
 <li><p><strong>host</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – host of provider a.k.a managers host</p></li>
-<li><p><strong>namespace</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – namespace to deploy provider in</p></li>
-<li><p><strong>image</strong> – container image to use for ray cluster</p></li>
 <li><p><strong>token</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – authentication token for manager</p></li>
 <li><p><strong>compute_resource</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<a class="reference internal" href="quantum_serverless.core.ComputeResource.html#quantum_serverless.core.ComputeResource" title="quantum_serverless.core.provider.ComputeResource"><code class="xref py py-class docutils literal notranslate"><span class="pre">ComputeResource</span></code></a>]) – selected compute_resource from provider</p></li>
 <li><p><strong>available_compute_resources</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<a class="reference internal" href="quantum_serverless.core.ComputeResource.html#quantum_serverless.core.ComputeResource" title="quantum_serverless.core.provider.ComputeResource"><code class="xref py py-class docutils literal notranslate"><span class="pre">ComputeResource</span></code></a>]]) – available clusters in provider</p></li>
@@ -108,8 +102,8 @@
 <p class="rubric">Methods</p>
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.core.KuberayProvider.__init__" title="quantum_serverless.core.KuberayProvider.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(name[, host, namespace, img, ...])</p></td>
-<td><p>(Deprecated) Kuberay provider for serverless computation.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.core.BaseProvider.__init__" title="quantum_serverless.core.BaseProvider.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(name[, host, token, ...])</p></td>
+<td><p>Provider for serverless computation.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">context</span></code>(**kwargs)</p></td>
 <td><p>Allocated context for selected compute_resource for provider.</p></td>
@@ -120,28 +114,25 @@
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">delete_compute_resource</span></code>(resource)</p></td>
 <td><p>Delete compute resource for provider.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">delete_kuberay_template</span></code>(resource)</p></td>
-<td><p>Delete a KubeRay compute template (helper function.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_dict</span></code>(dictionary)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_dict</span></code>(dictionary)</p></td>
 <td><p>Converts dict to object.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_compute_resources</span></code>()</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_compute_resources</span></code>()</p></td>
 <td><p>Return compute resources for provider.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_job_by_id</span></code>(job_id)</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_job_by_id</span></code>(job_id)</p></td>
 <td><p>Returns job by job id.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_jobs</span></code>(**kwargs)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_jobs</span></code>(**kwargs)</p></td>
 <td><p>Return list of jobs.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job_client</span></code>()</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job_client</span></code>()</p></td>
 <td><p>Return job client for configured compute resource of provider.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments])</p></td>
 <td><p>Execute a program as a async job.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code>()</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code>()</p></td>
 <td><p>Converts class to dict.</p></td>
 </tr>
 </tbody>
@@ -205,8 +196,8 @@
   <li><a href="../index.html">Documentation overview</a><ul>
   <li><a href="../apidocs/index.html">Quantum serverless API References</a><ul>
   <li><a href="../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.core</span></code>)</a><ul>
-      <li>Previous: <a href="quantum_serverless.core.BaseProvider.html" title="previous chapter">quantum_serverless.core.BaseProvider</a></li>
-      <li>Next: <a href="quantum_serverless.core.ComputeResource.html" title="next chapter">quantum_serverless.core.ComputeResource</a></li>
+      <li>Previous: <a href="quantum_serverless.core.Provider.html" title="previous chapter">quantum_serverless.core.Provider</a></li>
+      <li>Next: <a href="quantum_serverless.core.KuberayProvider.html" title="next chapter">quantum_serverless.core.KuberayProvider</a></li>
   </ul></li>
   </ul></li>
   </ul></li>
@@ -242,7 +233,7 @@
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
       
       |
-      <a href="../_sources/stubs/quantum_serverless.core.KuberayProvider.rst.txt"
+      <a href="../_sources/stubs/quantum_serverless.core.BaseProvider.rst.txt"
           rel="nofollow">Page source</a>
     </div>
 
