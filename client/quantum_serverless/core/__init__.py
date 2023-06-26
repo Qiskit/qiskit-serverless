@@ -27,7 +27,7 @@ Core abstractions
     :toctree: ../stubs/
 
     Provider
-    GatewayProvider
+    BaseProvider
     KuberayProvider
     ComputeResource
 
