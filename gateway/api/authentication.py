@@ -11,6 +11,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import authentication
 
 User = get_user_model()
+logger = logging.getLogger("gateway")
 
 
 @dataclass
@@ -27,13 +28,13 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
     try:
         response = request()
     except Exception as request_exception:  # pylint: disable=broad-exception-caught
-        logging.error(request_exception)
+        logger.error(request_exception)
 
     if response is not None and response.ok:
         try:
             result = json.loads(response.text)
         except Exception as json_exception:  # pylint: disable=broad-exception-caught
-            logging.error(json_exception)
+            logger.error(json_exception)
 
     return result
 
