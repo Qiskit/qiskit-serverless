@@ -17,7 +17,7 @@ import os
 from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
 
-from quantum_serverless import QuantumServerless, Program, Provider
+from quantum_serverless import QuantumServerless, Program, BaseProvider
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.state import RedisStateHandler
 from tests.utils import wait_for_job_client, wait_for_job_completion
@@ -46,7 +46,7 @@ def test_state():
 
         assert state_handler.get("some_key") == {"key": "value"}
 
-        provider = Provider(
+        provider = BaseProvider(
             name="test_docker",
             compute_resource=ComputeResource(
                 name="test_docker", host=host, port_job_server=port

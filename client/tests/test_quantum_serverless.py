@@ -17,7 +17,7 @@ from unittest import TestCase
 import ray
 import requests_mock
 
-from quantum_serverless import QuantumServerless, Provider
+from quantum_serverless import QuantumServerless, BaseProvider
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.quantum_serverless import get_auto_discovered_provider
 
@@ -45,7 +45,7 @@ class TestQuantumServerless(TestCase):
         serverless = QuantumServerless()
         self.assertEqual(len(serverless.providers()), 1)
 
-        serverless.add_provider(Provider("my_provider"))
+        serverless.add_provider(BaseProvider("my_provider"))
         self.assertEqual(len(serverless.providers()), 2)
 
     def test_all_context_allocations(self):
@@ -88,13 +88,13 @@ class TestQuantumServerless(TestCase):
 
             self.assertEqual(len(providers), 1)
             for provider in providers:
-                self.assertIsInstance(provider, Provider)
+                self.assertIsInstance(provider, BaseProvider)
 
             provider = get_auto_discovered_provider(manager_address, token="token")
 
-            self.assertIsInstance(provider, Provider)
+            self.assertIsInstance(provider, BaseProvider)
 
-            if isinstance(provider, Provider):
+            if isinstance(provider, BaseProvider):
                 self.assertIsInstance(provider.compute_resource, ComputeResource)
                 self.assertEqual(len(provider.available_compute_resources), 4)
                 for cluster in provider.available_compute_resources:
