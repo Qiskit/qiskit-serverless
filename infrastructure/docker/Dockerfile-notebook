@@ -21,6 +21,7 @@ RUN pip install . --no-cache-dir &&\
     circuit-knitting-toolbox==0.2.0 \
     matplotlib==3.7.1 \
     pyscf==2.2.1 \
+    scipy==1.10 \
     qiskit-ibmq-provider==0.20.2 \
     qiskit-aer==0.12.0
 
