@@ -20,7 +20,7 @@ data:
               # Generate head's private key and certificate before `ray start`.
 {{- if .Values.useCertManager }}
               - name: ray-head-cert
-                image: rayproject/ray:2.4.0
+                image: {{ .Values.application.ray.kubectlImage }}
                 command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_head.sh /tmp/tls {{`{{ cluster_name }}`}} $POD_IP {{ .Release.Namespace }}"]
                 volumeMounts:
                   - mountPath: /tmp/tls
@@ -34,7 +34,7 @@ data:
                         fieldPath: status.podIP
 {{- else }}
               - name: ray-head-tls
-                image: rayproject/ray:2.4.0
+                image: {{ .Values.application.ray.opensslImage }}
                 command: ["/bin/sh", "-c", "cp -R /etc/ca/tls /etc/ray && /etc/gen/tls/gencert_head.sh"]
                 volumeMounts:
                   - mountPath: /etc/ca/tls
@@ -175,7 +175,7 @@ data:
 {{- if .Values.useCertManager }}
             initContainers:
               - name: ray-worker-cert
-                image: rayproject/ray:2.4.0
+                image: {{ .Values.application.ray.kubectlImage }}
                 command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_head.sh /tmp/tls {{`{{ cluster_name }}`}}-worker $POD_IP {{ .Release.Namespace }}"]
                 volumeMounts:
                   - mountPath: /tmp/tls
@@ -189,7 +189,7 @@ data:
                         fieldPath: status.podIP
 {{- else }}
               - name: ray-worker-tls
-                image: rayproject/ray:2.4.0
+                image: {{ .Values.application.ray.opensslImage }}
                 command: ["/bin/sh", "-c", "cp -R /etc/ca/tls /etc/ray && /etc/gen/tls/gencert_worker.sh"]
                 volumeMounts:
                   - mountPath: /etc/ca/tls

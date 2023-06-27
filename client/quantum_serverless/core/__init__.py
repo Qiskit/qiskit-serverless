@@ -27,7 +27,7 @@ Core abstractions
     :toctree: ../stubs/
 
     Provider
-    GatewayProvider
+    BaseProvider
     KuberayProvider
     ComputeResource
 
@@ -58,7 +58,7 @@ State classes
     RedisStateHandler
 """
 
-from .provider import Provider, ComputeResource, KuberayProvider, GatewayProvider
+from .provider import BaseProvider, ComputeResource, KuberayProvider, Provider
 from .decorators import (
     remote,
     get,

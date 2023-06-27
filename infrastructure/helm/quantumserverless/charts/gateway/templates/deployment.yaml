@@ -147,6 +147,8 @@ spec:
           configMap:
             name: rayclustertemplate
       serviceAccountName: {{ include "gateway.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready

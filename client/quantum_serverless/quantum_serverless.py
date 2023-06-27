@@ -34,7 +34,7 @@ from ray._private.worker import BaseContext
 
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
-from quantum_serverless.core.provider import Provider, ComputeResource
+from quantum_serverless.core.provider import BaseProvider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.visualizaiton import Widget
 
@@ -44,7 +44,9 @@ Context = Union[BaseContext]
 class QuantumServerless:
     """QuantumServerless class."""
 
-    def __init__(self, providers: Optional[Union[Provider, List[Provider]]] = None):
+    def __init__(
+        self, providers: Optional[Union[BaseProvider, List[BaseProvider]]] = None
+    ):
         """Quantum serverless management class.
 
         Args:
@@ -55,12 +57,12 @@ class QuantumServerless:
         """
         if providers is None:
             providers = [
-                Provider("local", compute_resource=ComputeResource(name="local"))
+                BaseProvider("local", compute_resource=ComputeResource(name="local"))
             ]
-        elif isinstance(providers, Provider):
+        elif isinstance(providers, BaseProvider):
             providers = [providers]
-        self._providers: List[Provider] = providers
-        self._selected_provider: Provider = self._providers[-1]
+        self._providers: List[BaseProvider] = providers
+        self._selected_provider: BaseProvider = self._providers[-1]
 
         self._allocated_context: Optional[Context] = None
 
@@ -116,7 +118,7 @@ class QuantumServerless:
 
     def context(
         self,
-        provider: Optional[Union[str, Provider]] = None,
+        provider: Optional[Union[str, BaseProvider]] = None,
         **kwargs,
     ):
         """Sets context for allocation
@@ -130,13 +132,13 @@ class QuantumServerless:
             Context
         """
         if provider is not None:
-            if isinstance(provider, Provider) and provider.compute_resource is None:
+            if isinstance(provider, BaseProvider) and provider.compute_resource is None:
                 raise QuantumServerlessException(
                     "Given provider does not have compute_resources"
                 )
 
             if isinstance(provider, str):
-                available_providers: Dict[str, Provider] = {
+                available_providers: Dict[str, BaseProvider] = {
                     p.name: p for p in self._providers
                 }
                 if provider in available_providers:
@@ -153,7 +155,7 @@ class QuantumServerless:
 
     def provider(
         self,
-        provider: Union[str, Provider],
+        provider: Union[str, BaseProvider],
         **kwargs,
     ) -> Context:
         """Sets provider for context allocation.
@@ -168,7 +170,7 @@ class QuantumServerless:
         """
         return self.context(provider=provider, **kwargs)
 
-    def add_provider(self, provider: Provider) -> "QuantumServerless":
+    def add_provider(self, provider: BaseProvider) -> "QuantumServerless":
         """Adds provider to the list of available providers.
 
         Args:
@@ -180,7 +182,9 @@ class QuantumServerless:
         self._providers.append(provider)
         return self
 
-    def set_provider(self, provider: Union[str, int, Provider]) -> "QuantumServerless":
+    def set_provider(
+        self, provider: Union[str, int, BaseProvider]
+    ) -> "QuantumServerless":
         """Set provider for default context allocation.
 
         Args:
@@ -208,12 +212,12 @@ class QuantumServerless:
                 )
             self._selected_provider = providers[provider_names.index(provider)]
 
-        elif isinstance(provider, Provider):
+        elif isinstance(provider, BaseProvider):
             self._selected_provider = provider
 
         return self
 
-    def providers(self) -> List[Provider]:
+    def providers(self) -> List[BaseProvider]:
         """Returns list of available providers.
 
         Returns:
@@ -232,7 +236,7 @@ class QuantumServerless:
 
 def get_auto_discovered_provider(
     manager_address: str, token: Optional[str] = None
-) -> Optional[Provider]:
+) -> Optional[BaseProvider]:
     """Makes http request to manager to get available clusters."""
     compute_resources = []
 
@@ -267,7 +271,7 @@ def get_auto_discovered_provider(
         )
 
     if len(compute_resources) > 0:
-        return Provider(
+        return BaseProvider(
             name="auto_discovered",
             compute_resource=compute_resources[0],
             available_compute_resources=compute_resources,

@@ -18,12 +18,14 @@ application:
     password: "passw0rd"
     email: "admin@examplemail.io"
   ray:
-    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.2.0-py39"
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.2.1-py39"
     cpu: 2
     memory: 2
     replicas: 1
     minReplicas: 1
     maxReplicas: 4
+    opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-3
+    kubectlImage: alpine/k8s:1.27.3
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
@@ -55,10 +57,10 @@ serviceAccount:
 
 podAnnotations: {}
 
-podSecurityContext: {}
-#  fsGroup: 1001
-#  runAsUser: 1001
-#  runAsGroup: 1001
+podSecurityContext: 
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 100
 #  fsGroupChangePolicy: "OnRootMismatch"
 
 securityContext: {}

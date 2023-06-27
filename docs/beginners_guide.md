@@ -82,9 +82,9 @@ with serverless.context():
 Let's run our program now
 
 ```python
-from quantum_serverless import QuantumServerless, GatewayProvider, Program
+from quantum_serverless import QuantumServerless, Provider, Program
 
-provider = GatewayProvider(
+provider = Provider(
     username="user", # this username has already been defined in local docker setup and does not need to be changed
     password="password123", # this password has already been defined in local docker setup and does not need to be changed
     host="http://gateway:8000", # address of provider ("http://localhost:8000" in local system command line)

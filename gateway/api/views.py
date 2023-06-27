@@ -27,6 +27,9 @@ from .schedule import save_program
 from .serializers import JobSerializer
 
 
+logger = logging.getLogger("gateway")
+
+
 class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     """
     Program ViewSet configuration using ModelViewSet.
@@ -123,7 +126,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                 job.logs = logs
                 job.save()
             except Exception:  # pylint: disable=broad-exception-caught
-                logging.warning("Ray cluster was not ready %s", job.compute_resource)
+                logger.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response({"logs": logs})
 
     @action(methods=["POST"], detail=True)
@@ -141,7 +144,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                     else "Job was already not running."
                 )
             except Exception:  # pylint: disable=broad-exception-caught
-                logging.warning("Ray cluster was not ready %s", job.compute_resource)
+                logger.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response({"message": message})
 
 

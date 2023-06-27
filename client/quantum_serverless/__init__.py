@@ -22,13 +22,13 @@
 from importlib_metadata import version as metadata_version, PackageNotFoundError
 
 from .core import (
-    Provider,
+    BaseProvider,
     distribute_task,
     get,
     put,
     get_refs_by_status,
     KuberayProvider,
-    GatewayProvider,
+    Provider,
     save_result,
 )
 from .quantum_serverless import QuantumServerless

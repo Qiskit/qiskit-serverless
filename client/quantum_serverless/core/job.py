@@ -32,6 +32,7 @@ import logging
 import os
 import tarfile
 import time
+from pathlib import Path
 from typing import Dict, Any, Optional, List
 from uuid import uuid4
 
@@ -47,8 +48,10 @@ from quantum_serverless.core.constants import (
     ENV_JOB_ID_GATEWAY,
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
+    MAX_ARTIFACT_FILE_SIZE_MB,
 )
 from quantum_serverless.core.program import Program
+from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers.program_serializers import QiskitObjectsEncoder
 from quantum_serverless.utils.json import is_jsonable, safe_json_request
 
@@ -173,10 +176,26 @@ class GatewayJobClient(BaseJobClient):
         url = f"{self.host}/api/{self.version}/programs/run/"
         artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
 
+        # check if entrypoint exists
+        if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
+            raise QuantumServerlessException(
+                f"Entrypoint file [{program.entrypoint}] does not exist "
+                f"in [{program.working_dir}] working directory."
+            )
+
         with tarfile.open(artifact_file_path, "w") as tar:
             for filename in os.listdir(program.working_dir):
                 fpath = os.path.join(program.working_dir, filename)
                 tar.add(fpath, arcname=filename)
+
+        # check file size
+        size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
+        if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
+            raise QuantumServerlessException(
+                f"Artifact size is {int(size_in_mb)} Mb, "
+                f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
+                f"Try to reduce size of `working_dir`."
+            )
 
         with open(artifact_file_path, "rb") as file:
             response_data = safe_json_request(

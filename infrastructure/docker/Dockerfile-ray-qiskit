@@ -27,9 +27,10 @@ RUN apt-get -y update &&\
 COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 
 WORKDIR /qs
+# TODO: scipy version pinned to 1.10, pyscf depends on. More info in #722
 RUN pip install . --no-cache-dir &&\
     if [ "$TARGETARCH" = "arm64" ] ; \
-        then pip install --no-cache-dir git+https://github.com/pyscf/pyscf@v2.2.1 ; \ 
+        then pip install --no-cache-dir pyscf==2.2.1 scipy==1.10 ; \
     fi
 
 WORKDIR /

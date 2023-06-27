@@ -4,7 +4,7 @@ import os
 from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
 
-from quantum_serverless import QuantumServerless, Provider
+from quantum_serverless import QuantumServerless, BaseProvider
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
@@ -24,7 +24,7 @@ def test_program():
         host = compose.get_service_host("testrayhead", 8265)
         port = compose.get_service_port("testrayhead", 8265)
 
-        provider = Provider(
+        provider = BaseProvider(
             name="docker",
             compute_resource=ComputeResource(
                 name="docker", host=host, port_job_server=port
