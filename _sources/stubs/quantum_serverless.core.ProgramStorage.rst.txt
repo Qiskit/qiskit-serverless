@@ -1,0 +1,25 @@
+﻿quantum\_serverless.core.ProgramStorage
+=======================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: ProgramStorage
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ProgramStorage.__init__
+      ~ProgramStorage.get_program
+      ~ProgramStorage.get_programs
+      ~ProgramStorage.save_program
+   
+   
+
+   
+   
+   

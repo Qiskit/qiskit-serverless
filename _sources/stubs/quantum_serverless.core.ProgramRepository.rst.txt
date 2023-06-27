@@ -1,0 +1,25 @@
+﻿quantum\_serverless.core.ProgramRepository
+==========================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: ProgramRepository
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ProgramRepository.__init__
+      ~ProgramRepository.get_program
+      ~ProgramRepository.get_programs
+      ~ProgramRepository.save_program
+   
+   
+
+   
+   
+   

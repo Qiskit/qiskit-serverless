@@ -1,0 +1,29 @@
+﻿quantum\_serverless.core.BaseJobClient
+======================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: BaseJobClient
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~BaseJobClient.__init__
+      ~BaseJobClient.get
+      ~BaseJobClient.list
+      ~BaseJobClient.logs
+      ~BaseJobClient.result
+      ~BaseJobClient.run
+      ~BaseJobClient.status
+      ~BaseJobClient.stop
+   
+   
+
+   
+   
+   

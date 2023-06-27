@@ -1,0 +1,26 @@
+﻿quantum\_serverless.core.Job
+============================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: Job
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Job.__init__
+      ~Job.logs
+      ~Job.result
+      ~Job.status
+      ~Job.stop
+   
+   
+
+   
+   
+   

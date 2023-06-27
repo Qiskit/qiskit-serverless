@@ -1,0 +1,29 @@
+﻿quantum\_serverless.core.GatewayJobClient
+=========================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: GatewayJobClient
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~GatewayJobClient.__init__
+      ~GatewayJobClient.get
+      ~GatewayJobClient.list
+      ~GatewayJobClient.logs
+      ~GatewayJobClient.result
+      ~GatewayJobClient.run
+      ~GatewayJobClient.status
+      ~GatewayJobClient.stop
+   
+   
+
+   
+   
+   

@@ -23,7 +23,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="quantum_serverless.core.Provider" href="../stubs/quantum_serverless.core.Provider.html" />
-    <link rel="prev" title="quantum_serverless.QuantumServerless" href="../stubs/quantum_serverless.QuantumServerless.html" />
+    <link rel="prev" title="quantum_serverless.get_auto_discovered_provider" href="../stubs/quantum_serverless.get_auto_discovered_provider.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -60,19 +60,52 @@
 <tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.ComputeResource.html#quantum_serverless.core.ComputeResource" title="quantum_serverless.core.ComputeResource"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ComputeResource</span></code></a>(name[, host, ...])</p></td>
 <td><p>ComputeResource class.</p></td>
 </tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.Job.html#quantum_serverless.core.Job" title="quantum_serverless.core.Job"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Job</span></code></a>(job_id, job_client[, raw_data])</p></td>
+<td><p>Job.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.GatewayJobClient.html#quantum_serverless.core.GatewayJobClient" title="quantum_serverless.core.GatewayJobClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GatewayJobClient</span></code></a>(host, token, version)</p></td>
+<td><p>GatewayJobClient.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.BaseJobClient.html#quantum_serverless.core.BaseJobClient" title="quantum_serverless.core.BaseJobClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseJobClient</span></code></a>()</p></td>
+<td><p>Base class for Job clients.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.RayJobClient.html#quantum_serverless.core.RayJobClient" title="quantum_serverless.core.RayJobClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RayJobClient</span></code></a>(client)</p></td>
+<td><p>RayJobClient.</p></td>
+</tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.save_result.html#quantum_serverless.core.save_result" title="quantum_serverless.core.save_result"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_result</span></code></a>(result)</p></td>
 <td><p>Saves job results.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.distribute_task.html#quantum_serverless.core.distribute_task" title="quantum_serverless.core.distribute_task"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distribute_task</span></code></a>([target, state])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.Program.html#quantum_serverless.core.Program" title="quantum_serverless.core.Program"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Program</span></code></a>(title, entrypoint[, working_dir, ...])</p></td>
+<td><p>Serverless Program.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.ProgramStorage.html#quantum_serverless.core.ProgramStorage" title="quantum_serverless.core.ProgramStorage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ProgramStorage</span></code></a>()</p></td>
+<td><p>Base program backend to save and load programs from.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.ProgramRepository.html#quantum_serverless.core.ProgramRepository" title="quantum_serverless.core.ProgramRepository"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ProgramRepository</span></code></a>([host, port, token, folder])</p></td>
+<td><p>ProgramRepository.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.download_and_unpack_artifact.html#quantum_serverless.core.download_and_unpack_artifact" title="quantum_serverless.core.download_and_unpack_artifact"><code class="xref py py-obj docutils literal notranslate"><span class="pre">download_and_unpack_artifact</span></code></a>(artifact_url, ...)</p></td>
+<td><p>Downloads and extract artifact files into destination folder.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.Target.html#quantum_serverless.core.Target" title="quantum_serverless.core.Target"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Target</span></code></a>([cpu, gpu, qpu, mem, resources, ...])</p></td>
+<td><p>Quantum serverless target.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.CircuitMeta.html#quantum_serverless.core.CircuitMeta" title="quantum_serverless.core.CircuitMeta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CircuitMeta</span></code></a>(n_qubits, depth)</p></td>
+<td><p>Circuit metainformation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.fetch_execution_meta.html#quantum_serverless.core.fetch_execution_meta" title="quantum_serverless.core.fetch_execution_meta"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fetch_execution_meta</span></code></a>(*args, **kwargs)</p></td>
+<td><p>Extracts meta information from function arguments.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.distribute_task.html#quantum_serverless.core.distribute_task" title="quantum_serverless.core.distribute_task"><code class="xref py py-obj docutils literal notranslate"><span class="pre">distribute_task</span></code></a>([target, state])</p></td>
 <td><p>Wraps local function as remote executable function.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.get.html#quantum_serverless.core.get" title="quantum_serverless.core.get"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get</span></code></a>(object_refs, *[, timeout])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.get.html#quantum_serverless.core.get" title="quantum_serverless.core.get"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get</span></code></a>(object_refs, *[, timeout])</p></td>
 <td><p>Get a remote object or a list of remote objects from the object store.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.put.html#quantum_serverless.core.put" title="quantum_serverless.core.put"><code class="xref py py-obj docutils literal notranslate"><span class="pre">put</span></code></a>(value, *[, _owner])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.put.html#quantum_serverless.core.put" title="quantum_serverless.core.put"><code class="xref py py-obj docutils literal notranslate"><span class="pre">put</span></code></a>(value, *[, _owner])</p></td>
 <td><p>Store an object in the object store.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.get_refs_by_status.html#quantum_serverless.core.get_refs_by_status" title="quantum_serverless.core.get_refs_by_status"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_refs_by_status</span></code></a>(object_refs, *[, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/quantum_serverless.core.get_refs_by_status.html#quantum_serverless.core.get_refs_by_status" title="quantum_serverless.core.get_refs_by_status"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_refs_by_status</span></code></a>(object_refs, *[, ...])</p></td>
 <td><p>Return a list of IDs that are ready and a list of IDs that are not.</p></td>
 </tr>
 </tbody>
@@ -164,7 +197,7 @@
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
   <li><a href="index.html">Quantum serverless API References</a><ul>
-      <li>Previous: <a href="../stubs/quantum_serverless.QuantumServerless.html" title="previous chapter">quantum_serverless.QuantumServerless</a></li>
+      <li>Previous: <a href="../stubs/quantum_serverless.get_auto_discovered_provider.html" title="previous chapter">quantum_serverless.get_auto_discovered_provider</a></li>
       <li>Next: <a href="../stubs/quantum_serverless.core.Provider.html" title="next chapter">quantum_serverless.core.Provider</a></li>
   </ul></li>
   </ul></li>

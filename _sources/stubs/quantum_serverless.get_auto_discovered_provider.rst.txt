@@ -1,0 +1,6 @@
+﻿quantum\_serverless.get\_auto\_discovered\_provider
+===================================================
+
+.. currentmodule:: quantum_serverless
+
+.. autofunction:: get_auto_discovered_provider
