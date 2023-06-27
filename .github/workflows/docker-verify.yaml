@@ -58,14 +58,14 @@ jobs:
       matrix:
         image:
           [
-            "icr.io/quantum-public/quantum-serverless-gateway:latest",
-            "icr.io/quantum-public/quantum-serverless-notebook:latest-py38",
-            "icr.io/quantum-public/quantum-serverless-notebook:latest-py39",
-            "icr.io/quantum-public/quantum-serverless-notebook:latest-py310",
-            "icr.io/quantum-public/quantum-serverless-ray-node:latest-py38",
-            "icr.io/quantum-public/quantum-serverless-ray-node:latest-py39",
-            "icr.io/quantum-public/quantum-serverless-ray-node:latest-py310",
-            "icr.io/quantum-public/quantum-repository-server:latest",
+            "quantum-serverless-gateway:latest",
+            "quantum-serverless-notebook:latest-py38",
+            "quantum-serverless-notebook:latest-py39",
+            "quantum-serverless-notebook:latest-py310",
+            "quantum-serverless-ray-node:latest-py38",
+            "quantum-serverless-ray-node:latest-py39",
+            "quantum-serverless-ray-node:latest-py310",
+            "quantum-repository-server:latest",
           ]
     runs-on: ubuntu-latest
     steps:
@@ -81,4 +81,4 @@ jobs:
           --exit-code 1 \
           --scanners vuln \
           --severity CRITICAL \
-          --ignore-unfixed ${{ matrix.image }}
+          --ignore-unfixed icr.io/quantum-public/${{ matrix.image }}
