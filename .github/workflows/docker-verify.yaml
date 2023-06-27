@@ -78,7 +78,7 @@ jobs:
           docker run --rm --name=trivy \
           --env ${{ secrets.GITHUB_TOKEN }} \
           --volume /var/run/docker.sock:/var/run/docker.sock \
-          -it ${{ env.TRIVY_DOCKER_IMAGE }} image --no-progress \
+          ${{ env.TRIVY_DOCKER_IMAGE }} image --no-progress \
           --exit-code 1 \
           --scanners vuln \
           --severity CRITICAL \
