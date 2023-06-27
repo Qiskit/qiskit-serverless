@@ -33,7 +33,11 @@ from .core import (
     Provider,
     save_result,
 )
-from .quantum_serverless import QuantumServerless, get_auto_discovered_provider, QuantumServerlessException
+from .quantum_serverless import (
+    QuantumServerless,
+    get_auto_discovered_provider,
+    QuantumServerlessException,
+)
 from .core.program import Program
 from .serializers import get_arguments
 
