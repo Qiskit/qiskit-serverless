@@ -30,8 +30,18 @@ Core abstractions
     BaseProvider
     KuberayProvider
     ComputeResource
-
+    Job
+    GatewayJobClient
+    BaseJobClient
+    RayJobClient
     save_result
+    Program
+    ProgramStorage
+    ProgramRepository
+    download_and_unpack_artifact
+    Target
+    CircuitMeta
+    fetch_execution_meta
     distribute_task
     get
     put
@@ -59,13 +69,22 @@ State classes
 """
 
 from .provider import BaseProvider, ComputeResource, KuberayProvider, Provider
+from .job import BaseJobClient, RayJobClient, GatewayJobClient, Job, save_result
+from .program import (
+    Program,
+    ProgramStorage,
+    ProgramRepository,
+    download_and_unpack_artifact,
+)
 from .decorators import (
     remote,
     get,
     put,
     get_refs_by_status,
+    fetch_execution_meta,
     distribute_task,
+    Target,
+    CircuitMeta,
 )
 from .events import RedisEventHandler, EventHandler, ExecutionMessage
 from .state import RedisStateHandler, StateHandler
-from .job import save_result
