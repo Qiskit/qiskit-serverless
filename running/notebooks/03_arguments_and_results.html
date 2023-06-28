@@ -47,7 +47,7 @@
 <h1>Programs with arguments<a class="headerlink" href="#Programs-with-arguments" title="Permalink to this heading">¶</a></h1>
 <p>In this document, we will learn how to pass arguments to our program.</p>
 <p>Let’s create another file with our program <a class="reference external" href="./source_files/program_3.py">./source_files/program_3.py</a>.</p>
-<p>Instead of having the circuit defined inside the program (like we did in first example), we will pass it as an argument. We will also save the results, so we can access them later by calling <code class="docutils literal notranslate"><span class="pre">save_result</span></code>.</p>
+<p>Instead of having the circuit defined inside the program (like we did in first example), we will pass it as an argument. We will also save the results, so we can access them later by calling <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.save_result.html#quantum_serverless.core.save_result">save_result</a>.</p>
 <p>Here is the program:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/program_3.py</span>
 
@@ -73,7 +73,7 @@
 <span class="p">})</span>
 </pre></div>
 </div>
-<p>As you can see, the circuit construction is not inside the program anymore. Instead, we parse the arguments by calling the <code class="docutils literal notranslate"><span class="pre">get_arguments()</span></code> function.</p>
+<p>As you can see, the circuit construction is not inside the program anymore. Instead, we parse the arguments by calling the <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.serializers.get_arguments.html#quantum_serverless.serializers.get_arguments">get_arguments</a> function.</p>
 <p>First, we will create circuit that we want to pass as an argument to the program.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
