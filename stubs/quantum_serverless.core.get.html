@@ -44,19 +44,8 @@
 <h1>quantum_serverless.core.get<a class="headerlink" href="#quantum-serverless-core-get" title="Permalink to this heading">¶</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="quantum_serverless.core.get">
-<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">object_refs</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ray/_private/worker.html#get"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.get" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get a remote object or a list of remote objects from the object store.</p>
-<p>This method blocks until the object corresponding to the object ref is
-available in the local object store. If this object is not in the local
-object store, it will be shipped from an object store that has it (once the
-object has been created). If object_refs is a list, then the objects
-corresponding to each object in the list will be returned.</p>
-<p>Ordering for an input list of object refs is preserved for each object
-returned. That is, if an object ref to A precedes an object ref to B in the
-input list, then A will precede B in the returned list.</p>
-<p>This method will issue a warning if it’s running inside async context,
-you can use <code class="docutils literal notranslate"><span class="pre">await</span> <span class="pre">object_ref</span></code> instead of <code class="docutils literal notranslate"><span class="pre">ray.get(object_ref)</span></code>. For
-a list of object refs, you can use <code class="docutils literal notranslate"><span class="pre">await</span> <span class="pre">asyncio.gather(*object_refs)</span></code>.</p>
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">object_refs</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/decorators.html#get"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get results from distributed tasks.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -67,21 +56,12 @@ wait before returning.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]]</p>
+<dd class="field-even"><p><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></p>
 </dd>
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>A Python object or a list of Python objects.</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>GetTimeoutError</strong> – A GetTimeoutError is raised if a timeout is set and
-    the get takes longer than timeout to return.</p></li>
-<li><p><strong>Exception</strong> – An exception is raised if the task that created the object
-    or that created one of the objects raised an exception.</p></li>
-</ul>
+<dd class="field-odd"><p>A object or a list of objects.</p>
 </dd>
 </dl>
-<p>PublicAPI: This API is stable across Ray releases.</p>
 </dd></dl>
 
 </section>

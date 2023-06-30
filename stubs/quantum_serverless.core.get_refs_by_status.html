@@ -44,47 +44,19 @@
 <h1>quantum_serverless.core.get_refs_by_status<a class="headerlink" href="#quantum-serverless-core-get-refs-by-status" title="Permalink to this heading">¶</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="quantum_serverless.core.get_refs_by_status">
-<span class="sig-name descname"><span class="pre">get_refs_by_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">object_refs</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_returns</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fetch_local</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quantum_serverless.core.get_refs_by_status" title="Permalink to this definition">¶</a></dt>
-<dd><p>Return a list of IDs that are ready and a list of IDs that are not.</p>
-<p>If timeout is set, the function returns either when the requested number of
-IDs are ready or when the timeout is reached, whichever occurs first. If it
-is not set, the function simply waits until that number of objects is ready
-and returns that exact number of object refs.</p>
-<p>This method returns two lists. The first list consists of object refs that
-correspond to objects that are available in the object store. The second
-list corresponds to the rest of the object refs (which may or may not be
-ready).</p>
-<p>Ordering of the input list of object refs is preserved. That is, if A
-precedes B in the input list, and both are in the ready list, then A will
-precede B in the ready list. This also holds true if A and B are both in
-the remaining list.</p>
-<p>This method will issue a warning if it’s running inside an async context.
-Instead of <code class="docutils literal notranslate"><span class="pre">ray.wait(object_refs)</span></code>, you can use
-<code class="docutils literal notranslate"><span class="pre">await</span> <span class="pre">asyncio.wait(object_refs)</span></code>.</p>
+<span class="sig-name descname"><span class="pre">get_refs_by_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">object_refs</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/decorators.html#get_refs_by_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.get_refs_by_status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get references by status.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>object_refs</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ObjectRef</span></code>]) – List of object refs for objects that may
-or may not be ready. Note that these IDs must be unique.</p></li>
-<li><p><strong>num_returns</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – The number of object refs that should be returned.</p></li>
-<li><p><strong>timeout</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]) – The maximum amount of time in seconds to wait before
-returning.</p></li>
-<li><p><strong>fetch_local</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – If True, wait for the object to be downloaded onto
-the local node before returning it as ready. If False, ray.wait()
-will not trigger fetching of objects to the local node and will
-return immediately once the object is available anywhere in the
-cluster.</p></li>
+<li><p><strong>object_refs</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ObjectRef</span></code>]) – object references</p></li>
+<li><p><strong>**kwargs</strong> – other arguments</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ObjectRef</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ObjectRef</span></code>]]</p>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>A list of object refs that are ready and a list of the remaining object
-IDs.</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A list of refs that are ready and a list of the remaining references.</p>
 </dd>
 </dl>
-<p>PublicAPI: This API is stable across Ray releases.</p>
 </dd></dl>
 
 </section>

@@ -44,29 +44,17 @@
 <h1>quantum_serverless.core.put<a class="headerlink" href="#quantum-serverless-core-put" title="Permalink to this heading">¶</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="quantum_serverless.core.put">
-<span class="sig-name descname"><span class="pre">put</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_owner</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ray/_private/worker.html#put"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.put" title="Permalink to this definition">¶</a></dt>
-<dd><p>Store an object in the object store.</p>
-<p>The object may not be evicted while a reference to the returned ID exists.</p>
+<span class="sig-name descname"><span class="pre">put</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/decorators.html#put"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.put" title="Permalink to this definition">¶</a></dt>
+<dd><p>Puts object into shared distributed storage</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>value</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>) – The Python object to be stored.</p></li>
-<li><p><strong>[</strong><strong>Experimental</strong><strong>]</strong> (<em>_owner</em>) – The actor that should own this object. This
-allows creating objects with lifetimes decoupled from that of the
-creating process. The owner actor must be passed a reference to the
-object prior to the object creator exiting, otherwise the reference
-will still be lost. <em>Note that this argument is an experimental API
-and should be avoided if possible.</em></p></li>
+<li><p><strong>value</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>) – object to put to object store</p></li>
+<li><p><strong>**kwargs</strong> – other arguments</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ObjectRef</span></code></p>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>The object ref assigned to this value.</p>
-</dd>
 </dl>
-<p>PublicAPI: This API is stable across Ray releases.</p>
+<p>Returns:</p>
 </dd></dl>
 
 </section>
