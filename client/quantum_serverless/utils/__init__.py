@@ -23,8 +23,12 @@ Quantum serverless utilities
 .. autosummary::
     :toctree: ../stubs/
 
+    BaseStorage
+    S3Storage
+    ErrorCodes
     JsonSerializable
 """
 
 from .json import JsonSerializable
-from .storage import S3Storage
+from .errors import ErrorCodes
+from .storage import S3Storage, BaseStorage

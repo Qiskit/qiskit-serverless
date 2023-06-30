@@ -12,7 +12,7 @@
 
 """
 =====================================================
-Core module (:mod:`quantum_serverless.visualization`)
+Visualization (:mod:`quantum_serverless.visualization`)
 =====================================================
 
 .. currentmodule:: quantum_serverless.visualization
