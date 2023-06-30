@@ -10,7 +10,7 @@ dependencies:
   version: 9.7.2
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
-  version: 0.5.1
+  version: 0.5.2
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 17.11.3
@@ -29,5 +29,5 @@ dependencies:
 - name: promtail
   repository: https://grafana.github.io/helm-charts
   version: 6.11.3
-digest: sha256:412a44832deb9f35fa42dbd9ad12729d69411ddcb2bf2493b6cceabafd73afa6
-generated: "2023-06-22T11:20:52.508903+02:00"
+digest: sha256:432049b4634a52e4d9ab3e1da56ee6c173854678457ccbbaef65ac850a3a57d2
+generated: "2023-06-30T10:24:39.628403059Z"
