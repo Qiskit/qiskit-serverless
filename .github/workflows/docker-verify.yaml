@@ -11,7 +11,7 @@ env:
   HADOLINT_DOCKER_IMAGE: hadolint/hadolint:v2.12.0
   OPENPOLICYAGENT_DOCKER_IMAGE: openpolicyagent/conftest:v0.43.1
   TRIVY_DOCKER_IMAGE: aquasec/trivy:0.42.1
-  PUBLIC_REGISTRY: icr.io/quantum-public
+  # PUBLIC_REGISTRY: icr.io/quantum-public
 
 jobs:
   lint:
@@ -54,27 +54,20 @@ jobs:
           test --strict --parser dockerfile \
           --policy .github/scripts/dockerfile-security.rego \
           ./infrastructure/docker/${{ matrix.dockerfile }}
-  vscan:
-    strategy:
-      matrix:
-        image:
-          [
-            "quantum-serverless-gateway:latest",
-            "quantum-serverless-notebook:latest-py38",
-            "quantum-serverless-notebook:latest-py39",
-            "quantum-serverless-notebook:latest-py310",
-            "quantum-serverless-ray-node:latest-py38",
-            "quantum-serverless-ray-node:latest-py39",
-            "quantum-serverless-ray-node:latest-py310",
-            "quantum-repository-server:latest",
-          ]
+  vscan-gateway:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Run vscan on ${{ matrix.image }}
+      - name: Build image gateway
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile-ray-qiskit
+          push: false
+          tags: quantum-serverless-gateway:latest
+      - name: Run vscan on gateway
         shell: bash
         run: |
-          docker image pull ${{env.PUBLIC_REGISTRY}}/${{ matrix.image }}
           docker run --rm --name=trivy \
           --env ${{ secrets.GITHUB_TOKEN }} \
           --volume /var/run/docker.sock:/var/run/docker.sock \
@@ -82,4 +75,42 @@ jobs:
           --exit-code 1 \
           --scanners vuln \
           --severity CRITICAL \
-          --ignore-unfixed ${{env.PUBLIC_REGISTRY}}/${{ matrix.image }}
+          --ignore-unfixed quantum-serverless-gateway:latest
+  # vscan:
+  #   strategy:
+  #     matrix:
+  #       image:
+  #         [
+  #           "quantum-serverless-gateway:latest",
+  #           "quantum-serverless-notebook:latest-py38",
+  #           "quantum-serverless-notebook:latest-py39",
+  #           "quantum-serverless-notebook:latest-py310",
+  #           "quantum-serverless-ray-node:latest-py38",
+  #           "quantum-serverless-ray-node:latest-py39",
+  #           "quantum-serverless-ray-node:latest-py310",
+  #           "quantum-repository-server:latest",
+  #         ]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Build image ${{ matrix.image }}
+  #       uses: docker/build-push-action@v3
+  #       with:
+  #         context: .
+  #         file: ./infrastructure/docker/Dockerfile-ray-qiskit
+  #         push: false
+  #         tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py38
+  #         build-args:
+  #           IMAGE_PY_VERSION=py38
+  #     - name: Run vscan on ${{ matrix.image }}
+  #       shell: bash
+  #       run: |
+  #         docker image pull ${{env.PUBLIC_REGISTRY}}/${{ matrix.image }}
+  #         docker run --rm --name=trivy \
+  #         --env ${{ secrets.GITHUB_TOKEN }} \
+  #         --volume /var/run/docker.sock:/var/run/docker.sock \
+  #         ${{ env.TRIVY_DOCKER_IMAGE }} image --no-progress \
+  #         --exit-code 1 \
+  #         --scanners vuln \
+  #         --severity CRITICAL \
+  #         --ignore-unfixed ${{env.PUBLIC_REGISTRY}}/${{ matrix.image }}
