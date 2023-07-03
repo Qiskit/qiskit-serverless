@@ -70,28 +70,28 @@ jobs:
         include:
           - image: "quantum-serverless-gateway:latest"
             dockerfile: "./infrastructure/docker/Dockerfile-gateway"
-            py-version: 3.9
+            pyversion: 3.9
           - image: "quantum-serverless-notebook:latest-py38"
             dockerfile: "./infrastructure/docker/Dockerfile-notebook"
-            py-version: 3.8
+            pyversion: 3.8
           - image: "quantum-serverless-notebook:latest-py39"
             dockerfile: "./infrastructure/docker/Dockerfile-notebook"
-            py-version: 3.9
+            pyversion: 3.9
           - image: "quantum-serverless-notebook:latest-py310"
             dockerfile: "./infrastructure/docker/Dockerfile-notebook"
-            py-version: 3.10
+            pyversion: 3.10
           - image: "quantum-serverless-ray-node:latest-py38"
             dockerfile: "./infrastructure/docker/Dockerfile-ray-qiskit"
-            py-version: 3.8
+            pyversion: 3.8
           - image: "quantum-serverless-ray-node:latest-py39"
             dockerfile: "./infrastructure/docker/Dockerfile-ray-qiskit"
-            py-version: 3.9
+            pyversion: 3.9
           - image: "quantum-serverless-ray-node:latest-py310"
             dockerfile: "./infrastructure/docker/Dockerfile-ray-qiskit"
-            py-version: 3.10
+            pyversion: 3.10
           - image: "quantum-repository-server:latest"
             dockerfile: "./infrastructure/docker/Dockerfile-repository-server"
-            py-version: 3.9
+            pyversion: 3.9
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -103,7 +103,7 @@ jobs:
           push: false
           tags: ${{ matrix.image }}
           build-args:
-            IMAGE_PY_VERSION=${{ matrix.py-version }}
+            IMAGE_PY_VERSION=${{ matrix.pyversion }}
       - name: Run vscan on ${{ matrix.image }}
         shell: bash
         run: |
