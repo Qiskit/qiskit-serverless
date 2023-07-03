@@ -11,7 +11,6 @@ env:
   HADOLINT_DOCKER_IMAGE: hadolint/hadolint:v2.12.0
   OPENPOLICYAGENT_DOCKER_IMAGE: openpolicyagent/conftest:v0.43.1
   TRIVY_DOCKER_IMAGE: aquasec/trivy:0.42.1
-  # PUBLIC_REGISTRY: icr.io/quantum-public
 
 jobs:
   lint:
@@ -62,7 +61,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./infrastructure/docker/Dockerfile-ray-qiskit
+          file: ./infrastructure/docker/Dockerfile-gateway
           push: false
           tags: quantum-serverless-gateway:latest
       - name: Run vscan on gateway
@@ -76,6 +75,28 @@ jobs:
           --scanners vuln \
           --severity CRITICAL \
           --ignore-unfixed quantum-serverless-gateway:latest
+  vscan-repository:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build image repository
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile-repository-server
+          push: false
+          tags: quantum-serverless-repository-server:latest
+      - name: Run vscan on repository
+        shell: bash
+        run: |
+          docker run --rm --name=trivy \
+          --env ${{ secrets.GITHUB_TOKEN }} \
+          --volume /var/run/docker.sock:/var/run/docker.sock \
+          ${{ env.TRIVY_DOCKER_IMAGE }} image --no-progress \
+          --exit-code 1 \
+          --scanners vuln \
+          --severity CRITICAL \
+          --ignore-unfixed quantum-serverless-repository-server:latest
   # vscan:
   #   strategy:
   #     matrix:
