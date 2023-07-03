@@ -53,18 +53,58 @@ jobs:
           test --strict --parser dockerfile \
           --policy .github/scripts/dockerfile-security.rego \
           ./infrastructure/docker/${{ matrix.dockerfile }}
-  vscan-gateway:
+  vscan:
+    strategy:
+      matrix:
+        image:
+          [
+            "quantum-serverless-gateway:latest",
+            "quantum-serverless-notebook:latest-py38",
+            "quantum-serverless-notebook:latest-py39",
+            "quantum-serverless-notebook:latest-py310",
+            "quantum-serverless-ray-node:latest-py38",
+            "quantum-serverless-ray-node:latest-py39",
+            "quantum-serverless-ray-node:latest-py310",
+            "quantum-repository-server:latest",
+          ]
+        include:
+          - image: "quantum-serverless-gateway:latest"
+            dockerfile: "./infrastructure/docker/Dockerfile-gateway"
+            py-version: 3.9
+          - image: "quantum-serverless-notebook:latest-py38"
+            dockerfile: "./infrastructure/docker/Dockerfile-notebook"
+            py-version: 3.8
+          - image: "quantum-serverless-notebook:latest-py39"
+            dockerfile: "./infrastructure/docker/Dockerfile-notebook"
+            py-version: 3.9
+          - image: "quantum-serverless-notebook:latest-py310"
+            dockerfile: "./infrastructure/docker/Dockerfile-notebook"
+            py-version: 3.10
+          - image: "quantum-serverless-ray-node:latest-py38"
+            dockerfile: "./infrastructure/docker/Dockerfile-ray-node"
+            py-version: 3.8
+          - image: "quantum-serverless-ray-node:latest-py39"
+            dockerfile: "./infrastructure/docker/Dockerfile-ray-node"
+            py-version: 3.9
+          - image: "quantum-serverless-ray-node:latest-py310"
+            dockerfile: "./infrastructure/docker/Dockerfile-ray-node"
+            py-version: 3.10
+          - image: "quantum-repository-server:latest"
+            dockerfile: "./infrastructure/docker/Dockerfile-repository-server"
+            py-version: 3.9
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Build image gateway
+      - name: Build image ${{ matrix.image }}
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./infrastructure/docker/Dockerfile-gateway
+          file: ${{ matrix.dockerfile }}
           push: false
-          tags: quantum-serverless-gateway:latest
-      - name: Run vscan on gateway
+          tags: ${{ matrix.image }}
+          build-args:
+            IMAGE_PY_VERSION=${{ matrix.py-version }}
+      - name: Run vscan on ${{ matrix.image }}
         shell: bash
         run: |
           docker run --rm --name=trivy \
@@ -74,64 +114,4 @@ jobs:
           --exit-code 1 \
           --scanners vuln \
           --severity CRITICAL \
-          --ignore-unfixed quantum-serverless-gateway:latest
-  vscan-repository:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build image repository
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./infrastructure/docker/Dockerfile-repository-server
-          push: false
-          tags: quantum-serverless-repository-server:latest
-      - name: Run vscan on repository
-        shell: bash
-        run: |
-          docker run --rm --name=trivy \
-          --env ${{ secrets.GITHUB_TOKEN }} \
-          --volume /var/run/docker.sock:/var/run/docker.sock \
-          ${{ env.TRIVY_DOCKER_IMAGE }} image --no-progress \
-          --exit-code 1 \
-          --scanners vuln \
-          --severity CRITICAL \
-          --ignore-unfixed quantum-serverless-repository-server:latest
-  # vscan:
-  #   strategy:
-  #     matrix:
-  #       image:
-  #         [
-  #           "quantum-serverless-gateway:latest",
-  #           "quantum-serverless-notebook:latest-py38",
-  #           "quantum-serverless-notebook:latest-py39",
-  #           "quantum-serverless-notebook:latest-py310",
-  #           "quantum-serverless-ray-node:latest-py38",
-  #           "quantum-serverless-ray-node:latest-py39",
-  #           "quantum-serverless-ray-node:latest-py310",
-  #           "quantum-repository-server:latest",
-  #         ]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: Build image ${{ matrix.image }}
-  #       uses: docker/build-push-action@v3
-  #       with:
-  #         context: .
-  #         file: ./infrastructure/docker/Dockerfile-ray-qiskit
-  #         push: false
-  #         tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py38
-  #         build-args:
-  #           IMAGE_PY_VERSION=py38
-  #     - name: Run vscan on ${{ matrix.image }}
-  #       shell: bash
-  #       run: |
-  #         docker image pull ${{env.PUBLIC_REGISTRY}}/${{ matrix.image }}
-  #         docker run --rm --name=trivy \
-  #         --env ${{ secrets.GITHUB_TOKEN }} \
-  #         --volume /var/run/docker.sock:/var/run/docker.sock \
-  #         ${{ env.TRIVY_DOCKER_IMAGE }} image --no-progress \
-  #         --exit-code 1 \
-  #         --scanners vuln \
-  #         --severity CRITICAL \
-  #         --ignore-unfixed ${{env.PUBLIC_REGISTRY}}/${{ matrix.image }}
+          --ignore-unfixed ${{ matrix.image }}
