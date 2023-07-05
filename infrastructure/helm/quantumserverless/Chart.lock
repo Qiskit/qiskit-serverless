@@ -7,7 +7,7 @@ dependencies:
   version: 0.2.1
 - name: nginx-ingress-controller
   repository: https://charts.bitnami.com/bitnami
-  version: 9.7.2
+  version: 9.7.5
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
   version: 0.5.2
@@ -29,5 +29,5 @@ dependencies:
 - name: promtail
   repository: https://grafana.github.io/helm-charts
   version: 6.11.3
-digest: sha256:432049b4634a52e4d9ab3e1da56ee6c173854678457ccbbaef65ac850a3a57d2
-generated: "2023-06-30T10:24:39.628403059Z"
+digest: sha256:f6a471713b623d7d0b04bd674223c73ef3aa5f755995e0a98817c1eee0e9af7e
+generated: "2023-07-05T08:43:56.94691921Z"
