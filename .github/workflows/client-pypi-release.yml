@@ -2,6 +2,9 @@ name: Release to PyPi and upload artifact
 
 on:
   workflow_dispatch:
+  release:
+    types: [published]
+    
 
 jobs:
   release-package:
