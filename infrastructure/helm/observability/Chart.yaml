@@ -1,0 +1,22 @@
+apiVersion: v2
+name: observability
+description: Quantum-Serverless helm chart for observabililty (i.e. logging/monitoring).
+
+type: application
+
+version: 0.2.1
+appVersion: "0.2.1"
+
+dependencies:
+  - name: kube-prometheus-stack
+    condition: prometheusEnable
+    version: 45.31.1
+    repository: https://prometheus-community.github.io/helm-charts
+  - name: loki
+    condition: lokiEnable
+    version: 4.10.0
+    repository: https://grafana.github.io/helm-charts
+  - name: promtail
+    condition: promtailEnable
+    version: 6.11.5
+    repository: https://grafana.github.io/helm-charts
