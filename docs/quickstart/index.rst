@@ -10,24 +10,23 @@ Quickstart
 
 Step 0 [Optional]: Pre-Installation
 
-.. code::
+.. code-block::
    :caption: Create a minimal environment with only Python installed in it. We recommend using `Python virtual environments <https://docs.python.org/3.10/tutorial/venv.html>`_.
-   :name: NAAME
 
       python3 -m venv /path/to/virtual/environment
 
-.. code::
+.. code-block::
    :caption: Activate your new environment.
 
       source /path/to/virtual/environment/bin/activate
 
-.. code::
+.. code-block::
    :caption: Note: If you are using Windows, use the following commands in PowerShell.
 
       python3 -m venv c:\path\to\virtual\environment
       c:\path\to\virtual\environment\Scripts\Activate.ps1
 
-.. code::
+.. code-block::
    :caption: Clone the Quantum Serverless repository.
 
       cd /path/to/workspace/
@@ -51,7 +50,7 @@ Step 3: Install the quantum serverless package.
 
 Step 4: Run infrastructure.
 
-.. code::
+.. code-block::
    :caption: Run docker compose from the root of the quantum serverless project.
    
       cd quantum-serverless/
@@ -61,12 +60,12 @@ Step 5: Open the jupyter lab environment by going to ``localhost:8888`` via your
 
 Step 6: Write your program in containerized environment.
 
-.. code::
+.. code-block::
    :caption: Create a Python file using a text editor. Here we use vim.
    
       vim program.py
 
-.. code:: python
+.. code-block:: python
    :caption: program.py
 
    from quantum_serverless import distribute_task, get, get_arguments, save_result
@@ -103,7 +102,7 @@ Step 6: Write your program in containerized environment.
 
 Step 5: Run the program.
 
-.. code:: python
+.. code-block:: python
    :caption: in jupyter notebook
 
    from quantum_serverless import QuantumServerless, Provider, Program
@@ -139,7 +138,7 @@ Step 5: Run the program.
 
 Step 6: Monitor the job status.
 
-.. code:: python
+.. code-block:: python
    :caption: in jupyter notebook
 
    job.status()
@@ -149,7 +148,7 @@ Step 6: Monitor the job status.
 
 Step 7: Get the results.
 
-.. code:: python
+.. code-block:: python
    :caption: in jupyter notebook
 
    job.result()
