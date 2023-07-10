@@ -99,24 +99,6 @@ keycloakEnable: false
 repositoryEnable: false
 
 # ===================
-# Prometheus
-# ===================
-
-prometheusEnable: false
-
-# ===================
-# loki
-# ===================
-
-lokiEnable: false
-
-# ===================
-# promtail
-# ===================
-
-promtailEnable: false
-
-# ===================
 # COS
 # ===================
 
