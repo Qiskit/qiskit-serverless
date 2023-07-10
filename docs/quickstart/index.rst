@@ -12,6 +12,7 @@ Step 0 [Optional]: Pre-Installation
 
 .. code::
    :caption: Create a minimal environment with only Python installed in it. We recommend using `Python virtual environments <https://docs.python.org/3.10/tutorial/venv.html>`_.
+   :name: NAAME
 
       python3 -m venv /path/to/virtual/environment
 
