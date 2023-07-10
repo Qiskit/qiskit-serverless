@@ -24,12 +24,6 @@ jobs:
       - name: Build docs
         run: |
           tox -edocs
-      - name: Upload docs artifact
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: html_docs
-          path: ./docs/_build/html/
       - name: Deploy docs
         uses: peaceiris/actions-gh-pages@v3
         with:
