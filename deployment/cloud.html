@@ -172,6 +172,13 @@ configuration example to expose through <code class="docutils literal notranslat
 <ul class="simple">
 <li><p><strong>Important</strong>: <code class="docutils literal notranslate"><span class="pre">nginx-ingress-controller</span></code> is disabled by default because third party providers should provide its own Ingress controller. To use it locally you need to activate it too.</p></li>
 </ul>
+<p>Optionally, you can install an observability package to handle logging and monitoring on your cluster by running the following command:</p>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-number">Listing 18 </span><span class="caption-text">run this commands with the release version like 0.2.1 in x.y.z (2 places) using the same namespace as in the previous helm command</span><a class="headerlink" href="#id8" title="Permalink to this code">¶</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ helm -n &lt;INSERT_YOUR_NAMESPACE&gt; install qs-observability  https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz
+</pre></div>
+</div>
+</div>
 </section>
 <section id="terraform-deploy-all-the-infrastructure-in-your-preferred-cloud-provider">
 <span id="terraform-deployment"></span><h2>Terraform: Deploy all the infrastructure in your preferred cloud provider<a class="headerlink" href="#terraform-deploy-all-the-infrastructure-in-your-preferred-cloud-provider" title="Permalink to this heading">¶</a></h2>
@@ -209,15 +216,15 @@ with the following contents:</p>
 </ul>
 <p>To use <strong>AWS</strong>, configure environment variables, depending on your system, in accordance with the instructions <a class="reference external" href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set">here</a>.</p>
 <p>To confirm the configuration just run <code class="docutils literal notranslate"><span class="pre">terraform</span> <span class="pre">plan</span></code>:</p>
-<div class="literal-block-wrapper docutils container" id="id8">
-<div class="code-block-caption"><span class="caption-number">Listing 18 </span><span class="caption-text">always run a plan before an apply, this will compare your current configuration with the new one</span><a class="headerlink" href="#id8" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id9">
+<div class="code-block-caption"><span class="caption-number">Listing 19 </span><span class="caption-text">always run a plan before an apply, this will compare your current configuration with the new one</span><a class="headerlink" href="#id9" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    $ terraform plan
 </pre></div>
 </div>
 </div>
 <p>Finally, deploy the plan to your account:</p>
-<div class="literal-block-wrapper docutils container" id="id9">
-<div class="code-block-caption"><span class="caption-number">Listing 19 </span><span class="caption-text">deploy the plan to your account</span><a class="headerlink" href="#id9" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id10">
+<div class="code-block-caption"><span class="caption-number">Listing 20 </span><span class="caption-text">deploy the plan to your account</span><a class="headerlink" href="#id10" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    $ terraform apply
 </pre></div>
 </div>
@@ -246,8 +253,8 @@ with the following contents:</p>
 <p>Once your resources are deployed, we can configure the Quantum Serverless <code class="docutils literal notranslate"><span class="pre">client</span></code> package.
 There are a couple of simple ways to do this.</p>
 <p>One option is to pass the configuration as arguments to the constructor of a <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> instance:</p>
-<div class="literal-block-wrapper docutils container" id="id10">
-<div class="code-block-caption"><span class="caption-number">Listing 20 </span><span class="caption-text">constructor arguments example</span><a class="headerlink" href="#id10" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id11">
+<div class="code-block-caption"><span class="caption-number">Listing 21 </span><span class="caption-text">constructor arguments example</span><a class="headerlink" href="#id11" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">({</span>
         <span class="s2">&quot;providers&quot;</span><span class="p">:</span> <span class="p">[{</span>
             <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;my_provider&quot;</span><span class="p">,</span>  <span class="c1"># provider name</span>
@@ -261,8 +268,8 @@ There are a couple of simple ways to do this.</p>
 </div>
 </div>
 <p>Another option is to create an instance from a configuration file, which has exactly the same structure as the constructor argument in the above example.</p>
-<div class="literal-block-wrapper docutils container" id="id11">
-<div class="code-block-caption"><span class="caption-number">Listing 21 </span><span class="caption-text">config.json example</span><a class="headerlink" href="#id11" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id12">
+<div class="code-block-caption"><span class="caption-number">Listing 22 </span><span class="caption-text">config.json example</span><a class="headerlink" href="#id12" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="p">{</span>
         <span class="s2">&quot;providers&quot;</span><span class="p">:</span> <span class="p">[{</span>
             <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;my_provider&quot;</span><span class="p">,</span>
@@ -276,15 +283,15 @@ There are a couple of simple ways to do this.</p>
 </div>
 </div>
 <p>Instantiate the <code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code> instance from the configuration file:</p>
-<div class="literal-block-wrapper docutils container" id="id12">
-<div class="code-block-caption"><span class="caption-number">Listing 22 </span><span class="caption-text">verify the name and the path to load the file</span><a class="headerlink" href="#id12" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id13">
+<div class="code-block-caption"><span class="caption-number">Listing 23 </span><span class="caption-text">verify the name and the path to load the file</span><a class="headerlink" href="#id13" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="o">.</span><span class="n">load_configuration</span><span class="p">(</span><span class="s2">&quot;./config.json&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <p>And use it as follows:</p>
-<div class="literal-block-wrapper docutils container" id="id13">
-<div class="code-block-caption"><span class="caption-number">Listing 23 </span><span class="caption-text">remember to use the same provider name</span><a class="headerlink" href="#id13" title="Permalink to this code">¶</a></div>
+<div class="literal-block-wrapper docutils container" id="id14">
+<div class="code-block-caption"><span class="caption-number">Listing 24 </span><span class="caption-text">remember to use the same provider name</span><a class="headerlink" href="#id14" title="Permalink to this code">¶</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    <span class="k">with</span> <span class="n">serverless</span><span class="o">.</span><span class="n">provider</span><span class="p">(</span><span class="s2">&quot;my_provider&quot;</span><span class="p">):</span>
     <span class="o">...</span>
 </pre></div>
