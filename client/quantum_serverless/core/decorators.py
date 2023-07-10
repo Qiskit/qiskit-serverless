@@ -31,7 +31,6 @@ Quantum serverless decorators
 """
 import functools
 import os
-import warnings
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List, Callable, Sequence
 
@@ -51,9 +50,51 @@ from quantum_serverless.core.tracing import get_tracer, _trace_env_vars
 from quantum_serverless.utils import JsonSerializable
 
 remote = ray.remote
-get = ray.get
-put = ray.put
-get_refs_by_status = ray.wait
+
+
+def put(value: Any, **kwargs):
+    """Puts object into shared distributed storage
+
+    Args:
+        value: object to put to object store
+        **kwargs: other arguments
+
+    Returns:
+
+    """
+    return ray.put(value=value, **kwargs)
+
+
+def get_refs_by_status(object_refs: List["ray.ObjectRef"], **kwargs):
+    """Get references by status.
+
+    Args:
+        object_refs: object references
+        **kwargs: other arguments
+
+    Returns:
+        A list of refs that are ready and a list of the remaining references.
+    """
+    return ray.wait(object_refs=object_refs, **kwargs)
+
+
+def get(
+    object_refs: Union[ray.ObjectRef, Sequence[ray.ObjectRef]],
+    *,
+    timeout: Optional[float] = None,
+) -> Any:
+    """Get results from distributed tasks.
+
+    Args:
+        object_refs: Object ref of the object to get or a list of object refs
+            to get.
+        timeout (Optional[float]): The maximum amount of time in seconds to
+            wait before returning.
+
+    Returns:
+        A object or a list of objects.
+    """
+    return ray.get(object_refs=object_refs, timeout=timeout)
 
 
 @dataclass
@@ -61,7 +102,7 @@ class Target(JsonSerializable):
     """Quantum serverless target.
 
     Example:
-        >>> @run_qiskit_remote(target=Target(cpu=1))
+        >>> @distribute_task(target=Target(cpu=1))
         >>> def awesome_function():
         >>>     return 42
     """
@@ -204,29 +245,6 @@ def _tracible_function(
         return wraps
 
     return decorator
-
-
-def run_qiskit_remote(
-    target: Optional[Union[Dict[str, Any], Target]] = None,
-    state: Optional[StateHandler] = None,
-):
-    """(Deprecated) Wraps local function as remote executable function.
-    New function will return reference object when called.
-
-    Args:
-        target: target object or dictionary for requirements for node resources
-        state: state handler
-
-    Returns:
-        object reference
-    """
-    warnings.warn(
-        "Decorator `run_qiskit_remote` is deprecated. "
-        "Please, consider using `distribute_task` instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return distribute_task(target, state)
 
 
 def distribute_task(

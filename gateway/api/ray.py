@@ -10,8 +10,9 @@ from typing import Any, Optional
 
 import yaml
 from kubernetes import client, config
+from kubernetes.client.exceptions import ApiException
 from kubernetes.dynamic.client import DynamicClient
-from kubernetes.dynamic.exceptions import ResourceNotFoundError
+from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
 
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
@@ -21,6 +22,9 @@ from django.template.loader import get_template
 from api.models import ComputeResource, Job
 from api.utils import try_json_loads
 from main import settings
+
+
+logger = logging.getLogger("commands")
 
 
 def submit_ray_job(job: Job) -> Job:
@@ -41,15 +45,21 @@ def submit_ray_job(job: Job) -> Job:
     while not success:
         runs += 1
         if runs > settings.RAY_SETUP_MAX_RETRIES:
-            logging.error("Unable to set up ray client")
+            logger.error("Unable to set up ray client [%s]", job.compute_resource)
             raise ConnectionError(err_msg)
-        logging.debug("Client setup attempt %d", runs)
+        logger.debug("Client setup attempt %d", runs)
         try:
             ray_client = JobSubmissionClient(job.compute_resource.host)
-            logging.debug("Ray JobClientSubmission setup succeeded")
+            logger.debug(
+                "Ray JobClientSubmission setup succeeded for compute resource [%s]",
+                job.compute_resource,
+            )
             success = True
         except Exception as err:  # pylint: disable=broad-exception-caught
-            logging.debug("Ray JobClientSubmission setup failed, retrying")
+            logger.debug(
+                "Ray JobClientSubmission setup failed for [%s], retrying",
+                job.compute_resource,
+            )
             err_msg = str(err)
             time.sleep(1)
 
@@ -70,9 +80,9 @@ def submit_ray_job(job: Job) -> Job:
     while not success:
         runs += 1
         if runs > settings.RAY_SETUP_MAX_RETRIES:
-            logging.error("Unable to submit ray job")
+            logger.error("Unable to submit ray job [%s]", job.id)
             raise ConnectionError(err_msg)
-        logging.debug("Job submission attempt %d", runs)
+        logger.debug("Job [%s] submission attempt %d", job.id, runs)
         try:
             ray_job_id = ray_client.submit_job(
                 entrypoint=entrypoint,
@@ -82,10 +92,10 @@ def submit_ray_job(job: Job) -> Job:
                     "pip": dependencies or [],
                 },
             )
-            logging.debug("Submitting ray job succeeded")
+            logger.debug("Submitting job [%s] to ray cluster succeeded", job.id)
             success = True
         except Exception as err:  # pylint: disable=broad-exception-caught
-            logging.debug("Ray job submission failed, retrying")
+            logger.debug("Ray job [%s] submission failed, retrying", job.id)
             err_msg = str(err)
             time.sleep(1)
 
@@ -163,10 +173,11 @@ def wait_for_cluster_ready(cluster_name: str):
                 if response.ok:
                     success = True
             except Exception:  # pylint: disable=broad-exception-caught
-                logging.debug("Head node %s is not ready yet.", url)
+                logger.debug("Head node %s is not ready yet.", url)
             time.sleep(1)
         else:
-            logging.warning("Waiting too long for cluster [%s] creation", cluster_name)
+            logger.warning("Waiting too long for cluster [%s] creation", cluster_name)
+            break
     return url, success
 
 
@@ -192,7 +203,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     if delete_response.status == "Success":
         success = True
     else:
-        logging.error(
+        logger.error(
             "Something went wrong during ray cluster deletion request: %s",
             delete_response.text,
         )
@@ -201,45 +212,40 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     except ResourceNotFoundError:
         return success
 
-    delete_response = cert_client.delete(name=cluster_name, namespace=namespace)
-    if delete_response.status == "Success":
+    try:
+        cert_client.delete(name=cluster_name, namespace=namespace)
         success = True
-    else:
-        logging.error(
+    except NotFoundError:
+        logger.error(
             "Something went wrong during ray certification deletion request: %s",
-            delete_response.text,
+            cluster_name,
         )
-
-    delete_response = cert_client.delete(
-        name=f"{cluster_name}-worker", namespace=namespace
-    )
-    if delete_response.status == "Success":
+    try:
+        cert_client.delete(name=f"{cluster_name}-worker", namespace=namespace)
         success = True
-    else:
-        logging.error(
+    except NotFoundError:
+        logger.error(
             "Something went wrong during ray certification deletion request: %s",
-            delete_response.text,
+            f"{cluster_name}-worker",
         )
 
     corev1 = client.CoreV1Api()
-    delete_response = corev1.delete_namespaced_secret(
-        name=cluster_name, namespace=namespace
-    )
-    if delete_response.status == "Success":
+    try:
+        corev1.delete_namespaced_secret(name=cluster_name, namespace=namespace)
         success = True
-    else:
-        logging.error(
-            "Something went wrong during certification secret deletion request: %s",
-            delete_response.text,
+    except ApiException:
+        logger.error(
+            "Something went wrong during ray secret deletion request: %s",
+            cluster_name,
         )
-    delete_response = corev1.delete_namespaced_secret(
-        name=f"{cluster_name}-worker", namespace=namespace
-    )
-    if delete_response.status == "Success":
+    try:
+        corev1.delete_namespaced_secret(
+            name=f"{cluster_name}-worker", namespace=namespace
+        )
         success = True
-    else:
-        logging.error(
-            "Something went wrong during certification secret deletion request: %s",
-            delete_response.text,
+    except ApiException:
+        logger.error(
+            "Something went wrong during ray secret deletion request: %s",
+            f"{cluster_name}-worker",
         )
     return success

@@ -1,6 +1,6 @@
 ARG IMAGE_PY_VERSION=py39
 
-FROM rayproject/ray:2.4.0-$IMAGE_PY_VERSION AS ray-node-amd64
+FROM rayproject/ray:2.5.0-$IMAGE_PY_VERSION AS ray-node-amd64
 
 WORKDIR /
 USER 0
@@ -14,7 +14,7 @@ RUN pip install . --no-cache-dir
 WORKDIR / 
 RUN rm -r ./qs
 
-FROM rayproject/ray:2.4.0-$IMAGE_PY_VERSION-aarch64 AS ray-node-arm64
+FROM rayproject/ray:2.5.0-$IMAGE_PY_VERSION-aarch64 AS ray-node-arm64
 
 WORKDIR /
 USER 0
@@ -27,9 +27,10 @@ RUN apt-get -y update &&\
 COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 
 WORKDIR /qs
+# TODO: scipy version pinned to 1.10, pyscf depends on. More info in #722
 RUN pip install . --no-cache-dir &&\
     if [ "$TARGETARCH" = "arm64" ] ; \
-        then pip install --no-cache-dir git+https://github.com/pyscf/pyscf@v2.2.1 ; \ 
+        then pip install --no-cache-dir pyscf==2.2.1 scipy==1.10 ; \
     fi
 
 WORKDIR /

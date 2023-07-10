@@ -1,5 +1,7 @@
 """Scheduling related functions."""
+import logging
 import random
+import uuid
 from typing import List
 
 from django.conf import settings
@@ -12,6 +14,7 @@ from api.models import Job, Program, ComputeResource
 from api.ray import submit_ray_job, create_ray_cluster, kill_ray_cluster
 
 User: Model = get_user_model()
+logger = logging.getLogger("commands")
 
 
 def save_program(serializer, request) -> Program:
@@ -47,13 +50,33 @@ def execute_job(job: Job) -> Job:
     """
     authors_resource = ComputeResource.objects.filter(owner=job.author).first()
 
+    cluster_name = f"cluster-{job.author.username}-{str(uuid.uuid4())[:8]}"
     if authors_resource:
-        job.compute_resource = authors_resource
-        job = submit_ray_job(job)
-        job.status = Job.PENDING
-        job.save()
+        try:
+            job.compute_resource = authors_resource
+            job = submit_ray_job(job)
+            job.status = Job.PENDING
+            job.save()
+        except (
+            Exception  # pylint: disable=broad-exception-caught
+        ) as missing_resource_exception:
+            logger.error(
+                "Exception was caught during scheduling job on user [%s] resource.\n"
+                "Resource [%s] was in DB records, but address is not reachable.\n"
+                "Cleaning up db record and setting job [%s] to failed.\n"
+                "Error trace: %s",
+                job.author,
+                authors_resource.title,
+                job.id,
+                missing_resource_exception,
+            )
+            kill_ray_cluster(authors_resource.title)
+            authors_resource.delete()
+            job.status = Job.FAILED
+            job.logs = "Compute resource was not found."
+            job.save()
     else:
-        compute_resource = create_ray_cluster(job.author)
+        compute_resource = create_ray_cluster(job.author, cluster_name=cluster_name)
         if compute_resource:
             # if compute resource was created in time with no problems
             job.compute_resource = compute_resource
@@ -64,9 +87,15 @@ def execute_job(job: Job) -> Job:
         else:
             # if something went wrong
             #   try to kill resource if it was allocated
-            kill_ray_cluster(job.author.username)
+            logger.warning(
+                "Compute resource [%s] was not created properly.\n"
+                "Setting job [%s] status to [FAILED].",
+                cluster_name,
+                job,
+            )
+            kill_ray_cluster(cluster_name)
             job.status = Job.FAILED
-            job.logs = "Something went wrong during compute resource allocation."
+            job.logs = "Compute resource was not created properly."
             job.save()
     return job
 

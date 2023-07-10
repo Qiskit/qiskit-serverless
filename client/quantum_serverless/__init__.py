@@ -17,22 +17,27 @@
     :toctree: ../stubs/
 
     QuantumServerless
+    QuantumServerlessException
+    get_auto_discovered_provider
 """
 
 from importlib_metadata import version as metadata_version, PackageNotFoundError
 
 from .core import (
-    Provider,
-    run_qiskit_remote,
+    BaseProvider,
     distribute_task,
     get,
     put,
     get_refs_by_status,
     KuberayProvider,
-    GatewayProvider,
+    Provider,
     save_result,
 )
-from .quantum_serverless import QuantumServerless
+from .quantum_serverless import (
+    QuantumServerless,
+    get_auto_discovered_provider,
+    QuantumServerlessException,
+)
 from .core.program import Program
 from .serializers import get_arguments
 

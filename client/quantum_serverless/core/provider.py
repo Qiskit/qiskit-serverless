@@ -142,7 +142,7 @@ class ComputeResource:
         return f"<ComputeResource: {self.name}>"
 
 
-class Provider(JsonSerializable):
+class BaseProvider(JsonSerializable):
     """Provider."""
 
     def __init__(
@@ -186,7 +186,7 @@ class Provider(JsonSerializable):
 
     @classmethod
     def from_dict(cls, dictionary: dict):
-        return Provider(**dictionary)
+        return BaseProvider(**dictionary)
 
     def job_client(self):
         """Return job client for configured compute resource of provider.
@@ -205,7 +205,7 @@ class Provider(JsonSerializable):
         return self.compute_resource.context(**kwargs)
 
     def __eq__(self, other):
-        if isinstance(other, Provider):
+        if isinstance(other, BaseProvider):
             return self.name == other.name
 
         return False
@@ -252,45 +252,6 @@ class Provider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run_program(
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
-    ) -> Job:
-        """(Deprecated) Execute a program as a async job.
-
-        Example:
-            >>> serverless = QuantumServerless()
-            >>> program = Program(
-            >>>     "job.py",
-            >>>     arguments={"arg1": "val1"},
-            >>>     dependencies=["requests"]
-            >>> )
-            >>> job = serverless.run_program(program)
-            >>> # <Job | ...>
-
-        Args:
-            arguments: arguments to run program with
-            program: Program object
-
-        Returns:
-            Job
-        """
-        warnings.warn(
-            "`run_program` is deprecated. Please, consider using `run` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        job_client = self.job_client()
-
-        if job_client is None:
-            logging.warning(  # pylint: disable=logging-fstring-interpolation
-                f"Job has not been submitted as no provider "
-                f"with remote host has been configured. "
-                f"Selected provider: {self}"
-            )
-            return None
-
-        return job_client.run_program(program, arguments)
-
     def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
         """Execute a program as a async job.
 
@@ -324,8 +285,8 @@ class Provider(JsonSerializable):
         return job_client.run(program, arguments)
 
 
-class KuberayProvider(Provider):
-    """Implements CRUD for Kuberay API server."""
+class KuberayProvider(BaseProvider):
+    """(Deprecated) Implements CRUD for Kuberay API server."""
 
     def __init__(
         self,
@@ -337,7 +298,7 @@ class KuberayProvider(Provider):
         compute_resource: Optional[ComputeResource] = None,
         available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
-        """Kuberay provider for serverless computation.
+        """(Deprecated) Kuberay provider for serverless computation.
 
         Example:
             >>> provider = Provider(
@@ -361,6 +322,14 @@ class KuberayProvider(Provider):
             available_compute_resources: available clusters in provider
         """
         super().__init__(name)
+        warnings.warn(
+            "`KuberayProvider` is deprecated "
+            "and will be removed in v0.3. "
+            "Please, consider using `Provider`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.name = name
         self.host = host
         self.token = token
@@ -510,8 +479,8 @@ class KuberayProvider(Provider):
         raise NotImplementedError
 
 
-class GatewayProvider(Provider):
-    """GatewayProvider."""
+class Provider(BaseProvider):
+    """Provider."""
 
     def __init__(
         self,
@@ -523,7 +492,7 @@ class GatewayProvider(Provider):
         token: Optional[str] = None,
         verbose: bool = False,
     ):
-        """GatewayProvider.
+        """Provider.
 
         Args:
             name: name of provider
@@ -554,6 +523,8 @@ class GatewayProvider(Provider):
         self.verbose = verbose
         self.host = host
         self.version = version
+        if token is not None:
+            self._verify_token(token)
         self._token = token
         if token is None:
             self._fetch_token(username, password)
@@ -572,16 +543,6 @@ class GatewayProvider(Provider):
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self._job_client.get(job_id)
 
-    def run_program(
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
-    ) -> Job:
-        warnings.warn(
-            "`run_program` is deprecated. Please, consider using `run` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._job_client.run_program(program, arguments)
-
     def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
         return self._job_client.run(program, arguments)
 
@@ -594,7 +555,22 @@ class GatewayProvider(Provider):
                 url=f"{self.host}/dj-rest-auth/keycloak/login/",
                 data={"username": username, "password": password},
                 timeout=REQUESTS_TIMEOUT,
-            )
+            ),
+            verbose=self.verbose,
         )
 
         self._token = response_data.get("access")
+
+    def _verify_token(self, token: str):
+        """Verify token."""
+        try:
+            safe_json_request(
+                request=lambda: requests.get(
+                    url=f"{self.host}/api/v1/programs/",
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                ),
+                verbose=self.verbose,
+            )
+        except QuantumServerlessException as reason:
+            raise QuantumServerlessException("Cannot verify token.") from reason

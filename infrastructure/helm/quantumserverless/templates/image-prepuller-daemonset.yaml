@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: prepuller
+spec:
+  selector:
+    matchLabels:
+      name: prepuller
+  template:
+    metadata:
+      labels:
+        name: prepuller
+    spec:
+      initContainers:
+         - name: prepuller-1
+           image: {{ .Values.gateway.application.ray.nodeImage }}
+           command: ["sh", "-c", "'true'"]
+      containers:
+        - name: pause
+          image: gcr.io/google_containers/pause:3.2

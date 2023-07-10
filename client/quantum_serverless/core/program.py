@@ -31,7 +31,6 @@ import json
 import logging
 import os
 import tarfile
-import warnings
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
@@ -54,7 +53,6 @@ class Program:  # pylint: disable=too-many-instance-attributes
         title: program name
         entrypoint: is a script that will be executed as a job
             ex: job.py
-        arguments: (deprecated) arguments for entrypoint script
         env_vars: env vars
         dependencies: list of python dependencies to execute a program
         working_dir: directory where entrypoint file is located
@@ -65,7 +63,6 @@ class Program:  # pylint: disable=too-many-instance-attributes
     title: str
     entrypoint: str
     working_dir: str = "./"
-    arguments: Optional[Dict[str, Any]] = None
     env_vars: Optional[Dict[str, str]] = None
     dependencies: Optional[List[str]] = None
     description: Optional[str] = None
@@ -77,17 +74,6 @@ class Program:  # pylint: disable=too-many-instance-attributes
         """Reconstructs Program from dictionary."""
         field_names = set(f.name for f in dataclasses.fields(Program))
         return Program(**{k: v for k, v in data.items() if k in field_names})
-
-    def __post_init__(self):
-        if self.arguments is not None:
-            warnings.warn(
-                "Passing `arguments` as constructor argument to `Program` is deprecated "
-                "and will be removed in v0.2. "
-                "Please, consider passing `arguments` to `run` "
-                "method of `QuantumServerless` object.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
 
 class ProgramStorage(ABC):

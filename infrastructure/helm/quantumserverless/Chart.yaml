@@ -4,27 +4,27 @@ description: Quantum-Serverless helm chart that contains different dependencies.
 
 type: application
 
-version: 0.2.0
-appVersion: "0.2.0"
+version: 0.2.1
+appVersion: "0.2.1"
 
 dependencies:
   - name: gateway
     condition: gatewayEnable
-    version: 0.2.0
+    version: 0.2.1
   - name: jupyter
     condition: jupyterEnable
-    version: 0.2.0
+    version: 0.2.1
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
-    version: 9.7.2
+    version: 9.7.5
     repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
     condition: kuberayOperatorEnable
-    version: 0.5.1
+    version: 0.5.2
     repository: https://ray-project.github.io/kuberay-helm
   - name: redis
     condition: redisEnable
-    version: 17.11.3
+    version: 17.11.7
     repository: https://charts.bitnami.com/bitnami
   - name: keycloak
     condition: keycloakEnable
@@ -32,7 +32,7 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
   - name: repository
     condition: repositoryEnable
-    version: 0.2.0
+    version: 0.2.1
   - name: kube-prometheus-stack
     condition: prometheusEnable
     version: 45.31.1
@@ -43,5 +43,5 @@ dependencies:
     repository: https://grafana.github.io/helm-charts
   - name: promtail
     condition: promtailEnable
-    version: 6.11.3
+    version: 6.11.5
     repository: https://grafana.github.io/helm-charts
