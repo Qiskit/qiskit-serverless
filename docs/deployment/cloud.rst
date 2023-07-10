@@ -139,6 +139,13 @@ configuration example to expose through ``ingress`` in ``localhost`` the Jupyter
 
 * **Important**: ``nginx-ingress-controller`` is disabled by default because third party providers should provide its own Ingress controller. To use it locally you need to activate it too.
 
+Optionally, you can install an observability package to handle logging and monitoring on your cluster by running the following command:
+
+.. code-block::
+   :caption: run this commands with the release version like 0.2.1 in x.y.z (2 places) using the same namespace as in the previous helm command
+
+        $ helm -n <INSERT_YOUR_NAMESPACE> install qs-observability  https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz
+
 .. _terraform-deployment:
 
 Terraform: Deploy all the infrastructure in your preferred cloud provider

@@ -1,5 +1,5 @@
 apiVersion: v2
-name: observability
+name: qs-observability
 description: Quantum-Serverless helm chart for observabililty (i.e. logging/monitoring).
 
 type: application
