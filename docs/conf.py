@@ -32,6 +32,7 @@ extensions = [
     "reno.sphinxext",
     "nbsphinx",
     "sphinx_copybutton",
+    "qiskit_sphinx_theme",
 ]
 templates_path = ["_templates"]
 numfig = True
@@ -42,17 +43,7 @@ add_module_names = False
 modindex_common_prefix = ["quantum_serverless_project."]
 
 # html theme options
-html_theme_options = {
-    'github_button': True,
-    'github_user': 'Qiskit-Extensions',
-    'github_repo': 'quantum-serverless',
-    'github_type': 'star',
-    'github_count': False,
-    'extra_nav_links': {
-        'Repository': 'https://github.com/Qiskit-Extensions/quantum-serverless',
-        'Report issues': 'https://github.com/Qiskit-Extensions/quantum-serverless/issues/new?assignees=&labels=bug&template=bug_report.md'
-    }
-}
+html_theme = "qiskit"
 
 # autodoc/autosummary options
 autosummary_generate = True
