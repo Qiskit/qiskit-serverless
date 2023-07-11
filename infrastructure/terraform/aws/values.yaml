@@ -146,7 +146,7 @@ kuberay-apiserver:
   name: "kuberay-apiserver"
   image:
     repository: kuberay/apiserver
-    tag: v0.5.0
+    tag: v0.5.2
     pullPolicy: IfNotPresent
 
   rbacEnable: true
