@@ -35,7 +35,7 @@ extensions = [
     "qiskit_sphinx_theme",
 ]
 templates_path = ["_templates"]
-numfig = True
+numfig = False
 numfig_format = {"table": "Table %s"}
 language = "en"
 pygments_style = "colorful"
