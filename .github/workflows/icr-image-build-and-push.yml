@@ -6,6 +6,8 @@ on:
       tag:
         description: 'Tag for images'
         required: true
+  release:
+    types: [published]
   push:
     branches:
       - main
@@ -38,3 +40,12 @@ jobs:
         uses: ./.github/actions/icr-build-and-push-images
         with:
           tag: ${{ github.event.inputs.tag }}
+      - name: Set version from tag
+        if : github.event_name == 'release' && github.event.action == 'published'
+        id: set-version-from-tag
+        run: echo "VERSION=${GITHUB_REF_NAME/v}" >> $GITHUB_OUTPUT
+      - name: Build and push on release
+        if : github.event_name == 'release' && github.event.action == 'published'
+        uses: ./.github/actions/icr-build-and-push-images
+        with:
+          tag: ${{ steps.set-version-from-tag.outputs.VERSION }}
