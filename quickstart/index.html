@@ -265,26 +265,26 @@ their provider or dev ops team.</p>
 </div>
 <p>Step 0 [Optional]: Pre-Installation</p>
 <div class="literal-block-wrapper docutils container" id="id1">
-<div class="code-block-caption"><span class="caption-number">Listing 1 </span><span class="caption-text">Create a minimal environment with only Python installed in it. We recommend using <a class="reference external" href="https://docs.python.org/3.10/tutorial/venv.html">Python virtual environments</a>.</span><a class="headerlink" href="#id1" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">Create a minimal environment with only Python installed in it. We recommend using <a class="reference external" href="https://docs.python.org/3.10/tutorial/venv.html">Python virtual environments</a>.</span><a class="headerlink" href="#id1" title="Permalink to this code">#</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">virtual</span><span class="o">/</span><span class="n">environment</span>
 </pre></div>
 </div>
 </div>
 <div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-number">Listing 2 </span><span class="caption-text">Activate your new environment.</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">Activate your new environment.</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">source</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">virtual</span><span class="o">/</span><span class="n">environment</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">activate</span>
 </pre></div>
 </div>
 </div>
 <div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-number">Listing 3 </span><span class="caption-text">Note: If you are using Windows, use the following commands in PowerShell.</span><a class="headerlink" href="#id3" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">Note: If you are using Windows, use the following commands in PowerShell.</span><a class="headerlink" href="#id3" title="Permalink to this code">#</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="n">c</span><span class="p">:</span>\<span class="n">path</span>\<span class="n">to</span>\<span class="n">virtual</span>\<span class="n">environment</span>
    <span class="n">c</span><span class="p">:</span>\<span class="n">path</span>\<span class="n">to</span>\<span class="n">virtual</span>\<span class="n">environment</span>\<span class="n">Scripts</span>\<span class="n">Activate</span><span class="o">.</span><span class="n">ps1</span>
 </pre></div>
 </div>
 </div>
 <div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-number">Listing 4 </span><span class="caption-text">Clone the Quantum Serverless repository.</span><a class="headerlink" href="#id4" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">Clone the Quantum Serverless repository.</span><a class="headerlink" href="#id4" title="Permalink to this code">#</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">cd</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">workspace</span><span class="o">/</span>
    <span class="n">git</span> <span class="n">clone</span> <span class="n">git</span><span class="nd">@github</span><span class="o">.</span><span class="n">com</span><span class="p">:</span><span class="n">Qiskit</span><span class="o">-</span><span class="n">Extensions</span><span class="o">/</span><span class="n">quantum</span><span class="o">-</span><span class="n">serverless</span><span class="o">.</span><span class="n">git</span>
 </pre></div>
@@ -298,7 +298,7 @@ on the <a class="reference external" href="https://docs.docker.com/engine/instal
 <p>Step 2: Stop any running jupyter notebook servers.</p>
 <p>Step 3: Install the quantum serverless package.</p>
 <div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-number">Listing 5 </span><span class="caption-text">Install quantum_serverless via pip.</span><a class="headerlink" href="#id5" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">Install quantum_serverless via pip.</span><a class="headerlink" href="#id5" title="Permalink to this code">#</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">pip</span> <span class="n">install</span> <span class="o">--</span><span class="n">upgrade</span> <span class="n">pip</span>
    <span class="n">pip</span> <span class="n">install</span> <span class="n">quantum_serverless</span>
 </pre></div>
@@ -306,7 +306,7 @@ on the <a class="reference external" href="https://docs.docker.com/engine/instal
 </div>
 <p>Step 4: Run infrastructure.</p>
 <div class="literal-block-wrapper docutils container" id="id6">
-<div class="code-block-caption"><span class="caption-number">Listing 6 </span><span class="caption-text">Run docker compose from the root of the quantum serverless project.</span><a class="headerlink" href="#id6" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">Run docker compose from the root of the quantum serverless project.</span><a class="headerlink" href="#id6" title="Permalink to this code">#</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">cd</span> <span class="n">quantum</span><span class="o">-</span><span class="n">serverless</span><span class="o">/</span>
    <span class="n">docker</span> <span class="n">compose</span> <span class="o">--</span><span class="n">profile</span> <span class="n">jupyter</span> <span class="n">up</span>
 </pre></div>
@@ -315,13 +315,13 @@ on the <a class="reference external" href="https://docs.docker.com/engine/instal
 <p>Step 5: Open the jupyter lab environment by going to <code class="docutils literal notranslate"><span class="pre">localhost:8888</span></code> via your favorite browser.</p>
 <p>Step 6: Write your program in containerized environment.</p>
 <div class="literal-block-wrapper docutils container" id="id7">
-<div class="code-block-caption"><span class="caption-number">Listing 7 </span><span class="caption-text">Create a Python file using a text editor. Here we use vim.</span><a class="headerlink" href="#id7" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">Create a Python file using a text editor. Here we use vim.</span><a class="headerlink" href="#id7" title="Permalink to this code">#</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">vim</span> <span class="n">program</span><span class="o">.</span><span class="n">py</span>
 </pre></div>
 </div>
 </div>
 <div class="literal-block-wrapper docutils container" id="id8">
-<div class="code-block-caption"><span class="caption-number">Listing 8 </span><span class="caption-text">program.py</span><a class="headerlink" href="#id8" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">program.py</span><a class="headerlink" href="#id8" title="Permalink to this code">#</a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span>
 
 <span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
@@ -358,7 +358,7 @@ on the <a class="reference external" href="https://docs.docker.com/engine/instal
 </div>
 <p>Step 5: Run the program.</p>
 <div class="literal-block-wrapper docutils container" id="id9">
-<div class="code-block-caption"><span class="caption-number">Listing 9 </span><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id9" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id9" title="Permalink to this code">#</a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">Provider</span><span class="p">,</span> <span class="n">Program</span>
 <span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
 
@@ -394,7 +394,7 @@ on the <a class="reference external" href="https://docs.docker.com/engine/instal
 </div>
 <p>Step 6: Monitor the job status.</p>
 <div class="literal-block-wrapper docutils container" id="id10">
-<div class="code-block-caption"><span class="caption-number">Listing 10 </span><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id10" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id10" title="Permalink to this code">#</a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
 <span class="c1"># &lt;JobStatus.SUCCEEDED: &#39;SUCCEEDED&#39;&gt;</span>
 
@@ -404,7 +404,7 @@ on the <a class="reference external" href="https://docs.docker.com/engine/instal
 </div>
 <p>Step 7: Get the results.</p>
 <div class="literal-block-wrapper docutils container" id="id11">
-<div class="code-block-caption"><span class="caption-number">Listing 11 </span><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id11" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">in jupyter notebook</span><a class="headerlink" href="#id11" title="Permalink to this code">#</a></div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
 <span class="c1"># {&quot;quasi_dists&quot;: [</span>
 <span class="c1">#  {&quot;0&quot;: 0.25, &quot;1&quot;: 0.25, &quot;2&quot;: 0.2499999999999999, &quot;3&quot;: 0.2499999999999999},</span>
