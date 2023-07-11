@@ -5,3 +5,5 @@
  * MIT License
  * http://github.com/cferdinandi/gumshoe
  */
+
+/*! This file is vendored from Furo (created by Pradyun Gedam) and used under the MIT license. */
