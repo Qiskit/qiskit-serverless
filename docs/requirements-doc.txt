@@ -12,7 +12,7 @@ sphinx-autodoc-typehints>=1.17.0
 reno>=3.5.0
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
-black[jupyter]~=22.1
+black[jupyter]~=22.12
 ray==2.5.0
 qiskit-terra==0.21.1
 qiskit-ibm-runtime==0.7.0rc2
