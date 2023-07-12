@@ -1,0 +1,164 @@
+---
+os: linux
+arch: amd64
+dist: focal
+
+env:
+  global:
+    - IBMCLOUD_API_KEY: ${IBM_CLOUD_API_KEY} # We should use this non-standard variable because the IaC code base.
+
+stages:
+  - name: checks
+    if: type IN (push)
+  - name: docker image
+    if: type IN (pull_request)
+  - name: ASoC static security scan
+    if: type IN (cron,api)
+  # - name: ASoC dynamic security scan
+  #   if: type IN (cron,api)
+
+jobs:
+  include:
+    - stage: checks
+      name: docker/lint-gateway
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/lint-gateway
+    
+    - stage: checks
+      name: docker/lint-notebook
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/lint-notebook
+    
+    - stage: checks
+      name: docker/lint-ray
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/lint-ray
+    
+    - stage: checks
+      name: docker/lint-repository
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/lint-repository
+    
+    - stage: checks
+      name: docker/sast-gateway
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/sast-gateway
+    
+    - stage: checks
+      name: docker/sast-notebook
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/sast-notebook
+    
+    - stage: checks
+      name: docker/sast-ray
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/sast-ray
+    
+    - stage: checks
+      name: docker/sast-repository
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/sast-repository
+    
+    - stage: docker image
+      name: docker/vscan-gateway
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/vscan-gateway
+    
+    - stage: docker image
+      name: docker/vscan-notebook-py38
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/vscan-notebook-py38
+
+    - stage: docker image
+      name: docker/vscan-notebook-py39
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/vscan-notebook-py39
+    
+    - stage: docker image
+      name: docker/vscan-notebook-py310
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/vscan-notebook-py310
+
+    - stage: docker image
+      name: docker/vscan-ray-py38
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/vscan-ray-py38
+
+    - stage: docker image
+      name: docker/vscan-ray-py39
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/vscan-ray-py39
+    
+    - stage: docker image
+      name: docker/vscan-ray-py310
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/vscan-ray-py310
+
+    - stage: docker image
+      name: docker/vscan-repository
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/vscan-repository
+
+    - stage: ASoC static security scan
+      name: security/asoc-static
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/asoc-static-scan
+
+    # - stage: ASoC dynamic security scan
+    #   name: security/asoc-dynamic
+    #   language: minimal
+    #   install: skip
+    #   services: docker
+    #   script:
+    #     - make docker/asoc-dynamic-scan

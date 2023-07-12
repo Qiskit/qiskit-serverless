@@ -1,0 +1,14 @@
+{
+  "StaticScan": "true",
+  "DynamicScan": "false",
+  "OrgName": "IBM-Q-Software",
+  "RepoName": "quantum-serverless",
+  "StartingURL": "TBD",
+  "AssetGroupId": "dad9bdd7-53cd-4baf-9b55-9a11266d735d",
+  "BusinessUnitId": "56011969-ae29-ec11-ae72-2818780a4811",
+  "Technology": "IBM Quantum",
+  "BusinessOwner": "paco@ibm.com",
+  "DevelopmentContact": "david.garcia.valinas@ibm.com",
+  "Tester": "david.garcia.valinas@ibm.com",
+  "CreateGitIssues": "true"
+}

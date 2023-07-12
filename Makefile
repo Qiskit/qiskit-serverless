@@ -1,3 +1,7 @@
+#!/usr/bin/env make
+
+-include ./ci/internal-makefile.mk
+
 # =========
 # Constants
 # =========
