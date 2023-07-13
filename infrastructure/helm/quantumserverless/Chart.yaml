@@ -4,16 +4,16 @@ description: Quantum-Serverless helm chart that contains different dependencies.
 
 type: application
 
-version: 0.2.1
-appVersion: "0.2.1"
+version: 0.3.0
+appVersion: "0.3.0"
 
 dependencies:
   - name: gateway
     condition: gatewayEnable
-    version: 0.2.1
+    version: 0.3.0
   - name: jupyter
     condition: jupyterEnable
-    version: 0.2.1
+    version: 0.3.0
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
     version: 9.7.5
@@ -32,5 +32,5 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
   - name: repository
     condition: repositoryEnable
-    version: 0.2.1
+    version: 0.3.0
 
