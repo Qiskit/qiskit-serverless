@@ -264,6 +264,11 @@ data:
               - mountPath: /data
                 name: user-storage
                 subPath: {{`{{ user_id }}`}}
+              - mountPath: /etc/ca/tls
+                name: ca-tls
+                readOnly: true
+              - mountPath: /etc/ray/tls
+                name: ray-tls
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
             serviceAccountName: ray-cluster-sa
