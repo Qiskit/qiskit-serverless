@@ -10,16 +10,20 @@ data:
       name: {{`{{ cluster_name }}`}}
       namespace: {{ .Release.Namespace }}
     spec:
+{{- if .Values.application.ray.scrapeWithPrometheus }}      
       headServiceAnnotations:
-        prometheus.io/scrape: "true"    
+        prometheus.io/scrape: "true"
+{{- end }}        
       headGroupSpec:
         rayStartParams:
           dashboard-host: 0.0.0.0
         serviceType: ClusterIP
         template:
+{{- if .Values.application.ray.scrapeWithPrometheus }}                
           metadata:
             annotations:
-              prometheus.io/scrape: "true"    
+              prometheus.io/scrape: "true"
+{{- end }}              
           spec:
             initContainers:
               # Generate head's private key and certificate before `ray start`.
@@ -174,9 +178,11 @@ data:
           block: 'true'
         replicas: {{ .Values.application.ray.replicas }}
         template:
+{{- if .Values.application.ray.scrapeWithPrometheus }}      
           metadata:
             annotations:
-              prometheus.io/scrape: "true"              
+              prometheus.io/scrape: "true"
+{{- end }}              
           spec:
             initContainers:
               # Generate worker's private key and certificate before `ray start`.
