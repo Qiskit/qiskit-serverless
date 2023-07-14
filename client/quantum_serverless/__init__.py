@@ -29,7 +29,6 @@ from .core import (
     get,
     put,
     get_refs_by_status,
-    KuberayProvider,
     Provider,
     save_result,
 )

@@ -30,14 +30,12 @@ import logging
 import os.path
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
-import warnings
 
 import ray
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
 from quantum_serverless.core.constants import (
-    RAY_IMAGE,
     REQUESTS_TIMEOUT,
     ENV_GATEWAY_PROVIDER_HOST,
     ENV_GATEWAY_PROVIDER_VERSION,
