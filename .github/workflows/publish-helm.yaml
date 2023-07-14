@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         release:
-          - 'quantum-serverless'
+          - 'quantumserverless'
           - 'qs-observability'
     steps:
       - name: Set up Helm
