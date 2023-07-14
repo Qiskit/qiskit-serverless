@@ -25,6 +25,7 @@ Core abstractions
 
 .. autosummary::
     :toctree: ../stubs/
+
     Provider
     BaseProvider
     ComputeResource
