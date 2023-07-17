@@ -4,7 +4,7 @@ data:
   keycloakconfig.json: |
     {
       "id": "e165160a-1516-4a29-b65c-6f4479682dc3",
-      "realm": "quantumserverless",
+      "realm": "quantum-serverless",
       "notBefore": 0,
       "defaultSignatureAlgorithm": "RS256",
       "revokeRefreshToken": false,
@@ -51,7 +51,7 @@ data:
         "realm": [
           {
             "id": "aafad90c-2bb2-4fe9-9403-278abb4e3e95",
-            "name": "default-roles-quantumserverless",
+            "name": "default-roles-quantum-serverless",
             "description": "${role_default-roles}",
             "composite": true,
             "composites": {
@@ -419,7 +419,7 @@ data:
       "groups": [],
       "defaultRole": {
         "id": "aafad90c-2bb2-4fe9-9403-278abb4e3e95",
-        "name": "default-roles-quantumserverless",
+        "name": "default-roles-quantum-serverless",
         "description": "${role_default-roles}",
         "composite": true,
         "clientRole": false,
@@ -467,7 +467,7 @@ data:
         {
           "username": "{{ .Values.keycloakUserID }}",
           "enabled": true,
-          "email": "user@quantumserverless.org",
+          "email": "user@quantum-serverless.org",
           "emailVerified": true,
           "credentials": [
             {
@@ -477,17 +477,17 @@ data:
           ],
           "clientRoles": {
             "gateway-client": [
-              "default-roles-quantumserverless"
+              "default-roles-quantum-serverless"
             ],
             "grafana-client": [
-              "default-roles-quantumserverless"
+              "default-roles-quantum-serverless"
             ]
           }
         },
         {
           "username": "{{ .Values.keycloak.auth.adminUser }}",
           "enabled": true,
-          "email": "admin@quantumserverless.org",
+          "email": "admin@quantum-serverless.org",
           "emailVerified": true,
           "credentials": [
             {
@@ -530,13 +530,13 @@ data:
           "clientId": "account",
           "name": "${client_account}",
           "rootUrl": "${authBaseUrl}",
-          "baseUrl": "/realms/quantumserverless/account/",
+          "baseUrl": "/realms/quantum-serverless/account/",
           "surrogateAuthRequired": false,
           "enabled": true,
           "alwaysDisplayInConsole": false,
           "clientAuthenticatorType": "client-secret",
           "redirectUris": [
-            "/realms/quantumserverless/account/*"
+            "/realms/quantum-serverless/account/*"
           ],
           "webOrigins": [],
           "notBefore": 0,
@@ -574,13 +574,13 @@ data:
           "clientId": "account-console",
           "name": "${client_account-console}",
           "rootUrl": "${authBaseUrl}",
-          "baseUrl": "/realms/quantumserverless/account/",
+          "baseUrl": "/realms/quantum-serverless/account/",
           "surrogateAuthRequired": false,
           "enabled": true,
           "alwaysDisplayInConsole": false,
           "clientAuthenticatorType": "client-secret",
           "redirectUris": [
-            "/realms/quantumserverless/account/*"
+            "/realms/quantum-serverless/account/*"
           ],
           "webOrigins": [],
           "notBefore": 0,
@@ -855,13 +855,13 @@ data:
           "clientId": "security-admin-console",
           "name": "${client_security-admin-console}",
           "rootUrl": "${authAdminUrl}",
-          "baseUrl": "/admin/quantumserverless/console/",
+          "baseUrl": "/admin/quantum-serverless/console/",
           "surrogateAuthRequired": false,
           "enabled": true,
           "alwaysDisplayInConsole": false,
           "clientAuthenticatorType": "client-secret",
           "redirectUris": [
-            "/admin/quantumserverless/console/*"
+            "/admin/quantum-serverless/console/*"
           ],
           "webOrigins": [
             "+"

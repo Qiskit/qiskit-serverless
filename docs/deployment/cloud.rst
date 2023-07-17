@@ -133,7 +133,7 @@ Now that we have the desired services, we can expose their ports:
 Now you may access your cluster services from localhost.
 
 For development this is more than enough, but if you are considering deploying it remotely you will need to
-configure the various ``ingress`` properties in `values.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values.yaml>`_
+configure the various ``ingress`` properties in `values.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantum-serverless/values.yaml>`_
 with the configuration of your domain and provider. In the ``Jupyter configs`` section you have a
 configuration example to expose through ``ingress`` in ``localhost`` the Jupyter service (disabled by default).
 
@@ -203,7 +203,7 @@ When the process finishes, you should be able to see the cluster with the resour
 
 Now that you have a cluster you can follow the steps in the :ref:`helm-deployment` section for using helm to deploy the different applications.
 
-For IBM Cloud in particular we provided you with a specific values with a default configuration in `values-ibm.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values-ibm.yaml>`_
+For IBM Cloud in particular we provided you with a specific values with a default configuration in `values-ibm.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantum-serverless/values-ibm.yaml>`_
 
 The only thing that you will need to check in this case are some placeholders:
     * YOUR_INGRESS_PUBLIC_END_POINT: this value can be obtained from your Ingress configuration of your cluster

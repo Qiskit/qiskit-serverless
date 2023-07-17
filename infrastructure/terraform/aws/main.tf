@@ -43,7 +43,7 @@ resource "aws_vpc" "quantum_serverless_vpc" {
 
 resource "helm_release" "quantum_serverless_release" {
   name       = "quantum-serverless-release"
-  chart      = "../../helm/quantumserverless"
+  chart      = "../../helm/quantum-serverless"
 
   values = [
     file("values.yaml")

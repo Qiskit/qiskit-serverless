@@ -29,9 +29,9 @@ First of all you will need to build the docker images inside the [docker folder]
 
 ### Configure helm values
 
-Once time you have your docker images built you must configure the values for helm. In the [values](./infrastructure/helm/quantumserverless/values.yaml) file you will find several placeholders where you can fill with the needed value what image you will use for each service.
+Once time you have your docker images built you must configure the values for helm. In the [values](./infrastructure/helm/quantum-serverless/values.yaml) file you will find several placeholders where you can fill with the needed value what image you will use for each service.
 
-For more information you have every variable described in the [README](./infrastructure//helm/quantumserverless/README.md) in case you need more configurations.
+For more information you have every variable described in the [README](./infrastructure//helm/quantum-serverless/README.md) in case you need more configurations.
 
 ### Terraform / Run helm
 
@@ -41,7 +41,7 @@ At this step you are going to need to have decided where are you going to deploy
 
 For the first one, **Locally**. You will need to have a k8s approach installed in your machine. You have several options for that: [Docker desktop](https://www.docker.com/products/docker-desktop/), [Minikube](https://minikube.sigs.k8s.io/docs/), [kind](https://kind.sigs.k8s.io/), [k3s](https://k3s.io/), etc...
 
-If this is your case you just need to execute the helm configuration on you k8s instance following the installation step described in the helm's [README](./infrastructure/helm/quantumserverless/README.md).
+If this is your case you just need to execute the helm configuration on you k8s instance following the installation step described in the helm's [README](./infrastructure/helm/quantum-serverless/README.md).
 
 If you are interested into manage the infrastructure in a **cloud provider** the project supports two of them, currently: [IBM Cloud](./infrastructure/terraform/ibm/), [AWS](./infrastructure/terraform/aws).
 

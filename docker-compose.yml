@@ -74,7 +74,7 @@ services:
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
       - SETTING_KEYCLOAK_URL=http://keycloak:8080
-      - SETTING_KEYCLOAK_REALM=quantumserverless
+      - SETTING_KEYCLOAK_REALM=quantum-serverless
       - SETTINGS_KEYCLOAK_CLIENT_SECRET=supersecret
       - SITE_HOST=http://gateway:8000
 #      - SETTINGS_AUTH_MECHANISM=default #custom_token
