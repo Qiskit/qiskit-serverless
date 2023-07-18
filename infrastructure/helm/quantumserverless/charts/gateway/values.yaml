@@ -30,7 +30,7 @@ application:
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
-    clusterShutdownDelay: 0
+    keepClusterOnComplete: False
 
 database:
   host: postgresql

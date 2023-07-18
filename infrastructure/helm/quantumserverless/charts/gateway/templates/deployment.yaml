@@ -187,8 +187,10 @@ spec:
               value: {{ .Values.application.limits.maxJobsPerUser | quote }}
             - name: LIMITS_MAX_CLUSTERS
               value: {{ .Values.application.limits.maxComputeResources | quote }}
-            - name: RAY_CLUSTER_SHUTDOWN_DELAY
-              value: {{ .Values.application.limits.clusterShutdownDelay | quote }}
+{{- if .Values.application.limits.keepClusterOnComplete }}
+            - name: RAY_CLUSTER_NO_DELETE_ON_COMPLETE
+              value: "True"
+{{- end }}       
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
