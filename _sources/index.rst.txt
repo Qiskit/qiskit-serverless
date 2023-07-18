@@ -24,21 +24,10 @@ system and receive the results when they are ready.
 .. toctree::
   :maxdepth: 2
 
+  About Quantum Serverless <self>
   Quickstart <quickstart/index>
-
-.. toctree::
-  :maxdepth: 2
-
   Running <running/index>
-
-.. toctree::
-  :maxdepth: 2
-
   Development <development/index>
-
-.. toctree::
-  :maxdepth: 2
-
   Deployment <deployment/index>
 
 .. toctree::
