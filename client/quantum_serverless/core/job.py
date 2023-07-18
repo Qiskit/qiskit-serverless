@@ -52,7 +52,10 @@ from quantum_serverless.core.constants import (
 )
 from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
-from quantum_serverless.serializers.program_serializers import QiskitObjectsEncoder, QiskitObjectsDecoder
+from quantum_serverless.serializers.program_serializers import (
+    QiskitObjectsEncoder,
+    QiskitObjectsDecoder,
+)
 from quantum_serverless.utils.json import is_jsonable, safe_json_request
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
@@ -262,8 +265,9 @@ class GatewayJobClient(BaseJobClient):
                 timeout=REQUESTS_TIMEOUT,
             )
         )
-        return json.loads(response_data.get("result", "{}") or "{}", 
-                          cls=QiskitObjectsDecoder)
+        return json.loads(
+            response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder
+        )
 
     def get(self, job_id) -> Optional["Job"]:
         url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
@@ -386,8 +390,7 @@ def save_result(result: Dict[str, Any]):
     )
     response = requests.post(
         url,
-        data={
-            "result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
+        data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
         headers={"Authorization": f"Bearer {token}"},
         timeout=REQUESTS_TIMEOUT,
     )
