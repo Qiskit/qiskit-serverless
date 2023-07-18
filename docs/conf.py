@@ -43,7 +43,8 @@ add_module_names = False
 modindex_common_prefix = ["quantum_serverless_project."]
 
 # html theme options
-html_theme = "qiskit"
+html_theme = "qiskit-ecosystem"
+html_title = f"{project} {release}"
 
 # autodoc/autosummary options
 autosummary_generate = True

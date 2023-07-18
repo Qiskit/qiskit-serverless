@@ -17,7 +17,7 @@ ray==2.5.0
 qiskit-terra==0.21.1
 qiskit-ibm-runtime==0.7.0rc2
 sphinx-copybutton>=0.5.2
-qiskit-sphinx-theme~=1.13.1
+qiskit-sphinx-theme~=1.14.0rc1
 redis>=4.3.4
 # opentelemetry
 opentelemetry-api>=1.15.0
