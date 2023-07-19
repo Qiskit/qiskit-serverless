@@ -1,5 +1,5 @@
 coverage>=5.5
-pylint>=2.9.5
+pylint>=2.17.4
 nbqa>=1.7.0
 treon>=0.1.4
 pytest>=6.2.5
