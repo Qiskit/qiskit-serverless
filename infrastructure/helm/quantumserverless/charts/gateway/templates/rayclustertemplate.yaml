@@ -9,6 +9,10 @@ data:
     metadata:
       name: {{`{{ cluster_name }}`}}
       namespace: {{ .Release.Namespace }}
+{{- if .Values.application.limits.keepClusterOnComplete }}
+      labels:
+        nodelete: "true"
+{{- end }}
     spec:
 {{- if .Values.application.ray.scrapeWithPrometheus }}      
       headServiceAnnotations:
