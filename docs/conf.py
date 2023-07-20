@@ -6,6 +6,7 @@ Sphinx documentation builder
 import os
 import sys
 from pathlib import Path
+from importlib.metadata import version as metadata_version
 
 sys.path.append(os.path.abspath('../client'))
 
