@@ -48,7 +48,7 @@ gateway:
       keycloak:
         clientId: "gateway-client"
         url: "http://keycloak:31059"
-        realm: "quantumserverless"
+        realm: "quantum-serverless"
         clientSecret: GATEWAYSECRET-CHANGEME
     superuser:
       username: "admin"

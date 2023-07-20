@@ -244,7 +244,7 @@ SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT = int(
 SOCIALACCOUNT_PROVIDERS = {
     "keycloak": {
         "KEYCLOAK_URL": os.environ.get(SETTING_KEYCLOAK_URL, "http://localhost:8085"),
-        "KEYCLOAK_REALM": os.environ.get(SETTING_KEYCLOAK_REALM, "quantumserverless"),
+        "KEYCLOAK_REALM": os.environ.get(SETTING_KEYCLOAK_REALM, "quantum-serverless"),
     }
 }
 
@@ -276,7 +276,7 @@ LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 
 # ray cluster management
-RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "quantumserverless")
+RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "quantum-serverless")
 RAY_CLUSTER_MODE = {
     "local": int(os.environ.get("RAY_CLUSTER_MODE_LOCAL", 0)),
     "ray_local_host": os.environ.get(

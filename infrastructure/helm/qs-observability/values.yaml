@@ -47,9 +47,9 @@ kube-prometheus-stack:
     #    allow_sign_up: "true"
     #    client_id: grafana-client
     #    client_secret: GRAFANASECRET-CHANGEME
-    #    api_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/userinfo"
-    #    auth_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/auth"
-    #    token_url: "http://<Non-Loopback local IP>:31059/realms/quantumserverless/protocol/openid-connect/token"
+    #    api_url: "http://<Non-Loopback local IP>:31059/realms/quantum-serverless/protocol/openid-connect/userinfo"
+    #    auth_url: "http://<Non-Loopback local IP>:31059/realms/quantum-serverless/protocol/openid-connect/auth"
+    #    token_url: "http://<Non-Loopback local IP>:31059/realms/quantum-serverless/protocol/openid-connect/token"
     #    role_attribute_path: "contains(roles[*], 'grafana-admin') && 'GrafanaAdmin' || contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'"
     #    allow_assign_grafana_admin: "true"
     #    scopes: openid email profile roles
