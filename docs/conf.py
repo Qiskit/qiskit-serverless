@@ -19,7 +19,7 @@ _rootdir = Path(__file__).parent.parent
 # The full version, including alpha/beta/rc tags
 release = metadata_version("quantum_serverless")
 
-# The short X.Y version
+# The X.Y.Z version
 version = ".".join(release.split(".")[:3])
 
 extensions = [
