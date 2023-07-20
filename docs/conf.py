@@ -6,6 +6,7 @@ Sphinx documentation builder
 import os
 import sys
 from pathlib import Path
+from importlib.metadata import version as metadata_version
 
 sys.path.append(os.path.abspath('../client'))
 
@@ -16,9 +17,10 @@ author = ""
 _rootdir = Path(__file__).parent.parent
 
 # The full version, including alpha/beta/rc tags
-release = "0.0.0"
-# The short X.Y version
-version = "0.0"
+release = metadata_version("quantum_serverless")
+
+# The X.Y.Z version
+version = ".".join(release.split(".")[:3])
 
 extensions = [
     "sphinx.ext.napoleon",
