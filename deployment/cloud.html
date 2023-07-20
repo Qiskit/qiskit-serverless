@@ -401,7 +401,7 @@ approach is to use the <code class="docutils literal notranslate"><span class="p
 </div>
 <p>Now you may access your cluster services from localhost.</p>
 <p>For development this is more than enough, but if you are considering deploying it remotely you will need to
-configure the various <code class="docutils literal notranslate"><span class="pre">ingress</span></code> properties in <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values.yaml">values.yaml</a>
+configure the various <code class="docutils literal notranslate"><span class="pre">ingress</span></code> properties in <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantum-serverless/values.yaml">values.yaml</a>
 with the configuration of your domain and provider. In the <code class="docutils literal notranslate"><span class="pre">Jupyter</span> <span class="pre">configs</span></code> section you have a
 configuration example to expose through <code class="docutils literal notranslate"><span class="pre">ingress</span></code> in <code class="docutils literal notranslate"><span class="pre">localhost</span></code> the Jupyter service (disabled by default).</p>
 <ul class="simple">
@@ -472,7 +472,7 @@ with the following contents:</p>
 </dd>
 </dl>
 <p>Now that you have a cluster you can follow the steps in the <a class="reference internal" href="#helm-deployment"><span class="std std-ref">Helm: Use your own cluster locally or in the cloud</span></a> section for using helm to deploy the different applications.</p>
-<p>For IBM Cloud in particular we provided you with a specific values with a default configuration in <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantumserverless/values-ibm.yaml">values-ibm.yaml</a></p>
+<p>For IBM Cloud in particular we provided you with a specific values with a default configuration in <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/infrastructure/helm/quantum-serverless/values-ibm.yaml">values-ibm.yaml</a></p>
 <dl class="simple">
 <dt>The only thing that you will need to check in this case are some placeholders:</dt><dd><ul class="simple">
 <li><p>YOUR_INGRESS_PUBLIC_END_POINT: this value can be obtained from your Ingress configuration of your cluster</p></li>
