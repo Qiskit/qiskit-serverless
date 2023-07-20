@@ -11,7 +11,7 @@ from django.db.models import Q
 from django.db.models.aggregates import Count, Min
 
 from api.models import Job, Program, ComputeResource
-from api.ray import submit_ray_job, create_ray_cluster, kill_ray_cluster
+from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
@@ -54,7 +54,7 @@ def execute_job(job: Job) -> Job:
     if authors_resource:
         try:
             job.compute_resource = authors_resource
-            job = submit_ray_job(job)
+            job = submit_job(job)
             job.status = Job.PENDING
             job.save()
         except (
@@ -81,7 +81,7 @@ def execute_job(job: Job) -> Job:
             # if compute resource was created in time with no problems
             job.compute_resource = compute_resource
             job.save()
-            job = submit_ray_job(job)
+            job = submit_job(job)
             job.status = Job.PENDING
             job.save()
         else:
