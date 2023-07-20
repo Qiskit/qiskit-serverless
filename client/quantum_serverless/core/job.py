@@ -374,8 +374,8 @@ def save_result(result: Dict[str, Any]):
     token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
     if token is None:
         logging.warning(
-            "Results will not be saves as "
-            "there are no information about "
+            "Results will not be saved as "
+            "there is no information about the"
             "authorization token in environment."
         )
         return False
