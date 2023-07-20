@@ -376,7 +376,7 @@ def save_result(result: Dict[str, Any]):
         logging.warning(
             "Results will not be saved as "
             "there is no information about the"
-            "authorization token in environment."
+            "authorization token in the environment."
         )
         return False
 
