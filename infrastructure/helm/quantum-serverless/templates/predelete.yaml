@@ -24,4 +24,4 @@ spec:
       containers:
       - name: pre-install-job
         image: alpine/k8s:1.27.3
-        command: ["/bin/sh", "-c", "kubectl delete raycluster --all"]
+        command: ["/bin/sh", "-c", "kubectl delete raycluster -l nodelete=true"]
