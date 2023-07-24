@@ -6,7 +6,7 @@ import shutil
 import tarfile
 import time
 import uuid
-from typing import Any, Optional, Callable
+from typing import Any, Optional
 
 import requests
 import yaml
@@ -18,47 +18,10 @@ from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
 from api.models import ComputeResource, Job
-from api.utils import try_json_loads
+from api.utils import try_json_loads, retry_function
 from main import settings
 
 logger = logging.getLogger("commands")
-
-
-def retry_function(
-    callback: Callable,
-    num_retries: int = 10,
-    interval: int = 1,
-    error_message: Optional[str] = None,
-):
-    """Retries to call callback function.
-
-    Args:
-        callback: function
-        num_retries: number of tries
-        interval: interval between tries
-        error_message: error message
-
-    Returns:
-        function result of None
-    """
-    success = False
-    run = 0
-    result = None
-    name = getattr(callback, "__name__", repr(callback))
-
-    while run < num_retries and not success:
-        run += 1
-
-        logger.debug("[%s] attempt %d", name, run)
-
-        try:
-            result = callback()
-            success = True
-        except Exception as error:  # pylint: disable=broad-exception-caught
-            logger.debug("%s Retrying...:\nDetails: %s", error_message, error)
-
-        time.sleep(interval)
-    return result
 
 
 class JobHandler:

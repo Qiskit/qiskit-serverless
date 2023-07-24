@@ -5,3 +5,4 @@ pylint-django>=2.5.3
 # the ~= specifier for it.
 black~=22.12
 requests-mock>=1.10.0
+coverage>=5.5
