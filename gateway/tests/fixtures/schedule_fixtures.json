@@ -91,7 +91,18 @@
       "created": "2023-02-01T15:30:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "RUNNING",
-      "author": 3
+      "author": 3,
+      "compute_resource": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
+    }
+  },
+  {
+    "model": "api.computeresource",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec99",
+    "fields": {
+      "created": "2023-02-01T15:30:43.281796Z",
+      "title": "compute resource",
+      "host": "somehost",
+      "owner": 3
     }
   },
   {

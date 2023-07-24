@@ -1,21 +1,17 @@
 """Tests for ray util functions."""
-import logging
 import os
 import shutil
-import tarfile
-from unittest import mock
-from unittest.mock import MagicMock, patch
-import requests_mock
+from unittest.mock import MagicMock
 
+import requests_mock
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from kubernetes import client, config
+from kubernetes.dynamic.client import DynamicClient
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
-from kubernetes import client, config
-from kubernetes.dynamic.client import DynamicClient
-
-from api.models import ComputeResource, Job, Program
+from api.models import ComputeResource, Job
 from api.ray import (
     create_ray_cluster,
     kill_ray_cluster,
