@@ -6,9 +6,7 @@ from scipy.optimize import minimize
 
 from qiskit import QuantumCircuit
 from qiskit.primitives import BaseEstimator, Estimator as QiskitEstimator
-from qiskit.algorithms.optimizers import SPSA, Optimizer
 from qiskit.opflow import PauliSumOp
-from qiskit.algorithms.minimum_eigensolvers import VQE
 
 from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options
 
