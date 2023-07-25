@@ -154,7 +154,7 @@
       <div class="sidebar-sticky"><div class="sidebar-brand">
   <a href="https://www.qiskit.org/ecosystem">
     <div class="sidebar-logo-container">
-      <img class="sidebar-logo" src="../../_static/images/ecosystem-logo.svg" alt="Logo"/>
+      <img class="sidebar-logo" src="../../_static/images/ecosystem-logo.svg" alt="Qiskit Ecosystem logo"/>
     </div>
   </a>
   
@@ -282,8 +282,8 @@
 <p>In this benchmark program we demonstrate parallel workflows, recursion, parameter handling, etc.</p>
 <p>Below you can see an execution graph. Each of these boxes is a task in a program. This benchmark is designed to tests vertical and horizontal scalability of compute resources.</p>
 <p><img alt="benchmark flow" src="../../_images/benchmark_flow.png" /></p>
-<p>The benchmark accepts a list of arguments to control stress levels: - <code class="docutils literal notranslate"><span class="pre">n_entries</span></code> - number of circuits and observables will be used in each iteration on generation task. - <code class="docutils literal notranslate"><span class="pre">depth_of_recursion</span></code> - defines how many recursive iterations generation task will have. (Number of generated circuits will be n_entries * depth_of_recursion). - <code class="docutils literal notranslate"><span class="pre">n_backends</span></code> - number of backends, which defines how many parallel transpilations and estimations will happen. - <code class="docutils literal notranslate"><span class="pre">n_qubits</span></code> - number of qubits will be used in
-a program. Affects backends, circuits and observables. - <code class="docutils literal notranslate"><span class="pre">circuit_depth</span></code> - depth of generated circuits. - <code class="docutils literal notranslate"><span class="pre">size_of_observable</span></code> - size of generated observables. - <code class="docutils literal notranslate"><span class="pre">n_graphs</span></code> - number of times graph above will be executed within one program.</p>
+<p>The benchmark accepts a list of arguments to control stress levels: - <code class="docutils literal notranslate"><span class="pre">n_entries</span></code> - number of circuits and observables will be used in each iteration on generation task. - <code class="docutils literal notranslate"><span class="pre">depth_of_recursion</span></code> - defines how many recursive iterations generation task will have. (Number of generated circuits will be n_entries * depth_of_recursion). - <code class="docutils literal notranslate"><span class="pre">n_backends</span></code> - number of backends, which defines how many parallel transpilations and estimations will happen. - <code class="docutils literal notranslate"><span class="pre">num_qubits</span></code> - number of qubits will be used
+in a program. Affects backends, circuits and observables. - <code class="docutils literal notranslate"><span class="pre">circuit_depth</span></code> - depth of generated circuits. - <code class="docutils literal notranslate"><span class="pre">size_of_observable</span></code> - size of generated observables. - <code class="docutils literal notranslate"><span class="pre">n_graphs</span></code> - number of times graph above will be executed within one program.</p>
 <hr class="docutils" />
 <p>Now let’s create serverless object and lunch execution of our benchmark.</p>
 <div class="nbinput nblast docutils container">
@@ -330,7 +330,7 @@ a program. Affects backends, circuits and observables. - <code class="docutils l
 <span class="p">)</span>
 
 <span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span>
-    <span class="s2">&quot;n_qubits&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;num_qubits&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
     <span class="s2">&quot;n_entries&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
     <span class="s2">&quot;depth_of_recursion&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
     <span class="s2">&quot;n_backends&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
