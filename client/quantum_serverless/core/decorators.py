@@ -124,12 +124,12 @@ class Target(JsonSerializable):
 class CircuitMeta:
     """Circuit metainformation."""
 
-    n_qubits: int
+    num_qubits: int
     depth: int
 
     def to_seq(self) -> Sequence[int]:
         """Converts meta to seq."""
-        return [self.n_qubits, self.depth]
+        return [self.num_qubits, self.depth]
 
 
 Numeric = Union[float, int]
@@ -151,7 +151,7 @@ def fetch_execution_meta(*args, **kwargs) -> Dict[str, Sequence[Numeric]]:
 
     def fetch_meta(circuit: QuantumCircuit) -> CircuitMeta:
         """Returns meta information from circuit."""
-        return CircuitMeta(n_qubits=circuit.num_qubits, depth=circuit.depth())
+        return CircuitMeta(num_qubits=circuit.num_qubits, depth=circuit.depth())
 
     meta: Dict[str, Sequence[Numeric]] = {}
 
