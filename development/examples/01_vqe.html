@@ -295,38 +295,17 @@
 <td><p>object</p></td>
 <td><p>A parameterized quantum circuit preparing the ansatz wavefunction for the VQE. It is assumed that all qubits are initially in the 0 state.</p></td>
 </tr>
-<tr class="row-odd"><td><p>aux_operators</p></td>
-<td><p>array</p></td>
-<td><p>A list or dict (with strings as keys) of operators of type PauliSumOp to be evaluated at the final, optimized state.</p></td>
-</tr>
-<tr class="row-even"><td><p>initial_layout</p></td>
-<td><p>[null,array,object]</p></td>
-<td><p>Initial position of virtual qubits on the physical qubits of the quantum device. Default is None.</p></td>
-</tr>
 <tr class="row-odd"><td><p>initial_parameters</p></td>
 <td><p>[array,string]</p></td>
 <td><p>Initial parameters of the ansatz. Can be an array or the string <code class="docutils literal notranslate"><span class="pre">'random'</span></code> to choose random initial parameters.</p></td>
-</tr>
-<tr class="row-even"><td><p>max_evals_grouped</p></td>
-<td><p>integer</p></td>
-<td><p>The maximum number of parameter sets that can be evaluated at once. Defaults to the minimum of 2 times the number of parameters, or 1000.</p></td>
-</tr>
-<tr class="row-odd"><td><p>measurement_error_mitigation</p></td>
-<td><p>boolean</p></td>
-<td><p>Whether to apply measurement error mitigation in form of a complete measurement fitter to the measurements. Defaults to False.</p></td>
 </tr>
 <tr class="row-even"><td><p>operator</p></td>
 <td><p>object</p></td>
 <td><p>The Hamiltonian whose smallest eigenvalue we’re trying to find. Should be PauliSumOp</p></td>
 </tr>
-<tr class="row-odd"><td><p>optimizer</p></td>
-<td><p>object</p></td>
-<td><p>The classical optimizer used in to update the parameters in each iteration. Can be either any of Qiskit’s Optimizer classes. If a dictionary, only SPSA and QN-SPSA are supported and the dictionary must specify the name and options of the optimizer, e.g.
-<code class="docutils literal notranslate"><span class="pre">{'name':</span> <span class="pre">'SPSA',</span> <span class="pre">'maxiter':</span> <span class="pre">100}</span></code>.</p></td>
-</tr>
-<tr class="row-even"><td><p>shots</p></td>
-<td><p>integer</p></td>
-<td><p>The number of shots used for each circuit evaluation. Defaults to 1024.</p></td>
+<tr class="row-odd"><td><p>method</p></td>
+<td><p>str</p></td>
+<td><p>The classical optimizer used in to update the parameters in each iteration.</p></td>
 </tr>
 </tbody>
 </table>
@@ -341,43 +320,31 @@
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>aux_operator_eigenvalues</p></td>
-<td><p>array</p></td>
-<td><p>The expectation values of the auxiliary operators at the optimal state. This is a numpy array.</p></td>
-</tr>
-<tr class="row-odd"><td><p>cost_function_evals</p></td>
+<tr class="row-even"><td><p>cost_function_evals</p></td>
 <td><p>integer</p></td>
 <td><p>The number of cost function (energy) evaluations.</p></td>
 </tr>
-<tr class="row-even"><td><p>eigenstate</p></td>
-<td><p>object</p></td>
-<td><p>The square root of sampling probabilities for each computational basis state of the circuit with optimal parameters.</p></td>
-</tr>
-<tr class="row-odd"><td><p>eigenvalue</p></td>
-<td><p>array</p></td>
-<td><p>The estimated eigenvalue. This is a complex number.</p></td>
-</tr>
-<tr class="row-even"><td><p>optimal_parameters</p></td>
+<tr class="row-odd"><td><p>optimal_parameters</p></td>
 <td><p>null</p></td>
 <td><p>Not supported at the moment, therefore <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p>optimal_point</p></td>
+<tr class="row-even"><td><p>optimal_point</p></td>
 <td><p>array</p></td>
 <td><p>The optimal parameter values found during the optimization. This is a numpy array.</p></td>
 </tr>
-<tr class="row-even"><td><p>optimal_value</p></td>
+<tr class="row-odd"><td><p>optimal_value</p></td>
 <td><p>number</p></td>
 <td><p>The smallest value found during the optimization. Equal to the <code class="docutils literal notranslate"><span class="pre">eigenvalue</span></code> attribute. This is a float.</p></td>
 </tr>
-<tr class="row-odd"><td><p>optimizer_evals</p></td>
+<tr class="row-even"><td><p>optimizer_evals</p></td>
 <td><p>integer</p></td>
 <td><p>The number of steps of the optimizer.</p></td>
 </tr>
-<tr class="row-even"><td><p>optimizer_history</p></td>
+<tr class="row-odd"><td><p>optimizer_history</p></td>
 <td><p>object</p></td>
 <td><p>A dictionary containing information about the function evaluations (not necessarily the actual parameter value!): the current evaluation count, the parameters, the energy and the standard deviation.</p></td>
 </tr>
-<tr class="row-odd"><td><p>optimizer_time</p></td>
+<tr class="row-even"><td><p>optimizer_time</p></td>
 <td><p>number</p></td>
 <td><p>The total time taken by the optimizer. This is a float.</p></td>
 </tr>
@@ -393,20 +360,13 @@
 <span class="kn">import</span> <span class="nn">...</span>
 
 <span class="k">def</span> <span class="nf">run_vqe</span><span class="p">(</span>
-    <span class="n">estimator</span><span class="p">:</span> <span class="n">BaseEstimator</span><span class="p">,</span>
-    <span class="n">ansatz</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">,</span>
-    <span class="n">operator</span><span class="p">:</span> <span class="n">PauliSumOp</span><span class="p">,</span>
-    <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span><span class="p">,</span>
-    <span class="n">initial_parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">initial_parameters</span><span class="p">,</span>
+    <span class="n">ansatz</span><span class="p">,</span>
+    <span class="n">operator</span><span class="p">,</span>
+    <span class="n">estimator</span><span class="p">,</span>
+    <span class="n">method</span>
 <span class="p">):</span>
-    <span class="n">vqe</span> <span class="o">=</span> <span class="n">VQE</span><span class="p">(</span>
-        <span class="n">estimator</span><span class="p">,</span>
-        <span class="n">ansatz</span><span class="p">,</span>
-        <span class="n">optimizer</span><span class="p">,</span>
-        <span class="n">initial_point</span><span class="o">=</span><span class="n">initial_parameters</span>
-    <span class="p">)</span>
-    <span class="k">return</span> <span class="n">vqe</span><span class="o">.</span><span class="n">compute_minimum_eigenvalue</span><span class="p">(</span><span class="n">operator</span><span class="p">)</span>
-
+    <span class="o">...</span>
 
 <span class="n">arguments</span> <span class="o">=</span> <span class="n">get_arguments</span><span class="p">()</span>
 
@@ -427,58 +387,53 @@
 <span class="k">else</span><span class="p">:</span>
     <span class="c1"># if we do not have a service let&#39;s use standart local estimator</span>
     <span class="n">estimator</span> <span class="o">=</span> <span class="n">QiskitEstimator</span><span class="p">()</span> <span class="c1"># qiskit.primitives.Estimator</span>
-    <span class="n">vqe_result</span> <span class="o">=</span> <span class="n">run_vqe</span><span class="p">(</span><span class="n">estimator</span><span class="o">=</span><span class="n">estimator</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+
+<span class="n">vqe_result</span><span class="p">,</span> <span class="n">callback_dict</span> <span class="o">=</span> <span class="n">run_vqe</span><span class="p">(</span>
+    <span class="n">initial_parameters</span><span class="o">=</span><span class="n">initial_parameters</span><span class="p">,</span>
+    <span class="n">ansatz</span><span class="o">=</span><span class="n">ansatz</span><span class="p">,</span>
+    <span class="n">operator</span><span class="o">=</span><span class="n">operator</span><span class="p">,</span>
+    <span class="n">estimator</span><span class="o">=</span><span class="n">estimator</span><span class="p">,</span>
+    <span class="n">method</span><span class="o">=</span><span class="n">method</span>
+<span class="p">)</span>
 
 <span class="n">save_result</span><span class="p">({</span>
-    <span class="s2">&quot;cost_function_evals&quot;</span><span class="p">:</span> <span class="n">vqe_result</span><span class="o">.</span><span class="n">cost_function_evals</span><span class="p">,</span>
-    <span class="s2">&quot;eigenvalue&quot;</span><span class="p">:</span> <span class="n">vqe_result</span><span class="o">.</span><span class="n">eigenvalue</span><span class="p">,</span>
-    <span class="s2">&quot;optimal_point&quot;</span><span class="p">:</span> <span class="n">vqe_result</span><span class="o">.</span><span class="n">optimal_point</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
-    <span class="s2">&quot;optimal_value&quot;</span><span class="p">:</span> <span class="n">vqe_result</span><span class="o">.</span><span class="n">optimal_value</span><span class="p">,</span>
-    <span class="s2">&quot;optimizer_evals&quot;</span><span class="p">:</span> <span class="n">vqe_result</span><span class="o">.</span><span class="n">optimizer_evals</span><span class="p">,</span>
-    <span class="s2">&quot;optimizer_time&quot;</span><span class="p">:</span> <span class="n">vqe_result</span><span class="o">.</span><span class="n">optimizer_time</span><span class="p">,</span>
-    <span class="o">...</span>
+    <span class="s2">&quot;optimal_point&quot;</span><span class="p">:</span> <span class="n">vqe_result</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+    <span class="s2">&quot;optimal_value&quot;</span><span class="p">:</span> <span class="n">vqe_result</span><span class="o">.</span><span class="n">fun</span><span class="p">,</span>
+    <span class="s2">&quot;optimizer_evals&quot;</span><span class="p">:</span> <span class="n">vqe_result</span><span class="o">.</span><span class="n">nfev</span><span class="p">,</span>
+    <span class="s2">&quot;optimizer_history&quot;</span><span class="p">:</span> <span class="n">callback_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cost_history&quot;</span><span class="p">,</span> <span class="p">[]),</span>
+    <span class="s2">&quot;optimizer_time&quot;</span><span class="p">:</span> <span class="n">callback_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_total_time&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 <span class="p">})</span>
 </pre></div>
 </div>
 <p>At this point we have our program implemented. Now we need to actually run it. But before let’s prepare input arguments from our VQE program.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<span class="kn">from</span> <span class="nn">qiskit.circuit.library</span> <span class="kn">import</span> <span class="n">RealAmplitudes</span>
 
-<span class="kn">from</span> <span class="nn">qiskit_nature.second_q.drivers</span> <span class="kn">import</span> <span class="n">PySCFDriver</span>
-<span class="kn">from</span> <span class="nn">qiskit_nature.second_q.mappers</span> <span class="kn">import</span> <span class="n">QubitConverter</span><span class="p">,</span> <span class="n">ParityMapper</span>
+<span class="kn">from</span> <span class="nn">qiskit.circuit.library</span> <span class="kn">import</span> <span class="n">EfficientSU2</span>
+<span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
+
 <span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">QiskitRuntimeService</span><span class="p">,</span> <span class="n">Estimator</span><span class="p">,</span> <span class="n">Session</span><span class="p">,</span> <span class="n">Options</span>
 
 <span class="n">USE_RUNTIME_SERVICE</span> <span class="o">=</span> <span class="kc">False</span>
-
-<span class="n">ansatz</span> <span class="o">=</span> <span class="n">RealAmplitudes</span><span class="p">(</span><span class="n">num_qubits</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">reps</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-<span class="n">initial_point</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">12</span><span class="p">)</span>
-<span class="n">driver</span> <span class="o">=</span> <span class="n">PySCFDriver</span><span class="p">(</span>
-    <span class="n">atom</span><span class="o">=</span><span class="s2">&quot;H 0 0 0; H 0 0 0.72&quot;</span>  <span class="c1"># Two Hydrogen atoms, 0.72 Angstrom apart</span>
-<span class="p">)</span>
-<span class="n">molecule</span> <span class="o">=</span> <span class="n">driver</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-<span class="n">qubit_converter</span> <span class="o">=</span> <span class="n">QubitConverter</span><span class="p">(</span><span class="n">ParityMapper</span><span class="p">())</span>
-<span class="n">hamiltonian</span> <span class="o">=</span> <span class="n">qubit_converter</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="n">molecule</span><span class="o">.</span><span class="n">second_q_ops</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
 
 <span class="n">service</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="k">if</span> <span class="n">USE_RUNTIME_SERVICE</span><span class="p">:</span>
     <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">()</span>
     <span class="n">backend</span> <span class="o">=</span> <span class="s2">&quot;ibmq_qasm_simulator&quot;</span>
 
+<span class="n">operator</span> <span class="o">=</span> <span class="n">SparsePauliOp</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span>
+    <span class="p">[(</span><span class="s2">&quot;YZ&quot;</span><span class="p">,</span> <span class="mf">0.3980</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;ZI&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.3980</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;ZZ&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.0113</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;XX&quot;</span><span class="p">,</span> <span class="mf">0.1810</span><span class="p">)]</span>
+<span class="p">)</span>
+<span class="n">ansatz</span> <span class="o">=</span> <span class="n">EfficientSU2</span><span class="p">(</span><span class="n">operator</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">)</span>
+
 <span class="n">input_arguments</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s2">&quot;ansatz&quot;</span><span class="p">:</span> <span class="n">RealAmplitudes</span><span class="p">(</span><span class="n">num_qubits</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">reps</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
-    <span class="s2">&quot;aux_operators&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="s2">&quot;initial_layout&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="s2">&quot;initial_parameters&quot;</span><span class="p">:</span> <span class="n">initial_point</span><span class="p">,</span>
-    <span class="s2">&quot;max_evals_grouped&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="s2">&quot;measurement_error_mitigation&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="s2">&quot;operator&quot;</span><span class="p">:</span> <span class="n">hamiltonian</span><span class="p">,</span>
-    <span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="s2">&quot;spsa&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;shots&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="s2">&quot;ansatz&quot;</span><span class="p">:</span> <span class="n">ansatz</span><span class="p">,</span>
+    <span class="s2">&quot;operator&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="p">,</span>
+    <span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="s2">&quot;COBYLA&quot;</span><span class="p">,</span>
     <span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">service</span>
 <span class="p">}</span>
 
@@ -487,32 +442,21 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;ansatz&#39;: &lt;qiskit.circuit.library.n_local.real_amplitudes.RealAmplitudes at 0x7fe570ac5b10&gt;,
- &#39;aux_operators&#39;: None,
- &#39;initial_layout&#39;: None,
- &#39;initial_parameters&#39;: array([ 1.96607313,  0.6418064 ,  2.83542552,  2.07848803, -2.14744829,
-         2.94371138, -2.27965871, -2.74576187, -2.38276942,  1.4102545 ,
-        -2.74783675, -2.81548099]),
- &#39;max_evals_grouped&#39;: None,
- &#39;measurement_error_mitigation&#39;: None,
- &#39;operator&#39;: PauliSumOp(SparsePauliOp([&#39;IIII&#39;, &#39;IIIZ&#39;, &#39;IIZZ&#39;, &#39;IIZI&#39;, &#39;IZZI&#39;, &#39;IZZZ&#39;, &#39;ZXIX&#39;, &#39;IXZX&#39;, &#39;ZXZX&#39;, &#39;IXIX&#39;, &#39;ZZII&#39;, &#39;ZZIZ&#39;, &#39;IZIZ&#39;, &#39;ZZZZ&#39;, &#39;ZIZI&#39;],
-               coeffs=[-0.8054406 +0.j,  0.17452525+0.j, -0.23287429+0.j,  0.12177673+0.j,
-   0.17452525+0.j,  0.1696433 +0.j,  0.04502464+0.j, -0.04502464+0.j,
-  -0.04502464+0.j,  0.04502464+0.j, -0.23287429+0.j,  0.16680137+0.j,
-   0.16680137+0.j,  0.17533917+0.j,  0.12177673+0.j]), coeff=1.0),
- &#39;optimizer&#39;: &#39;spsa&#39;,
- &#39;shots&#39;: None,
+{&#39;ansatz&#39;: &lt;qiskit.circuit.library.n_local.efficient_su2.EfficientSU2 at 0x7f7e59b02ee0&gt;,
+ &#39;operator&#39;: SparsePauliOp([&#39;YZ&#39;, &#39;ZI&#39;, &#39;ZZ&#39;, &#39;XX&#39;],
+               coeffs=[ 0.398 +0.j, -0.398 +0.j, -0.0113+0.j,  0.181 +0.j]),
+ &#39;method&#39;: &#39;COBYLA&#39;,
  &#39;service&#39;: None}
 </pre></div></div>
 </div>
 <p>With arguments prepared we can create our quantum serverless client, setup provider and run our program</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">Provider</span>
@@ -521,7 +465,7 @@
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">provider</span> <span class="o">=</span> <span class="n">Provider</span><span class="p">(</span>
@@ -536,7 +480,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -545,7 +489,7 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
@@ -562,16 +506,16 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 95e03817-663a-42fa-b199-0ee5016d2d49&gt;
+&lt;Job | f9ec298d-788b-429e-9a42-196d56954d24&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -579,41 +523,16 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;SUCCEEDED&#39;
+&#39;QUEUED&#39;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">10</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-[&#39;243: -1.252362175485805&#39;,
- &#39;244: -1.245728828896075&#39;,
- &#39;245: -1.2505250649172739&#39;,
- &#39;246: -1.2572001670623152&#39;,
- &#39;247: -1.2611976192184255&#39;,
- &#39;248: -1.258139706050951&#39;,
- &#39;249: -1.2322759435538633&#39;,
- &#39;250: -1.224270224547061&#39;,
- &#39;251: -1.2645989534506294&#39;]
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -621,32 +540,12 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;aux_operator_eigenvalues&#39;: [],
- &#39;cost_function_evals&#39;: 200,
- &#39;eigenstate&#39;: None,
- &#39;eigenvalue&#39;: -1.2645989534506294,
- &#39;optimal_parameters&#39;: None,
- &#39;optimal_point&#39;: [3.0276372310610675,
-  0.13553102047367085,
-  2.5087090109567773,
-  1.8492042571718177,
-  -2.222021041944339,
-  3.5428224235643113,
-  -1.2788913910370245,
-  -2.8246845124804763,
-  -2.728535775675822,
-  3.4434351915865857,
-  -1.9083062252923417,
-  -1.7416966890283174],
- &#39;optimal_value&#39;: -1.2645989534506294,
- &#39;optimizer_evals&#39;: None,
- &#39;optimizer_history&#39;: {},
- &#39;optimizer_time&#39;: 0.8049108982086182}
+&#39;{&#34;optimal_point&#34;: [-0.1792519774478331, 3.3690480121526396, 1.6216764077351256, 6.143139398511981, 0.49676653977835655, 2.374640057808242, 2.866200187127509, 2.50489457612712, 4.51800489248977, 4.78248888078524, 3.9586762267597324, 1.546113269910704, 7.685938511231928, 3.5731988425909336, 5.8298921420484, 5.098391668394297], &#34;optimal_value&#34;: -0.7029303876247736, &#34;optimizer_evals&#34;: 333, &#34;optimizer_history&#34;: [-0.04397814147886023, -0.21348287749873493, -0.22682388084126995, -0.0683804070674735, -0.1669472475207855, 0.12409922698608211, -0.15487584379443692, -0.327011760994988, -0.3363001318119229, -0.02402793432805797, -0.3611931556726908, -0.3243501135790306, -0.6175274347223443, -0.20340618574430092, -0.6123428914378356, -0.500483771804176, -0.6838933249049571, -0.6619993124369523, -0.35369252630659076, -0.6230531482647764, -0.6931105208984558, -0.6255650373224049, -0.49365214652959305, -0.692786557513045, -0.6251937967963399, -0.6268364701131495, -0.5144299664153748, -0.65411062451384, -0.5670701719178565, -0.6264158884605353, -0.47477497833967386, -0.679389075117403, -0.4740019587571814, -0.6175090134469513, -0.6905499765931707, -0.6432119192906125, -0.6820180758460491, -0.6874614456543693, -0.6935027975901289, -0.6401835502738081, -0.6795189093220679, -0.6569185978814718, -0.6792626403948445, -0.696770394504601, -0.6708544307872115, -0.6969960945846222, -0.6972497299079178, -0.6948584441083129, -0.6717713135699235, -0.6854102741683281, -0.6891548311186999, -0.6945601469817042, -0.6999952473708992, -0.6974146309193814, -0.677998077606288, -0.696891146783136, -0.6916440724774446, -0.6976380005636541, -0.6894416287103026, -0.6986941632529274, -0.6823688821348957, -0.694864966854258, -0.7004592988493247, -0.6989743445697921, -0.7001594792581207, -0.6991139001914473, -0.7007655665722707, -0.696255155419552, -0.6994678698960157, -0.6989713174857625, -0.7005504927790727, -0.6944606090259453, -0.6994602502056282, -0.6916028630517455, -0.7002081157769577, -0.7014254909865938, -0.7008246041663696, -0.7012933374348937, -0.6999046424113916, -0.7014085259146398, -0.7013533346991633, -0.7012272860858414, -0.7007261843125872, -0.7007994461103211, -0.7012304845706723, -0.7017742419347879, -0.7016107892732413, -0.7016951426443706, -0.7017268813430744, -0.7015567200001617, -0.7008649402814956, -0.7017663402472233, -0.7015631130827765, -0.7016465236866949, -0.7020995225700731, -0.7018614305569834, -0.7020477942697387, -0.7023892702351403, -0.7023990412338837, -0.7023656741702398, -0.7024552481046129, -0.7025206201567449, -0.7025177897372736, -0.7025719068691536, -0.7018238636827354, -0.7025826960103998, -0.702500072043901, -0.7024297371203715, -0.7025692275422513, -0.7025014187116293, -0.702711731689825, -0.7026062006407707, -0.7027103382666664, -0.7026770481098255, -0.7024301310975475, -0.70260441683975, -0.7026579001104193, -0.7026515892876324, -0.70270925199648, -0.7027172652291916, -0.7026926380670343, -0.702624107678798, -0.70269959663675, -0.7027664917175473, -0.70273393498008, -0.7027381757781915, -0.7027468917232644, -0.702704906880945, -0.7027253912165569, -0.702812797200903, -0.7028148540307412, -0.702809448073612, -0.7027524830392556, -0.7028064841444404, -0.7027909007460554, -0.7027515587282595, -0.7027944788242675, -0.7027949659660996, -0.7028329091484335, -0.7028198286848419, -0.7028128617089417, -0.7027806577073044, -0.7028714702377796, -0.7028422839965411, -0.7028670304503906, -0.7028830706580037, -0.7028082520390025, -0.7028602999777678, -0.7028478645809965, -0.7028671889352709, -0.7028756961501635, -0.7028679030856091, -0.7028735972596323, -0.7028909225294675, -0.7028855059176545, -0.7029010099799626, -0.7029001572526876, -0.7028869672379768, -0.7029056661554376, -0.7028871028378428, -0.7029110073851119, -0.7029063194887776, -0.7029062654491571, -0.7029105398929961, -0.702908603232512, -0.7028994377598883, -0.702915020275393, -0.7029132447768385, -0.7029160322857662, -0.7029152353059465, -0.7029106482912917, -0.7029165708926267, -0.702917277028048, -0.7029143499907341, -0.7029181782760837, -0.7029183874366298, -0.7029163128348952, -0.7029181604188943, -0.7029195499781087, -0.7029202569655216, -0.7029054800000456, -0.7029170879279043, -0.7029218636220049, -0.7029178230763415, -0.7029192500997213, -0.7029225014205889, -0.7029243874851913, -0.7029222096767433, -0.7029216634925248, -0.7029241602863124, -0.7029173124191483, -0.7029258576499638, -0.7029253742379449, -0.7029265343991647, -0.7029291182467565, -0.7029229015296343, -0.7029293389976417, -0.7029292181121954, -0.7029290694656916, -0.7029230493865856, -0.7029289362910527, -0.702926633188639, -0.7029289030036057, -0.7029257628740304, -0.7029277007505356, -0.7029265018644009, -0.7029292571131626, -0.7029287847439245, -0.70292847249336, -0.7029292625116346, -0.7029293648557619, -0.7029292936328776, -0.7029277868962794, -0.702928772826895, -0.7029280818233331, -0.7029293922984274, -0.7029280667250666, -0.7029292998638179, -0.7029282645990759, -0.7029295725696942, -0.7029291926969943, -0.7029294298968247, -0.7029289472834184, -0.702929244129149, -0.7029287658598594, -0.7029292842500592, -0.7029293832336918, -0.7029296489048669, -0.7029295955574872, -0.7029295625932599, -0.7029294414690663, -0.7029295426771472, -0.702929420447517, -0.7029299736345551, -0.7029297282129936, -0.7029300066710784, -0.70293000755544, -0.7029300287588149, -0.7029297735590516, -0.702929927899523, -0.7029298566324722, -0.7029300609982513, -0.7029300364589769, -0.7029298188527465, -0.7029302456045512, -0.7029298733863887, -0.7029302571275897, -0.7029301740046512, -0.7029302325962599, -0.7029301330657033, -0.7029301335146549, -0.7029300986694382, -0.7029302592025224, -0.7029300748176016, -0.7029301842919968, -0.7029299271130727, -0.7029301943707938, -0.7029302491777494, -0.7029302972236408, -0.7029302805774069, -0.7029302619413662, -0.7029303066599168, -0.702930231361913, -0.702930273498495, -0.7029302939156039, -0.7029303015311239, -0.7029303249946162, -0.7029302761400877, -0.7029303242075179, -0.7029303174237895, -0.7029302258336585, -0.7029303348027747, -0.7029303188045002, -0.7029303372311442, -0.7029303421264661, -0.7029303674933416, -0.7029303693300926, -0.7029303696700391, -0.7029303637575712, -0.7029303601304836, -0.7029303626078439, -0.7029303721046616, -0.7029303689857045, -0.7029303480107785, -0.7029303637145116, -0.7029303730076216, -0.7029303709496464, -0.7029303634887147, -0.702930377379293, -0.7029303675480185, -0.7029303733923016, -0.7029303594309971, -0.7029303733738694, -0.70293036781742, -0.7029303709742837, -0.7029303701068392, -0.7029303778748296, -0.702930378055018, -0.7029303724038554, -0.7029303836191281, -0.702930383144692, -0.7029303856306329, -0.7029303859779228, -0.7029303863665576, -0.7029303857055706, -0.7029303853677988, -0.7029303853892616, -0.7029303877965029, -0.702930387454812, -0.7029303889444978, -0.7029303890864742, -0.7029303827676237, -0.7029303899133102, -0.7029303901401825, -0.7029303896766894, -0.7029303913170851, -0.7029303927420356, -0.7029303935610621, -0.70293039327265, -0.7029303933341333, -0.7029303917076948, -0.7029303933592024, -0.7029303930878406, -0.702930391045046, -0.7029303933519839, -0.7029303896519363, -0.7029303932975347, -0.7029303918248553, -0.702930392731893, -0.7029303921749024, -0.7029303930335884, -0.7029303876247736, -0.7029303876247736], &#34;optimizer_time&#34;: 3.5547554999993736}&#39;
 </pre></div></div>
 </div>
 </section>

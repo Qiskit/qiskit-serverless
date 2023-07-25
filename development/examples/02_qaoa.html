@@ -299,17 +299,13 @@
 <td><p>object</p></td>
 <td><p>The cost Hamiltonian, consisting of Pauli I and Z operators, whose smallest eigenvalue we’re trying to find. The type must be a PauliSumOp.</p></td>
 </tr>
-<tr class="row-even"><td><p>optimization_level</p></td>
-<td><p>integer</p></td>
-<td><p>The optimization level to run if the swap strategies are not used. This value is 1 by default. This is an integer.</p></td>
+<tr class="row-even"><td><p>method</p></td>
+<td><p>str</p></td>
+<td><p>The classical optimizer used to update the parameters in each iteration. Per default, COBYLA</p></td>
 </tr>
-<tr class="row-odd"><td><p>optimizer</p></td>
-<td><p>object</p></td>
-<td><p>The classical optimizer used to update the parameters in each iteration. Per default, SPSA with automatic calibration of the learning rate is used. The type must be a qiskit.algorithms.optimizers.Optimizer.</p></td>
-</tr>
-<tr class="row-even"><td><p>reps</p></td>
-<td><p>integer</p></td>
-<td><p>The number of QAOA repetitions, i.e. the QAOA depth typically labeled p. This value defaults to 1. This is an integer.</p></td>
+<tr class="row-odd"><td><p>ansatz</p></td>
+<td><p>QuantumCircuit</p></td>
+<td><p>Ansatz for optimization</p></td>
 </tr>
 </tbody>
 </table>
@@ -324,22 +320,6 @@
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>cost_function_evals</p></td>
-<td><p>number</p></td>
-<td><p>The number of cost function (energy) evaluations. This is an integer.</p></td>
-</tr>
-<tr class="row-odd"><td><p>eigenstate</p></td>
-<td><p>object</p></td>
-<td><p>The square root of sampling probabilities for each computational basis state of the circuit with optimal parameters.</p></td>
-</tr>
-<tr class="row-even"><td><p>eigenvalue</p></td>
-<td><p>number</p></td>
-<td><p>The estimated smallest eigenvalue.</p></td>
-</tr>
-<tr class="row-odd"><td><p>optimal_parameters</p></td>
-<td><p>null</p></td>
-<td><p>Not supported at the moment, therefore <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></td>
-</tr>
 <tr class="row-even"><td><p>optimal_point</p></td>
 <td><p>array</p></td>
 <td><p>The optimal parameter values found during the optimization.</p></td>
@@ -347,10 +327,6 @@
 <tr class="row-odd"><td><p>optimal_value</p></td>
 <td><p>number</p></td>
 <td><p>The smallest value found during the optimization. Equal to the <code class="docutils literal notranslate"><span class="pre">eigenvalue</span></code> attribute.</p></td>
-</tr>
-<tr class="row-even"><td><p>optimizer_time</p></td>
-<td><p>number</p></td>
-<td><p>The total time taken by the optimizer.</p></td>
 </tr>
 </tbody>
 </table>
@@ -363,50 +339,83 @@
 
 <span class="kn">import</span> <span class="nn">...</span>
 
-<span class="k">def</span> <span class="nf">run_qaoa</span><span class="p">(</span><span class="n">sampler</span><span class="p">:</span> <span class="n">BaseSampler</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span><span class="p">,</span> <span class="n">reps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">operator</span><span class="p">:</span> <span class="n">PauliSumOp</span><span class="p">):</span>
-    <span class="n">qaoa</span> <span class="o">=</span> <span class="n">QAOA</span><span class="p">(</span><span class="n">sampler</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">reps</span><span class="o">=</span><span class="n">reps</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">qaoa</span><span class="o">.</span><span class="n">compute_minimum_eigenvalue</span><span class="p">(</span><span class="n">operator</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">run_qaoa</span><span class="p">(</span>
+    <span class="n">ansatz</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">,</span>
+    <span class="n">estimator</span><span class="p">:</span> <span class="n">BaseEstimator</span><span class="p">,</span>
+    <span class="n">operator</span><span class="p">:</span> <span class="n">PauliSumOp</span><span class="p">,</span>
+    <span class="n">initial_point</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">):</span>
+    <span class="k">return</span> <span class="n">minimize</span><span class="p">(</span><span class="n">cost_func</span><span class="p">,</span> <span class="n">initial_point</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">ansatz</span><span class="p">,</span> <span class="n">operator</span><span class="p">,</span> <span class="n">estimator</span><span class="p">),</span> <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">)</span>
 
 
 <span class="n">arguments</span> <span class="o">=</span> <span class="n">get_arguments</span><span class="p">()</span>
 <span class="n">service</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">)</span>
 <span class="n">operator</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;operator&quot;</span><span class="p">)</span>
 <span class="n">initial_point</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;initial_point&quot;</span><span class="p">)</span>
-<span class="n">reps</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;reps&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-<span class="n">optimizer</span> <span class="o">=</span> <span class="o">...</span>
+<span class="n">ansatz</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ansatz&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 <span class="o">...</span>
 <span class="k">if</span> <span class="n">service</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
     <span class="c1"># if we have service we need to open a session and create sampler</span>
     <span class="n">service</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">)</span>
     <span class="n">backend</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;backend&quot;</span><span class="p">,</span> <span class="s2">&quot;ibmq_qasm_simulator&quot;</span><span class="p">)</span>
     <span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="n">service</span><span class="o">=</span><span class="n">service</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
-        <span class="n">sampler</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="n">run_qaoa</span><span class="p">(</span><span class="n">sampler</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">reps</span><span class="p">,</span> <span class="n">operator</span><span class="p">)</span>
+        <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
     <span class="c1"># if we do not have a service let&#39;s use standart local sampler</span>
-    <span class="n">sampler</span> <span class="o">=</span> <span class="n">QiskitSampler</span><span class="p">()</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="n">run_qaoa</span><span class="p">(</span><span class="n">sampler</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">reps</span><span class="p">,</span> <span class="n">operator</span><span class="p">)</span>
+    <span class="n">estimator</span> <span class="o">=</span> <span class="n">QiskitEstimator</span><span class="p">()</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">run_qaoa</span><span class="p">(</span><span class="n">ansatz</span><span class="p">,</span> <span class="n">estimator</span><span class="p">,</span> <span class="n">operator</span><span class="p">,</span> <span class="n">initial_point</span><span class="p">,</span> <span class="s2">&quot;COBYLA&quot;</span><span class="p">)</span>
 
 <span class="n">save_result</span><span class="p">({</span>
-    <span class="s2">&quot;cost_function_evals&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">cost_function_evals</span><span class="p">,</span>
-    <span class="s2">&quot;eigenstate&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">eigenstate</span><span class="p">,</span>
-    <span class="s2">&quot;eigenvalue&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">eigenvalue</span><span class="p">,</span>
-    <span class="s2">&quot;optimal_parameters&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">optimal_parameters</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span>
-    <span class="s2">&quot;optimal_point&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">optimal_point</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
-    <span class="s2">&quot;optimal_value&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">optimal_value</span><span class="p">,</span>
-    <span class="s2">&quot;optimizer_time&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">optimizer_time</span>
+    <span class="s2">&quot;optimal_point&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+    <span class="s2">&quot;optimal_value&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">fun</span>
 <span class="p">})</span>
 </pre></div>
 </div>
 <p>At this point we have our program implemented. Now we need to actually run it. But before let’s prepare input arguments from our QAOA program.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[83]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">qiskit.circuit.library</span> <span class="kn">import</span> <span class="n">QAOAAnsatz</span>
+<span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
+
+<span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
 <span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
 
-<span class="n">USE_RUNTIME_SERVICE</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="n">operator</span> <span class="o">=</span> <span class="n">SparsePauliOp</span><span class="o">.</span><span class="n">from_list</span><span class="p">([(</span><span class="s2">&quot;IIIZZ&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;IIZIZ&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;IZIIZ&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;ZIIIZ&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)])</span>
+<span class="n">ansatz</span> <span class="o">=</span> <span class="n">QAOAAnsatz</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">reps</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">ansatz</span> <span class="o">=</span> <span class="n">ansatz</span><span class="o">.</span><span class="n">decompose</span><span class="p">(</span><span class="n">reps</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">ansatz</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">fold</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[83]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<pre style="word-wrap: normal;white-space: pre;background: #fff0;line-height: 1.1;font-family: &quot;Courier New&quot;,Courier,monospace">     ┌─────────────┐                                                                                                            ┌──────────────┐                                                                                            ┌──────────────┐
+q_0: ┤ U3(π/2,0,π) ├─■──────────────────────────────■──────────────────────────────■──────────────────────────────■─────────────┤ Rx(2.0*β[0]) ├─■──────────────■──────────────────────────────■──────────────────────────────■─────────────┤ Rx(2.0*β[1]) ├
+     ├─────────────┤ │ZZ(2.0*γ[0]) ┌──────────────┐ │                              │                              │             └──────────────┘ │ZZ(2.0*γ[1])  │             ┌──────────────┐ │                              │             └──────────────┘
+q_1: ┤ U3(π/2,0,π) ├─■─────────────┤ Rx(2.0*β[0]) ├─┼──────────────────────────────┼──────────────────────────────┼──────────────────────────────■──────────────┼─────────────┤ Rx(2.0*β[1]) ├─┼──────────────────────────────┼─────────────────────────────
+     ├─────────────┤               └──────────────┘ │ZZ(2.0*γ[0]) ┌──────────────┐ │                              │                                             │ZZ(2.0*γ[1]) ├──────────────┤ │                              │
+q_2: ┤ U3(π/2,0,π) ├────────────────────────────────■─────────────┤ Rx(2.0*β[0]) ├─┼──────────────────────────────┼─────────────────────────────────────────────■─────────────┤ Rx(2.0*β[1]) ├─┼──────────────────────────────┼─────────────────────────────
+     ├─────────────┤                                              └──────────────┘ │ZZ(2.0*γ[0]) ┌──────────────┐ │                                                           └──────────────┘ │ZZ(2.0*γ[1]) ┌──────────────┐ │
+q_3: ┤ U3(π/2,0,π) ├───────────────────────────────────────────────────────────────■─────────────┤ Rx(2.0*β[0]) ├─┼────────────────────────────────────────────────────────────────────────────■─────────────┤ Rx(2.0*β[1]) ├─┼─────────────────────────────
+     ├─────────────┤                                                                             └──────────────┘ │ZZ(2.0*γ[0]) ┌──────────────┐                                                             └──────────────┘ │ZZ(2.0*γ[1]) ┌──────────────┐
+q_4: ┤ U3(π/2,0,π) ├──────────────────────────────────────────────────────────────────────────────────────────────■─────────────┤ Rx(2.0*β[0]) ├──────────────────────────────────────────────────────────────────────────────■─────────────┤ Rx(2.0*β[1]) ├
+     └─────────────┘                                                                                                            └──────────────┘                                                                                            └──────────────┘</pre></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[84]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">USE_RUNTIME_SERVICE</span> <span class="o">=</span> <span class="kc">False</span>
 
 <span class="n">service</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="n">backend</span> <span class="o">=</span> <span class="s2">&quot;ibmq_qasm_simulator&quot;</span>
@@ -415,10 +424,8 @@
 
 <span class="n">input_arguments</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s2">&quot;initial_point&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="s2">&quot;operator&quot;</span><span class="p">:</span> <span class="n">SparsePauliOp</span><span class="p">(</span><span class="s2">&quot;ZIIZ&quot;</span><span class="p">),</span>
-    <span class="s2">&quot;optimization_level&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-    <span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="s2">&quot;cobyla&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;reps&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;ansatz&quot;</span><span class="p">:</span> <span class="n">ansatz</span><span class="p">,</span>
+    <span class="s2">&quot;operator&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="p">,</span>
     <span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">service</span><span class="p">,</span>
     <span class="s2">&quot;backend&quot;</span><span class="p">:</span> <span class="n">backend</span>
 <span class="p">}</span>
@@ -427,23 +434,21 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[84]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 {&#39;initial_point&#39;: None,
- &#39;operator&#39;: SparsePauliOp([&#39;ZIIZ&#39;],
-               coeffs=[1.+0.j]),
- &#39;optimization_level&#39;: 1,
- &#39;optimizer&#39;: &#39;cobyla&#39;,
- &#39;reps&#39;: 2,
+ &#39;ansatz&#39;: &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7f8c50a9b730&gt;,
+ &#39;operator&#39;: SparsePauliOp([&#39;IIIZZ&#39;, &#39;IIZIZ&#39;, &#39;IZIIZ&#39;, &#39;ZIIIZ&#39;],
+               coeffs=[1.+0.j, 1.+0.j, 1.+0.j, 1.+0.j]),
  &#39;service&#39;: None,
  &#39;backend&#39;: &#39;ibmq_qasm_simulator&#39;}
 </pre></div></div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[85]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">Provider</span>
@@ -452,7 +457,7 @@
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[86]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">provider</span> <span class="o">=</span> <span class="n">Provider</span><span class="p">(</span>
@@ -467,7 +472,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[86]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -476,7 +481,7 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[87]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
@@ -493,16 +498,16 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[87]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 8cd76a64-64ea-468f-a295-114dcc5abd2a&gt;
+&lt;Job | 02fcad16-b82c-4ebf-ad4b-32a59d4c7c8c&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[88]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -510,16 +515,16 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[88]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;SUCCEEDED&#39;
+&#39;QUEUED&#39;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[89]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -527,39 +532,12 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[89]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;cost_function_evals&#39;: 56,
- &#39;eigenstate&#39;: {&#39;0&#39;: 2.6425405e-09,
-  &#39;1&#39;: 0.1249999973574594,
-  &#39;2&#39;: 2.6425405e-09,
-  &#39;3&#39;: 0.1249999973574594,
-  &#39;4&#39;: 2.6425405e-09,
-  &#39;5&#39;: 0.1249999973574594,
-  &#39;6&#39;: 2.6425405e-09,
-  &#39;7&#39;: 0.1249999973574594,
-  &#39;8&#39;: 0.1249999973574594,
-  &#39;9&#39;: 2.6425405e-09,
-  &#39;10&#39;: 0.1249999973574594,
-  &#39;11&#39;: 2.6425405e-09,
-  &#39;12&#39;: 0.1249999973574594,
-  &#39;13&#39;: 2.6425405e-09,
-  &#39;14&#39;: 0.1249999973574594,
-  &#39;15&#39;: 2.6425405e-09},
- &#39;eigenvalue&#39;: -0.9999999577193509,
- &#39;optimal_parameters&#39;: [-4.261262774122553,
-  -1.7722068719193094,
-  2.7455687782210543,
-  0.6701009936251439],
- &#39;optimal_point&#39;: [-4.261262774122553,
-  -1.7722068719193094,
-  2.7455687782210543,
-  0.6701009936251439],
- &#39;optimal_value&#39;: -0.9999999577193509,
- &#39;optimizer_time&#39;: 0.46456098556518555}
+&#39;{&#34;optimal_point&#34;: [3.6344805751647185, 5.046785824446347, 2.551360649472253, 5.842713967678677], &#34;optimal_value&#34;: -3.2939251920544805}&#39;
 </pre></div></div>
 </div>
 </section>
