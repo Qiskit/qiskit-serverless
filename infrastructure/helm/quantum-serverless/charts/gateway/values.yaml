@@ -31,6 +31,9 @@ application:
     maxJobsPerUser: 2
     maxComputeResources: 4
     keepClusterOnComplete: False
+  qiskitRuntime:
+    channel: "ibm_quantum"
+    url: "https://auth.quantum-computing.ibm.com/api"
 
 database:
   host: postgresql

@@ -91,6 +91,10 @@ spec:
               value: {{ .Values.application.superuser.password | quote }}
             - name: DJANGO_SUPERUSER_EMAIL
               value: {{ .Values.application.superuser.email | quote }}
+            - name: QISKIT_IBM_CHANNEL
+              value: {{ .Values.application.qiskitRuntime.channel }}
+            - name: QISKIT_IBM_URL
+              value: {{ .Values.application.qiskitRuntime.url }}
             - name: DATABASE_HOST
               value: {{ .Values.database.host }}
             - name: DATABASE_PORT
