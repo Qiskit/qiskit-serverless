@@ -41,3 +41,5 @@ docker build -t qiskit/quantum-serverless-gateway:<VERSION> .
 | RAY_CLUSTER_WORKER_MIN_REPLICAS        | min worker replicas per cluster                                                                                                                                       |
 | RAY_CLUSTER_WORKER_MAX_REPLICAS        | max replicas per cluster                                                                                                                                              |
 | RAY_CLUSTER_MAX_READINESS_TIME         | max time in seconds to wait for cluster readiness. Will fail job if cluster is not ready in time.                                                                     |
+| QISKIT_IBM_CHANNEL                     | Channel that will be set in env variables in jobs for QiskitRuntimeService client                                                                                     |
+| QISKIT_IBM_URL                         | Authentication url for QiskitRuntimeService that will be set for each job                                                                                             |

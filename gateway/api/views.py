@@ -25,7 +25,7 @@ from rest_framework.views import APIView
 from .models import Program, Job
 from .schedule import save_program
 from .serializers import JobSerializer
-
+from .utils import build_env_variables
 
 logger = logging.getLogger("gateway")
 
@@ -69,14 +69,8 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             status=Job.QUEUED,
         )
         job.save()
-        job.env_vars = json.dumps(
-            {
-                "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
-                "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
-                "ENV_JOB_ID_GATEWAY": str(job.id),
-                "ENV_JOB_ARGUMENTS": program.arguments,
-            }
-        )
+
+        job.env_vars = json.dumps(build_env_variables(request, job, program))
         job.save()
 
         job_serializer = self.get_serializer_job_class()(job)

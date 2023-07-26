@@ -299,3 +299,9 @@ RAY_SETUP_MAX_RETRIES = int(os.environ.get("RAY_SETUP_MAX_RETRIES", 30))
 RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(
     os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False)
 )
+
+# qiskit runtime
+QISKIT_IBM_CHANNEL = os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum")
+QISKIT_IBM_URL = os.environ.get(
+    "QISKIT_IBM_URL", "https://auth.quantum-computing.ibm.com/api"
+)
