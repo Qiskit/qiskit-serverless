@@ -175,7 +175,7 @@ data:
               persistentVolumeClaim:
                 claimName: gateway-claim
       workerGroupSpecs:
-      - groupName: smallWorkerGroup
+      - groupName: g
         maxReplicas: {{ .Values.application.ray.maxReplicas }}
         minReplicas: {{ .Values.application.ray.minReplicas }}
         rayStartParams:

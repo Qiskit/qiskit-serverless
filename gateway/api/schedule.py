@@ -50,7 +50,7 @@ def execute_job(job: Job) -> Job:
     """
     authors_resource = ComputeResource.objects.filter(owner=job.author).first()
 
-    cluster_name = f"cluster-{job.author.username}-{str(uuid.uuid4())[:8]}"
+    cluster_name = f"c-{job.author.username}-{str(uuid.uuid4())[:8]}"
     if authors_resource:
         try:
             job.compute_resource = authors_resource
