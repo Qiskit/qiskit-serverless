@@ -3,10 +3,11 @@ import inspect
 import json
 import logging
 import time
-from typing import Optional, Tuple, Callable
+from typing import Optional, Tuple, Callable, Dict
 from ray.dashboard.modules.job.common import JobStatus
+from django.conf import settings
 
-from .models import Job
+from .models import Job, Program
 
 logger = logging.getLogger("commands")
 
@@ -70,3 +71,32 @@ def retry_function(
 
         time.sleep(interval)
     return result
+
+
+def build_env_variables(request, job: Job, program: Program) -> Dict[str, str]:
+    """Builds env variables for job.
+
+    Args:
+        request: django request
+        job: job
+        program: program
+
+    Returns:
+        env variables dict
+    """
+    extra = {}
+    if settings.SETTINGS_AUTH_MECHANISM != "default":
+        extra = {
+            "QISKIT_IBM_TOKEN": str(request.auth.token.decode()),
+            "QISKIT_IBM_CHANNEL": settings.QISKIT_IBM_CHANNEL,
+            "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
+        }
+    return {
+        **{
+            "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
+            "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
+            "ENV_JOB_ID_GATEWAY": str(job.id),
+            "ENV_JOB_ARGUMENTS": program.arguments,
+        },
+        **extra,
+    }
