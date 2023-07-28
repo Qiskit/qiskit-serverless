@@ -30,7 +30,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Run hadolint in ${{ matrix.dockerfile }}
-        run: docker run --name hadolint --rm --interactive ${{ env.HADOLINT_DOCKER_IMAGE }} < ${{ matrix.dockerfile }}
+        uses: ../../.github/actions/docker-lint
+        with:
+          DOCKER_FILE: ${{ matrix.dockerfile }}
   sast:
     strategy:
       matrix:
