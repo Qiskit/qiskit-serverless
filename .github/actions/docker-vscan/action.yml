@@ -1,0 +1,41 @@
+name: Docker image security scan
+description: Run trivy security scan for the selected docker image
+
+inputs:
+  TRIVY_DOCKER_IMAGE:
+    description: Trivy docker image
+    default: aquasec/trivy:0.42.1
+    required: false
+  dockerfile: 
+    description: Dockerfile to build the image
+    required: true
+  docker_image_name:
+    description: Dockerimage name to analyze it
+    required: true
+  pyversion:
+    description: Python version to build the image
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build image ${{ inputs.docker_image_name }}
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ${{ inputs.dockerfile }}
+        push: false
+        tags: ${{ inputs.docker_image_name }}
+        build-args:
+          IMAGE_PY_VERSION=${{ inputs.pyversion }}
+    - name: Run vscan on ${{ inputs.docker_image_name }}
+      shell: bash
+      run: |
+        docker run --rm --name=trivy \
+        --env ${{ secrets.GITHUB_TOKEN }} \
+        --volume /var/run/docker.sock:/var/run/docker.sock \
+        ${{ inputs.TRIVY_DOCKER_IMAGE }} image --no-progress \
+        --exit-code 1 \
+        --scanners vuln \
+        --severity CRITICAL \
+        --ignore-unfixed ${{ inputs.docker_image_name }}

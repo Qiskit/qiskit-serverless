@@ -1,57 +1,10 @@
 name: Docker verify process
 
 on:
-  push:
-    paths:
-      - "infrastructure/docker/**"
-      - ".github/scripts/dockerfile-security.rego"
-      - ".github/workflows/docker-verify.yaml"
-
-env:
-  HADOLINT_DOCKER_IMAGE: hadolint/hadolint:v2.12.0
-  OPENPOLICYAGENT_DOCKER_IMAGE: openpolicyagent/conftest:v0.43.1
+  pull_request:
+    types: [labeled]
 
 jobs:
-  lint:
-    strategy:
-      matrix:
-        dockerfile:
-          [
-            Dockerfile-gateway,
-            Dockerfile-notebook,
-            Dockerfile-ray-qiskit,
-            Dockerfile-repository-server,
-          ]
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./infrastructure/docker
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run hadolint in ${{ matrix.dockerfile }}
-        run: docker run --name hadolint --rm --interactive ${{ env.HADOLINT_DOCKER_IMAGE }} < ${{ matrix.dockerfile }}
-  sast:
-    strategy:
-      matrix:
-        dockerfile:
-          [
-            Dockerfile-gateway,
-            Dockerfile-notebook,
-            Dockerfile-ray-qiskit,
-            Dockerfile-repository-server,
-          ]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run conftest in ${{ matrix.dockerfile }}
-        shell: bash
-        run: |
-          docker run \
-          --name conftest \
-          --rm --volume $GITHUB_WORKSPACE:/project ${{ env.OPENPOLICYAGENT_DOCKER_IMAGE }} \
-          test --strict --parser dockerfile \
-          --policy .github/scripts/dockerfile-security.rego \
-          ./infrastructure/docker/${{ matrix.dockerfile }}
   vscan:
     strategy:
       matrix:
