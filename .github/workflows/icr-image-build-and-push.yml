@@ -42,7 +42,6 @@ jobs:
         with:
           tag: ${{ steps.set-version-from-tag.outputs.VERSION }}
       - name: Build and push latest
-        if : github.event_name == 'release' && github.event.action == 'published'
         uses: ./.github/actions/icr-build-and-push-images
         with:
           tag: latest
