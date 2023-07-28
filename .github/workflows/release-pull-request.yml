@@ -6,6 +6,7 @@ on:
 
 jobs:
   vscan:
+    if: ${{ github.event.label.name == 'release' }}
     strategy:
       matrix:
         image:
