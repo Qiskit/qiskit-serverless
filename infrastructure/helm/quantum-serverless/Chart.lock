@@ -7,7 +7,7 @@ dependencies:
   version: 0.3.2
 - name: nginx-ingress-controller
   repository: https://charts.bitnami.com/bitnami
-  version: 9.7.5
+  version: 9.7.7
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
   version: 0.5.2
@@ -20,5 +20,5 @@ dependencies:
 - name: repository
   repository: ""
   version: 0.3.2
-digest: sha256:a74a5b06bee1182955a0c52fc722204369b42ee60f3cfcd1c5b6fa905a525fbf
-generated: "2023-07-20T17:18:14.722545+02:00"
+digest: sha256:3d576f7f6a3dfdb8d4d89901f0fe9eb0dadc466b5a9df0db9236251ac43ebf8a
+generated: "2023-07-31T11:10:16.796075328Z"
