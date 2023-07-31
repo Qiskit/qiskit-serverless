@@ -56,7 +56,7 @@ Step 4: Run infrastructure.
       cd quantum-serverless/
       docker compose --profile jupyter up
 
-Step 5: Open the jupyter lab environment by going to ``localhost:8888`` via your favorite browser.
+Step 5: Open the jupyter lab environment by going to ``localhost:8888``. The default token is ``123``.
 
 Step 6: Write your program in containerized environment.
 
