@@ -83,6 +83,7 @@ class Job(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True, null=True)
 
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
     arguments = models.TextField(null=False, blank=True, default="{}")
