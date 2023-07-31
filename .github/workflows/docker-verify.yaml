@@ -97,6 +97,7 @@ jobs:
       - name: Scan image ${{ matrix.image }}
         uses: ./.github/actions/docker-vscan
         with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           dockerfile: ${{ matrix.dockerfile }}
           docker_image_name: ${{ matrix.image }}
           pyversion: ${{ matrix.pyversion }}

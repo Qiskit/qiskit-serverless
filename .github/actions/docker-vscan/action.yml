@@ -6,6 +6,9 @@ inputs:
     description: Trivy docker image
     default: aquasec/trivy:0.42.1
     required: false
+  GITHUB_TOKEN:
+    description: GitHub token passed as input to be used in action.yml # https://github.com/orgs/community/discussions/27054#discussioncomment-3254450
+    required: true
   dockerfile: 
     description: Dockerfile to build the image
     required: true
@@ -32,7 +35,7 @@ runs:
       shell: bash
       run: |
         docker run --rm --name=trivy \
-        --env ${{ secrets.GITHUB_TOKEN }} \
+        --env ${{ inputs.GITHUB_TOKEN }} \
         --volume /var/run/docker.sock:/var/run/docker.sock \
         ${{ inputs.TRIVY_DOCKER_IMAGE }} image --no-progress \
         --exit-code 1 \
