@@ -18,5 +18,5 @@ dependencies:
     repository: https://grafana.github.io/helm-charts
   - name: promtail
     condition: promtailEnable
-    version: 6.11.7
+    version: 6.11.9
     repository: https://grafana.github.io/helm-charts
