@@ -35,7 +35,7 @@ Step 0 [Optional]: Pre-Installation
 Step 1: Install Docker.
 
    If Docker is not installed on your system, following the directions
-   on the `Docker website <https://docs.docker.com/engine/install/)>`_ to install Docker on your system.
+   on the `Docker website <https://docs.docker.com/engine/install/>`_ to install Docker on your system.
 
 Step 2: Stop any running jupyter notebook servers.
 
