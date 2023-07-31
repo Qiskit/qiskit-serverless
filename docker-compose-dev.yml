@@ -167,7 +167,7 @@ services:
     networks:
       - safe-tier
   promtail:
-    image: grafana/promtail:2.8.2
+    image: grafana/promtail:2.8.3
     profiles: [ "full" ]
     volumes:
       - /var/log:/var/log
