@@ -2,7 +2,7 @@
 
 Project is arranged as monorepository. Each of sub-modules has it's own installation instructions.
 
-## Client (QuantumServerless) library
+## Client (Quantum-Serverless) library
 
 ```shell
 pip install quantum_serverless
@@ -43,14 +43,8 @@ For the first one, **Locally**. You will need to have a k8s approach installed i
 
 If this is your case you just need to execute the helm configuration on you k8s instance following the installation step described in the helm's [README](./infrastructure/helm/quantum-serverless/README.md).
 
-If you are interested into manage the infrastructure in a **cloud provider** the project supports two of them, currently: [IBM Cloud](./infrastructure/terraform/ibm/), [AWS](./infrastructure/terraform/aws).
+If you are interested into manage the infrastructure in a **cloud provider** the project currently supports [IBM Cloud](./infrastructure/terraform/ibm/).
 
-Once time you select one you will need to run the terraform configuration as is described in the terraform's [README](./infrastructure/terraform/README.md). Depending of the provider that you decide to use you will neeed to refer to the documentation of each provider to see if you need to configure something:
-- [IBM Cloud](./infrastructure/terraform/ibm/README.md)
-- [AWS](./infrastructure/terraform/aws/readme.md)
+You will need to run the terraform configuration as is described in the terraform's [README](./infrastructure/terraform/README.md). You will neeed to refer to the documentation of [IBM Cloud](./infrastructure/terraform/ibm/README.md) to see if you need to configure something.
 
 :warning: Each provider has a `values.yaml` with the configuration for the helm execution. In case you use `terraform` you will need to fill those files with the information from the [second step](#configure-helm-values).
-
-## Manager
-
-All you will need to build the docker image inside the [manager folder](./manager/). You can follow the `docker build` examples described in the docker's README for that or simply run `make build-manager`.
