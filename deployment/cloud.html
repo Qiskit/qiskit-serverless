@@ -363,8 +363,6 @@ customizable on a local or cloud <strong>k8s cluster</strong>.</p>
 <li><dl class="simple">
 <dt>Create a cluster in a third party cloud service. Some examples from where you can take inspiration are:</dt><dd><ul>
 <li><p><a class="reference external" href="https://cloud.ibm.com/docs/containers?topic=containers-clusters&amp;interface=ui">IBM Cloud cluster</a></p></li>
-<li><p><a class="reference external" href="https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html">Amazon EKS cluster</a></p></li>
-<li><p><a class="reference external" href="https://learn.microsoft.com/en-us/azure/aks/tutorial-kubernetes-deploy-cluster?tabs=azure-cli">Azure AKS cluster</a></p></li>
 </ul>
 </dd>
 </dl>
@@ -421,18 +419,14 @@ configuration example to expose through <code class="docutils literal notranslat
 <dl class="simple">
 <dt>First, create an account with some cloud provider:</dt><dd><ul class="simple">
 <li><p><a class="reference external" href="https://cloud.ibm.com/registration">IBM Cloud registration process</a></p></li>
-<li><p><a class="reference external" href="https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account/">AWS registration process</a></p></li>
-<li><p>Azure will be supported in a future release.</p></li>
 </ul>
 </dd>
 <dt>Once you have created an account, you will need to configure an API key/access key:</dt><dd><ul class="simple">
 <li><p><a class="reference external" href="https://cloud.ibm.com/docs/account?topic=account-userapikey&amp;interface=ui#create_user_key">IBM Cloud API key creation</a></p></li>
-<li><p><a class="reference external" href="https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html#access-keys-about">AWS Access key creation</a></p></li>
 </ul>
 </dd>
 <dt>Finally, install the provider’s CLI:</dt><dd><ul class="simple">
 <li><p><a class="reference external" href="https://cloud.ibm.com/docs/cli?topic=cli-getting-started">IBM Cloud CLI</a></p></li>
-<li><p><a class="reference external" href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">AWS CLI</a></p></li>
 </ul>
 </dd>
 </dl>
@@ -449,7 +443,6 @@ with the following contents:</p>
 <ul class="simple">
 <li><p>Note the <a class="reference external" href="https://cloud.ibm.com/docs/openwhisk?topic=openwhisk-cloudfunctions_regions">region</a> and the <a class="reference external" href="https://cloud.ibm.com/docs/account?topic=account-rgs&amp;interface=cli">resource group</a> associated with your account.</p></li>
 </ul>
-<p>To use <strong>AWS</strong>, configure environment variables, depending on your system, in accordance with the instructions <a class="reference external" href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set">here</a>.</p>
 <p>To confirm the configuration just run <code class="docutils literal notranslate"><span class="pre">terraform</span> <span class="pre">plan</span></code>:</p>
 <div class="literal-block-wrapper docutils container" id="id9">
 <div class="code-block-caption"><span class="caption-text">always run a plan before an apply, this will compare your current configuration with the new one</span><a class="headerlink" href="#id9" title="Permalink to this code">#</a></div>
@@ -467,7 +460,6 @@ with the following contents:</p>
 <dl class="simple">
 <dt>When the process finishes, you should be able to see the cluster with the resources in your provider information:</dt><dd><ul class="simple">
 <li><p><a class="reference external" href="https://cloud.ibm.com/docs/containers?topic=containers-access_cluster">IBM Cloud cluster access guide</a></p></li>
-<li><p><a class="reference external" href="https://aws.amazon.com/premiumsupport/knowledge-center/eks-cluster-connection/">AWS cluster connection guide</a></p></li>
 </ul>
 </dd>
 </dl>
