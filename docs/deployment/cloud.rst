@@ -97,8 +97,6 @@ In this step your only requirement is to have a *k8s cluster* available. You hav
 * Docker desktop offers you a simple one. You just need to go to the "Docker desktop settings" > "Kubernetes section" and click in the option that says: "Enable Kubernetes".
 * Create a cluster in a third party cloud service. Some examples from where you can take inspiration are:
     * `IBM Cloud cluster <https://cloud.ibm.com/docs/containers?topic=containers-clusters&interface=ui>`_
-    * `Amazon EKS cluster <https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html>`_
-    * `Azure AKS cluster <https://learn.microsoft.com/en-us/azure/aks/tutorial-kubernetes-deploy-cluster?tabs=azure-cli>`_
 
 Once your cluster is ready, the installation is relatively straightforward with Helm. To install a released version, You just need to access to your cluster
 and run the next commands:
@@ -155,16 +153,12 @@ This approach is useful if you have a cloud provider account and also need to se
 
 First, create an account with some cloud provider:
     * `IBM Cloud registration process <https://cloud.ibm.com/registration>`_
-    * `AWS registration process <https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account/>`_
-    * Azure will be supported in a future release.
 
 Once you have created an account, you will need to configure an API key/access key:
     * `IBM Cloud API key creation <https://cloud.ibm.com/docs/account?topic=account-userapikey&interface=ui#create_user_key>`_
-    * `AWS Access key creation <https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html#access-keys-about>`_
 
 Finally, install the provider's CLI:
     * `IBM Cloud CLI <https://cloud.ibm.com/docs/cli?topic=cli-getting-started>`_
-    * `AWS CLI <https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html>`_
 
 Now that your cloud provider is configured, you may configure ``terraform`` to
 deploy the infrastructure where you want. Depending on the provider, you need to
@@ -180,8 +174,6 @@ with the following contents:
         resource_group = "YOUR_RESOURCE_GROUP"
 
 * Note the `region <https://cloud.ibm.com/docs/openwhisk?topic=openwhisk-cloudfunctions_regions>`_ and the `resource group <https://cloud.ibm.com/docs/account?topic=account-rgs&interface=cli>`_ associated with your account.
-
-To use **AWS**, configure environment variables, depending on your system, in accordance with the instructions `here <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-set>`_.
 
 To confirm the configuration just run ``terraform plan``:
 
@@ -199,7 +191,6 @@ Finally, deploy the plan to your account:
 
 When the process finishes, you should be able to see the cluster with the resources in your provider information:
     * `IBM Cloud cluster access guide <https://cloud.ibm.com/docs/containers?topic=containers-access_cluster>`_
-    * `AWS cluster connection guide <https://aws.amazon.com/premiumsupport/knowledge-center/eks-cluster-connection/>`_
 
 Now that you have a cluster you can follow the steps in the :ref:`helm-deployment` section for using helm to deploy the different applications.
 
