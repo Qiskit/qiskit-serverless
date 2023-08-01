@@ -41,7 +41,3 @@ jobs:
         uses: ./.github/actions/icr-build-and-push-images
         with:
           tag: ${{ steps.set-version-from-tag.outputs.VERSION }}
-      - name: Build and push latest
-        uses: ./.github/actions/icr-build-and-push-images
-        with:
-          tag: latest
