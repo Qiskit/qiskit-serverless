@@ -42,6 +42,5 @@ In [this folder](./helm) you will find the main configuration to set up your k8s
 ## Terraform
 The [folder](./terraform) contains the configuration that helps you to create your k8s and Ray clusters. Currently, the project supports deployments in:
 - [IBM Cloud](https://cloud.ibm.com/login)
-- [AWS](https://aws.amazon.com/)
 
 :memo: For more advanced ways to deploy the project you have the guide: [Multi cloud deployment](https://qiskit-extensions.github.io/quantum-serverless/guides/08_multi_cloud_deployment.html).
