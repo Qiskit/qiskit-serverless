@@ -48,6 +48,8 @@ class ComputeResource(models.Model):
     title = models.CharField(max_length=100, blank=False, null=False)
     host = models.CharField(max_length=100, blank=False, null=False)
 
+    active = models.BooleanField(default=True, null=True)
+
     owner = models.ForeignKey(
         to=settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -106,3 +108,7 @@ class Job(models.Model):
 
     def __str__(self):
         return f"<Job {self.pk} | {self.status}>"
+
+    def in_terminal_state(self):
+        """Returns true if job is in terminal state."""
+        return self.status in self.TERMINAL_STATES
