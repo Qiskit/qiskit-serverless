@@ -10,7 +10,7 @@ dependencies:
   version: 9.7.7
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
-  version: 0.5.2
+  version: 0.6.0
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 17.13.2
@@ -20,5 +20,5 @@ dependencies:
 - name: repository
   repository: ""
   version: 0.3.2
-digest: sha256:3d576f7f6a3dfdb8d4d89901f0fe9eb0dadc466b5a9df0db9236251ac43ebf8a
-generated: "2023-07-31T11:10:16.796075328Z"
+digest: sha256:c885fdcaac3ff75d0e3fe28b994b5191b7f4024f750f0a101bb27c72ff01809c
+generated: "2023-07-31T18:18:42.027852186Z"
