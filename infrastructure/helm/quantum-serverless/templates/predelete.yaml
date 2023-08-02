@@ -22,6 +22,6 @@ spec:
       restartPolicy: Never
       serviceAccountName: gateway
       containers:
-      - name: pre-install-job
+      - name: delete-orphan-rayclusters-job
         image: alpine/k8s:1.27.3
         command: ["/bin/sh", "-c", "kubectl delete raycluster --all"]
