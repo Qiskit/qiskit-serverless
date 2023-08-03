@@ -41,7 +41,6 @@ import requests
 from quantum_serverless.core.constants import (
     REPO_HOST_KEY,
     REPO_PORT_KEY,
-    MAX_ARTIFACT_FILE_SIZE_MB,
 )
 from quantum_serverless.exception import QuantumServerlessException
 
