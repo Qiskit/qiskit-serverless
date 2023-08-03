@@ -85,7 +85,8 @@
     "[Program](https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.Program.html#quantum_serverless.core.Program) accepts couple of required parameters:\n",
     "- title - name of the program\n",
     "- entrypoint - name of python file you want to execute\n",
-    "- working_dir - folder where  your script is located. This is optional parameter and will be current folder by default. "
+    "- working_dir - directory where  your script is located (directory size must be less than 50MB). This is optional parameter and will be current folder by default.\n",
+    "\n"
    ]
   },
   {
@@ -178,7 +179,7 @@
    "name": "python",
    "nbconvert_exporter": "python",
    "pygments_lexer": "ipython3",
-   "version": "3.8.16"
+   "version": "3.9.17"
   }
  },
  "nbformat": 4,
