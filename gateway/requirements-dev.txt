@@ -7,3 +7,4 @@ black~=22.12
 requests-mock>=1.10.0
 coverage>=5.5
 responses>=0.23.3
+tox>=4.6.0

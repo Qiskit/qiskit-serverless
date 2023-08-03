@@ -16,3 +16,4 @@ reno>=3.5.0
 black[jupyter]~=22.12
 sphinx-copybutton>=0.5.2
 qiskit-sphinx-theme~=1.14.0rc1
+tox>=4.6.0
