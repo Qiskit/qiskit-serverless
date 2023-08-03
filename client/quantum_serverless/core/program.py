@@ -41,13 +41,14 @@ import requests
 from quantum_serverless.core.constants import (
     REPO_HOST_KEY,
     REPO_PORT_KEY,
+    MAX_ARTIFACT_FILE_SIZE_MB,
 )
 from quantum_serverless.exception import QuantumServerlessException
 
 
 @dataclass
 class Program:  # pylint: disable=too-many-instance-attributes
-    """Serverless Program.
+    f"""Serverless Program.
 
     Args:
         title: program name
@@ -55,7 +56,7 @@ class Program:  # pylint: disable=too-many-instance-attributes
             ex: job.py
         env_vars: env vars
         dependencies: list of python dependencies to execute a program
-        working_dir: directory where entrypoint file is located
+        working_dir: directory where entrypoint file is located (total size of directory must be less than {MAX_ARTIFACT_FILE_SIZE_MB})
         description: description of a program
         version: version of a program
     """
