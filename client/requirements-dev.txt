@@ -15,4 +15,4 @@ reno>=3.5.0
 black[jupyter]~=22.12
 requests-mock>=1.9.3
 testcontainers>=3.7.1
-tox>=4.6.0
+tox>=4.0.0
