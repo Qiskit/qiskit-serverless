@@ -195,7 +195,7 @@ class GatewayJobClient(BaseJobClient):
         size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
         if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
             raise QuantumServerlessException(
-                f"Artifact size is {int(size_in_mb)} Mb, "
+                f"{artifact_file_path} is {int(size_in_mb)} Mb, "
                 f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
                 f"Try to reduce size of `working_dir`."
             )

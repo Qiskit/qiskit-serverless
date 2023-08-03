@@ -55,7 +55,7 @@ class Program:  # pylint: disable=too-many-instance-attributes
             ex: job.py
         env_vars: env vars
         dependencies: list of python dependencies to execute a program
-        working_dir: directory where entrypoint file is located
+        working_dir: directory where entrypoint file is located (max size 50MB)
         description: description of a program
         version: version of a program
     """
