@@ -4,7 +4,7 @@
 
 module "vpc" {
   source  = "terraform-ibm-modules/vpc/ibm//modules/vpc"
-  version = "1.1.1"
+  version = "1.1.2"
 
   create_vpc          = true
   vpc_name            = var.name
