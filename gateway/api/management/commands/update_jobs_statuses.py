@@ -54,7 +54,7 @@ class Command(BaseCommand):
                     )
                     updated_jobs_counter += 1
                 # cleanup env vars
-                if job.status in Job.TERMINAL_STATES:
+                if job.in_terminal_state():
                     job.env_vars = "{}"
                 job.status = job_status
                 job.save()

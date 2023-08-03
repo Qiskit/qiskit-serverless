@@ -23,7 +23,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
-        number_of_clusters_running = ComputeResource.objects.count()
+        number_of_clusters_running = ComputeResource.objects.filter(active=True).count()
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
         logger.info("%s free cluster slots.", free_clusters_slots)
 
