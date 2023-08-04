@@ -13,12 +13,12 @@ dependencies:
   version: 0.6.1
 - name: redis
   repository: https://charts.bitnami.com/bitnami
-  version: 17.13.2
+  version: 17.14.5
 - name: keycloak
   repository: https://charts.bitnami.com/bitnami
   version: 13.4.1
 - name: repository
   repository: ""
   version: 0.3.2
-digest: sha256:038b21c0d006b34e10ff4e7a41ad84424f68b61c0ebf59e6f14aee73c04c3d10
-generated: "2023-08-03T10:16:37.512572813Z"
+digest: sha256:c92c6b1e1c0185de0d3b17b9bab4f3e675fce42ba19a91d9ec49d3cbc4ff31a9
+generated: "2023-08-04T10:07:35.319096982Z"
