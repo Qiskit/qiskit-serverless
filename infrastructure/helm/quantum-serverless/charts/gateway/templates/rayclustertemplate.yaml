@@ -21,6 +21,7 @@ data:
       headGroupSpec:
         rayStartParams:
           dashboard-host: 0.0.0.0
+          tracing-startup-hook: "quantum_serverless.core.tracing:setup_tracing"
         serviceType: ClusterIP
         template:
 {{- if .Values.application.ray.scrapeWithPrometheus }}                
