@@ -380,7 +380,7 @@ def save_result(result: Dict[str, Any]):
         )
         return False
 
-    if not is_jsonable(result):
+    if not is_jsonable(result, cls=QiskitObjectsEncoder):
         logging.warning("Object passed is not json serializable.")
         return False
 
