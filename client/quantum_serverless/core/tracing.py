@@ -75,7 +75,10 @@ def get_tracer(
     provider = TracerProvider(resource=resource)
     if agent_host is not None and agent_port is not None:
         otel_exporter = BatchSpanProcessor(
-            OTLPSpanExporter(endpoint=f"{agent_host}:{agent_port}", insecure=eval(os.environ.get(OT_INSECURE, "False")))
+            OTLPSpanExporter(
+                endpoint=f"{agent_host}:{agent_port}",
+                insecure=eval(os.environ.get(OT_INSECURE, "False")),
+            )
         )
         provider.add_span_processor(otel_exporter)
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
@@ -127,7 +130,10 @@ def setup_tracing() -> None:
     resource = Resource(attributes={SERVICE_NAME: "Quantum-Serverless: Ray"})
     provider = TracerProvider(resource=resource)
     otel_exporter = BatchSpanProcessor(
-        OTLPSpanExporter(endpoint=f"{agent_host}:{agent_port}", insecure=eval(os.environ.get(OT_INSECURE, "False")))
+        OTLPSpanExporter(
+            endpoint=f"{agent_host}:{agent_port}",
+            insecure=eval(os.environ.get(OT_INSECURE, "False")),
+        )
     )
     provider.add_span_processor(otel_exporter)
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
