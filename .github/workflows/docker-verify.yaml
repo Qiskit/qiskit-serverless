@@ -4,9 +4,9 @@ on:
   push:
     paths:
       - "Dockerfile-notebook"
-      - "./client/Dockerfile-ray"
-      - "./gateway/Dockerfile"
-      - "./repository/Dockerfile"
+      - "client/Dockerfile-ray"
+      - "gateway/Dockerfile"
+      - "repository/Dockerfile"
       - ".github/scripts/dockerfile-security.rego"
       - ".github/workflows/docker-verify.yaml"
 
