@@ -27,6 +27,7 @@ application:
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-5
     kubectlImage: alpine/k8s:1.27.4
     scrapeWithPrometheus: true
+    openTelemetry: false
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4

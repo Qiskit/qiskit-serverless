@@ -43,6 +43,7 @@ from quantum_serverless.core.constants import (
     OT_JAEGER_HOST_KEY,
     OT_JAEGER_PORT_KEY,
     OT_TRACEPARENT_ID_KEY,
+    OT_INSECURE,
     OT_SPAN_DEFAULT_NAME,
     OT_LABEL_CALL_LOCATION,
 )
@@ -74,7 +75,7 @@ def get_tracer(
     provider = TracerProvider(resource=resource)
     if agent_host is not None and agent_port is not None:
         otel_exporter = BatchSpanProcessor(
-            OTLPSpanExporter(endpoint=f"{agent_host}:{agent_port}", insecure=True)
+            OTLPSpanExporter(endpoint=f"{agent_host}:{agent_port}", insecure=eval(os.environ.get(OT_INSECURE, "False")))
         )
         provider.add_span_processor(otel_exporter)
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
@@ -126,7 +127,7 @@ def setup_tracing() -> None:
     resource = Resource(attributes={SERVICE_NAME: "Quantum-Serverless: Ray"})
     provider = TracerProvider(resource=resource)
     otel_exporter = BatchSpanProcessor(
-        OTLPSpanExporter(endpoint=f"{agent_host}:{agent_port}", insecure=True)
+        OTLPSpanExporter(endpoint=f"{agent_host}:{agent_port}", insecure=eval(os.environ.get(OT_INSECURE, "False")))
     )
     provider.add_span_processor(otel_exporter)
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
