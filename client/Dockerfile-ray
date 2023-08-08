@@ -9,7 +9,9 @@ USER $RAY_UID
 COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 
 WORKDIR /qs
-RUN pip install . --no-cache-dir
+# TODO: certifi version pinned to 2023.7.22. More info in #870
+RUN pip install . --no-cache-dir &&\
+    pip install --no-cache-dir certifi==2023.7.22
 
 WORKDIR / 
 RUN rm -r ./qs
@@ -28,9 +30,10 @@ COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 
 WORKDIR /qs
 # TODO: scipy version pinned to 1.10, pyscf depends on. More info in #722
+# TODO: certifi version pinned to 2023.7.22. More info in #870
 RUN pip install . --no-cache-dir &&\
     if [ "$TARGETARCH" = "arm64" ] ; \
-        then pip install --no-cache-dir pyscf==2.2.1 scipy==1.10 ; \
+        then pip install --no-cache-dir pyscf==2.2.1 scipy==1.10 certifi==2023.7.22 ; \
     fi
 
 WORKDIR /
