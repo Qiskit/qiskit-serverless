@@ -1,20 +1,21 @@
 """Tests for ray util functions."""
+import os
+import shutil
+from unittest.mock import MagicMock
 
-from unittest import mock
-from unittest.mock import MagicMock, patch
 import requests_mock
-
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from rest_framework.test import APITestCase
-
 from kubernetes import client, config
 from kubernetes.dynamic.client import DynamicClient
+from ray.dashboard.modules.job.common import JobStatus
+from rest_framework.test import APITestCase
 
-from api.models import ComputeResource
+from api.models import ComputeResource, Job
 from api.ray import (
     create_ray_cluster,
     kill_ray_cluster,
+    JobHandler,
 )
 
 
@@ -82,3 +83,51 @@ class TestRayUtils(APITestCase):
             api_version="v1", kind="Certificate"
         )
         client.CoreV1Api.assert_called()
+
+
+class TestJobHandler(APITestCase):
+    """Tests job handler."""
+
+    fixtures = ["tests/fixtures/schedule_fixtures.json"]
+
+    def setUp(self) -> None:
+        ray_client = MagicMock()
+        ray_client.get_job_status.return_value = JobStatus.PENDING
+        ray_client.get_job_logs.return_value = "Here goes nothing."
+        ray_client.stop_job.return_value = True
+        ray_client.submit_job.return_value = "AwesomeJobId"
+        self.handler = JobHandler(ray_client)
+
+        # prepare artifact file
+        path_to_resource_artifact = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "artifact.tar",
+        )
+        path_to_media_artifact = os.path.join(
+            settings.MEDIA_ROOT, "awesome_artifact.tar"
+        )
+        os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
+        shutil.copyfile(path_to_resource_artifact, path_to_media_artifact)
+
+    def test_job_status(self):
+        """Tests job status."""
+        job_status = self.handler.status("AwesomeJobId")
+        self.assertTrue(job_status in JobStatus)
+
+    def test_job_logs(self):
+        """Tests job logs."""
+        job_logs = self.handler.logs("AwesomeJobId")
+        self.assertEqual(job_logs, "Here goes nothing.")
+
+    def test_job_stop(self):
+        """Tests stopping of job."""
+        is_job_stopped = self.handler.stop("AwesomeJobId")
+        self.assertTrue(is_job_stopped)
+
+    def test_job_submit(self):
+        """Tests job submission."""
+        job = Job.objects.first()
+        job_id = self.handler.submit(job)
+        self.assertEqual(job_id, "AwesomeJobId")

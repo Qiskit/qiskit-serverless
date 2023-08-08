@@ -5,7 +5,7 @@ on:
 
 jobs:
   verify-gateway:
-    name: lint, test
+    name: lint, test, coverage
 
     runs-on: ubuntu-latest
     strategy:
@@ -42,3 +42,7 @@ jobs:
       - name: Test using tox environment
         run: |
           tox ${{ env.TOX_ENV }}
+
+      - name: Coverage check
+        run: |
+          tox -ecoverage

@@ -27,38 +27,38 @@ from quantum_serverless import QuantumServerless, get, distribute_task, put
 
 @distribute_task()
 def generate_circuits(
-    depth_of_recursion: int, n_qubits: int, depth_of_circuit: int, n_circuits: int
+    depth_of_recursion: int, num_qubits: int, depth_of_circuit: int, n_circuits: int
 ):
     """Generates random circuits."""
-    circuits = [random_circuit(n_qubits, depth_of_circuit) for _ in range(n_circuits)]
+    circuits = [random_circuit(num_qubits, depth_of_circuit) for _ in range(n_circuits)]
     if depth_of_recursion <= 1:
         return circuits
     else:
         return circuits + get(
             generate_circuits(
-                depth_of_recursion - 1, n_qubits, depth_of_circuit, n_circuits
+                depth_of_recursion - 1, num_qubits, depth_of_circuit, n_circuits
             )
         )
 
 
 @distribute_task()
 def generate_observables(
-    depth_of_recursion: int, n_qubits: int, size: int, n_observables: int
+    depth_of_recursion: int, num_qubits: int, size: int, n_observables: int
 ):
     """Generated random observables."""
-    observables = [random_pauli_list(n_qubits, size) for _ in range(n_observables)]
+    observables = [random_pauli_list(num_qubits, size) for _ in range(n_observables)]
     if depth_of_recursion <= 1:
         return observables
     else:
         return observables + get(
-            generate_observables(depth_of_recursion - 1, n_qubits, size, n_observables)
+            generate_observables(depth_of_recursion - 1, num_qubits, size, n_observables)
         )
 
 
 @distribute_task()
 def generate_data(
     depth_of_recursion: int,
-    n_qubits: int,
+    num_qubits: int,
     n_entries: int,
     circuit_depth: int = 2,
     size_of_observable: int = 2,
@@ -66,23 +66,23 @@ def generate_data(
     return get(
         generate_circuits(
             depth_of_recursion=depth_of_recursion,
-            n_qubits=n_qubits,
+            num_qubits=num_qubits,
             n_circuits=n_entries,
             depth_of_circuit=circuit_depth,
         )
     ), get(
         generate_observables(
             depth_of_recursion=depth_of_recursion,
-            n_qubits=n_qubits,
+            num_qubits=num_qubits,
             size=size_of_observable,
             n_observables=n_entries,
         )
     )
 
 
-def get_backends(n_backends: int, n_qubits: int):
+def get_backends(n_backends: int, num_qubits: int):
     """Returns list of backends for program."""
-    backend = ConfigurableFakeBackend("Tashkent", n_qubits=n_qubits, version=1)
+    backend = ConfigurableFakeBackend("Tashkent", n_qubits=num_qubits, version=1)
 
     return [backend for _ in range(n_backends)]
 
@@ -104,18 +104,18 @@ def estimate(circuits: list, observables: list):
 @distribute_task()
 def run_graph(
     depth_of_recursion: int,
-    n_qubits: int,
+    num_qubits: int,
     n_entries: int,
     circuit_depth: int,
     size_of_observable: int,
     n_backends: int,
 ):
-    backends = get_backends(n_backends, n_qubits)
+    backends = get_backends(n_backends, num_qubits)
 
     circuits, observables = get(
         generate_data(
             depth_of_recursion=depth_of_recursion,
-            n_qubits=n_qubits,
+            num_qubits=num_qubits,
             n_entries=n_entries,
             circuit_depth=circuit_depth,
             size_of_observable=size_of_observable,
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
-        "--n_qubits", help="Number of qubits used in program.", default=2, type=int
+        "--num_qubits", help="Number of qubits used in program.", default=2, type=int
     )
     parser.add_argument("--n_entries", help="Number of circuits.", default=10, type=int)
     parser.add_argument(
@@ -167,7 +167,7 @@ if __name__ == "__main__":
             [
                 run_graph(
                     depth_of_recursion=args.depth_of_recursion,
-                    n_qubits=args.n_qubits,
+                    num_qubits=args.num_qubits,
                     n_entries=args.n_entries,
                     circuit_depth=args.circuit_depth,
                     size_of_observable=args.size_of_observable,

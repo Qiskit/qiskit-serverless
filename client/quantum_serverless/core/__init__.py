@@ -28,7 +28,6 @@ Core abstractions
 
     Provider
     BaseProvider
-    KuberayProvider
     ComputeResource
     Job
     GatewayJobClient
@@ -68,7 +67,7 @@ State classes
     RedisStateHandler
 """
 
-from .provider import BaseProvider, ComputeResource, KuberayProvider, Provider
+from .provider import BaseProvider, ComputeResource, Provider
 from .job import BaseJobClient, RayJobClient, GatewayJobClient, Job, save_result
 from .program import (
     Program,

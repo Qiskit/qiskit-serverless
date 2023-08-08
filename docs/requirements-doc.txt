@@ -1,25 +1,19 @@
+quantum-serverless>=0.3.2
 coverage>=5.5
-pylint>=2.9.5
-nbqa>=1.1.1
-treon>=0.1.3
+pylint>=2.17.5
+nbqa>=1.7.0
+treon>=0.1.4
 pytest>=6.2.5
 pytest-randomly>=1.2.3
-mypy>=0.780
+mypy>=0.991
 mypy-extensions>=0.4.4
-jupyter-sphinx>=0.3.2
-nbsphinx>=0.8.8
+jupyter-sphinx>=0.4.0
+nbsphinx>=0.9.2
 sphinx-autodoc-typehints>=1.17.0
 reno>=3.5.0
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
-black[jupyter]~=22.1
-ray==2.5.0
-qiskit-terra==0.21.1
-qiskit-ibm-runtime==0.7.0rc2
+black[jupyter]~=22.12
 sphinx-copybutton>=0.5.2
-redis>=4.3.4
-# opentelemetry
-opentelemetry-api>=1.15.0
-opentelemetry-sdk>=1.15.0
-opentelemetry-exporter-otlp-proto-grpc>=1.15.0
-s3fs>=2023.5.0
+qiskit-sphinx-theme~=1.14.0rc1
+tox>=4.0.0

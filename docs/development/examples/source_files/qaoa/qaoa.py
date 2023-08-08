@@ -2,26 +2,41 @@ import logging
 from typing import Optional
 
 import numpy as np
+from scipy.optimize import minimize
 
 from qiskit import QuantumCircuit
-from qiskit.primitives import BaseSampler, Sampler as QiskitSampler
-from qiskit.algorithms.optimizers import SPSA, Optimizer, COBYLA
+from qiskit.primitives import BaseEstimator, Estimator as QiskitEstimator
 from qiskit.opflow import PauliSumOp
-from qiskit.algorithms.minimum_eigensolvers import QAOA
 
-from qiskit_ibm_runtime import QiskitRuntimeService, Sampler, Session, Options
+from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options
 
 from quantum_serverless import QuantumServerless, distribute_task, get_arguments, get, save_result
 
 
+def cost_func(params, ansatz, hamiltonian, estimator):
+    """Return estimate of energy from estimator
+
+    Parameters:
+        params (ndarray): Array of ansatz parameters
+        ansatz (QuantumCircuit): Parameterized ansatz circuit
+        hamiltonian (SparsePauliOp): Operator representation of Hamiltonian
+        estimator (Estimator): Estimator primitive instance
+
+    Returns:
+        float: Energy estimate
+    """
+    cost = estimator.run(ansatz, hamiltonian, parameter_values=params).result().values[0]
+    return cost
+
+
 def run_qaoa(
-    sampler: BaseSampler,
-    optimizer: Optimizer,
-    reps: int,
-    operator: PauliSumOp
+    ansatz: QuantumCircuit,
+    estimator: BaseEstimator,
+    operator: PauliSumOp,
+    initial_point: np.array,
+    method: str
 ):
-    qaoa = QAOA(sampler, optimizer, reps=reps)
-    return qaoa.compute_minimum_eigenvalue(operator)
+    return minimize(cost_func, initial_point, args=(ansatz, operator, estimator), method=method)
 
 
 if __name__ == '__main__':
@@ -30,18 +45,12 @@ if __name__ == '__main__':
     service = arguments.get("service")
     
     operator = arguments.get("operator")
+    ansatz = arguments.get("ansatz")
     initial_point = arguments.get("initial_point")
-    reps = arguments.get("reps", 1)
+    method = arguments.get("method", "COBYLA")
     
-    optimizers = {
-        "spsa": SPSA(),
-        "cobyla": COBYLA()
-    }
-    optimizer = optimizers.get(arguments.get("optimizer", "nan"))
-    if optimizer is None:
-        raise Exception(
-            f"Optimizer {optimizer} is not is a list of available optimizers [{list(optimizers.keys())}]"
-        )
+    if initial_point is None:
+        initial_point = 2 * np.pi * np.random.rand(ansatz.num_parameters)
 
     if service is not None:
         # if we have service we need to open a session and create sampler
@@ -51,19 +60,14 @@ if __name__ == '__main__':
             options = Options()
             options.optimization_level = 3
 
-            sampler = Sampler(session=session, options=options)
-            result = run_qaoa(sampler, optimizer, reps, operator)
+            estimator = Estimator(session=session, options=options)
     else:
         # if we do not have a service let's use standart local sampler
-        sampler = QiskitSampler()
-        result = run_qaoa(sampler, optimizer, reps, operator)
-
+        estimator = QiskitEstimator()
+    
+    result = run_qaoa(ansatz, estimator, operator, initial_point, method)
+    
     save_result({
-        "cost_function_evals": result.cost_function_evals,
-        "eigenstate": result.eigenstate,
-        "eigenvalue": result.eigenvalue,
-        "optimal_parameters": list(result.optimal_parameters.values()),
-        "optimal_point": result.optimal_point.tolist(),
-        "optimal_value": result.optimal_value,
-        "optimizer_time": result.optimizer_time
+        "optimal_point": result.x.tolist(),
+        "optimal_value": result.fun
     })

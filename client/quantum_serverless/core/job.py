@@ -52,7 +52,10 @@ from quantum_serverless.core.constants import (
 )
 from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
-from quantum_serverless.serializers.program_serializers import QiskitObjectsEncoder
+from quantum_serverless.serializers.program_serializers import (
+    QiskitObjectsEncoder,
+    QiskitObjectsDecoder,
+)
 from quantum_serverless.utils.json import is_jsonable, safe_json_request
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
@@ -192,7 +195,7 @@ class GatewayJobClient(BaseJobClient):
         size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
         if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
             raise QuantumServerlessException(
-                f"Artifact size is {int(size_in_mb)} Mb, "
+                f"{artifact_file_path} is {int(size_in_mb)} Mb, "
                 f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
                 f"Try to reduce size of `working_dir`."
             )
@@ -262,7 +265,9 @@ class GatewayJobClient(BaseJobClient):
                 timeout=REQUESTS_TIMEOUT,
             )
         )
-        return json.loads(response_data.get("result", "{}") or "{}")
+        return json.loads(
+            response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder
+        )
 
     def get(self, job_id) -> Optional["Job"]:
         url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
@@ -369,13 +374,13 @@ def save_result(result: Dict[str, Any]):
     token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
     if token is None:
         logging.warning(
-            "Results will not be saves as "
-            "there are no information about "
-            "authorization token in environment."
+            "Results will not be saved as "
+            "there is no information about the"
+            "authorization token in the environment."
         )
         return False
 
-    if not is_jsonable(result):
+    if not is_jsonable(result, cls=QiskitObjectsEncoder):
         logging.warning("Object passed is not json serializable.")
         return False
 
@@ -385,7 +390,7 @@ def save_result(result: Dict[str, Any]):
     )
     response = requests.post(
         url,
-        json={"result": result},
+        data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
         headers={"Authorization": f"Bearer {token}"},
         timeout=REQUESTS_TIMEOUT,
     )

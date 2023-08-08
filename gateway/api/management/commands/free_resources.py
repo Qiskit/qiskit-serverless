@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand
 
 from api.models import ComputeResource, Job
 from api.ray import kill_ray_cluster
+from main import settings as config
 
 
 logger = logging.getLogger("commands")
@@ -17,7 +18,7 @@ class Command(BaseCommand):
     help = "Clean up resources."
 
     def handle(self, *args, **options):
-        compute_resources = ComputeResource.objects.all()
+        compute_resources = ComputeResource.objects.filter(active=True)
         counter = 0
 
         for compute_resource in compute_resources:
@@ -27,8 +28,17 @@ class Command(BaseCommand):
 
             # only kill cluster if not in local mode and no jobs are running there
             if len(alive_jobs) == 0 and not settings.RAY_CLUSTER_MODE.get("local"):
+                if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
+                    logger.debug(
+                        "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
+                        + "so cluster [%s] will not be removed",
+                        compute_resource.title,
+                    )
+                    return
                 kill_ray_cluster(compute_resource.title)
-                compute_resource.delete()
+                # deactivate
+                compute_resource.active = False
+                compute_resource.save()
                 counter += 1
                 logger.info(
                     "Cluster [%s] is free after usage from [%s]",

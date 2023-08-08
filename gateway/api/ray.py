@@ -8,26 +8,110 @@ import time
 import uuid
 from typing import Any, Optional
 
+import requests
 import yaml
-from kubernetes import client, config
+from django.template.loader import get_template
+from kubernetes import client as kubernetes_client, config
 from kubernetes.client.exceptions import ApiException
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
-
-import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
-from django.template.loader import get_template
-
 from api.models import ComputeResource, Job
-from api.utils import try_json_loads
+from api.utils import try_json_loads, retry_function
 from main import settings
-
 
 logger = logging.getLogger("commands")
 
 
-def submit_ray_job(job: Job) -> Job:
+class JobHandler:
+    """JobHandler."""
+
+    def __init__(self, client: JobSubmissionClient):
+        """Job handler class.
+
+        Args:
+            client: ray job submission client.
+        """
+        self.client = client
+
+    def status(self, ray_job_id) -> Optional[str]:
+        """Get status of ray job."""
+        return retry_function(
+            callback=lambda: self.client.get_job_status(ray_job_id),
+            error_message=f"Runtime error during status fetching from ray job [{ray_job_id}]",
+        )
+
+    def logs(self, ray_job_id: str) -> Optional[str]:
+        """Get logs of ray job."""
+        return retry_function(
+            callback=lambda: self.client.get_job_logs(ray_job_id),
+            error_message=f"Runtime error during logs fetching from ray job [{ray_job_id}]",
+        )
+
+    def stop(self, ray_job_id) -> bool:
+        """Stop job."""
+        return retry_function(
+            callback=lambda: self.client.stop_job(ray_job_id),
+            error_message=f"Runtime error during stopping of ray job [{ray_job_id}]",
+        )
+
+    def submit(self, job: Job) -> Optional[str]:
+        """Submit job as ray job.
+
+        Args:
+            job: job
+
+        Returns:
+            ray job id
+        """
+        program = job.program
+        _, dependencies = try_json_loads(program.dependencies)
+        with tarfile.open(program.artifact.path) as file:
+            extract_folder = os.path.join(settings.MEDIA_ROOT, "tmp", str(uuid.uuid4()))
+            file.extractall(extract_folder)
+
+        entrypoint = f"python {program.entrypoint}"
+
+        ray_job_id = retry_function(
+            callback=lambda: self.client.submit_job(
+                entrypoint=entrypoint,
+                runtime_env={
+                    "working_dir": extract_folder,
+                    "env_vars": json.loads(job.env_vars),
+                    "pip": dependencies or [],
+                },
+            ),
+            num_retries=settings.RAY_SETUP_MAX_RETRIES,
+            error_message=f"Ray job [{job.id}] submission failed.",
+        )
+
+        if os.path.exists(extract_folder):
+            shutil.rmtree(extract_folder)
+
+        return ray_job_id
+
+
+def get_job_handler(host: str) -> Optional[JobHandler]:
+    """Establishes connection of job client with ray cluster.
+
+    Args:
+        host: host of ray cluster
+
+    Returns:
+        job client
+
+    Raises:
+        connection error exception
+    """
+    return retry_function(
+        callback=lambda: JobHandler(JobSubmissionClient(host)),
+        num_retries=settings.RAY_SETUP_MAX_RETRIES,
+        error_message=f"Ray JobClientSubmission setup failed for host [{host}].",
+    )
+
+
+def submit_job(job: Job) -> Job:
     """Submits job to ray cluster.
 
     Args:
@@ -36,75 +120,24 @@ def submit_ray_job(job: Job) -> Job:
     Returns:
         submitted job
     """
-    # If setting up the client fails, it kills the pods, which
-    # becomes a vicious circle. So we retry the setup a few times
-    # before throwing an exception.
-    success = False
-    runs = 0
-    err_msg = ""
-    while not success:
-        runs += 1
-        if runs > settings.RAY_SETUP_MAX_RETRIES:
-            logger.error("Unable to set up ray client [%s]", job.compute_resource)
-            raise ConnectionError(err_msg)
-        logger.debug("Client setup attempt %d", runs)
-        try:
-            ray_client = JobSubmissionClient(job.compute_resource.host)
-            logger.debug(
-                "Ray JobClientSubmission setup succeeded for compute resource [%s]",
-                job.compute_resource,
-            )
-            success = True
-        except Exception as err:  # pylint: disable=broad-exception-caught
-            logger.debug(
-                "Ray JobClientSubmission setup failed for [%s], retrying",
-                job.compute_resource,
-            )
-            err_msg = str(err)
-            time.sleep(1)
+    ray_client = get_job_handler(job.compute_resource.host)
+    if ray_client is None:
+        logger.error(
+            "Unable to set up ray client with host [%s]", job.compute_resource.host
+        )
+        raise ConnectionError(
+            f"Unable to set up ray client with host [{job.compute_resource.host}]"
+        )
 
-    program = job.program
-    _, dependencies = try_json_loads(program.dependencies)
-    with tarfile.open(program.artifact.path) as file:
-        extract_folder = os.path.join(settings.MEDIA_ROOT, "tmp", str(uuid.uuid4()))
-        file.extractall(extract_folder)
+    ray_job_id = ray_client.submit(job)
+    if ray_job_id is None:
+        logger.error("Unable to submit ray job [%s]", job.id)
+        raise ConnectionError(f"Unable to submit ray job [{job.id}]")
 
-    entrypoint = f"python {program.entrypoint}"
-
-    # If submitting the job fails, it kills the pods, which
-    # becomes a vicious circle. So we retry the submission a
-    # few times before throwing an exception.
-    success = False
-    runs = 0
-    err_msg = None
-    while not success:
-        runs += 1
-        if runs > settings.RAY_SETUP_MAX_RETRIES:
-            logger.error("Unable to submit ray job [%s]", job.id)
-            raise ConnectionError(err_msg)
-        logger.debug("Job [%s] submission attempt %d", job.id, runs)
-        try:
-            ray_job_id = ray_client.submit_job(
-                entrypoint=entrypoint,
-                runtime_env={
-                    "working_dir": extract_folder,
-                    "env_vars": json.loads(job.env_vars),
-                    "pip": dependencies or [],
-                },
-            )
-            logger.debug("Submitting job [%s] to ray cluster succeeded", job.id)
-            success = True
-        except Exception as err:  # pylint: disable=broad-exception-caught
-            logger.debug("Ray job [%s] submission failed, retrying", job.id)
-            err_msg = str(err)
-            time.sleep(1)
-
+    # TODO: if submission failed log message and save with failed status to prevent loop over  # pylint: disable=fixme
     job.ray_job_id = ray_job_id
     job.status = Job.PENDING
     job.save()
-
-    if os.path.exists(extract_folder):
-        shutil.rmtree(extract_folder)
 
     return job
 
@@ -134,7 +167,7 @@ def create_ray_cluster(
         cluster_data = yaml.safe_load(manifest)
 
     config.load_incluster_config()
-    k8s_client = client.api_client.ApiClient()
+    k8s_client = kubernetes_client.api_client.ApiClient()
     dyn_client = DynamicClient(k8s_client)
     raycluster_client = dyn_client.resources.get(
         api_version="v1alpha1", kind="RayCluster"
@@ -194,7 +227,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     namespace = settings.RAY_KUBERAY_NAMESPACE
 
     config.load_incluster_config()
-    k8s_client = client.api_client.ApiClient()
+    k8s_client = kubernetes_client.api_client.ApiClient()
     dyn_client = DynamicClient(k8s_client)
     raycluster_client = dyn_client.resources.get(
         api_version="v1alpha1", kind="RayCluster"
@@ -229,7 +262,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
             f"{cluster_name}-worker",
         )
 
-    corev1 = client.CoreV1Api()
+    corev1 = kubernetes_client.CoreV1Api()
     try:
         corev1.delete_namespaced_secret(name=cluster_name, namespace=namespace)
         success = True

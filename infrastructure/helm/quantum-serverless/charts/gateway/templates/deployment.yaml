@@ -1,0 +1,209 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gateway.fullname" . }}
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "gateway.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "gateway.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "gateway.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: waitpostresql
+          image: actions/pg_isready
+          command: ['sh', '-c', 'until pg_isready -U {{ .Values.database.user | quote }} -d "dbname={{ .Values.database.name }}" -h {{ .Values.database.host }} -p {{ .Values.database.port | quote }}; do echo waiting for myservice; sleep 2; done']
+          volumeMounts:
+          - name: gateway-pv-storage
+            mountPath: /usr/src/app/media/
+      volumes:
+        - name: gateway-pv-storage
+          persistentVolumeClaim:
+            claimName: gateway-claim
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: [ "gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:{{ .Values.service.port }}", "--workers=4" ]
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: http
+          volumeMounts:
+            - mountPath: "/usr/src/app/media/"
+              name: gateway-pv-storage
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: DEBUG
+              value: {{ .Values.application.debug | quote }}
+            - name: SITE_HOST
+              value: {{ .Values.application.siteHost | quote }}
+            - name: RAY_HOST
+              value: {{ .Values.application.rayHost | quote }}
+            - name: SETTINGS_AUTH_MECHANISM
+              value: {{ .Values.application.auth.mechanism | quote }}
+            - name: SETTINGS_TOKEN_AUTH_URL
+              value: {{ .Values.application.auth.token.url | quote }}
+            - name: SETTINGS_TOKEN_AUTH_VERIFICATION_URL
+              value: {{ .Values.application.auth.token.verificationUrl | quote }}
+            - name: SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD
+              value: {{ .Values.application.auth.token.verificationField | quote }}
+            - name: CLIENT_ID
+              value: {{ .Values.application.auth.keycloak.clientId | quote }}
+            - name: SETTING_KEYCLOAK_URL
+              value: {{ .Values.application.auth.keycloak.url | quote }}
+            - name: SETTING_KEYCLOAK_REALM
+              value: {{ .Values.application.auth.keycloak.realm | quote }}
+            - name: SETTINGS_KEYCLOAK_CLIENT_SECRET
+              value: {{ .Values.application.auth.keycloak.clientSecret | quote }}
+            - name: DJANGO_SUPERUSER_USERNAME
+              value: {{ .Values.application.superuser.username | quote }}
+            - name: DJANGO_SUPERUSER_PASSWORD
+              value: {{ .Values.application.superuser.password | quote }}
+            - name: DJANGO_SUPERUSER_EMAIL
+              value: {{ .Values.application.superuser.email | quote }}
+            - name: QISKIT_IBM_CHANNEL
+              value: {{ .Values.application.qiskitRuntime.channel }}
+            - name: QISKIT_IBM_URL
+              value: {{ .Values.application.qiskitRuntime.url }}
+            - name: DATABASE_HOST
+              value: {{ .Values.database.host }}
+            - name: DATABASE_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: DATABASE_USER
+              value: {{ .Values.database.user | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: password
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler
+  labels:
+    {{- include "scheduler.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "scheduler.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "scheduler.selectorLabels" . | nindent 8 }}
+    spec:
+      volumes:
+        - name: gateway-pv-storage
+          persistentVolumeClaim:
+            claimName: gateway-claim
+        - name: ray-cluster-template
+          configMap:
+            name: rayclustertemplate
+      serviceAccountName: {{ include "gateway.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: waitpostresql
+          image: actions/pg_isready
+          command: ['sh', '-c', 'until pg_isready -U {{ .Values.database.user | quote }} -d "dbname={{ .Values.database.name }}" -h {{ .Values.database.host }} -p {{ .Values.database.port | quote }}; do echo waiting for myservice; sleep 2; done']
+      containers:
+        - name: gateway-scheduler
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["./scripts/scheduler.sh"]
+          volumeMounts:
+            - mountPath: "/usr/src/app/media/"
+              name: gateway-pv-storage
+            - mountPath: "/tmp/templates/"
+              name: ray-cluster-template
+          env:
+            - name: DEBUG
+              value: {{ .Values.application.debug | quote }}
+            - name: DATABASE_HOST
+              value: {{ .Values.database.host }}
+            - name: DATABASE_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: DATABASE_USER
+              value: {{ .Values.database.user | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: password
+            - name: RAY_KUBERAY_NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: RAY_NODE_IMAGE
+              value: {{ .Values.application.ray.nodeImage | quote }}
+            - name: LIMITS_JOBS_PER_USER
+              value: {{ .Values.application.limits.maxJobsPerUser | quote }}
+            - name: LIMITS_MAX_CLUSTERS
+              value: {{ .Values.application.limits.maxComputeResources | quote }}
+{{- if .Values.application.limits.keepClusterOnComplete }}
+            - name: RAY_CLUSTER_NO_DELETE_ON_COMPLETE
+              value: "True"
+{{- end }}       
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
