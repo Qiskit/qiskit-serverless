@@ -77,7 +77,7 @@ def get_tracer(
         otel_exporter = BatchSpanProcessor(
             OTLPSpanExporter(
                 endpoint=f"{agent_host}:{agent_port}",
-                insecure=eval(os.environ.get(OT_INSECURE, "False")),
+                insecure=bool(os.environ.get(OT_INSECURE, "0")),
             )
         )
         provider.add_span_processor(otel_exporter)
@@ -132,7 +132,7 @@ def setup_tracing() -> None:
     otel_exporter = BatchSpanProcessor(
         OTLPSpanExporter(
             endpoint=f"{agent_host}:{agent_port}",
-            insecure=eval(os.environ.get(OT_INSECURE, "False")),
+            insecure=bool(os.environ.get(OT_INSECURE, "0")),
         )
     )
     provider.add_span_processor(otel_exporter)
