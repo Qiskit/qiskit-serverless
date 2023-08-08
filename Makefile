@@ -28,7 +28,7 @@ build-notebook:
 	docker build -t $(notebookImageName):$(version) -f Dockerfile-notebook .
 
 build-ray-node:
-	docker build -t $(rayNodeImageName):$(version) --build-arg TARGETARCH=$(arch) -f ./client/Dockerfile .
+	docker build -t $(rayNodeImageName):$(version) --build-arg TARGETARCH=$(arch) -f ./client/Dockerfile-ray .
 
 build-gateway:
 	docker build -t $(gatewayImageName):$(version) -f ./gateway/Dockerfile .

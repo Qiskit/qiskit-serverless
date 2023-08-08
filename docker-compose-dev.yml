@@ -17,7 +17,7 @@ services:
     container_name: ray-head
     build:
       context: ./
-      dockerfile: client/Dockerfile
+      dockerfile: client/Dockerfile-ray
       args:
         TARGETARCH: "${TARGETARCH:-amd64}"
     entrypoint: [
