@@ -1,4 +1,4 @@
-ray[default,data]>=2.5.0, <3
+ray[default,data]>=2.6.2, <3
 requests>=2.31.0
 importlib-metadata>=5.2.0
 qiskit-terra==0.24.1
