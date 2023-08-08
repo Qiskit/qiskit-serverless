@@ -11,7 +11,7 @@ runs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./infrastructure/docker/Dockerfile-ray-qiskit
+        file: ./client/Dockerfile-ray
         push: true
         tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py38,icr.io/quantum-public/quantum-serverless-ray-node:latest-py38
         build-args:
@@ -21,7 +21,7 @@ runs:
       with:
         platforms: linux/amd64,linux/arm64
         context: .
-        file: ./infrastructure/docker/Dockerfile-ray-qiskit
+        file: ./client/Dockerfile-ray
         push: true
         tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py39,icr.io/quantum-public/quantum-serverless-ray-node:latest-py39
         build-args:
@@ -30,7 +30,7 @@ runs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./infrastructure/docker/Dockerfile-ray-qiskit
+        file: ./client/Dockerfile-ray
         push: true
         tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py310,icr.io/quantum-public/quantum-serverless-ray-node:latest-py310
         build-args:
@@ -39,7 +39,7 @@ runs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./infrastructure/docker/Dockerfile-notebook
+        file: Dockerfile-notebook
         push: true
         tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py38,icr.io/quantum-public/quantum-serverless-notebook:latest-py38
         build-args:
@@ -49,7 +49,7 @@ runs:
       with:
         platforms: linux/amd64,linux/arm64
         context: .
-        file: ./infrastructure/docker/Dockerfile-notebook
+        file: Dockerfile-notebook
         push: true
         tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py39,icr.io/quantum-public/quantum-serverless-notebook:latest-py39
         build-args:
@@ -58,7 +58,7 @@ runs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./infrastructure/docker/Dockerfile-notebook
+        file: Dockerfile-notebook
         push: true
         tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py310,icr.io/quantum-public/quantum-serverless-notebook:latest-py310
         build-args:
@@ -68,7 +68,7 @@ runs:
       with:
         platforms: linux/amd64,linux/arm64
         context: .
-        file: ./infrastructure/docker/Dockerfile-repository-server
+        file: ./repository/Dockerfile
         push: true
         tags: icr.io/quantum-public/quantum-repository-server:${{inputs.tag}},icr.io/quantum-public/quantum-repository-server:latest
     - name: Build and push gateway
@@ -76,6 +76,6 @@ runs:
       with:
         platforms: linux/amd64,linux/arm64
         context: .
-        file: ./infrastructure/docker/Dockerfile-gateway
+        file: ./gateway/Dockerfile
         push: true
         tags: icr.io/quantum-public/quantum-serverless-gateway:${{inputs.tag}},icr.io/quantum-public/quantum-serverless-gateway:latest
