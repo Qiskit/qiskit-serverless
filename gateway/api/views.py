@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Program, Job
+from .ray import get_job_handler
 from .schedule import save_program
 from .serializers import JobSerializer
 from .utils import build_env_variables
@@ -127,18 +128,21 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     def stop(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Stops job"""
         job = self.get_object()
-        message = "Job was already not running."
+        if not job.in_terminal_state():
+            job.status = Job.STOPPED
+            job.save()
+        message = "Job has been stopped."
         if job.compute_resource:
-            try:
-                ray_client = JobSubmissionClient(job.compute_resource.host)
-                was_running = ray_client.stop_job(job.ray_job_id)
-                message = (
-                    "Job has been stopped successfully."
-                    if not was_running
-                    else "Job was already not running."
-                )
-            except Exception:  # pylint: disable=broad-exception-caught
-                logger.warning("Ray cluster was not ready %s", job.compute_resource)
+            if job.compute_resource.active:
+                job_handler = get_job_handler(job.compute_resource.host)
+                if job_handler is not None:
+                    was_running = job_handler.stop(job.ray_job_id)
+                    if not was_running:
+                        message = "Job was already not running."
+                else:
+                    logger.warning(
+                        "Compute resource is not accessible %s", job.compute_resource
+                    )
         return Response({"message": message})
 
 
