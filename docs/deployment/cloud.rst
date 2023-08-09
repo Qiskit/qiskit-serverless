@@ -15,7 +15,6 @@ This guide contains:
 * Step by step commands to deploy using:
     * :ref:`docker-deployment`
     * :ref:`helm-deployment`
-    * :ref:`terraform-deployment`
 
 .. _installation_requirements:
 
