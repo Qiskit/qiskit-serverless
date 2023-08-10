@@ -43,6 +43,7 @@ from quantum_serverless.core.constants import (
     OT_JAEGER_HOST_KEY,
     OT_JAEGER_PORT_KEY,
     OT_TRACEPARENT_ID_KEY,
+    OT_RAY_TRACER,
     OT_INSECURE,
     OT_SPAN_DEFAULT_NAME,
     OT_LABEL_CALL_LOCATION,
@@ -95,11 +96,14 @@ def _trace_env_vars(env_vars: dict, location: Optional[str] = None):
     Returns:
         dict of env variables
     """
-    tracer = get_tracer(
-        __name__,
-        agent_host=os.environ.get(OT_JAEGER_HOST_KEY, None),
-        agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
-    )
+    if bool(int(os.environ.get(OT_RAY_TRACER, "0"))):
+        tracer = trace.get_tracer("Quantum-Serverless")
+    else:
+        tracer = get_tracer(
+            __name__,
+            agent_host=os.environ.get(OT_JAEGER_HOST_KEY, None),
+            agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
+        )
     if env_vars.get(OT_TRACEPARENT_ID_KEY, None) is not None:
         env_vars[OT_TRACEPARENT_ID_KEY] = env_vars.get(OT_TRACEPARENT_ID_KEY)
     elif os.environ.get(OT_TRACEPARENT_ID_KEY) is not None:
@@ -115,8 +119,9 @@ def _trace_env_vars(env_vars: dict, location: Optional[str] = None):
         traceparent = carrier.get(
             TraceContextTextMapPropagator._TRACEPARENT_HEADER_NAME  # pylint:disable=protected-access
         )
-        env_vars[OT_TRACEPARENT_ID_KEY] = traceparent
-        os.environ[OT_TRACEPARENT_ID_KEY] = traceparent
+        if traceparent:
+            env_vars[OT_TRACEPARENT_ID_KEY] = traceparent
+            os.environ[OT_TRACEPARENT_ID_KEY] = traceparent
     return env_vars
 
 

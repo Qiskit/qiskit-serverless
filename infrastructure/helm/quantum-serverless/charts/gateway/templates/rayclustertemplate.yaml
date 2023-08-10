@@ -124,6 +124,18 @@ data:
                 - name: RAY_TLS_CA_CERT
                   value: "/etc/ca/tls/ca.crt"
 {{- end }}
+{{- if .Values.application.ray.openTelemetry }}
+                - name: OT_RAY_TRACER
+                  value: "1"
+{{- end }}
+{{- if .Values.application.ray.openTelemetryCollector.local }}
+                - name: OT_JAEGER_HOST_KEY
+                  value: {{ .Values.application.ray.openTelemetryCollector.host }}
+                - name: OT_JAEGER_PORT_KEY
+                  value: {{ .Values.application.ray.openTelemetryCollector.port | quote }}
+                - name: OT_INSECURE
+                  value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
+{{- end }}
             - image: fluent/fluent-bit:1.9.10
               name: ray-head-logs
               resources:
@@ -267,6 +279,18 @@ data:
                   value: "/etc/ray/tls/tls.key"
                 - name: RAY_TLS_CA_CERT
                   value: "/etc/ca/tls/ca.crt"
+{{- end }}
+{{- if .Values.application.ray.openTelemetry }}
+                - name: OT_RAY_TRACER
+                  value: "1"
+{{- end }}
+{{- if .Values.application.ray.openTelemetryCollector.local }}
+                - name: OT_JAEGER_HOST_KEY
+                  value: {{ .Values.application.ray.openTelemetryCollector.host }}
+                - name: OT_JAEGER_PORT_KEY
+                  value: {{ .Values.application.ray.openTelemetryCollector.port | quote }}
+                - name: OT_INSECURE
+                  value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
 {{- end }}
               image: {{ .Values.application.ray.nodeImage | quote}}
               imagePullPolicy: IfNotPresent
