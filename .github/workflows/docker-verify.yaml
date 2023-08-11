@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - "Dockerfile-notebook"
-      - "client/Dockerfile-ray"
+      - "Dockerfile-ray-node"
       - "gateway/Dockerfile"
       - "repository/Dockerfile"
       - ".github/scripts/dockerfile-security.rego"
@@ -21,7 +21,7 @@ jobs:
         dockerfile:
           [
             "Dockerfile-notebook",
-            "./client/Dockerfile-ray",
+            "Dockerfile-ray-node",
             "./gateway/Dockerfile",
             "./repository/Dockerfile",
           ]
@@ -36,7 +36,7 @@ jobs:
         dockerfile:
           [
             "Dockerfile-notebook",
-            "./client/Dockerfile-ray",
+            "Dockerfile-ray-node",
             "./gateway/Dockerfile",
             "./repository/Dockerfile",
           ]
@@ -80,13 +80,13 @@ jobs:
             dockerfile: "Dockerfile-notebook"
             pyversion: "3.10"
           - image: "quantum-serverless-ray-node:latest-py38"
-            dockerfile: "./client/Dockerfile-ray"
+            dockerfile: "Dockerfile-ray-node"
             pyversion: "py38"
           - image: "quantum-serverless-ray-node:latest-py39"
-            dockerfile: "./client/Dockerfile-ray"
+            dockerfile: "Dockerfile-ray-node"
             pyversion: "py39"
           - image: "quantum-serverless-ray-node:latest-py310"
-            dockerfile: "./client/Dockerfile-ray"
+            dockerfile: "Dockerfile-ray-node"
             pyversion: "py310"
           - image: "quantum-repository-server:latest"
             dockerfile: "./gateway/Dockerfile"

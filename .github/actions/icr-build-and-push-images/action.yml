@@ -11,7 +11,7 @@ runs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./client/Dockerfile-ray
+        file: Dockerfile-ray-node
         push: true
         tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py38,icr.io/quantum-public/quantum-serverless-ray-node:latest-py38
         build-args:
@@ -21,7 +21,7 @@ runs:
       with:
         platforms: linux/amd64,linux/arm64
         context: .
-        file: ./client/Dockerfile-ray
+        file: Dockerfile-ray-node
         push: true
         tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py39,icr.io/quantum-public/quantum-serverless-ray-node:latest-py39
         build-args:
@@ -30,7 +30,7 @@ runs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./client/Dockerfile-ray
+        file: Dockerfile-ray-node
         push: true
         tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py310,icr.io/quantum-public/quantum-serverless-ray-node:latest-py310
         build-args:
