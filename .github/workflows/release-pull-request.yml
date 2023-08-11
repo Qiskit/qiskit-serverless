@@ -27,10 +27,10 @@ jobs:
         include:
           - image: "quantum-serverless-gateway:latest"
             dockerfile: "./infrastructure/docker/Dockerfile-gateway"
-            pyversion: "3.9"
+            pyversion: "3.9.16"
           - image: "quantum-serverless-gateway:latest-py311"
             dockerfile: "./infrastructure/docker/Dockerfile-gateway"
-            pyversion: "3.11"
+            pyversion: "3.11.4"
           - image: "quantum-serverless-notebook:latest-py38"
             dockerfile: "./infrastructure/docker/Dockerfile-notebook"
             pyversion: "3.8"
@@ -57,10 +57,10 @@ jobs:
             pyversion: "py311"
           - image: "quantum-repository-server:latest"
             dockerfile: "./infrastructure/docker/Dockerfile-repository-server"
-            pyversion: "3.9"
+            pyversion: "3.9.16"
           - image: "quantum-repository-server:latest-py311"
             dockerfile: "./infrastructure/docker/Dockerfile-repository-server"
-            pyversion: "3.11"
+            pyversion: "3.11.4"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

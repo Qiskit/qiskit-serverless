@@ -1,4 +1,5 @@
-FROM python:3.9.16-slim-buster
+ARG IMAGE_PY_VERSION=3.9.16
+FROM python:$IMAGE_PY_VERSION-slim-buster
 
 WORKDIR /usr/src/app
 
