@@ -17,3 +17,7 @@ In this folder you will find the main charts to set up your k8s cluster and the 
 - **Ray cluster**: standard configuration to set up and deploy your Ray cluster in a k8s environment.
 - **Keycloak**: a standard configuration to manage access to the resources.
 - **Grafana / Prometheus**: a systems and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions, displays the results, and can trigger alerts if some condition is observed to be true.
+
+All the services are separated in two folders:
+- **quantum-serverless**: that contains the core services to run it: gateway, operator, ray-cluster...
+- **qs-observability**: optional services that helps to monitor `quantum-serverless`: grafana, prometheus...
