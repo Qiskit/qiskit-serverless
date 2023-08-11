@@ -12,18 +12,25 @@ jobs:
         image:
           [
             "quantum-serverless-gateway:latest",
+            "quantum-serverless-gateway:latest-py311",
             "quantum-serverless-notebook:latest-py38",
             "quantum-serverless-notebook:latest-py39",
             "quantum-serverless-notebook:latest-py310",
+            "quantum-serverless-notebook:latest-py311",
             "quantum-serverless-ray-node:latest-py38",
             "quantum-serverless-ray-node:latest-py39",
             "quantum-serverless-ray-node:latest-py310",
+            "quantum-serverless-ray-node:latest-py311",
             "quantum-repository-server:latest",
+            "quantum-repository-server:latest-py311",
           ]
         include:
           - image: "quantum-serverless-gateway:latest"
             dockerfile: "./infrastructure/docker/Dockerfile-gateway"
             pyversion: "3.9"
+          - image: "quantum-serverless-gateway:latest-py311"
+            dockerfile: "./infrastructure/docker/Dockerfile-gateway"
+            pyversion: "3.11"
           - image: "quantum-serverless-notebook:latest-py38"
             dockerfile: "./infrastructure/docker/Dockerfile-notebook"
             pyversion: "3.8"
@@ -33,6 +40,9 @@ jobs:
           - image: "quantum-serverless-notebook:latest-py310"
             dockerfile: "./infrastructure/docker/Dockerfile-notebook"
             pyversion: "3.10"
+          - image: "quantum-serverless-notebook:latest-py311"
+            dockerfile: "./infrastructure/docker/Dockerfile-notebook"
+            pyversion: "3.11"
           - image: "quantum-serverless-ray-node:latest-py38"
             dockerfile: "./infrastructure/docker/Dockerfile-ray-qiskit"
             pyversion: "py38"
@@ -42,9 +52,15 @@ jobs:
           - image: "quantum-serverless-ray-node:latest-py310"
             dockerfile: "./infrastructure/docker/Dockerfile-ray-qiskit"
             pyversion: "py310"
+          - image: "quantum-serverless-ray-node:latest-py311"
+            dockerfile: "./infrastructure/docker/Dockerfile-ray-qiskit"
+            pyversion: "py311"
           - image: "quantum-repository-server:latest"
             dockerfile: "./infrastructure/docker/Dockerfile-repository-server"
             pyversion: "3.9"
+          - image: "quantum-repository-server:latest-py311"
+            dockerfile: "./infrastructure/docker/Dockerfile-repository-server"
+            pyversion: "3.11"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
