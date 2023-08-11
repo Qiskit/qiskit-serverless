@@ -28,6 +28,11 @@ application:
     kubectlImage: alpine/k8s:1.27.4
     scrapeWithPrometheus: true
     openTelemetry: false
+    openTelemetryCollector:
+      local: false
+      host: "http://otel-collector"
+      port: 4317
+      insecure: 1
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
