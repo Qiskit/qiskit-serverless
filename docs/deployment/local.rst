@@ -6,7 +6,7 @@ To set up Quantum Serverless on your local machine, you will need to use `docker
 
 .. _docker compose: https://docs.docker.com/compose/
 
-Once you have Docker and docker-compose installed, you can run the following command to set up the infrastructure:
+Once you have Docker and docker compose installed, you can run the following command to set up the infrastructure:
 
 .. code-block::
 

@@ -53,12 +53,12 @@ Docker: An easy option for local development
 
 This section will describe the steps to build and deploy the infrastructure with **Docker**.
 
-If you have ``docker-compose`` available you can run the next command in your terminal:
+If you have ``docker compose`` available you can run the next command in your terminal:
 
 .. code-block::
    :caption: run the command from the root of the project
 
-        $ docker-compose --profile jupyter up
+        $ docker compose --profile jupyter up
 
 Once the execution of the command has finished, if everything went well you should be able to open the browser
 and have access to:
@@ -71,7 +71,7 @@ In case you want to use the ``main`` branch you can use the configuration for de
 .. code-block::
    :caption: run the command from the root of the project
 
-        $ docker-compose -f docker-compose-dev.yml --profile jupyter up
+        $ docker compose -f docker-compose-dev.yml --profile jupyter up
 
 .. _helm-deployment:
 
