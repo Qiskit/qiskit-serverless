@@ -159,7 +159,7 @@ services:
     ports:
       - 9000:9090
   loki:
-    image: grafana/loki:2.8.3
+    image: grafana/loki:2.8.4
     profiles: [ "full" ]
     ports:
       - 3100:3100
