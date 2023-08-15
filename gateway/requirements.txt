@@ -12,3 +12,5 @@ gunicorn>=20.1.0
 requests>=2.31.0
 psycopg2-binary>=2.9.7
 kubernetes>=26.1.0
+opentelemetry-distro>=0.40b0
+opentelemetry-exporter-otlp>=1.19.0

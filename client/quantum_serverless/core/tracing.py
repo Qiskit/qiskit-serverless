@@ -29,7 +29,7 @@ Quantum serverless tracing
 import os
 from typing import Dict, Optional
 
-from opentelemetry import trace
+from opentelemetry import trace  # pylint: disable=duplicate-code
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider

@@ -22,6 +22,12 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+openTelemetryCollector:
+  enabled: 0
+  port: 4317
+  host: "http://otel-collector"
+  insecure: 0
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: false

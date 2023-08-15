@@ -1,10 +1,14 @@
 """Cleanup resources command."""
+import json
 import logging
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db.models import Model
+
+from opentelemetry import trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from api.models import ComputeResource
 from api.schedule import get_jobs_to_schedule_fair_share, execute_job
@@ -57,7 +61,12 @@ class Command(BaseCommand):
                     job.compute_resource = compute_resource
                     job.save()
 
-                job = execute_job(job)
-                logger.info("Executing %s", job)
+                env = json.loads(job.env_vars)
+                ctx = TraceContextTextMapPropagator().extract(carrier=env)
+
+                tracer = trace.get_tracer("scheduler.tracer")
+                with tracer.start_as_current_span("scheduler.handle", context=ctx):
+                    job = execute_job(job)
+                    logger.info("Executing %s", job)
 
             logger.info("%s are scheduled for execution.", len(jobs))
