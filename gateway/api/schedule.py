@@ -1,5 +1,6 @@
 """Scheduling related functions."""
 import logging
+import os
 import random
 import uuid
 from typing import List
@@ -65,6 +66,8 @@ def execute_job(job: Job) -> Job:
                 job = submit_job(job)
                 job.status = Job.PENDING
                 job.save()
+                # remove artifact after successful submission
+                os.remove(os.path.join(settings.MEDIA_ROOT, str(job.program.artifact)))
             except (
                 Exception  # pylint: disable=broad-exception-caught
             ) as missing_resource_exception:
@@ -92,6 +95,8 @@ def execute_job(job: Job) -> Job:
                 job = submit_job(job)
                 job.status = Job.PENDING
                 job.save()
+                # remove artifact after successful submission
+                os.remove(os.path.join(settings.MEDIA_ROOT, str(job.program.artifact)))
             else:
                 # if something went wrong
                 #   try to kill resource if it was allocated
