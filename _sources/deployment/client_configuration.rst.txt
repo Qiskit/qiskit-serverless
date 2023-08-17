@@ -21,7 +21,7 @@ Before we can configure the client and provider,
 we need to know two things: the `username/password`
 (authentication details) and the `host` of our gateway server.
 
-If you are using the local docker-compose setup,
+If you are using the local docker compose setup,
 your username and password would be `user` and `password123`,
 respectively, and the host would be `http://gateway:8000`.
 
