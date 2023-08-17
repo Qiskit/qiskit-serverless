@@ -24,7 +24,7 @@ application:
     replicas: 1
     minReplicas: 1
     maxReplicas: 4
-    opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-5
+    opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-7
     kubectlImage: alpine/k8s:1.27.4
     scrapeWithPrometheus: true
     openTelemetry: false
@@ -33,6 +33,7 @@ application:
       host: "http://otel-collector"
       port: 4317
       insecure: 1
+
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
