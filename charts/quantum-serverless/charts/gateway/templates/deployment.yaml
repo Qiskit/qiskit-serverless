@@ -91,6 +91,18 @@ spec:
               value: {{ .Values.application.superuser.password | quote }}
             - name: DJANGO_SUPERUSER_EMAIL
               value: {{ .Values.application.superuser.email | quote }}
+            - name: OTEL_ENABLED
+              value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: "Gateway"
+            - name: OTEL_TRACES_EXPORTER
+              value: console,otlp
+            - name: OTEL_METRICS_EXPORTER
+              value: console
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: {{ .Values.application.ray.openTelemetryCollector.host }}:{{ .Values.application.ray.openTelemetryCollector.port }}
+            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
+              value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
             - name: QISKIT_IBM_CHANNEL
               value: {{ .Values.application.qiskitRuntime.channel }}
             - name: QISKIT_IBM_URL
@@ -194,6 +206,18 @@ spec:
 {{- if .Values.application.limits.keepClusterOnComplete }}
             - name: RAY_CLUSTER_NO_DELETE_ON_COMPLETE
               value: "True"
+            - name: OTEL_ENABLED
+              value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: "Gateway"
+            - name: OTEL_TRACES_EXPORTER
+              value: console,otlp
+            - name: OTEL_METRICS_EXPORTER
+              value: console
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: {{ .Values.application.ray.openTelemetryCollector.host }}:{{ .Values.application.ray.openTelemetryCollector.port }}
+            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
+              value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
 {{- end }}       
       {{- with .Values.nodeSelector }}
       nodeSelector:

@@ -29,10 +29,11 @@ application:
     scrapeWithPrometheus: true
     openTelemetry: false
     openTelemetryCollector:
+      enabled: 0
       local: false
       host: "http://otel-collector"
       port: 4317
-      insecure: 1
+      insecure: 0
 
   limits:
     maxJobsPerUser: 2
