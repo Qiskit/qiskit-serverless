@@ -2,7 +2,8 @@
 **/.terraform/*
 
 # Local helm dependencies
-infrastructure/helm/**/*.tgz
+charts/**/*.tgz
+charts/values/**
 
 # .tfstate files
 *.tfstate
@@ -94,7 +95,6 @@ docs/_build/
 /manager/manager/debug.log
 /manager/ray/
 
-/infrastructure/helm/values/**
 .local/
 .jupyter/
 .ipython/

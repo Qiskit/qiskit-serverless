@@ -3,7 +3,10 @@ name: Docker verify process
 on:
   push:
     paths:
-      - "infrastructure/docker/**"
+      - "Dockerfile-notebook"
+      - "Dockerfile-ray-node"
+      - "gateway/Dockerfile"
+      - "repository/Dockerfile"
       - ".github/scripts/dockerfile-security.rego"
       - ".github/workflows/docker-verify.yaml"
 
@@ -17,15 +20,12 @@ jobs:
       matrix:
         dockerfile:
           [
-            Dockerfile-gateway,
-            Dockerfile-notebook,
-            Dockerfile-ray-qiskit,
-            Dockerfile-repository-server,
+            "Dockerfile-notebook",
+            "Dockerfile-ray-node",
+            "./gateway/Dockerfile",
+            "./repository/Dockerfile",
           ]
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./infrastructure/docker
     steps:
       - uses: actions/checkout@v3
       - name: Run hadolint in ${{ matrix.dockerfile }}
@@ -35,10 +35,10 @@ jobs:
       matrix:
         dockerfile:
           [
-            Dockerfile-gateway,
-            Dockerfile-notebook,
-            Dockerfile-ray-qiskit,
-            Dockerfile-repository-server,
+            "Dockerfile-notebook",
+            "Dockerfile-ray-node",
+            "./gateway/Dockerfile",
+            "./repository/Dockerfile",
           ]
     runs-on: ubuntu-latest
     steps:
@@ -51,7 +51,7 @@ jobs:
           --rm --volume $GITHUB_WORKSPACE:/project ${{ env.OPENPOLICYAGENT_DOCKER_IMAGE }} \
           test --strict --parser dockerfile \
           --policy .github/scripts/dockerfile-security.rego \
-          ./infrastructure/docker/${{ matrix.dockerfile }}
+          ${{ matrix.dockerfile }}
   vscan:
     strategy:
       matrix:
@@ -68,28 +68,28 @@ jobs:
           ]
         include:
           - image: "quantum-serverless-gateway:latest"
-            dockerfile: "./infrastructure/docker/Dockerfile-gateway"
+            dockerfile: "./gateway/Dockerfile"
             pyversion: "3.9"
           - image: "quantum-serverless-notebook:latest-py38"
-            dockerfile: "./infrastructure/docker/Dockerfile-notebook"
+            dockerfile: "Dockerfile-notebook"
             pyversion: "3.8"
           - image: "quantum-serverless-notebook:latest-py39"
-            dockerfile: "./infrastructure/docker/Dockerfile-notebook"
+            dockerfile: "Dockerfile-notebook"
             pyversion: "3.9"
           - image: "quantum-serverless-notebook:latest-py310"
-            dockerfile: "./infrastructure/docker/Dockerfile-notebook"
+            dockerfile: "Dockerfile-notebook"
             pyversion: "3.10"
           - image: "quantum-serverless-ray-node:latest-py38"
-            dockerfile: "./infrastructure/docker/Dockerfile-ray-qiskit"
+            dockerfile: "Dockerfile-ray-node"
             pyversion: "py38"
           - image: "quantum-serverless-ray-node:latest-py39"
-            dockerfile: "./infrastructure/docker/Dockerfile-ray-qiskit"
+            dockerfile: "Dockerfile-ray-node"
             pyversion: "py39"
           - image: "quantum-serverless-ray-node:latest-py310"
-            dockerfile: "./infrastructure/docker/Dockerfile-ray-qiskit"
+            dockerfile: "Dockerfile-ray-node"
             pyversion: "py310"
           - image: "quantum-repository-server:latest"
-            dockerfile: "./infrastructure/docker/Dockerfile-repository-server"
+            dockerfile: "./gateway/Dockerfile"
             pyversion: "3.9"
     runs-on: ubuntu-latest
     steps:
