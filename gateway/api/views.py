@@ -7,6 +7,7 @@ Django Rest framework views for api application:
 Version views inherit from the different views.
 """
 
+import os
 import json
 import logging
 
@@ -22,12 +23,33 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
 from .models import Program, Job
+from .ray import get_job_handler
 from .schedule import save_program
 from .serializers import JobSerializer
 from .utils import build_env_variables
 
 logger = logging.getLogger("gateway")
+resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})
+provider = TracerProvider(resource=resource)
+otel_exporter = BatchSpanProcessor(
+    OTLPSpanExporter(
+        endpoint=os.environ.get(
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
+        ),
+        insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
+    )
+)
+provider.add_span_processor(otel_exporter)
+if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
+    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
 
 class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
@@ -57,23 +79,33 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
     @action(methods=["POST"], detail=False)
     def run(self, request):
         """Enqueues program for execution."""
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.program.run", context=ctx):
+            serializer = self.get_serializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        program = save_program(serializer=serializer, request=request)
-        job = Job(
-            program=program,
-            arguments=program.arguments,
-            author=request.user,
-            status=Job.QUEUED,
-        )
-        job.save()
+            program = save_program(serializer=serializer, request=request)
+            job = Job(
+                program=program,
+                arguments=program.arguments,
+                author=request.user,
+                status=Job.QUEUED,
+            )
+            job.save()
 
-        job.env_vars = json.dumps(build_env_variables(request, job, program))
-        job.save()
+            carrier = {}
+            TraceContextTextMapPropagator().inject(carrier)
+            env = build_env_variables(request, job, program)
+            try:
+                env["traceparent"] = carrier["traceparent"]
+            except KeyError:
+                pass
+            job.env_vars = json.dumps(env)
+            job.save()
 
-        job_serializer = self.get_serializer_job_class()(job)
+            job_serializer = self.get_serializer_job_class()(job)
         return Response(job_serializer.data)
 
 
@@ -102,43 +134,56 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     @action(methods=["POST"], detail=True)
     def result(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Save result of a job."""
-        job = self.get_object()
-        job.result = json.dumps(request.data.get("result"))
-        job.save()
-        serializer = self.get_serializer(job)
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.result", context=ctx):
+            job = self.get_object()
+            job.result = json.dumps(request.data.get("result"))
+            job.save()
+            serializer = self.get_serializer(job)
         return Response(serializer.data)
 
     @action(methods=["GET"], detail=True)
     def logs(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Returns logs from job."""
-        job = self.get_object()
-        logs = job.logs
-        if job.compute_resource:
-            try:
-                ray_client = JobSubmissionClient(job.compute_resource.host)
-                logs = ray_client.get_job_logs(job.ray_job_id)
-                job.logs = logs
-                job.save()
-            except Exception:  # pylint: disable=broad-exception-caught
-                logger.warning("Ray cluster was not ready %s", job.compute_resource)
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.logs", context=ctx):
+            job = self.get_object()
+            logs = job.logs
+            if job.compute_resource:
+                try:
+                    ray_client = JobSubmissionClient(job.compute_resource.host)
+                    logs = ray_client.get_job_logs(job.ray_job_id)
+                    job.logs = logs
+                    job.save()
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logger.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response({"logs": logs})
 
     @action(methods=["POST"], detail=True)
     def stop(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Stops job"""
-        job = self.get_object()
-        message = "Job was already not running."
-        if job.compute_resource:
-            try:
-                ray_client = JobSubmissionClient(job.compute_resource.host)
-                was_running = ray_client.stop_job(job.ray_job_id)
-                message = (
-                    "Job has been stopped successfully."
-                    if not was_running
-                    else "Job was already not running."
-                )
-            except Exception:  # pylint: disable=broad-exception-caught
-                logger.warning("Ray cluster was not ready %s", job.compute_resource)
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.stop", context=ctx):
+            job = self.get_object()
+            if not job.in_terminal_state():
+                job.status = Job.STOPPED
+                job.save()
+            message = "Job has been stopped."
+            if job.compute_resource:
+                if job.compute_resource.active:
+                    job_handler = get_job_handler(job.compute_resource.host)
+                    if job_handler is not None:
+                        was_running = job_handler.stop(job.ray_job_id)
+                        if not was_running:
+                            message = "Job was already not running."
+                    else:
+                        logger.warning(
+                            "Compute resource is not accessible %s",
+                            job.compute_resource,
+                        )
         return Response({"message": message})
 
 

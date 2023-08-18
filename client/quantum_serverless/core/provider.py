@@ -35,6 +35,8 @@ import ray
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
+from opentelemetry import trace
+
 from quantum_serverless.core.constants import (
     REQUESTS_TIMEOUT,
     ENV_GATEWAY_PROVIDER_HOST,
@@ -348,7 +350,10 @@ class Provider(BaseProvider):
         return self._job_client.get(job_id)
 
     def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
-        return self._job_client.run(program, arguments)
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("Provider.run"):
+            job = self._job_client.run(program, arguments)
+        return job
 
     def get_jobs(self, **kwargs) -> List[Job]:
         return self._job_client.list(**kwargs)

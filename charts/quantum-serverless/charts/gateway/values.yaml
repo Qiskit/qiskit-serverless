@@ -1,22 +1,59 @@
-# Default values for jupyter.
+# Default values for gateway.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-jupyterToken: "123"
-managerHost: ""
-managerPort: 5000
-gatewayHost: http://gateway:8000
-
 replicaCount: 1
+useCertManager: false
+
+application:
+#  command: [ "gunicorn", "gateway.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=3" ]
+  debug: 0
+  siteHost: "http://127.0.0.1:8000"
+  rayHost: "http://ray:8265/"
+  auth:
+    token: {}
+    keycloak: {}
+  superuser:
+    username: "admin"
+    password: "passw0rd"
+    email: "admin@examplemail.io"
+  ray:
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.3.2-py39"
+    cpu: 2
+    memory: 2
+    replicas: 1
+    minReplicas: 1
+    maxReplicas: 4
+    opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-7
+    kubectlImage: alpine/k8s:1.27.4
+    scrapeWithPrometheus: true
+    openTelemetry: false
+    openTelemetryCollector:
+      enabled: 0
+      local: false
+      host: "http://otel-collector"
+      port: 4317
+      insecure: 0
+
+  limits:
+    maxJobsPerUser: 2
+    maxComputeResources: 4
+    keepClusterOnComplete: False
+  qiskitRuntime:
+    channel: "ibm_quantum"
+    url: "https://auth.quantum-computing.ibm.com/api"
+
+database:
+  host: postgresql
+  port: 5432
+  user: bn_keycloak
+  name: bitnami_keycloak
 
 image:
-  repository: "<JUPYTER_NOTEBOOK_IMAGE>"
+  repository: icr.io/quantum-public/quantum-serverless-gateway
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest-py39"
-
-container:
-  port: 8888
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -24,17 +61,22 @@ fullnameOverride: ""
 
 serviceAccount:
   # Specifies whether a service account should be created
-  create: false
+  create: true
   # Annotations to add to the service account
   annotations: {}
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
   name: ""
 
-podAnnotations: {}
+podAnnotations:
+  prometheus.io/scrape: "true"
 
-podSecurityContext: {}
-  # fsGroup: 2000
+
+podSecurityContext: 
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 100
+#  fsGroupChangePolicy: "OnRootMismatch"
 
 securityContext: {}
   # capabilities:
@@ -46,7 +88,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
+  port: 8000
 
 ingress:
   enabled: false
@@ -55,10 +97,10 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: localhost
+    - host: chart-example.local
       paths:
         - path: /
-          pathType: Prefix
+          pathType: ImplementationSpecific
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:

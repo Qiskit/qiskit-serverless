@@ -15,19 +15,17 @@ You don't have to worry about configuration or scaling up computational resource
 
 ### Table of Contents
 
-1. [Installation](INSTALL.md)
-2. [Quickstart](#quickstart-guide)
-3. [Beginners Guide](docs/beginners_guide.md)
-4. [Getting started](docs/getting_started/)
-5. Modules:
+1. [Quickstart](#quickstart-guide)
+2. [Beginners Guide](https://qiskit-extensions.github.io/quantum-serverless/running/index.html)
+3. Modules:
    1. [Client](./client)
-   2. [Infrastructure](./infrastructure)
-6. [Tutorials](docs/tutorials/)
-7. [Guides](docs/guides/)
-8. [How to Give Feedback](#how-to-give-feedback)
-9. [Contribution Guidelines](#contribution-guidelines)
-10. [References and Acknowledgements](#references-and-acknowledgements)
-11. [License](#license)
+   2. [Repository](./repository)
+   2. [Charts](./charts)
+5. [Guides](https://qiskit-extensions.github.io/quantum-serverless/development/index.html)
+6. [How to Give Feedback](#how-to-give-feedback)
+7. [Contribution Guidelines](#contribution-guidelines)
+8. [References and Acknowledgements](#references-and-acknowledgements)
+9. [License](#license)
 
 ----------------------------------------------------------------------------------------------------
 
@@ -42,7 +40,7 @@ docker compose --profile jupyter up
 2. Open jupyter notebook in browser at [http://localhost:8888/](http://localhost:8888/). Password for notebook is `123`
 3. Explore 3 getting started tutorials.
 
-For more detailed examples and explanations refer to the [Beginners Guide](docs/beginners_guide.md).
+For more detailed examples and explanations refer to the [Beginners Guide](https://qiskit-extensions.github.io/quantum-serverless/running/index.html).
 
 ----------------------------------------------------------------------------------------------------
 

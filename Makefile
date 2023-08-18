@@ -29,16 +29,16 @@ build-all: build-notebook build-ray-node build-gateway build-repository-server
 push-all: push-notebook push-ray-node push-gateway push-repository-server
 
 build-notebook:
-	docker build -t $(notebookImageName):$(version) -f ./infrastructure/docker/Dockerfile-notebook .
+	docker build -t $(notebookImageName):$(version) -f Dockerfile-notebook .
 
 build-ray-node:
-	docker build -t $(rayNodeImageName):$(version) --build-arg TARGETARCH=$(arch) -f ./infrastructure/docker/Dockerfile-ray-qiskit .
+	docker build -t $(rayNodeImageName):$(version) --build-arg TARGETARCH=$(arch) -f Dockerfile-ray-node .
 
 build-gateway:
-	docker build -t $(gatewayImageName):$(version) -f ./infrastructure/docker/Dockerfile-gateway .
+	docker build -t $(gatewayImageName):$(version) -f ./gateway/Dockerfile .
 
 build-repository-server:
-	docker build -t $(repositoryServerImageName):$(version) -f ./infrastructure/docker/Dockerfile-repository-server .
+	docker build -t $(repositoryServerImageName):$(version) -f ./repository/Dockerfile .
 
 push-notebook:
 	docker push $(notebookImageName):$(version)

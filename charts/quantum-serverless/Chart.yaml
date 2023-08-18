@@ -24,7 +24,7 @@ dependencies:
     repository: https://ray-project.github.io/kuberay-helm
   - name: redis
     condition: redisEnable
-    version: 17.14.6
+    version: 17.15.2
     repository: https://charts.bitnami.com/bitnami
   - name: keycloak
     condition: keycloakEnable

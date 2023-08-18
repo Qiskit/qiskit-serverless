@@ -25,12 +25,20 @@ Quantum serverless
 
     QuantumServerless
 """
+import os
 import json
 import logging
 from typing import Optional, Union, List, Dict, Any
 
 import requests
 from ray._private.worker import BaseContext
+
+from opentelemetry import trace  # pylint: disable=duplicate-code
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
@@ -65,6 +73,24 @@ class QuantumServerless:
         self._selected_provider: BaseProvider = self._providers[-1]
 
         self._allocated_context: Optional[Context] = None
+        RequestsInstrumentor().instrument()
+        resource = Resource(attributes={SERVICE_NAME: "QuantumServerless"})
+        provider = TracerProvider(resource=resource)
+        otel_exporter = BatchSpanProcessor(
+            OTLPSpanExporter(
+                endpoint=os.environ.get(
+                    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
+                ),
+                insecure=bool(
+                    int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))
+                ),
+            )
+        )
+        provider.add_span_processor(otel_exporter)
+        if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
+            trace._set_tracer_provider(
+                provider, log=False
+            )  # pylint: disable=protected-access
 
     @property
     def job_client(self):
@@ -92,7 +118,10 @@ class QuantumServerless:
         Returns:
             Job
         """
-        return self._selected_provider.run(program, arguments)
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("QuantumServerless.run"):
+            job = self._selected_provider.run(program, arguments)
+        return job
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.

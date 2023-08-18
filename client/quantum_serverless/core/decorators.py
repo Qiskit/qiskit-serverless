@@ -35,6 +35,7 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List, Callable, Sequence
 
 import ray
+from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from qiskit import QuantumCircuit
 from ray.runtime_env import RuntimeEnv
@@ -44,6 +45,7 @@ from quantum_serverless.core.constants import (
     OT_JAEGER_HOST_KEY,
     OT_JAEGER_PORT_KEY,
     OT_TRACEPARENT_ID_KEY,
+    OT_RAY_TRACER,
 )
 from quantum_serverless.core.state import StateHandler
 from quantum_serverless.core.tracing import get_tracer, _trace_env_vars
@@ -195,11 +197,14 @@ def _tracible_function(
     def decorator(func: Callable):
         @functools.wraps(func)
         def wraps(*args, **kwargs):
-            tracer = get_tracer(
-                func.__module__,
-                agent_host=os.environ.get(OT_JAEGER_HOST_KEY, None),
-                agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
-            )
+            if bool(int(os.environ.get(OT_RAY_TRACER, "0"))):
+                tracer = trace.get_tracer(func.__module__)
+            else:
+                tracer = get_tracer(
+                    func.__module__,
+                    agent_host=os.environ.get(OT_JAEGER_HOST_KEY, None),
+                    agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
+                )
             ctx = TraceContextTextMapPropagator().extract(
                 {
                     TraceContextTextMapPropagator._TRACEPARENT_HEADER_NAME: trace_id  # pylint:disable=protected-access
