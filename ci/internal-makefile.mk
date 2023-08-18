@@ -8,10 +8,10 @@
 
 DEBUG_MODE                ?= true
 DOCKER_BUILDKIT           ?= 0
-DOCKER_FILE_GATEWAY       ?= ./infrastructure/docker/Dockerfile-gateway
-DOCKER_FILE_NOTEBOOK      ?= ./infrastructure/docker/Dockerfile-notebook
-DOCKER_FILE_RAY_QISKIT    ?= ./infrastructure/docker/Dockerfile-ray-qiskit
-DOCKER_FILE_REPOSITORY    ?= ./infrastructure/docker/Dockerfile-repository-server
+DOCKER_FILE_GATEWAY       ?= ./gateway/Dockerfile
+DOCKER_FILE_NOTEBOOK      ?= ./Dockerfile-notebook
+DOCKER_FILE_RAY_NODE      ?= ./Dockerfile-ray-node
+DOCKER_FILE_REPOSITORY    ?= ./repository/Dockerfile
 
 DOCKER_REGISTRY           := icr.io
 DOCKER_REGISTRY_NAMESPACE := quantum-public
@@ -21,7 +21,7 @@ PROJECT_VERSION			  ?= latest
 
 DOCKER_IMAGE_GATEWAY      := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-serverless-gateway
 DOCKER_IMAGE_NOTEBOOK     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-serverless-notebook
-DOCKER_IMAGE_RAY_QISKIT   := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-serverless-ray-node
+DOCKER_IMAGE_RAY_NODE     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-serverless-ray-node
 DOCKER_IMAGE_REPOSITORY   := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-repository-server
 
 # =========
@@ -37,7 +37,7 @@ docker/lint-notebook: DOCKER_FILE 			:= $(DOCKER_FILE_NOTEBOOK)
 docker/lint-notebook: docker/lint
 
 .PHONY: docker/lint-ray
-docker/lint-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_QISKIT) 
+docker/lint-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE) 
 docker/lint-ray: docker/lint
 
 .PHONY: docker/lint-repository
@@ -53,7 +53,7 @@ docker/sast-notebook: DOCKER_FILE 			:= $(DOCKER_FILE_NOTEBOOK)
 docker/sast-notebook: docker/sast
 
 .PHONY: docker/sast-ray
-docker/sast-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_QISKIT) 
+docker/sast-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE) 
 docker/sast-ray: docker/sast
 
 .PHONY: docker/sast-repository
@@ -89,22 +89,22 @@ docker/vscan-notebook-py310: PY_VERSION 	:= "3.10"
 docker/vscan-notebook-py310: docker/vscan
 
 .PHONY: docker/vscan-ray-py38
-docker/vscan-ray-py38: DOCKER_FILE 			:= $(DOCKER_FILE_RAY_QISKIT)
-docker/vscan-ray-py38: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_RAY_QISKIT)
+docker/vscan-ray-py38: DOCKER_FILE 			:= $(DOCKER_FILE_RAY_NODE)
+docker/vscan-ray-py38: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_RAY_NODE)
 docker/vscan-ray-py38: IMAGE_TAG 			:= $(PROJECT_VERSION)-py38
 docker/vscan-ray-py38: PY_VERSION 			:= "py38"
 docker/vscan-ray-py38: docker/vscan
 
 .PHONY: docker/vscan-ray-py39
-docker/vscan-ray-py39: DOCKER_FILE 			:= $(DOCKER_FILE_RAY_QISKIT)
-docker/vscan-ray-py39: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_RAY_QISKIT)
+docker/vscan-ray-py39: DOCKER_FILE 			:= $(DOCKER_FILE_RAY_NODE)
+docker/vscan-ray-py39: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_RAY_NODE)
 docker/vscan-ray-py39: IMAGE_TAG 			:= $(PROJECT_VERSION)-py39
 docker/vscan-ray-py39: PY_VERSION 			:= "py39"
 docker/vscan-ray-py39: docker/vscan
 
 .PHONY: docker/vscan-ray-py310
-docker/vscan-ray-py310: DOCKER_FILE 		:= $(DOCKER_FILE_RAY_QISKIT)
-docker/vscan-ray-py310: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_RAY_QISKIT)
+docker/vscan-ray-py310: DOCKER_FILE 		:= $(DOCKER_FILE_RAY_NODE)
+docker/vscan-ray-py310: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_RAY_NODE)
 docker/vscan-ray-py310: IMAGE_TAG 			:= $(PROJECT_VERSION)-py310
 docker/vscan-ray-py310: PY_VERSION 			:= "py310"
 docker/vscan-ray-py310: docker/vscan
