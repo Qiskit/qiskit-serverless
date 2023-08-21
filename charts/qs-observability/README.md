@@ -90,5 +90,5 @@ metadata:
   name: simplest
 EOF
 ```
-
+The collector configuration is `http://simplest-collector` for `host` and `4317` for `port`.
 This creates `AllInOne` Jaeger instance.  The UI is available in `simplest-query` service at port `16686`. 
