@@ -145,6 +145,30 @@ class QuantumServerless:
         """
         return self._selected_provider.get_jobs(**kwargs)
 
+    def files(self):
+        """Returns list of available files to download.
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> serverless.files()
+
+        Returns:
+            list of available files
+        """
+        return self._selected_provider.files()
+
+    def download(self, file: str):
+        """Downloads file.
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> serverless.download('artifact.tar')
+
+        Args:
+            file: name of file to download
+        """
+        return self._selected_provider.download(file)
+
     def context(
         self,
         provider: Optional[Union[str, BaseProvider]] = None,

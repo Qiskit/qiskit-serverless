@@ -43,6 +43,7 @@ from quantum_serverless.core.constants import (
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
+from quantum_serverless.core.files import GatewayFilesClient
 from quantum_serverless.core.job import (
     Job,
     RayJobClient,
@@ -284,6 +285,14 @@ class BaseProvider(JsonSerializable):
 
         return job_client.run(program, arguments)
 
+    def files(self) -> List[str]:
+        """Returns list of available files produced by programs to download."""
+        raise NotImplementedError
+
+    def download(self, file: str):
+        """Download file."""
+        raise NotImplementedError
+
 
 class Provider(BaseProvider):
     """Provider."""
@@ -336,6 +345,7 @@ class Provider(BaseProvider):
             self._fetch_token(username, password)
 
         self._job_client = GatewayJobClient(self.host, self._token, self.version)
+        self._files_client = GatewayFilesClient(self.host, self._token, self.version)
 
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
@@ -357,6 +367,12 @@ class Provider(BaseProvider):
 
     def get_jobs(self, **kwargs) -> List[Job]:
         return self._job_client.list(**kwargs)
+
+    def files(self) -> List[str]:
+        return self._files_client.list()
+
+    def download(self, file: str, directory: str = "./"):
+        return self._files_client.download(file, directory)
 
     def _fetch_token(self, username: str, password: str):
         response_data = safe_json_request(
