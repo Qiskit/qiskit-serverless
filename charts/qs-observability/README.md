@@ -53,3 +53,42 @@ If you are interested in more complex configurations, you have access to all the
 
 - For our promtail charts dependencies, we are using the default configuration created by Grafana project. To simplify the configuration we offered you with a straigh-forward initial parameters setup.
 But if you are interested in more complex configurations, you have access to all the parameters documented [here](https://github.com/grafana/helm-charts/blob/main/charts/promtail/README.md).
+
+# Jaeger setup
+
+Quick instructions for Jaeger setup for local install.
+
+## Install Cert-manger
+
+Cert-manger is required for Jaeger
+
+Execute this command for quick install:
+```shell
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.12.0/cert-manager.yaml
+```
+
+For details instructions refer to [here](https://cert-manager.io/docs/installation/)
+
+## Jaeger install
+
+Create `observability` namaspace.
+```shell
+kubectl create namespace observability
+```
+
+Install Jaeger Operator
+```shell
+kubectl create -f https://github.com/jaegertracing/jaeger-operator/releases/download/v1.47.0/jaeger-operator.yaml -n observability
+```
+
+Create Jaeger CRD instance
+```shell
+kubectl apply -n observability -f - <<EOF
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: simplest
+EOF
+```
+The collector configuration is `http://simplest-collector` for `host` and `4317` for `port`.
+This creates `AllInOne` Jaeger instance.  The UI is available in `simplest-query` service at port `16686`. 
