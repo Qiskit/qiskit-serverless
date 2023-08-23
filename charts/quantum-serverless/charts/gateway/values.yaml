@@ -39,6 +39,7 @@ application:
     maxJobsPerUser: 2
     maxComputeResources: 4
     keepClusterOnComplete: False
+    programTimeoutDays: 14
   qiskitRuntime:
     channel: "ibm_quantum"
     url: "https://auth.quantum-computing.ibm.com/api"
