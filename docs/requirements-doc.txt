@@ -1,4 +1,4 @@
-quantum-serverless>=0.3.2
+quantum-serverless>=0.4.0
 coverage>=5.5
 pylint>=2.17.5
 nbqa>=1.7.0
