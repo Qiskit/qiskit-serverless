@@ -1,9 +1,11 @@
 """Utilities."""
+import base64
 import inspect
 import json
 import logging
 import time
 from typing import Optional, Tuple, Callable, Dict
+from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
 from django.conf import settings
 
@@ -73,6 +75,34 @@ def retry_function(
     return result
 
 
+def encrypt_string(string: str) -> str:
+    """Encrypts string using symmetrical encryption.
+
+    Args:
+        string: string to be encrypted
+
+    Returns:
+        encrypter string
+    """
+    code_bytes = settings.SECRET_KEY.encode("utf-8")
+    fernet = Fernet(base64.urlsafe_b64encode(code_bytes.ljust(32)[:32]))
+    return fernet.encrypt(string.encode("utf-8")).decode("utf-8")
+
+
+def decrypt_string(string: str) -> str:
+    """Decrypts string symmetrically encrypted.
+
+    Args:
+        string: encrypted string
+
+    Returns:
+        decrypted string
+    """
+    code_bytes = settings.SECRET_KEY.encode("utf-8")
+    fernet = Fernet(base64.urlsafe_b64encode(code_bytes.ljust(32)[:32]))
+    return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
+
+
 def build_env_variables(request, job: Job, program: Program) -> Dict[str, str]:
     """Builds env variables for job.
 
@@ -87,7 +117,7 @@ def build_env_variables(request, job: Job, program: Program) -> Dict[str, str]:
     extra = {}
     if settings.SETTINGS_AUTH_MECHANISM != "default":
         extra = {
-            "QISKIT_IBM_TOKEN": str(request.auth.token.decode()),
+            "QISKIT_IBM_TOKEN": encrypt_string(str(request.auth.token.decode())),
             "QISKIT_IBM_CHANNEL": settings.QISKIT_IBM_CHANNEL,
             "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
         }

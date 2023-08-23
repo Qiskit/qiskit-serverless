@@ -21,7 +21,7 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from api.models import ComputeResource, Job
-from api.utils import try_json_loads, retry_function
+from api.utils import try_json_loads, retry_function, decrypt_string
 from main import settings
 
 logger = logging.getLogger("commands")
@@ -86,6 +86,12 @@ class JobHandler:
                 env_w_span["OT_TRACEPARENT_ID_KEY"] = carrier["traceparent"]
             except KeyError:
                 pass
+
+            if "QISKIT_IBM_TOKEN" in env_w_span:
+                env_w_span["QISKIT_IBM_TOKEN"] = decrypt_string(
+                    env_w_span.get("QISKIT_IBM_TOKEN")
+                )
+
             ray_job_id = retry_function(
                 callback=lambda: self.client.submit_job(
                     entrypoint=entrypoint,

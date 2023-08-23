@@ -65,6 +65,8 @@ spec:
           env:
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
+            - name: DJANGO_SECRET_KEY
+              value: {{ .Values.application.secretKey | quote }}
             - name: SITE_HOST
               value: {{ .Values.application.siteHost | quote }}
             - name: RAY_HOST
@@ -182,6 +184,8 @@ spec:
           env:
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
+            - name: DJANGO_SECRET_KEY
+              value: {{ .Values.application.secretKey | quote }}
             - name: DATABASE_HOST
               value: {{ .Values.database.host }}
             - name: DATABASE_PORT

@@ -8,6 +8,7 @@ useCertManager: false
 application:
 #  command: [ "gunicorn", "gateway.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=3" ]
   debug: 0
+  secretKey: "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7"
   siteHost: "http://127.0.0.1:8000"
   rayHost: "http://ray:8265/"
   auth:
