@@ -1,7 +1,7 @@
 django-filter>=23.2
 djangorestframework>=3.14.0
 Markdown>=3.4.4
-django-allauth==0.54.0
+django-allauth>=0.54.0
 django-allow-cidr>=0.7.1
 dj-rest-auth>=3.0.0
 djangorestframework-simplejwt>=5.2.2
