@@ -34,7 +34,7 @@ from .models import Program, Job
 from .ray import get_job_handler
 from .schedule import save_program
 from .serializers import JobSerializer
-from .utils import build_env_variables
+from .utils import build_env_variables, encrypt_env_vars
 
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})
@@ -97,7 +97,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
-            env = build_env_variables(request, job, program)
+            env = encrypt_env_vars(build_env_variables(request, job, program))
             try:
                 env["traceparent"] = carrier["traceparent"]
             except KeyError:

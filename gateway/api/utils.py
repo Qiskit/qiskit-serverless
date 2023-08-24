@@ -117,7 +117,7 @@ def build_env_variables(request, job: Job, program: Program) -> Dict[str, str]:
     extra = {}
     if settings.SETTINGS_AUTH_MECHANISM != "default":
         extra = {
-            "QISKIT_IBM_TOKEN": encrypt_string(str(request.auth.token.decode())),
+            "QISKIT_IBM_TOKEN": str(request.auth.token.decode()),
             "QISKIT_IBM_CHANNEL": settings.QISKIT_IBM_CHANNEL,
             "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
         }
@@ -130,3 +130,36 @@ def build_env_variables(request, job: Job, program: Program) -> Dict[str, str]:
         },
         **extra,
     }
+
+
+def encrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
+    """Encrypts tokens in env variables.
+
+    Args:
+        env_vars: env variables dict
+
+    Returns:
+        encrypted env vars dict
+    """
+    for key, value in env_vars.items():
+        if "token" in key.lower():
+            env_vars[key] = encrypt_string(value)
+    return env_vars
+
+
+def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
+    """Decrypts tokens in env variables.
+
+    Args:
+        env_vars: env variables dict
+
+    Returns:
+        decrypted env vars dict
+    """
+    for key, value in env_vars.items():
+        if "token" in key.lower():
+            try:
+                env_vars[key] = decrypt_string(value)
+            except Exception as decryption_error:  # pylint: disable=broad-exception-caught
+                logger.error("Cannot decrypt %s. %s", key, decryption_error)
+    return env_vars
