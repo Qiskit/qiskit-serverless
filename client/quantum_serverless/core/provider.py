@@ -41,6 +41,7 @@ from quantum_serverless.core.constants import (
     REQUESTS_TIMEOUT,
     ENV_GATEWAY_PROVIDER_HOST,
     ENV_GATEWAY_PROVIDER_VERSION,
+    ENV_GATEWAY_PROVIDER_TOKEN,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 from quantum_serverless.core.job import (
@@ -318,6 +319,7 @@ class Provider(BaseProvider):
         if version is None:
             version = GATEWAY_PROVIDER_VERSION_DEFAULT
 
+        token = token or os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN)
         if token is None and (username is None or password is None):
             raise QuantumServerlessException(
                 "Authentication credentials must "
