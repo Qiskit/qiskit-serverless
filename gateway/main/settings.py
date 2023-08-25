@@ -303,6 +303,8 @@ RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(
     os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False)
 )
 
+PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
+
 # qiskit runtime
 QISKIT_IBM_CHANNEL = os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum")
 QISKIT_IBM_URL = os.environ.get(
