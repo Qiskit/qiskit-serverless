@@ -53,7 +53,6 @@ def execute_job(job: Job) -> Job:
 
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-
         authors_resource = ComputeResource.objects.filter(
             owner=job.author, active=True
         ).first()
