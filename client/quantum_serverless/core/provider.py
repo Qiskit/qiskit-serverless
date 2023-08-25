@@ -55,6 +55,7 @@ from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
 from quantum_serverless.utils.json import safe_json_request
+from quantum_serverless.visualizaiton import Widget
 
 TIMEOUT = 30
 
@@ -284,6 +285,10 @@ class BaseProvider(JsonSerializable):
             return None
 
         return job_client.run(program, arguments)
+
+    def widget(self):
+        """Widget for information about provider and jobs."""
+        return Widget(self).show()
 
 
 class Provider(BaseProvider):

@@ -325,21 +325,25 @@ def distribute_task(
 
 ENTRYPOINT_CONTENT = """
 import cloudpickle
-from quantum_serverless import get_arguments
+from quantum_serverless import get_arguments, save_result
 
 arguments = get_arguments()
 
 with open("./pickle.pkl", "rb") as file:
     function = cloudpickle.load(file)
 
-    function(**arguments)
+    result = function(**arguments)
+    if result is not None:
+        save_result(result)
 """
 
 
 def distribute_program(
-    provider: Optional[Any] = None, dependencies: Optional[List[str]] = None
+    provider: Optional[Any] = None,
+    dependencies: Optional[List[str]] = None,
+    working_dir: Optional[str] = None,
 ):
-    """Program decorator.
+    """[Experimental] Program decorator to turn function into remotely executable program.
 
     Example:
         >>> @program(provider=Provider(...), dependencies=[...])
@@ -351,6 +355,7 @@ def distribute_program(
     Args:
         provider: provider to use for program execution
         dependencies: dependencies for program
+        working_dir: working directory, which will be shipped for remote execution
 
     Returns:
         remotely executable program
@@ -373,7 +378,7 @@ def distribute_program(
     if provider is None:
         raise QuantumServerlessException(
             "Provider was not defined. "
-            "Please, pass provider to @program decorator or setup env variables."
+            "Please, pass provider to @distribute_program decorator or setup env variables."
         )
 
     def decorator(function):
@@ -392,17 +397,17 @@ def distribute_program(
                 )
 
             # create folder
-            working_directory = f"./artifacts/{function.__name__}/"
+            working_directory = working_dir or f"./qs_artifacts/{function.__name__}"
             os.makedirs(working_directory, exist_ok=True)
 
             # dump pickle
-            with open(f"{working_directory}/pickle.pkl", "wb") as file:
+            pickle_file_path = f"{working_directory}/pickle.pkl"
+            with open(pickle_file_path, "wb") as file:
                 cloudpickle.dump(function, file)
 
             # create entrypoint
-            with open(
-                f"{working_directory}/entrypoint.py", "w", encoding="utf-8"
-            ) as file:
+            entrypoint_file_path = f"{working_directory}/entrypoint.py"
+            with open(entrypoint_file_path, "w", encoding="utf-8") as file:
                 file.write(ENTRYPOINT_CONTENT)
 
             # create program
@@ -411,15 +416,19 @@ def distribute_program(
                 entrypoint="entrypoint.py",
                 working_dir=working_directory,
                 dependencies=dependencies,
+                description="Program execution using @distribute_program decorator.",
             )
 
             # run program
             job = provider.run(wrapped_program, arguments=kwargs)
 
             # remove artifact files
-            if os.path.exists(working_directory):
+            if os.path.exists(pickle_file_path):
+                os.remove(pickle_file_path)
+            if os.path.exists(entrypoint_file_path):
+                os.remove(entrypoint_file_path)
+            if working_dir is None and os.path.exists(working_directory):
                 shutil.rmtree(working_directory)
-
             return job
 
         return wrapper
