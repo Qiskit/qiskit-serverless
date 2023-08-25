@@ -1,0 +1,17 @@
+name: Helm verify process
+
+on:
+  push:
+    paths:
+      - "ct.yml"
+      - "charts/*"
+      - ".github/workflows/helm-verify.yaml"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Scan helm
+        uses: ./.github/actions/helm-lint
