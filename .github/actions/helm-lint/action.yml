@@ -30,14 +30,14 @@ runs:
     
     - name: Run chart-testing (lint)
       shell: bash
-      # if: steps.list-changed.outputs.changed == 'true'
+      if: steps.list-changed.outputs.changed == 'true'
       run: ct lint --config ct.yml
     
     - name: Create kind cluster
-      # if: steps.list-changed.outputs.changed == 'true'
+      if: steps.list-changed.outputs.changed == 'true'
       uses: helm/kind-action@v1.7.0
 
     - name: Run chart-testing (install)
       shell: bash
-      # if: steps.list-changed.outputs.changed == 'true'
+      if: steps.list-changed.outputs.changed == 'true'
       run: ct install --config ct.yml
