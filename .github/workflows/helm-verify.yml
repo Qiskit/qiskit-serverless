@@ -6,7 +6,7 @@ on:
       - "ct.yml"
       - "charts/*"
       - ".github/actions/helm-lint/action.yml"
-      - ".github/workflows/helm-verify.yaml"
+      - ".github/workflows/helm-verify.yml"
 
 jobs:
   lint:
