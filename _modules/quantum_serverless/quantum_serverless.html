@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>quantum_serverless.quantum_serverless - Quantum serverless 0.3.2</title>
+        <title>quantum_serverless.quantum_serverless - Quantum serverless 0.4.0</title>
       <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -144,7 +144,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">Quantum serverless 0.3.2</div></a>
+      <a href="../../index.html"><div class="brand">Quantum serverless 0.4.0</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -171,7 +171,7 @@
     </div>
   </a>
   
-  <span class="sidebar-brand-text">Quantum serverless 0.3.2</span>
+  <span class="sidebar-brand-text">Quantum serverless 0.4.0</span>
 </div><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
@@ -316,12 +316,20 @@
 
 <span class="sd">    QuantumServerless</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
 
 <span class="kn">import</span> <span class="nn">requests</span>
 <span class="kn">from</span> <span class="nn">ray._private.worker</span> <span class="kn">import</span> <span class="n">BaseContext</span>
+
+<span class="kn">from</span> <span class="nn">opentelemetry</span> <span class="kn">import</span> <span class="n">trace</span>  <span class="c1"># pylint: disable=duplicate-code</span>
+<span class="kn">from</span> <span class="nn">opentelemetry.exporter.otlp.proto.grpc.trace_exporter</span> <span class="kn">import</span> <span class="n">OTLPSpanExporter</span>
+<span class="kn">from</span> <span class="nn">opentelemetry.sdk.resources</span> <span class="kn">import</span> <span class="n">SERVICE_NAME</span><span class="p">,</span> <span class="n">Resource</span>
+<span class="kn">from</span> <span class="nn">opentelemetry.sdk.trace</span> <span class="kn">import</span> <span class="n">TracerProvider</span>
+<span class="kn">from</span> <span class="nn">opentelemetry.sdk.trace.export</span> <span class="kn">import</span> <span class="n">BatchSpanProcessor</span>
+<span class="kn">from</span> <span class="nn">opentelemetry.instrumentation.requests</span> <span class="kn">import</span> <span class="n">RequestsInstrumentor</span>
 
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.job</span> <span class="kn">import</span> <span class="n">Job</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.program</span> <span class="kn">import</span> <span class="n">Program</span>
@@ -355,7 +363,25 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_providers</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">BaseProvider</span><span class="p">]</span> <span class="o">=</span> <span class="n">providers</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_selected_provider</span><span class="p">:</span> <span class="n">BaseProvider</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_providers</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_allocated_context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Context</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_allocated_context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Context</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">RequestsInstrumentor</span><span class="p">()</span><span class="o">.</span><span class="n">instrument</span><span class="p">()</span>
+        <span class="n">resource</span> <span class="o">=</span> <span class="n">Resource</span><span class="p">(</span><span class="n">attributes</span><span class="o">=</span><span class="p">{</span><span class="n">SERVICE_NAME</span><span class="p">:</span> <span class="s2">&quot;QuantumServerless&quot;</span><span class="p">})</span>
+        <span class="n">provider</span> <span class="o">=</span> <span class="n">TracerProvider</span><span class="p">(</span><span class="n">resource</span><span class="o">=</span><span class="n">resource</span><span class="p">)</span>
+        <span class="n">otel_exporter</span> <span class="o">=</span> <span class="n">BatchSpanProcessor</span><span class="p">(</span>
+            <span class="n">OTLPSpanExporter</span><span class="p">(</span>
+                <span class="n">endpoint</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="s2">&quot;OTEL_EXPORTER_OTLP_TRACES_ENDPOINT&quot;</span><span class="p">,</span> <span class="s2">&quot;http://otel-collector:4317&quot;</span>
+                <span class="p">),</span>
+                <span class="n">insecure</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span>
+                    <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;OTEL_EXPORTER_OTLP_TRACES_INSECURE&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">))</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">provider</span><span class="o">.</span><span class="n">add_span_processor</span><span class="p">(</span><span class="n">otel_exporter</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;OTEL_ENABLED&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">))):</span>
+            <span class="n">trace</span><span class="o">.</span><span class="n">_set_tracer_provider</span><span class="p">(</span>
+                <span class="n">provider</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">job_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -383,7 +409,10 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Job</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selected_provider</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;QuantumServerless.run&quot;</span><span class="p">):</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selected_provider</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">job</span>
 
     <span class="k">def</span> <span class="nf">get_job_by_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns job by job id.</span>
@@ -602,7 +631,7 @@
   </div>
 </div><script src="../../_static/jquery.js?v=5d32c60e"></script>
     <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=53a30eae"></script>
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js?v=4e78f113"></script>
     <script src="../../_static/doctools.js?v=888ff710"></script>
     <script src="../../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../../_static/thebelab-helper.js"></script>

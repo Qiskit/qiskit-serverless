@@ -24,7 +24,7 @@
 
    .. autosummary::
    
-      ~CircuitMeta.n_qubits
+      ~CircuitMeta.num_qubits
       ~CircuitMeta.depth
    
    
