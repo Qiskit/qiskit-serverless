@@ -23,7 +23,7 @@ runs:
       shell: bash
       id: list-changed
       run: |
-        changed=$(ct list-changed --config ct.yml
+        changed=$(ct list-changed --config ct.yml)
         if [[ -n "$changed" ]]; then
           echo "changed=true" >> "$GITHUB_OUTPUT"
         fi
