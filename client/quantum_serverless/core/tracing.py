@@ -84,9 +84,9 @@ def get_tracer(
         )
         provider.add_span_processor(otel_exporter)
     if bool(int(os.environ.get(OT_ENABLED, "0"))):
-        trace._set_tracer_provider(
+        trace._set_tracer_provider(    # pylint: disable=protected-access
             provider, log=False
-        )  # pylint: disable=protected-access
+        )
     return trace.get_tracer(instrumenting_module_name)
 
 
@@ -146,6 +146,6 @@ def setup_tracing() -> None:
     )
     provider.add_span_processor(otel_exporter)
     if bool(int(os.environ.get(OT_ENABLED, "0"))):
-        trace._set_tracer_provider(
+        trace._set_tracer_provider(  # pylint: disable=protected-access
             provider, log=False
-        )  # pylint: disable=protected-access
+        )
