@@ -6,16 +6,19 @@ Django Rest framework views for api application:
 
 Version views inherit from the different views.
 """
-
+import glob
+import mimetypes
 import os
 import json
 import logging
+from wsgiref.util import FileWrapper
 
 import requests
 from allauth.socialaccount.providers.keycloak.views import KeycloakOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.http import StreamingHttpResponse
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
@@ -185,6 +188,58 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                             job.compute_resource,
                         )
         return Response({"message": message})
+
+
+class FilesViewSet(viewsets.ViewSet):
+    """ViewSet for file operations handling.
+
+    Note: only tar files are available for list and download
+    """
+
+    BASE_NAME = "files"
+
+    # @action(methods=["GET"], detail=False)
+    def list(self, request):
+        """List of available for user files."""
+        files = []
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.files.list", context=ctx):
+            user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
+            if os.path.exists(user_dir):
+                files = [
+                    os.path.basename(path) for path in glob.glob(f"{user_dir}/*.tar")
+                ]
+            else:
+                logger.warning(
+                    "Directory %s does not exist for %s.", user_dir, request.user
+                )
+
+        return Response(files)
+
+    @action(methods=["GET"], detail=True)
+    def download(self, request, pk=None):  # pylint: disable=invalid-name
+        """Download selected file."""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.files.download", context=ctx):
+            user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
+            file_path = os.path.join(user_dir, pk)
+            response = Response(status=status.HTTP_404_NOT_FOUND)
+            if os.path.exists(user_dir) and os.path.exists(file_path):
+                filename = os.path.basename(file_path)
+                chunk_size = 8192
+                with open(file_path, "rb") as streamed_file:
+                    response = StreamingHttpResponse(
+                        FileWrapper(
+                            streamed_file,
+                            chunk_size,
+                        ),
+                        content_type=mimetypes.guess_type(file_path)[0],
+                    )
+                    response["Content-Length"] = os.path.getsize(file_path)
+                    response["Content-Disposition"] = f"attachment; filename={filename}"
+            return response
 
 
 class KeycloakLogin(SocialLoginView):
