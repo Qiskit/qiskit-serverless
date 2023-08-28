@@ -20,3 +20,9 @@ dependencies:
     condition: promtailEnable
     version: 6.14.1
     repository: https://grafana.github.io/helm-charts
+
+maintainers:
+  - name: akihikokuroda
+  - name: IceKhan13
+  - name: psschwei
+  - name: Tansito
