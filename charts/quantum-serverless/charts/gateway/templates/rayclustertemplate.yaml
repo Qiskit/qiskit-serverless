@@ -209,7 +209,7 @@ data:
             initContainers:
               - name: ray-worker-cert
                 image: {{ .Values.application.ray.kubectlImage }}
-                command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_worker.sh /tmp/tls {{`{{ cluster_name }}`}} $POD_IP {{ .Release.Namespace }}"]
+                command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_worker.sh /tmp/tls {{`{{ cluster_name }}`}} $POD_IP"]
                 volumeMounts:
                   - mountPath: /tmp/tls
                     name: cert-tls

@@ -239,7 +239,6 @@ data:
     BASE_DIR=$1
     CLUSTER_NAME=$2
     IP_ADDRESS=$3
-    NAMESPACE=$4
 
     kubectl apply -f - <<EOF
     apiVersion: cert-manager.io/v1
