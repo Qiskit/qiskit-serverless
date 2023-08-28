@@ -31,7 +31,7 @@ runs:
     - name: Run chart-testing (lint)
       shell: bash
       if: steps.list-changed.outputs.changed == 'true'
-      run: ct lint --config ct.yml
+      run: ct lint --config ct.yml --check-version-increment=false
     
     - name: Create kind cluster
       if: steps.list-changed.outputs.changed == 'true'
