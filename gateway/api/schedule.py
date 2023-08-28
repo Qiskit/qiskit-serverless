@@ -67,7 +67,8 @@ def execute_job(job: Job) -> Job:
                 job.status = Job.PENDING
                 job.save()
                 # remove artifact after successful submission
-                os.remove(os.path.join(settings.MEDIA_ROOT, str(job.program.artifact)))
+                if os.path.exists(job.program.artifact.path):
+                    os.remove(job.program.artifact.path)
             except (
                 Exception  # pylint: disable=broad-exception-caught
             ) as missing_resource_exception:
@@ -96,7 +97,8 @@ def execute_job(job: Job) -> Job:
                 job.status = Job.PENDING
                 job.save()
                 # remove artifact after successful submission
-                os.remove(os.path.join(settings.MEDIA_ROOT, str(job.program.artifact)))
+                if os.path.exists(job.program.artifact.path):
+                    os.remove(job.program.artifact.path)
             else:
                 # if something went wrong
                 #   try to kill resource if it was allocated
