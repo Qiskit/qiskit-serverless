@@ -116,7 +116,7 @@ kuberay-operator:
     pullPolicy: IfNotPresent
 
 # ===================
-# Keycloak 
+# Keycloak
 # ===================
 
 keycloakEnable: true

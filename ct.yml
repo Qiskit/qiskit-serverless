@@ -8,4 +8,5 @@ chart-repos:
   - kuberay-operator=https://ray-project.github.io/kuberay-helm
   - redis=https://charts.bitnami.com/bitnami
   - keycloak=https://charts.bitnami.com/bitnami
-helm-extra-args: --timeout 600s
+  - prometheus-community=https://prometheus-community.github.io/helm-charts
+  - grafana=https://grafana.github.io/helm-charts
