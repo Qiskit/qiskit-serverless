@@ -36,6 +36,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List, Callable, Sequence
+from uuid import uuid4
 
 import cloudpickle
 import ray
@@ -329,7 +330,7 @@ from quantum_serverless import get_arguments, save_result
 
 arguments = get_arguments()
 
-with open("./pickle.pkl", "rb") as file:
+with open("./{file_name}", "rb") as file:
     function = cloudpickle.load(file)
 
     result = function(**arguments)
@@ -390,6 +391,8 @@ def distribute_program(
 
         def wrapper(*args, **kwargs):
             """Function wrapper."""
+            suffix = str(uuid4())[:8]
+
             if len(args) > 0:
                 raise QuantumServerlessException(
                     f"Only named arguments supported at this moment. "
@@ -397,23 +400,27 @@ def distribute_program(
                 )
 
             # create folder
-            working_directory = working_dir or f"./qs_artifacts/{function.__name__}"
+            working_directory = (
+                working_dir or f"./qs_artifacts/{function.__name__}_{suffix}"
+            )
             os.makedirs(working_directory, exist_ok=True)
 
             # dump pickle
-            pickle_file_path = f"{working_directory}/pickle.pkl"
+            pickle_file_name = f"pickle_{suffix}.pkl"
+            pickle_file_path = f"{working_directory}/{pickle_file_name}"
             with open(pickle_file_path, "wb") as file:
                 cloudpickle.dump(function, file)
 
             # create entrypoint
-            entrypoint_file_path = f"{working_directory}/entrypoint.py"
+            entrypoint_file_name = f"entrypoint_{suffix}.py"
+            entrypoint_file_path = f"{working_directory}/{entrypoint_file_name}"
             with open(entrypoint_file_path, "w", encoding="utf-8") as file:
-                file.write(ENTRYPOINT_CONTENT)
+                file.write(ENTRYPOINT_CONTENT.format(file_name=pickle_file_name))
 
             # create program
             wrapped_program = Program(
                 title=function.__name__,
-                entrypoint="entrypoint.py",
+                entrypoint=entrypoint_file_name,
                 working_dir=working_directory,
                 dependencies=dependencies,
                 description="Program execution using @distribute_program decorator.",
