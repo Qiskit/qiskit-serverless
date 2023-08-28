@@ -28,12 +28,17 @@ Quantum serverless decorators
     run_qiskit_remote
     get_refs_by_status
     distribute_task
+    distribute_program
 """
 import functools
+import inspect
 import os
+import shutil
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List, Callable, Sequence
+from uuid import uuid4
 
+import cloudpickle
 import ray
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -313,6 +318,125 @@ def distribute_task(
             )(traced_function).remote(*args, **kwargs)
 
             return result
+
+        return wrapper
+
+    return decorator
+
+
+ENTRYPOINT_CONTENT = """
+import cloudpickle
+from quantum_serverless import get_arguments, save_result
+
+arguments = get_arguments()
+
+with open("./{file_name}", "rb") as file:
+    function = cloudpickle.load(file)
+
+    result = function(**arguments)
+    if result is not None:
+        save_result(result)
+"""
+
+
+def distribute_program(
+    provider: Optional[Any] = None,
+    dependencies: Optional[List[str]] = None,
+    working_dir: Optional[str] = None,
+):
+    """[Experimental] Program decorator to turn function into remotely executable program.
+
+    Example:
+        >>> @distribute_program(provider=Provider(...), dependencies=[...])
+        >>> def my_program():
+        >>>     print("Hola!")
+        >>>
+        >>> job = my_program()
+
+    Args:
+        provider: provider to use for program execution
+        dependencies: dependencies for program
+        working_dir: working directory, which will be shipped for remote execution
+
+    Returns:
+        remotely executable program
+    """
+    # pylint: disable=import-outside-toplevel,cyclic-import
+    from quantum_serverless import QuantumServerlessException
+    from quantum_serverless.core.program import Program
+    from quantum_serverless.core.provider import Provider
+
+    # create provider
+    if provider is None:
+        # try to create from env vars
+        try:
+            provider = Provider()
+        except QuantumServerlessException as qs_error:
+            raise QuantumServerlessException(
+                "Set provider in arguments for `distribute_program` "
+                "decorator or define env variables."
+            ) from qs_error
+    if provider is None:
+        raise QuantumServerlessException(
+            "Provider was not defined. "
+            "Please, pass provider to @distribute_program decorator or setup env variables."
+        )
+
+    def decorator(function):
+        """Decorator."""
+        if not inspect.isfunction(function):
+            raise QuantumServerlessException(
+                "Only functions are supported by this decorator."
+            )
+
+        def wrapper(*args, **kwargs):
+            """Function wrapper."""
+            suffix = str(uuid4())[:8]
+
+            if len(args) > 0:
+                raise QuantumServerlessException(
+                    f"Only named arguments supported at this moment. "
+                    f"Please specify name of argument of function {function.__name__}"
+                )
+
+            # create folder
+            working_directory = (
+                working_dir or f"./qs_artifacts/{function.__name__}_{suffix}"
+            )
+            os.makedirs(working_directory, exist_ok=True)
+
+            # dump pickle
+            pickle_file_name = f"pickle_{suffix}.pkl"
+            pickle_file_path = f"{working_directory}/{pickle_file_name}"
+            with open(pickle_file_path, "wb") as file:
+                cloudpickle.dump(function, file)
+
+            # create entrypoint
+            entrypoint_file_name = f"entrypoint_{suffix}.py"
+            entrypoint_file_path = f"{working_directory}/{entrypoint_file_name}"
+            with open(entrypoint_file_path, "w", encoding="utf-8") as file:
+                file.write(ENTRYPOINT_CONTENT.format(file_name=pickle_file_name))
+
+            # create program
+            wrapped_program = Program(
+                title=function.__name__,
+                entrypoint=entrypoint_file_name,
+                working_dir=working_directory,
+                dependencies=dependencies,
+                description="Program execution using @distribute_program decorator.",
+            )
+
+            # run program
+            job = provider.run(wrapped_program, arguments=kwargs)
+
+            # remove artifact files
+            if os.path.exists(pickle_file_path):
+                os.remove(pickle_file_path)
+            if os.path.exists(entrypoint_file_path):
+                os.remove(entrypoint_file_path)
+            if working_dir is None and os.path.exists(working_directory):
+                shutil.rmtree(working_directory)
+            return job
 
         return wrapper
 

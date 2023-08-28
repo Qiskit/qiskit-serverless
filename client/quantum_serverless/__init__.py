@@ -26,6 +26,7 @@ from importlib_metadata import version as metadata_version, PackageNotFoundError
 from .core import (
     BaseProvider,
     distribute_task,
+    distribute_program,
     get,
     put,
     get_refs_by_status,
