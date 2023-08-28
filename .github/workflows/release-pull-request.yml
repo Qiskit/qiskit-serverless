@@ -48,6 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      
       - name: Scan image ${{ matrix.image }}
         uses: ./.github/actions/docker-vscan
         with:
@@ -55,3 +56,6 @@ jobs:
           dockerfile: ${{ matrix.dockerfile }}
           docker_image_name: ${{ matrix.image }}
           pyversion: ${{ matrix.pyversion }}
+      
+      - name: Scan helm
+        uses: ./.github/actions/helm-lint
