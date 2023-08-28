@@ -346,7 +346,7 @@ def distribute_program(
     """[Experimental] Program decorator to turn function into remotely executable program.
 
     Example:
-        >>> @program(provider=Provider(...), dependencies=[...])
+        >>> @distribute_program(provider=Provider(...), dependencies=[...])
         >>> def my_program():
         >>>     print("Hola!")
         >>>
