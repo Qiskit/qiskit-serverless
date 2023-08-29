@@ -35,16 +35,18 @@ from quantum_serverless.core.constants import REQUESTS_TIMEOUT
 from quantum_serverless.utils.json import safe_json_request
 
 
-def download(url: str, local_file_path: str, token: str):
+def download(url: str, data: dict, local_file_path: str, token: str):
     """Downloads file from url.
 
     Args:
         url: url
+        data: data dict
         local_file_path: file destination
         token: auth token
     """
     with requests.get(
         url,
+        data=data,
         stream=True,
         headers={"Authorization": f"Bearer {token}"},
         timeout=REQUESTS_TIMEOUT,
@@ -76,7 +78,8 @@ class GatewayFilesClient:
         with tracer.start_as_current_span("files.download"):
             safe_json_request(
                 request=lambda: download(
-                    url=f"{self.host}/api/{self.version}/files/{file}",
+                    url=f"{self.host}/api/{self.version}/files/download/",
+                    data={"file": file},
                     local_file_path=os.path.join(directory, f"downloaded_{file}"),
                     token=self._token,
                 ),
