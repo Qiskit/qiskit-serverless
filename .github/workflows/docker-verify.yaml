@@ -7,7 +7,7 @@ on:
       - "Dockerfile-ray-node"
       - "gateway/Dockerfile"
       - "repository/Dockerfile"
-      - ".github/actions/docker-vscan/action.yml"
+      - ".github/actions/docker-vscan/action.yaml"
       - ".github/scripts/dockerfile-security.rego"
       - ".github/workflows/docker-verify.yaml"
 

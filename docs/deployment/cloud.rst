@@ -71,7 +71,7 @@ In case you want to use the ``main`` branch you can use the configuration for de
 .. code-block::
    :caption: run the command from the root of the project
 
-        $ docker compose -f docker-compose-dev.yml --profile jupyter up
+        $ docker compose -f docker-compose-dev.yaml --profile jupyter up
 
 .. _helm-deployment:
 

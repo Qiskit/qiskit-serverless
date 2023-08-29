@@ -7,7 +7,7 @@ inputs:
     default: aquasec/trivy:0.42.1
     required: false
   GITHUB_TOKEN:
-    description: GitHub token passed as input to be used in action.yml # https://github.com/orgs/community/discussions/27054#discussioncomment-3254450
+    description: GitHub token passed as input to be used in action.yaml # https://github.com/orgs/community/discussions/27054#discussioncomment-3254450
     required: true
   dockerfile: 
     description: Dockerfile to build the image

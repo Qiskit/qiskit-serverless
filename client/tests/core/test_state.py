@@ -32,7 +32,7 @@ def test_state():
     """Integration test for jobs."""
 
     with DockerCompose(
-        resources_path, compose_file_name="test-compose.yml", pull=True
+        resources_path, compose_file_name="test-compose.yaml", pull=True
     ) as compose:
         host = compose.get_service_host("testrayhead", 8265)
         port = compose.get_service_port("testrayhead", 8265)

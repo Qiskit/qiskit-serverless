@@ -3,10 +3,10 @@ name: Helm verify process
 on:
   push:
     paths:
-      - "ct.yml"
+      - "ct.yaml"
       - "charts/*"
-      - ".github/actions/helm-lint/action.yml"
-      - ".github/workflows/helm-verify.yml"
+      - ".github/actions/helm-lint/action.yaml"
+      - ".github/workflows/helm-verify.yaml"
 
 jobs:
   lint:

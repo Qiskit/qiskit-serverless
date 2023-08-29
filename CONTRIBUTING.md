@@ -138,15 +138,15 @@ To set up a local development environment for the quantum-serverless components 
 
 To build the images, run the following command from the root directory:
 
-```docker compose -f docker-compose-dev.yml build```
+```docker compose -f docker-compose-dev.yaml build```
 
 And to deploy your code, run the following command:
 
-```docker compose -f docker-compose-dev.yml up```
+```docker compose -f docker-compose-dev.yaml up```
 
 If you wish to rebuild only a specific component (for example, the `gateway`), you can do so as follows:
 
-```docker compose -f docker-compose-dev.yml build gateway```
+```docker compose -f docker-compose-dev.yaml build gateway```
 
 For Apple Silicon system (arm64 / aarch64), set `TARGETARCH=arm64` before running the `docker compose` command.
 

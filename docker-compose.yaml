@@ -1,27 +1,21 @@
-# compose config for running images based on local files
+# compose config on latest release builds
 services:
   jupyter:
     container_name: qs-jupyter
-    build:
-      context: ./
-      dockerfile: Dockerfile-notebook
+    image: icr.io/quantum-public/quantum-serverless-notebook:${VERSION:-0.4.0}-py39
     profiles: ["jupyter", "full"]
     ports:
       - 8888:8888
     environment:
       - JUPYTER_TOKEN=123
-      - GATEWAY_HOST=http://gateway:8000
+      - GATEWAY_HOST=http://gateway:8000      
     networks:
       - safe-tier
   ray-head:
     container_name: ray-head
-    build:
-      context: ./
-      dockerfile: Dockerfile-ray-node
-      args:
-        TARGETARCH: "${TARGETARCH:-amd64}"
+    image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.4.0}-py39
     entrypoint: [
-      "env", "RAY_LOG_TO_STDERR=1", "ray", "start", "--head", "--port=6379",
+      "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
     ]
     ports:
@@ -39,6 +33,8 @@ services:
       POSTGRES_PASSWORD: testkeycloakpassword
     networks:
       - safe-tier
+    ports:
+      - 5432:5432
     restart:
       always
   keycloak:
@@ -66,14 +62,12 @@ services:
       always
   gateway:
     container_name: gateway
-    build:
-      context: ./
-      dockerfile: gateway/Dockerfile
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.4.0}
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
     environment:
-      - DEBUG=1
+      - DEBUG=0
       - RAY_HOST=http://ray-head:8265
       - CLIENT_ID=gateway-client
       - DJANGO_SUPERUSER_USERNAME=admin
@@ -99,9 +93,7 @@ services:
       - postgres
   scheduler:
     container_name: scheduler
-    build:
-      context: ./
-      dockerfile: gateway/Dockerfile
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.4.0}
     entrypoint: "./scripts/scheduler.sh"
     environment:
       - DEBUG=0
@@ -121,15 +113,13 @@ services:
       - postgres
   repository-server:
     container_name: repository-server
-    build:
-      context: ./
-      dockerfile: repository/Dockerfile
+    image: icr.io/quantum-public/quantum-repository-server:${VERSION:-0.4.0}
     profiles: [ "full", "repo" ]
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
       - 8060:8060
     environment:
-      - DEBUG=1
+      - DEBUG=0
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
@@ -171,7 +161,7 @@ services:
     profiles: [ "full" ]
     volumes:
       - /var/log:/var/log
-    command: -config.file=/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yaml
     networks:
       - safe-tier
   grafana:
