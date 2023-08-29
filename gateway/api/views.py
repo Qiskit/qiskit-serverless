@@ -217,28 +217,33 @@ class FilesViewSet(viewsets.ViewSet):
 
         return Response(files)
 
-    @action(methods=["GET"], detail=True)
-    def download(self, request, pk=None):  # pylint: disable=invalid-name
+    @action(methods=["GET"], detail=False)
+    def download(self, request):  # pylint: disable=invalid-name
         """Download selected file."""
+        response = Response(status=status.HTTP_404_NOT_FOUND)
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.download", context=ctx):
-            user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
-            file_path = os.path.join(user_dir, pk)
-            response = Response(status=status.HTTP_404_NOT_FOUND)
-            if os.path.exists(user_dir) and os.path.exists(file_path):
-                filename = os.path.basename(file_path)
-                chunk_size = 8192
-                with open(file_path, "rb") as streamed_file:
-                    response = StreamingHttpResponse(
-                        FileWrapper(
-                            streamed_file,
-                            chunk_size,
-                        ),
-                        content_type=mimetypes.guess_type(file_path)[0],
-                    )
-                    response["Content-Length"] = os.path.getsize(file_path)
-                    response["Content-Disposition"] = f"attachment; filename={filename}"
+            requested_file_name = request.query_params.get("file")
+            if requested_file_name is not None:
+                # look for file in user's folder
+                user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
+                file_path = os.path.join(user_dir, requested_file_name)
+                if os.path.exists(user_dir) and os.path.exists(file_path):
+                    filename = os.path.basename(file_path)
+                    chunk_size = 8192
+                    with open(file_path, "rb") as streamed_file:
+                        response = StreamingHttpResponse(
+                            FileWrapper(
+                                streamed_file,
+                                chunk_size,
+                            ),
+                            content_type=mimetypes.guess_type(file_path)[0],
+                        )
+                        response["Content-Length"] = os.path.getsize(file_path)
+                        response[
+                            "Content-Disposition"
+                        ] = f"attachment; filename={filename}"
             return response
 
 

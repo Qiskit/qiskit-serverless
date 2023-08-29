@@ -1,5 +1,6 @@
 """Tests files api."""
 import os
+from urllib.parse import quote_plus
 
 from django.urls import reverse
 from rest_framework import status
@@ -38,3 +39,42 @@ class TestFilesApi(APITestCase):
             response = self.client.get(url, format="json")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.data, ["artifact.tar"])
+
+    def test_non_existing_file_download(self):
+        """Tests downloading non-existing file."""
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+        url = reverse("v1:files-download")
+        response = self.client.get(
+            url, data={"file": "non_existing.tar"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        response = self.client.get(url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_file_download(self):
+        """Tests downloading non-existing file."""
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+
+        with self.settings(MEDIA_ROOT=media_root):
+            auth = reverse("rest_login")
+            response = self.client.post(
+                auth, {"username": "test_user", "password": "123"}, format="json"
+            )
+            token = response.data.get("access")
+            self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+            url = reverse("v1:files-download")
+            response = self.client.get(
+                url, data={"file": "artifact.tar"}, format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertTrue(response.streaming)
