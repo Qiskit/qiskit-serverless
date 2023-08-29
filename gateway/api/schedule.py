@@ -180,7 +180,7 @@ def check_job_timeout(job: Job, job_status):
 
 
 def handle_job_status_not_available(job: Job, job_status):
-    """Process job status not available and update job """
+    """Process job status not available and update job"""
 
     if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
