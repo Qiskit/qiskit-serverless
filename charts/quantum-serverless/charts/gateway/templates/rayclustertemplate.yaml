@@ -135,6 +135,8 @@ data:
                   value: {{ .Values.application.ray.openTelemetryCollector.port | quote }}
                 - name: OT_INSECURE
                   value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
+                - name: OT_ENABLED
+                  value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
 {{- end }}
             - image: fluent/fluent-bit:1.9.10
               name: ray-head-logs
@@ -291,6 +293,8 @@ data:
                   value: {{ .Values.application.ray.openTelemetryCollector.port | quote }}
                 - name: OT_INSECURE
                   value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
+                - name: OT_ENABLED
+                  value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
 {{- end }}
               image: {{ .Values.application.ray.nodeImage | quote}}
               imagePullPolicy: IfNotPresent

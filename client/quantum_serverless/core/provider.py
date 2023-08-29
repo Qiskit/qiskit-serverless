@@ -41,6 +41,7 @@ from quantum_serverless.core.constants import (
     REQUESTS_TIMEOUT,
     ENV_GATEWAY_PROVIDER_HOST,
     ENV_GATEWAY_PROVIDER_VERSION,
+    ENV_GATEWAY_PROVIDER_TOKEN,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 from quantum_serverless.core.files import GatewayFilesClient
@@ -55,6 +56,7 @@ from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
 from quantum_serverless.utils.json import safe_json_request
+from quantum_serverless.visualizaiton import Widget
 
 TIMEOUT = 30
 
@@ -293,6 +295,10 @@ class BaseProvider(JsonSerializable):
         """Download file."""
         raise NotImplementedError
 
+    def widget(self):
+        """Widget for information about provider and jobs."""
+        return Widget(self).show()
+
 
 class Provider(BaseProvider):
     """Provider."""
@@ -327,6 +333,7 @@ class Provider(BaseProvider):
         if version is None:
             version = GATEWAY_PROVIDER_VERSION_DEFAULT
 
+        token = token or os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN)
         if token is None and (username is None or password is None):
             raise QuantumServerlessException(
                 "Authentication credentials must "

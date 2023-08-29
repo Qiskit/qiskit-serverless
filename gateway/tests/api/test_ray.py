@@ -1,4 +1,5 @@
 """Tests for ray util functions."""
+import json
 import os
 import shutil
 from unittest.mock import MagicMock
@@ -17,6 +18,7 @@ from api.ray import (
     kill_ray_cluster,
     JobHandler,
 )
+from api.utils import encrypt_string
 
 
 class response:
@@ -129,5 +131,6 @@ class TestJobHandler(APITestCase):
     def test_job_submit(self):
         """Tests job submission."""
         job = Job.objects.first()
+        job.env_vars = json.dumps({"QISKIT_IBM_TOKEN": encrypt_string("awesome_token")})
         job_id = self.handler.submit(job)
         self.assertEqual(job_id, "AwesomeJobId")
