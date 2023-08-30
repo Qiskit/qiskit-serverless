@@ -173,7 +173,6 @@ def check_job_timeout(job: Job, job_status):
             job.id,
             timeout,
         )
-    print(job_status)
     return job_status
 
 
