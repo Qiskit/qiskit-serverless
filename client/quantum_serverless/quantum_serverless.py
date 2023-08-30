@@ -156,17 +156,18 @@ class QuantumServerless:
         """
         return self._selected_provider.files()
 
-    def download(self, file: str):
+    def download(self, file: str, directory: str = "./"):
         """Downloads file.
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> serverless.download('artifact.tar')
+            >>> serverless.download('artifact.tar', directory="./")
 
         Args:
             file: name of file to download
+            directory: destination directory. Default: current directory
         """
-        return self._selected_provider.download(file)
+        return self._selected_provider.download(file, directory)
 
     def context(
         self,

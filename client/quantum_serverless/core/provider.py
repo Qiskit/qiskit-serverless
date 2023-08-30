@@ -291,7 +291,7 @@ class BaseProvider(JsonSerializable):
         """Returns list of available files produced by programs to download."""
         raise NotImplementedError
 
-    def download(self, file: str):
+    def download(self, file: str, directory: str):
         """Download file."""
         raise NotImplementedError
 

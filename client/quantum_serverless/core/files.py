@@ -26,35 +26,15 @@ Quantum serverless files
 
 """
 import os.path
-from typing import List
+import uuid
+from typing import List, Optional
 
 import requests
 from opentelemetry import trace
+from tqdm import tqdm
 
 from quantum_serverless.core.constants import REQUESTS_TIMEOUT
 from quantum_serverless.utils.json import safe_json_request
-
-
-def download(url: str, data: dict, local_file_path: str, token: str):
-    """Downloads file from url.
-
-    Args:
-        url: url
-        data: data dict
-        local_file_path: file destination
-        token: auth token
-    """
-    with requests.get(
-        url,
-        data=data,
-        stream=True,
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=REQUESTS_TIMEOUT,
-    ) as req:
-        req.raise_for_status()
-        with open(local_file_path, "wb") as f:
-            for chunk in req.iter_content(chunk_size=8192):
-                f.write(chunk)
 
 
 class GatewayFilesClient:
@@ -72,18 +52,31 @@ class GatewayFilesClient:
         self.version = version
         self._token = token
 
-    def download(self, file: str, directory: str):
+    def download(self, file: str, directory: str) -> Optional[str]:
         """Downloads file."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.download"):
-            safe_json_request(
-                request=lambda: download(
-                    url=f"{self.host}/api/{self.version}/files/download/",
-                    data={"file": file},
-                    local_file_path=os.path.join(directory, f"downloaded_{file}"),
-                    token=self._token,
-                ),
-            )
+            with requests.get(
+                f"{self.host}/api/{self.version}/files/download/",
+                params={"file": file},
+                stream=True,
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_TIMEOUT,
+            ) as req:
+                req.raise_for_status()
+
+                total_size_in_bytes = int(req.headers.get("content-length", 0))
+                chunk_size = 8192
+                progress_bar = tqdm(
+                    total=total_size_in_bytes, unit="iB", unit_scale=True
+                )
+                file_name = f"downloaded_{str(uuid.uuid4())[:8]}_{file}"
+                with open(os.path.join(directory, file_name), "wb") as f:
+                    for chunk in req.iter_content(chunk_size=chunk_size):
+                        progress_bar.update(len(chunk))
+                        f.write(chunk)
+                progress_bar.close()
+                return file_name
 
     def list(self) -> List[str]:
         """Returns list of available files to download produced by programs,"""
