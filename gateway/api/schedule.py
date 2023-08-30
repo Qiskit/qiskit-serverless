@@ -3,6 +3,7 @@ import logging
 import random
 import uuid
 from typing import List
+from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -14,6 +15,7 @@ from opentelemetry import trace
 
 from api.models import Job, Program, ComputeResource
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
+from main import settings as config
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
@@ -153,3 +155,40 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
         job_filter |= Q(author=entry["author"]) & Q(created=entry["job_date"])
 
     return Job.objects.filter(job_filter)
+
+
+def check_job_timeout(job: Job, job_status):
+    """Check job timeout and update job status."""
+
+    timeout = config.PROGRAM_TIMEOUT
+    if job.updated:
+        endtime = job.updated + timedelta(days=timeout)
+        now = datetime.now(tz=endtime.tzinfo)
+    if job.updated and endtime < now:
+        job_status = Job.STOPPED
+        job.logs = f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
+        job.save()
+        logger.warning(
+            "Job [%s] reached maximum runtime [%s] days and stopped.",
+            job.id,
+            timeout,
+        )
+    return job_status
+
+
+def handle_job_status_not_available(job: Job, job_status):
+    """Process job status not available and update job"""
+
+    if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
+        logger.debug(
+            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
+            + "so cluster [%s] will not be removed",
+            job.compute_resource.title,
+        )
+    else:
+        kill_ray_cluster(job.compute_resource.title)
+        job.compute_resource.delete()
+        job.compute_resource = None
+        job_status = Job.FAILED
+        job.logs = f"{job.logs}\nSomething went wrong during updating job status."
+    return job_status
