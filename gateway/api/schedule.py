@@ -1,5 +1,6 @@
 """Scheduling related functions."""
 import logging
+import os
 import random
 import uuid
 from typing import List
@@ -12,6 +13,7 @@ from django.db.models import Q
 from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
+from slack_sdk import WebClient
 
 from api.models import Job, Program, ComputeResource
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
@@ -192,3 +194,16 @@ def handle_job_status_not_available(job: Job, job_status):
         job_status = Job.FAILED
         job.logs = f"{job.logs}\nSomething went wrong during updating job status."
     return job_status
+
+
+def send_notifications(job: Job):
+    """Send job status change notifications to the configured targets"""
+    slack_token = os.environ.get("SLACK_TOKEN")
+    slack_channel = os.environ.get("SLACK_CHANNEL")
+    if slack_token and slack_channel:
+        slack_client = WebClient(token=slack_token)
+        if job.status in (Job.SUCCEEDED, Job.STOPPED, Job.FAILED):
+            slack_client.chat_postMessage(
+                channel=slack_channel,
+                text=f"Job: {job.id} completed.  Job status: {job.status}",
+            )

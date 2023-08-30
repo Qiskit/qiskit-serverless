@@ -231,6 +231,13 @@ spec:
               value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
             - name: PROGRAM_TIMEOUT
               value: {{ .Values.application.limits.programTimeoutDays | quote }}
+            - name: SLACK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-slack
+                  key: token
+            - name: SLACK_CHANNEL
+              value: {{ .Values.application.slack.channel }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

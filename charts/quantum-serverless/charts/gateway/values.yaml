@@ -34,7 +34,9 @@ application:
       host: "http://otel-collector"
       port: 4317
       insecure: 0
-
+  slack:
+    token: "SLACK-BOT-TOKEN"
+    #channel: "CHANNEL-ID"
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4

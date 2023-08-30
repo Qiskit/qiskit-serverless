@@ -5,7 +5,11 @@ from django.core.management.base import BaseCommand
 
 from api.models import Job
 from api.ray import get_job_handler
-from api.schedule import check_job_timeout, handle_job_status_not_available
+from api.schedule import (
+    check_job_timeout,
+    handle_job_status_not_available,
+    send_notifications,
+)
 from api.utils import ray_job_status_to_model_job_status
 
 logger = logging.getLogger("commands")
@@ -55,6 +59,7 @@ class Command(BaseCommand):
                         job.env_vars = "{}"
                     job.status = job_status
                     job.save()
+                    send_notifications(job)
             else:
                 logger.warning(
                     "Job [%s] does not have compute resource associated with it. Skipping.",
