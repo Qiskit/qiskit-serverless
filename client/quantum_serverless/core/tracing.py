@@ -45,6 +45,7 @@ from quantum_serverless.core.constants import (
     OT_TRACEPARENT_ID_KEY,
     OT_RAY_TRACER,
     OT_INSECURE,
+    OT_ENABLED,
     OT_SPAN_DEFAULT_NAME,
     OT_LABEL_CALL_LOCATION,
 )
@@ -82,7 +83,10 @@ def get_tracer(
             )
         )
         provider.add_span_processor(otel_exporter)
-    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+    if bool(int(os.environ.get(OT_ENABLED, "0"))):
+        trace._set_tracer_provider(  # pylint: disable=protected-access
+            provider, log=False
+        )
     return trace.get_tracer(instrumenting_module_name)
 
 
@@ -141,4 +145,7 @@ def setup_tracing() -> None:
         )
     )
     provider.add_span_processor(otel_exporter)
-    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+    if bool(int(os.environ.get(OT_ENABLED, "0"))):
+        trace._set_tracer_provider(  # pylint: disable=protected-access
+            provider, log=False
+        )

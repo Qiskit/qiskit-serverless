@@ -23,7 +23,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7"
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DEBUG", 1))
@@ -299,6 +302,8 @@ RAY_SETUP_MAX_RETRIES = int(os.environ.get("RAY_SETUP_MAX_RETRIES", 30))
 RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(
     os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False)
 )
+
+PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
 
 # qiskit runtime
 QISKIT_IBM_CHANNEL = os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum")

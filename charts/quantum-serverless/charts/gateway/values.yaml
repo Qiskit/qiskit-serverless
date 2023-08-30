@@ -18,7 +18,7 @@ application:
     password: "passw0rd"
     email: "admin@examplemail.io"
   ray:
-    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.3.2-py39"
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.4.0-py39"
     cpu: 2
     memory: 2
     replicas: 1
@@ -39,6 +39,7 @@ application:
     maxJobsPerUser: 2
     maxComputeResources: 4
     keepClusterOnComplete: False
+    programTimeoutDays: 14
   qiskitRuntime:
     channel: "ibm_quantum"
     url: "https://auth.quantum-computing.ibm.com/api"

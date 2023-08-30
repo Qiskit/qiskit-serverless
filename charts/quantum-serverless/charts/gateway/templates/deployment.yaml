@@ -65,6 +65,11 @@ spec:
           env:
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: django
+                  key: secret_key
             - name: SITE_HOST
               value: {{ .Values.application.siteHost | quote }}
             - name: RAY_HOST
@@ -182,6 +187,11 @@ spec:
           env:
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: django
+                  key: secret_key
             - name: DATABASE_HOST
               value: {{ .Values.database.host }}
             - name: DATABASE_PORT
@@ -206,6 +216,7 @@ spec:
 {{- if .Values.application.limits.keepClusterOnComplete }}
             - name: RAY_CLUSTER_NO_DELETE_ON_COMPLETE
               value: "True"
+{{- end }}
             - name: OTEL_ENABLED
               value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
             - name: OTEL_SERVICE_NAME
@@ -218,7 +229,8 @@ spec:
               value: {{ .Values.application.ray.openTelemetryCollector.host }}:{{ .Values.application.ray.openTelemetryCollector.port }}
             - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
               value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
-{{- end }}       
+            - name: PROGRAM_TIMEOUT
+              value: {{ .Values.application.limits.programTimeoutDays | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

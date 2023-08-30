@@ -1,0 +1,12 @@
+# See https://github.com/helm/chart-testing#configuration
+remote: origin
+target-branch: main
+chart-dirs:
+  - charts
+chart-repos:
+  - nginx-ingress-controller=https://charts.bitnami.com/bitnami
+  - kuberay-operator=https://ray-project.github.io/kuberay-helm
+  - redis=https://charts.bitnami.com/bitnami
+  - keycloak=https://charts.bitnami.com/bitnami
+  - prometheus-community=https://prometheus-community.github.io/helm-charts
+  - grafana=https://grafana.github.io/helm-charts

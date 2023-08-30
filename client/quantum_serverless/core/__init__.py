@@ -42,6 +42,7 @@ Core abstractions
     CircuitMeta
     fetch_execution_meta
     distribute_task
+    distribute_program
     get
     put
     get_refs_by_status
@@ -82,6 +83,7 @@ from .decorators import (
     get_refs_by_status,
     fetch_execution_meta,
     distribute_task,
+    distribute_program,
     Target,
     CircuitMeta,
 )

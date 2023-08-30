@@ -35,10 +35,10 @@ kube-prometheus-stack:
     #      http: 32059
     # 3. uncomment following lines
     #
-    #service:
+    # service:
     #  type: NodePort
     #  nodePort: 32294
-    #grafana.ini:
+    # grafana.ini:
     #  auth:
     #    disable_login_form: "true"
     #  auth.generic_oauth:

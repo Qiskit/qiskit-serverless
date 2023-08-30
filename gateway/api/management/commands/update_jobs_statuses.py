@@ -4,7 +4,8 @@ import logging
 from django.core.management.base import BaseCommand
 
 from api.models import Job
-from api.ray import kill_ray_cluster, get_job_handler
+from api.ray import get_job_handler
+from api.schedule import check_job_timeout, handle_job_status_not_available
 from api.utils import ray_job_status_to_model_job_status
 
 logger = logging.getLogger("commands")
@@ -29,6 +30,7 @@ class Command(BaseCommand):
                         job.logs = logs
 
                     ray_job_status = job_handler.status(job.ray_job_id)
+
                     if ray_job_status:
                         job_status = ray_job_status_to_model_job_status(ray_job_status)
                     else:
@@ -36,14 +38,9 @@ class Command(BaseCommand):
                 else:
                     success = False
 
+                job_status = check_job_timeout(job, job_status)
                 if not success:
-                    kill_ray_cluster(job.compute_resource.title)
-                    job.compute_resource.delete()
-                    job.compute_resource = None
-                    job_status = Job.FAILED
-                    job.logs = (
-                        f"{job.logs}\nSomething went wrong during updating job status."
-                    )
+                    job_status = handle_job_status_not_available(job, job_status)
 
                 if job_status != job.status:
                     logger.info(
@@ -53,11 +50,11 @@ class Command(BaseCommand):
                         job_status,
                     )
                     updated_jobs_counter += 1
-                # cleanup env vars
-                if job.in_terminal_state():
-                    job.env_vars = "{}"
-                job.status = job_status
-                job.save()
+                    # cleanup env vars
+                    if job.in_terminal_state():
+                        job.env_vars = "{}"
+                    job.status = job_status
+                    job.save()
             else:
                 logger.warning(
                     "Job [%s] does not have compute resource associated with it. Skipping.",
