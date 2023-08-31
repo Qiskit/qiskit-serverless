@@ -41,6 +41,9 @@ application:
     channel: "ibm_quantum"
     url: "https://auth.quantum-computing.ibm.com/api"
 
+cos:
+  claimName: gateway-claim
+
 secrets:
   secretKey:
     name: gateway-secret-key
@@ -59,9 +62,6 @@ secrets:
       name: admin
       password: passw0rd
       email: admin@examplemail.io
-
-vpc:
-    claimName: gateway-claim
 
 image:
   repository: icr.io/quantum-public/quantum-serverless-gateway

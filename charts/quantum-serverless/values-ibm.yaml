@@ -60,6 +60,9 @@ gateway:
       maxJobsPerUser: 2
       maxComputeResources: 4
   
+  cos:
+    claimName: gateway-claim
+
   secrets:
     secretKey:
       name: gateway-secret-key
@@ -72,9 +75,6 @@ gateway:
         host: database-host
         port: database-port
         userName: user-name
-
-  vpc:
-    claimName: gateway-claim
 
 # ===================
 # Redis configs
