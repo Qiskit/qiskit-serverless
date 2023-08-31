@@ -59,8 +59,20 @@ gateway:
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
-  database:
-    name: gateway_db
+  
+  secrets:
+    secretKey:
+      name: gateway-secret-key
+      key: django-secret-key
+    servicePsql:
+      name: service-psql-binding
+      key:
+        databaseName: database-name
+        databasePassword: database-password
+        host: database-host
+        port: database-port
+        userName: user-name
+
   vpc:
     claimName: gateway-claim
 
