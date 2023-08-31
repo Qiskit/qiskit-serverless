@@ -14,9 +14,7 @@ application:
     token: {}
     keycloak: {}
   superuser:
-    username: "admin"
-    password: "passw0rd"
-    email: "admin@examplemail.io"
+    enable: 0
   ray:
     nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.5.0-py39"
     cpu: 2
@@ -44,11 +42,24 @@ application:
     channel: "ibm_quantum"
     url: "https://auth.quantum-computing.ibm.com/api"
 
-database:
-  host: postgresql
-  port: 5432
-  user: bn_keycloak
-  name: bitnami_keycloak
+secrets:
+  secretKey:
+    name: gateway-secret-key
+    key: django-secret-key
+  servicePsql:
+    name: service-psql-binding
+    key:
+      databaseName: database-name
+      databasePassword: database-password
+      host: database-host
+      port: database-port
+      userName: user-name
+  superuser:
+    name: gateway-superuser
+    key:
+      name: admin
+      password: passw0rd
+      email: admin@examplemail.io
 
 vpc:
     claimName: gateway-claim

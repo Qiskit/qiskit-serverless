@@ -68,8 +68,8 @@ spec:
             - name: DJANGO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.secret_key.name }}
-                  key: {{ .Values.secrets.secret_key.key }}
+                  name: {{ .Values.secrets.secretKey.name }}
+                  key: {{ .Values.secrets.secretKey.key }}
             - name: SITE_HOST
               value: {{ .Values.application.siteHost | quote }}
             - name: RAY_HOST
@@ -213,8 +213,8 @@ spec:
             - name: DJANGO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.secret_key.name }}
-                  key: {{ .Values.secrets.secret_key.key }}
+                  name: {{ .Values.secrets.secretKey.name }}
+                  key: {{ .Values.secrets.secretKey.key }}
             - name: DATABASE_HOST
               valueFrom:
                 secretKeyRef:
