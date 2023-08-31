@@ -291,7 +291,7 @@ class BaseProvider(JsonSerializable):
         """Returns list of available files produced by programs to download."""
         raise NotImplementedError
 
-    def download(self, file: str, directory: str):
+    def download(self, file: str, download_location: str):
         """Download file."""
         raise NotImplementedError
 
@@ -378,8 +378,8 @@ class Provider(BaseProvider):
     def files(self) -> List[str]:
         return self._files_client.list()
 
-    def download(self, file: str, directory: str = "./"):
-        return self._files_client.download(file, directory)
+    def download(self, file: str, download_location: str = "./"):
+        return self._files_client.download(file, download_location)
 
     def _fetch_token(self, username: str, password: str):
         response_data = safe_json_request(

@@ -52,7 +52,7 @@ class GatewayFilesClient:
         self.version = version
         self._token = token
 
-    def download(self, file: str, directory: str) -> Optional[str]:
+    def download(self, file: str, download_location: str) -> Optional[str]:
         """Downloads file."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.download"):
@@ -71,7 +71,7 @@ class GatewayFilesClient:
                     total=total_size_in_bytes, unit="iB", unit_scale=True
                 )
                 file_name = f"downloaded_{str(uuid.uuid4())[:8]}_{file}"
-                with open(os.path.join(directory, file_name), "wb") as f:
+                with open(os.path.join(download_location, file_name), "wb") as f:
                     for chunk in req.iter_content(chunk_size=chunk_size):
                         progress_bar.update(len(chunk))
                         f.write(chunk)

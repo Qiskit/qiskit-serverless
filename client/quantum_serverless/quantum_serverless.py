@@ -156,7 +156,7 @@ class QuantumServerless:
         """
         return self._selected_provider.files()
 
-    def download(self, file: str, directory: str = "./"):
+    def download(self, file: str, download_location: str = "./"):
         """Downloads file.
 
         Example:
@@ -165,9 +165,9 @@ class QuantumServerless:
 
         Args:
             file: name of file to download
-            directory: destination directory. Default: current directory
+            download_location: destination directory. Default: current directory
         """
-        return self._selected_provider.download(file, directory)
+        return self._selected_provider.download(file, download_location)
 
     def context(
         self,

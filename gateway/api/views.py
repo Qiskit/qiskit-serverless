@@ -230,11 +230,11 @@ class FilesViewSet(viewsets.ViewSet):
             requested_file_name = request.query_params.get("file")
             if requested_file_name is not None:
                 # look for file in user's folder
+                filename = os.path.basename(requested_file_name)
                 user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
-                file_path = os.path.join(user_dir, requested_file_name)
+                file_path = os.path.join(user_dir, filename)
 
                 if os.path.exists(user_dir) and os.path.exists(file_path):
-                    filename = os.path.basename(file_path)
                     chunk_size = 8192
                     # note: we do not use with statements as Streaming response closing file itself.
                     response = StreamingHttpResponse(

@@ -38,7 +38,7 @@ class TestFilesApi(APITestCase):
             url = reverse("v1:files-list")
             response = self.client.get(url, format="json")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(response.data, ["artifact.tar"])
+            self.assertEqual(response.data, {"results": ["artifact.tar"]})
 
     def test_non_existing_file_download(self):
         """Tests downloading non-existing file."""
