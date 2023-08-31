@@ -13,7 +13,7 @@ jobs:
       - name: Setup KinD
         uses: chainguard-dev/actions/setup-kind@main
         with:
-          k8s-version: 1.26
+          k8s-version: 1.26.x
           kind-worker-count: 4
           cluster-suffix: c${{ github.run_id }}.local
       - name: Build gateway
