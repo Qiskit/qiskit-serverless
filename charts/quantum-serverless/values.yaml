@@ -54,7 +54,7 @@ gateway:
         realm: "quantum-serverless"
         clientSecret: GATEWAYSECRET-CHANGEME
     superuser:
-      enable: 1
+      enable: true
     service:
       type: ClusterIP
       port: 8000

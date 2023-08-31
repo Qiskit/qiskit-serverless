@@ -52,7 +52,7 @@ gateway:
         verificationUrl: "https://auth-dev.quantum-computing.ibm.com/api/users/me"
         verificationField: "ibmQNetwork"
     superuser:
-      enable: 0
+      enable: false
     service:
       type: ClusterIP
       port: 8000

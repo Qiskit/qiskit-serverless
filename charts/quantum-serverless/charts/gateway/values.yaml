@@ -14,7 +14,7 @@ application:
     token: {}
     keycloak: {}
   superuser:
-    enable: 0
+    enable: true
   ray:
     nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.5.0-py39"
     cpu: 2
@@ -32,7 +32,6 @@ application:
       host: "http://otel-collector"
       port: 4317
       insecure: 0
-
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
