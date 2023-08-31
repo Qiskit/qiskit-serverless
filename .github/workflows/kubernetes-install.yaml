@@ -1,0 +1,59 @@
+name: Kubernetes install
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup KinD
+        uses: chainguard-dev/actions/setup-kind@main
+        with:
+          k8s-version: 1.26.4
+          kind-worker-count: 4
+          cluster-suffix: c${{ github.run_id }}.local
+      - name: Build gateway
+        run: docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
+      - name: Build ray node
+        run: docker build -t ray:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-ray-node .
+      - name: Build notebook
+        run: docker build -t notebook:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-notebook .
+      - name: Load images to cluster
+        run: |
+          kind load docker-image gateway:test
+          kind load docker-image ray:test
+          kind load docker-image notebook:test
+      - name: Install helm chart
+        run: |
+          cd charts/quantum-serverless
+          helm install qs \
+            --set platform=kind \
+            --set repositoryEnable=false \
+            --set prometheusEnable=false \
+            --set lokiEnable=false \
+            --set promtailEnable=false \
+            --set nginxIngressControllerEnable=false \
+            --set gateway.image.repository=gateway \
+            --set gateway.image.tag=test \
+            --set gateway.application.ray.nodeImage=ray:test \
+            --set gateway.application.limits.keepClusterOnComplete=true \
+            --set jupyter.image.repository=notebook \
+            --set jupyter.image.tag=test \
+            .
+      - name: Give containers time to initialize
+        shell: bash
+        run: sleep 90
+      - name: Run notebooks
+        run: echo "tests tbd"
+    - uses: chainguard-dev/actions/kind-diag@main
+      # Only upload logs on failure.
+      if: ${{ failure() }}
+      with:
+        cluster-resources: nodes,namespaces,crds
+        namespace-resources: configmaps,pods,svc
+        artifact-name: logs-${{ github.run_id }}
+
