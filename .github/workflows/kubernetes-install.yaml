@@ -49,11 +49,11 @@ jobs:
         run: sleep 90
       - name: Run notebooks
         run: echo "tests tbd"
-    - uses: chainguard-dev/actions/kind-diag@main
-      # Only upload logs on failure.
-      if: ${{ failure() }}
-      with:
-        cluster-resources: nodes,namespaces,crds
-        namespace-resources: configmaps,pods,svc
-        artifact-name: logs-${{ github.run_id }}
+      - uses: chainguard-dev/actions/kind-diag@main
+        # Only upload logs on failure.
+        if: ${{ failure() }}
+        with:
+          cluster-resources: nodes,namespaces,crds
+          namespace-resources: configmaps,pods,svc
+          artifact-name: logs-${{ github.run_id }}
 
