@@ -14,7 +14,7 @@ jobs:
         uses: chainguard-dev/actions/setup-kind@main
         with:
           k8s-version: 1.26.x
-          kind-worker-count: 4
+          kind-worker-count: 1
           cluster-suffix: c${{ github.run_id }}.local
       - name: Build gateway
         run: docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
