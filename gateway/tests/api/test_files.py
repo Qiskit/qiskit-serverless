@@ -78,3 +78,30 @@ class TestFilesApi(APITestCase):
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertTrue(response.streaming)
+
+    def test_escape_directory(self):
+        """Tests directory escape / injection."""
+        with self.settings(
+            MEDIA_ROOT=os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "..",
+                "resources",
+                "fake_media",
+            )
+        ):
+            auth = reverse("rest_login")
+            response = self.client.post(
+                auth, {"username": "test_user", "password": "123"}, format="json"
+            )
+            token = response.data.get("access")
+            self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+            url = reverse("v1:files-download")
+            response = self.client.get(
+                url, data={"file": "../test_user_2/artifact_2.tar"}, format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+            response = self.client.get(
+                url, data={"file": "../test_user_2/artifact_2.tar/"}, format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

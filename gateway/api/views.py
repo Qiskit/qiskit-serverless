@@ -198,7 +198,6 @@ class FilesViewSet(viewsets.ViewSet):
 
     BASE_NAME = "files"
 
-    # @action(methods=["GET"], detail=False)
     def list(self, request):
         """List of available for user files."""
         files = []
@@ -234,7 +233,7 @@ class FilesViewSet(viewsets.ViewSet):
                 user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
                 file_path = os.path.join(user_dir, filename)
 
-                if os.path.exists(user_dir) and os.path.exists(file_path):
+                if os.path.exists(user_dir) and os.path.exists(file_path) and filename:
                     chunk_size = 8192
                     # note: we do not use with statements as Streaming response closing file itself.
                     response = StreamingHttpResponse(
