@@ -37,7 +37,7 @@ spec:
       volumes:
         - name: gateway-pv-storage
           persistentVolumeClaim:
-            claimName: {{ .Values.vpc.claimName }}
+            claimName: {{ .Values.cos.claimName }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -186,7 +186,7 @@ spec:
       volumes:
         - name: gateway-pv-storage
           persistentVolumeClaim:
-            claimName: {{ .Values.vpc.claimName }}
+            claimName: {{ .Values.cos.claimName }}
         - name: ray-cluster-template
           configMap:
             name: rayclustertemplate

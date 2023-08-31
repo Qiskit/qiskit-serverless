@@ -2,8 +2,6 @@
 # Quantum Serverless configs
 # ===================
 platform: ibm
-vpc:
-  claimName: gateway-claim
 
 # ===================
 # Ingress Nginx controller configs
@@ -108,6 +106,7 @@ repositoryEnable: false
 cosEnable: false
 cos:
   bucket: BUCKETNAME-CHANGEME
+  claimName: gateway-claim
   endpoint: ENDPOINT-CHANGEME
   secretName: SECRETNAME-CHANGEME
   storageClassName: STORAGECLASSNAME-CHANGEME

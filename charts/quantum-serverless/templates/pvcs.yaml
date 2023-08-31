@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.vpc.claimName }}
+  name: {{ .Values.cos.claimName }}
 spec:
   storageClassName: standard 
   accessModes:
@@ -14,7 +14,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.vpc.claimName }}
+  name: {{ .Values.cos.claimName }}
   annotations:
     ibm.io/auto-create-bucket: "false"
     ibm.io/auto-delete-bucket: "false"
@@ -51,7 +51,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.vpc.claimName }}
+  name: {{ .Values.cos.claimName }}
 spec:
   storageClassName: manual
   accessModes:
