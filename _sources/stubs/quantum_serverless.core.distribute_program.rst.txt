@@ -1,0 +1,6 @@
+﻿quantum\_serverless.core.distribute\_program
+============================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autofunction:: distribute_program

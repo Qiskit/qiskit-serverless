@@ -24,6 +24,7 @@
       ~BaseProvider.job_client
       ~BaseProvider.run
       ~BaseProvider.to_dict
+      ~BaseProvider.widget
    
    
 

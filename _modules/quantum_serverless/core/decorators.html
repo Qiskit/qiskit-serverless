@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>quantum_serverless.core.decorators - Quantum serverless 0.4.0</title>
+        <title>quantum_serverless.core.decorators - Quantum serverless 0.5.0</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -144,7 +144,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../../index.html"><div class="brand">Quantum serverless 0.4.0</div></a>
+      <a href="../../../index.html"><div class="brand">Quantum serverless 0.5.0</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -171,7 +171,7 @@
     </div>
   </a>
   
-  <span class="sidebar-brand-text">Quantum serverless 0.4.0</span>
+  <span class="sidebar-brand-text">Quantum serverless 0.5.0</span>
 </div><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
@@ -226,6 +226,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.CircuitMeta.html">quantum_serverless.core.CircuitMeta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.fetch_execution_meta.html">quantum_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.distribute_task.html">quantum_serverless.core.distribute_task</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.distribute_program.html">quantum_serverless.core.distribute_program</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.get.html">quantum_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.put.html">quantum_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.get_refs_by_status.html">quantum_serverless.core.get_refs_by_status</a></li>
@@ -320,12 +321,17 @@
 <span class="sd">    run_qiskit_remote</span>
 <span class="sd">    get_refs_by_status</span>
 <span class="sd">    distribute_task</span>
+<span class="sd">    distribute_program</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Sequence</span>
+<span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">uuid4</span>
 
+<span class="kn">import</span> <span class="nn">cloudpickle</span>
 <span class="kn">import</span> <span class="nn">ray</span>
 <span class="kn">from</span> <span class="nn">opentelemetry</span> <span class="kn">import</span> <span class="n">trace</span>
 <span class="kn">from</span> <span class="nn">opentelemetry.trace.propagation.tracecontext</span> <span class="kn">import</span> <span class="n">TraceContextTextMapPropagator</span>
@@ -609,6 +615,125 @@
         <span class="k">return</span> <span class="n">wrapper</span>
 
     <span class="k">return</span> <span class="n">decorator</span></div>
+
+
+<span class="n">ENTRYPOINT_CONTENT</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">import cloudpickle</span>
+<span class="s2">from quantum_serverless import get_arguments, save_result</span>
+
+<span class="s2">arguments = get_arguments()</span>
+
+<span class="s2">with open(&quot;./</span><span class="si">{file_name}</span><span class="s2">&quot;, &quot;rb&quot;) as file:</span>
+<span class="s2">    function = cloudpickle.load(file)</span>
+
+<span class="s2">    result = function(**arguments)</span>
+<span class="s2">    if result is not None:</span>
+<span class="s2">        save_result(result)</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="distribute_program"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.distribute_program.html#quantum_serverless.core.distribute_program">[docs]</a><span class="k">def</span> <span class="nf">distribute_program</span><span class="p">(</span>
+    <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">dependencies</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">working_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[Experimental] Program decorator to turn function into remotely executable program.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; @distribute_program(provider=Provider(...), dependencies=[...])</span>
+<span class="sd">        &gt;&gt;&gt; def my_program():</span>
+<span class="sd">        &gt;&gt;&gt;     print(&quot;Hola!&quot;)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; job = my_program()</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        provider: provider to use for program execution</span>
+<span class="sd">        dependencies: dependencies for program</span>
+<span class="sd">        working_dir: working directory, which will be shipped for remote execution</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        remotely executable program</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># pylint: disable=import-outside-toplevel,cyclic-import</span>
+    <span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerlessException</span>
+    <span class="kn">from</span> <span class="nn">quantum_serverless.core.program</span> <span class="kn">import</span> <span class="n">Program</span>
+    <span class="kn">from</span> <span class="nn">quantum_serverless.core.provider</span> <span class="kn">import</span> <span class="n">Provider</span>
+
+    <span class="c1"># create provider</span>
+    <span class="k">if</span> <span class="n">provider</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># try to create from env vars</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">provider</span> <span class="o">=</span> <span class="n">Provider</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">QuantumServerlessException</span> <span class="k">as</span> <span class="n">qs_error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QuantumServerlessException</span><span class="p">(</span>
+                <span class="s2">&quot;Set provider in arguments for `distribute_program` &quot;</span>
+                <span class="s2">&quot;decorator or define env variables.&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span> <span class="nn">qs_error</span>
+    <span class="k">if</span> <span class="n">provider</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">QuantumServerlessException</span><span class="p">(</span>
+            <span class="s2">&quot;Provider was not defined. &quot;</span>
+            <span class="s2">&quot;Please, pass provider to @distribute_program decorator or setup env variables.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">decorator</span><span class="p">(</span><span class="n">function</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Decorator.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isfunction</span><span class="p">(</span><span class="n">function</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">QuantumServerlessException</span><span class="p">(</span>
+                <span class="s2">&quot;Only functions are supported by this decorator.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Function wrapper.&quot;&quot;&quot;</span>
+            <span class="n">suffix</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">())[:</span><span class="mi">8</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">QuantumServerlessException</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Only named arguments supported at this moment. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Please specify name of argument of function </span><span class="si">{</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+            <span class="c1"># create folder</span>
+            <span class="n">working_directory</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">working_dir</span> <span class="ow">or</span> <span class="sa">f</span><span class="s2">&quot;./qs_artifacts/</span><span class="si">{</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">working_directory</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="c1"># dump pickle</span>
+            <span class="n">pickle_file_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;pickle_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">.pkl&quot;</span>
+            <span class="n">pickle_file_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">working_directory</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">pickle_file_name</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file_path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                <span class="n">cloudpickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">function</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
+
+            <span class="c1"># create entrypoint</span>
+            <span class="n">entrypoint_file_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;entrypoint_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">.py&quot;</span>
+            <span class="n">entrypoint_file_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">working_directory</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">entrypoint_file_name</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">entrypoint_file_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">ENTRYPOINT_CONTENT</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_name</span><span class="o">=</span><span class="n">pickle_file_name</span><span class="p">))</span>
+
+            <span class="c1"># create program</span>
+            <span class="n">wrapped_program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
+                <span class="n">title</span><span class="o">=</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                <span class="n">entrypoint</span><span class="o">=</span><span class="n">entrypoint_file_name</span><span class="p">,</span>
+                <span class="n">working_dir</span><span class="o">=</span><span class="n">working_directory</span><span class="p">,</span>
+                <span class="n">dependencies</span><span class="o">=</span><span class="n">dependencies</span><span class="p">,</span>
+                <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Program execution using @distribute_program decorator.&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="c1"># run program</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="n">provider</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">wrapped_program</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">kwargs</span><span class="p">)</span>
+
+            <span class="c1"># remove artifact files</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">pickle_file_path</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">pickle_file_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">entrypoint_file_path</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">entrypoint_file_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">working_dir</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">working_directory</span><span class="p">):</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">working_directory</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">job</span>
+
+        <span class="k">return</span> <span class="n">wrapper</span>
+
+    <span class="k">return</span> <span class="n">decorator</span></div>
 </pre></div>
         </article>
       </div>
@@ -642,7 +767,7 @@
   </div>
 </div><script src="../../../_static/jquery.js?v=5d32c60e"></script>
     <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=4e78f113"></script>
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=3fadbb4a"></script>
     <script src="../../../_static/doctools.js?v=888ff710"></script>
     <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../../../_static/thebelab-helper.js"></script>

@@ -24,6 +24,7 @@
       ~Provider.job_client
       ~Provider.run
       ~Provider.to_dict
+      ~Provider.widget
    
    
 
