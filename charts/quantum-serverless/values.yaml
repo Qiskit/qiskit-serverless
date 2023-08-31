@@ -2,6 +2,8 @@
 # Quantum Serverless configs
 # ===================
 platform: default
+vpc:
+  claimName: gateway-claim
 
 # ===================
 # Ingress Nginx controller configs
@@ -67,6 +69,8 @@ gateway:
       maxComputeResources: 4
   database:
     name: gateway_db
+  vpc:
+    claimName: gateway-claim
 
 # ===================
 # Redis configs

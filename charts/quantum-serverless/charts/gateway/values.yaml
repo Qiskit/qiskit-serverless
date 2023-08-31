@@ -50,6 +50,9 @@ database:
   user: bn_keycloak
   name: bitnami_keycloak
 
+vpc:
+    claimName: gateway-claim
+
 image:
   repository: icr.io/quantum-public/quantum-serverless-gateway
   pullPolicy: IfNotPresent
