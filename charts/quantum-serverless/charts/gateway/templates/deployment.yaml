@@ -126,28 +126,28 @@ spec:
             - name: DATABASE_HOST
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.service_psql.name }}
-                  key: {{ .Values.secrets.service_psql.key.host }}
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.host }}
             - name: DATABASE_PORT
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.service_psql.name }}
-                  key: {{ .Values.secrets.service_psql.key.port }}
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.port }}
             - name: DATABASE_NAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.service_psql.name }}
-                  key: {{ .Values.secrets.service_psql.key.database_name }}
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
             - name: DATABASE_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.service_psql.name }}
-                  key: {{ .Values.secrets.service_psql.key.user_name }}
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.userName }}
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.service_psql.name }}
-                  key: {{ .Values.secrets.service_psql.key.user_password }}
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databasePassword }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -218,28 +218,28 @@ spec:
             - name: DATABASE_HOST
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.service_psql.name }}
-                  key: {{ .Values.secrets.service_psql.key.host }}
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.host }}
             - name: DATABASE_PORT
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.service_psql.name }}
-                  key: {{ .Values.secrets.service_psql.key.port }}
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.port }}
             - name: DATABASE_NAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.service_psql.name }}
-                  key: {{ .Values.secrets.service_psql.key.database_name }}
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
             - name: DATABASE_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.service_psql.name }}
-                  key: {{ .Values.secrets.service_psql.key.user_name }}
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.userName }}
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.service_psql.name }}
-                  key: {{ .Values.secrets.service_psql.key.user_password }}
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databasePassword }}
             - name: RAY_KUBERAY_NAMESPACE
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE
