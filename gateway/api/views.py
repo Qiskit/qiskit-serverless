@@ -219,6 +219,7 @@ class FilesViewSet(viewsets.ViewSet):
     @action(methods=["GET"], detail=False)
     def download(self, request):  # pylint: disable=invalid-name
         """Download selected file."""
+        # default response for file not found, overwritten if file is found
         response = Response(
             {"message": "Requested file was not found."},
             status=status.HTTP_404_NOT_FOUND,
