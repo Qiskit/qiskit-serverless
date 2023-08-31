@@ -68,8 +68,8 @@ spec:
             - name: DJANGO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: django
-                  key: secret_key
+                  name: {{ .Values.secrets.secret_key.name }}
+                  key: {{ .Values.secrets.secret_key.key }}
             - name: SITE_HOST
               value: {{ .Values.application.siteHost | quote }}
             - name: RAY_HOST
@@ -190,8 +190,8 @@ spec:
             - name: DJANGO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: django
-                  key: secret_key
+                  name: {{ .Values.secrets.secret_key.name }}
+                  key: {{ .Values.secrets.secret_key.key }}
             - name: DATABASE_HOST
               value: {{ .Values.database.host }}
             - name: DATABASE_PORT
