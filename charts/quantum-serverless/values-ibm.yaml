@@ -105,6 +105,7 @@ repositoryEnable: false
 # COS
 # ===================
 
+cosEnable: false
 cos:
   bucket: BUCKETNAME-CHANGEME
   endpoint: ENDPOINT-CHANGEME
