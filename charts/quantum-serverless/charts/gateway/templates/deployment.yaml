@@ -90,12 +90,23 @@ spec:
               value: {{ .Values.application.auth.keycloak.realm | quote }}
             - name: SETTINGS_KEYCLOAK_CLIENT_SECRET
               value: {{ .Values.application.auth.keycloak.clientSecret | quote }}
+{{- if .Values.application.superuser.enable }}
             - name: DJANGO_SUPERUSER_USERNAME
-              value: {{ .Values.application.superuser.username | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.superuser.name }}
+                  key: {{ .Values.secrets.superuser.key.name }}
             - name: DJANGO_SUPERUSER_PASSWORD
-              value: {{ .Values.application.superuser.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.superuser.name }}
+                  key: {{ .Values.secrets.superuser.key.password }}
             - name: DJANGO_SUPERUSER_EMAIL
-              value: {{ .Values.application.superuser.email | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.superuser.name }}
+                  key: {{ .Values.secrets.superuser.key.email }}
+{{- end }}
             - name: OTEL_ENABLED
               value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
             - name: OTEL_SERVICE_NAME
