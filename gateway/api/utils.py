@@ -160,6 +160,8 @@ def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
         if "token" in key.lower():
             try:
                 env_vars[key] = decrypt_string(value)
-            except Exception as decryption_error:  # pylint: disable=broad-exception-caught
+            except (
+                Exception  # pylint: disable=broad-exception-caught
+            ) as decryption_error:
                 logger.error("Cannot decrypt %s. %s", key, decryption_error)
     return env_vars

@@ -4,6 +4,7 @@ importlib-metadata>=5.2.0
 qiskit>=0.44.0
 qiskit-ibm-runtime>=0.11.3
 cloudpickle>=2.2.1
+tqdm>=4.65.0
 # opentelemetry
 opentelemetry-api>=1.18.0
 opentelemetry-sdk>=1.18.0
