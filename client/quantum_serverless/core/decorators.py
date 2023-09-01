@@ -52,7 +52,6 @@ from quantum_serverless.core.constants import (
     OT_TRACEPARENT_ID_KEY,
     OT_RAY_TRACER,
 )
-from quantum_serverless.core.state import StateHandler
 from quantum_serverless.core.tracing import get_tracer, _trace_env_vars
 from quantum_serverless.utils import JsonSerializable
 
@@ -259,7 +258,6 @@ def _tracible_function(
 
 def distribute_task(
     target: Optional[Union[Dict[str, Any], Target]] = None,
-    state: Optional[StateHandler] = None,
 ):
     """Wraps local function as remote executable function.
     New function will return reference object when called.
@@ -276,7 +274,6 @@ def distribute_task(
 
     Args:
         target: target object or dictionary for requirements for node resources
-        state: state handler
 
     Returns:
         object reference
@@ -291,10 +288,6 @@ def distribute_task(
 
     def decorator(function):
         def wrapper(*args, **kwargs):
-            # inject state as an argument when passed in decorator
-            if state is not None:
-                args = tuple([state] + list(args))
-
             # tracing
             traced_env_vars = _trace_env_vars(
                 remote_target.env_vars or {}, location="on decoration"

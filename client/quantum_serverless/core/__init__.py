@@ -58,14 +58,6 @@ Events classes
     RedisEventHandler
     ExecutionMessage
 
-State classes
--------------
-
-.. autosummary::
-    :toctree: ../stubs/
-
-    StateHandler
-    RedisStateHandler
 """
 
 from .provider import BaseProvider, ComputeResource, Provider
@@ -88,4 +80,3 @@ from .decorators import (
     CircuitMeta,
 )
 from .events import RedisEventHandler, EventHandler, ExecutionMessage
-from .state import RedisStateHandler, StateHandler
