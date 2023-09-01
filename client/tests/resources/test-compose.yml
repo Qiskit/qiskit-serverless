@@ -9,11 +9,3 @@ services:
     ports:
       - 9999:8265
       - 9997:10001
-  redis:
-    container_name: redis
-    image: 'bitnami/redis:latest'
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-      - REDIS_PORT_NUMBER=6379
-    ports:
-      - 9998:6379
