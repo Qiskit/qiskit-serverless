@@ -158,6 +158,8 @@ class QuantumServerless:
 
     def download(self, file: str, download_location: str = "./"):
         """Downloads file.
+        Note: file will be saved with different name to avoid conflicts
+              and this name will be returned.
 
         Example:
             >>> serverless = QuantumServerless()
