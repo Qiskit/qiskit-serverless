@@ -71,22 +71,6 @@ gateway:
     name: gateway_db
 
 # ===================
-# Redis configs
-# ===================
-
-redisEnable: true
-redis:
-  nameOverride: "redis"
-  fullnameOverride: "redis"
-
-  architecture: "standalone"
-  global:
-    redis:
-      password: ""
-  auth:
-    enabled: false
-
-# ===================
 # Jupyter configs
 # ===================
 
