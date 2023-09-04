@@ -37,8 +37,6 @@ import ray
 from qiskit import QuantumCircuit, qpy
 from qiskit_ibm_runtime import QiskitRuntimeService
 
-from quantum_serverless.core.state import RedisStateHandler
-
 
 def circuit_serializer(circuit: QuantumCircuit) -> str:
     """Serializes QuantumCircuit into string.
@@ -94,27 +92,6 @@ def service_deserializer(account: dict):
     return QiskitRuntimeService(**account)
 
 
-# pylint: disable=protected-access
-def redis_state_serializer(state: RedisStateHandler):
-    """Serializer for redis state."""
-    return {
-        "host": state._host,
-        "port": state._port,
-        "database": state._db,
-        "password": state._password,
-    }
-
-
-def redis_state_deserializer(redis: dict):
-    """Deserializer for redis state."""
-    return RedisStateHandler(
-        host=redis.get("host"),
-        port=redis.get("port"),
-        db=redis.get("database"),
-        password=redis.get("password"),
-    )
-
-
 def register_all_serializers():
     """Registers all serializers."""
     # serialization for QiskitRuntimeService
@@ -126,11 +103,4 @@ def register_all_serializers():
     # serialization for QuantumCircuit
     ray.util.register_serializer(
         QuantumCircuit, serializer=circuit_serializer, deserializer=circuit_deserializer
-    )
-
-    # state handler
-    ray.util.register_serializer(
-        RedisStateHandler,
-        serializer=redis_state_serializer,
-        deserializer=redis_state_deserializer,
     )
