@@ -59,9 +59,9 @@ secrets:
   superuser:
     name: gateway-superuser
     key:
-      name: admin
-      password: passw0rd
-      email: admin@examplemail.io
+      name: name
+      password: password
+      email: email
 
 image:
   repository: icr.io/quantum-public/quantum-serverless-gateway

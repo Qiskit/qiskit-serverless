@@ -65,7 +65,6 @@ gateway:
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
-  
   cos:
     claimName: gateway-claim
 
@@ -84,9 +83,9 @@ gateway:
     superuser:
       name: gateway-superuser
       key:
-        name: admin
-        password: passw0rd
-        email: admin@examplemail.io
+        name: name
+        password: password
+        email: email
 
 # ===================
 # Jupyter configs
