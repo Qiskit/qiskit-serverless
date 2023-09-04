@@ -47,25 +47,6 @@ Core abstractions
     put
     get_refs_by_status
 
-
-Events classes
---------------
-
-.. autosummary::
-    :toctree: ../stubs/
-
-    EventHandler
-    RedisEventHandler
-    ExecutionMessage
-
-State classes
--------------
-
-.. autosummary::
-    :toctree: ../stubs/
-
-    StateHandler
-    RedisStateHandler
 """
 
 from .provider import BaseProvider, ComputeResource, Provider
@@ -87,5 +68,3 @@ from .decorators import (
     Target,
     CircuitMeta,
 )
-from .events import RedisEventHandler, EventHandler, ExecutionMessage
-from .state import RedisStateHandler, StateHandler

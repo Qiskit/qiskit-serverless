@@ -45,6 +45,8 @@ gateway:
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
+    django:
+      secret_key: your_password_here
     auth:
       keycloak:
         clientId: "gateway-client"
@@ -85,22 +87,6 @@ gateway:
         name: admin
         password: passw0rd
         email: admin@examplemail.io
-
-# ===================
-# Redis configs
-# ===================
-
-redisEnable: true
-redis:
-  nameOverride: "redis"
-  fullnameOverride: "redis"
-
-  architecture: "standalone"
-  global:
-    redis:
-      password: ""
-  auth:
-    enabled: false
 
 # ===================
 # Jupyter configs

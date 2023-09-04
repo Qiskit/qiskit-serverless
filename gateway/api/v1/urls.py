@@ -16,5 +16,8 @@ router.register(
     v1_views.JobViewSet,
     basename=v1_views.JobViewSet.BASE_NAME,
 )
+router.register(
+    r"files", v1_views.FilesViewSet, basename=v1_views.FilesViewSet.BASE_NAME
+)
 
 urlpatterns = router.urls

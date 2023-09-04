@@ -211,7 +211,7 @@ data:
             initContainers:
               - name: ray-worker-cert
                 image: {{ .Values.application.ray.kubectlImage }}
-                command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_head.sh /tmp/tls {{`{{ cluster_name }}`}}-worker $POD_IP {{ .Release.Namespace }}"]
+                command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_worker.sh /tmp/tls {{`{{ cluster_name }}`}} $POD_IP"]
                 volumeMounts:
                   - mountPath: /tmp/tls
                     name: cert-tls
@@ -258,6 +258,9 @@ data:
                 readOnly: true
               - mountPath: /etc/ray/tls
                 name: ray-tls
+              - mountPath: /data
+                name: user-storage
+                subPath: {{`{{ user_id }}`}}
 {{- if .Values.useCertManager }}
               - mountPath: /tmp/tls
                 name: cert-tls
@@ -307,17 +310,6 @@ data:
                   cpu: {{ .Values.application.ray.cpu }}
                   memory: {{ .Values.application.ray.memory }}Gi
               securityContext:
-              volumeMounts:
-              - mountPath: /tmp/ray
-                name: log-volume
-              - mountPath: /data
-                name: user-storage
-                subPath: {{`{{ user_id }}`}}
-              - mountPath: /etc/ca/tls
-                name: ca-tls
-                readOnly: true
-              - mountPath: /etc/ray/tls
-                name: ray-tls
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
             serviceAccountName: ray-cluster-sa
@@ -347,8 +339,8 @@ data:
                 - key: gencert_worker.sh
                   path: gencert_worker.sh
 {{- if .Values.useCertManager }}
-                - key: gencert_cert_head.sh
-                  path: gencert_cert_head.sh
+                - key: gencert_cert_worker.sh
+                  path: gencert_cert_worker.sh
 {{- end }}
             - name: user-storage
               persistentVolumeClaim:
