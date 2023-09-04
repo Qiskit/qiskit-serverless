@@ -30,10 +30,31 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
-          command: ['sh', '-c', 'until pg_isready -U {{ .Values.database.user | quote }} -d "dbname={{ .Values.database.name }}" -h {{ .Values.database.host }} -p {{ .Values.database.port | quote }}; do echo waiting for myservice; sleep 2; done']
+          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d "dbname=${DATABASE_NAME}" -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           volumeMounts:
           - name: gateway-pv-storage
             mountPath: /usr/src/app/media/
+          env:
+            - name: DATABASE_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.host }}
+            - name: DATABASE_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.port }}
+            - name: DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.userName }}
       volumes:
         - name: gateway-pv-storage
           persistentVolumeClaim:
@@ -196,7 +217,28 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
-          command: ['sh', '-c', 'until pg_isready -U {{ .Values.database.user | quote }} -d "dbname={{ .Values.database.name }}" -h {{ .Values.database.host }} -p {{ .Values.database.port | quote }}; do echo waiting for myservice; sleep 2; done']
+          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d "dbname=${DATABASE_NAME}" -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
+          env:
+            - name: DATABASE_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.host }}
+            - name: DATABASE_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.port }}
+            - name: DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.userName }}
       containers:
         - name: gateway-scheduler
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
