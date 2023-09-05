@@ -39,7 +39,7 @@ gateway:
 
   image:
     pullPolicy: IfNotPresent
-    tag: "0.5.0"
+    tag: "0.6.0"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
@@ -57,7 +57,7 @@ gateway:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.5.0-py39"
+      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.6.0-py39"
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4

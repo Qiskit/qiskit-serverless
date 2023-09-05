@@ -20,7 +20,7 @@ application:
   django:
     secret_key: your_password_here
   ray:
-    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.5.0-py39"
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.6.0-py39"
     cpu: 2
     memory: 2
     replicas: 1
