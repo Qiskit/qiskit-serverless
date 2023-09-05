@@ -93,8 +93,6 @@ spec:
                   key: {{ .Values.secrets.secretKey.key }}
             - name: SITE_HOST
               value: {{ .Values.application.siteHost | quote }}
-            - name: RAY_HOST
-              value: {{ .Values.application.rayHost | quote }}
             - name: SETTINGS_AUTH_MECHANISM
               value: {{ .Values.application.auth.mechanism | quote }}
             - name: SETTINGS_TOKEN_AUTH_URL

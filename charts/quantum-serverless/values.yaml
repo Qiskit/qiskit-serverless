@@ -34,17 +34,7 @@ ingress:
 
 gatewayEnable: true
 gateway:
-  nameOverride: "gateway"
-  fullnameOverride: "gateway"
-  useCertManager: false
-
-  image:
-    repository: "icr.io/quantum-public/quantum-serverless-gateway"
-    pullPolicy: IfNotPresent
-    tag: "0.6.0"
   application:
-    siteHost: "http://gateway:8000"
-    rayHost: "http://kuberay-head-svc:8265"
     auth:
       keycloak:
         clientId: "gateway-client"
@@ -53,51 +43,6 @@ gateway:
         clientSecret: GATEWAYSECRET-CHANGEME
     superuser:
       enable: true
-    service:
-      type: ClusterIP
-      port: 8000
-    ray:
-      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.6.0-py39"
-      opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-7
-      kubectlImage: alpine/k8s:1.28.1@sha256:c37a54b738e4d26f88d4a4d28680bb74dfea1d0e756f039dad900306abc837a8
-    limits:
-      maxJobsPerUser: 2
-      maxComputeResources: 4
-  cos:
-    claimName: gateway-claim
-
-  secrets:
-    secretKey:
-      create: true
-      name: gateway-secret-key
-      key: django-secret-key
-      value: CHANGE_ME
-    servicePsql:
-      create: true
-      name: service-psql-binding
-      key:
-        databaseName: database-name
-        databasePassword: database-password
-        host: database-host
-        port: database-port
-        userName: user-name
-      value:
-        databaseName: CHANGE_ME
-        databasePassword: CHANGE_ME
-        host: CHANGE_ME
-        port: CHANGE_ME
-        userName: CHANGE_ME
-    superuser:
-      create: false
-      name: gateway-superuser
-      key:
-        name: name
-        password: password
-        email: email
-      value:
-        name: admin
-        password: passw0rd
-        email: admin@examplemail.io
 
 # ===================
 # Jupyter configs

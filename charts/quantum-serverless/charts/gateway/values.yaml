@@ -3,43 +3,93 @@
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
+nameOverride: "gateway"
+fullnameOverride: "gateway"
+
+# set true when cert-manager is available in the cluster
 useCertManager: false
 
 application:
-#  command: [ "gunicorn", "gateway.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=3" ]
+  # enable debug mode
   debug: 0
-  siteHost: "http://127.0.0.1:8000"
-  rayHost: "http://ray:8265/"
+
+  # gateway site url - http://<fullnameOverride>:<service.port>
+  siteHost: "http://gateway:8000"
+  # authentification setting
   auth:
     token: {}
     keycloak: {}
-  superuser:
-    enable: true
+  # django secret key - any secret string
+  django:
+    secret_key: your_password_here
+  # ray cluster setting
   ray:
+    # ray cluster node image
     nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.6.0-py39"
+    # ray cluster resource 
     cpu: 2
     memory: 2
     replicas: 1
     minReplicas: 1
     maxReplicas: 4
+    # init container image for certificate creation without cert-manager
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-7
+    # init container image for certificate creation for cert-manager available in the cluster
     kubectlImage: alpine/k8s:1.28.1@sha256:c37a54b738e4d26f88d4a4d28680bb74dfea1d0e756f039dad900306abc837a8
     scrapeWithPrometheus: true
+    #  openTelemetry is enabled in the cluster
     openTelemetry: false
+    # openTelemetry Collector setting
     openTelemetryCollector:
       enabled: 0
       local: false
       host: "http://otel-collector"
       port: 4317
       insecure: 0
+  # job execution resource limits
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
+    # Ray cluster stays up after job execution
     keepClusterOnComplete: False
+    # Running job timeout
     programTimeoutDays: 14
   qiskitRuntime:
     channel: "ibm_quantum"
     url: "https://auth.quantum-computing.ibm.com/api"
+  secrets:
+    secretKey:
+      create: true
+      name: gateway-secret-key
+      key: django-secret-key
+      value: CHANGE_ME
+    servicePsql:
+      create: true
+      name: service-psql-binding
+      key:
+        databaseName: database-name
+        databasePassword: database-password
+        host: database-host
+        port: database-port
+        userName: user-name
+      value:
+        databaseName: CHANGE_ME
+        databasePassword: CHANGE_ME
+        host: CHANGE_ME
+        port: CHANGE_ME
+        userName: CHANGE_ME
+    # superuser of django
+    superuser:
+      create: false
+      name: gateway-superuser
+      key:
+        name: name
+        password: password
+        email: email
+      value:
+        name: admin
+        password: passw0rd
+        email: admin@examplemail.io
 
 cos:
   claimName: gateway-claim
@@ -76,16 +126,19 @@ secrets:
       name: admin
       password: passw0rd
       email: admin@examplemail.io
+database:
+  host: postgresql
+  port: 5432
+  user: bn_keycloak
+  name: gateway_db
 
 image:
   repository: icr.io/quantum-public/quantum-serverless-gateway
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  tag: "0.6.0"
 
 imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
 
 serviceAccount:
   # Specifies whether a service account should be created
