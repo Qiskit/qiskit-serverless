@@ -54,9 +54,39 @@ If you are interested in more complex configurations, you have access to all the
 - For our promtail charts dependencies, we are using the default configuration created by Grafana project. To simplify the configuration we offered you with a straigh-forward initial parameters setup.
 But if you are interested in more complex configurations, you have access to all the parameters documented [here](https://github.com/grafana/helm-charts/blob/main/charts/promtail/README.md).
 
-# Jaeger setup
+# Distributed tracing with Jaeger setup
 
 Quick instructions for Jaeger setup for local install.
+
+## quantum-serverless update
+
+Add or update the following lines in the `quantum-serverless/values.yaml` file.
+
+```
+gateway:
+  useCertManager: true
+  application:
+    ray:
+      openTelemetry: true
+      openTelemetryCollector:
+        enabled: 1
+        local: true
+        host: "http://simplest-collector"
+        port: 4317
+        insecure: 1
+```
+and if you are using Jupyter notebook installed with quantum-serverless also add or update the following lines.
+
+```
+jupyter:
+  openTelemetryCollector:
+    enabled: 1
+    port: 4317
+    host: "http://simplest-collector"
+    insecure: 1
+```
+
+Then reinstall `quantum-serverless` helm chart
 
 ## Install Cert-manger
 
@@ -83,7 +113,7 @@ kubectl create -f https://github.com/jaegertracing/jaeger-operator/releases/down
 
 Create Jaeger CRD instance
 ```shell
-kubectl apply -n observability -f - <<EOF
+kubectl apply -f - <<EOF
 apiVersion: jaegertracing.io/v1
 kind: Jaeger
 metadata:
