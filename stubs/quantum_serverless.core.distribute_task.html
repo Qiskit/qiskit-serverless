@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.core.distribute_program" href="quantum_serverless.core.distribute_program.html" /><link rel="prev" title="quantum_serverless.core.fetch_execution_meta" href="quantum_serverless.core.fetch_execution_meta.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>quantum_serverless.core.distribute_task - Quantum serverless 0.5.0</title>
+        <title>quantum_serverless.core.distribute_task - Quantum serverless 0.6.0</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -144,7 +144,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Quantum serverless 0.5.0</div></a>
+      <a href="../index.html"><div class="brand">Quantum serverless 0.6.0</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -171,7 +171,7 @@
     </div>
   </a>
   
-  <span class="sidebar-brand-text">Quantum serverless 0.5.0</span>
+  <span class="sidebar-brand-text">Quantum serverless 0.6.0</span>
 </div><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
@@ -231,11 +231,6 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.get.html">quantum_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.put.html">quantum_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.get_refs_by_status.html">quantum_serverless.core.get_refs_by_status</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.EventHandler.html">quantum_serverless.core.EventHandler</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RedisEventHandler.html">quantum_serverless.core.RedisEventHandler</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ExecutionMessage.html">quantum_serverless.core.ExecutionMessage</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.StateHandler.html">quantum_serverless.core.StateHandler</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RedisStateHandler.html">quantum_serverless.core.RedisStateHandler</a></li>
 </ul>
 </li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/library.html">Library (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.library</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Library (quantum_serverless.library)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -296,7 +291,7 @@
 <h1>quantum_serverless.core.distribute_task<a class="headerlink" href="#quantum-serverless-core-distribute-task" title="Permalink to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="quantum_serverless.core.distribute_task">
-<span class="sig-name descname"><span class="pre">distribute_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/decorators.html#distribute_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.distribute_task" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">distribute_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/decorators.html#distribute_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.distribute_task" title="Permalink to this definition">#</a></dt>
 <dd><p>Wraps local function as remote executable function.
 New function will return reference object when called.</p>
 <p class="rubric">Example</p>
@@ -312,10 +307,7 @@ New function will return reference object when called.</p>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>target</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>], <a class="reference internal" href="quantum_serverless.core.Target.html#quantum_serverless.core.Target" title="quantum_serverless.core.decorators.Target"><code class="xref py py-class docutils literal notranslate"><span class="pre">Target</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – target object or dictionary for requirements for node resources</p></li>
-<li><p><strong>state</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<a class="reference internal" href="quantum_serverless.core.StateHandler.html#quantum_serverless.core.StateHandler" title="quantum_serverless.core.state.StateHandler"><code class="xref py py-class docutils literal notranslate"><span class="pre">StateHandler</span></code></a>]) – state handler</p></li>
-</ul>
+<dd class="field-odd"><p><strong>target</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>], <a class="reference internal" href="quantum_serverless.core.Target.html#quantum_serverless.core.Target" title="quantum_serverless.core.decorators.Target"><code class="xref py py-class docutils literal notranslate"><span class="pre">Target</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code>]) – target object or dictionary for requirements for node resources</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>object reference</p>
@@ -394,7 +386,7 @@ New function will return reference object when called.</p>
   </div>
 </div><script src="../_static/jquery.js?v=5d32c60e"></script>
     <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=3fadbb4a"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=add265a1"></script>
     <script src="../_static/doctools.js?v=888ff710"></script>
     <script src="../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>

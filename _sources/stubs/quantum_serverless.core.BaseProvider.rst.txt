@@ -17,6 +17,8 @@
       ~BaseProvider.context
       ~BaseProvider.create_compute_resource
       ~BaseProvider.delete_compute_resource
+      ~BaseProvider.download
+      ~BaseProvider.files
       ~BaseProvider.from_dict
       ~BaseProvider.get_compute_resources
       ~BaseProvider.get_job_by_id

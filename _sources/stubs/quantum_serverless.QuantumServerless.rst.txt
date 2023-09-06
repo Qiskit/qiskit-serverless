@@ -16,6 +16,8 @@
       ~QuantumServerless.__init__
       ~QuantumServerless.add_provider
       ~QuantumServerless.context
+      ~QuantumServerless.download
+      ~QuantumServerless.files
       ~QuantumServerless.get_job_by_id
       ~QuantumServerless.get_jobs
       ~QuantumServerless.provider
