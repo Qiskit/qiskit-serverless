@@ -377,7 +377,9 @@ class Job:
                     logging.info(".")
         results = self._job_client.result(self.job_id)
         if isinstance(results, str):
-            results = json.loads(self._job_client.result(self.job_id))
+            results = json.loads(
+                self._job_client.result(self.job_id), cls=QiskitObjectsDecoder
+            )
 
         return results
 
