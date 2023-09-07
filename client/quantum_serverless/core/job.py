@@ -375,7 +375,12 @@ class Job:
                 time.sleep(cadence)
                 if verbose:
                     logging.info(".")
-        return json.loads(self._job_client.result(self.job_id))
+        results = self._job_client.result(self.job_id)
+        if isinstance(results, str):
+            results = json.loads(self._job_client.result(self.job_id))
+
+        return results
+
 
     def _in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
