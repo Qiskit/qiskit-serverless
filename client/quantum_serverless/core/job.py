@@ -381,7 +381,6 @@ class Job:
 
         return results
 
-
     def _in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
         terminal_states = ["STOPPED", "SUCCEEDED", "FAILED"]
