@@ -375,11 +375,16 @@ class Job:
                 time.sleep(cadence)
                 if verbose:
                     logging.info(".")
+
+        # Retrieve the results. If they're string format, try to decode to a dictionary.
         results = self._job_client.result(self.job_id)
         if isinstance(results, str):
-            results = json.loads(
-                self._job_client.result(self.job_id), cls=QiskitObjectsDecoder
-            )
+            try:
+                results = json.loads(
+                    self._job_client.result(self.job_id), cls=QiskitObjectsDecoder
+                )
+            except json.JSONDecodeError:
+                pass
 
         return results
 
