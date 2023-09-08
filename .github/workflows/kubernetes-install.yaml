@@ -93,5 +93,5 @@ jobs:
         if: ${{ failure() }}
         with:
           cluster-resources: nodes,namespaces,crds
-          namespace-resources: configmaps,pods,svc
+          namespace-resources: configmaps,pods,svc,pvc
           artifact-name: logs-${{ github.run_id }}
