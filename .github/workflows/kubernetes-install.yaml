@@ -10,12 +10,24 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
-      - name: Setup KinD
-        uses: chainguard-dev/actions/setup-kind@main
-        with:
-          k8s-version: 1.26.x
-          kind-worker-count: 0
-          cluster-suffix: c${{ github.run_id }}.local
+      - name: Install Kind
+        run: |
+          curl -Lo ./kind "https://github.com/kubernetes-sigs/kind/releases/download/v1.27.3/kind-$(uname)-amd64"
+          chmod +x ./kind
+          sudo mv kind /usr/local/bin
+      - name: Create Kind cluster
+        run: |
+          cat > /tmp/kind.yaml <<EOF
+          apiVersion: kind.x-k8s.io/v1alpha4
+          kind: Cluster
+          nodes:
+          - role: control-plane
+            image: kindest/node:v${K8S_VERSION}
+            extraPortMappings:
+            - containerPort: 80
+              hostPort: 80
+          EOF
+          kind create cluster --config /tmp/kind.yaml --wait 5m
       - name: Build gateway
         run: docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
       - name: Build ray node
