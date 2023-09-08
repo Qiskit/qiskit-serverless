@@ -97,9 +97,9 @@ gateway:
         password: password
         email: email
       value:
-        name: CHANGE_ME
-        password: CHANGE_ME
-        email: CHANGE_ME
+        name: admin
+        password: passw0rd
+        email: admin@examplemail.io
 
 # ===================
 # Jupyter configs
