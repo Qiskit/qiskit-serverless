@@ -70,8 +70,10 @@ gateway:
 
   secrets:
     secretKey:
+      create: true
       name: gateway-secret-key
       key: django-secret-key
+      value: CHANGE_ME
     servicePsql:
       name: service-psql-binding
       key:

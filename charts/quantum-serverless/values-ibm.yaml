@@ -65,6 +65,7 @@ gateway:
 
   secrets:
     secretKey:
+      create: false
       name: gateway-secret-key
       key: django-secret-key
     servicePsql:
