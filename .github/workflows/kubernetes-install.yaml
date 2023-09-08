@@ -61,12 +61,6 @@ jobs:
       - name: Give containers time to initialize
         shell: bash
         run: sleep 90
-      - name: Port forward gateway
-        run: |
-          GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
-          #kubectl wait --for=condition=ready pod "$GATEWAY"
-          sleep 60
-          kubectl port-forward "$GATEWAY" 8000 &> /dev/null &
       - name: setup python
         uses: actions/setup-python@v4
         with:
@@ -86,6 +80,10 @@ jobs:
             qiskit-aer==0.12.0 \
             certifi==2023.7.22
           pip install nbmake pytest
+      - name: Port forward gateway
+        run: |
+          GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
+          kubectl port-forward "$GATEWAY" 8000 
       - name: Run notebooks
         run: |
           pytest --nbmake /home/runner/work/quantum-serverless/quantum-serverless/docs/running/notebooks
