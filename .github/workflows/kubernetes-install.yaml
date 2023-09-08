@@ -80,12 +80,11 @@ jobs:
             qiskit-aer==0.12.0 \
             certifi==2023.7.22
           pip install nbmake pytest
-      - name: Port forward gateway
-        run: |
-          GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
-          kubectl port-forward "$GATEWAY" 8000 
       - name: Run notebooks
         run: |
+          echo $GATEWAY_HOST
+          GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
+          kubectl port-forward "$GATEWAY" 8000 &
           pytest --nbmake /home/runner/work/quantum-serverless/quantum-serverless/docs/running/notebooks
       - uses: chainguard-dev/actions/kind-diag@main
         # Only upload logs on failure.
