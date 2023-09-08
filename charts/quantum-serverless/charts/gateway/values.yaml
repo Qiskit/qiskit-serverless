@@ -66,7 +66,7 @@ secrets:
       port: 5432
       userName: bn_keycloak
   superuser:
-    create: user
+    create: true
     name: gateway-superuser
     key:
       name: name
