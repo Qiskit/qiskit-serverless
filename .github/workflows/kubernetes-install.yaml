@@ -42,6 +42,7 @@ jobs:
       - name: Install helm chart
         run: |
           cd charts/quantum-serverless
+          helm dependency build
           helm install qs \
             --set platform=kind \
             --set jupyterEnable=false \
