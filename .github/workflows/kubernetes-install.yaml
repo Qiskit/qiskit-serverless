@@ -29,17 +29,21 @@ jobs:
               hostPort: 80
           EOF
           kind create cluster --config /tmp/kind.yaml --wait 5m
-      - name: Build gateway
-        run: docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
-      - name: Build ray node
-        run: docker build -t ray:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-ray-node .
-      - name: Build notebook
-        run: docker build -t notebook:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-notebook .
-      - name: Load images to cluster
+      - name: Build and load gateway
         run: |
+          docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
           kind load docker-image gateway:test
+          docker image rm gateway:test
+      - name: Build and load ray node
+        run: |
+          docker build -t ray:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-ray-node .
           kind load docker-image ray:test
+          docker image rm ray:test
+      - name: Build and load notebook
+        run: |
+          docker build -t notebook:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-notebook .
           kind load docker-image notebook:test
+          docker image rm notebook:test
       - name: Install helm chart
         run: |
           cd charts/quantum-serverless
