@@ -75,6 +75,7 @@ gateway:
       key: django-secret-key
       value: CHANGE_ME
     servicePsql:
+      create: true
       name: service-psql-binding
       key:
         databaseName: database-name
@@ -82,6 +83,12 @@ gateway:
         host: database-host
         port: database-port
         userName: user-name
+      value:
+        databaseName: CHANGE_ME
+        databasePassword: CHANGE_ME
+        host: CHANGE_ME
+        port: CHANGE_ME
+        userName: CHANGE_ME
     superuser:
       name: gateway-superuser
       key:

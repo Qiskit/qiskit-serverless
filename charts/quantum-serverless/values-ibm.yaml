@@ -69,6 +69,7 @@ gateway:
       name: gateway-secret-key
       key: django-secret-key
     servicePsql:
+      create: false
       name: service-psql-binding
       key:
         databaseName: database-name
