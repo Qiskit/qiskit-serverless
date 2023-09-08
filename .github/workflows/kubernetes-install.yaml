@@ -22,7 +22,7 @@ jobs:
           kind: Cluster
           nodes:
           - role: control-plane
-            image: kindest/node:v${K8S_VERSION}
+            image: kindest/node:v1.27.3
             extraPortMappings:
             - containerPort: 80
               hostPort: 80
