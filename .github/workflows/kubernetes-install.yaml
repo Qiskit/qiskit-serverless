@@ -42,6 +42,8 @@ jobs:
       - name: Install helm chart
         run: |
           cd charts/quantum-serverless
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add kuberay https://ray-project.github.io/kuberay-helm
           helm dependency build
           helm install qs \
             --set platform=kind \
