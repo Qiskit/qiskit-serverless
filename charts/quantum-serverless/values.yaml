@@ -90,11 +90,16 @@ gateway:
         port: CHANGE_ME
         userName: CHANGE_ME
     superuser:
+      create: false
       name: gateway-superuser
       key:
         name: name
         password: password
         email: email
+      value:
+        name: CHANGE_ME
+        password: CHANGE_ME
+        email: CHANGE_ME
 
 # ===================
 # Jupyter configs

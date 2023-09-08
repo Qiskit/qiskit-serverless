@@ -77,6 +77,8 @@ gateway:
         host: database-host
         port: database-port
         userName: user-name
+    superuser:
+      create: false
 
 # ===================
 # Redis configs
