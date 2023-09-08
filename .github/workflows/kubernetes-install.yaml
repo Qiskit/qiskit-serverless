@@ -65,22 +65,25 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.9
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          cd client
-          pip install . --no-cache-dir &&\
-          pip install --no-cache-dir \
-            ipywidgets==8.0.6 \
-            circuit-knitting-toolbox==0.2.0 \
-            matplotlib==3.7.1 \
-            pyscf==2.2.1 \
-            scipy==1.10 \
-            qiskit-ibmq-provider==0.20.2 \
-            qiskit-aer==0.12.0 \
-            certifi==2023.7.22
+      # - name: Install dependencies
+      #   run: |
+      #     python -m pip install --upgrade pip
+      #     cd client
+      #     pip install . --no-cache-dir
+      #     pip install --no-cache-dir \
+      #       ipywidgets==8.1.0 \
+      #       circuit-knitting-toolbox==0.2.0 \
+      #       matplotlib==3.7.1 \
+      #       pyscf==2.2.1 \
+      #       scipy==1.10 \
+      #       qiskit-ibmq-provider==0.20.2 \
+      #       qiskit-aer==0.12.0 \
+      #       certifi==2023.7.22
+      #     pip install nbmake pytest
       - name: Run notebooks
         run: |
+          pwd
+          ls -l
           echo "tests tbd"
       # - uses: chainguard-dev/actions/kind-diag@main
       #   # Only upload logs on failure.
