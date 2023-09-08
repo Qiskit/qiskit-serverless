@@ -39,16 +39,12 @@ jobs:
           docker build -t ray:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-ray-node .
           kind load docker-image ray:test
           docker image rm ray:test
-      - name: Build and load notebook
-        run: |
-          docker build -t notebook:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-notebook .
-          kind load docker-image notebook:test
-          docker image rm notebook:test
       - name: Install helm chart
         run: |
           cd charts/quantum-serverless
           helm install qs \
             --set platform=kind \
+            --set jupyterEnable=false \
             --set repositoryEnable=false \
             --set prometheusEnable=false \
             --set lokiEnable=false \
@@ -58,8 +54,6 @@ jobs:
             --set gateway.image.tag=test \
             --set gateway.application.ray.nodeImage=ray:test \
             --set gateway.application.limits.keepClusterOnComplete=true \
-            --set jupyter.image.repository=notebook \
-            --set jupyter.image.tag=test \
             .
       - name: Give containers time to initialize
         shell: bash
