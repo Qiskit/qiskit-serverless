@@ -64,7 +64,8 @@ jobs:
       - name: Port forward gateway
         run: |
           GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
-          kubectl wait --for=condition=ready pod "$GATEWAY"
+          #kubectl wait --for=condition=ready pod "$GATEWAY"
+          sleep 60
           kubectl port-forward "$GATEWAY" 8000 &> /dev/null &
       - name: setup python
         uses: actions/setup-python@v4
