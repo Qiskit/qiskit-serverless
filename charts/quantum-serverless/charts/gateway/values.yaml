@@ -14,20 +14,16 @@ application:
     token: {}
     keycloak: {}
   superuser:
-    username: "admin"
-    password: "passw0rd"
-    email: "admin@examplemail.io"
-  django:
-    secret_key: your_password_here
+    enable: true
   ray:
-    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.5.0-py39"
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.6.0-py39"
     cpu: 2
     memory: 2
     replicas: 1
     minReplicas: 1
     maxReplicas: 4
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-7
-    kubectlImage: alpine/k8s:1.27.4
+    kubectlImage: alpine/k8s:1.28.1@sha256:c37a54b738e4d26f88d4a4d28680bb74dfea1d0e756f039dad900306abc837a8
     scrapeWithPrometheus: true
     openTelemetry: false
     openTelemetryCollector:
@@ -36,7 +32,6 @@ application:
       host: "http://otel-collector"
       port: 4317
       insecure: 0
-
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
@@ -46,11 +41,41 @@ application:
     channel: "ibm_quantum"
     url: "https://auth.quantum-computing.ibm.com/api"
 
-database:
-  host: postgresql
-  port: 5432
-  user: bn_keycloak
-  name: bitnami_keycloak
+cos:
+  claimName: gateway-claim
+
+secrets:
+  secretKey:
+    create: true
+    name: gateway-secret-key
+    key: django-secret-key
+    value: "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7"
+  servicePsql:
+    create: true
+    name: service-psql-binding
+    key:
+      databaseName: database-name
+      databasePassword: database-password
+      host: database-host
+      port: database-port
+      userName: user-name
+    value:
+      databaseName: gateway_db
+      databasePassword: CHANGE_ME
+      host: postgresql
+      port: 5432
+      userName: bn_keycloak
+  superuser:
+    create: true
+    name: gateway-superuser
+    key:
+      name: name
+      password: password
+      email: email
+    value:
+      name: admin
+      password: passw0rd
+      email: admin@examplemail.io
 
 image:
   repository: icr.io/quantum-public/quantum-serverless-gateway
