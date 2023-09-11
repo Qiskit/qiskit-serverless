@@ -50,9 +50,7 @@ gateway:
         verificationUrl: "https://auth-dev.quantum-computing.ibm.com/api/users/me"
         verificationField: "ibmQNetwork"
     superuser:
-      username: "admin"
-      password: "passw0rd"
-      email: "admin@examplemail.io"
+      enable: false
     service:
       type: ClusterIP
       port: 8000
@@ -61,8 +59,26 @@ gateway:
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
-  database:
-    name: gateway_db
+  
+  cos:
+    claimName: gateway-claim
+
+  secrets:
+    secretKey:
+      create: false
+      name: gateway-secret-key
+      key: django-secret-key
+    servicePsql:
+      create: false
+      name: service-psql-binding
+      key:
+        databaseName: database-name
+        databasePassword: database-password
+        host: database-host
+        port: database-port
+        userName: user-name
+    superuser:
+      create: false
 
 # ===================
 # Redis configs
@@ -103,8 +119,10 @@ repositoryEnable: false
 # COS
 # ===================
 
+cosEnable: false
 cos:
   bucket: BUCKETNAME-CHANGEME
+  claimName: gateway-claim
   endpoint: ENDPOINT-CHANGEME
   secretName: SECRETNAME-CHANGEME
   storageClassName: STORAGECLASSNAME-CHANGEME

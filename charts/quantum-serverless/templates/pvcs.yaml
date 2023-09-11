@@ -1,8 +1,8 @@
-{{ if eq .Values.platform "kind" }}
+{{ if and (eq .Values.platform "kind") .Values.cosEnable }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: gateway-claim
+  name: {{ .Values.cos.claimName }}
 spec:
   storageClassName: standard 
   accessModes:
@@ -10,11 +10,11 @@ spec:
   resources:
     requests:
       storage: 1Gi
-{{ else if eq .Values.platform "ibm" }}
+{{ else if and (eq .Values.platform "ibm") .Values.cosEnable }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: gateway-claim
+  name: {{ .Values.cos.claimName }}
   annotations:
     ibm.io/auto-create-bucket: "false"
     ibm.io/auto-delete-bucket: "false"
@@ -51,7 +51,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: gateway-claim
+  name: {{ .Values.cos.claimName }}
 spec:
   storageClassName: manual
   accessModes:

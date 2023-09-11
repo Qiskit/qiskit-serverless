@@ -190,7 +190,7 @@ data:
 {{- end }}
             - name: user-storage
               persistentVolumeClaim:
-                claimName: gateway-claim
+                claimName: {{ .Values.cos.claimName }}
       workerGroupSpecs:
       - groupName: g
         maxReplicas: {{ .Values.application.ray.maxReplicas }}
@@ -344,4 +344,4 @@ data:
 {{- end }}
             - name: user-storage
               persistentVolumeClaim:
-                claimName: gateway-claim
+                claimName: {{ .Values.cos.claimName }}
