@@ -3,7 +3,7 @@ djangorestframework>=3.14.0
 Markdown>=3.4.4
 django-allauth==0.54.0
 django-allow-cidr>=0.7.1
-dj-rest-auth>=3.0.0
+dj-rest-auth==4.0.1
 djangorestframework-simplejwt>=5.2.2
 django_prometheus>=2.3.1
 ray[default]>=2.6.3
