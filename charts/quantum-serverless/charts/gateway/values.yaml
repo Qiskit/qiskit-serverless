@@ -57,40 +57,6 @@ application:
   qiskitRuntime:
     channel: "ibm_quantum"
     url: "https://auth.quantum-computing.ibm.com/api"
-  secrets:
-    secretKey:
-      create: true
-      name: gateway-secret-key
-      key: django-secret-key
-      value: CHANGE_ME
-    servicePsql:
-      create: true
-      name: service-psql-binding
-      key:
-        databaseName: database-name
-        databasePassword: database-password
-        host: database-host
-        port: database-port
-        userName: user-name
-      value:
-        databaseName: CHANGE_ME
-        databasePassword: CHANGE_ME
-        host: CHANGE_ME
-        port: CHANGE_ME
-        userName: CHANGE_ME
-    # superuser of django
-    superuser:
-      create: false
-      name: gateway-superuser
-      key:
-        name: name
-        password: password
-        email: email
-      value:
-        name: admin
-        password: passw0rd
-        email: admin@examplemail.io
-
 cos:
   claimName: gateway-claim
 
@@ -105,13 +71,11 @@ secrets:
     name: service-psql-binding
     key:
       databaseName: database-name
-      databasePassword: database-password
       host: database-host
       port: database-port
       userName: user-name
     value:
       databaseName: gateway_db
-      databasePassword: CHANGE_ME
       host: postgresql
       port: 5432
       userName: bn_keycloak
@@ -126,11 +90,6 @@ secrets:
       name: admin
       password: passw0rd
       email: admin@examplemail.io
-database:
-  host: postgresql
-  port: 5432
-  user: bn_keycloak
-  name: gateway_db
 
 image:
   repository: icr.io/quantum-public/quantum-serverless-gateway
