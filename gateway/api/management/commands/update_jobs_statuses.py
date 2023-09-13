@@ -59,9 +59,9 @@ class Command(BaseCommand):
                         job.save()
                     except RecordModifiedError:
                         logger.warning(
-                        "Job [%s] recode has been update. Skipping update.",
-                        job.id,
-                    )
+                            "Job [%s] recode has been update. Skipping update.",
+                            job.id,
+                        )
             else:
                 logger.warning(
                     "Job [%s] does not have compute resource associated with it. Skipping.",
