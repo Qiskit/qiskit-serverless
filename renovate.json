@@ -4,7 +4,7 @@
     "config:base",
     ":separateMultipleMajorReleases"
   ],
-  "prConcurrentLimit": 5,
+  "prConcurrentLimit": 4,
   "rangeStrategy": "bump",
   "rebaseWhen": "never",
   "packageRules": [
