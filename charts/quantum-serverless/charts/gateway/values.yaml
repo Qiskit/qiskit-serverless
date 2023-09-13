@@ -19,9 +19,6 @@ application:
   auth:
     token: {}
     keycloak: {}
-  # django secret key - any secret string
-  django:
-    secret_key: your_password_here
   # ray cluster setting
   ray:
     # ray cluster node image
@@ -69,13 +66,16 @@ secrets:
   servicePsql:
     create: true
     name: service-psql-binding
+    databaseSecretName: service-psql-binding
     key:
       databaseName: database-name
+      databasePassword: database-password
       host: database-host
       port: database-port
       userName: user-name
     value:
       databaseName: gateway_db
+      databasePassword: CHANGE_ME
       host: postgresql
       port: 5432
       userName: bn_keycloak

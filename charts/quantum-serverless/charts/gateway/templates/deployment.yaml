@@ -165,8 +165,8 @@ spec:
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgresql
-                  key: password
+                  name: {{ .Values.secrets.servicePsql.databaseSecretName }}
+                  key: {{ .Values.secrets.servicePsql.key.databasePassword }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -278,8 +278,8 @@ spec:
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgresql
-                  key: password
+                  name: {{ .Values.secrets.servicePsql.databaseSecretName }}
+                  key: {{ .Values.secrets.servicePsql.key.databasePassword }}
             - name: RAY_KUBERAY_NAMESPACE
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE

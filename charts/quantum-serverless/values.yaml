@@ -43,6 +43,11 @@ gateway:
         clientSecret: GATEWAYSECRET-CHANGEME
     superuser:
       enable: true
+  secrets:
+    servicePsql:
+      databaseSecretName: postgresql
+      key:
+        databasePassword: password
 
 # ===================
 # Jupyter configs
