@@ -171,7 +171,7 @@ services:
     profiles: [ "full" ]
     volumes:
       - /var/log:/var/log
-    command: -config.file=/etc/promtail/config.yaml
+    command: -config.file=/etc/promtail/config.yml
     networks:
       - safe-tier
   grafana:
