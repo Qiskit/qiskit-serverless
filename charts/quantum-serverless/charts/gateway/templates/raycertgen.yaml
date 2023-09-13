@@ -198,9 +198,11 @@ data:
     spec:
       commonName: quantummiddleware.com
       dnsNames:
-      - $CLUSTER_NAME-svc.$NAMESPACE.svc.cluster.local
+      - localhost
+      - $CLUSTER_NAME-head-svc.$NAMESPACE.svc.cluster.local
       duration: 2160h0m0s
       ipAddresses:
+      - 127.0.0.1
       - $IP_ADDRESS
       issuerRef:
         group: cert-manager.io
@@ -232,4 +234,53 @@ data:
     kubectl get secret $CLUSTER_NAME -o=jsonpath='{.data.ca\.crt}' | base64 -d > $BASE_DIR/ca.crt
     kubectl get secret $CLUSTER_NAME -o=jsonpath='{.data.tls\.crt}' | base64 -d > $BASE_DIR/tls.crt
     kubectl get secret $CLUSTER_NAME -o=jsonpath='{.data.tls\.key}' | base64 -d > $BASE_DIR/tls.key
+  gencert_cert_worker.sh: |
+    #!/bin/sh
+    BASE_DIR=$1
+    CLUSTER_NAME=$2
+    IP_ADDRESS=$3
+
+    kubectl apply -f - <<EOF
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: $CLUSTER_NAME-worker
+    spec:
+      commonName: quantummiddleware.com
+      dnsNames:
+      - localhost
+      duration: 2160h0m0s
+      ipAddresses:
+      - 127.0.0.1
+      - $IP_ADDRESS
+      issuerRef:
+        group: cert-manager.io
+        kind: Issuer
+        name: ray-ca-issuer
+      privateKey:
+        algorithm: RSA
+        encoding: PKCS1
+        size: 2048
+      renewBefore: 360h0m0s
+      secretName: $CLUSTER_NAME-worker
+      subject:
+        organizations:
+        - quantummiddleware
+      usages:
+      - server auth
+      - client auth
+    EOF
+
+    status="False"
+    while [ $status = "False" ]
+    do
+        status=$(kubectl get cert $CLUSTER_NAME-worker -o=jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+    done
+
+    echo "Certificate for $CLUSTER_NAME-worker is ready"
+    kubectl get cert $CLUSTER_NAME-worker -o json
+
+    kubectl get secret $CLUSTER_NAME-worker -o=jsonpath='{.data.ca\.crt}' | base64 -d > $BASE_DIR/ca.crt
+    kubectl get secret $CLUSTER_NAME-worker -o=jsonpath='{.data.tls\.crt}' | base64 -d > $BASE_DIR/tls.crt
+    kubectl get secret $CLUSTER_NAME-worker -o=jsonpath='{.data.tls\.key}' | base64 -d > $BASE_DIR/tls.key
 {{- end }}

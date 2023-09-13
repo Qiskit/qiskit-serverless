@@ -4,16 +4,16 @@ description: Quantum-Serverless helm chart that contains different dependencies.
 
 type: application
 
-version: 0.4.0
-appVersion: "0.4.0"
+version: 0.6.0
+appVersion: "0.6.0"
 
 dependencies:
   - name: gateway
     condition: gatewayEnable
-    version: 0.4.0
+    version: 0.6.0
   - name: jupyter
     condition: jupyterEnable
-    version: 0.4.0
+    version: 0.6.0
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
     version: 9.7.9
@@ -22,17 +22,13 @@ dependencies:
     condition: kuberayOperatorEnable
     version: 0.6.1
     repository: https://ray-project.github.io/kuberay-helm
-  - name: redis
-    condition: redisEnable
-    version: 17.15.2
-    repository: https://charts.bitnami.com/bitnami
   - name: keycloak
     condition: keycloakEnable
     version: 13.4.1
     repository: https://charts.bitnami.com/bitnami
   - name: repository
     condition: repositoryEnable
-    version: 0.4.0
+    version: 0.6.0
 
 maintainers:
   - name: akihikokuroda

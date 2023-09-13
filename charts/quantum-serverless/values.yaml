@@ -41,7 +41,7 @@ gateway:
   image:
     repository: "icr.io/quantum-public/quantum-serverless-gateway"
     pullPolicy: IfNotPresent
-    tag: "0.4.0"
+    tag: "0.6.0"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
@@ -52,37 +52,52 @@ gateway:
         realm: "quantum-serverless"
         clientSecret: GATEWAYSECRET-CHANGEME
     superuser:
-      username: "admin"
-      password: "passw0rd"
-      email: "admin@examplemail.io"
+      enable: true
     service:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.4.0-py39"
+      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.6.0-py39"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-7
-      kubectlImage: alpine/k8s:1.27.4
+      kubectlImage: alpine/k8s:1.28.1@sha256:c37a54b738e4d26f88d4a4d28680bb74dfea1d0e756f039dad900306abc837a8
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
-  database:
-    name: gateway_db
+  cos:
+    claimName: gateway-claim
 
-# ===================
-# Redis configs
-# ===================
-
-redisEnable: true
-redis:
-  nameOverride: "redis"
-  fullnameOverride: "redis"
-
-  architecture: "standalone"
-  global:
-    redis:
-      password: ""
-  auth:
-    enabled: false
+  secrets:
+    secretKey:
+      create: true
+      name: gateway-secret-key
+      key: django-secret-key
+      value: CHANGE_ME
+    servicePsql:
+      create: true
+      name: service-psql-binding
+      key:
+        databaseName: database-name
+        databasePassword: database-password
+        host: database-host
+        port: database-port
+        userName: user-name
+      value:
+        databaseName: CHANGE_ME
+        databasePassword: CHANGE_ME
+        host: CHANGE_ME
+        port: CHANGE_ME
+        userName: CHANGE_ME
+    superuser:
+      create: false
+      name: gateway-superuser
+      key:
+        name: name
+        password: password
+        email: email
+      value:
+        name: admin
+        password: passw0rd
+        email: admin@examplemail.io
 
 # ===================
 # Jupyter configs
@@ -97,7 +112,7 @@ jupyter:
 
   image:
     repository: "icr.io/quantum-public/quantum-serverless-notebook"
-    tag: "0.4.0-py39"
+    tag: "0.6.0-py39"
     pullPolicy: IfNotPresent
   container:
     port: 8888
@@ -167,7 +182,7 @@ repository:
   fullnameOverride: "repository"
   image:
     pullPolicy: IfNotPresent
-    tag: "0.4.0"
+    tag: "0.6.0"
   application:
     superuser:
       username: "admin"
@@ -179,13 +194,14 @@ repository:
   database:
     name: repository_db
 
-
 # ===================
 # COS
 # ===================
 
+cosEnable: false
 cos:
   bucket: BUCKETNAME-CHANGEME
+  claimName: gateway-claim
   endpoint: ENDPOINT-CHANGEME
   secretName: SECRETNAME-CHANGEME
   storageClassName: STORAGECLASSNAME-CHANGEME

@@ -1,13 +1,12 @@
 """Cleanup resources command."""
 import logging
-from datetime import datetime, timedelta
 
 from django.core.management.base import BaseCommand
 
 from api.models import Job
-from api.ray import kill_ray_cluster, get_job_handler
+from api.ray import get_job_handler
+from api.schedule import check_job_timeout, handle_job_status_not_available
 from api.utils import ray_job_status_to_model_job_status
-from main import settings as config
 
 logger = logging.getLogger("commands")
 
@@ -17,7 +16,7 @@ class Command(BaseCommand):
 
     help = "Update running job statuses and logs."
 
-    def handle(self, *args, **options):  #  pylint: disable=too-many-branches
+    def handle(self, *args, **options):
         # update job statuses
         updated_jobs_counter = 0
         for job in Job.objects.filter(status__in=Job.RUNNING_STATES):
@@ -31,6 +30,7 @@ class Command(BaseCommand):
                         job.logs = logs
 
                     ray_job_status = job_handler.status(job.ray_job_id)
+
                     if ray_job_status:
                         job_status = ray_job_status_to_model_job_status(ray_job_status)
                     else:
@@ -38,35 +38,9 @@ class Command(BaseCommand):
                 else:
                     success = False
 
-                timeout = config.PROGRAM_TIMEOUT
-                if job.updated:
-                    endtime = job.updated + timedelta(days=timeout)
-                    now = datetime.now(tz=endtime.tzinfo)
-                if job.updated and endtime < now:
-                    job_status = Job.STOPPED
-                    job.logs = (
-                        f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
-                    )
-                    job.save()
-                    logger.warning(
-                        "Job [%s] reached maximum runtime [%s] days and stopped.",
-                        job.id,
-                        timeout,
-                    )
-
+                job_status = check_job_timeout(job, job_status)
                 if not success:
-                    if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
-                        logger.debug(
-                            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
-                            + "so cluster [%s] will not be removed",
-                            job.compute_resource.title,
-                        )
-                    else:
-                        kill_ray_cluster(job.compute_resource.title)
-                        job.compute_resource.delete()
-                        job.compute_resource = None
-                        job_status = Job.FAILED
-                        job.logs = f"{job.logs}\nSomething went wrong during updating job status."
+                    job_status = handle_job_status_not_available(job, job_status)
 
                 if job_status != job.status:
                     logger.info(

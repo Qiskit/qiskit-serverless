@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - "ct.yaml"
-      - "charts/*"
+      - "charts/**"
       - ".github/actions/helm-lint/action.yaml"
       - ".github/workflows/helm-verify.yaml"
 

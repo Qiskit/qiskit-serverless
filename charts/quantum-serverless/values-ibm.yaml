@@ -36,10 +36,12 @@ gatewayEnable: true
 gateway:
   nameOverride: "gateway"
   fullnameOverride: "gateway"
+  useCertManager: false
 
   image:
+    repository: "icr.io/quantum-public/quantum-serverless-gateway"
     pullPolicy: IfNotPresent
-    tag: "0.4.0"
+    tag: "0.6.0"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
@@ -50,25 +52,36 @@ gateway:
         verificationUrl: "https://auth-dev.quantum-computing.ibm.com/api/users/me"
         verificationField: "ibmQNetwork"
     superuser:
-      username: "admin"
-      password: "passw0rd"
-      email: "admin@examplemail.io"
+      enable: false
     service:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.4.0-py39"
+      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.6.0-py39"
+      opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-7
+      kubectlImage: alpine/k8s:1.28.1@sha256:c37a54b738e4d26f88d4a4d28680bb74dfea1d0e756f039dad900306abc837a8
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
-  database:
-    name: gateway_db
+  cos:
+    claimName: gateway-claim
 
-# ===================
-# Redis configs
-# ===================
-
-redisEnable: false
+  secrets:
+    secretKey:
+      create: false
+      name: gateway-secret-key
+      key: django-secret-key
+    servicePsql:
+      create: false
+      name: service-psql-binding
+      key:
+        databaseName: database-name
+        databasePassword: database-password
+        host: database-host
+        port: database-port
+        userName: user-name
+    superuser:
+      create: false
 
 # ===================
 # Jupyter configs
@@ -84,7 +97,7 @@ kuberayOperatorEnable: true
 kuberay-operator:
   image:
     repository: kuberay/operator
-    tag: v0.5.0
+    tag: v0.6.0
     pullPolicy: IfNotPresent
 
 # ===================
@@ -103,8 +116,10 @@ repositoryEnable: false
 # COS
 # ===================
 
+cosEnable: false
 cos:
   bucket: BUCKETNAME-CHANGEME
+  claimName: gateway-claim
   endpoint: ENDPOINT-CHANGEME
   secretName: SECRETNAME-CHANGEME
   storageClassName: STORAGECLASSNAME-CHANGEME
