@@ -63,6 +63,7 @@ gateway:
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
+  
   cos:
     claimName: gateway-claim
 

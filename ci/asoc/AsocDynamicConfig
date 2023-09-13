@@ -1,6 +1,6 @@
 {
-  "StaticScan": "true",
-  "DynamicScan": "false",
+  "StaticScan": "false",
+  "DynamicScan": "true",
   "OrgName": "IBM-Q-Software",
   "RepoName": "quantum-serverless",
   "StartingURL": "https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud",

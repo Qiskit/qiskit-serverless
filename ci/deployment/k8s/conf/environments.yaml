@@ -1,0 +1,18 @@
+---
+environments:
+  - name: staging
+    clusters:
+      - name: middleware-nonprod
+        kind: iks
+        account:
+          name: QCExperimental
+        namespace: quantum-middleware
+        registry: icr.io
+  - name: production
+    clusters:
+      - name: middleware-prod
+        kind: iks
+        account:
+          name: QCExperimental
+        namespace: quantum-middleware
+        registry: icr.io

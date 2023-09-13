@@ -16,6 +16,7 @@ DOCKER_FILE_REPOSITORY    ?= ./repository/Dockerfile
 DOCKER_REGISTRY           := icr.io
 DOCKER_REGISTRY_NAMESPACE := quantum-public
 
+TARGET_SERVICE			  ?= quantum-serverless
 ENVIRONMENT               ?= development
 PROJECT_VERSION			  ?= latest
 

@@ -18,7 +18,7 @@ ENVIRONMENT                  ?= staging
 PROJECT_CHANGESET            := $(shell git rev-parse --verify HEAD 2>/dev/null)
 
 DTB_LOGLEVEL                 ?= info
-DTB_IMAGE                    := icr.io/quantum-tools/dtb:$(DTB_VERSION)
+DTB_IMAGE                    := us.icr.io/quantum-serverless/dtb:$(DTB_VERSION)
 DTB_SHELL                    := docker container run --rm --name=dtb \
                                     --env IBMCLOUD_API_KEY \
                                     --volume $(PWD):/workspace:ro \
@@ -96,42 +96,42 @@ docker/asoc-static-scan: docker/login
 		us.icr.io/quantum-computing/asoc-automation:latest \
 		/asoc/appscanBash.sh
 
-# .PHONY: docker/asoc-dynamic-scan
-# docker/asoc-dynamic-scan: docker/login
-# 	@docker run \
-# 		-e KeyId=${ASOC_KEY_ID} \
-# 		-e KeySecret=${ASOC_KEY_SECRET} \
-# 		-e GitToken=${ASOC_GIT_TOKEN} \
-# 		-v $(PWD)/ci/asoc/AsocDynamicConfig:/asoc/AsocConfig \
-# 		-v $(PWD)/ci/asoc/DAST_CurlCommands.sh:/asoc/DAST_CurlCommands.sh \
-# 		-w /asoc \
-# 		us.icr.io/quantum-computing/asoc-automation:latest \
-# 		/asoc/appscanBash.sh
+.PHONY: docker/asoc-dynamic-scan
+docker/asoc-dynamic-scan: docker/login
+	@docker run \
+		-e KeyId=${ASOC_KEY_ID} \
+		-e KeySecret=${ASOC_KEY_SECRET} \
+		-e GitToken=${ASOC_GIT_TOKEN} \
+		-v $(PWD)/ci/asoc/AsocDynamicConfig:/asoc/AsocConfig \
+		-v $(PWD)/ci/asoc/DAST_CurlCommands.sh:/asoc/DAST_CurlCommands.sh \
+		-w /asoc \
+		us.icr.io/quantum-computing/asoc-automation:latest \
+		/asoc/appscanBash.sh
 
-# .PHONY: helm/check
-# helm/check: SHELL := $(DTB_SHELL)
-# helm/check: docker/login ## Helm check (template)
-# 	$(call assert-set,IBMCLOUD_API_KEY)
-# 	$(call assert-set,ENVIRONMENT)
-# 	$(call assert-set,TARGET_SERVICE)
-# 	@helm template \
-# 		--debug \
-# 		$(TARGET_SERVICE) \
-# 		/workspace/ci/deployment/k8s/chart/$(TARGET_SERVICE) \
-# 		--values /workspace/ci/deployment/k8s/chart/values-$(ENVIRONMENT).yaml \
-# 		--set image.tag=$(IMAGE_TAG)
+.PHONY: helm/check
+helm/check: SHELL := $(DTB_SHELL)
+helm/check: docker/login ## Helm check (template)
+	$(call assert-set,IBMCLOUD_API_KEY)
+	$(call assert-set,ENVIRONMENT)
+	$(call assert-set,TARGET_SERVICE)
+	@helm template \
+		--debug \
+		$(TARGET_SERVICE) \
+		/workspace/charts/$(TARGET_SERVICE) \
+		--values /workspace/ci/deployment/k8s/values/values-$(ENVIRONMENT).yaml
 
-# .PHONY: helm/deploy
-# helm/deploy: SHELL := $(DTB_SHELL)
-# helm/deploy: docker/login ## Deploy the service helm chart
-# 	$(call assert-set,IBMCLOUD_API_KEY)
-# 	$(call assert-set,ENVIRONMENT)
-# 	$(call assert-set,TARGET_SERVICE)
-# 	@pydtb release \
-# 		--loglevel $(DTB_LOGLEVEL) \
-# 		--config /workspace/ci/deployment/k8s/conf/environments.yaml \
-# 		--environment $(ENVIRONMENT) \
-# 		--release $(TARGET_SERVICE) \
-# 		--chart /workspace/ci/deployment/k8s/chart/$(TARGET_SERVICE) \
-# 		--values /workspace/ci/deployment/k8s/chart/values-$(ENVIRONMENT).yaml \
-# 		--set image.tag=$(IMAGE_TAG)
+.PHONY: helm/deploy
+helm/deploy: SHELL := $(DTB_SHELL)
+helm/deploy: docker/login
+	$(call assert-set,IBMCLOUD_API_KEY)
+	$(call assert-set,ENVIRONMENT)
+	$(call assert-set,TARGET_SERVICE)
+#	@helm dependency update /workspace/charts/$(TARGET_SERVICE)
+#	@helm dependency build /workspace/charts/$(TARGET_SERVICE)
+	@pydtb release \
+		--loglevel $(DTB_LOGLEVEL) \
+		--config /workspace/ci/deployment/k8s/conf/environments.yaml \
+		--environment $(ENVIRONMENT) \
+		--release $(TARGET_SERVICE) \
+		--chart /workspace/charts/$(TARGET_SERVICE) \
+		--values /workspace/ci/deployment/k8s/values/values-$(ENVIRONMENT).yaml
