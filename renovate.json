@@ -19,6 +19,13 @@
         "^qiskit"
       ],
       "groupName": "qiskit packages"
+    },
+    {
+      "matchPackagePatterns": [
+        "nginx-ingress-controller",
+        "keycloak"
+      ],
+      "groupName": "bitnami packages"
     }
   ]
 }
