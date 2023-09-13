@@ -278,8 +278,8 @@ spec:
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.databasePassword }}
+                  name: postgresql
+                  key: password
             - name: RAY_KUBERAY_NAMESPACE
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE
