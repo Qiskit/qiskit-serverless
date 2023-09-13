@@ -173,7 +173,9 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                         logger.warning("Job(%s) record has been updated. Retry", job.id)
                         continue
                     except Exception:  # pylint: disable=broad-exception-caught
-                        logger.warning("Ray cluster was not ready %s", job.compute_resource)
+                        logger.warning(
+                            "Ray cluster was not ready %s", job.compute_resource
+                        )
                 saved = True
         return Response({"logs": logs})
 
