@@ -4,6 +4,7 @@ Markdown>=3.4.4
 django-allauth==0.54.0
 django-allow-cidr>=0.7.1
 dj-rest-auth==4.0.1
+django-concurrency>=2.4
 djangorestframework-simplejwt>=5.2.2
 django_prometheus>=2.3.1
 ray[default]>=2.6.3

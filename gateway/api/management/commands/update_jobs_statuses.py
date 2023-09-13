@@ -1,6 +1,7 @@
 """Cleanup resources command."""
 import logging
 
+from concurrency.exceptions import RecordModifiedError
 from django.core.management.base import BaseCommand
 
 from api.models import Job
@@ -54,7 +55,13 @@ class Command(BaseCommand):
                     if job.in_terminal_state():
                         job.env_vars = "{}"
                     job.status = job_status
-                    job.save()
+                    try:
+                        job.save()
+                    except RecordModifiedError:
+                        logger.warning(
+                        "Job [%s] recode has been update. Skipping update.",
+                        job.id,
+                    )
             else:
                 logger.warning(
                     "Job [%s] does not have compute resource associated with it. Skipping.",

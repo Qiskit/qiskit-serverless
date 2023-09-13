@@ -1,6 +1,8 @@
 """Models."""
 import uuid
 
+from concurrency.fields import IntegerVersionField
+
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.conf import settings
@@ -105,6 +107,7 @@ class Job(models.Model):
     )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
     logs = models.TextField(default="Here goes nothing.")
+    version = IntegerVersionField()
 
     def __str__(self):
         return f"<Job {self.pk} | {self.status}>"
