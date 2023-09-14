@@ -381,7 +381,7 @@ class Job:
         if isinstance(results, str):
             try:
                 results = json.loads(
-                    self._job_client.result(self.job_id), cls=QiskitObjectsDecoder
+                    results, cls=QiskitObjectsDecoder
                 )
             except json.JSONDecodeError:
                 pass
