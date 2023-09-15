@@ -82,7 +82,7 @@ class GatewayFilesClient:
         """Uploads file."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.upload"):
-            with open(file) as f:
+            with open(file, "rb") as f:
                 with requests.post(
                     f"{self.host}/api/{self.version}/files/upload/",
                     files={"file": f},
@@ -92,8 +92,7 @@ class GatewayFilesClient:
                 ) as req:
                     if req.ok:
                         return req.text
-                    else:
-                        return "Upload failed"
+                    return "Upload failed"
             return "Can not open file"
 
     def list(self) -> List[str]:

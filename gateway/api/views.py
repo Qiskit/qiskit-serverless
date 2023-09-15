@@ -281,12 +281,12 @@ class FilesViewSet(viewsets.ViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.download", context=ctx):
-            f = request.FILES["file"]
-            filename = os.path.basename(f.name)
+            upload_file = request.FILES["file"]
+            filename = os.path.basename(upload_file.name)
             user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
             file_path = os.path.join(user_dir, filename)
             with open(file_path, "wb+") as destination:
-                for chunk in f.chunks():
+                for chunk in upload_file.chunks():
                     destination.write(chunk)
             return Response({"message": file_path})
         return Response("server error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
