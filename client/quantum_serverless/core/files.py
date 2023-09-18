@@ -78,6 +78,23 @@ class GatewayFilesClient:
                 progress_bar.close()
                 return file_name
 
+    def upload(self, file: str) -> Optional[str]:
+        """Uploads file."""
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("files.upload"):
+            with open(file, "rb") as f:
+                with requests.post(
+                    f"{self.host}/api/{self.version}/files/upload/",
+                    files={"file": f},
+                    stream=True,
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                ) as req:
+                    if req.ok:
+                        return req.text
+                    return "Upload failed"
+            return "Can not open file"
+
     def list(self) -> List[str]:
         """Returns list of available files to download produced by programs,"""
         tracer = trace.get_tracer("client.tracer")

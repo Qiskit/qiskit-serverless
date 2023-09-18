@@ -129,6 +129,33 @@ class TestFilesApi(APITestCase):
             )
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_file_upload(self):
+        """Tests uploading existing file."""
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+
+        with self.settings(MEDIA_ROOT=media_root):
+            auth = reverse("rest_login")
+            response = self.client.post(
+                auth, {"username": "test_user", "password": "123"}, format="json"
+            )
+            token = response.data.get("access")
+            self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+            url = reverse("v1:files-upload")
+            with open("README.md") as f:
+                response = self.client.post(
+                    url,
+                    data={"file": f},
+                    format="multipart",
+                )
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertTrue(os.path.join(media_root, "test_user", "README.md"))
+                os.remove(os.path.join(media_root, "test_user", "README.md"))
+
     def test_escape_directory(self):
         """Tests directory escape / injection."""
         with self.settings(
