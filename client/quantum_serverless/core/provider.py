@@ -43,6 +43,7 @@ from quantum_serverless.core.constants import (
     ENV_GATEWAY_PROVIDER_VERSION,
     ENV_GATEWAY_PROVIDER_TOKEN,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
+    IBM_SERVERLESS_HOST_URL,
 )
 from quantum_serverless.core.files import GatewayFilesClient
 from quantum_serverless.core.job import (
@@ -419,3 +420,24 @@ class Provider(BaseProvider):
             )
         except QuantumServerlessException as reason:
             raise QuantumServerlessException("Cannot verify token.") from reason
+
+
+class IBMServerlessProvider(Provider):
+    """IBMServerlessProvider."""
+
+    def __init__(self, token: str):
+        """Constructor for IBMServerlessProvider
+
+        Args:
+            token: IBM quantum token
+        """
+        super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
+
+    def get_compute_resources(self) -> List[ComputeResource]:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+    def create_compute_resource(self, resource) -> int:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+    def delete_compute_resource(self, resource) -> int:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
