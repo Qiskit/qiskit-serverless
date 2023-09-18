@@ -95,7 +95,7 @@ class TestJobHandler(APITestCase):
     def setUp(self) -> None:
         ray_client = MagicMock()
         ray_client.get_job_status.return_value = JobStatus.PENDING
-        ray_client.get_job_logs.return_value = "Here goes nothing."
+        ray_client.get_job_logs.return_value = "No logs yet."
         ray_client.stop_job.return_value = True
         ray_client.submit_job.return_value = "AwesomeJobId"
         self.handler = JobHandler(ray_client)
@@ -121,7 +121,7 @@ class TestJobHandler(APITestCase):
     def test_job_logs(self):
         """Tests job logs."""
         job_logs = self.handler.logs("AwesomeJobId")
-        self.assertEqual(job_logs, "Here goes nothing.")
+        self.assertEqual(job_logs, "No logs yet.")
 
     def test_job_stop(self):
         """Tests stopping of job."""
