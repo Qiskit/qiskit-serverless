@@ -388,13 +388,11 @@ class Provider(BaseProvider):
     def download(self, file: str, download_location: str = "./"):
         return self._files_client.download(file, download_location)
 
-
     def delete(self, file: str):
         return self._files_client.delete(file)
 
     def upload(self, file: str):
         return self._files_client.upload(file)
-
 
     def _fetch_token(self, username: str, password: str):
         response_data = safe_json_request(
