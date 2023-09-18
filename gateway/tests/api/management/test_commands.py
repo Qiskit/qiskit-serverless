@@ -34,7 +34,7 @@ class TestCommands(APITestCase):
         """Tests update of job statuses."""
         ray_client = MagicMock()
         ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
-        ray_client.get_job_logs.return_value = "Here goes nothing."
+        ray_client.get_job_logs.return_value = "No logs yet."
         ray_client.stop_job.return_value = True
         ray_client.submit_job.return_value = "AwesomeJobId"
         get_job_handler.return_value = JobHandler(ray_client)

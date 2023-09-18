@@ -104,7 +104,7 @@ class Job(models.Model):
         ComputeResource, on_delete=models.SET_NULL, null=True, blank=True
     )
     ray_job_id = models.CharField(max_length=255, null=True, blank=True)
-    logs = models.TextField(default="Here goes nothing.")
+    logs = models.TextField(default="No logs yet.")
 
     def __str__(self):
         return f"<Job {self.pk} | {self.status}>"
