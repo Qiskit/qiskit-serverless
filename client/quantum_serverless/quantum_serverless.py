@@ -171,6 +171,18 @@ class QuantumServerless:
         """
         return self._selected_provider.download(file, download_location)
 
+    def delete(self, file: str):
+        """Deletes file uploaded or produced by the programs.
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> serverless.delete('artifact.tar')
+
+        Args:
+            file: name of file to delete
+        """
+        return self._selected_provider.delete(file)
+
     def context(
         self,
         provider: Optional[Union[str, BaseProvider]] = None,

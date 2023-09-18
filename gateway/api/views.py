@@ -250,6 +250,31 @@ class FilesViewSet(viewsets.ViewSet):
                     response["Content-Disposition"] = f"attachment; filename={filename}"
             return response
 
+    @action(methods=["DELETE"], detail=False)
+    def delete(self, request):  # pylint: disable=invalid-name
+        """Deletes file uploaded or produced by the programs,"""
+        # default response for file not found, overwritten if file is found
+        response = Response(
+            {"message": "Requested file was not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.files.delete", context=ctx):
+            if request.data and "file" in request.data:
+                # look for file in user's folder
+                filename = os.path.basename(request.data["file"])
+                user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
+                file_path = os.path.join(user_dir, filename)
+
+                if os.path.exists(user_dir) and os.path.exists(file_path) and filename:
+                    os.remove(file_path)
+                    response = Response(
+                        {"message": "Requested file was deleted."},
+                        status=status.HTTP_200_OK,
+                    )
+            return response
+
 
 class KeycloakLogin(SocialLoginView):
     """KeycloakLogin."""

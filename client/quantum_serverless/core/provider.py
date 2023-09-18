@@ -295,6 +295,10 @@ class BaseProvider(JsonSerializable):
         """Download file."""
         raise NotImplementedError
 
+    def delete(self, file: str):
+        """Deletes file uploaded or produced by the programs,"""
+        raise NotImplementedError
+
     def widget(self):
         """Widget for information about provider and jobs."""
         return Widget(self).show()
@@ -380,6 +384,9 @@ class Provider(BaseProvider):
 
     def download(self, file: str, download_location: str = "./"):
         return self._files_client.download(file, download_location)
+
+    def delete(self, file: str):
+        return self._files_client.delete(file)
 
     def _fetch_token(self, username: str, password: str):
         response_data = safe_json_request(

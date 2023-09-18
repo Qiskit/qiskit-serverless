@@ -90,3 +90,20 @@ class GatewayFilesClient:
                 )
             )
         return response_data.get("results", [])
+
+    def delete(self, file: str) -> Optional[str]:
+        """Deletes file uploaded or produced by the programs,"""
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("files.delete"):
+            response_data = safe_json_request(
+                request=lambda: requests.delete(
+                    f"{self.host}/api/{self.version}/files/delete/",
+                    data={"file": file},
+                    headers={
+                        "Authorization": f"Bearer {self._token}",
+                        "format": "json",
+                    },
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+        return response_data.get("message", "")
