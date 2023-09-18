@@ -142,7 +142,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         with tracer.start_as_current_span("gateway.job.result", context=ctx):
             job = self.get_object()
             job.result = json.dumps(request.data.get("result"))
-            job.save()
+            job.save(update_fields=["result"])
             serializer = self.get_serializer(job)
         return Response(serializer.data)
 
@@ -159,7 +159,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                     ray_client = JobSubmissionClient(job.compute_resource.host)
                     logs = ray_client.get_job_logs(job.ray_job_id)
                     job.logs = logs
-                    job.save()
+                    job.save(update_fields=["logs"])
                 except Exception:  # pylint: disable=broad-exception-caught
                     logger.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response({"logs": logs})
@@ -173,7 +173,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
             job = self.get_object()
             if not job.in_terminal_state():
                 job.status = Job.STOPPED
-                job.save()
+                job.save(update_fields=["status"])
             message = "Job has been stopped."
             if job.compute_resource:
                 if job.compute_resource.active:
