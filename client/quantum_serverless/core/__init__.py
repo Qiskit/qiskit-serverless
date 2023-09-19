@@ -27,6 +27,7 @@ Core abstractions
     :toctree: ../stubs/
 
     Provider
+    IBMServerlessProvider
     BaseProvider
     ComputeResource
     Job
@@ -49,7 +50,7 @@ Core abstractions
 
 """
 
-from .provider import BaseProvider, ComputeResource, Provider
+from .provider import BaseProvider, ComputeResource, Provider, IBMServerlessProvider
 from .job import BaseJobClient, RayJobClient, GatewayJobClient, Job, save_result
 from .program import (
     Program,
