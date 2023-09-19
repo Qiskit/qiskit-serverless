@@ -93,7 +93,8 @@ class BaseJobClient:
         """Return logs."""
         raise NotImplementedError
 
-    def filteredLogs(self, job_id: str, **kwargs):
+    def filtered_logs(self, job_id: str, **kwargs):
+        """Return filtered logs."""
         raise NotImplementedError
 
     def result(self, job_id: str):
@@ -122,7 +123,7 @@ class RayJobClient(BaseJobClient):
     def logs(self, job_id: str):
         return self._job_client.get_job_logs(job_id)
 
-    def filteredLogs(self, job_id: str, **kwargs):
+    def filtered_logs(self, job_id: str, **kwargs):
         raise NotImplementedError
 
     def result(self, job_id: str):
@@ -280,22 +281,22 @@ class GatewayJobClient(BaseJobClient):
             )
         return response_data.get("logs")
 
-    def filteredLogs(self, job_id: str, **kwargs):
-        allLogs = self.logs(job_id=job_id)
+    def filtered_logs(self, job_id: str, **kwargs):
+        all_logs = self.logs(job_id=job_id)
         included = ""
         include = kwargs.get("include")
-        if include != None:
-            for line in allLogs.split("\n"):
-                if re.search(include, line) != None:
+        if include is not None:
+            for line in all_logs.split("\n"):
+                if re.search(include, line) is not None:
                     included = included + line + "\n"
         else:
-            included = allLogs
+            included = all_logs
 
         excluded = ""
         exclude = kwargs.get("exclude")
-        if exclude != None:
+        if exclude is not None:
             for line in included.split("\n"):
-                if line != "" and re.search(exclude, line) == None:
+                if line != "" and re.search(exclude, line) is None:
                     excluded = excluded + line + "\n"
         else:
             excluded = included
@@ -386,13 +387,13 @@ class Job:
         """Returns logs of the job."""
         return self._job_client.logs(self.job_id)
 
-    def filteredLogs(self, **kwargs) -> str:
+    def filtered_logs(self, **kwargs) -> str:
         """Returns logs of the job.
         Args:
             include: rex expression finds match in the log line to be included
             exclude: rex expression finds match in the log line to be excluded
         """
-        return self._job_client.filteredLogs(job_id=self.job_id, **kwargs)
+        return self._job_client.filtered_logs(job_id=self.job_id, **kwargs)
 
     def result(self, wait=True, cadence=5, verbose=False):
         """Return results of the job.

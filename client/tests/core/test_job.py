@@ -40,16 +40,17 @@ class TestJob(TestCase):
             )
             self.assertTrue(result)
 
-    def test_filteredLogs(self):
+    def test_filtered_logs(self):
         """Tests job filtered log."""
         client = GatewayJobClient("host", "token", "version")
         client.logs = MagicMock(
-            return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n",
+            return_value=
+            "This is the line 1\nThis is the second line\nOK.  This is the last line.\n",
         )
-        assert "OK.  This is the last line.\n" == client.filteredLogs(
+        assert "OK.  This is the last line.\n" == client.filtered_logs(
             "id", include="the.+a.+l"
         )
-        assert "This is the line 1\nThis is the second line\n" == client.filteredLogs(
+        assert "This is the line 1\nThis is the second line\n" == client.filtered_logs(
             "id", exclude="the.+a.+l"
         )
         assert "This is the line 1\n" == client.filteredLogs(
