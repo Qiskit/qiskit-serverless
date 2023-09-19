@@ -44,8 +44,7 @@ class TestJob(TestCase):
         """Tests job filtered log."""
         client = GatewayJobClient("host", "token", "version")
         client.logs = MagicMock(
-            return_value=
-            "This is the line 1\nThis is the second line\nOK.  This is the last line.\n",
+            return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n",
         )
         assert "OK.  This is the last line.\n" == client.filtered_logs(
             "id", include="the.+a.+l"
