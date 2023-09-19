@@ -44,7 +44,7 @@ class TestJob(TestCase):
         """Tests job filtered log."""
         client = GatewayJobClient("host", "token", "version")
         client.logs = MagicMock(
-            return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n",
+            return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n", # pylint: disable=line-too-long
         )
         assert "OK.  This is the last line.\n" == client.filtered_logs(
             "id", include="the.+a.+l"
@@ -52,6 +52,6 @@ class TestJob(TestCase):
         assert "This is the line 1\nThis is the second line\n" == client.filtered_logs(
             "id", exclude="the.+a.+l"
         )
-        assert "This is the line 1\n" == client.filteredLogs(
+        assert "This is the line 1\n" == client.filtered_logs(
             "id", include="This is the l.+", exclude="the.+a.+l"
         )
