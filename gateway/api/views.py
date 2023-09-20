@@ -19,7 +19,6 @@ from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import StreamingHttpResponse
-from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
@@ -37,7 +36,7 @@ from .models import Program, Job
 from .ray import get_job_handler
 from .schedule import save_program
 from .serializers import JobSerializer
-from .utils import build_env_variables, encrypt_env_vars
+from .utils import build_env_variables, encrypt_env_vars, optimistic_lock_model_save
 
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})
@@ -142,7 +141,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         with tracer.start_as_current_span("gateway.job.result", context=ctx):
             job = self.get_object()
             job.result = json.dumps(request.data.get("result"))
-            job.save(update_fields=["result"])
+            optimistic_lock_model_save(job, update_fields=["result"])
             serializer = self.get_serializer(job)
         return Response(serializer.data)
 
@@ -154,14 +153,6 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         with tracer.start_as_current_span("gateway.job.logs", context=ctx):
             job = self.get_object()
             logs = job.logs
-            if job.compute_resource:
-                try:
-                    ray_client = JobSubmissionClient(job.compute_resource.host)
-                    logs = ray_client.get_job_logs(job.ray_job_id)
-                    job.logs = logs
-                    job.save(update_fields=["logs"])
-                except Exception:  # pylint: disable=broad-exception-caught
-                    logger.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response({"logs": logs})
 
     @action(methods=["POST"], detail=True)
