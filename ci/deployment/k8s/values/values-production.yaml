@@ -79,7 +79,7 @@ gateway:
       key: GATEWAY_SECRET_KEY
     servicePsql:
       create: false
-      name: binding-gateway-staging-psql
+      name: binding-gateway-production-psql
       key:
         databaseName: connection.postgres.database
         databasePassword: connection.postgres.authentication.password
