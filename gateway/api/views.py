@@ -142,7 +142,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         with tracer.start_as_current_span("gateway.job.result", context=ctx):
             job = self.get_object()
             job.result = json.dumps(request.data.get("result"))
-            job.save()
+            job.save(update_fields=["result"])
             serializer = self.get_serializer(job)
         return Response(serializer.data)
 
@@ -159,7 +159,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                     ray_client = JobSubmissionClient(job.compute_resource.host)
                     logs = ray_client.get_job_logs(job.ray_job_id)
                     job.logs = logs
-                    job.save()
+                    job.save(update_fields=["logs"])
                 except Exception:  # pylint: disable=broad-exception-caught
                     logger.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response({"logs": logs})
@@ -173,7 +173,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
             job = self.get_object()
             if not job.in_terminal_state():
                 job.status = Job.STOPPED
-                job.save()
+                job.save(update_fields=["status"])
             message = "Job has been stopped."
             if job.compute_resource:
                 if job.compute_resource.active:
@@ -249,6 +249,47 @@ class FilesViewSet(viewsets.ViewSet):
                     response["Content-Length"] = os.path.getsize(file_path)
                     response["Content-Disposition"] = f"attachment; filename={filename}"
             return response
+
+    @action(methods=["DELETE"], detail=False)
+    def delete(self, request):  # pylint: disable=invalid-name
+        """Deletes file uploaded or produced by the programs,"""
+        # default response for file not found, overwritten if file is found
+        response = Response(
+            {"message": "Requested file was not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.files.delete", context=ctx):
+            if request.data and "file" in request.data:
+                # look for file in user's folder
+                filename = os.path.basename(request.data["file"])
+                user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
+                file_path = os.path.join(user_dir, filename)
+
+                if os.path.exists(user_dir) and os.path.exists(file_path) and filename:
+                    os.remove(file_path)
+                    response = Response(
+                        {"message": "Requested file was deleted."},
+                        status=status.HTTP_200_OK,
+                    )
+            return response
+
+    @action(methods=["POST"], detail=False)
+    def upload(self, request):  # pylint: disable=invalid-name
+        """Upload selected file."""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.files.download", context=ctx):
+            upload_file = request.FILES["file"]
+            filename = os.path.basename(upload_file.name)
+            user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
+            file_path = os.path.join(user_dir, filename)
+            with open(file_path, "wb+") as destination:
+                for chunk in upload_file.chunks():
+                    destination.write(chunk)
+            return Response({"message": file_path})
+        return Response("server error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class KeycloakLogin(SocialLoginView):
