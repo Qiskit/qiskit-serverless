@@ -190,6 +190,7 @@ def optimistic_lock_model_save(
                 model.save(update_fields=update_fields)
             else:
                 model.save()
+            saved = True
         except RecordModifiedError:
             logger.warning(
                 "Model[%s] record has not been updated due to lock. Retrying. Attempts left %s",
