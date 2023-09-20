@@ -154,7 +154,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                 try:
                     job = self.get_object()
                     job.result = json.dumps(request.data.get("result"))
-                    job.save(update_fields=["result"])
+                    job.save()
                     saved = True
                 except RecordModifiedError:
                     logger.warning(

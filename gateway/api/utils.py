@@ -4,9 +4,8 @@ import inspect
 import json
 import logging
 import time
-from typing import Optional, Tuple, Callable, Dict, List
+from typing import Optional, Tuple, Callable, Dict
 
-from concurrency.exceptions import RecordModifiedError
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
 from django.conf import settings
@@ -167,36 +166,3 @@ def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
             ) as decryption_error:
                 logger.error("Cannot decrypt %s. %s", key, decryption_error)
     return env_vars
-
-
-def optimistic_lock_model_save(
-    model, max_retries: int = 10, update_fields: Optional[List[str]] = None
-):
-    """Save model while using optimistic lock.
-    Retries if model was not saved successfully.
-
-    Args:
-        model: model to save
-        max_retries: maximum attempt to save model
-        update_fields: fields to update during save
-    """
-    saved = False
-    attempts_left = max_retries
-    while not saved and attempts_left > 0:
-        attempts_left -= 1
-
-        try:
-            if update_fields is not None:
-                model.save(update_fields=update_fields)
-            else:
-                model.save()
-            saved = True
-        except RecordModifiedError:
-            logger.warning(
-                "Model[%s] record has not been updated due to lock. Retrying. Attempts left %s",
-                model,
-                attempts_left,
-            )
-            continue
-
-        time.sleep(1)
