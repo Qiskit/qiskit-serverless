@@ -11,10 +11,12 @@ import mimetypes
 import os
 import json
 import logging
+import time
 from wsgiref.util import FileWrapper
 
 import requests
 from allauth.socialaccount.providers.keycloak.views import KeycloakOAuth2Adapter
+from concurrency.exceptions import RecordModifiedError
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -36,7 +38,7 @@ from .models import Program, Job
 from .ray import get_job_handler
 from .schedule import save_program
 from .serializers import JobSerializer
-from .utils import build_env_variables, encrypt_env_vars, optimistic_lock_model_save
+from .utils import build_env_variables, encrypt_env_vars
 
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})
@@ -139,9 +141,31 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.result", context=ctx):
-            job = self.get_object()
-            job.result = json.dumps(request.data.get("result"))
-            optimistic_lock_model_save(job, update_fields=["result"])
+            saved = False
+            attempts_left = 10
+            while not saved:
+                if attempts_left <= 0:
+                    return Response(
+                        {"error": "All attempts to save results failed."}, status=500
+                    )
+
+                attempts_left -= 1
+
+                try:
+                    job = self.get_object()
+                    job.result = json.dumps(request.data.get("result"))
+                    job.save(update_fields=["result"])
+                    saved = True
+                except RecordModifiedError:
+                    logger.warning(
+                        "Job[%s] record has not been updated due to lock. "
+                        "Retrying. Attempts left %s",
+                        job.id,
+                        attempts_left,
+                    )
+                    continue
+                time.sleep(1)
+
             serializer = self.get_serializer(job)
         return Response(serializer.data)
 
