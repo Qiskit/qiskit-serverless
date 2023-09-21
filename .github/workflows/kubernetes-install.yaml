@@ -62,6 +62,7 @@ jobs:
             --set gateway.secrets.servicePsql.value.host=postgresql \
             --set gateway.secrets.servicePsql.value.port=5432 \
             --set gateway.secrets.servicePsql.value.userName=bn_keycloak \
+            --set gateway.secrets.superuser.create=true \
             .
       - name: Give containers time to initialize
         shell: bash
