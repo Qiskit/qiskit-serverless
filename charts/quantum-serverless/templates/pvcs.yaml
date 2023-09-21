@@ -1,4 +1,4 @@
-{{ if and (eq .Values.platform "kind") .Values.cosEnable }}
+{{ if and (eq .Values.platform "kind") (eq .Values.cosEnable false) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
