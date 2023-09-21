@@ -174,7 +174,6 @@ def check_job_timeout(job: Job, job_status):
     if job.updated and endtime < now:
         job_status = Job.STOPPED
         job.logs = f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
-        job.save()
         logger.warning(
             "Job [%s] reached maximum runtime [%s] days and stopped.",
             job.id,
