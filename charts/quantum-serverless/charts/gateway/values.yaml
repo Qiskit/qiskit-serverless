@@ -63,7 +63,7 @@ secrets:
       databaseName: gateway_db
       databasePassword: CHANGE_ME
       host: postgresql
-      port: 5432
+      port: "5432"
       userName: bn_keycloak
   superuser:
     create: true
