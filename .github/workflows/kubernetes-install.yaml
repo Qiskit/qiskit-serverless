@@ -92,7 +92,7 @@ jobs:
           GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
           kubectl logs $GATEWAY
       - name: Echo scheduler logs
-       if: ${{ failure() }}        
+        if: ${{ failure() }}        
         run: |
           SCHEDULER=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep scheduler)
           kubectl logs $SCHEDULER
