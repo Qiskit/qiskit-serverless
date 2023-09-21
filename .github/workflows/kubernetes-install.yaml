@@ -63,10 +63,11 @@ jobs:
             --set gateway.secrets.servicePsql.value.port=5432 \
             --set gateway.secrets.servicePsql.value.userName=bn_keycloak \
             --set gateway.secrets.superuser.create=true \
+            --set keycloak.postgresql.auth.password=CHANGE_ME \
             .
       - name: Give containers time to initialize
         shell: bash
-        run: sleep 270
+        run: sleep 100
       - name: setup python
         uses: actions/setup-python@v4
         with:
