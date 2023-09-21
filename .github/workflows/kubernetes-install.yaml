@@ -57,11 +57,11 @@ jobs:
             --set gateway.image.tag=test \
             --set gateway.application.ray.nodeImage=ray:test \
             --set gateway.application.limits.keepClusterOnComplete=true \
-            --set secrets.servicePsql.value.databaseName=gateway_db \
-            --set secrets.servicePsql.value.databasePassword=CHANGE_ME \
-            --set secrets.servicePsql.value.host=postgresql \
-            --set secrets.servicePsql.value.port=5432 \
-            --set secrets.servicePsql.value.userName=bn_keycloak \
+            --set gateway.secrets.servicePsql.value.databaseName=gateway_db \
+            --set gateway.secrets.servicePsql.value.databasePassword=CHANGE_ME \
+            --set gateway.secrets.servicePsql.value.host=postgresql \
+            --set gateway.secrets.servicePsql.value.port=5432 \
+            --set gateway.secrets.servicePsql.value.userName=bn_keycloak \
             .
       - name: Give containers time to initialize
         shell: bash
