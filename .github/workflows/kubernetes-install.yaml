@@ -86,6 +86,14 @@ jobs:
           GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
           kubectl port-forward "$GATEWAY" 8000 &
           pytest --nbmake /home/runner/work/quantum-serverless/quantum-serverless/docs/running/notebooks/01_running_program.ipynb
+      - name: Echo gateway logs
+        run: |
+          GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
+          kubectl logs $GATEWAY
+      - name: Echo scheduler logs
+        run: |
+          SCHEDULER=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep scheduler)
+          kubectl logs $SCHEDULER
       - uses: chainguard-dev/actions/kind-diag@main
         # Only upload logs on failure.
         if: ${{ failure() }}
