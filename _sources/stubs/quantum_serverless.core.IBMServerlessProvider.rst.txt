@@ -1,0 +1,37 @@
+﻿quantum\_serverless.core.IBMServerlessProvider
+==============================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: IBMServerlessProvider
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~IBMServerlessProvider.__init__
+      ~IBMServerlessProvider.context
+      ~IBMServerlessProvider.create_compute_resource
+      ~IBMServerlessProvider.delete
+      ~IBMServerlessProvider.delete_compute_resource
+      ~IBMServerlessProvider.download
+      ~IBMServerlessProvider.files
+      ~IBMServerlessProvider.from_dict
+      ~IBMServerlessProvider.get_compute_resources
+      ~IBMServerlessProvider.get_job_by_id
+      ~IBMServerlessProvider.get_jobs
+      ~IBMServerlessProvider.job_client
+      ~IBMServerlessProvider.run
+      ~IBMServerlessProvider.to_dict
+      ~IBMServerlessProvider.upload
+      ~IBMServerlessProvider.widget
+   
+   
+
+   
+   
+   

@@ -16,6 +16,7 @@
       ~BaseProvider.__init__
       ~BaseProvider.context
       ~BaseProvider.create_compute_resource
+      ~BaseProvider.delete
       ~BaseProvider.delete_compute_resource
       ~BaseProvider.download
       ~BaseProvider.files
@@ -26,6 +27,7 @@
       ~BaseProvider.job_client
       ~BaseProvider.run
       ~BaseProvider.to_dict
+      ~BaseProvider.upload
       ~BaseProvider.widget
    
    

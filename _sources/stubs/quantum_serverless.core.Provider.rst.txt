@@ -16,6 +16,7 @@
       ~Provider.__init__
       ~Provider.context
       ~Provider.create_compute_resource
+      ~Provider.delete
       ~Provider.delete_compute_resource
       ~Provider.download
       ~Provider.files
@@ -26,6 +27,7 @@
       ~Provider.job_client
       ~Provider.run
       ~Provider.to_dict
+      ~Provider.upload
       ~Provider.widget
    
    
