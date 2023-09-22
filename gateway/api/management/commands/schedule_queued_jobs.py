@@ -1,7 +1,10 @@
 """Cleanup resources command."""
 import json
 import logging
+import os
+import time
 
+from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
@@ -10,7 +13,7 @@ from django.db.models import Model
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from api.models import ComputeResource
+from api.models import ComputeResource, Job
 from api.schedule import get_jobs_to_schedule_fair_share, execute_job
 
 User: Model = get_user_model()
@@ -67,6 +70,34 @@ class Command(BaseCommand):
                 tracer = trace.get_tracer("scheduler.tracer")
                 with tracer.start_as_current_span("scheduler.handle", context=ctx):
                     job = execute_job(job)
-                    logger.info("Executing %s", job)
+                    job_id = job.id
+                    backup_status = job.status
+                    backup_logs = job.logs
+                    backup_resource = job.compute_resource
 
+                    succeed = False
+                    attempts = settings.RAY_SETUP_MAX_RETRIES
+
+                    while not succeed and attempts > 0:
+                        attempts -= 1
+
+                        try:
+                            job.save()
+                            # remove artifact after successful submission and save
+                            if os.path.exists(job.program.artifact.path):
+                                os.remove(job.program.artifact.path)
+                        except RecordModifiedError:
+                            logger.warning(
+                                "Schedule: Job[%s] record has not been updated due to lock.",
+                                job.id,
+                            )
+
+                        time.sleep(1)
+
+                        job = Job.objects.get(id=job_id)
+                        job.status = backup_status
+                        job.logs = backup_logs
+                        job.compute_resource = backup_resource
+
+                    logger.info("Executing %s", job)
             logger.info("%s are scheduled for execution.", len(jobs))
