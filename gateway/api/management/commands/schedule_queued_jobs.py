@@ -92,12 +92,12 @@ class Command(BaseCommand):
                                 job.id,
                             )
 
-                        time.sleep(1)
+                            time.sleep(1)
 
-                        job = Job.objects.get(id=job_id)
-                        job.status = backup_status
-                        job.logs = backup_logs
-                        job.compute_resource = backup_resource
+                            job = Job.objects.get(id=job_id)
+                            job.status = backup_status
+                            job.logs = backup_logs
+                            job.compute_resource = backup_resource
 
                     logger.info("Executing %s", job)
             logger.info("%s are scheduled for execution.", len(jobs))
