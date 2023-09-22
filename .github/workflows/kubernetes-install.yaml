@@ -68,7 +68,6 @@ jobs:
             --set gateway.service.port=8000 \
             --set gateway.service.targetPort=8000 \
             --set gateway.service.nodePort=31080 \
-
             --set keycloak.postgresql.auth.password=CHANGE_ME \
             .
       - name: Give containers time to initialize
