@@ -11,15 +11,16 @@ import mimetypes
 import os
 import json
 import logging
+import time
 from wsgiref.util import FileWrapper
 
 import requests
 from allauth.socialaccount.providers.keycloak.views import KeycloakOAuth2Adapter
+from concurrency.exceptions import RecordModifiedError
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import StreamingHttpResponse
-from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
@@ -140,9 +141,31 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.result", context=ctx):
-            job = self.get_object()
-            job.result = json.dumps(request.data.get("result"))
-            job.save(update_fields=["result"])
+            saved = False
+            attempts_left = 10
+            while not saved:
+                if attempts_left <= 0:
+                    return Response(
+                        {"error": "All attempts to save results failed."}, status=500
+                    )
+
+                attempts_left -= 1
+
+                try:
+                    job = self.get_object()
+                    job.result = json.dumps(request.data.get("result"))
+                    job.save()
+                    saved = True
+                except RecordModifiedError:
+                    logger.warning(
+                        "Job[%s] record has not been updated due to lock. "
+                        "Retrying. Attempts left %s",
+                        job.id,
+                        attempts_left,
+                    )
+                    continue
+                time.sleep(1)
+
             serializer = self.get_serializer(job)
         return Response(serializer.data)
 
@@ -154,14 +177,6 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         with tracer.start_as_current_span("gateway.job.logs", context=ctx):
             job = self.get_object()
             logs = job.logs
-            if job.compute_resource:
-                try:
-                    ray_client = JobSubmissionClient(job.compute_resource.host)
-                    logs = ray_client.get_job_logs(job.ray_job_id)
-                    job.logs = logs
-                    job.save(update_fields=["logs"])
-                except Exception:  # pylint: disable=broad-exception-caught
-                    logger.warning("Ray cluster was not ready %s", job.compute_resource)
         return Response({"logs": logs})
 
     @action(methods=["POST"], detail=True)

@@ -1,6 +1,7 @@
 """Cleanup resources command."""
 import logging
 
+from concurrency.exceptions import RecordModifiedError
 from django.core.management.base import BaseCommand
 
 from api.models import Job
@@ -52,9 +53,14 @@ class Command(BaseCommand):
                         if job_handler:
                             logs = job_handler.logs(job.ray_job_id)
                             job.logs = logs
-                        job.save(update_fields=["logs", "env_vars", "status"])
-                    else:
-                        job.save(update_fields=["status"])
+
+                    try:
+                        job.save()
+                    except RecordModifiedError:
+                        logger.warning(
+                            "Job[%s] record has not been updated due to lock.", job.id
+                        )
+
             else:
                 logger.warning(
                     "Job [%s] does not have compute resource associated with it. Skipping.",
