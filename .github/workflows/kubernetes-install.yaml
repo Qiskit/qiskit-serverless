@@ -25,8 +25,9 @@ jobs:
           - role: control-plane
             image: kindest/node:v1.27.3
             extraPortMappings:
-            - containerPort: 80
-              hostPort: 80
+            - containerPort: 31080
+              hostPort: 8000
+              listenAddress: 127.0.0.1
           EOF
           kind create cluster --config /tmp/kind.yaml --wait 5m
       - name: Build and load gateway
@@ -63,6 +64,11 @@ jobs:
             --set gateway.secrets.servicePsql.value.port=5432 \
             --set gateway.secrets.servicePsql.value.userName=bn_keycloak \
             --set gateway.secrets.superuser.create=true \
+            --set gateway.service.type=NodePort \
+            --set gateway.service.port=8000 \
+            --set gateway.service.targetPort=8000 \
+            --set gateway.service.nodePort=31080 \
+
             --set keycloak.postgresql.auth.password=CHANGE_ME \
             .
       - name: Give containers time to initialize
@@ -81,20 +87,19 @@ jobs:
           pip install nbmake pytest
       - name: Run notebooks
         run: |
+          export GATEWAY_HOST="http://localhost:8000"
           echo $GATEWAY_HOST
-          GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
-          kubectl port-forward "$GATEWAY" 8000 &
           pytest --nbmake /home/runner/work/quantum-serverless/quantum-serverless/docs/running/notebooks/01_running_program.ipynb
       - name: Echo gateway logs
         if: ${{ failure() }}
         run: |
           GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
-          kubectl logs $GATEWAY
+          kubectl logs $GATEWAY --all-containers=true
       - name: Echo scheduler logs
         if: ${{ failure() }}        
         run: |
           SCHEDULER=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep scheduler)
-          kubectl logs $SCHEDULER
+          kubectl logs $SCHEDULER --all-containers=true
       - uses: chainguard-dev/actions/kind-diag@main
         # Only upload logs on failure.
         if: ${{ failure() }}
