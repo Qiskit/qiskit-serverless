@@ -1,0 +1,10 @@
+# TODO: scipy version pinned to 1.10, pyscf depends on. More info in #722
+# TODO: certifi version pinned to 2023.7.22. More info in #870
+ipywidgets==8.0.6
+circuit-knitting-toolbox==0.2.0
+matplotlib==3.7.1
+pyscf==2.2.1
+scipy==1.10
+qiskit-ibmq-provider==0.20.2
+qiskit-aer==0.12.0
+certifi==2023.7.22
