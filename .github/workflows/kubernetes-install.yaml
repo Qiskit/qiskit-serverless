@@ -54,8 +54,8 @@ jobs:
             --set lokiEnable=false \
             --set promtailEnable=false \
             --set nginxIngressControllerEnable=false \
-            --set gateway.image.repository=gateway \
-            --set gateway.image.tag=test \
+            --set gateway.image.repository=icr.io/quantum-public/quantum-serverless-gateway \
+            --set gateway.image.tag=0.6.2 \
             --set gateway.application.siteHost="http://localhost:8000" \
             --set gateway.application.ray.nodeImage=ray:test \
             --set gateway.application.limits.keepClusterOnComplete=true \
