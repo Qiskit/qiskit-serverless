@@ -41,7 +41,7 @@ gateway:
   image:
     repository: "icr.io/quantum-public/quantum-serverless-gateway"
     pullPolicy: IfNotPresent
-    tag: "0.6.2-patch2"
+    tag: "0.6.2-patch3"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
