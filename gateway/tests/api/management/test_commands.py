@@ -59,7 +59,14 @@ class TestCommands(APITestCase):
     @patch("api.schedule.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""
-        execute_job.return_value = "Mocked job!"
+        fake_job = MagicMock()
+        fake_job.id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
+        fake_job.logs = ""
+        fake_job.status = "SUCCEEDED"
+        fake_job.program.artifact.path = "non_existing_file.tar"
+        fake_job.save.return_value = None
+
+        execute_job.return_value = fake_job
         call_command("schedule_queued_jobs")
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
