@@ -94,6 +94,7 @@ class JobHandler:
                         "working_dir": extract_folder,
                         "env_vars": decrypt_env_vars(env_w_span),
                         "pip": dependencies or [],
+                        "quantum_middleware_job": str(job.id),
                     },
                 ),
                 num_retries=settings.RAY_SETUP_MAX_RETRIES,

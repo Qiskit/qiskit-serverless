@@ -88,3 +88,40 @@ class TestJobApi(APITestCase):
         ).first()
         self.assertEqual(job.status, Job.STOPPED)
         self.assertEqual(job_stop_response.data.get("message"), "Job has been stopped.")
+
+    def test_job_add_primitive(self):
+        """Tests job add primitive."""
+        self._authorize()
+        # put the first job id
+        jobs_response = self.client.post(
+            reverse(
+                "v1:jobs-add-primitive", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]
+            ),
+            format="json",
+            data={"primitive": "primitive-id"},
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("primitive_job_id"), '"primitive-id"')
+        # add the second job id
+        jobs_response = self.client.post(
+            reverse(
+                "v1:jobs-add-primitive", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]
+            ),
+            format="json",
+            data={"primitive": "primitive-id-2"},
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            jobs_response.data.get("primitive_job_id"),
+            '"primitive-id","primitive-id-2"',
+        )
+        # query job ids
+        jobs_response = self.client.get(
+            reverse("v1:jobs-primitive", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
+            format="json",
+            data={"primitive": "primitive-id"},
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            jobs_response.data.get("ids"), '"primitive-id","primitive-id-2"'
+        )

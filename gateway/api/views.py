@@ -204,6 +204,39 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                         )
         return Response({"message": message})
 
+    @action(methods=["POST"], detail=True)
+    def add_primitive(
+        self, request, pk=None
+    ):  # pylint: disable=invalid-name,unused-argument
+        """Save add primitive job id to program job."""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.primitive", context=ctx):
+            job = self.get_object()
+            if job.primitive_job_id:
+                job.primitive_job_id = (
+                    job.primitive_job_id
+                    + ","
+                    + json.dumps(request.data.get("primitive"))
+                )
+            else:
+                job.primitive_job_id = json.dumps(request.data.get("primitive"))
+            logger.warning(request.data)
+            job.save(update_fields=["primitive_job_id"])
+            serializer = self.get_serializer(job)
+        return Response(serializer.data)
+
+    @action(methods=["GET"], detail=True)
+    def primitive(
+        self, request, pk=None
+    ):  # pylint: disable=invalid-name,unused-argument
+        """Get primitive job ids of the probram job."""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.primitive", context=ctx):
+            job = self.get_object()
+        return Response({"ids": job.primitive_job_id})
+
 
 class FilesViewSet(viewsets.ViewSet):
     """ViewSet for file operations handling.

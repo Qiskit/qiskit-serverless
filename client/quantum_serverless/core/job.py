@@ -96,6 +96,14 @@ class BaseJobClient:
         """Return results."""
         raise NotImplementedError
 
+    def primitive(self, job_id: str):
+        """get primitive ids of a job."""
+        raise NotImplementedError
+
+    def add_primitive(self, job_id: str, primitive: str):
+        """add primitive id to job."""
+        raise NotImplementedError
+
 
 class RayJobClient(BaseJobClient):
     """RayJobClient."""
@@ -158,6 +166,12 @@ class RayJobClient(BaseJobClient):
             },
         )
         return Job(job_id=job_id, job_client=self)
+
+    def primitive(self, job_id: str):
+        raise NotImplementedError
+
+    def add_primitive(self, job_id: str, primitive: str):
+        raise NotImplementedError
 
 
 class GatewayJobClient(BaseJobClient):
@@ -287,6 +301,31 @@ class GatewayJobClient(BaseJobClient):
             response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder
         )
 
+    def primitive(self, job_id: str):
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.primitivess"):
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/jobs/{job_id}/primitive/",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+        return response_data.get("ids")
+
+    def add_primitive(self, job_id: str, primitive: str):
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.primitivess"):
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/jobs/{job_id}/add_primitive/",
+                    data={"primitive": primitive},
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            return response_data
+
     def get(self, job_id) -> Optional["Job"]:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.get"):
@@ -376,6 +415,14 @@ class Job:
                 if verbose:
                     logging.info(".")
         return self._job_client.result(self.job_id)
+
+    def primitive(self):
+        """Returns status of the job."""
+        return self._job_client.primitive(self.job_id)
+
+    def add_primitive(self, primitive: str):
+        """Returns status of the job."""
+        return self._job_client.add_primitive(self.job_id, primitive)
 
     def _in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
