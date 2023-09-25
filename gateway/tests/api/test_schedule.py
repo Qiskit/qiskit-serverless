@@ -48,9 +48,10 @@ class TestScheduleApi(APITestCase):
 
     @patch("tarfile.open")
     @patch("tarfile.os.path.basename")
+    @patch("api.schedule.os.remove", return_value=0)
     @patch.object(uuid, "uuid4", return_value="")
     def test_already_created_ray_cluster_execute_job(
-        self, mock_open, mock_basename, mock_uuid
+        self, mock_open, mock_basename, mock_uuid, mock_remove
     ):
 
         test_json = {"ray_version": "2.6.1"}
