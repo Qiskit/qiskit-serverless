@@ -62,13 +62,13 @@ jobs:
             --set gateway.secrets.servicePsql.value.databaseName=gateway_db \
             --set gateway.secrets.servicePsql.value.databasePassword=CHANGE_ME \
             --set gateway.secrets.servicePsql.value.host=postgresql \
-            --set gateway.secrets.servicePsql.value.port=5432 \
+            --set gateway.secrets.servicePsql.value.port="5432" \
             --set gateway.secrets.servicePsql.value.userName=bn_keycloak \
             --set gateway.secrets.superuser.create=true \
             --set gateway.service.type=NodePort \
-            --set gateway.service.port=8000 \
-            --set gateway.service.targetPort=8000 \
-            --set gateway.service.nodePort=31080 \
+            --set gateway.service.port="8000" \
+            --set gateway.service.targetPort="8000" \
+            --set gateway.service.nodePort="31080" \
             --set keycloak.postgresql.auth.password=CHANGE_ME \
             .
       - name: Give containers time to initialize
