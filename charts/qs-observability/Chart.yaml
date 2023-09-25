@@ -4,8 +4,8 @@ description: Quantum-Serverless helm chart for observabililty (i.e. logging/moni
 
 type: application
 
-version: 0.6.2
-appVersion: "0.6.2"
+version: 0.6.3
+appVersion: "0.6.3"
 
 dependencies:
   - name: kube-prometheus-stack
