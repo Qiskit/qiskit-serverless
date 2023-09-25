@@ -15,13 +15,16 @@ from django.contrib.auth import get_user_model
 from kubernetes import client, config
 from kubernetes.dynamic.client import DynamicClient
 
+
 class response:
     status = "Success"
     metadata = client.V1ObjectMeta(name="test_user")
 
+
 class mock_create(MagicMock):
     def create(self, namespace, body):
         return response()
+
 
 class TestScheduleApi(APITestCase):
     """TestJobApi."""
@@ -45,17 +48,14 @@ class TestScheduleApi(APITestCase):
 
     @patch("tarfile.open")
     @patch("tarfile.os.path.basename")
-    @patch.object(uuid, 'uuid4', return_value = "")
-    def test_already_created_ray_cluster_execute_job(self, mock_open, mock_basename, mock_uuid):
+    @patch.object(uuid, "uuid4", return_value="")
+    def test_already_created_ray_cluster_execute_job(
+        self, mock_open, mock_basename, mock_uuid
+    ):
 
-        test_json = {
-                "ray_version": "2.6.1"
-            }
-        
-        test_post = {
-                "job_id" : "test_job_id",
-                "submission_id" : "test_submission_id"
-            }
+        test_json = {"ray_version": "2.6.1"}
+
+        test_post = {"job_id": "test_job_id", "submission_id": "test_submission_id"}
 
         config.load_incluster_config = MagicMock()
         client.api_client.ApiClient = MagicMock()
@@ -71,10 +71,11 @@ class TestScheduleApi(APITestCase):
                 user, "test_user", "dummy yaml file contents"
             )
 
-            mocker.get("http://test_user-head-svc:8265/api/version", 
-                       status_code=200, 
-                       json=test_json)
-            
+            mocker.get(
+                "http://test_user-head-svc:8265/api/version",
+                status_code=200,
+                json=test_json,
+            )
             job = MagicMock()
             program = MagicMock()
 
@@ -83,7 +84,7 @@ class TestScheduleApi(APITestCase):
             mock_open.add = mock_add
             mock_basename.return_value = tar_path
 
-            program.dependencies = json.dumps({ "packages": []})
+            program.dependencies = json.dumps({"packages": []})
             program.artifact = mock_basename
             program.entrypoint = "test_entrypoint"
             program.save()
@@ -94,11 +95,15 @@ class TestScheduleApi(APITestCase):
             job.compute_resource = compute_resource
             job.save()
 
-            mocker.get("http://test_user-head-svc:8265/api/packages/gcs/_ray_pkg_6068c19fb3b8530f.zip", 
-                       status_code=200)
-            mocker.post("http://test_user-head-svc:8265/api/jobs/", 
-                        status_code=200, 
-                        json=test_post)
+            mocker.get(
+                "http://test_user-head-svc:8265/api/packages/gcs/_ray_pkg_6068c19fb3b8530f.zip",
+                status_code=200,
+            )
+            mocker.post(
+                "http://test_user-head-svc:8265/api/jobs/",
+                status_code=200,
+                json=test_post,
+            )
             retJob = execute_job(job)
 
         self.assertEqual(retJob.status, Job.PENDING)
