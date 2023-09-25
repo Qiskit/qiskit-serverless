@@ -74,6 +74,7 @@ class Command(BaseCommand):
                     backup_status = job.status
                     backup_logs = job.logs
                     backup_resource = job.compute_resource
+                    backup_ray_job_id = job.ray_job_id
 
                     succeed = False
                     attempts = settings.RAY_SETUP_MAX_RETRIES
@@ -86,6 +87,8 @@ class Command(BaseCommand):
                             # remove artifact after successful submission and save
                             if os.path.exists(job.program.artifact.path):
                                 os.remove(job.program.artifact.path)
+
+                            succeed = True
                         except RecordModifiedError:
                             logger.warning(
                                 "Schedule: Job[%s] record has not been updated due to lock.",
@@ -98,6 +101,7 @@ class Command(BaseCommand):
                             job.status = backup_status
                             job.logs = backup_logs
                             job.compute_resource = backup_resource
+                            job.ray_job_id = backup_ray_job_id
 
                     logger.info("Executing %s", job)
             logger.info("%s are scheduled for execution.", len(jobs))
