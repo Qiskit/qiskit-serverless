@@ -25,6 +25,7 @@ Quantum serverless
 
     QuantumServerless
 """
+import os
 import json
 import logging
 from typing import Optional, Union, List, Dict, Any
@@ -32,11 +33,17 @@ from typing import Optional, Union, List, Dict, Any
 import requests
 from ray._private.worker import BaseContext
 
+from opentelemetry import trace  # pylint: disable=duplicate-code
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
 from quantum_serverless.core.provider import BaseProvider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
-from quantum_serverless.visualizaiton import Widget
 
 Context = Union[BaseContext]
 
@@ -65,6 +72,24 @@ class QuantumServerless:
         self._selected_provider: BaseProvider = self._providers[-1]
 
         self._allocated_context: Optional[Context] = None
+        RequestsInstrumentor().instrument()
+        resource = Resource(attributes={SERVICE_NAME: "QuantumServerless"})
+        provider = TracerProvider(resource=resource)
+        otel_exporter = BatchSpanProcessor(
+            OTLPSpanExporter(
+                endpoint=os.environ.get(
+                    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
+                ),
+                insecure=bool(
+                    int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))
+                ),
+            )
+        )
+        provider.add_span_processor(otel_exporter)
+        if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
+            trace._set_tracer_provider(
+                provider, log=False
+            )  # pylint: disable=protected-access
 
     @property
     def job_client(self):
@@ -92,7 +117,10 @@ class QuantumServerless:
         Returns:
             Job
         """
-        return self._selected_provider.run(program, arguments)
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("QuantumServerless.run"):
+            job = self._selected_provider.run(program, arguments)
+        return job
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.
@@ -115,6 +143,57 @@ class QuantumServerless:
             list of jobs
         """
         return self._selected_provider.get_jobs(**kwargs)
+
+    def files(self):
+        """Returns list of available files to download.
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> serverless.files()
+
+        Returns:
+            list of available files
+        """
+        return self._selected_provider.files()
+
+    def download(self, file: str, download_location: str = "./"):
+        """Downloads file.
+        Note: file will be saved with different name to avoid conflicts
+              and this name will be returned.
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> serverless.download('artifact.tar', directory="./")
+
+        Args:
+            file: name of file to download
+            download_location: destination directory. Default: current directory
+        """
+        return self._selected_provider.download(file, download_location)
+
+    def delete(self, file: str):
+        """Deletes file uploaded or produced by the programs.
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> serverless.delete('artifact.tar')
+
+        Args:
+            file: name of file to delete
+        """
+        return self._selected_provider.delete(file)
+
+    def upload(self, file: str):
+        """Downloads file.
+
+        Example:
+            >>> serverless = QuantumServerless()
+            >>> serverless.upload('artifact.tar')
+
+        Args:
+            file: name of file (with path)  to upload
+        """
+        return self._selected_provider.upload(file)
 
     def context(
         self,
@@ -227,7 +306,7 @@ class QuantumServerless:
 
     def widget(self):
         """Widget for information about provider and jobs."""
-        return Widget(self._selected_provider).show()
+        return self._selected_provider.widget()
 
     def __repr__(self):
         providers = ", ".join(provider.name for provider in self.providers())

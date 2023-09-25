@@ -40,6 +40,8 @@ import ray.runtime_env
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
+from opentelemetry import trace
+
 from quantum_serverless.core.constants import (
     OT_PROGRAM_NAME,
     REQUESTS_TIMEOUT,
@@ -176,129 +178,149 @@ class GatewayJobClient(BaseJobClient):
     def run(  # pylint: disable=too-many-locals
         self, program: Program, arguments: Optional[Dict[str, Any]] = None
     ) -> "Job":
-        url = f"{self.host}/api/{self.version}/programs/run/"
-        artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.run") as span:
+            span.set_attribute("program", program.title)
+            span.set_attribute("arguments", str(arguments))
 
-        # check if entrypoint exists
-        if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
-            raise QuantumServerlessException(
-                f"Entrypoint file [{program.entrypoint}] does not exist "
-                f"in [{program.working_dir}] working directory."
-            )
+            url = f"{self.host}/api/{self.version}/programs/run/"
+            artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
 
-        with tarfile.open(artifact_file_path, "w") as tar:
-            for filename in os.listdir(program.working_dir):
-                fpath = os.path.join(program.working_dir, filename)
-                tar.add(fpath, arcname=filename)
-
-        # check file size
-        size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
-        if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
-            raise QuantumServerlessException(
-                f"Artifact size is {int(size_in_mb)} Mb, "
-                f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
-                f"Try to reduce size of `working_dir`."
-            )
-
-        with open(artifact_file_path, "rb") as file:
-            response_data = safe_json_request(
-                request=lambda: requests.post(
-                    url=url,
-                    data={
-                        "title": program.title,
-                        "entrypoint": program.entrypoint,
-                        "arguments": json.dumps(
-                            arguments or {}, cls=QiskitObjectsEncoder
-                        ),
-                        "dependencies": json.dumps(program.dependencies or []),
-                    },
-                    files={"artifact": file},
-                    headers={"Authorization": f"Bearer {self._token}"},
-                    timeout=REQUESTS_TIMEOUT,
+            # check if entrypoint exists
+            if not os.path.exists(
+                os.path.join(program.working_dir, program.entrypoint)
+            ):
+                raise QuantumServerlessException(
+                    f"Entrypoint file [{program.entrypoint}] does not exist "
+                    f"in [{program.working_dir}] working directory."
                 )
-            )
-            job_id = response_data.get("id")
 
-        if os.path.exists(artifact_file_path):
-            os.remove(artifact_file_path)
+            with tarfile.open(artifact_file_path, "w") as tar:
+                for filename in os.listdir(program.working_dir):
+                    fpath = os.path.join(program.working_dir, filename)
+                    tar.add(fpath, arcname=filename)
+
+            # check file size
+            size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
+            if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
+                raise QuantumServerlessException(
+                    f"{artifact_file_path} is {int(size_in_mb)} Mb, "
+                    f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
+                    f"Try to reduce size of `working_dir`."
+                )
+
+            with open(artifact_file_path, "rb") as file:
+                response_data = safe_json_request(
+                    request=lambda: requests.post(
+                        url=url,
+                        data={
+                            "title": program.title,
+                            "entrypoint": program.entrypoint,
+                            "arguments": json.dumps(
+                                arguments or {}, cls=QiskitObjectsEncoder
+                            ),
+                            "dependencies": json.dumps(program.dependencies or []),
+                        },
+                        files={"artifact": file},
+                        headers={"Authorization": f"Bearer {self._token}"},
+                        timeout=REQUESTS_TIMEOUT,
+                    )
+                )
+                job_id = response_data.get("id")
+                span.set_attribute("job.id", job_id)
+
+            if os.path.exists(artifact_file_path):
+                os.remove(artifact_file_path)
 
         return Job(job_id, job_client=self)
 
     def status(self, job_id: str):
-        default_status = "Unknown"
-        response_data = safe_json_request(
-            request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers={"Authorization": f"Bearer {self._token}"},
-                timeout=REQUESTS_TIMEOUT,
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.status"):
+            default_status = "Unknown"
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
             )
-        )
 
         return response_data.get("status", default_status)
 
     def stop(self, job_id: str):
-        response_data = safe_json_request(
-            request=lambda: requests.post(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
-                headers={"Authorization": f"Bearer {self._token}"},
-                timeout=REQUESTS_TIMEOUT,
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.stop"):
+            response_data = safe_json_request(
+                request=lambda: requests.post(
+                    f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
             )
-        )
 
         return response_data.get("message")
 
     def logs(self, job_id: str):
-        response_data = safe_json_request(
-            request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
-                headers={"Authorization": f"Bearer {self._token}"},
-                timeout=REQUESTS_TIMEOUT,
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.logs"):
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
             )
-        )
         return response_data.get("logs")
 
     def result(self, job_id: str):
-        response_data = safe_json_request(
-            request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers={"Authorization": f"Bearer {self._token}"},
-                timeout=REQUESTS_TIMEOUT,
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.result"):
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
             )
-        )
         return json.loads(
             response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder
         )
 
     def get(self, job_id) -> Optional["Job"]:
-        url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
-        response_data = safe_json_request(
-            request=lambda: requests.get(
-                url,
-                headers={"Authorization": f"Bearer {self._token}"},
-                timeout=REQUESTS_TIMEOUT,
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.get"):
+            url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    url,
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
             )
-        )
 
-        job = None
-        job_id = response_data.get("id")
-        if job_id is not None:
-            job = Job(
-                job_id=response_data.get("id"),
-                job_client=self,
-            )
+            job = None
+            job_id = response_data.get("id")
+            if job_id is not None:
+                job = Job(
+                    job_id=response_data.get("id"),
+                    job_client=self,
+                )
 
         return job
 
     def list(self, **kwargs) -> List["Job"]:
-        limit = kwargs.get("limit", 10)
-        offset = kwargs.get("offset", 0)
-        response_data = safe_json_request(
-            request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/?limit={limit}&offset={offset}",
-                headers={"Authorization": f"Bearer {self._token}"},
-                timeout=REQUESTS_TIMEOUT,
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.list"):
+            limit = kwargs.get("limit", 10)
+            offset = kwargs.get("offset", 0)
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/jobs/?limit={limit}&offset={offset}",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
             )
-        )
         return [
             Job(job.get("id"), job_client=self, raw_data=job)
             for job in response_data.get("results", [])
@@ -380,7 +402,7 @@ def save_result(result: Dict[str, Any]):
         )
         return False
 
-    if not is_jsonable(result):
+    if not is_jsonable(result, cls=QiskitObjectsEncoder):
         logging.warning("Object passed is not json serializable.")
         return False
 

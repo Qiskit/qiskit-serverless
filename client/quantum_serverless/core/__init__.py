@@ -27,6 +27,7 @@ Core abstractions
     :toctree: ../stubs/
 
     Provider
+    IBMServerlessProvider
     BaseProvider
     ComputeResource
     Job
@@ -42,32 +43,14 @@ Core abstractions
     CircuitMeta
     fetch_execution_meta
     distribute_task
+    distribute_program
     get
     put
     get_refs_by_status
 
-
-Events classes
---------------
-
-.. autosummary::
-    :toctree: ../stubs/
-
-    EventHandler
-    RedisEventHandler
-    ExecutionMessage
-
-State classes
--------------
-
-.. autosummary::
-    :toctree: ../stubs/
-
-    StateHandler
-    RedisStateHandler
 """
 
-from .provider import BaseProvider, ComputeResource, Provider
+from .provider import BaseProvider, ComputeResource, Provider, IBMServerlessProvider
 from .job import BaseJobClient, RayJobClient, GatewayJobClient, Job, save_result
 from .program import (
     Program,
@@ -82,8 +65,7 @@ from .decorators import (
     get_refs_by_status,
     fetch_execution_meta,
     distribute_task,
+    distribute_program,
     Target,
     CircuitMeta,
 )
-from .events import RedisEventHandler, EventHandler, ExecutionMessage
-from .state import RedisStateHandler, StateHandler

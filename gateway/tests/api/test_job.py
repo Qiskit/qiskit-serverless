@@ -4,6 +4,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from api.models import Job
+
 
 class TestJobApi(APITestCase):
     """TestJobApi."""
@@ -31,7 +33,7 @@ class TestJobApi(APITestCase):
 
         jobs_response = self.client.get(reverse("v1:jobs-list"), format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("count"), 1)
+        self.assertEqual(jobs_response.data.get("count"), 2)
         self.assertEqual(
             jobs_response.data.get("results")[0].get("status"), "SUCCEEDED"
         )
@@ -63,3 +65,26 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("status"), "SUCCEEDED")
         self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
+
+    def test_stop_job(self):
+        """Tests job stop."""
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        job_stop_response = self.client.post(
+            reverse(
+                "v1:jobs-stop",
+                args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"],
+            ),
+            format="json",
+        )
+        self.assertEqual(job_stop_response.status_code, status.HTTP_200_OK)
+        job = Job.objects.filter(
+            id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"
+        ).first()
+        self.assertEqual(job.status, Job.STOPPED)
+        self.assertEqual(job_stop_response.data.get("message"), "Job has been stopped.")

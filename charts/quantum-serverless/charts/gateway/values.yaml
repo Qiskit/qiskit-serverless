@@ -1,0 +1,160 @@
+# Default values for gateway.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+useCertManager: false
+
+application:
+#  command: [ "gunicorn", "gateway.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=3" ]
+  debug: 0
+  siteHost: "http://127.0.0.1:8000"
+  rayHost: "http://ray:8265/"
+  auth:
+    token: {}
+    keycloak: {}
+  superuser:
+    enable: true
+  ray:
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.6.2-py39"
+    cpu: 2
+    memory: 2
+    replicas: 1
+    minReplicas: 1
+    maxReplicas: 4
+    opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-7
+    kubectlImage: alpine/k8s:1.28.1@sha256:c37a54b738e4d26f88d4a4d28680bb74dfea1d0e756f039dad900306abc837a8
+    scrapeWithPrometheus: true
+    openTelemetry: false
+    openTelemetryCollector:
+      enabled: 0
+      local: false
+      host: "http://otel-collector"
+      port: 4317
+      insecure: 0
+  limits:
+    maxJobsPerUser: 2
+    maxComputeResources: 4
+    keepClusterOnComplete: False
+    programTimeoutDays: 14
+  qiskitRuntime:
+    channel: "ibm_quantum"
+    url: "https://auth.quantum-computing.ibm.com/api"
+
+cos:
+  claimName: gateway-claim
+
+secrets:
+  secretKey:
+    create: true
+    name: gateway-secret-key
+    key: django-secret-key
+    value: "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7"
+  servicePsql:
+    create: true
+    name: service-psql-binding
+    key:
+      databaseName: database-name
+      databasePassword: database-password
+      host: database-host
+      port: database-port
+      userName: user-name
+    value:
+      databaseName: gateway_db
+      databasePassword: CHANGE_ME
+      host: postgresql
+      port: "5432"
+      userName: bn_keycloak
+  superuser:
+    create: true
+    name: gateway-superuser
+    key:
+      name: name
+      password: password
+      email: email
+    value:
+      name: admin
+      password: passw0rd
+      email: admin@examplemail.io
+
+image:
+  repository: icr.io/quantum-public/quantum-serverless-gateway
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+
+
+podSecurityContext: 
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 100
+#  fsGroupChangePolicy: "OnRootMismatch"
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

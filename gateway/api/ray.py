@@ -17,8 +17,11 @@ from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
+from opentelemetry import trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
 from api.models import ComputeResource, Job
-from api.utils import try_json_loads, retry_function
+from api.utils import try_json_loads, retry_function, decrypt_env_vars
 from main import settings
 
 logger = logging.getLogger("commands")
@@ -65,29 +68,41 @@ class JobHandler:
         Returns:
             ray job id
         """
-        program = job.program
-        _, dependencies = try_json_loads(program.dependencies)
-        with tarfile.open(program.artifact.path) as file:
-            extract_folder = os.path.join(settings.MEDIA_ROOT, "tmp", str(uuid.uuid4()))
-            file.extractall(extract_folder)
+        tracer = trace.get_tracer("scheduler.tracer")
+        with tracer.start_as_current_span("submit.job") as span:
+            program = job.program
+            _, dependencies = try_json_loads(program.dependencies)
+            with tarfile.open(program.artifact.path) as file:
+                extract_folder = os.path.join(
+                    settings.MEDIA_ROOT, "tmp", str(uuid.uuid4())
+                )
+                file.extractall(extract_folder)
 
-        entrypoint = f"python {program.entrypoint}"
+            entrypoint = f"python {program.entrypoint}"
+            carrier = {}
+            TraceContextTextMapPropagator().inject(carrier)
+            env_w_span = json.loads(job.env_vars)
+            try:
+                env_w_span["OT_TRACEPARENT_ID_KEY"] = carrier["traceparent"]
+            except KeyError:
+                pass
 
-        ray_job_id = retry_function(
-            callback=lambda: self.client.submit_job(
-                entrypoint=entrypoint,
-                runtime_env={
-                    "working_dir": extract_folder,
-                    "env_vars": json.loads(job.env_vars),
-                    "pip": dependencies or [],
-                },
-            ),
-            num_retries=settings.RAY_SETUP_MAX_RETRIES,
-            error_message=f"Ray job [{job.id}] submission failed.",
-        )
+            ray_job_id = retry_function(
+                callback=lambda: self.client.submit_job(
+                    entrypoint=entrypoint,
+                    runtime_env={
+                        "working_dir": extract_folder,
+                        "env_vars": decrypt_env_vars(env_w_span),
+                        "pip": dependencies or [],
+                    },
+                ),
+                num_retries=settings.RAY_SETUP_MAX_RETRIES,
+                error_message=f"Ray job [{job.id}] submission failed.",
+            )
 
-        if os.path.exists(extract_folder):
-            shutil.rmtree(extract_folder)
+            if os.path.exists(extract_folder):
+                shutil.rmtree(extract_folder)
+            span.set_attribute("job.rayjobid", job.ray_job_id)
 
         return ray_job_id
 
@@ -232,7 +247,17 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     raycluster_client = dyn_client.resources.get(
         api_version="v1alpha1", kind="RayCluster"
     )
-    delete_response = raycluster_client.delete(name=cluster_name, namespace=namespace)
+    try:
+        delete_response = raycluster_client.delete(
+            name=cluster_name, namespace=namespace
+        )
+    except NotFoundError as resource_not_found:
+        logger.error(
+            "Something went wrong during ray cluster deletion request: %s",
+            resource_not_found,
+        )
+        return success
+
     if delete_response.status == "Success":
         success = True
     else:

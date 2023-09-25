@@ -39,3 +39,11 @@ class JobViewSet(views.JobViewSet):  # pylint: disable=too-many-ancestors
 
     def get_serializer_class(self):
         return v1_serializers.JobSerializer
+
+
+class FilesViewSet(views.FilesViewSet):
+    """
+    Files view set.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsOwner]

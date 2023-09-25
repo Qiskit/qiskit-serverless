@@ -26,10 +26,12 @@ from importlib_metadata import version as metadata_version, PackageNotFoundError
 from .core import (
     BaseProvider,
     distribute_task,
+    distribute_program,
     get,
     put,
     get_refs_by_status,
     Provider,
+    IBMServerlessProvider,
     save_result,
 )
 from .quantum_serverless import (

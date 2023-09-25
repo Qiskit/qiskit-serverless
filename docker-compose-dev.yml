@@ -4,7 +4,7 @@ services:
     container_name: qs-jupyter
     build:
       context: ./
-      dockerfile: infrastructure/docker/Dockerfile-notebook
+      dockerfile: Dockerfile-notebook
     profiles: ["jupyter", "full"]
     ports:
       - 8888:8888
@@ -17,7 +17,7 @@ services:
     container_name: ray-head
     build:
       context: ./
-      dockerfile: infrastructure/docker/Dockerfile-ray-qiskit
+      dockerfile: Dockerfile-ray-node
       args:
         TARGETARCH: "${TARGETARCH:-amd64}"
     entrypoint: [
@@ -68,7 +68,7 @@ services:
     container_name: gateway
     build:
       context: ./
-      dockerfile: infrastructure/docker/Dockerfile-gateway
+      dockerfile: gateway/Dockerfile
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
@@ -101,7 +101,7 @@ services:
     container_name: scheduler
     build:
       context: ./
-      dockerfile: infrastructure/docker/Dockerfile-gateway
+      dockerfile: gateway/Dockerfile
     entrypoint: "./scripts/scheduler.sh"
     environment:
       - DEBUG=0
@@ -123,7 +123,7 @@ services:
     container_name: repository-server
     build:
       context: ./
-      dockerfile: infrastructure/docker/Dockerfile-repository-server
+      dockerfile: repository/Dockerfile
     profiles: [ "full", "repo" ]
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
@@ -159,7 +159,7 @@ services:
     ports:
       - 9000:9090
   loki:
-    image: grafana/loki:2.8.2
+    image: grafana/loki:2.8.4
     profiles: [ "full" ]
     ports:
       - 3100:3100
@@ -167,7 +167,7 @@ services:
     networks:
       - safe-tier
   promtail:
-    image: grafana/promtail:2.8.2
+    image: grafana/promtail:2.8.4
     profiles: [ "full" ]
     volumes:
       - /var/log:/var/log

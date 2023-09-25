@@ -35,7 +35,7 @@ Step 0 [Optional]: Pre-Installation
 Step 1: Install Docker.
 
    If Docker is not installed on your system, following the directions
-   on the `Docker website <https://docs.docker.com/engine/install/) to install Docker on your system>`_.
+   on the `Docker website <https://docs.docker.com/engine/install/>`_ to install Docker on your system.
 
 Step 2: Stop any running jupyter notebook servers.
 
@@ -56,7 +56,7 @@ Step 4: Run infrastructure.
       cd quantum-serverless/
       docker compose --profile jupyter up
 
-Step 5: Open the jupyter lab environment by going to ``localhost:8888`` via your favorite browser.
+Step 5: Open the jupyter lab environment by going to ``localhost:8888``. The default token is ``123``.
 
 Step 6: Write your program in containerized environment.
 

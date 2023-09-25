@@ -18,7 +18,7 @@ class Command(BaseCommand):
     help = "Clean up resources."
 
     def handle(self, *args, **options):
-        compute_resources = ComputeResource.objects.all()
+        compute_resources = ComputeResource.objects.filter(active=True)
         counter = 0
 
         for compute_resource in compute_resources:
@@ -36,7 +36,9 @@ class Command(BaseCommand):
                     )
                     return
                 kill_ray_cluster(compute_resource.title)
-                compute_resource.delete()
+                # deactivate
+                compute_resource.active = False
+                compute_resource.save()
                 counter += 1
                 logger.info(
                     "Cluster [%s] is free after usage from [%s]",

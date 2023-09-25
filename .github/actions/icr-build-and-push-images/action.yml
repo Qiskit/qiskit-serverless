@@ -11,9 +11,9 @@ runs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./infrastructure/docker/Dockerfile-ray-qiskit
+        file: Dockerfile-ray-node
         push: true
-        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py38
+        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py38,icr.io/quantum-public/quantum-serverless-ray-node:latest-py38
         build-args:
           IMAGE_PY_VERSION=py38
     - name: Build and push node image [3.9]
@@ -21,27 +21,27 @@ runs:
       with:
         platforms: linux/amd64,linux/arm64
         context: .
-        file: ./infrastructure/docker/Dockerfile-ray-qiskit
+        file: Dockerfile-ray-node
         push: true
-        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py39
+        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py39,icr.io/quantum-public/quantum-serverless-ray-node:latest-py39
         build-args:
           IMAGE_PY_VERSION=py39
     - name: Build and push node image [3.10]
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./infrastructure/docker/Dockerfile-ray-qiskit
+        file: Dockerfile-ray-node
         push: true
-        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py310
+        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py310,icr.io/quantum-public/quantum-serverless-ray-node:latest-py310
         build-args:
           IMAGE_PY_VERSION=py310
     - name: Build and push jupyter [3.8]
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./infrastructure/docker/Dockerfile-notebook
+        file: Dockerfile-notebook
         push: true
-        tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py38
+        tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py38,icr.io/quantum-public/quantum-serverless-notebook:latest-py38
         build-args:
           IMAGE_PY_VERSION=3.8
     - name: Build and push jupyter [3.9]
@@ -49,18 +49,18 @@ runs:
       with:
         platforms: linux/amd64,linux/arm64
         context: .
-        file: ./infrastructure/docker/Dockerfile-notebook
+        file: Dockerfile-notebook
         push: true
-        tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py39
+        tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py39,icr.io/quantum-public/quantum-serverless-notebook:latest-py39
         build-args:
           IMAGE_PY_VERSION=3.9
     - name: Build and push jupyter [3.10]
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: ./infrastructure/docker/Dockerfile-notebook
+        file: Dockerfile-notebook
         push: true
-        tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py310
+        tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py310,icr.io/quantum-public/quantum-serverless-notebook:latest-py310
         build-args:
           IMAGE_PY_VERSION=3.10
     - name: Build and push repository server
@@ -68,14 +68,14 @@ runs:
       with:
         platforms: linux/amd64,linux/arm64
         context: .
-        file: ./infrastructure/docker/Dockerfile-repository-server
+        file: ./repository/Dockerfile
         push: true
-        tags: icr.io/quantum-public/quantum-repository-server:${{inputs.tag}}
+        tags: icr.io/quantum-public/quantum-repository-server:${{inputs.tag}},icr.io/quantum-public/quantum-repository-server:latest
     - name: Build and push gateway
       uses: docker/build-push-action@v3
       with:
         platforms: linux/amd64,linux/arm64
         context: .
-        file: ./infrastructure/docker/Dockerfile-gateway
+        file: ./gateway/Dockerfile
         push: true
-        tags: icr.io/quantum-public/quantum-serverless-gateway:${{inputs.tag}}
+        tags: icr.io/quantum-public/quantum-serverless-gateway:${{inputs.tag}},icr.io/quantum-public/quantum-serverless-gateway:latest

@@ -1,8 +1,10 @@
 """Scheduling related functions."""
 import logging
+import os
 import random
 import uuid
 from typing import List
+from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -10,8 +12,11 @@ from django.db.models import Model
 from django.db.models import Q
 from django.db.models.aggregates import Count, Min
 
+from opentelemetry import trace
+
 from api.models import Job, Program, ComputeResource
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
+from main import settings as config
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
@@ -48,55 +53,68 @@ def execute_job(job: Job) -> Job:
     Returns:
         job of program execution
     """
-    authors_resource = ComputeResource.objects.filter(owner=job.author).first()
 
-    cluster_name = f"c-{job.author.username}-{str(uuid.uuid4())[:8]}"
-    if authors_resource:
-        try:
-            job.compute_resource = authors_resource
-            job = submit_job(job)
-            job.status = Job.PENDING
-            job.save()
-        except (
-            Exception  # pylint: disable=broad-exception-caught
-        ) as missing_resource_exception:
-            logger.error(
-                "Exception was caught during scheduling job on user [%s] resource.\n"
-                "Resource [%s] was in DB records, but address is not reachable.\n"
-                "Cleaning up db record and setting job [%s] to failed.\n"
-                "Error trace: %s",
-                job.author,
-                authors_resource.title,
-                job.id,
-                missing_resource_exception,
-            )
-            kill_ray_cluster(authors_resource.title)
-            authors_resource.delete()
-            job.status = Job.FAILED
-            job.logs = "Compute resource was not found."
-            job.save()
-    else:
-        compute_resource = create_ray_cluster(job.author, cluster_name=cluster_name)
-        if compute_resource:
-            # if compute resource was created in time with no problems
-            job.compute_resource = compute_resource
-            job.save()
-            job = submit_job(job)
-            job.status = Job.PENDING
-            job.save()
+    tracer = trace.get_tracer("scheduler.tracer")
+    with tracer.start_as_current_span("execute.job") as span:
+        authors_resource = ComputeResource.objects.filter(
+            owner=job.author, active=True
+        ).first()
+
+        cluster_name = f"c-{job.author.username}-{str(uuid.uuid4())[:8]}"
+        span.set_attribute("job.clustername", cluster_name)
+        if authors_resource:
+            try:
+                job.compute_resource = authors_resource
+                job = submit_job(job)
+                job.status = Job.PENDING
+                job.save()
+                # remove artifact after successful submission
+                if os.path.exists(job.program.artifact.path):
+                    os.remove(job.program.artifact.path)
+            except (
+                Exception  # pylint: disable=broad-exception-caught
+            ) as missing_resource_exception:
+                logger.error(
+                    "Exception was caught during scheduling job on user [%s] resource.\n"
+                    "Resource [%s] was in DB records, but address is not reachable.\n"
+                    "Cleaning up db record and setting job [%s] to failed.\n"
+                    "Error trace: %s",
+                    job.author,
+                    authors_resource.title,
+                    job.id,
+                    missing_resource_exception,
+                )
+                kill_ray_cluster(authors_resource.title)
+                authors_resource.delete()
+                job.status = Job.FAILED
+                job.logs = "Compute resource was not found."
+                job.save()
         else:
-            # if something went wrong
-            #   try to kill resource if it was allocated
-            logger.warning(
-                "Compute resource [%s] was not created properly.\n"
-                "Setting job [%s] status to [FAILED].",
-                cluster_name,
-                job,
-            )
-            kill_ray_cluster(cluster_name)
-            job.status = Job.FAILED
-            job.logs = "Compute resource was not created properly."
-            job.save()
+            compute_resource = create_ray_cluster(job.author, cluster_name=cluster_name)
+            if compute_resource:
+                # if compute resource was created in time with no problems
+                job.compute_resource = compute_resource
+                job.save()
+                job = submit_job(job)
+                job.status = Job.PENDING
+                job.save()
+                # remove artifact after successful submission
+                if os.path.exists(job.program.artifact.path):
+                    os.remove(job.program.artifact.path)
+            else:
+                # if something went wrong
+                #   try to kill resource if it was allocated
+                logger.warning(
+                    "Compute resource [%s] was not created properly.\n"
+                    "Setting job [%s] status to [FAILED].",
+                    cluster_name,
+                    job,
+                )
+                kill_ray_cluster(cluster_name)
+                job.status = Job.FAILED
+                job.logs = "Compute resource was not created properly."
+                job.save()
+        span.set_attribute("job.status", job.status)
     return job
 
 
@@ -144,3 +162,39 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
         job_filter |= Q(author=entry["author"]) & Q(created=entry["job_date"])
 
     return Job.objects.filter(job_filter)
+
+
+def check_job_timeout(job: Job, job_status):
+    """Check job timeout and update job status."""
+
+    timeout = config.PROGRAM_TIMEOUT
+    if job.updated:
+        endtime = job.updated + timedelta(days=timeout)
+        now = datetime.now(tz=endtime.tzinfo)
+    if job.updated and endtime < now:
+        job_status = Job.STOPPED
+        job.logs = f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
+        logger.warning(
+            "Job [%s] reached maximum runtime [%s] days and stopped.",
+            job.id,
+            timeout,
+        )
+    return job_status
+
+
+def handle_job_status_not_available(job: Job, job_status):
+    """Process job status not available and update job"""
+
+    if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
+        logger.debug(
+            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
+            + "so cluster [%s] will not be removed",
+            job.compute_resource.title,
+        )
+    else:
+        kill_ray_cluster(job.compute_resource.title)
+        job.compute_resource.delete()
+        job.compute_resource = None
+        job_status = Job.FAILED
+        job.logs = f"{job.logs}\nSomething went wrong during updating job status."
+    return job_status

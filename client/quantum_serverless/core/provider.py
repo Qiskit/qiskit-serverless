@@ -35,12 +35,17 @@ import ray
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
+from opentelemetry import trace
+
 from quantum_serverless.core.constants import (
     REQUESTS_TIMEOUT,
     ENV_GATEWAY_PROVIDER_HOST,
     ENV_GATEWAY_PROVIDER_VERSION,
+    ENV_GATEWAY_PROVIDER_TOKEN,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
+    IBM_SERVERLESS_HOST_URL,
 )
+from quantum_serverless.core.files import GatewayFilesClient
 from quantum_serverless.core.job import (
     Job,
     RayJobClient,
@@ -52,6 +57,7 @@ from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
 from quantum_serverless.utils.json import safe_json_request
+from quantum_serverless.visualizaiton import Widget
 
 TIMEOUT = 30
 
@@ -282,6 +288,25 @@ class BaseProvider(JsonSerializable):
 
         return job_client.run(program, arguments)
 
+    def files(self) -> List[str]:
+        """Returns list of available files produced by programs to download."""
+        raise NotImplementedError
+
+    def download(self, file: str, download_location: str):
+        """Download file."""
+        raise NotImplementedError
+
+    def delete(self, file: str):
+        """Deletes file uploaded or produced by the programs,"""
+
+    def upload(self, file: str):
+        """Upload file."""
+        raise NotImplementedError
+
+    def widget(self):
+        """Widget for information about provider and jobs."""
+        return Widget(self).show()
+
 
 class Provider(BaseProvider):
     """Provider."""
@@ -316,6 +341,7 @@ class Provider(BaseProvider):
         if version is None:
             version = GATEWAY_PROVIDER_VERSION_DEFAULT
 
+        token = token or os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN)
         if token is None and (username is None or password is None):
             raise QuantumServerlessException(
                 "Authentication credentials must "
@@ -334,6 +360,7 @@ class Provider(BaseProvider):
             self._fetch_token(username, password)
 
         self._job_client = GatewayJobClient(self.host, self._token, self.version)
+        self._files_client = GatewayFilesClient(self.host, self._token, self.version)
 
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
@@ -348,10 +375,25 @@ class Provider(BaseProvider):
         return self._job_client.get(job_id)
 
     def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
-        return self._job_client.run(program, arguments)
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("Provider.run"):
+            job = self._job_client.run(program, arguments)
+        return job
 
     def get_jobs(self, **kwargs) -> List[Job]:
         return self._job_client.list(**kwargs)
+
+    def files(self) -> List[str]:
+        return self._files_client.list()
+
+    def download(self, file: str, download_location: str = "./"):
+        return self._files_client.download(file, download_location)
+
+    def delete(self, file: str):
+        return self._files_client.delete(file)
+
+    def upload(self, file: str):
+        return self._files_client.upload(file)
 
     def _fetch_token(self, username: str, password: str):
         response_data = safe_json_request(
@@ -378,3 +420,24 @@ class Provider(BaseProvider):
             )
         except QuantumServerlessException as reason:
             raise QuantumServerlessException("Cannot verify token.") from reason
+
+
+class IBMServerlessProvider(Provider):
+    """IBMServerlessProvider."""
+
+    def __init__(self, token: str):
+        """Constructor for IBMServerlessProvider
+
+        Args:
+            token: IBM quantum token
+        """
+        super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
+
+    def get_compute_resources(self) -> List[ComputeResource]:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+    def create_compute_resource(self, resource) -> int:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+    def delete_compute_resource(self, resource) -> int:
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")

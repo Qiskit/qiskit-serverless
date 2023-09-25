@@ -4,7 +4,7 @@
     "config:base",
     ":separateMultipleMajorReleases"
   ],
-  "prConcurrentLimit": 2,
+  "prConcurrentLimit": 4,
   "rangeStrategy": "bump",
   "rebaseWhen": "never",
   "packageRules": [
@@ -13,6 +13,19 @@
         "^opentelemetry"
       ],
       "groupName": "opentelemetry packages"
+    },
+    {
+      "matchPackagePatterns": [
+        "^qiskit"
+      ],
+      "groupName": "qiskit packages"
+    },
+    {
+      "matchPackagePatterns": [
+        "nginx-ingress-controller",
+        "keycloak"
+      ],
+      "groupName": "bitnami packages"
     }
   ]
 }
