@@ -152,7 +152,6 @@ def submit_job(job: Job) -> Job:
     # TODO: if submission failed log message and save with failed status to prevent loop over  # pylint: disable=fixme
     job.ray_job_id = ray_job_id
     job.status = Job.PENDING
-    job.save()
 
     return job
 
