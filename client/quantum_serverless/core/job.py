@@ -96,10 +96,6 @@ class BaseJobClient:
         """Return results."""
         raise NotImplementedError
 
-    def primitive(self, job_id: str):
-        """get primitive ids of a job."""
-        raise NotImplementedError
-
     def add_primitive(self, job_id: str, primitive: str):
         """add primitive id to job."""
         raise NotImplementedError
@@ -166,9 +162,6 @@ class RayJobClient(BaseJobClient):
             },
         )
         return Job(job_id=job_id, job_client=self)
-
-    def primitive(self, job_id: str):
-        raise NotImplementedError
 
     def add_primitive(self, job_id: str, primitive: str):
         raise NotImplementedError
@@ -300,18 +293,6 @@ class GatewayJobClient(BaseJobClient):
         return json.loads(
             response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder
         )
-
-    def primitive(self, job_id: str):
-        tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("job.primitivess"):
-            response_data = safe_json_request(
-                request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/jobs/{job_id}/primitive/",
-                    headers={"Authorization": f"Bearer {self._token}"},
-                    timeout=REQUESTS_TIMEOUT,
-                )
-            )
-        return response_data.get("ids")
 
     def add_primitive(self, job_id: str, primitive: str):
         tracer = trace.get_tracer("client.tracer")

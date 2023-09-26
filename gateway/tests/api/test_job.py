@@ -3,6 +3,7 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+import json
 
 from api.models import Job
 
@@ -101,7 +102,9 @@ class TestJobApi(APITestCase):
             data={"primitive": "primitive-id"},
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("primitive_job_id"), '"primitive-id"')
+        self.assertEqual(
+            json.loads(jobs_response.data.get("primitive_job_id")), ["primitive-id"]
+        )
         # add the second job id
         jobs_response = self.client.post(
             reverse(
@@ -112,8 +115,8 @@ class TestJobApi(APITestCase):
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            jobs_response.data.get("primitive_job_id"),
-            '"primitive-id","primitive-id-2"',
+            json.loads(jobs_response.data.get("primitive_job_id")),
+            ["primitive-id", "primitive-id-2"],
         )
         # query job ids
         jobs_response = self.client.get(
@@ -123,5 +126,6 @@ class TestJobApi(APITestCase):
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            jobs_response.data.get("ids"), '"primitive-id","primitive-id-2"'
+            json.loads(jobs_response.data.get("ids")),
+            ["primitive-id", "primitive-id-2"],
         )

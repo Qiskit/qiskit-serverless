@@ -214,14 +214,11 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         with tracer.start_as_current_span("gateway.job.primitive", context=ctx):
             job = self.get_object()
             if job.primitive_job_id:
-                job.primitive_job_id = (
-                    job.primitive_job_id
-                    + ","
-                    + json.dumps(request.data.get("primitive"))
-                )
+                jsonPrimitives = json.loads(job.primitive_job_id)
+                jsonPrimitives.append(request.data.get("primitive"))
+                job.primitive_job_id = json.dumps(jsonPrimitives)
             else:
-                job.primitive_job_id = json.dumps(request.data.get("primitive"))
-            logger.warning(request.data)
+                job.primitive_job_id = json.dumps([request.data.get("primitive")])
             job.save(update_fields=["primitive_job_id"])
             serializer = self.get_serializer(job)
         return Response(serializer.data)
