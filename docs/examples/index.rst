@@ -12,9 +12,9 @@ that provide specific explanations of functions and features in Quantum Serverle
 
   Examples <examples/index>
 
-**Guides**
+**Experimental**
 
 .. toctree::
   :maxdepth: 2
 
-  Guides <guides/index>
+  Guides <experimental/index>

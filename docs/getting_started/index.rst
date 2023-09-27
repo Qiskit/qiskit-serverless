@@ -1,0 +1,8 @@
+===============
+Getting started
+===============
+
+.. nbgallery::
+   :glob:
+
+   *
