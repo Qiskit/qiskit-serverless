@@ -5,10 +5,10 @@ import numpy as np
 from scipy.optimize import minimize
 
 from qiskit import QuantumCircuit
-from qiskit.primitives import BaseEstimator, Estimator as QiskitEstimator
+from qiskit.primitives import BaseEstimator, Estimator as QiskitEstimator, Sampler as QiskitSampler
 from qiskit.opflow import PauliSumOp
 
-from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options
+from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options, Sampler
 
 from quantum_serverless import QuantumServerless, distribute_task, get_arguments, get, save_result
 
@@ -122,8 +122,6 @@ if __name__ == '__main__':
     if initial_parameters is None:
         initial_parameters = 2 * np.pi * np.random.rand(ansatz.num_parameters)
         
-    print(initial_parameters)
-        
     if service is not None:
         # if we have service we need to open a session and create estimator
         service = arguments.get("service")        
@@ -145,10 +143,27 @@ if __name__ == '__main__':
         method=method
     )
 
+    qc = ansatz.assign_parameters(vqe_result.x)
+    qc.measure_all()
+
+    if service is not None:
+        # if we have service we need to open a session and create estimator
+        service = arguments.get("service")
+        backend = arguments.get("backend", "ibmq_qasm_simulator")
+        with Session(service=service, backend=backend) as session:
+            options = Options()
+            options.optimization_level = 3
+
+            sampler = Sampler(session=session, options=options)
+    else:
+        sampler = QiskitSampler()
+    samp_dist = sampler.run(qc, shots=int(1e4)).result().quasi_dists[0]
+
     save_result({
+        "result": samp_dist,
         "optimal_point": vqe_result.x.tolist(),
         "optimal_value": vqe_result.fun,
-        "optimizer_evals": vqe_result.nfev,
-        "optimizer_history": callback_dict.get("cost_history", []),
+        # "optimizer_evals": vqe_result.nfev,
+        # "optimizer_history": callback_dict.get("cost_history", []),
         "optimizer_time": callback_dict.get("_total_time", 0)
     })

@@ -35,5 +35,5 @@ Step 1: Install the quantum serverless package.
       pip install quantum_serverless
 
 
-Note: if you want to deploy your own infrastructure locally or in cloud environment, refer to this document.
+Note: if you want to deploy your own infrastructure locally or in cloud environment, refer to this document :doc:`/deployment/local`.
 
