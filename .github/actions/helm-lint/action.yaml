@@ -23,7 +23,7 @@ runs:
       shell: bash
       id: list-changed
       run: |
-        changed=$(ct list-changed --config ct.yml)
+        changed=$(ct list-changed --config ct.yaml)
         if [[ -n "$changed" ]]; then
           echo "changed=true" >> "$GITHUB_OUTPUT"
         fi
@@ -31,7 +31,7 @@ runs:
     - name: Run chart-testing (lint)
       shell: bash
       if: steps.list-changed.outputs.changed == 'true'
-      run: ct lint --config ct.yml --check-version-increment=false
+      run: ct lint --config ct.yaml --check-version-increment=false
     
     # - name: Create kind cluster
     #   if: steps.list-changed.outputs.changed == 'true'
@@ -40,4 +40,4 @@ runs:
     # - name: Run chart-testing (install)
     #   shell: bash
     #   if: steps.list-changed.outputs.changed == 'true'
-    #   run: ct install --config ct.yml
+    #   run: ct install --config ct.yaml

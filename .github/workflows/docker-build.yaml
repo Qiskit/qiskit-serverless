@@ -11,9 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build the containers
-        run: docker compose -f docker-compose-dev.yml --profile jupyter build
+        run: docker compose -f docker-compose-dev.yaml --profile jupyter build
       - name: Run the jupyter profile
-        run: docker compose -f docker-compose-dev.yml --profile jupyter up -d
+        run: docker compose -f docker-compose-dev.yaml --profile jupyter up -d
       - name: Give containers time to initialize
         shell: bash
         run: sleep 90
