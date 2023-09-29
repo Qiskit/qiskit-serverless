@@ -15,32 +15,91 @@ You don't have to worry about configuration or scaling up computational resource
 
 ### Table of Contents
 
-1. [Quickstart](#quickstart-guide)
-2. [Beginners Guide](https://qiskit-extensions.github.io/quantum-serverless/running/index.html)
-3. Modules:
+1. [Quickstart](#quickstart)
+1. Modules
    1. [Client](./client)
-   2. [Repository](./repository)
-   2. [Charts](./charts)
-5. [Guides](https://qiskit-extensions.github.io/quantum-serverless/development/index.html)
-6. [How to Give Feedback](#how-to-give-feedback)
-7. [Contribution Guidelines](#contribution-guidelines)
-8. [References and Acknowledgements](#references-and-acknowledgements)
-9. [License](#license)
+   1. [Repository](./repository)
+   1. [Charts](./charts)
+1. [How to Give Feedback](#how-to-give-feedback)
+1. [Contribution Guidelines](#contribution-guidelines)
+1. [Deprecation Policy](#deprecation-policy)
+1. [References and Acknowledgements](#references-and-acknowledgements)
+1. [License](#license)
 
 ----------------------------------------------------------------------------------------------------
 
 ### Quickstart
+This Quickstart section guides users to easily deploy QuantumServerless infrastructure and run a simple example.
+For user convenience, this section assumes that users will deploy the infrastructure in a local environment using Docker and test examples within the deployed Jupyter notebook.
 
-1. Prepare local infrastructure
-```shell
-docker compose pull
-docker compose --profile jupyter up
-```
+1. Prepare local QuantumServerless infrastructure
+   1. Install Docker
+      If Docker is not installed on your system, follow the directions on the [Docker website](https://docs.docker.com/engine/install/) to install Docker on your system.
+   1. Clone the Quantum Serverless repository
+      ```shell
+      git clone https://github.com/Qiskit-Extensions/quantum-serverless.git
+      ```
+   1. Run QuantumServerless infrastructure
+      Execute Docker Compose using the following commands. (Note: Make sure to stop any running Jupyter Notebook servers before proceeding.)
+      ```shell
+      cd quantum-serverless/
+      sudo docker compose --profile jupyter up
+      ```
+      
+      The output should resemble the following.
+      ```
+      ~/quantum-serverless$ sudo docker compose --profile jupyter up
+      [+] Running 6/0
+       ✔ Container ray-head                       Created                                                   0.0s 
+       ✔ Container qs-jupyter                     Created                                                   0.0s 
+       ✔ Container quantum-serverless-postgres-1  Created                                                   0.0s 
+       ✔ Container keycloak                       Created                                                   0.0s 
+       ✔ Container gateway                        Created                                                   0.0s 
+       ✔ Container scheduler                      Created                                                   0.0s 
+      Attaching to gateway, keycloak, qs-jupyter, quantum-serverless-postgres-1, ray-head, scheduler
+      qs-jupyter                     | Entered start.sh with args: jupyter lab
+      qs-jupyter                     | Executing the command: jupyter lab
+      quantum-serverless-postgres-1  | 
+      quantum-serverless-postgres-1  | PostgreSQL Database directory appears to contain a database; Skipping initialization
+      quantum-serverless-postgres-1  | 
+      quantum-serverless-postgres-1  | 2023-09-21 11:17:09.872 UTC [1] LOG:  starting PostgreSQL 16.0 (Debian 16.0-1.pgdg120+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
+      quantum-serverless-postgres-1  | 2023-09-21 11:17:09.872 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+      quantum-serverless-postgres-1  | 2023-09-21 11:17:09.872 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+      ```
 
-2. Open jupyter notebook in browser at [http://localhost:8888/](http://localhost:8888/). Password for notebook is `123`
-3. Explore 3 getting started tutorials.
+      Now you can access the deployed QuantumServerless infrastructure using the built-in JupyterLab.
+      
+1. Access the JupyterLab environment
+   Open `localhost:8888` in your web browser. The default token for the JupyterLab is `123`
+1. Write your first example program
+   In the JupyterLab, create a new file `program.py` in the `serverless/running/source_files/` directory (Note: the directory is inside the containerized environment)
+   
+   Save [this example python code](https://qiskit-extensions.github.io/quantum-serverless/quickstart/index.html#id8).  
 
-For more detailed examples and explanations refer to the [Beginners Guide](https://qiskit-extensions.github.io/quantum-serverless/running/index.html).
+   Now, you are ready to run the first program.
+1. Run the program
+   In the JupyterLab, create a New Notebook and execute [this python code](https://qiskit-extensions.github.io/quantum-serverless/quickstart/index.html#id9).
+
+   You can check the job status and get the result.
+
+   ```
+   job.status()
+   # <JobStatus.SUCCEEDED: 'SUCCEEDED'>
+   
+   job.logs()
+   # 2023-09-21 03:48:40,286\tINFO worker.py:1329 -- Using address 172.18.0.4:6379 set in the environment variable RAY_ADDRESS\n2023-09-21 03:48:40,286\tINFO worker.py:1458 -- Connecting to existing Ray cluster at address: 172.18.0.4:6379...\n2023-09-21 03:48:40,295\tINFO worker.py:1633 -- Connected to Ray cluster. View the dashboard at \x1b[1m\x1b[32m172.18.0.4:8265 \x1b[39m\x1b[22m\n
+   ```
+   ```
+   job.status()
+   # '{"quasi_dists": [{"1": 0.5071335183298108, "5": 0.4334908044837378, "7": 0.0593756771864515}, {"1": 0.9161860602334094, "5": 0.0838139397665906}, {"2": 0.4999999999999999, "3": 0.4999999999999999}]}'
+   ```
+
+   That's all!
+   
+For more detailed examples and explanations refer to the [Guide](https://qiskit-extensions.github.io/quantum-serverless/index.html):
+[Deployment](https://qiskit-extensions.github.io/quantum-serverless/deployment/index.html),
+[Running](https://qiskit-extensions.github.io/quantum-serverless/running/index.html#),
+[Development](https://qiskit-extensions.github.io/quantum-serverless/development/index.html).
 
 ----------------------------------------------------------------------------------------------------
 

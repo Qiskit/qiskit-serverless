@@ -34,7 +34,7 @@ class TestCommands(APITestCase):
         """Tests update of job statuses."""
         ray_client = MagicMock()
         ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
-        ray_client.get_job_logs.return_value = "Here goes nothing."
+        ray_client.get_job_logs.return_value = "No logs yet."
         ray_client.stop_job.return_value = True
         ray_client.submit_job.return_value = "AwesomeJobId"
         get_job_handler.return_value = JobHandler(ray_client)
@@ -59,7 +59,14 @@ class TestCommands(APITestCase):
     @patch("api.schedule.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""
-        execute_job.return_value = "Mocked job!"
+        fake_job = MagicMock()
+        fake_job.id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
+        fake_job.logs = ""
+        fake_job.status = "SUCCEEDED"
+        fake_job.program.artifact.path = "non_existing_file.tar"
+        fake_job.save.return_value = None
+
+        execute_job.return_value = fake_job
         call_command("schedule_queued_jobs")
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()

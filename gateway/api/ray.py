@@ -152,7 +152,6 @@ def submit_job(job: Job) -> Job:
     # TODO: if submission failed log message and save with failed status to prevent loop over  # pylint: disable=fixme
     job.ray_job_id = ray_job_id
     job.status = Job.PENDING
-    job.save()
 
     return job
 
@@ -247,7 +246,17 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     raycluster_client = dyn_client.resources.get(
         api_version="v1alpha1", kind="RayCluster"
     )
-    delete_response = raycluster_client.delete(name=cluster_name, namespace=namespace)
+    try:
+        delete_response = raycluster_client.delete(
+            name=cluster_name, namespace=namespace
+        )
+    except NotFoundError as resource_not_found:
+        logger.error(
+            "Something went wrong during ray cluster deletion request: %s",
+            resource_not_found,
+        )
+        return success
+
     if delete_response.status == "Success":
         success = True
     else:

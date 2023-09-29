@@ -1,6 +1,5 @@
 """Scheduling related functions."""
 import logging
-import os
 import random
 import uuid
 from typing import List
@@ -67,10 +66,6 @@ def execute_job(job: Job) -> Job:
                 job.compute_resource = authors_resource
                 job = submit_job(job)
                 job.status = Job.PENDING
-                job.save()
-                # remove artifact after successful submission
-                if os.path.exists(job.program.artifact.path):
-                    os.remove(job.program.artifact.path)
             except (
                 Exception  # pylint: disable=broad-exception-caught
             ) as missing_resource_exception:
@@ -88,19 +83,13 @@ def execute_job(job: Job) -> Job:
                 authors_resource.delete()
                 job.status = Job.FAILED
                 job.logs = "Compute resource was not found."
-                job.save()
         else:
             compute_resource = create_ray_cluster(job.author, cluster_name=cluster_name)
             if compute_resource:
                 # if compute resource was created in time with no problems
                 job.compute_resource = compute_resource
-                job.save()
                 job = submit_job(job)
                 job.status = Job.PENDING
-                job.save()
-                # remove artifact after successful submission
-                if os.path.exists(job.program.artifact.path):
-                    os.remove(job.program.artifact.path)
             else:
                 # if something went wrong
                 #   try to kill resource if it was allocated
@@ -113,7 +102,6 @@ def execute_job(job: Job) -> Job:
                 kill_ray_cluster(cluster_name)
                 job.status = Job.FAILED
                 job.logs = "Compute resource was not created properly."
-                job.save()
         span.set_attribute("job.status", job.status)
     return job
 
@@ -174,7 +162,6 @@ def check_job_timeout(job: Job, job_status):
     if job.updated and endtime < now:
         job_status = Job.STOPPED
         job.logs = f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
-        job.save()
         logger.warning(
             "Job [%s] reached maximum runtime [%s] days and stopped.",
             job.id,
