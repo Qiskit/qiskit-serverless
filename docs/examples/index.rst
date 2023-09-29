@@ -11,10 +11,3 @@ that provide specific explanations of functions and features in Quantum Serverle
   :maxdepth: 2
 
   Examples <examples/index>
-
-**Experimental**
-
-.. toctree::
-  :maxdepth: 2
-
-  Guides <experimental/index>
