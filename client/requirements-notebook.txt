@@ -1,7 +1,9 @@
 # TODO: certifi version pinned to 2023.7.22. More info in #870
-ipywidgets==8.0.6
+# TODO: ipython version pinned to 8.10.0. More info in #978
+ipywidgets==8.1.0
 circuit-knitting-toolbox==0.2.0
 matplotlib==3.7.1
 qiskit-ibmq-provider==0.20.2
 qiskit-aer==0.12.0
 certifi==2023.7.22
+ipython==8.10.0
