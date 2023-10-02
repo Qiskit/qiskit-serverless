@@ -17,6 +17,4 @@ quasi_dists = sampler.run(circuit).result().quasi_dists
 print(f"Quasi distribution: {quasi_dists[0]}")
 
 # saving results of a program
-save_result({
-    "quasi_dists": quasi_dists[0]
-})
+save_result({"quasi_dists": quasi_dists[0]})

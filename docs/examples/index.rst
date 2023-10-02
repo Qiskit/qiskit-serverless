@@ -1,13 +1,10 @@
-===========
-Development
-===========
+========
+Examples
+========
 
-This section includes both end-to-end tutorials and short guides
-that provide specific explanations of functions and features in Quantum Serverless.
+This section includes end-to-end examples of how to apply Quantum Serverless to actual quantum algorithms.
 
-**Examples**
+.. nbgallery::
+   :glob:
 
-.. toctree::
-  :maxdepth: 2
-
-  Examples <examples/index>
+   *
