@@ -383,7 +383,7 @@ class Job:
                 results = json.loads(results, cls=QiskitObjectsDecoder)
             except json.JSONDecodeError as exception:
                 logging.warning(f"Error during results decoding. Details: {exception}")
-                
+
         return results
 
     def _in_terminal_state(self) -> bool:
