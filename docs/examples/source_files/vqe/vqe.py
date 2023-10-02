@@ -146,7 +146,7 @@ if __name__ == "__main__":
             options = Options()
             options.optimization_level = 3
 
-            estimator = Estimator(session=session, options=options)
+            estimator = Estimator(options=options)
     else:
         # if we do not have a service let's use standart local estimator
         estimator = QiskitEstimator()
