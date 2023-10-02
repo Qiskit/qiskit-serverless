@@ -375,7 +375,16 @@ class Job:
                 time.sleep(cadence)
                 if verbose:
                     logging.info(".")
-        return self._job_client.result(self.job_id)
+
+        # Retrieve the results. If they're string format, try to decode to a dictionary.
+        results = self._job_client.result(self.job_id)
+        if isinstance(results, str):
+            try:
+                results = json.loads(results, cls=QiskitObjectsDecoder)
+            except json.JSONDecodeError as exception:
+                logging.warning("Error during results decoding. Details: %s", exception)
+
+        return results
 
     def _in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
