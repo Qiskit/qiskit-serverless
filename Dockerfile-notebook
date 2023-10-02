@@ -24,7 +24,8 @@ RUN rm -r ./qs
 
 WORKDIR /home/$NB_USER
 USER $NB_UID
-COPY --chown=$NB_UID:$NB_UID ./docs/getting_started/ ./serverless/getting_started/
+COPY --chown=$NB_UID:$NB_UID ./docs/getting_started/basic ./serverless/getting_started/basic
+COPY --chown=$NB_UID:$NB_UID ./docs/getting_started/experimental ./serverless/getting_started/experimental
 COPY --chown=$NB_UID:$NB_UID ./docs/examples/examples/ ./serverless/examples/
 
 ENV JUPYTER_ENABLE_LAB=no
