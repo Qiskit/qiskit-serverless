@@ -5,12 +5,28 @@ import numpy as np
 from scipy.optimize import minimize
 
 from qiskit import QuantumCircuit
-from qiskit.primitives import BaseEstimator, Estimator as QiskitEstimator, Sampler as QiskitSampler
+from qiskit.primitives import (
+    BaseEstimator,
+    Estimator as QiskitEstimator,
+    Sampler as QiskitSampler,
+)
 from qiskit.opflow import PauliSumOp
 
-from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options, Sampler
+from qiskit_ibm_runtime import (
+    QiskitRuntimeService,
+    Estimator,
+    Session,
+    Options,
+    Sampler,
+)
 
-from quantum_serverless import QuantumServerless, distribute_task, get_arguments, get, save_result
+from quantum_serverless import (
+    QuantumServerless,
+    distribute_task,
+    get_arguments,
+    get,
+    save_result,
+)
 
 
 def build_callback(ansatz, hamiltonian, estimator, callback_dict):
@@ -44,7 +60,9 @@ def build_callback(ansatz, hamiltonian, estimator, callback_dict):
         callback_dict["prev_vector"] = current_vector
         # Compute the value of the cost function at the current vector
         callback_dict["cost_history"].append(
-            estimator.run(ansatz, hamiltonian, parameter_values=current_vector).result().values[0]
+            estimator.run(ansatz, hamiltonian, parameter_values=current_vector)
+            .result()
+            .values[0]
         )
         # Grab the current time
         current_time = time.perf_counter()
@@ -61,7 +79,9 @@ def build_callback(ansatz, hamiltonian, estimator, callback_dict):
         )
         # Print to screen on single line
         print(
-            "Iters. done: {} [Avg. time per iter: {}]".format(callback_dict["iters"], time_str),
+            "Iters. done: {} [Avg. time per iter: {}]".format(
+                callback_dict["iters"], time_str
+            ),
             end="\r",
             flush=True,
         )
@@ -81,17 +101,13 @@ def cost_func(params, ansatz, hamiltonian, estimator):
     Returns:
         float: Energy estimate
     """
-    energy = estimator.run(ansatz, hamiltonian, parameter_values=params).result().values[0]
+    energy = (
+        estimator.run(ansatz, hamiltonian, parameter_values=params).result().values[0]
+    )
     return energy
 
 
-def run_vqe(
-    initial_parameters,
-    ansatz,
-    operator,
-    estimator,
-    method
-):
+def run_vqe(initial_parameters, ansatz, operator, estimator, method):
     callback_dict = {
         "prev_vector": None,
         "iters": 0,
@@ -110,21 +126,21 @@ def run_vqe(
     return result, callback_dict
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     arguments = get_arguments()
-    
+
     service = arguments.get("service")
-    
+
     ansatz = arguments.get("ansatz")
     operator = arguments.get("operator")
     method = arguments.get("method", "COBYLA")
     initial_parameters = arguments.get("initial_parameters")
     if initial_parameters is None:
         initial_parameters = 2 * np.pi * np.random.rand(ansatz.num_parameters)
-        
+
     if service is not None:
         # if we have service we need to open a session and create estimator
-        service = arguments.get("service")        
+        service = arguments.get("service")
         backend = arguments.get("backend", "ibmq_qasm_simulator")
         with Session(service=service, backend=backend) as session:
             options = Options()
@@ -140,7 +156,7 @@ if __name__ == '__main__':
         ansatz=ansatz,
         operator=operator,
         estimator=estimator,
-        method=method
+        method=method,
     )
 
     qc = ansatz.assign_parameters(vqe_result.x)
@@ -159,11 +175,13 @@ if __name__ == '__main__':
         sampler = QiskitSampler()
     samp_dist = sampler.run(qc, shots=int(1e4)).result().quasi_dists[0]
 
-    save_result({
-        "result": samp_dist,
-        "optimal_point": vqe_result.x.tolist(),
-        "optimal_value": vqe_result.fun,
-        # "optimizer_evals": vqe_result.nfev,
-        # "optimizer_history": callback_dict.get("cost_history", []),
-        "optimizer_time": callback_dict.get("_total_time", 0)
-    })
+    save_result(
+        {
+            "result": samp_dist,
+            "optimal_point": vqe_result.x.tolist(),
+            "optimal_value": vqe_result.fun,
+            # "optimizer_evals": vqe_result.nfev,
+            # "optimizer_history": callback_dict.get("cost_history", []),
+            "optimizer_time": callback_dict.get("_total_time", 0),
+        }
+    )

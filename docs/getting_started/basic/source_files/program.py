@@ -16,7 +16,7 @@ circuit.measure_all()
 sampler = Sampler()
 quasi_dists = sampler.run(circuit).result().quasi_dists
 
-# saves results of program execution, 
+# saves results of program execution,
 # which will be accessible by calling `.result()`
 save_result(quasi_dists)
 print("Completed running program.")

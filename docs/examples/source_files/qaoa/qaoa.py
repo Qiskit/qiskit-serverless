@@ -10,7 +10,13 @@ from qiskit.opflow import PauliSumOp
 
 from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options
 
-from quantum_serverless import QuantumServerless, distribute_task, get_arguments, get, save_result
+from quantum_serverless import (
+    QuantumServerless,
+    distribute_task,
+    get_arguments,
+    get,
+    save_result,
+)
 
 
 def cost_func(params, ansatz, hamiltonian, estimator):
@@ -25,7 +31,9 @@ def cost_func(params, ansatz, hamiltonian, estimator):
     Returns:
         float: Energy estimate
     """
-    cost = estimator.run(ansatz, hamiltonian, parameter_values=params).result().values[0]
+    cost = (
+        estimator.run(ansatz, hamiltonian, parameter_values=params).result().values[0]
+    )
     return cost
 
 
@@ -34,27 +42,29 @@ def run_qaoa(
     estimator: BaseEstimator,
     operator: PauliSumOp,
     initial_point: np.array,
-    method: str
+    method: str,
 ):
-    return minimize(cost_func, initial_point, args=(ansatz, operator, estimator), method=method)
+    return minimize(
+        cost_func, initial_point, args=(ansatz, operator, estimator), method=method
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     arguments = get_arguments()
-    
+
     service = arguments.get("service")
-    
+
     operator = arguments.get("operator")
     ansatz = arguments.get("ansatz")
     initial_point = arguments.get("initial_point")
     method = arguments.get("method", "COBYLA")
-    
+
     if initial_point is None:
         initial_point = 2 * np.pi * np.random.rand(ansatz.num_parameters)
 
     if service is not None:
         # if we have service we need to open a session and create sampler
-        service = arguments.get("service")        
+        service = arguments.get("service")
         backend = arguments.get("backend", "ibmq_qasm_simulator")
         with Session(service=service, backend=backend) as session:
             options = Options()
@@ -64,10 +74,7 @@ if __name__ == '__main__':
     else:
         # if we do not have a service let's use standart local sampler
         estimator = QiskitEstimator()
-    
+
     result = run_qaoa(ansatz, estimator, operator, initial_point, method)
-    
-    save_result({
-        "optimal_point": result.x.tolist(),
-        "optimal_value": result.fun
-    })
+
+    save_result({"optimal_point": result.x.tolist(), "optimal_value": result.fun})

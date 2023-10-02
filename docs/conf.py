@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from importlib.metadata import version as metadata_version
 
-sys.path.append(os.path.abspath('../client'))
+sys.path.append(os.path.abspath("../client"))
 
 project = "Quantum serverless"
 copyright = "2022"  # pylint: disable=redefined-builtin
@@ -58,4 +58,3 @@ nbsphinx_timeout = 180
 nbsphinx_execute = "never"
 nbsphinx_widgets_path = ""
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
-

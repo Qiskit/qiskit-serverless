@@ -72,13 +72,13 @@ For user convenience, this section assumes that users will deploy the infrastruc
 1. Access the JupyterLab environment
    Open `localhost:8888` in your web browser. The default token for the JupyterLab is `123`
 1. Write your first example program
-   In the JupyterLab, create a new file `program.py` in the `serverless/getting_started/source_files/` directory (Note: the directory is inside the containerized environment)
+   In the JupyterLab, create a new file, `program.py`, in the `work` directory.
    
    Save [this example python code](https://qiskit-extensions.github.io/quantum-serverless/quickstart/index.html#id8).  
 
    Now, you are ready to run the first program.
 1. Run the program
-   In the JupyterLab, create a New Notebook and execute [this python code](https://qiskit-extensions.github.io/quantum-serverless/quickstart/index.html#id9).
+   In the JupyterLab, create a new notebook in the same directory as your program, and execute [this python code](https://qiskit-extensions.github.io/quantum-serverless/quickstart/index.html#id9).
 
    You can check the job status and get the result.
 
