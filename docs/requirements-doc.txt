@@ -10,7 +10,7 @@ mypy-extensions>=0.4.4
 jupyter-sphinx>=0.4.0
 nbsphinx>=0.9.3
 sphinx-autodoc-typehints>=1.24.0
-Sphinx>=6.0,<7.2
+Sphinx>=6.2.1,<7.2
 reno>=3.5.0
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
