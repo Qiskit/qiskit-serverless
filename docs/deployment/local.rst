@@ -1,3 +1,5 @@
+.. _Local infrastructure:
+
 ==========================
 Local infrastructure setup
 ==========================
