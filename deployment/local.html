@@ -292,22 +292,53 @@
         <article role="main">
           <section id="local-infrastructure-setup">
 <h1>Local infrastructure setup<a class="headerlink" href="#local-infrastructure-setup" title="Permalink to this heading">#</a></h1>
+<p>Step 1: Create a Python environment and clone the repository</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">quantum-serverless</span></code> repository contains some Dockerfiles which make spinning up a test cluster
+on your local machine straightforward. The first thing we will do is clone the repository.</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">Create a minimal environment with only Python installed in it. We recommend using <a class="reference external" href="https://docs.python.org/3.10/tutorial/venv.html">Python virtual environments</a>.</span><a class="headerlink" href="#id1" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">virtual</span><span class="o">/</span><span class="n">environment</span>
+</pre></div>
+</div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">Activate your new environment.</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">source</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">virtual</span><span class="o">/</span><span class="n">environment</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">activate</span>
+</pre></div>
+</div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">Note: If you are using Windows, use the following commands in PowerShell.</span><a class="headerlink" href="#id3" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="n">c</span><span class="p">:</span>\<span class="n">path</span>\<span class="n">to</span>\<span class="n">virtual</span>\<span class="n">environment</span>
+   <span class="n">c</span><span class="p">:</span>\<span class="n">path</span>\<span class="n">to</span>\<span class="n">virtual</span>\<span class="n">environment</span>\<span class="n">Scripts</span>\<span class="n">Activate</span><span class="o">.</span><span class="n">ps1</span>
+</pre></div>
+</div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">Clone the Quantum Serverless repository.</span><a class="headerlink" href="#id4" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">cd</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">workspace</span><span class="o">/</span>
+   <span class="n">git</span> <span class="n">clone</span> <span class="n">git</span><span class="nd">@github</span><span class="o">.</span><span class="n">com</span><span class="p">:</span><span class="n">Qiskit</span><span class="o">-</span><span class="n">Extensions</span><span class="o">/</span><span class="n">quantum</span><span class="o">-</span><span class="n">serverless</span><span class="o">.</span><span class="n">git</span>
+</pre></div>
+</div>
+</div>
+<p>Step 2: Set up Docker</p>
 <p>To set up Quantum Serverless on your local machine, you will need to use <a class="reference external" href="https://docs.docker.com/compose/">docker compose</a>.</p>
-<p>Once you have Docker and docker compose installed, you can run the following command to set up the infrastructure:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ VERSION=&lt;VERSION&gt; docker compose [--profile &lt;PROFILE&gt;] up
+<p>Step 3: Initiate the test cluster</p>
+<p>Once you have Docker and docker compose installed, you can run the following command from the root of the
+<code class="docutils literal notranslate"><span class="pre">quantum-serverless</span></code> repository to set up the infrastructure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker compose [--profile &lt;PROFILE&gt;] up
 </pre></div>
 </div>
 <p>The available profiles are <cite>full</cite>, <cite>jupyter</cite>, and <cite>repo</cite>.
-The repo profile installs core services and the program repository,
-the jupyter profile installs core services and Jupyter Notebook,
-and the full profile installs all core services,
-Jupyter Notebook, and logging and monitoring systems.</p>
-<p>Available version can be found in <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/releases">GitHub releases</a> page.</p>
-<p>For example, if you want to install version <cite>0.6.3</cite> with all services,
-the command would be:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ VERSION=0.6.3 docker compose --profile full up
-</pre></div>
-</div>
+The repo profile installs core services and the program repository;
+the jupyter profile installs core services and Jupyter Notebook;
+and the full profile installs all core services, including logging and
+monitorying systems and jupyter.</p>
+<p>Step 4: Run a program in the test environment</p>
+<p>Once the containers are running, you can simulate a remote cluster with the resources on your
+local machine. To create and run programs in this simulated cluster, visit the Jupyter Lab
+environment at <cite>localhost:8888</cite> via a web browser. Refer to the <cite>Getting Started section &lt;_getting_started&gt;_</cite>
+for details about running your program remotely.</p>
 </section>
 
         </article>
