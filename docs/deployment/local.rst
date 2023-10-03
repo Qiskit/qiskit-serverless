@@ -1,4 +1,4 @@
-.. _Local infrastructure:
+.. _local-infrastructure:
 
 ==========================
 Local infrastructure setup
