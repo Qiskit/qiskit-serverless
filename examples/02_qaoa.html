@@ -188,8 +188,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_dependencies.html">Using python packages with your programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_distributed_workloads.html">Parallel workflows in programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/experimental_file_download.html">File download (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/experimental_running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/file_download.html">File download (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Examples</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
@@ -348,7 +348,18 @@
 </div>
 <p>We will also add optional <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> as an argument to use that to access real devices.</p>
 <p>With that information we can start drafting our program implementation in <code class="docutils literal notranslate"><span class="pre">qaoa.py</span></code> file.</p>
-<p>What our program should do: 1. parse input arguments 2. create run_qaoa function that accepts estimator instance, creates VQE and runs calculation 3. decide which sampler to use and run vqe - if runtime service was passed then create a session and run <code class="docutils literal notranslate"><span class="pre">run_qaoa</span></code> function - if runtime service was not passed then use stantard qiskit sampler 4. save results from qaoa</p>
+<p>What our program should do:</p>
+<ol class="arabic simple">
+<li><p>parse input arguments</p></li>
+<li><p>create run_qaoa function that accepts estimator instance, creates VQE and runs calculation</p></li>
+<li><p>decide which sampler to use and run vqe</p>
+<ul class="simple">
+<li><p>if runtime service was passed then create a session and run <code class="docutils literal notranslate"><span class="pre">run_qaoa</span></code> function</p></li>
+<li><p>if runtime service was not passed then use stantard qiskit sampler</p></li>
+</ul>
+</li>
+<li><p>save results from qaoa</p></li>
+</ol>
 <p>Roughly our QAOA program will look like this. Full code can be found in <a class="reference external" href="./source_files/qaoa/qaoa.py">qaoa.py</a> file.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># qaoa.py</span>
 

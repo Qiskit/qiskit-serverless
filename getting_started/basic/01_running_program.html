@@ -188,8 +188,8 @@
 <li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows in programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../experimental/experimental_file_download.html">File download (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../experimental/experimental_running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../experimental/file_download.html">File download (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../experimental/running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -367,7 +367,12 @@
 </pre></div></div>
 </div>
 <p>After importing the necessary classes and configuring them, we can run the program by calling the <code class="docutils literal notranslate"><span class="pre">run()</span></code> method of the <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.QuantumServerless.html#quantum_serverless.QuantumServerless">QuantumServerless</a> object:</p>
-<p><a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.Program.html#quantum_serverless.core.Program">Program</a> accepts couple of required parameters: - title - name of the program - entrypoint - name of python file you want to execute - working_dir - directory where your script is located (directory size must be less than 50MB). This is optional parameter and will be current folder by default.</p>
+<p><a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.Program.html#quantum_serverless.core.Program">Program</a> accepts couple of required parameters:</p>
+<ul class="simple">
+<li><p>title - name of the program</p></li>
+<li><p>entrypoint - name of python file you want to execute</p></li>
+<li><p>working_dir - directory where your script is located (directory size must be less than 50MB). This is optional parameter and will be current folder by default.</p></li>
+</ul>
 <blockquote>
 <div><p>Warning! All content of <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> will be shipped to cluster for execution</p>
 </div></blockquote>

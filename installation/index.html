@@ -187,8 +187,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_dependencies.html">Using python packages with your programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_distributed_workloads.html">Parallel workflows in programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/experimental_file_download.html">File download (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/experimental_running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/file_download.html">File download (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -293,41 +293,16 @@
           <section id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Permalink to this heading">#</a></h1>
 <p>Step 0 [Optional]: Pre-Installation</p>
-<div class="literal-block-wrapper docutils container" id="id1">
-<div class="code-block-caption"><span class="caption-text">Create a minimal environment with only Python installed in it. We recommend using <a class="reference external" href="https://docs.python.org/3.10/tutorial/venv.html">Python virtual environments</a>.</span><a class="headerlink" href="#id1" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">virtual</span><span class="o">/</span><span class="n">environment</span>
-</pre></div>
-</div>
-</div>
-<div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-text">Activate your new environment.</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">source</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">virtual</span><span class="o">/</span><span class="n">environment</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">activate</span>
-</pre></div>
-</div>
-</div>
-<div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-text">Note: If you are using Windows, use the following commands in PowerShell.</span><a class="headerlink" href="#id3" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="n">c</span><span class="p">:</span>\<span class="n">path</span>\<span class="n">to</span>\<span class="n">virtual</span>\<span class="n">environment</span>
-   <span class="n">c</span><span class="p">:</span>\<span class="n">path</span>\<span class="n">to</span>\<span class="n">virtual</span>\<span class="n">environment</span>\<span class="n">Scripts</span>\<span class="n">Activate</span><span class="o">.</span><span class="n">ps1</span>
-</pre></div>
-</div>
-</div>
-<div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-text">Clone the Quantum Serverless repository.</span><a class="headerlink" href="#id4" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">cd</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">workspace</span><span class="o">/</span>
-   <span class="n">git</span> <span class="n">clone</span> <span class="n">git</span><span class="nd">@github</span><span class="o">.</span><span class="n">com</span><span class="p">:</span><span class="n">Qiskit</span><span class="o">-</span><span class="n">Extensions</span><span class="o">/</span><span class="n">quantum</span><span class="o">-</span><span class="n">serverless</span><span class="o">.</span><span class="n">git</span>
-</pre></div>
-</div>
-</div>
+<p>For users who wish to test locally before running on a remote cluster, check out the <a class="reference internal" href="../deployment/local.html#local-infrastructure"><span class="std std-ref">Local infrastructure setup</span></a> section for information
+about simulating a remote cluster using your local machine.</p>
 <p>Step 1: Install the quantum serverless package.</p>
-<div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-text">Install quantum_serverless via pip.</span><a class="headerlink" href="#id5" title="Permalink to this code">#</a></div>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">Install quantum_serverless via pip.</span><a class="headerlink" href="#id1" title="Permalink to this code">#</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">pip</span> <span class="n">install</span> <span class="o">--</span><span class="n">upgrade</span> <span class="n">pip</span>
    <span class="n">pip</span> <span class="n">install</span> <span class="n">quantum_serverless</span>
 </pre></div>
 </div>
 </div>
-<p>Note: if you want to deploy your own infrastructure locally or in cloud environment, refer to this document <a class="reference internal" href="../deployment/local.html"><span class="doc">Local infrastructure setup</span></a>.</p>
 </section>
 
         </article>

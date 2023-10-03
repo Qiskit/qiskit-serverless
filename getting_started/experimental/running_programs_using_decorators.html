@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Running program using decorators (Experimental)" href="experimental_running_programs_using_decorators.html" /><link rel="prev" title="&lt;no title&gt;" href="index.html" />
+<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Examples" href="../../examples/index.html" /><link rel="prev" title="File download (Experimental)" href="file_download.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>File download (Experimental) - Quantum serverless 0.6.3</title>
+        <title>Running program using decorators (Experimental) - Quantum serverless 0.6.3</title>
       <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -156,7 +156,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <div class="visually-hidden">Toggle table of contents sidebar</div>
         <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
       </label>
@@ -188,8 +188,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../basic/03_dependencies.html">Using python packages with your programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../basic/04_distributed_workloads.html">Parallel workflows in programs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">File download (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="experimental_running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="file_download.html">File download (Experimental)</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Running program using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -285,83 +285,94 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <div class="visually-hidden">Toggle table of contents sidebar</div>
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
         <article role="main">
-          <section id="File-download-(Experimental)">
-<h1>File download (Experimental)<a class="headerlink" href="#File-download-(Experimental)" title="Permalink to this heading">#</a></h1>
-<p>In this tutorial we will describe a way to retrieve files produced by programs.</p>
-<p>This function provides a way to download files produced by programs during execution. All you need is to call <code class="docutils literal notranslate"><span class="pre">QuantumServerless.download</span></code> function and pass <code class="docutils literal notranslate"><span class="pre">tar</span></code> file name to start downloading the file. Or you can list all available file to you by calling <code class="docutils literal notranslate"><span class="pre">QuantumServerless.files</span></code>.</p>
+          <section id="Running-program-using-decorators-(Experimental)">
+<h1>Running program using decorators (Experimental)<a class="headerlink" href="#Running-program-using-decorators-(Experimental)" title="Permalink to this heading">#</a></h1>
+<p>In this tutorial we will describe alternative way (interface) of running your programs.</p>
+<p>This new interface provides a way to define program as python function and run it in a single file, using <code class="docutils literal notranslate"><span class="pre">&#64;distribute_program</span></code> decorator. All you need to do is annotate function with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_program</span></code> decorator and call it. As a result of the call of the function you will get <code class="docutils literal notranslate"><span class="pre">Job</span></code> handle to check it’s progress like we did in previous tutorials.</p>
+<p>Limitations of this interface:</p>
+<ul class="simple">
+<li><p>Functions decorated with distribute_program, can only accept named arguments for now. E.g do not use <code class="docutils literal notranslate"><span class="pre">my_program(argument1)</span></code>, instead specify name of the argument <code class="docutils literal notranslate"><span class="pre">my_program(argument1=argument1)</span></code></p></li>
+<li><p>Function return will run <code class="docutils literal notranslate"><span class="pre">quantum_serverless.save_result</span></code> function under the hood, which means return values must be json serializable values in form of dictionary (with values as all Python native types, like strings, lists, dicts, <code class="docutils literal notranslate"><span class="pre">numpy</span></code> arrays, <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code>, <code class="docutils literal notranslate"><span class="pre">Operator</span></code>, etc.)</p></li>
+<li><p>When using local folder/modules user must specify <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> as <code class="docutils literal notranslate"><span class="pre">./</span></code> (current folder), which will be archiving and sending content of entire folder for remote execution. Make sure that folder does not have large files.</p></li>
+</ul>
 <blockquote>
 <div><p>⚠ This interface is experimental, therefore it is subjected to breaking changes.</p>
-<p>Limitations: - only <code class="docutils literal notranslate"><span class="pre">tar</span></code> files are supported - <code class="docutils literal notranslate"><span class="pre">tar</span></code> file should be saved in <code class="docutils literal notranslate"><span class="pre">/data</span></code> directory during your program execution to be visible by <code class="docutils literal notranslate"><span class="pre">.files()</span></code> method call - only <code class="docutils literal notranslate"><span class="pre">/data</span></code> directory is supported, <code class="docutils literal notranslate"><span class="pre">/data/other_folder</span></code> will not be visible</p>
-</div></blockquote>
-<blockquote>
-<div><p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/deployment/local.html">local infrastructure setup</a>.</p>
+<p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/deployment/local.html">local infrastructure setup</a>.</p>
 </div></blockquote>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">Provider</span><span class="p">,</span> <span class="n">Program</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Provider</span>
 
 <span class="n">provider</span> <span class="o">=</span> <span class="n">Provider</span><span class="p">(</span>
     <span class="n">username</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span>
     <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password123&quot;</span><span class="p">,</span>
     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
 <span class="p">)</span>
-
-<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
-<span class="n">serverless</span>
+<span class="n">provider</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-Attempting to instrument while already instrumented
-</pre></div></div>
-</div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;QuantumServerless | providers [gateway-provider]&gt;
+&lt;Provider: gateway-provider&gt;
 </pre></div></div>
 </div>
-<p>Let’s create a program to write <code class="docutils literal notranslate"><span class="pre">tar</span></code> file into <code class="docutils literal notranslate"><span class="pre">/data</span></code> folder</p>
+<section id="Hello,-Qiskit!">
+<h2>Hello, Qiskit!<a class="headerlink" href="#Hello,-Qiskit!" title="Permalink to this heading">#</a></h2>
+<p>Let’s create simpliest program by writing a funtion <code class="docutils literal notranslate"><span class="pre">hello_qiskit</span></code> and annotating it with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_program</span></code> decorator. Decorator accepts <code class="docutils literal notranslate"><span class="pre">Provider</span></code> as one of the arguments. Other arguments are <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> to specify extra packages to install during execution and <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> to specify working directory that will be shiped for remote execution if needed.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;File producer&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;produce_files.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
-<span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
+<span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
 
-<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">distribute_program</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">save_result</span>
+
+
+<span class="nd">@distribute_program</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">hello_qiskit</span><span class="p">():</span>
+    <span class="n">circuit</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">circuit</span><span class="o">.</span><span class="n">h</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">circuit</span><span class="o">.</span><span class="n">cx</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">circuit</span><span class="o">.</span><span class="n">measure_all</span><span class="p">()</span>
+    <span class="n">circuit</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+    <span class="n">sampler</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">()</span>
+    <span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
+
+    <span class="k">return</span> <span class="n">quasi_dists</span>
+
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">hello_qiskit</span><span class="p">()</span>
 <span class="n">job</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 99e8c764-cc5f-4305-9238-471e8024f188&gt;
+&lt;Job | 257f016b-a641-4d44-b4ea-7b277ac1802c&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -369,74 +380,163 @@ Attempting to instrument while already instrumented
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;{&#34;Message&#34;: &#34;my_file.txt archived into my_file.tar&#34;}&#39;
+&#39;[{&#34;0&#34;: 0.4999999999999999, &#34;3&#34;: 0.4999999999999999}]&#39;
 </pre></div></div>
 </div>
-<p>Now we can look at files available using <code class="docutils literal notranslate"><span class="pre">files</span></code> method</p>
+</section>
+<section id="Program-with-distributed-tasks">
+<h2>Program with distributed tasks<a class="headerlink" href="#Program-with-distributed-tasks" title="Permalink to this heading">#</a></h2>
+<p>As in previous examples you can define distributed tasks and call them within a program.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">available_files</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">files</span><span class="p">()</span>
-<span class="n">available_files</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span>
+<span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
+<span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
+<span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
+
+
+<span class="nd">@distribute_task</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">})</span>
+<span class="k">def</span> <span class="nf">distributed_sample</span><span class="p">(</span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Distributed task that returns quasi distribution for given circuit.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Sampler</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
+
+
+<span class="nd">@distribute_program</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">program_with_distributed_tasks</span><span class="p">(</span><span class="n">circuits</span><span class="p">):</span>
+    <span class="n">sample_task_references</span> <span class="o">=</span> <span class="p">[</span><span class="n">distributed_sample</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span> <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">]</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">sample_task_references</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+
+
+<span class="n">circuits</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">circuit</span> <span class="o">=</span> <span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">circuit</span><span class="o">.</span><span class="n">measure_all</span><span class="p">()</span>
+    <span class="n">circuits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">program_with_distributed_tasks</span><span class="p">(</span><span class="n">circuits</span><span class="o">=</span><span class="n">circuits</span><span class="p">)</span>
+<span class="n">job</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[&#39;my_file.tar&#39;, &#39;awesome.tar&#39;]
+&lt;Job | 20c31def-c2d5-46ee-a09f-a90766a439d2&gt;
 </pre></div></div>
 </div>
-<p>And download them if needed using <code class="docutils literal notranslate"><span class="pre">download</span></code> method</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">available_files</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-    <span class="n">serverless</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">available_files</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
-<div class="output_area stderr docutils container">
+<div class="output_area docutils container">
 <div class="highlight"><pre>
-100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 196/196 [00:00&lt;00:00, 141kiB/s]
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+2023-08-28 07:03:09,887 INFO worker.py:1313 -- Using address 172.19.0.2:6379 set in the environment variable RAY_ADDRESS
+2023-08-28 07:03:09,887 INFO worker.py:1431 -- Connecting to existing Ray cluster at address: 172.19.0.2:6379...
+2023-08-28 07:03:09,906 INFO worker.py:1612 -- Connected to Ray cluster. View the dashboard at <span class="ansi-green-intense-fg ansi-bold">172.19.0.2:8265 </span>
+<span class="ansi-cyan-fg">(pid=839)</span> OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+[[{0: 1.0}], [{0: 0.71546027866628, 2: 0.2845397213337199}], [{0: 0.1898694337207903, 1: 0.4050652831396046, 3: 0.4050652831396046}]]
+<span class="ansi-cyan-fg">(pid=841)</span> OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k<span class="ansi-green-fg"> [repeated 5x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/ray-logging.html#log-deduplication for more options.)</span>
+
 </pre></div></div>
 </div>
+</section>
+<section id="Program-with-local-modules/folders">
+<h2>Program with local modules/folders<a class="headerlink" href="#Program-with-local-modules/folders" title="Permalink to this heading">#</a></h2>
+<p>Situation with local folders is a little bit trickier. In order to make local imports work in remote execution of a program we need to specify <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> argument for <code class="docutils literal notranslate"><span class="pre">distribute_program</span></code> decorator. It will tell quantum serverless to ship all content of current folder to remote cluster, which will make local folders discoverable by Python interpreter during remote execution.</p>
+<p>In this example we will use local folder <code class="docutils literal notranslate"><span class="pre">source_files</span></code> with <code class="docutils literal notranslate"><span class="pre">circuit_utils.py</span></code> file, which has implementation of <code class="docutils literal notranslate"><span class="pre">create_hello_world_circuit</span></code> function.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">distribute_program</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">save_result</span>
+<span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
+
+<span class="kn">from</span> <span class="nn">source_files.circuit_utils</span> <span class="kn">import</span> <span class="n">create_hello_world_circuit</span>
+
+
+<span class="nd">@distribute_program</span><span class="p">(</span><span class="n">provider</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">my_program_with_modules</span><span class="p">():</span>
+    <span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">create_hello_world_circuit</span><span class="p">())</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;quasi_dists&quot;</span><span class="p">:</span> <span class="n">quasi_dists</span><span class="p">}</span>
+
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">my_program_with_modules</span><span class="p">()</span>
+<span class="n">job</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Job | fa6431c1-3ee9-4989-a6de-63675e35a98b&gt;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;{&#34;quasi_dists&#34;: [{&#34;0&#34;: 0.4999999999999999, &#34;3&#34;: 0.4999999999999999}]}&#39;
+</pre></div></div>
+</div>
+</section>
 </section>
 
         </article>
       </div>
       <footer>
         <div class="related-pages">
-          <a class="next-page" href="experimental_running_programs_using_decorators.html">
+          <a class="next-page" href="../../examples/index.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Running program using decorators (Experimental)</div>
+                <div class="title">Examples</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="index.html">
+          <a class="prev-page" href="file_download.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">&lt;no title&gt;</div>
+                <div class="title">File download (Experimental)</div>
                 
               </div>
             </a>
@@ -458,8 +558,29 @@ Attempting to instrument while already instrumented
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Running program using decorators (Experimental)</a><ul>
+<li><a class="reference internal" href="#Hello,-Qiskit!">Hello, Qiskit!</a></li>
+<li><a class="reference internal" href="#Program-with-distributed-tasks">Program with distributed tasks</a></li>
+<li><a class="reference internal" href="#Program-with-local-modules/folders">Program with local modules/folders</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
