@@ -1,4 +1,4 @@
-.. _local-infrastructure:
+.. _local_infrastructure:
 
 ==========================
 Local infrastructure setup
@@ -56,5 +56,5 @@ Step 4: Run a program in the test environment
 
 Once the containers are running, you can simulate a remote cluster with the resources on your
 local machine. To create and run programs in this simulated cluster, visit the Jupyter Lab
-environment at `localhost:8888` via a web browser. Refer to the `Getting Started section <_getting_started>_`
+environment at `localhost:8888` via a web browser. Refer to the :ref:`getting_started` guides
 for details about running your program remotely.
