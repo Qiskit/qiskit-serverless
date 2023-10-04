@@ -26,6 +26,7 @@ Core abstractions
 .. autosummary::
     :toctree: ../stubs/
 
+    Provider
     ServerlessProvider
     IBMServerlessProvider
     BaseProvider
@@ -53,6 +54,7 @@ Core abstractions
 from .provider import (
     BaseProvider,
     ComputeResource,
+    Provider,
     ServerlessProvider,
     IBMServerlessProvider,
 )
