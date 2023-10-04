@@ -24,7 +24,7 @@ Quantum serverless provider
     :toctree: ../stubs/
 
     ComputeResource
-    Provider
+    ServerlessProvider
 """
 import logging
 import os.path
@@ -147,7 +147,27 @@ class ComputeResource:
 
 
 class BaseProvider(JsonSerializable):
-    """Provider."""
+    """
+    The base class for Quantum Serverless providers.
+
+    Example:
+        >>> provider = ServerlessProvider(
+        >>>    name="<NAME>",
+        >>>    host="<HOST>",
+        >>>    token="<TOKEN>",
+        >>>    compute_resource=ComputeResource(
+        >>>        name="<COMPUTE_RESOURCE_NAME>",
+        >>>        host="<COMPUTE_RESOURCE_HOST>"
+        >>>    ),
+        >>> )
+
+    Args:
+        name: name of provider
+        host: host of provider a.k.a managers host
+        token: authentication token for manager
+        compute_resource: selected compute_resource from provider
+        available_compute_resources: available clusters in provider
+    """
 
     def __init__(
         self,
@@ -157,26 +177,6 @@ class BaseProvider(JsonSerializable):
         compute_resource: Optional[ComputeResource] = None,
         available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
-        """Provider for serverless computation.
-
-        Example:
-            >>> provider = Provider(
-            >>>    name="<NAME>",
-            >>>    host="<HOST>",
-            >>>    token="<TOKEN>",
-            >>>    compute_resource=ComputeResource(
-            >>>        name="<COMPUTE_RESOURCE_NAME>",
-            >>>        host="<COMPUTE_RESOURCE_HOST>"
-            >>>    ),
-            >>> )
-
-        Args:
-            name: name of provider
-            host: host of provider a.k.a managers host
-            token: authentication token for manager
-            compute_resource: selected compute_resource from provider
-            available_compute_resources: available clusters in provider
-        """
         self.name = name
         self.host = host
         self.token = token
@@ -308,9 +308,18 @@ class BaseProvider(JsonSerializable):
         return Widget(self).show()
 
 
-class Provider(BaseProvider):
-    """Provider."""
+class ServerlessProvider(BaseProvider):
+    """
+    A provider class for connecting to any specified host.
 
+    Args:
+        name: name of provider
+        host: host of gateway
+        version: version of gateway
+        username: username
+        password: password
+        token: authorization token
+    """
     def __init__(
         self,
         name: Optional[str] = None,
@@ -321,16 +330,6 @@ class Provider(BaseProvider):
         token: Optional[str] = None,
         verbose: bool = False,
     ):
-        """Provider.
-
-        Args:
-            name: name of provider
-            host: host of gateway
-            version: version of gateway
-            username: username
-            password: password
-            token: authorization token
-        """
         name = name or "gateway-provider"
 
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
@@ -363,13 +362,13 @@ class Provider(BaseProvider):
         self._files_client = GatewayFilesClient(self.host, self._token, self.version)
 
     def get_compute_resources(self) -> List[ComputeResource]:
-        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(f"GatewayProvider does not support resources api yet.")
 
     def create_compute_resource(self, resource) -> int:
-        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(f"GatewayProvider does not support resources api yet.")
 
     def delete_compute_resource(self, resource) -> int:
-        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(f"GatewayProvider does not support resources api yet.")
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self._job_client.get(job_id)
@@ -422,15 +421,14 @@ class Provider(BaseProvider):
             raise QuantumServerlessException("Cannot verify token.") from reason
 
 
-class IBMServerlessProvider(Provider):
-    """IBMServerlessProvider."""
+class IBMServerlessProvider(ServerlessProvider):
+    """
+    A provider for connecting to the IBM serverless host.
 
+    Args:
+        token: IBM quantum token
+    """
     def __init__(self, token: str):
-        """Constructor for IBMServerlessProvider
-
-        Args:
-            token: IBM quantum token
-        """
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
 
     def get_compute_resources(self) -> List[ComputeResource]:

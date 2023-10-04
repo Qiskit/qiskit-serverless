@@ -340,7 +340,7 @@ def distribute_program(
     """[Experimental] Program decorator to turn function into remotely executable program.
 
     Example:
-        >>> @distribute_program(provider=Provider(...), dependencies=[...])
+        >>> @distribute_program(provider=ServerlessProvider(...), dependencies=[...])
         >>> def my_program():
         >>>     print("Hola!")
         >>>
@@ -357,13 +357,13 @@ def distribute_program(
     # pylint: disable=import-outside-toplevel,cyclic-import
     from quantum_serverless import QuantumServerlessException
     from quantum_serverless.core.program import Program
-    from quantum_serverless.core.provider import Provider
+    from quantum_serverless.core.provider import ServerlessProvider
 
     # create provider
     if provider is None:
         # try to create from env vars
         try:
-            provider = Provider()
+            provider = ServerlessProvider()
         except QuantumServerlessException as qs_error:
             raise QuantumServerlessException(
                 "Set provider in arguments for `distribute_program` "

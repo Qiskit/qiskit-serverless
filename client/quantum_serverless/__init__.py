@@ -30,7 +30,7 @@ from .core import (
     get,
     put,
     get_refs_by_status,
-    Provider,
+    ServerlessProvider,
     IBMServerlessProvider,
     save_result,
 )
