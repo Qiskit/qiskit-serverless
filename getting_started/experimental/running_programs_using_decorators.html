@@ -310,9 +310,9 @@
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Provider</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">ServerlessProvider</span>
 
-<span class="n">provider</span> <span class="o">=</span> <span class="n">Provider</span><span class="p">(</span>
+<span class="n">provider</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
     <span class="n">username</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span>
     <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password123&quot;</span><span class="p">,</span>
     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
@@ -332,7 +332,8 @@
 </div>
 <section id="Hello,-Qiskit!">
 <h2>Hello, Qiskit!<a class="headerlink" href="#Hello,-Qiskit!" title="Permalink to this heading">#</a></h2>
-<p>Let’s create simpliest program by writing a funtion <code class="docutils literal notranslate"><span class="pre">hello_qiskit</span></code> and annotating it with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_program</span></code> decorator. Decorator accepts <code class="docutils literal notranslate"><span class="pre">Provider</span></code> as one of the arguments. Other arguments are <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> to specify extra packages to install during execution and <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> to specify working directory that will be shiped for remote execution if needed.</p>
+<p>Let’s create simpliest program by writing a funtion <code class="docutils literal notranslate"><span class="pre">hello_qiskit</span></code> and annotating it with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_program</span></code> decorator. The <code class="docutils literal notranslate"><span class="pre">distribute_program</span></code> decorator accepts a <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.BaseProvider.html">BaseProvider</a> instance for the <code class="docutils literal notranslate"><span class="pre">provider</span></code> argument. Other arguments are <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> to specify extra packages to install during execution and <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> to specify working directory that will be shiped for
+remote execution if needed.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
