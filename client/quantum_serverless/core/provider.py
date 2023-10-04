@@ -27,6 +27,7 @@ Quantum serverless provider
     ServerlessProvider
 """
 import logging
+import warnings
 import os.path
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
@@ -312,21 +313,6 @@ class BaseProvider(JsonSerializable):
         return Widget(self).show()
 
 
-class Provider(ServerlessProvider):
-    """
-    [Deprecated since version 0.6.4] Use :class:`.ServerlessProvider` instead.
-
-    A provider for connecting to a specified host. This class has been
-    renamed to :class:`.ServerlessProvider`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "The Provider class is deprecated. Use the identical ServerlessProvider class instead."
-        )
-        super.__init__(*args, **kwargs)
-
-
 class ServerlessProvider(BaseProvider):
     """
     A provider for connecting to a specified host.
@@ -448,6 +434,21 @@ class ServerlessProvider(BaseProvider):
             )
         except QuantumServerlessException as reason:
             raise QuantumServerlessException("Cannot verify token.") from reason
+
+
+class Provider(ServerlessProvider):
+    """
+    [Deprecated since version 0.6.4] Use :class:`.ServerlessProvider` instead.
+
+    A provider for connecting to a specified host. This class has been
+    renamed to :class:`.ServerlessProvider`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "The Provider class is deprecated. Use the identical ServerlessProvider class instead."
+        )
+        super().__init__(*args, **kwargs)
 
 
 class IBMServerlessProvider(ServerlessProvider):
