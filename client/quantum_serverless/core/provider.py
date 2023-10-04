@@ -363,19 +363,13 @@ class ServerlessProvider(BaseProvider):
         self._files_client = GatewayFilesClient(self.host, self._token, self.version)
 
     def get_compute_resources(self) -> List[ComputeResource]:
-        raise NotImplementedError(
-            f"GatewayProvider does not support resources api yet."
-        )
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
 
     def create_compute_resource(self, resource) -> int:
-        raise NotImplementedError(
-            f"GatewayProvider does not support resources api yet."
-        )
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
 
     def delete_compute_resource(self, resource) -> int:
-        raise NotImplementedError(
-            f"GatewayProvider does not support resources api yet."
-        )
+        raise NotImplementedError("GatewayProvider does not support resources api yet.")
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self._job_client.get(job_id)
