@@ -30,6 +30,7 @@ import logging
 import os.path
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
+from abc import ABC, abstractmethod
 
 import ray
 import requests
@@ -146,20 +147,9 @@ class ComputeResource:
         return f"<ComputeResource: {self.name}>"
 
 
-class BaseProvider(JsonSerializable):
+class BaseProvider(ABC, JsonSerializable):
     """
-    The base class for Quantum Serverless providers.
-
-    Example:
-        >>> provider = ServerlessProvider(
-        >>>    name="<NAME>",
-        >>>    host="<HOST>",
-        >>>    token="<TOKEN>",
-        >>>    compute_resource=ComputeResource(
-        >>>        name="<COMPUTE_RESOURCE_NAME>",
-        >>>        host="<COMPUTE_RESOURCE_HOST>"
-        >>>    ),
-        >>> )
+    Abstract base class for Quantum Serverless providers.
 
     Args:
         name: name of provider
@@ -217,25 +207,29 @@ class BaseProvider(JsonSerializable):
     def __repr__(self):
         return f"<Provider: {self.name}>"
 
+    @abstractmethod
     def get_compute_resources(self) -> List[ComputeResource]:
         """Return compute resources for provider."""
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def create_compute_resource(self, resource) -> int:
         """Create compute resource for provider."""
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def delete_compute_resource(self, resource) -> int:
         """Delete compute resource for provider."""
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def get_jobs(self, **kwargs) -> List[Job]:
         """Return list of jobs.
 
         Returns:
             list of jobs.
         """
-        raise NotImplementedError
+        pass
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.
@@ -288,20 +282,26 @@ class BaseProvider(JsonSerializable):
 
         return job_client.run(program, arguments)
 
+    @abstractmethod
     def files(self) -> List[str]:
         """Returns list of available files produced by programs to download."""
-        raise NotImplementedError
 
+    pass
+
+    @abstractmethod
     def download(self, file: str, download_location: str):
         """Download file."""
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def delete(self, file: str):
         """Deletes file uploaded or produced by the programs,"""
+        pass
 
+    @abstractmethod
     def upload(self, file: str):
         """Upload file."""
-        raise NotImplementedError
+        pass
 
     def widget(self):
         """Widget for information about provider and jobs."""
@@ -312,13 +312,16 @@ class ServerlessProvider(BaseProvider):
     """
     A provider class for connecting to any specified host.
 
-    Args:
-        name: name of provider
-        host: host of gateway
-        version: version of gateway
-        username: username
-        password: password
-        token: authorization token
+    Example:
+        >>> provider = ServerlessProvider(
+        >>>    name="<NAME>",
+        >>>    host="<HOST>",
+        >>>    token="<TOKEN>",
+        >>>    compute_resource=ComputeResource(
+        >>>        name="<COMPUTE_RESOURCE_NAME>",
+        >>>        host="<COMPUTE_RESOURCE_HOST>"
+        >>>    ),
+        >>> )
     """
 
     def __init__(
@@ -331,8 +334,18 @@ class ServerlessProvider(BaseProvider):
         token: Optional[str] = None,
         verbose: bool = False,
     ):
-        name = name or "gateway-provider"
+        """
+        Initializes the ServerlessProvider instance.
 
+        Args:
+            name: name of provider
+            host: host of gateway
+            version: version of gateway
+            username: username
+            password: password
+            token: authorization token
+        """
+        name = name or "gateway-provider"
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
             raise QuantumServerlessException("Please provide `host` of gateway.")
@@ -426,11 +439,17 @@ class IBMServerlessProvider(ServerlessProvider):
     """
     A provider for connecting to the IBM serverless host.
 
-    Args:
-        token: IBM quantum token
+    Example:
+        >>> provider = IBMServerlessProvider(token="<TOKEN>")
     """
 
     def __init__(self, token: str):
+        """
+        Initialize a provider with access to an IBMQ-provided remote cluster.
+
+        Args:
+            token: IBM quantum token
+        """
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
 
     def get_compute_resources(self) -> List[ComputeResource]:
