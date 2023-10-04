@@ -30,7 +30,6 @@ import logging
 import os.path
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
-from abc import ABC, abstractmethod
 
 import ray
 import requests
@@ -147,16 +146,20 @@ class ComputeResource:
         return f"<ComputeResource: {self.name}>"
 
 
-class BaseProvider(ABC, JsonSerializable):
+class BaseProvider(JsonSerializable):
     """
-    Abstract base class for Quantum Serverless providers.
+    A provider class for specifying custom compute resources.
 
-    Args:
-        name: name of provider
-        host: host of provider a.k.a managers host
-        token: authentication token for manager
-        compute_resource: selected compute_resource from provider
-        available_compute_resources: available clusters in provider
+    Example:
+        >>> provider = ServerlessProvider(
+        >>>    name="<NAME>",
+        >>>    host="<HOST>",
+        >>>    token="<TOKEN>",
+        >>>    compute_resource=ComputeResource(
+        >>>        name="<COMPUTE_RESOURCE_NAME>",
+        >>>        host="<COMPUTE_RESOURCE_HOST>"
+        >>>    ),
+        >>> )
     """
 
     def __init__(
@@ -167,6 +170,16 @@ class BaseProvider(ABC, JsonSerializable):
         compute_resource: Optional[ComputeResource] = None,
         available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
+        """
+        Initialize a BaseProvider instance.
+
+        Args:
+            name: name of provider
+            host: host of provider a.k.a managers host
+            token: authentication token for manager
+            compute_resource: selected compute_resource from provider
+            available_compute_resources: available clusters in provider
+        """
         self.name = name
         self.host = host
         self.token = token
@@ -207,29 +220,25 @@ class BaseProvider(ABC, JsonSerializable):
     def __repr__(self):
         return f"<Provider: {self.name}>"
 
-    @abstractmethod
     def get_compute_resources(self) -> List[ComputeResource]:
         """Return compute resources for provider."""
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def create_compute_resource(self, resource) -> int:
         """Create compute resource for provider."""
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def delete_compute_resource(self, resource) -> int:
         """Delete compute resource for provider."""
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def get_jobs(self, **kwargs) -> List[Job]:
         """Return list of jobs.
 
         Returns:
             list of jobs.
         """
-        pass
+        raise NotImplementedError
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.
@@ -282,26 +291,21 @@ class BaseProvider(ABC, JsonSerializable):
 
         return job_client.run(program, arguments)
 
-    @abstractmethod
     def files(self) -> List[str]:
         """Returns list of available files produced by programs to download."""
+        raise NotImplementedError
 
-    pass
-
-    @abstractmethod
     def download(self, file: str, download_location: str):
         """Download file."""
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def delete(self, file: str):
         """Deletes file uploaded or produced by the programs,"""
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def upload(self, file: str):
         """Upload file."""
-        pass
+        raise NotImplementedError
 
     def widget(self):
         """Widget for information about provider and jobs."""
@@ -310,17 +314,13 @@ class BaseProvider(ABC, JsonSerializable):
 
 class ServerlessProvider(BaseProvider):
     """
-    A provider class for connecting to any specified host.
+    A provider for connecting to a specified host.
 
     Example:
         >>> provider = ServerlessProvider(
         >>>    name="<NAME>",
         >>>    host="<HOST>",
         >>>    token="<TOKEN>",
-        >>>    compute_resource=ComputeResource(
-        >>>        name="<COMPUTE_RESOURCE_NAME>",
-        >>>        host="<COMPUTE_RESOURCE_HOST>"
-        >>>    ),
         >>> )
     """
 

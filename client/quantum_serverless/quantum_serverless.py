@@ -42,7 +42,10 @@ from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.program import Program
-from quantum_serverless.core.provider import BaseProvider, ComputeResource
+from quantum_serverless.core.provider import (
+    BaseProvider,
+    ComputeResource,
+)
 from quantum_serverless.exception import QuantumServerlessException
 
 Context = Union[BaseContext]
