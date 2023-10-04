@@ -320,6 +320,7 @@ class ServerlessProvider(BaseProvider):
         password: password
         token: authorization token
     """
+
     def __init__(
         self,
         name: Optional[str] = None,
@@ -362,13 +363,19 @@ class ServerlessProvider(BaseProvider):
         self._files_client = GatewayFilesClient(self.host, self._token, self.version)
 
     def get_compute_resources(self) -> List[ComputeResource]:
-        raise NotImplementedError(f"GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(
+            f"GatewayProvider does not support resources api yet."
+        )
 
     def create_compute_resource(self, resource) -> int:
-        raise NotImplementedError(f"GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(
+            f"GatewayProvider does not support resources api yet."
+        )
 
     def delete_compute_resource(self, resource) -> int:
-        raise NotImplementedError(f"GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(
+            f"GatewayProvider does not support resources api yet."
+        )
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self._job_client.get(job_id)
@@ -428,6 +435,7 @@ class IBMServerlessProvider(ServerlessProvider):
     Args:
         token: IBM quantum token
     """
+
     def __init__(self, token: str):
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
 

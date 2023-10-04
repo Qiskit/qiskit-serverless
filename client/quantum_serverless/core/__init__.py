@@ -50,7 +50,12 @@ Core abstractions
 
 """
 
-from .provider import BaseProvider, ComputeResource, ServerlessProvider, IBMServerlessProvider
+from .provider import (
+    BaseProvider,
+    ComputeResource,
+    ServerlessProvider,
+    IBMServerlessProvider,
+)
 from .job import BaseJobClient, RayJobClient, GatewayJobClient, Job, save_result
 from .program import (
     Program,
