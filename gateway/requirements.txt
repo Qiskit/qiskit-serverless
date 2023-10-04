@@ -1,4 +1,4 @@
-django-filter>=23.2
+django-filter>=23.3
 djangorestframework>=3.14.0
 Markdown>=3.4.4
 django-allauth==0.54.0
