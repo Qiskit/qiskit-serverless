@@ -151,7 +151,7 @@ class BaseProvider(JsonSerializable):
     A provider class for specifying custom compute resources.
 
     Example:
-        >>> provider = ServerlessProvider(
+        >>> provider = BaseProvider(
         >>>    name="<NAME>",
         >>>    host="<HOST>",
         >>>    token="<TOKEN>",

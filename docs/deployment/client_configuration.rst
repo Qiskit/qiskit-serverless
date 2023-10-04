@@ -15,7 +15,7 @@ To install the client library, run:
 
 
 Next, we need to configure the client to communicate with the provider.
-This is done through the `ServerlessProvider` configuration.
+This can be done through the `BaseProvider` configuration.
 
 Before we can configure the client and provider,
 we need to know two things: the `username/password`
