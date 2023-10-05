@@ -92,6 +92,7 @@ class Job(models.Model):
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     result = models.TextField(null=True, blank=True)
+    runtime = models.DurationField(null=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -108,7 +109,6 @@ class Job(models.Model):
     logs = models.TextField(default="No logs yet.")
 
     version = IntegerVersionField()
-    runtime = models.DurationField()
 
     def __str__(self):
         return f"<Job {self.pk} | {self.status}>"

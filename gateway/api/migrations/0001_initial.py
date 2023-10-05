@@ -90,6 +90,7 @@ class Migration(migrations.Migration):
                 ),
                 ("created", models.DateTimeField(auto_now_add=True)),
                 ("result", models.TextField(blank=True, null=True)),
+                ("runtime", models.DurationField(null=True)),
                 (
                     "status",
                     models.CharField(
