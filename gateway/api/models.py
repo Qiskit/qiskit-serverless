@@ -108,6 +108,7 @@ class Job(models.Model):
     logs = models.TextField(default="No logs yet.")
 
     version = IntegerVersionField()
+    runtime = models.DurationField()
 
     def __str__(self):
         return f"<Job {self.pk} | {self.status}>"
