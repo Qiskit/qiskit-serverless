@@ -51,6 +51,7 @@ from quantum_serverless.core.constants import (
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
     MAX_ARTIFACT_FILE_SIZE_MB,
+    ENV_JOB_ARGUMENTS,
 )
 from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
@@ -131,21 +132,13 @@ class RayJobClient(BaseJobClient):
 
     def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None):
         arguments = arguments or {}
-        arguments_string = ""
-        if arguments is not None:
-            arg_list = []
-            for key, value in arguments.items():
-                if isinstance(value, dict):
-                    arg_list.append(f"--{key}='{json.dumps(value)}'")
-                else:
-                    arg_list.append(f"--{key}={value}")
-            arguments_string = " ".join(arg_list)
-        entrypoint = f"python {program.entrypoint} {arguments_string}"
+        entrypoint = f"python {program.entrypoint}"
 
         # set program name so OT can use it as parent span name
         env_vars = {
             **(program.env_vars or {}),
             **{OT_PROGRAM_NAME: program.title},
+            **{ENV_JOB_ARGUMENTS: json.dumps(arguments, cls=QiskitObjectsEncoder)},
         }
 
         job_id = self._job_client.submit_job(
@@ -405,10 +398,11 @@ def save_result(result: Dict[str, Any]):
     token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
     if token is None:
         logging.warning(
-            "Results will not be saved as "
+            "Results will be saved as logs since"
             "there is no information about the"
             "authorization token in the environment."
         )
+        logging.info("Result: %s", result)
         return False
 
     if not is_jsonable(result, cls=QiskitObjectsEncoder):

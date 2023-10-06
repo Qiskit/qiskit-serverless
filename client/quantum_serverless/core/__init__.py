@@ -30,6 +30,7 @@ Core abstractions
     ServerlessProvider
     IBMServerlessProvider
     BaseProvider
+    RayProvider
     ComputeResource
     Job
     GatewayJobClient
@@ -57,6 +58,7 @@ from .provider import (
     Provider,
     ServerlessProvider,
     IBMServerlessProvider,
+    RayProvider,
 )
 from .job import BaseJobClient, RayJobClient, GatewayJobClient, Job, save_result
 from .program import (
