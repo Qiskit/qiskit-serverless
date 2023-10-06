@@ -2,7 +2,7 @@
 # TODO: ipython version pinned to 8.10.0. More info in #978
 ipywidgets==8.1.1
 circuit-knitting-toolbox==0.4.0
-matplotlib==3.7.1
+matplotlib==3.8.0
 qiskit-ibmq-provider==0.20.2
 qiskit-aer==0.12.0
 certifi==2023.7.22
