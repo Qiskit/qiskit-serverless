@@ -476,3 +476,28 @@ class IBMServerlessProvider(ServerlessProvider):
 
     def delete_compute_resource(self, resource) -> int:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+
+class RayProvider(BaseProvider):
+    """RayProvider."""
+
+    def __init__(self, host: str):
+        """Ray provider
+
+        Args:
+            host: ray head node host
+
+        Example:
+            >>> ray_provider = RayProvider("http://localhost:8265")
+        """
+        super().__init__("ray-provider", host)
+        self.client = RayJobClient(JobSubmissionClient(host))
+
+    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+        return self.client.run(program, arguments)
+
+    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        return self.client.get(job_id)
+
+    def get_jobs(self, **kwargs) -> List[Job]:
+        return self.client.list()

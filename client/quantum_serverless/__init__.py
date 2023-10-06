@@ -33,6 +33,7 @@ from .core import (
     Provider,
     ServerlessProvider,
     IBMServerlessProvider,
+    RayProvider,
     save_result,
 )
 from .quantum_serverless import (
