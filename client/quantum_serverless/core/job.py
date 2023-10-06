@@ -51,6 +51,7 @@ from quantum_serverless.core.constants import (
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
     MAX_ARTIFACT_FILE_SIZE_MB,
+    ENV_JOB_ARGUMENTS,
 )
 from quantum_serverless.core.program import Program
 from quantum_serverless.exception import QuantumServerlessException
@@ -137,7 +138,7 @@ class RayJobClient(BaseJobClient):
         env_vars = {
             **(program.env_vars or {}),
             **{OT_PROGRAM_NAME: program.title},
-            **{"ENV_JOB_ARGUMENTS": json.dumps(arguments, cls=QiskitObjectsEncoder)},
+            **{ENV_JOB_ARGUMENTS: json.dumps(arguments, cls=QiskitObjectsEncoder)},
         }
 
         job_id = self._job_client.submit_job(
