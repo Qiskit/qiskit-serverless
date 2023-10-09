@@ -117,6 +117,7 @@ class Target(JsonSerializable):
     gpu: int = 0
     qpu: int = 0
     mem: int = 1
+    qubits: int = 0
     resources: Optional[Dict[str, float]] = None
     env_vars: Optional[Dict[str, Any]] = None
     pip: Optional[List[str]] = None
@@ -258,6 +259,7 @@ def _tracible_function(
 
 def distribute_task(
     target: Optional[Union[Dict[str, Any], Target]] = None,
+    selector: Optional[IBMQPUSelector] = None,
 ):
     """Wraps local function as remote executable function.
     New function will return reference object when called.
