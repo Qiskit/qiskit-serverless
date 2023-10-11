@@ -11,6 +11,7 @@
 # that they have been altered from the originals.
 
 
+# pylint: disable=duplicate-code
 """
 =============================================
 Provider (:mod:`quantum_serverless.core.job`)

@@ -10,6 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
+# pylint: disable=duplicate-code
 """
 =================================================================
 Quantum serverless (:mod:`quantum_serverless.quantum_serverless`)
