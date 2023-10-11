@@ -11,7 +11,14 @@ class ProgramSerializer(serializers.ProgramSerializer):
     """
 
     class Meta(serializers.ProgramSerializer.Meta):
-        fields = ["title", "entrypoint", "artifact", "dependencies", "arguments"]
+        fields = [
+            "title",
+            "entrypoint",
+            "artifact",
+            "dependencies",
+            "arguments",
+            "config",
+        ]
 
 
 class JobSerializer(serializers.JobSerializer):

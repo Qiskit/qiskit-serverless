@@ -35,6 +35,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
+    config = models.TextField(null=False, blank=True, default="[]")
 
     def __str__(self):
         return f"{self.title}"

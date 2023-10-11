@@ -157,7 +157,10 @@ def submit_job(job: Job) -> Job:
 
 
 def create_ray_cluster(
-    user: Any, cluster_name: Optional[str] = None, cluster_data: Optional[str] = None
+    user: Any,
+    cluster_name: Optional[str] = None,
+    cluster_data: Optional[str] = None,
+    cluster_config: Optional[str] = "{}",
 ) -> Optional[ComputeResource]:
     """Creates ray cluster.
 
@@ -186,6 +189,10 @@ def create_ray_cluster(
     raycluster_client = dyn_client.resources.get(
         api_version="v1alpha1", kind="RayCluster"
     )
+    json_config = json.loads(cluster_config)
+    if "worker" in json_config:
+        cluster_data["spec"]["workerGroupSpecs"][0]["replicas"] = json_config["worker"]
+
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
     if response.metadata.name != cluster_name:
         raise RuntimeError(

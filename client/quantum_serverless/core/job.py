@@ -68,7 +68,10 @@ class BaseJobClient:
     """Base class for Job clients."""
 
     def run(
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Program,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Dict[str, Any]] = None,
     ) -> "Job":
         """Runs program."""
         raise NotImplementedError
@@ -130,7 +133,12 @@ class RayJobClient(BaseJobClient):
             Job(job.job_id, job_client=self) for job in self._job_client.list_jobs()
         ]
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None):
+    def run(
+        self,
+        program: Program,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Dict[str, Any]] = None,
+    ):
         arguments = arguments or {}
         entrypoint = f"python {program.entrypoint}"
 
@@ -169,7 +177,10 @@ class GatewayJobClient(BaseJobClient):
         self._token = token
 
     def run(  # pylint: disable=too-many-locals
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Program,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Dict[str, Any]] = None,
     ) -> "Job":
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
@@ -213,6 +224,9 @@ class GatewayJobClient(BaseJobClient):
                                 arguments or {}, cls=QiskitObjectsEncoder
                             ),
                             "dependencies": json.dumps(program.dependencies or []),
+                            "config": json.dumps(
+                                config or {}, cls=QiskitObjectsEncoder
+                            ),
                         },
                         files={"artifact": file},
                         headers={"Authorization": f"Bearer {self._token}"},

@@ -97,7 +97,10 @@ class QuantumServerless:
         return self._selected_provider.job_client()
 
     def run(
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Program,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Dict[str, Any]] = None,
     ) -> Optional[Job]:
         """Execute a program as a async job
 
@@ -119,7 +122,7 @@ class QuantumServerless:
         """
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("QuantumServerless.run"):
-            job = self._selected_provider.run(program, arguments)
+            job = self._selected_provider.run(program, arguments, config)
         return job
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:

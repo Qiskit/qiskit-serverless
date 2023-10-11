@@ -260,7 +260,12 @@ class BaseProvider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+    def run(
+        self,
+        program: Program,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> Job:
         """Execute a program as a async job.
 
         Example:
@@ -290,7 +295,7 @@ class BaseProvider(JsonSerializable):
             )
             return None
 
-        return job_client.run(program, arguments)
+        return job_client.run(program, arguments, config)
 
     def files(self) -> List[str]:
         """Returns list of available files produced by programs to download."""
@@ -388,10 +393,15 @@ class ServerlessProvider(BaseProvider):
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self._job_client.get(job_id)
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+    def run(
+        self,
+        program: Program,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> Job:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("Provider.run"):
-            job = self._job_client.run(program, arguments)
+            job = self._job_client.run(program, arguments, config)
         return job
 
     def get_jobs(self, **kwargs) -> List[Job]:
@@ -493,8 +503,13 @@ class RayProvider(BaseProvider):
         super().__init__("ray-provider", host)
         self.client = RayJobClient(JobSubmissionClient(host))
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
-        return self.client.run(program, arguments)
+    def run(
+        self,
+        program: Program,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Dict[str, Any]] = None,
+    ) -> Job:
+        return self.client.run(program, arguments, config)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self.client.get(job_id)
