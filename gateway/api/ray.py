@@ -192,6 +192,19 @@ def create_ray_cluster(
     json_config = json.loads(cluster_config)
     if "worker" in json_config:
         cluster_data["spec"]["workerGroupSpecs"][0]["replicas"] = json_config["worker"]
+    if "pythonversion" in json_config:
+        org_image = cluster_data["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["image"]
+        new_image = (
+            org_image[: org_image.rindex("-")] + "-" + json_config["pythonversion"]
+        )
+        cluster_data["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
+            0
+        ]["image"] = new_image
+        cluster_data["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
+            "image"
+        ] = new_image
 
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
     if response.metadata.name != cluster_name:
