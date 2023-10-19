@@ -98,3 +98,4 @@ docs/_build/
 .local/
 .jupyter/
 .ipython/
+.virtual_documents/
