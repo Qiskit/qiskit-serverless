@@ -51,16 +51,17 @@ class Command(BaseCommand):
                     # cleanup env vars
                     if job.in_terminal_state():
                         job.env_vars = "{}"
-                        if job_handler:
-                            logs = job_handler.logs(job.ray_job_id)
-                            job.logs = logs
 
-                    try:
-                        job.save()
-                    except RecordModifiedError:
-                        logger.warning(
-                            "Job[%s] record has not been updated due to lock.", job.id
-                        )
+                if job_handler:
+                    logs = job_handler.logs(job.ray_job_id)
+                    job.logs = logs
+
+                try:
+                    job.save()
+                except RecordModifiedError:
+                    logger.warning(
+                        "Job[%s] record has not been updated due to lock.", job.id
+                    )
 
             else:
                 logger.warning(
