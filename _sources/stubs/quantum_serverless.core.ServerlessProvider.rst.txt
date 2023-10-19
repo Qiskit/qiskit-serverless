@@ -1,0 +1,37 @@
+﻿quantum\_serverless.core.ServerlessProvider
+===========================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: ServerlessProvider
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ServerlessProvider.__init__
+      ~ServerlessProvider.context
+      ~ServerlessProvider.create_compute_resource
+      ~ServerlessProvider.delete
+      ~ServerlessProvider.delete_compute_resource
+      ~ServerlessProvider.download
+      ~ServerlessProvider.files
+      ~ServerlessProvider.from_dict
+      ~ServerlessProvider.get_compute_resources
+      ~ServerlessProvider.get_job_by_id
+      ~ServerlessProvider.get_jobs
+      ~ServerlessProvider.job_client
+      ~ServerlessProvider.run
+      ~ServerlessProvider.to_dict
+      ~ServerlessProvider.upload
+      ~ServerlessProvider.widget
+   
+   
+
+   
+   
+   

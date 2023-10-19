@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.core.ComputeResource" href="quantum_serverless.core.ComputeResource.html" /><link rel="prev" title="quantum_serverless.core.IBMServerlessProvider" href="quantum_serverless.core.IBMServerlessProvider.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.core.RayProvider" href="quantum_serverless.core.RayProvider.html" /><link rel="prev" title="quantum_serverless.core.IBMServerlessProvider" href="quantum_serverless.core.IBMServerlessProvider.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>quantum_serverless.core.BaseProvider - Quantum serverless 0.6.3</title>
+        <title>quantum_serverless.core.BaseProvider - Quantum serverless 0.6.4</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -144,7 +144,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Quantum serverless 0.6.3</div></a>
+      <a href="../index.html"><div class="brand">Quantum serverless 0.6.4</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -171,7 +171,7 @@
     </div>
   </a>
   
-  <span class="sidebar-brand-text">Quantum serverless 0.6.3</span>
+  <span class="sidebar-brand-text">Quantum serverless 0.6.4</span>
 </div><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
@@ -214,8 +214,10 @@
 <li class="toctree-l2"><a class="reference internal" href="quantum_serverless.get_auto_discovered_provider.html">quantum_serverless.get_auto_discovered_provider</a></li>
 <li class="toctree-l2 current has-children"><a class="reference internal" href="../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.core</span></code>)</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (quantum_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Provider.html">quantum_serverless.core.Provider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ServerlessProvider.html">quantum_serverless.core.ServerlessProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.IBMServerlessProvider.html">quantum_serverless.core.IBMServerlessProvider</a></li>
 <li class="toctree-l3 current current-page"><a class="current reference internal" href="#">quantum_serverless.core.BaseProvider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RayProvider.html">quantum_serverless.core.RayProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ComputeResource.html">quantum_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Job.html">quantum_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.GatewayJobClient.html">quantum_serverless.core.GatewayJobClient</a></li>
@@ -295,10 +297,9 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="quantum_serverless.core.BaseProvider">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BaseProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_resource</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">available_compute_resources</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#BaseProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.BaseProvider" title="Permalink to this definition">#</a></dt>
-<dd><p>Provider.</p>
-<p>Provider for serverless computation.</p>
+<dd><p>A provider class for specifying custom compute resources.</p>
 <p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">provider</span> <span class="o">=</span> <span class="n">Provider</span><span class="p">(</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">provider</span> <span class="o">=</span> <span class="n">BaseProvider</span><span class="p">(</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&lt;NAME&gt;&quot;</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;HOST&gt;&quot;</span><span class="p">,</span>
 <span class="gp">&gt;&gt;&gt; </span>   <span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">,</span>
@@ -309,6 +310,7 @@
 <span class="gp">&gt;&gt;&gt; </span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Initialize a BaseProvider instance.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -323,19 +325,7 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="quantum_serverless.core.BaseProvider.__init__">
 <span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_resource</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">available_compute_resources</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#BaseProvider.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.BaseProvider.__init__" title="Permalink to this definition">#</a></dt>
-<dd><p>Provider for serverless computation.</p>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">provider</span> <span class="o">=</span> <span class="n">Provider</span><span class="p">(</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&lt;NAME&gt;&quot;</span><span class="p">,</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;HOST&gt;&quot;</span><span class="p">,</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">,</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="n">compute_resource</span><span class="o">=</span><span class="n">ComputeResource</span><span class="p">(</span>
-<span class="gp">&gt;&gt;&gt; </span>       <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&lt;COMPUTE_RESOURCE_NAME&gt;&quot;</span><span class="p">,</span>
-<span class="gp">&gt;&gt;&gt; </span>       <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;COMPUTE_RESOURCE_HOST&gt;&quot;</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="p">),</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="p">)</span>
-</pre></div>
-</div>
+<dd><p>Initialize a BaseProvider instance.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -354,7 +344,7 @@
 <table class="autosummary longtable docutils align-default">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.core.BaseProvider.__init__" title="quantum_serverless.core.BaseProvider.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(name[, host, token, ...])</p></td>
-<td><p>Provider for serverless computation.</p></td>
+<td><p>Initialize a BaseProvider instance.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">context</span></code>(**kwargs)</p></td>
 <td><p>Allocated context for selected compute_resource for provider.</p></td>
@@ -412,12 +402,12 @@
       </div>
       <footer>
         <div class="related-pages">
-          <a class="next-page" href="quantum_serverless.core.ComputeResource.html">
+          <a class="next-page" href="quantum_serverless.core.RayProvider.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">quantum_serverless.core.ComputeResource</div>
+                <div class="title">quantum_serverless.core.RayProvider</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -480,7 +470,7 @@
   </div>
 </div><script src="../_static/jquery.js?v=5d32c60e"></script>
     <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=9a2aefcb"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=51a37f06"></script>
     <script src="../_static/doctools.js?v=888ff710"></script>
     <script src="../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>

@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>quantum_serverless.core.job - Quantum serverless 0.6.3</title>
+        <title>quantum_serverless.core.job - Quantum serverless 0.6.4</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -144,7 +144,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../../index.html"><div class="brand">Quantum serverless 0.6.3</div></a>
+      <a href="../../../index.html"><div class="brand">Quantum serverless 0.6.4</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -171,7 +171,7 @@
     </div>
   </a>
   
-  <span class="sidebar-brand-text">Quantum serverless 0.6.3</span>
+  <span class="sidebar-brand-text">Quantum serverless 0.6.4</span>
 </div><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
@@ -214,8 +214,10 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../stubs/quantum_serverless.get_auto_discovered_provider.html">quantum_serverless.get_auto_discovered_provider</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.core</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (quantum_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.Provider.html">quantum_serverless.core.Provider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ServerlessProvider.html">quantum_serverless.core.ServerlessProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.IBMServerlessProvider.html">quantum_serverless.core.IBMServerlessProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.BaseProvider.html">quantum_serverless.core.BaseProvider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.RayProvider.html">quantum_serverless.core.RayProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ComputeResource.html">quantum_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.Job.html">quantum_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.GatewayJobClient.html">quantum_serverless.core.GatewayJobClient</a></li>
@@ -343,6 +345,7 @@
     <span class="n">ENV_GATEWAY_PROVIDER_VERSION</span><span class="p">,</span>
     <span class="n">GATEWAY_PROVIDER_VERSION_DEFAULT</span><span class="p">,</span>
     <span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="p">,</span>
+    <span class="n">ENV_JOB_ARGUMENTS</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.program</span> <span class="kn">import</span> <span class="n">Program</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.exception</span> <span class="kn">import</span> <span class="n">QuantumServerlessException</span>
@@ -423,21 +426,13 @@
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">Program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="n">arguments</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}</span>
-        <span class="n">arguments_string</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">arguments</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">arg_list</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">arguments</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-                    <span class="n">arg_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;--</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">=&#39;</span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">arg_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;--</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="n">arguments_string</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
-        <span class="n">entrypoint</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;python </span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">arguments_string</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">entrypoint</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;python </span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">&quot;</span>
 
         <span class="c1"># set program name so OT can use it as parent span name</span>
         <span class="n">env_vars</span> <span class="o">=</span> <span class="p">{</span>
             <span class="o">**</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{}),</span>
             <span class="o">**</span><span class="p">{</span><span class="n">OT_PROGRAM_NAME</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">},</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">ENV_JOB_ARGUMENTS</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">arguments</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">)},</span>
         <span class="p">}</span>
 
         <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">submit_job</span><span class="p">(</span>
@@ -667,7 +662,16 @@
                 <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">cadence</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
                     <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+        <span class="c1"># Retrieve the results. If they&#39;re string format, try to decode to a dictionary.</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsDecoder</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span> <span class="k">as</span> <span class="n">exception</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Error during results decoding. Details: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exception</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">results</span>
 
     <span class="k">def</span> <span class="nf">_in_terminal_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Checks if job is in terminal state&quot;&quot;&quot;</span>
@@ -688,10 +692,11 @@
     <span class="n">token</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_GATEWAY_TOKEN</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">token</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-            <span class="s2">&quot;Results will not be saved as &quot;</span>
+            <span class="s2">&quot;Results will be saved as logs since&quot;</span>
             <span class="s2">&quot;there is no information about the&quot;</span>
             <span class="s2">&quot;authorization token in the environment.&quot;</span>
         <span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Result: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">False</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">is_jsonable</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">):</span>
@@ -745,7 +750,7 @@
   </div>
 </div><script src="../../../_static/jquery.js?v=5d32c60e"></script>
     <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=9a2aefcb"></script>
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=51a37f06"></script>
     <script src="../../../_static/doctools.js?v=888ff710"></script>
     <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../../../_static/thebelab-helper.js"></script>
