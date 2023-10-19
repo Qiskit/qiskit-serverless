@@ -1,10 +1,10 @@
 dependencies:
 - name: gateway
   repository: ""
-  version: 0.6.4
+  version: 0.6.5
 - name: jupyter
   repository: ""
-  version: 0.6.4
+  version: 0.6.5
 - name: nginx-ingress-controller
   repository: https://charts.bitnami.com/bitnami
   version: 9.7.9
@@ -16,6 +16,6 @@ dependencies:
   version: 13.4.1
 - name: repository
   repository: ""
-  version: 0.6.4
-digest: sha256:b5ade3cec99d504403e3f1b872b05bf79a56a230a17057d7ae5418f2e89e6d2d
-generated: "2023-10-06T13:37:56.324678-04:00"
+  version: 0.6.5
+digest: sha256:3d37d826321730e7d40adcf299534b74060dca80c232b0b4114e3328f5b2f9a5
+generated: "2023-10-19T17:23:29.733708-04:00"
