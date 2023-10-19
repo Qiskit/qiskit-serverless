@@ -26,6 +26,7 @@ Quantum serverless provider
     ComputeResource
     ServerlessProvider
 """
+import json
 import logging
 import warnings
 import os.path
@@ -35,8 +36,8 @@ from typing import Optional, List, Dict, Any
 import ray
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
-
 from opentelemetry import trace
+from qiskit_ibm_provider.accounts import AccountAlreadyExistsError
 
 from quantum_serverless.core.constants import (
     REQUESTS_TIMEOUT,
@@ -455,18 +456,92 @@ class IBMServerlessProvider(ServerlessProvider):
     """
     A provider for connecting to the IBM serverless host.
 
-    Example:
-        >>> provider = IBMServerlessProvider(token="<TOKEN>")
+    Credentials can be saved to disk by calling the `save_account()` method::
+
+        from quantum_serverless import IBMServerlessProvider
+        IBMServerlessProvider.save_account(token=<INSERT_IBM_QUANTUM_TOKEN>)
+
+    Once the credentials are saved, you can simply instantiate the provider with no
+    constructor args, as shown below.
+
+        from quantum_serverless import IBMServerlessProvider
+        provider = IBMServerlessProvider()
+
+    Instead of saving credentials to disk, you can also set the environment variable
+    ENV_GATEWAY_PROVIDER_TOKEN and then instantiate the provider as below::
+
+        from quantum_serverless import IBMServerlessProvider
+        provider = IBMServerlessProvider()
+
+    You can also enable an account just for the current session by instantiating the
+    provider with the API token::
+
+        from quantum_serverless import IBMServerlessProvider
+        provider = IBMServerlessProvider(token=<INSERT_IBM_QUANTUM_TOKEN>)
     """
 
-    def __init__(self, token: str):
+    def __init__(self, token: Optional[str] = None):
         """
         Initialize a provider with access to an IBMQ-provided remote cluster.
 
         Args:
             token: IBM quantum token
         """
+        self._default_account_name_ibm_quantum = "default-ibm-quantum-serverless"
+        self._default_account_config_json_file = os.path.join(
+            os.path.expanduser("~"), ".qiskit", "qiskit-ibm.json"
+        )
+        if token is None:
+            token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN)
+
+        if token is None:
+            token = os.getenv("QISKIT_IBM_TOKEN")
+
+        if token is None:
+            self._ensure_file_exists(self._default_account_config_json_file)
+            with open(
+                self._default_account_config_json_file, encoding="utf-8"
+            ) as json_file:
+                data = json.load(json_file)
+            if self._default_account_name_ibm_quantum in data:
+                token = data[self._default_account_name_ibm_quantum]["token"]
+
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
+
+    @staticmethod
+    def save_account(
+        token: Optional[str] = None,
+        name: Optional[str] = None,
+        overwrite: Optional[bool] = False,
+    ) -> None:
+        name = name or self._default_account_name_ibm_quantum
+        filename = self._default_account_config_json_file
+
+        _ensure_file_exists(filename)
+
+        with open(filename, mode="r", encoding="utf-8") as json_in:
+            data = json.load(json_in)
+
+        if data.get(name) and not overwrite:
+            raise AccountAlreadyExistsError(
+                f"Named account ({name}) already exists. "
+                f"Set overwrite=True to overwrite."
+            )
+
+        config = {"token": token}
+
+        with open(filename, mode="w", encoding="utf-8") as json_out:
+            data[name] = config
+            json.dump(data, json_out, sort_keys=True, indent=4)
+
+    @staticmethod
+    def _ensure_file_exists(filename: str) -> None:
+        # Create parent directories
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+        # Initialize file
+        with open(filename, mode="w", encoding="utf-8") as json_file:
+            json_file.write("{}")
 
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
