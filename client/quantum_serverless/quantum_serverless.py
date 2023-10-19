@@ -195,6 +195,9 @@ class QuantumServerless:
         """
         return self._selected_provider.upload(file)
 
+    def get_programs(self, **kwargs):
+        return self._selected_provider.get_programs(**kwargs)
+
     def context(
         self,
         provider: Optional[Union[str, BaseProvider]] = None,

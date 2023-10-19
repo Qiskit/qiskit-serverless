@@ -33,7 +33,7 @@ import os
 import tarfile
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from uuid import uuid4
 
 import ray.runtime_env
@@ -71,6 +71,9 @@ class BaseJobClient:
         self, program: Program, arguments: Optional[Dict[str, Any]] = None
     ) -> "Job":
         """Runs program."""
+        raise NotImplementedError
+
+    def run_existing(self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None):
         raise NotImplementedError
 
     def get(self, job_id) -> Optional["Job"]:
@@ -227,6 +230,37 @@ class GatewayJobClient(BaseJobClient):
 
         return Job(job_id, job_client=self)
 
+    def run_existing(self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None):
+        if isinstance(program, Program):
+            title = program.title
+        else:
+            title = str(program)
+
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.run_existing") as span:
+            span.set_attribute("program", title)
+            span.set_attribute("arguments", str(arguments))
+
+            url = f"{self.host}/api/{self.version}/programs/run_existing/"
+
+            response_data = safe_json_request(
+                request=lambda: requests.post(
+                    url=url,
+                    data={
+                        "title": program.title,
+                        "arguments": json.dumps(
+                            arguments or {}, cls=QiskitObjectsEncoder
+                        ),
+                    },
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            job_id = response_data.get("id")
+            span.set_attribute("job.id", job_id)
+
+        return Job(job_id, job_client=self)
+
     def status(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.status"):
@@ -317,6 +351,23 @@ class GatewayJobClient(BaseJobClient):
         return [
             Job(job.get("id"), job_client=self, raw_data=job)
             for job in response_data.get("results", [])
+        ]
+
+    def get_programs(self, **kwargs):
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("program.list"):
+            limit = kwargs.get("limit", 10)
+            offset = kwargs.get("offset", 0)
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/programs/?limit={limit}&offset={offset}",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+        return [
+            Program(program.get("title"))
+            for program in response_data.get("results", [])
         ]
 
 
