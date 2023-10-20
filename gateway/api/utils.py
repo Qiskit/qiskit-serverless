@@ -10,7 +10,7 @@ from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
 from django.conf import settings
 
-from .models import Job, Program
+from .models import Job
 
 logger = logging.getLogger("commands")
 

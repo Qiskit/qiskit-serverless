@@ -31,6 +31,7 @@ class JobSerializer(serializers.ModelSerializer):
 
 class ExistingProgramSerializer(serializers.Serializer):
     """Serializer for launching existing program."""
+
     title = serializers.CharField(max_length=255)
     arguments = serializers.JSONField()
 

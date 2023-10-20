@@ -260,7 +260,9 @@ class BaseProvider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run(self, program: Union[Program, str], arguments: Optional[Dict[str, Any]] = None) -> Job:
+    def run(
+        self, program: Union[Program, str], arguments: Optional[Dict[str, Any]] = None
+    ) -> Job:
         """Execute a program as a async job.
 
         Example:
@@ -293,6 +295,7 @@ class BaseProvider(JsonSerializable):
         return job_client.run(program, arguments)
 
     def upload(self, program: Program):
+        """Uploads program."""
         raise NotImplementedError
 
     def files(self) -> List[str]:
@@ -316,6 +319,7 @@ class BaseProvider(JsonSerializable):
         return Widget(self).show()
 
     def get_programs(self, **kwargs):
+        """Returns list of available programs."""
         raise NotImplementedError
 
 
@@ -394,7 +398,9 @@ class ServerlessProvider(BaseProvider):
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self._job_client.get(job_id)
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+    def run(
+        self, program: Union[Program, str], arguments: Optional[Dict[str, Any]] = None
+    ) -> Job:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("Provider.run"):
             if isinstance(program, Program) and program.entrypoint is not None:
@@ -511,7 +517,12 @@ class RayProvider(BaseProvider):
         super().__init__("ray-provider", host)
         self.client = RayJobClient(JobSubmissionClient(host))
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+    def run(
+        self, program: Union[Program, str], arguments: Optional[Dict[str, Any]] = None
+    ) -> Job:
+        if isinstance(program, str):
+            raise NotImplementedError("Ray provider only supports full Programs.")
+
         return self.client.run(program, arguments)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:

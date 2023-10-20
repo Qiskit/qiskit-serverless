@@ -30,17 +30,18 @@ def save_program(serializer, request) -> Program:
     Returns:
         saved program
     """
-    existing_program = Program.objects.filter(
-        title=serializer.data.get("title"),
-        author=request.user
-    ).order_by("-created").first()
+    existing_program = (
+        Program.objects.filter(title=serializer.data.get("title"), author=request.user)
+        .order_by("-created")
+        .first()
+    )
 
     if existing_program is not None:
         program = existing_program
         program.arguments = serializer.data.get("arguments")
         program.entrypoint = serializer.data.get("entrypoint")
-        program.dependencies = serializer.data.get("dependencies", '[]')
-        program.env_vars = serializer.data.get("env_vars", '{}')
+        program.dependencies = serializer.data.get("dependencies", "[]")
+        program.env_vars = serializer.data.get("env_vars", "{}")
     else:
         program = Program(**serializer.data)
     program.artifact = request.FILES.get("artifact")

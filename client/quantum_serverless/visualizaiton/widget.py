@@ -50,7 +50,7 @@ TABLE_STYLE = """
 """
 
 
-class Widget:
+class Widget:  # pylint: disable=too-many-instance-attributes
     """Widget for displaying information related to provider."""
 
     def __init__(self, provider):
@@ -220,12 +220,14 @@ class Widget:
             """Handles pagination callback logic."""
             if page_button.tooltip == "prev":
                 self.programs = self.provider.get_programs(
-                    limit=self.program_limit, offset=self.program_offset - self.program_limit
+                    limit=self.program_limit,
+                    offset=self.program_offset - self.program_limit,
                 )
                 self.job_offset = self.program_offset - self.job_limit
             elif page_button.tooltip == "next":
                 self.jobs = self.provider.get_jobs(
-                    limit=self.program_limit, offset=self.program_offset + self.program_limit
+                    limit=self.program_limit,
+                    offset=self.program_offset + self.program_limit,
                 )
                 self.program_offset = self.program_offset + self.program_limit
             with self.program_list_view:
@@ -315,7 +317,11 @@ class Widget:
         program_list_widget[9:, 1] = self.program_pagination_view
 
         tab_nest = widgets.Tab()
-        tab_nest.children = [job_list_widget, program_list_widget, self.render_information()]
+        tab_nest.children = [
+            job_list_widget,
+            program_list_widget,
+            self.render_information(),
+        ]
         tab_nest.set_title(0, "Executions")
         tab_nest.set_title(1, "Functions")
         tab_nest.set_title(2, "Info")

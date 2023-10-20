@@ -79,7 +79,6 @@ class Program:  # pylint: disable=too-many-instance-attributes
     def __str__(self):
         return f"Program({self.title})"
 
-
     def __repr__(self):
         return self.__str__()
 

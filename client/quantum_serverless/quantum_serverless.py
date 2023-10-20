@@ -123,6 +123,14 @@ class QuantumServerless:
         return job
 
     def upload(self, program: Program):
+        """Uploads program.
+
+        Args:
+            program: Program
+
+        Returns:
+            program title
+        """
         return self._selected_provider.upload(program)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
@@ -199,6 +207,14 @@ class QuantumServerless:
         return self._selected_provider.file_upload(file)
 
     def get_programs(self, **kwargs):
+        """Get list of available programs.
+
+        Args:
+            **kwargs: filtering options
+
+        Returns:
+            List of programs.
+        """
         return self._selected_provider.get_programs(**kwargs)
 
     def context(

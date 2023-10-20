@@ -74,9 +74,13 @@ class BaseJobClient:
         raise NotImplementedError
 
     def upload(self, program: Program):
+        """Uploads program."""
         raise NotImplementedError
 
-    def run_existing(self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None):
+    def run_existing(
+        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+    ):
+        """Executes existing program."""
         raise NotImplementedError
 
     def get(self, job_id) -> Optional["Job"]:
@@ -101,6 +105,10 @@ class BaseJobClient:
 
     def result(self, job_id: str):
         """Return results."""
+        raise NotImplementedError
+
+    def get_programs(self, **kwargs):
+        """Returns list of programs."""
         raise NotImplementedError
 
 
@@ -157,6 +165,14 @@ class RayJobClient(BaseJobClient):
             },
         )
         return Job(job_id=job_id, job_client=self)
+
+    def upload(self, program: Program):
+        raise NotImplementedError("Upload is not available for RayJobClient.")
+
+    def run_existing(
+        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+    ):
+        raise NotImplementedError("Run existing is not available for RayJobClient.")
 
 
 class GatewayJobClient(BaseJobClient):
@@ -287,7 +303,9 @@ class GatewayJobClient(BaseJobClient):
 
         return program_title
 
-    def run_existing(self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None):
+    def run_existing(
+        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+    ):
         if isinstance(program, Program):
             title = program.title
         else:

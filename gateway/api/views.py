@@ -75,7 +75,9 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return self.serializer_class
 
     def get_queryset(self):
-        return Program.objects.all().filter(author=self.request.user).order_by("-created")
+        return (
+            Program.objects.all().filter(author=self.request.user).order_by("-created")
+        )
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -101,12 +103,17 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             title = serializer.data.get("title")
-            program = Program.objects.filter(
-                title=title, author=request.user
-            ).order_by("-created").first()
+            program = (
+                Program.objects.filter(title=title, author=request.user)
+                .order_by("-created")
+                .first()
+            )
 
             if program is None:
-                return Response({"message": f"program [{title}] was not found."}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"message": f"program [{title}] was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
             job = Job(
                 program=program,
@@ -118,7 +125,11 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
-            env = encrypt_env_vars(build_env_variables(request, job, json.dumps(serializer.data.get("arguments"))))
+            env = encrypt_env_vars(
+                build_env_variables(
+                    request, job, json.dumps(serializer.data.get("arguments"))
+                )
+            )
             try:
                 env["traceparent"] = carrier["traceparent"]
             except KeyError:
