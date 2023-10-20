@@ -502,11 +502,9 @@ class IBMServerlessProvider(ServerlessProvider):
         # If no env variables contain the token, try to get it from the Qiskit IBM config file
         if token is None:
             name = name or "qiskit-ibm-default"
-            _ensure_file_exists(IBMServerlessProvider._default_account_config_json_file)
-            with open(
-                IBMServerlessProvider._default_account_config_json_file,
-                encoding="utf-8",
-            ) as json_file:
+            filename = IBMServerlessProvider._default_account_config_json_file
+            _ensure_file_exists(filename)
+            with open(filename, encoding="utf-8") as json_file:
                 data = json.load(json_file)
             if name in data:
                 token = data[name].get("token")
