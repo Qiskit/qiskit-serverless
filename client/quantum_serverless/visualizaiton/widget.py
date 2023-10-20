@@ -322,8 +322,8 @@ class Widget:  # pylint: disable=too-many-instance-attributes
             program_list_widget,
             self.render_information(),
         ]
-        tab_nest.set_title(0, "Executions")
-        tab_nest.set_title(1, "Functions")
+        tab_nest.set_title(0, "Program jobs")
+        tab_nest.set_title(1, "Programs")
         tab_nest.set_title(2, "Info")
 
         return tab_nest
