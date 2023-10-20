@@ -292,19 +292,22 @@ class BaseProvider(JsonSerializable):
 
         return job_client.run(program, arguments)
 
+    def upload(self, program: Program):
+        raise NotImplementedError
+
     def files(self) -> List[str]:
         """Returns list of available files produced by programs to download."""
         raise NotImplementedError
 
-    def download(self, file: str, download_location: str):
+    def file_download(self, file: str, download_location: str):
         """Download file."""
         raise NotImplementedError
 
-    def delete(self, file: str):
+    def file_delete(self, file: str):
         """Deletes file uploaded or produced by the programs,"""
         raise NotImplementedError
 
-    def upload(self, file: str):
+    def file_upload(self, file: str):
         """Upload file."""
         raise NotImplementedError
 
@@ -400,19 +403,25 @@ class ServerlessProvider(BaseProvider):
                 job = self._job_client.run_existing(program, arguments)
         return job
 
+    def upload(self, program: Program):
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("Provider.upload"):
+            response = self._job_client.upload(program)
+        return response
+
     def get_jobs(self, **kwargs) -> List[Job]:
         return self._job_client.list(**kwargs)
 
     def files(self) -> List[str]:
         return self._files_client.list()
 
-    def download(self, file: str, download_location: str = "./"):
+    def file_download(self, file: str, download_location: str = "./"):
         return self._files_client.download(file, download_location)
 
-    def delete(self, file: str):
+    def file_delete(self, file: str):
         return self._files_client.delete(file)
 
-    def upload(self, file: str):
+    def file_upload(self, file: str):
         return self._files_client.upload(file)
 
     def get_programs(self, **kwargs) -> List[Program]:

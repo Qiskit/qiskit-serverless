@@ -68,6 +68,7 @@ class Program:  # pylint: disable=too-many-instance-attributes
     description: Optional[str] = None
     version: Optional[str] = None
     tags: Optional[List[str]] = None
+    raw_data: Optional[Dict[str, Any]] = None
 
     @classmethod
     def from_json(cls, data: Dict[str, Any]):

@@ -4,7 +4,7 @@ import inspect
 import json
 import logging
 import time
-from typing import Optional, Tuple, Callable, Dict
+from typing import Optional, Tuple, Callable, Dict, Any
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
@@ -104,13 +104,13 @@ def decrypt_string(string: str) -> str:
     return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
-def build_env_variables(request, job: Job, program: Program) -> Dict[str, str]:
+def build_env_variables(request, job: Job, arguments: Dict[str, Any]) -> Dict[str, str]:
     """Builds env variables for job.
 
     Args:
         request: django request
         job: job
-        program: program
+        arguments: program arguments
 
     Returns:
         env variables dict
@@ -127,7 +127,7 @@ def build_env_variables(request, job: Job, program: Program) -> Dict[str, str]:
             "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
-            "ENV_JOB_ARGUMENTS": program.arguments,
+            "ENV_JOB_ARGUMENTS": arguments,
         },
         **extra,
     }

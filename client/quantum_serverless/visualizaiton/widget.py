@@ -65,23 +65,35 @@ class Widget:
             )
         self.provider = provider
 
-        self.offset = 0
-        self.limit = 10
+        self.job_offset = 0
+        self.job_limit = 10
         self.jobs = self.provider.get_jobs()
 
-        self.list_view = widgets.Output()
-        with self.list_view:
-            display(self.render_list())
+        self.job_list_view = widgets.Output()
+        with self.job_list_view:
+            display(self.render_job_list())
 
-        self.pagination_view = widgets.Output()
-        with self.pagination_view:
-            display(self.render_pagination())
+        self.job_pagination_view = widgets.Output()
+        with self.job_pagination_view:
+            display(self.render_job_pagination())
+
+        self.program_offset = 0
+        self.program_limit = 10
+        self.programs = self.provider.get_programs()
+
+        self.program_list_view = widgets.Output()
+        with self.program_list_view:
+            display(self.render_program_list())
+
+        self.program_pagination_view = widgets.Output()
+        with self.program_pagination_view:
+            display(self.render_program_pagination())
 
         self.information_view = widgets.Output()
         with self.information_view:
             display(self.render_information())
 
-    def render_list(self):
+    def render_job_list(self):
         """Renders list of jobs."""
 
         def render_html_row(job):
@@ -118,31 +130,61 @@ class Widget:
         """
         return widgets.HTML(table)
 
-    def render_pagination(self):
+    def render_program_list(self):
+        """Renders list of jobs."""
+
+        def render_program_row(program):
+            title = program.raw_data.get("title", "Program")
+            date = datetime.strptime(
+                program.raw_data.get("created", "2011-11-11T11:11:11.000Z"),
+                "%Y-%m-%dT%H:%M:%S.%fZ",
+            ).strftime("%m/%d/%Y")
+            return f"""
+                <tr>
+                    <td>{title}</td>
+                    <td>{date}</td>
+                </tr>
+            """
+
+        rows = "\n".join([render_program_row(program) for program in self.programs])
+
+        table = f"""
+            <table>
+                {TABLE_STYLE}
+                <tr>
+                    <th>Title</th>
+                    <th>Creation date</th>
+                </tr>
+                {rows}
+            </table>
+        """
+        return widgets.HTML(table)
+
+    def render_job_pagination(self):
         """Renders pagination."""
 
         def paginate(page_button):
             """Handles pagination callback logic."""
             if page_button.tooltip == "prev":
                 self.jobs = self.provider.get_jobs(
-                    limit=self.limit, offset=self.offset - self.limit
+                    limit=self.job_limit, offset=self.job_offset - self.job_limit
                 )
-                self.offset = self.offset - self.limit
+                self.job_offset = self.job_offset - self.job_limit
             elif page_button.tooltip == "next":
                 self.jobs = self.provider.get_jobs(
-                    limit=self.limit, offset=self.offset + self.limit
+                    limit=self.job_limit, offset=self.job_offset + self.job_limit
                 )
-                self.offset = self.offset + self.limit
-            with self.list_view:
+                self.job_offset = self.job_offset + self.job_limit
+            with self.job_list_view:
                 clear_output()
-                display(self.render_list())
-            with self.pagination_view:
+                display(self.render_job_list())
+            with self.job_pagination_view:
                 clear_output()
-                display(self.render_pagination())
+                display(self.render_job_pagination())
 
         prev_page = widgets.Button(
             description="Prev",
-            disabled=self.offset < 1,
+            disabled=self.job_offset < 1,
             button_style="",
             tooltip="prev",
             icon="arrow-circle-left",
@@ -152,7 +194,7 @@ class Widget:
 
         next_page = widgets.Button(
             description="Next",
-            disabled=len(self.jobs) != self.limit,
+            disabled=len(self.jobs) != self.job_limit,
             button_style="",
             tooltip="next",
             icon="arrow-circle-right",
@@ -161,7 +203,60 @@ class Widget:
         next_page.layout = Layout(width="33%")
 
         pagination_number = widgets.Button(
-            description=f"{self.offset}-{self.offset + self.limit}",
+            description=f"{self.job_offset}-{self.job_offset + self.job_limit}",
+            disabled=True,
+            button_style="",
+            tooltip="items",
+            icon="list",
+        )
+        pagination_number.layout = Layout(width="33%")
+
+        return widgets.HBox([prev_page, pagination_number, next_page])
+
+    def render_program_pagination(self):
+        """Renders pagination."""
+
+        def paginate(page_button):
+            """Handles pagination callback logic."""
+            if page_button.tooltip == "prev":
+                self.programs = self.provider.get_programs(
+                    limit=self.program_limit, offset=self.program_offset - self.program_limit
+                )
+                self.job_offset = self.program_offset - self.job_limit
+            elif page_button.tooltip == "next":
+                self.jobs = self.provider.get_jobs(
+                    limit=self.program_limit, offset=self.program_offset + self.program_limit
+                )
+                self.program_offset = self.program_offset + self.program_limit
+            with self.program_list_view:
+                clear_output()
+                display(self.render_program_list())
+            with self.program_pagination_view:
+                clear_output()
+                display(self.render_program_pagination())
+
+        prev_page = widgets.Button(
+            description="Prev",
+            disabled=self.program_offset < 1,
+            button_style="",
+            tooltip="prev",
+            icon="arrow-circle-left",
+        )
+        prev_page.on_click(paginate)
+        prev_page.layout = Layout(width="33%")
+
+        next_page = widgets.Button(
+            description="Next",
+            disabled=len(self.programs) != self.program_limit,
+            button_style="",
+            tooltip="next",
+            icon="arrow-circle-right",
+        )
+        next_page.on_click(paginate)
+        next_page.layout = Layout(width="33%")
+
+        pagination_number = widgets.Button(
+            description=f"{self.program_offset}-{self.program_offset + self.program_limit}",
             disabled=True,
             button_style="",
             tooltip="items",
@@ -212,12 +307,17 @@ class Widget:
     def show(self):
         """Displays widget."""
         job_list_widget = GridspecLayout(10, 2)
-        job_list_widget[:9, :] = self.list_view
-        job_list_widget[9:, 1] = self.pagination_view
+        job_list_widget[:9, :] = self.job_list_view
+        job_list_widget[9:, 1] = self.job_pagination_view
+
+        program_list_widget = GridspecLayout(10, 2)
+        program_list_widget[:9, :] = self.program_list_view
+        program_list_widget[9:, 1] = self.program_pagination_view
 
         tab_nest = widgets.Tab()
-        tab_nest.children = [job_list_widget, self.render_information()]
-        tab_nest.set_title(0, "Program runs")
-        tab_nest.set_title(1, "Info")
+        tab_nest.children = [job_list_widget, program_list_widget, self.render_information()]
+        tab_nest.set_title(0, "Executions")
+        tab_nest.set_title(1, "Functions")
+        tab_nest.set_title(2, "Info")
 
         return tab_nest
