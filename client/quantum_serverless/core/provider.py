@@ -480,6 +480,11 @@ class IBMServerlessProvider(ServerlessProvider):
         provider = IBMServerlessProvider(token=<INSERT_IBM_QUANTUM_TOKEN>)
     """
 
+    _default_account_config_json_file = os.path.join(
+        os.path.expanduser("~"), ".qiskit", "qiskit-ibm.json"
+    )
+    _default_account_config_name = "qiskit-ibm-default"
+
     def __init__(self, token: Optional[str] = None, name: Optional[str] = None):
         """
         Initialize a provider with access to an IBMQ-provided remote cluster.
@@ -488,11 +493,6 @@ class IBMServerlessProvider(ServerlessProvider):
             token: IBM quantum token
             name: Name of the account to load
         """
-        self._default_account_name_ibm_quantum = "default-ibm-quantum"
-        self._default_account_config_json_file = os.path.join(
-            os.path.expanduser("~"), ".qiskit", "qiskit-ibm.json"
-        )
-
         # Try to read token from env variables
         token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN) or os.getenv(
             "QISKIT_IBM_TOKEN"
@@ -500,7 +500,7 @@ class IBMServerlessProvider(ServerlessProvider):
 
         # If no env variables contain the token, try to get it from the Qiskit IBM config file
         if token is None:
-            name = name or self._default_account_name_ibm_quantum
+            name = name or "qiskit-ibm-default"
             self._ensure_file_exists(self._default_account_config_json_file)
             with open(
                 self._default_account_config_json_file, encoding="utf-8"
@@ -511,14 +511,15 @@ class IBMServerlessProvider(ServerlessProvider):
 
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
 
-    @staticmethod
+    @classmethod
     def save_account(
+        cls,
         token: Optional[str] = None,
         name: Optional[str] = None,
         overwrite: Optional[bool] = False,
     ) -> None:
-        name = name or self._default_account_name_ibm_quantum
-        filename = self._default_account_config_json_file
+        name = name or cls._default_account_config_name
+        filename = cls._default_account_config_json_file
 
         _ensure_file_exists(filename)
 
