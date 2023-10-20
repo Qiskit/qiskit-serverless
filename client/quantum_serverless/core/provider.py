@@ -495,7 +495,7 @@ class IBMServerlessProvider(ServerlessProvider):
         """
         if token is None:
             # Try to read token from env variables
-            token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN) or os.getenv(
+            token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN) or os.environ.get(
                 "QISKIT_IBM_TOKEN"
             )
 
