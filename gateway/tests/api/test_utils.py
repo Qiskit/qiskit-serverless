@@ -22,7 +22,9 @@ class TestUtils(APITestCase):
         request.auth.token.decode.return_value = "42"
         job = MagicMock()
         job.id = "42"
-        env_vars = build_env_variables(request=request, job=job, arguments={"answer": 42})
+        env_vars = build_env_variables(
+            request=request, job=job, arguments={"answer": 42}
+        )
         self.assertEqual(
             env_vars,
             {
