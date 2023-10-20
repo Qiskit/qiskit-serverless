@@ -26,7 +26,6 @@ Quantum serverless provider
     ComputeResource
     ServerlessProvider
 """
-import json
 import logging
 import warnings
 import os.path
@@ -541,13 +540,3 @@ class RayProvider(BaseProvider):
 
     def get_jobs(self, **kwargs) -> List[Job]:
         return self.client.list()
-
-
-def _ensure_file_exists(filename: str) -> None:
-    if not os.path.isfile(filename):
-        # Create parent directories
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-
-        # Initialize file
-        with open(filename, mode="w", encoding="utf-8") as json_file:
-            json_file.write("{}")
