@@ -509,7 +509,7 @@ class IBMServerlessProvider(ServerlessProvider):
             ) as json_file:
                 data = json.load(json_file)
             if name in data:
-                token = data[name]["token"]
+                token = data[name].get("token")
 
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
 
