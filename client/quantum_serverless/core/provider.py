@@ -493,10 +493,11 @@ class IBMServerlessProvider(ServerlessProvider):
             token: IBM quantum token
             name: Name of the account to load
         """
-        # Try to read token from env variables
-        token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN) or os.getenv(
-            "QISKIT_IBM_TOKEN"
-        )
+        if token is None:
+            # Try to read token from env variables
+            token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN) or os.getenv(
+                "QISKIT_IBM_TOKEN"
+            )
 
         # If no env variables contain the token, try to get it from the Qiskit IBM config file
         if token is None:
