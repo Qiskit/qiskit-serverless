@@ -37,7 +37,7 @@ import ray
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
-from qiskit_ibm_provider.accounts import AccountAlreadyExistsError
+from qiskit_ibm_provider import IBMProvider
 
 from quantum_serverless.core.constants import (
     REQUESTS_TIMEOUT,
@@ -480,11 +480,6 @@ class IBMServerlessProvider(ServerlessProvider):
         provider = IBMServerlessProvider(token=<INSERT_IBM_QUANTUM_TOKEN>)
     """
 
-    _default_account_config_json_file = os.path.join(
-        os.path.expanduser("~"), ".qiskit", "qiskit-ibm.json"
-    )
-    _default_account_config_name = "qiskit-ibm-default"
-
     def __init__(self, token: Optional[str] = None, name: Optional[str] = None):
         """
         Initialize a provider with access to an IBMQ-provided remote cluster.
@@ -493,22 +488,7 @@ class IBMServerlessProvider(ServerlessProvider):
             token: IBM quantum token
             name: Name of the account to load
         """
-        if token is None:
-            # Try to read token from env variables
-            token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN) or os.environ.get(
-                "QISKIT_IBM_TOKEN"
-            )
-
-        # If no env variables contain the token, try to get it from the Qiskit IBM config file
-        if token is None:
-            name = name or "qiskit-ibm-default"
-            filename = IBMServerlessProvider._default_account_config_json_file
-            _ensure_file_exists(filename)
-            with open(filename, encoding="utf-8") as json_file:
-                data = json.load(json_file)
-            if name in data:
-                token = data[name].get("token")
-
+        token = token or IBMProvider(name=name).active_account().get("token")
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
 
     @classmethod
@@ -526,25 +506,7 @@ class IBMServerlessProvider(ServerlessProvider):
             name: Name of the account to save
             overwrite: ``True`` if the existing account is to be overwritten
         """
-        name = name or cls._default_account_config_name
-        filename = cls._default_account_config_json_file
-
-        _ensure_file_exists(filename)
-
-        with open(filename, mode="r", encoding="utf-8") as json_in:
-            data = json.load(json_in)
-
-        if data.get(name) and not overwrite:
-            raise AccountAlreadyExistsError(
-                f"Named account ({name}) already exists. "
-                f"Set overwrite=True to overwrite."
-            )
-
-        config = {"token": token}
-
-        with open(filename, mode="w", encoding="utf-8") as json_out:
-            data[name] = config
-            json.dump(data, json_out, sort_keys=True, indent=4)
+        IBMProvider.save_account(token=token, name=name, overwrite=overwrite)
 
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
