@@ -483,6 +483,16 @@ class IBMServerlessProvider(ServerlessProvider):
         """
         Initialize a provider with access to an IBMQ-provided remote cluster.
 
+        If a ``token`` is used to initialize an instance, the ``name`` argument
+        will be ignored.
+
+        If only a ``name`` is provided, the token for the named account will
+        be retrieved from the user's local IBM Quantum account config file.
+
+        If neither argument is provided, the token will be searched for in the
+        environment variables and also in the local IBM Quantum account config
+        file using the default account name.
+
         Args:
             token: IBM quantum token
             name: Name of the account to load
