@@ -500,9 +500,8 @@ class IBMServerlessProvider(ServerlessProvider):
         token = token or IBMProvider(name=name).active_account().get("token")
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
 
-    @classmethod
+    @staticmethod
     def save_account(
-        cls,
         token: Optional[str] = None,
         name: Optional[str] = None,
         overwrite: Optional[bool] = False,
