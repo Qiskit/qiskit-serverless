@@ -35,8 +35,8 @@ from typing import Optional, List, Dict, Any
 import ray
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
-
 from opentelemetry import trace
+from qiskit_ibm_provider import IBMProvider
 
 from quantum_serverless.core.constants import (
     REQUESTS_TIMEOUT,
@@ -455,18 +455,66 @@ class IBMServerlessProvider(ServerlessProvider):
     """
     A provider for connecting to the IBM serverless host.
 
-    Example:
-        >>> provider = IBMServerlessProvider(token="<TOKEN>")
+    Credentials can be saved to disk by calling the `save_account()` method::
+
+        from quantum_serverless import IBMServerlessProvider
+        IBMServerlessProvider.save_account(token=<INSERT_IBM_QUANTUM_TOKEN>)
+
+    Once the credentials are saved, you can simply instantiate the provider with no
+    constructor args, as shown below.
+
+        from quantum_serverless import IBMServerlessProvider
+        provider = IBMServerlessProvider()
+
+    Instead of saving credentials to disk, you can also set the environment variable
+    ENV_GATEWAY_PROVIDER_TOKEN and then instantiate the provider as below::
+
+        from quantum_serverless import IBMServerlessProvider
+        provider = IBMServerlessProvider()
+
+    You can also enable an account just for the current session by instantiating the
+    provider with the API token::
+
+        from quantum_serverless import IBMServerlessProvider
+        provider = IBMServerlessProvider(token=<INSERT_IBM_QUANTUM_TOKEN>)
     """
 
-    def __init__(self, token: str):
+    def __init__(self, token: Optional[str] = None, name: Optional[str] = None):
         """
         Initialize a provider with access to an IBMQ-provided remote cluster.
 
+        If a ``token`` is used to initialize an instance, the ``name`` argument
+        will be ignored.
+
+        If only a ``name`` is provided, the token for the named account will
+        be retrieved from the user's local IBM Quantum account config file.
+
+        If neither argument is provided, the token will be searched for in the
+        environment variables and also in the local IBM Quantum account config
+        file using the default account name.
+
         Args:
             token: IBM quantum token
+            name: Name of the account to load
         """
+        token = token or IBMProvider(name=name).active_account().get("token")
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
+
+    @staticmethod
+    def save_account(
+        token: Optional[str] = None,
+        name: Optional[str] = None,
+        overwrite: Optional[bool] = False,
+    ) -> None:
+        """
+        Save the account to disk for future use.
+
+        Args:
+            token: IBM Quantum API token
+            name: Name of the account to save
+            overwrite: ``True`` if the existing account is to be overwritten
+        """
+        IBMProvider.save_account(token=token, name=name, overwrite=overwrite)
 
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
