@@ -480,31 +480,32 @@ class IBMServerlessProvider(ServerlessProvider):
         provider = IBMServerlessProvider(token=<INSERT_IBM_QUANTUM_TOKEN>)
     """
 
-    def __init__(self, token: Optional[str] = None):
+    def __init__(self, token: Optional[str] = None, name: Optional[str]):
         """
         Initialize a provider with access to an IBMQ-provided remote cluster.
 
         Args:
             token: IBM quantum token
+            name: Name of the account to load
         """
         self._default_account_name_ibm_quantum = "default-ibm-quantum"
         self._default_account_config_json_file = os.path.join(
             os.path.expanduser("~"), ".qiskit", "qiskit-ibm.json"
         )
-        if token is None:
-            token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN)
 
-        if token is None:
-            token = os.getenv("QISKIT_IBM_TOKEN")
+        # Try to read token from env variables
+        token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN) or os.getenv("QISKIT_IBM_TOKEN")
 
+        # If no env variables contain the token, try to get it from the Qiskit IBM config file
         if token is None:
+            name = name or self._default_account_name_ibm_quantum
             self._ensure_file_exists(self._default_account_config_json_file)
             with open(
                 self._default_account_config_json_file, encoding="utf-8"
             ) as json_file:
                 data = json.load(json_file)
-            if self._default_account_name_ibm_quantum in data:
-                token = data[self._default_account_name_ibm_quantum]["token"]
+            if name in data:
+                token = data[name]["token"]
 
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
 
