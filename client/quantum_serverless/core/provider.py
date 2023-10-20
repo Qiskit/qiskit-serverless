@@ -480,7 +480,7 @@ class IBMServerlessProvider(ServerlessProvider):
         provider = IBMServerlessProvider(token=<INSERT_IBM_QUANTUM_TOKEN>)
     """
 
-    def __init__(self, token: Optional[str] = None, name: Optional[str]):
+    def __init__(self, token: Optional[str] = None, name: Optional[str] = None):
         """
         Initialize a provider with access to an IBMQ-provided remote cluster.
 
@@ -494,7 +494,9 @@ class IBMServerlessProvider(ServerlessProvider):
         )
 
         # Try to read token from env variables
-        token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN) or os.getenv("QISKIT_IBM_TOKEN")
+        token = os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN) or os.getenv(
+            "QISKIT_IBM_TOKEN"
+        )
 
         # If no env variables contain the token, try to get it from the Qiskit IBM config file
         if token is None:
