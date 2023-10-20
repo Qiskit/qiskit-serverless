@@ -501,7 +501,7 @@ class IBMServerlessProvider(ServerlessProvider):
         # If no env variables contain the token, try to get it from the Qiskit IBM config file
         if token is None:
             name = name or "qiskit-ibm-default"
-            self._ensure_file_exists(self._default_account_config_json_file)
+            _ensure_file_exists(self._default_account_config_json_file)
             with open(
                 self._default_account_config_json_file, encoding="utf-8"
             ) as json_file:
@@ -518,6 +518,14 @@ class IBMServerlessProvider(ServerlessProvider):
         name: Optional[str] = None,
         overwrite: Optional[bool] = False,
     ) -> None:
+        """
+        Save the account to disk for future use.
+
+        Args:
+            token: IBM Quantum API token
+            name: Name of the account to save
+            overwrite: ``True`` if the existing account is to be overwritten
+        """
         name = name or cls._default_account_config_name
         filename = cls._default_account_config_json_file
 
@@ -537,16 +545,6 @@ class IBMServerlessProvider(ServerlessProvider):
         with open(filename, mode="w", encoding="utf-8") as json_out:
             data[name] = config
             json.dump(data, json_out, sort_keys=True, indent=4)
-
-    @staticmethod
-    def _ensure_file_exists(filename: str) -> None:
-        if not os.path.isfile(filename):
-            # Create parent directories
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
-
-            # Initialize file
-            with open(filename, mode="w", encoding="utf-8") as json_file:
-                json_file.write("{}")
 
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
@@ -581,3 +579,13 @@ class RayProvider(BaseProvider):
 
     def get_jobs(self, **kwargs) -> List[Job]:
         return self.client.list()
+
+
+def _ensure_file_exists(filename: str) -> None:
+    if not os.path.isfile(filename):
+        # Create parent directories
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+        # Initialize file
+        with open(filename, mode="w", encoding="utf-8") as json_file:
+            json_file.write("{}")
