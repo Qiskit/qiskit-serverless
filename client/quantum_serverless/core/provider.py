@@ -487,7 +487,7 @@ class IBMServerlessProvider(ServerlessProvider):
         Args:
             token: IBM quantum token
         """
-        self._default_account_name_ibm_quantum = "default-ibm-quantum-serverless"
+        self._default_account_name_ibm_quantum = "default-ibm-quantum"
         self._default_account_config_json_file = os.path.join(
             os.path.expanduser("~"), ".qiskit", "qiskit-ibm.json"
         )
@@ -536,12 +536,13 @@ class IBMServerlessProvider(ServerlessProvider):
 
     @staticmethod
     def _ensure_file_exists(filename: str) -> None:
-        # Create parent directories
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        if not os.path.isfile(filename):
+            # Create parent directories
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-        # Initialize file
-        with open(filename, mode="w", encoding="utf-8") as json_file:
-            json_file.write("{}")
+            # Initialize file
+            with open(filename, mode="w", encoding="utf-8") as json_file:
+                json_file.write("{}")
 
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
