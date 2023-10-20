@@ -302,6 +302,16 @@ class BaseProvider(JsonSerializable):
         """Returns list of available files produced by programs to download."""
         raise NotImplementedError
 
+    def download(self, file: str, download_location: str = "./"):
+        """Download file."""
+        warnings.warn(
+            "`download` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `file_download` instead.",
+            DeprecationWarning,
+        )
+        return self.file_download(file, download_location)
+
     def file_download(self, file: str, download_location: str):
         """Download file."""
         raise NotImplementedError
