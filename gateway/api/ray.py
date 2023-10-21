@@ -20,7 +20,7 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from api.models import ComputeResource, Job
+from api.models import ComputeResource, Job, ProgramConfig
 from api.utils import try_json_loads, retry_function, decrypt_env_vars
 from main import settings
 
@@ -157,7 +157,10 @@ def submit_job(job: Job) -> Job:
 
 
 def create_ray_cluster(
-    user: Any, cluster_name: Optional[str] = None, cluster_data: Optional[str] = None
+    user: Any,
+    cluster_name: Optional[str] = None,
+    cluster_data: Optional[str] = None,
+    program_config: Optional[ProgramConfig] = None,
 ) -> Optional[ComputeResource]:
     """Creates ray cluster.
 
@@ -176,7 +179,14 @@ def create_ray_cluster(
     if not cluster_data:
         cluster = get_template("rayclustertemplate.yaml")
         manifest = cluster.render(
-            {"cluster_name": cluster_name, "user_id": user.username}
+            {
+                "cluster_name": cluster_name,
+                "user_id": user.username,
+                "workers": program_config.workers,
+                "min_workers": program_config.min_workers,
+                "max_workers": program_config.max_workers,
+                "auto_scaling": program_config.auto_scaling,
+            }
         )
         cluster_data = yaml.safe_load(manifest)
 

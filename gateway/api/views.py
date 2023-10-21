@@ -20,7 +20,8 @@ from concurrency.exceptions import RecordModifiedError
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.http import StreamingHttpResponse
+from django.core.exceptions import ValidationError
+from django.http import StreamingHttpResponse, HttpResponseBadRequest
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
@@ -36,7 +37,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from .models import Program, Job
 from .ray import get_job_handler
-from .schedule import save_program
+from .schedule import save_program, save_programconfig
 from .serializers import JobSerializer, ExistingProgramSerializer
 from .utils import build_env_variables, encrypt_env_vars
 
@@ -115,6 +116,10 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
+            programconfig = save_programconfig(request)
+            program.config = programconfig
+            program.save()
+
             job = Job(
                 program=program,
                 arguments=serializer.data.get("arguments"),
@@ -150,7 +155,10 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            program = save_program(serializer=serializer, request=request)
+            try:
+                program = save_program(serializer=serializer, request=request)
+            except ValidationError as exp:
+                return HttpResponseBadRequest(f"Bad Request: {exp}")
             job = Job(
                 program=program,
                 arguments=program.arguments,

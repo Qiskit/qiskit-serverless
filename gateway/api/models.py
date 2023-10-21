@@ -2,7 +2,11 @@
 import uuid
 from concurrency.fields import IntegerVersionField
 
-from django.core.validators import FileExtensionValidator
+from django.core.validators import (
+    FileExtensionValidator,
+    MinValueValidator,
+    MaxValueValidator,
+)
 from django.db import models
 from django.conf import settings
 from django_prometheus.models import ExportModelOperationsMixin
@@ -11,6 +15,45 @@ from django_prometheus.models import ExportModelOperationsMixin
 def get_upload_path(instance, filename):
     """Returns save path for artifacts."""
     return f"{instance.author.username}/{instance.id}/{filename}"
+
+
+class ProgramConfig(models.Model):
+    """Program Configuration model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True)
+
+    auto_scaling = models.BooleanField(default=False, null=True)
+    workers = models.IntegerField(
+        null=True,
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(settings.RAY_CLUSTER_WORKER_REPLICAS_MAX),
+        ],
+    )
+    min_workers = models.IntegerField(
+        null=True,
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(settings.RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX),
+        ],
+    )
+    max_workers = models.IntegerField(
+        null=True,
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(settings.RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX),
+        ],
+    )
+    worker_cpu = models.IntegerField(
+        null=True, validators=[MinValueValidator(0), MaxValueValidator(5)]
+    )
+    worker_mem = models.IntegerField(
+        null=True, validators=[MinValueValidator(0), MaxValueValidator(5)]
+    )
+
+    def __str__(self):
+        return self.id
 
 
 class Program(ExportModelOperationsMixin("program"), models.Model):
@@ -35,6 +78,13 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
+    config = models.ForeignKey(
+        to=ProgramConfig,
+        on_delete=models.CASCADE,
+        default=None,
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         return f"{self.title}"

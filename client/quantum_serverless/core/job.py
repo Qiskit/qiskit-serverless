@@ -27,6 +27,7 @@ Quantum serverless job
     RuntimeEnv
     Job
 """
+# pylint: disable=duplicate-code
 import json
 import logging
 import os
@@ -36,6 +37,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 from uuid import uuid4
+from dataclasses import asdict
 
 import subprocess
 from subprocess import Popen
@@ -58,7 +60,8 @@ from quantum_serverless.core.constants import (
     MAX_ARTIFACT_FILE_SIZE_MB,
     ENV_JOB_ARGUMENTS,
 )
-from quantum_serverless.core.pattern import QiskitPattern
+
+from quantum_serverless.core.pattern import QiskitPattern, Configuration
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
@@ -73,7 +76,10 @@ class BaseJobClient:
     """Base class for Job clients."""
 
     def run(
-        self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: QiskitPattern,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> "Job":
         """Runs program."""
         raise NotImplementedError
@@ -151,7 +157,12 @@ class RayJobClient(BaseJobClient):
             Job(job.job_id, job_client=self) for job in self._job_client.list_jobs()
         ]
 
-    def run(self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None):
+    def run(
+        self,
+        program: QiskitPattern,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
+    ):
         arguments = arguments or {}
         entrypoint = f"python {program.entrypoint}"
 
@@ -333,7 +344,10 @@ class GatewayJobClient(BaseJobClient):
         self._token = token
 
     def run(  # pylint: disable=too-many-locals
-        self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: QiskitPattern,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> "Job":
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
@@ -367,21 +381,26 @@ class GatewayJobClient(BaseJobClient):
                 )
 
             with open(artifact_file_path, "rb") as file:
+                data = {
+                    "title": program.title,
+                    "entrypoint": program.entrypoint,
+                    "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
+                    "dependencies": json.dumps(program.dependencies or []),
+                }
+                if config:
+                    data["config"] = json.dumps(asdict(config))
+                else:
+                    data["config"] = "{}"
+
                 response_data = safe_json_request(
                     request=lambda: requests.post(
                         url=url,
-                        data={
-                            "title": program.title,
-                            "entrypoint": program.entrypoint,
-                            "arguments": json.dumps(
-                                arguments or {}, cls=QiskitObjectsEncoder
-                            ),
-                            "dependencies": json.dumps(program.dependencies or []),
-                        },
+                        data=data,
                         files={"artifact": file},
                         headers={"Authorization": f"Bearer {self._token}"},
                         timeout=REQUESTS_TIMEOUT,
-                    )
+                    ),
+                    verbose=True,
                 )
                 job_id = response_data.get("id")
                 span.set_attribute("job.id", job_id)
@@ -449,6 +468,7 @@ class GatewayJobClient(BaseJobClient):
         self,
         program: Union[str, QiskitPattern],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ):
         if isinstance(program, QiskitPattern):
             title = program.title
@@ -462,15 +482,19 @@ class GatewayJobClient(BaseJobClient):
 
             url = f"{self.host}/api/{self.version}/programs/run_existing/"
 
+            data = {
+                "title": title,
+                "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
+            }
+            if config:
+                data["config"] = json.dumps(asdict(config))
+            else:
+                data["config"] = "{}"
+
             response_data = safe_json_request(
                 request=lambda: requests.post(
                     url=url,
-                    data={
-                        "title": title,
-                        "arguments": json.dumps(
-                            arguments or {}, cls=QiskitObjectsEncoder
-                        ),
-                    },
+                    data=data,
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )

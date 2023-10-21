@@ -74,10 +74,10 @@ from .job import (
 )
 from .pattern import (
     QiskitPattern,
-    Program,
     ProgramStorage,
     ProgramRepository,
     download_and_unpack_artifact,
+    Configuration,
 )
 from .decorators import (
     remote,
