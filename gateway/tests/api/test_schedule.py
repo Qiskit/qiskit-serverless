@@ -53,7 +53,6 @@ class TestScheduleApi(APITestCase):
     def test_already_created_ray_cluster_execute_job(
         self, mock_open, mock_basename, mock_uuid, mock_remove
     ):
-
         test_json = {"ray_version": "2.6.3"}
 
         test_post = {"job_id": "test_job_id", "submission_id": "test_submission_id"}

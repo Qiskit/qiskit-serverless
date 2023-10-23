@@ -33,7 +33,7 @@ import os
 import tarfile
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from uuid import uuid4
 
 import ray.runtime_env
@@ -73,6 +73,16 @@ class BaseJobClient:
         """Runs program."""
         raise NotImplementedError
 
+    def upload(self, program: Program):
+        """Uploads program."""
+        raise NotImplementedError
+
+    def run_existing(
+        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+    ):
+        """Executes existing program."""
+        raise NotImplementedError
+
     def get(self, job_id) -> Optional["Job"]:
         """Returns job by job id"""
         raise NotImplementedError
@@ -95,6 +105,10 @@ class BaseJobClient:
 
     def result(self, job_id: str):
         """Return results."""
+        raise NotImplementedError
+
+    def get_programs(self, **kwargs):
+        """Returns list of programs."""
         raise NotImplementedError
 
 
@@ -151,6 +165,14 @@ class RayJobClient(BaseJobClient):
             },
         )
         return Job(job_id=job_id, job_client=self)
+
+    def upload(self, program: Program):
+        raise NotImplementedError("Upload is not available for RayJobClient.")
+
+    def run_existing(
+        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+    ):
+        raise NotImplementedError("Run existing is not available for RayJobClient.")
 
 
 class GatewayJobClient(BaseJobClient):
@@ -224,6 +246,93 @@ class GatewayJobClient(BaseJobClient):
 
             if os.path.exists(artifact_file_path):
                 os.remove(artifact_file_path)
+
+        return Job(job_id, job_client=self)
+
+    def upload(self, program: Program):
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.run") as span:
+            span.set_attribute("program", program.title)
+
+            url = f"{self.host}/api/{self.version}/programs/upload/"
+            artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+
+            # check if entrypoint exists
+            if not os.path.exists(
+                os.path.join(program.working_dir, program.entrypoint)
+            ):
+                raise QuantumServerlessException(
+                    f"Entrypoint file [{program.entrypoint}] does not exist "
+                    f"in [{program.working_dir}] working directory."
+                )
+
+            with tarfile.open(artifact_file_path, "w") as tar:
+                for filename in os.listdir(program.working_dir):
+                    fpath = os.path.join(program.working_dir, filename)
+                    tar.add(fpath, arcname=filename)
+
+            # check file size
+            size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
+            if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
+                raise QuantumServerlessException(
+                    f"{artifact_file_path} is {int(size_in_mb)} Mb, "
+                    f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
+                    f"Try to reduce size of `working_dir`."
+                )
+
+            with open(artifact_file_path, "rb") as file:
+                response_data = safe_json_request(
+                    request=lambda: requests.post(
+                        url=url,
+                        data={
+                            "title": program.title,
+                            "entrypoint": program.entrypoint,
+                            "arguments": json.dumps({}),
+                            "dependencies": json.dumps(program.dependencies or []),
+                        },
+                        files={"artifact": file},
+                        headers={"Authorization": f"Bearer {self._token}"},
+                        timeout=REQUESTS_TIMEOUT,
+                    )
+                )
+                program_title = response_data.get("title", "na")
+                span.set_attribute("program.title", program_title)
+
+            if os.path.exists(artifact_file_path):
+                os.remove(artifact_file_path)
+
+        return program_title
+
+    def run_existing(
+        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+    ):
+        if isinstance(program, Program):
+            title = program.title
+        else:
+            title = str(program)
+
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("job.run_existing") as span:
+            span.set_attribute("program", title)
+            span.set_attribute("arguments", str(arguments))
+
+            url = f"{self.host}/api/{self.version}/programs/run_existing/"
+
+            response_data = safe_json_request(
+                request=lambda: requests.post(
+                    url=url,
+                    data={
+                        "title": title,
+                        "arguments": json.dumps(
+                            arguments or {}, cls=QiskitObjectsEncoder
+                        ),
+                    },
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            job_id = response_data.get("id")
+            span.set_attribute("job.id", job_id)
 
         return Job(job_id, job_client=self)
 
@@ -317,6 +426,23 @@ class GatewayJobClient(BaseJobClient):
         return [
             Job(job.get("id"), job_client=self, raw_data=job)
             for job in response_data.get("results", [])
+        ]
+
+    def get_programs(self, **kwargs):
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("program.list"):
+            limit = kwargs.get("limit", 10)
+            offset = kwargs.get("offset", 0)
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/programs/?limit={limit}&offset={offset}",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+        return [
+            Program(program.get("title"), raw_data=program)
+            for program in response_data.get("results", [])
         ]
 
 

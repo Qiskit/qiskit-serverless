@@ -122,6 +122,17 @@ class QuantumServerless:
             job = self._selected_provider.run(program, arguments)
         return job
 
+    def upload(self, program: Program):
+        """Uploads program.
+
+        Args:
+            program: Program
+
+        Returns:
+            program title
+        """
+        return self._selected_provider.upload(program)
+
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.
 
@@ -156,44 +167,55 @@ class QuantumServerless:
         """
         return self._selected_provider.files()
 
-    def download(self, file: str, download_location: str = "./"):
+    def file_download(self, file: str, download_location: str = "./"):
         """Downloads file.
         Note: file will be saved with different name to avoid conflicts
               and this name will be returned.
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> serverless.download('artifact.tar', directory="./")
+            >>> serverless.file_download('artifact.tar', directory="./")
 
         Args:
             file: name of file to download
             download_location: destination directory. Default: current directory
         """
-        return self._selected_provider.download(file, download_location)
+        return self._selected_provider.file_download(file, download_location)
 
-    def delete(self, file: str):
+    def file_delete(self, file: str):
         """Deletes file uploaded or produced by the programs.
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> serverless.delete('artifact.tar')
+            >>> serverless.file_delete('artifact.tar')
 
         Args:
             file: name of file to delete
         """
-        return self._selected_provider.delete(file)
+        return self._selected_provider.file_delete(file)
 
-    def upload(self, file: str):
+    def file_upload(self, file: str):
         """Downloads file.
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> serverless.upload('artifact.tar')
+            >>> serverless.file_upload('artifact.tar')
 
         Args:
             file: name of file (with path)  to upload
         """
-        return self._selected_provider.upload(file)
+        return self._selected_provider.file_upload(file)
+
+    def get_programs(self, **kwargs):
+        """Get list of available programs.
+
+        Args:
+            **kwargs: filtering options
+
+        Returns:
+            List of programs.
+        """
+        return self._selected_provider.get_programs(**kwargs)
 
     def context(
         self,
