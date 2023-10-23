@@ -31,7 +31,9 @@ from .core import (
     put,
     get_refs_by_status,
     Provider,
+    ServerlessProvider,
     IBMServerlessProvider,
+    RayProvider,
     save_result,
 )
 from .quantum_serverless import (

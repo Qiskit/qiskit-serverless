@@ -1,30 +1,60 @@
+.. _local_infrastructure:
+
 ==========================
 Local infrastructure setup
 ==========================
+
+Step 1: Create a Python environment and clone the repository
+
+The ``quantum-serverless`` repository contains some Dockerfiles which make spinning up a test cluster
+on your local machine straightforward. The first thing we will do is clone the repository.
+
+.. code-block::
+   :caption: Create a minimal environment with only Python installed in it. We recommend using `Python virtual environments <https://docs.python.org/3.10/tutorial/venv.html>`_.
+
+      python3 -m venv /path/to/virtual/environment
+
+.. code-block::
+   :caption: Activate your new environment.
+
+      source /path/to/virtual/environment/bin/activate
+
+.. code-block::
+   :caption: Note: If you are using Windows, use the following commands in PowerShell.
+
+      python3 -m venv c:\path\to\virtual\environment
+      c:\path\to\virtual\environment\Scripts\Activate.ps1
+
+.. code-block::
+   :caption: Clone the Quantum Serverless repository.
+
+      cd /path/to/workspace/
+      git clone git@github.com:Qiskit-Extensions/quantum-serverless.git
+
+Step 2: Set up Docker
 
 To set up Quantum Serverless on your local machine, you will need to use `docker compose`_.
 
 .. _docker compose: https://docs.docker.com/compose/
 
-Once you have Docker and docker compose installed, you can run the following command to set up the infrastructure:
+Step 3: Initiate the test cluster
+
+Once you have Docker and docker compose installed, you can run the following command from the root of the
+``quantum-serverless`` repository to set up the infrastructure:
 
 .. code-block::
 
-        $ VERSION=<VERSION> docker compose [--profile <PROFILE>] up
+        $ docker compose [--profile <PROFILE>] up
 
 The available profiles are `full`, `jupyter`, and `repo`.
-The repo profile installs core services and the program repository,
-the jupyter profile installs core services and Jupyter Notebook,
-and the full profile installs all core services,
-Jupyter Notebook, and logging and monitoring systems.
+The repo profile installs core services and the program repository;
+the jupyter profile installs core services and Jupyter Notebook;
+and the full profile installs all core services, including logging and
+monitorying systems and jupyter.
 
-Available version can be found in `GitHub releases`_ page.
+Step 4: Run a program in the test environment
 
-.. _GitHub releases: https://github.com/Qiskit-Extensions/quantum-serverless/releases
-
-For example, if you want to install version `0.6.3` with all services,
-the command would be:
-
-.. code-block::
-
-        $ VERSION=0.6.3 docker compose --profile full up
+Once the containers are running, you can simulate a remote cluster with the resources on your
+local machine. To create and run programs in this simulated cluster, visit the Jupyter Lab
+environment at `localhost:8888` via a web browser. Refer to the :ref:`getting_started` guides
+for details about running your program remotely.

@@ -24,9 +24,10 @@ Quantum serverless provider
     :toctree: ../stubs/
 
     ComputeResource
-    Provider
+    ServerlessProvider
 """
 import logging
+import warnings
 import os.path
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
@@ -34,8 +35,8 @@ from typing import Optional, List, Dict, Any
 import ray
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
-
 from opentelemetry import trace
+from qiskit_ibm_provider import IBMProvider
 
 from quantum_serverless.core.constants import (
     REQUESTS_TIMEOUT,
@@ -147,7 +148,20 @@ class ComputeResource:
 
 
 class BaseProvider(JsonSerializable):
-    """Provider."""
+    """
+    A provider class for specifying custom compute resources.
+
+    Example:
+        >>> provider = BaseProvider(
+        >>>    name="<NAME>",
+        >>>    host="<HOST>",
+        >>>    token="<TOKEN>",
+        >>>    compute_resource=ComputeResource(
+        >>>        name="<COMPUTE_RESOURCE_NAME>",
+        >>>        host="<COMPUTE_RESOURCE_HOST>"
+        >>>    ),
+        >>> )
+    """
 
     def __init__(
         self,
@@ -157,18 +171,8 @@ class BaseProvider(JsonSerializable):
         compute_resource: Optional[ComputeResource] = None,
         available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
-        """Provider for serverless computation.
-
-        Example:
-            >>> provider = Provider(
-            >>>    name="<NAME>",
-            >>>    host="<HOST>",
-            >>>    token="<TOKEN>",
-            >>>    compute_resource=ComputeResource(
-            >>>        name="<COMPUTE_RESOURCE_NAME>",
-            >>>        host="<COMPUTE_RESOURCE_HOST>"
-            >>>    ),
-            >>> )
+        """
+        Initialize a BaseProvider instance.
 
         Args:
             name: name of provider
@@ -298,6 +302,7 @@ class BaseProvider(JsonSerializable):
 
     def delete(self, file: str):
         """Deletes file uploaded or produced by the programs,"""
+        raise NotImplementedError
 
     def upload(self, file: str):
         """Upload file."""
@@ -308,8 +313,17 @@ class BaseProvider(JsonSerializable):
         return Widget(self).show()
 
 
-class Provider(BaseProvider):
-    """Provider."""
+class ServerlessProvider(BaseProvider):
+    """
+    A provider for connecting to a specified host.
+
+    Example:
+        >>> provider = ServerlessProvider(
+        >>>    name="<NAME>",
+        >>>    host="<HOST>",
+        >>>    token="<TOKEN>",
+        >>> )
+    """
 
     def __init__(
         self,
@@ -321,7 +335,8 @@ class Provider(BaseProvider):
         token: Optional[str] = None,
         verbose: bool = False,
     ):
-        """Provider.
+        """
+        Initializes the ServerlessProvider instance.
 
         Args:
             name: name of provider
@@ -332,7 +347,6 @@ class Provider(BaseProvider):
             token: authorization token
         """
         name = name or "gateway-provider"
-
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
             raise QuantumServerlessException("Please provide `host` of gateway.")
@@ -422,16 +436,85 @@ class Provider(BaseProvider):
             raise QuantumServerlessException("Cannot verify token.") from reason
 
 
-class IBMServerlessProvider(Provider):
-    """IBMServerlessProvider."""
+class Provider(ServerlessProvider):
+    """
+    [Deprecated since version 0.6.4] Use :class:`.ServerlessProvider` instead.
 
-    def __init__(self, token: str):
-        """Constructor for IBMServerlessProvider
+    A provider for connecting to a specified host. This class has been
+    renamed to :class:`.ServerlessProvider`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "The Provider class is deprecated. Use the identical ServerlessProvider class instead."
+        )
+        super().__init__(*args, **kwargs)
+
+
+class IBMServerlessProvider(ServerlessProvider):
+    """
+    A provider for connecting to the IBM serverless host.
+
+    Credentials can be saved to disk by calling the `save_account()` method::
+
+        from quantum_serverless import IBMServerlessProvider
+        IBMServerlessProvider.save_account(token=<INSERT_IBM_QUANTUM_TOKEN>)
+
+    Once the credentials are saved, you can simply instantiate the provider with no
+    constructor args, as shown below.
+
+        from quantum_serverless import IBMServerlessProvider
+        provider = IBMServerlessProvider()
+
+    Instead of saving credentials to disk, you can also set the environment variable
+    ENV_GATEWAY_PROVIDER_TOKEN and then instantiate the provider as below::
+
+        from quantum_serverless import IBMServerlessProvider
+        provider = IBMServerlessProvider()
+
+    You can also enable an account just for the current session by instantiating the
+    provider with the API token::
+
+        from quantum_serverless import IBMServerlessProvider
+        provider = IBMServerlessProvider(token=<INSERT_IBM_QUANTUM_TOKEN>)
+    """
+
+    def __init__(self, token: Optional[str] = None, name: Optional[str] = None):
+        """
+        Initialize a provider with access to an IBMQ-provided remote cluster.
+
+        If a ``token`` is used to initialize an instance, the ``name`` argument
+        will be ignored.
+
+        If only a ``name`` is provided, the token for the named account will
+        be retrieved from the user's local IBM Quantum account config file.
+
+        If neither argument is provided, the token will be searched for in the
+        environment variables and also in the local IBM Quantum account config
+        file using the default account name.
 
         Args:
             token: IBM quantum token
+            name: Name of the account to load
         """
+        token = token or IBMProvider(name=name).active_account().get("token")
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
+
+    @staticmethod
+    def save_account(
+        token: Optional[str] = None,
+        name: Optional[str] = None,
+        overwrite: Optional[bool] = False,
+    ) -> None:
+        """
+        Save the account to disk for future use.
+
+        Args:
+            token: IBM Quantum API token
+            name: Name of the account to save
+            overwrite: ``True`` if the existing account is to be overwritten
+        """
+        IBMProvider.save_account(token=token, name=name, overwrite=overwrite)
 
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
@@ -441,3 +524,28 @@ class IBMServerlessProvider(Provider):
 
     def delete_compute_resource(self, resource) -> int:
         raise NotImplementedError("GatewayProvider does not support resources api yet.")
+
+
+class RayProvider(BaseProvider):
+    """RayProvider."""
+
+    def __init__(self, host: str):
+        """Ray provider
+
+        Args:
+            host: ray head node host
+
+        Example:
+            >>> ray_provider = RayProvider("http://localhost:8265")
+        """
+        super().__init__("ray-provider", host)
+        self.client = RayJobClient(JobSubmissionClient(host))
+
+    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+        return self.client.run(program, arguments)
+
+    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        return self.client.get(job_id)
+
+    def get_jobs(self, **kwargs) -> List[Job]:
+        return self.client.list()

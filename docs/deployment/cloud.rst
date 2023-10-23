@@ -21,11 +21,10 @@ This guide contains:
 Installation requirements
 =========================
 
-To deploy the infrastructure required for ``Quantum Serverless`` you need to have installed three main tools:
+To deploy the infrastructure required for ``Quantum Serverless`` you need to have installed two main tools:
 
 * `Docker <https://www.docker.com/>`_
 * `Helm <https://helm.sh/>`_
-* `Terraform <https://www.terraform.io/>`_
 
 Each of these tools' webpages contain instructions for installing on Windows, MacOS, and Linux.
 
@@ -40,9 +39,7 @@ Once you have these tools installed, you can check the installation by running t
         $
         $ helm version
         $ > version.BuildInfo{Version:"X", GitCommit:"Y", GitTreeState:"Z", GoVersion:"T"}
-        $
-        $ terraform version
-        $ > Terraform X
+
 
 If all the commands return the correct versions, then congratulations, you have the tools installed!
 
@@ -92,7 +89,7 @@ Once your cluster is ready, the installation is relatively straightforward with 
 and run the next commands:
 
 .. code-block::
-   :caption: run this commands with the release version like 0.6.3 in x.y.z (2 places)
+   :caption: run this commands with the release version like 0.6.5 in x.y.z (2 places)
 
         $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/quantum-serverless-x.y.z.tgz
 
@@ -130,59 +127,6 @@ configuration example to expose through ``ingress`` in ``localhost`` the Jupyter
 Optionally, you can install an observability package to handle logging and monitoring on your cluster by running the following command:
 
 .. code-block::
-   :caption: run this commands with the release version like 0.6.3 in x.y.z (2 places) using the same namespace as in the previous helm command
+   :caption: run this commands with the release version like 0.6.5 in x.y.z (2 places) using the same namespace as in the previous helm command
 
         $ helm -n <INSERT_YOUR_NAMESPACE> install qs-observability  https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz
-
-.. _terraform-deployment:
-
-Quantum Serverless configuration
-==================================
-
-Once your resources are deployed, we can configure the Quantum Serverless ``client`` package.
-There are a couple of simple ways to do this.
-
-One option is to pass the configuration as arguments to the constructor of a ``QuantumServerless`` instance:
-
-.. code-block::
-    :caption: constructor arguments example
-
-        serverless = QuantumServerless({
-            "providers": [{
-                "name": "my_provider",  # provider name
-                "compute_resource": { # main computational resource
-                    "name": "my_resource", # cluster name
-                    "host": "HOST_ADDRESS_OF_CLUSTER_HEAD_NODE", # cluster host address, if you are using helm it will be DEPLOYMENT_NAME-kuberay-head-svc
-                }
-            }]
-        })
-
-Another option is to create an instance from a configuration file, which has exactly the same structure as the constructor argument in the above example.
-
-.. code-block::
-    :caption: config.json example
-
-        {
-            "providers": [{
-                "name": "my_provider",
-                "compute_resource": {
-                    "name": "my_cluster",
-                    "host": "HOST_ADDRESS_OF_CLUSTER_HEAD_NODE",
-                }
-            }]
-        }
-
-Instantiate the ``QuantumServerless`` instance from the configuration file:
-
-.. code-block::
-    :caption: verify the name and the path to load the file
-
-        serverless = QuantumServerless.load_configuration("./config.json")
-
-And use it as follows:
-
-.. code-block::
-    :caption: remember to use the same provider name
-
-        with serverless.provider("my_provider"):
-        ...
