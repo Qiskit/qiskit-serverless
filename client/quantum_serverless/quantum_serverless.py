@@ -28,6 +28,7 @@ Quantum serverless
 import os
 import json
 import logging
+import warnings
 from typing import Optional, Union, List, Dict, Any
 
 import requests
@@ -62,6 +63,11 @@ class QuantumServerless:
         Raises:
             QuantumServerlessException
         """
+        warnings.warn(
+            "The `QuantumServerless` class is deprecated. "
+            "Use the identical ServerlessProvider class instead."
+        )
+
         if providers is None:
             providers = [
                 BaseProvider("local", compute_resource=ComputeResource(name="local"))
