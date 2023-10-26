@@ -10,7 +10,7 @@ appVersion: "0.6.6"
 dependencies:
   - name: gateway
     condition: gatewayEnable
-    version: 0.6.6
+    version: 0.6.6-patch1
   - name: jupyter
     condition: jupyterEnable
     version: 0.6.6
