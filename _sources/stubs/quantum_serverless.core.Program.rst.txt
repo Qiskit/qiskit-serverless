@@ -26,11 +26,12 @@
    
       ~Program.dependencies
       ~Program.description
+      ~Program.entrypoint
       ~Program.env_vars
+      ~Program.raw_data
       ~Program.tags
       ~Program.version
       ~Program.working_dir
       ~Program.title
-      ~Program.entrypoint
    
    

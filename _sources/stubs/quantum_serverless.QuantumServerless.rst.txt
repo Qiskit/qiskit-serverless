@@ -16,11 +16,13 @@
       ~QuantumServerless.__init__
       ~QuantumServerless.add_provider
       ~QuantumServerless.context
-      ~QuantumServerless.delete
-      ~QuantumServerless.download
+      ~QuantumServerless.file_delete
+      ~QuantumServerless.file_download
+      ~QuantumServerless.file_upload
       ~QuantumServerless.files
       ~QuantumServerless.get_job_by_id
       ~QuantumServerless.get_jobs
+      ~QuantumServerless.get_programs
       ~QuantumServerless.provider
       ~QuantumServerless.providers
       ~QuantumServerless.run

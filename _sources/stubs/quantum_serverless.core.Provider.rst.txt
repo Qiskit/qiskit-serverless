@@ -16,14 +16,17 @@
       ~Provider.__init__
       ~Provider.context
       ~Provider.create_compute_resource
-      ~Provider.delete
       ~Provider.delete_compute_resource
       ~Provider.download
+      ~Provider.file_delete
+      ~Provider.file_download
+      ~Provider.file_upload
       ~Provider.files
       ~Provider.from_dict
       ~Provider.get_compute_resources
       ~Provider.get_job_by_id
       ~Provider.get_jobs
+      ~Provider.get_programs
       ~Provider.job_client
       ~Provider.run
       ~Provider.to_dict

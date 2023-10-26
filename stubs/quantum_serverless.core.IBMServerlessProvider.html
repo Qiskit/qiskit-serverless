@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.core.BaseProvider" href="quantum_serverless.core.BaseProvider.html" /><link rel="prev" title="quantum_serverless.core.ServerlessProvider" href="quantum_serverless.core.ServerlessProvider.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>quantum_serverless.core.IBMServerlessProvider - Quantum serverless 0.6.5</title>
+        <title>quantum_serverless.core.IBMServerlessProvider - Quantum serverless 0.6.6</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -144,7 +144,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Quantum serverless 0.6.5</div></a>
+      <a href="../index.html"><div class="brand">Quantum serverless 0.6.6</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -171,7 +171,7 @@
     </div>
   </a>
   
-  <span class="sidebar-brand-text">Quantum serverless 0.6.5</span>
+  <span class="sidebar-brand-text">Quantum serverless 0.6.6</span>
 </div><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
@@ -296,25 +296,64 @@
 <h1>quantum_serverless.core.IBMServerlessProvider<a class="headerlink" href="#quantum-serverless-core-ibmserverlessprovider" title="Permalink to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="quantum_serverless.core.IBMServerlessProvider">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">IBMServerlessProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#IBMServerlessProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.IBMServerlessProvider" title="Permalink to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">IBMServerlessProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#IBMServerlessProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.IBMServerlessProvider" title="Permalink to this definition">#</a></dt>
 <dd><p>A provider for connecting to the IBM serverless host.</p>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">provider</span> <span class="o">=</span> <span class="n">IBMServerlessProvider</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">)</span>
+<p>Credentials can be saved to disk by calling the <cite>save_account()</cite> method:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">IBMServerlessProvider</span>
+<span class="n">IBMServerlessProvider</span><span class="o">.</span><span class="n">save_account</span><span class="p">(</span><span class="n">token</span><span class="o">=&lt;</span><span class="n">INSERT_IBM_QUANTUM_TOKEN</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Once the credentials are saved, you can simply instantiate the provider with no
+constructor args, as shown below.</p>
+<blockquote>
+<div><p>from quantum_serverless import IBMServerlessProvider
+provider = IBMServerlessProvider()</p>
+</div></blockquote>
+<p>Instead of saving credentials to disk, you can also set the environment variable
+ENV_GATEWAY_PROVIDER_TOKEN and then instantiate the provider as below:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">IBMServerlessProvider</span>
+<span class="n">provider</span> <span class="o">=</span> <span class="n">IBMServerlessProvider</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>You can also enable an account just for the current session by instantiating the
+provider with the API token:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">IBMServerlessProvider</span>
+<span class="n">provider</span> <span class="o">=</span> <span class="n">IBMServerlessProvider</span><span class="p">(</span><span class="n">token</span><span class="o">=&lt;</span><span class="n">INSERT_IBM_QUANTUM_TOKEN</span><span class="o">&gt;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Initialize a provider with access to an IBMQ-provided remote cluster.</p>
+<p>If a <code class="docutils literal notranslate"><span class="pre">token</span></code> is used to initialize an instance, the <code class="docutils literal notranslate"><span class="pre">name</span></code> argument
+will be ignored.</p>
+<p>If only a <code class="docutils literal notranslate"><span class="pre">name</span></code> is provided, the token for the named account will
+be retrieved from the user’s local IBM Quantum account config file.</p>
+<p>If neither argument is provided, the token will be searched for in the
+environment variables and also in the local IBM Quantum account config
+file using the default account name.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>token</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – IBM quantum token</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>token</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – IBM quantum token</p></li>
+<li><p><strong>name</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – Name of the account to load</p></li>
+</ul>
 </dd>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="quantum_serverless.core.IBMServerlessProvider.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#IBMServerlessProvider.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.IBMServerlessProvider.__init__" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#IBMServerlessProvider.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.IBMServerlessProvider.__init__" title="Permalink to this definition">#</a></dt>
 <dd><p>Initialize a provider with access to an IBMQ-provided remote cluster.</p>
+<p>If a <code class="docutils literal notranslate"><span class="pre">token</span></code> is used to initialize an instance, the <code class="docutils literal notranslate"><span class="pre">name</span></code> argument
+will be ignored.</p>
+<p>If only a <code class="docutils literal notranslate"><span class="pre">name</span></code> is provided, the token for the named account will
+be retrieved from the user’s local IBM Quantum account config file.</p>
+<p>If neither argument is provided, the token will be searched for in the
+environment variables and also in the local IBM Quantum account config
+file using the default account name.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>token</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – IBM quantum token</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>token</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – IBM quantum token</p></li>
+<li><p><strong>name</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – Name of the account to load</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -323,7 +362,7 @@
 <div class="table-wrapper autosummary longtable docutils container">
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.core.IBMServerlessProvider.__init__" title="quantum_serverless.core.IBMServerlessProvider.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(token)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.core.IBMServerlessProvider.__init__" title="quantum_serverless.core.IBMServerlessProvider.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>([token, name])</p></td>
 <td><p>Initialize a provider with access to an IBMQ-provided remote cluster.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">context</span></code>(**kwargs)</p></td>
@@ -332,14 +371,20 @@
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_compute_resource</span></code>(resource)</p></td>
 <td><p>Create compute resource for provider.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">delete</span></code>(file)</p></td>
-<td><p>Deletes file uploaded or produced by the programs,</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">delete_compute_resource</span></code>(resource)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">delete_compute_resource</span></code>(resource)</p></td>
 <td><p>Delete compute resource for provider.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">download</span></code>(file[, download_location])</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">download</span></code>(file[, download_location])</p></td>
 <td><p>Download file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_delete</span></code>(file)</p></td>
+<td><p>Deletes file uploaded or produced by the programs,</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_download</span></code>(file[, download_location])</p></td>
+<td><p>Download file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_upload</span></code>(file)</p></td>
+<td><p>Upload file.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">files</span></code>()</p></td>
 <td><p>Returns list of available files produced by programs to download.</p></td>
@@ -356,17 +401,23 @@
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_jobs</span></code>(**kwargs)</p></td>
 <td><p>Return list of jobs.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job_client</span></code>()</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_programs</span></code>(**kwargs)</p></td>
+<td><p>Returns list of available programs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job_client</span></code>()</p></td>
 <td><p>Return job client for configured compute resource of provider.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments])</p></td>
 <td><p>Execute a program as a async job.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_account</span></code>([token, name, overwrite])</p></td>
+<td><p>Save the account to disk for future use.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code>()</p></td>
 <td><p>Converts class to dict.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">upload</span></code>(file)</p></td>
-<td><p>Upload file.</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">upload</span></code>(program)</p></td>
+<td><p>Uploads program.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">widget</span></code>()</p></td>
 <td><p>Widget for information about provider and jobs.</p></td>
@@ -450,7 +501,7 @@
   </div>
 </div><script src="../_static/jquery.js?v=5d32c60e"></script>
     <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=f5dbfb1f"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=c2237175"></script>
     <script src="../_static/doctools.js?v=888ff710"></script>
     <script src="../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>

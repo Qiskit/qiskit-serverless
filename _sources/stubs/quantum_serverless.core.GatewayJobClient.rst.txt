@@ -15,12 +15,15 @@
    
       ~GatewayJobClient.__init__
       ~GatewayJobClient.get
+      ~GatewayJobClient.get_programs
       ~GatewayJobClient.list
       ~GatewayJobClient.logs
       ~GatewayJobClient.result
       ~GatewayJobClient.run
+      ~GatewayJobClient.run_existing
       ~GatewayJobClient.status
       ~GatewayJobClient.stop
+      ~GatewayJobClient.upload
    
    
 

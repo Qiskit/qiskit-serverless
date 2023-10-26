@@ -16,14 +16,17 @@
       ~BaseProvider.__init__
       ~BaseProvider.context
       ~BaseProvider.create_compute_resource
-      ~BaseProvider.delete
       ~BaseProvider.delete_compute_resource
       ~BaseProvider.download
+      ~BaseProvider.file_delete
+      ~BaseProvider.file_download
+      ~BaseProvider.file_upload
       ~BaseProvider.files
       ~BaseProvider.from_dict
       ~BaseProvider.get_compute_resources
       ~BaseProvider.get_job_by_id
       ~BaseProvider.get_jobs
+      ~BaseProvider.get_programs
       ~BaseProvider.job_client
       ~BaseProvider.run
       ~BaseProvider.to_dict
