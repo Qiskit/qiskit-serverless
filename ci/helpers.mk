@@ -85,7 +85,7 @@ docker/vscan: docker/build ## Makes a vulnerability scan over the Docker image
     --ignore-unfixed $(DOCKER_IMAGE):$(IMAGE_TAG)
 
 .PHONY: docker/asoc-static-scan
-docker/asoc-static-scan: docker/login
+docker/asoc-static-scan: 
 	@docker run \
 		-e KeyId=${ASOC_KEY_ID} \
 		-e KeySecret=${ASOC_KEY_SECRET} \
@@ -93,11 +93,11 @@ docker/asoc-static-scan: docker/login
 		-v $(PWD)/ci/asoc/AsocStaticConfig:/asoc/AsocConfig \
 		-v $(PWD):/asoc/StaticScan \
 		-w /asoc \
-		us.icr.io/quantum-computing/asoc-automation:latest \
+		icr.io/quantum-public/asoc-automation:latest \
 		/asoc/appscanBash.sh
 
 .PHONY: docker/asoc-dynamic-scan
-docker/asoc-dynamic-scan: docker/login
+docker/asoc-dynamic-scan: 
 	@docker run \
 		-e KeyId=${ASOC_KEY_ID} \
 		-e KeySecret=${ASOC_KEY_SECRET} \
@@ -105,7 +105,7 @@ docker/asoc-dynamic-scan: docker/login
 		-v $(PWD)/ci/asoc/AsocDynamicConfig:/asoc/AsocConfig \
 		-v $(PWD)/ci/asoc/DAST_CurlCommands.sh:/asoc/DAST_CurlCommands.sh \
 		-w /asoc \
-		us.icr.io/quantum-computing/asoc-automation:latest \
+		icr.io/quantum-public/asoc-automation:latest \
 		/asoc/appscanBash.sh
 
 .PHONY: helm/check
