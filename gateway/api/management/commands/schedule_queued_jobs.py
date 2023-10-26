@@ -1,7 +1,6 @@
 """Cleanup resources command."""
 import json
 import logging
-import os
 import time
 
 from concurrency.exceptions import RecordModifiedError
@@ -84,9 +83,9 @@ class Command(BaseCommand):
 
                         try:
                             job.save()
-                            # remove artifact after successful submission and save
-                            if os.path.exists(job.program.artifact.path):
-                                os.remove(job.program.artifact.path)
+                            # # remove artifact after successful submission and save
+                            # if os.path.exists(job.program.artifact.path):
+                            #     os.remove(job.program.artifact.path)
 
                             succeed = True
                         except RecordModifiedError:

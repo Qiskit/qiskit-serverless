@@ -37,7 +37,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from .models import Program, Job
 from .ray import get_job_handler
 from .schedule import save_program
-from .serializers import JobSerializer
+from .serializers import JobSerializer, ExistingProgramSerializer
 from .utils import build_env_variables, encrypt_env_vars
 
 logger = logging.getLogger("gateway")
@@ -75,10 +75,70 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return self.serializer_class
 
     def get_queryset(self):
-        return Program.objects.all().filter(author=self.request.user)
+        return (
+            Program.objects.all().filter(author=self.request.user).order_by("-created")
+        )
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+    @action(methods=["POST"], detail=False)
+    def upload(self, request):
+        """Uploads program."""
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        save_program(serializer=serializer, request=request)
+        return Response(serializer.data)
+
+    @action(methods=["POST"], detail=False)
+    def run_existing(self, request):
+        """Enqueues existing program."""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.program.run_existing", context=ctx):
+            serializer = ExistingProgramSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            title = serializer.data.get("title")
+            program = (
+                Program.objects.filter(title=title, author=request.user)
+                .order_by("-created")
+                .first()
+            )
+
+            if program is None:
+                return Response(
+                    {"message": f"program [{title}] was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            job = Job(
+                program=program,
+                arguments=serializer.data.get("arguments"),
+                author=request.user,
+                status=Job.QUEUED,
+            )
+            job.save()
+
+            carrier = {}
+            TraceContextTextMapPropagator().inject(carrier)
+            env = encrypt_env_vars(
+                build_env_variables(
+                    request, job, json.dumps(serializer.data.get("arguments"))
+                )
+            )
+            try:
+                env["traceparent"] = carrier["traceparent"]
+            except KeyError:
+                pass
+            job.env_vars = json.dumps(env)
+            job.save()
+
+            job_serializer = self.get_serializer_job_class()(job)
+        return Response(job_serializer.data)
 
     @action(methods=["POST"], detail=False)
     def run(self, request):
@@ -101,7 +161,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
-            env = encrypt_env_vars(build_env_variables(request, job, program))
+            env = encrypt_env_vars(build_env_variables(request, job, program.arguments))
             try:
                 env["traceparent"] = carrier["traceparent"]
             except KeyError:

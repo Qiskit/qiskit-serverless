@@ -30,7 +30,7 @@ import logging
 import warnings
 import os.path
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 
 import ray
 import requests
@@ -219,7 +219,7 @@ class BaseProvider(JsonSerializable):
         return False
 
     def __repr__(self):
-        return f"<Provider: {self.name}>"
+        return f"<ServerlessProvider: {self.name}>"
 
     def get_compute_resources(self) -> List[ComputeResource]:
         """Return compute resources for provider."""
@@ -260,7 +260,9 @@ class BaseProvider(JsonSerializable):
             return None
         return Job(job_id=job_id, job_client=job_client)
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+    def run(
+        self, program: Union[Program, str], arguments: Optional[Dict[str, Any]] = None
+    ) -> Job:
         """Execute a program as a async job.
 
         Example:
@@ -292,25 +294,43 @@ class BaseProvider(JsonSerializable):
 
         return job_client.run(program, arguments)
 
+    def upload(self, program: Program):
+        """Uploads program."""
+        raise NotImplementedError
+
     def files(self) -> List[str]:
         """Returns list of available files produced by programs to download."""
         raise NotImplementedError
 
-    def download(self, file: str, download_location: str):
+    def download(self, file: str, download_location: str = "./"):
+        """Download file."""
+        warnings.warn(
+            "`download` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `file_download` instead.",
+            DeprecationWarning,
+        )
+        return self.file_download(file, download_location)
+
+    def file_download(self, file: str, download_location: str):
         """Download file."""
         raise NotImplementedError
 
-    def delete(self, file: str):
+    def file_delete(self, file: str):
         """Deletes file uploaded or produced by the programs,"""
         raise NotImplementedError
 
-    def upload(self, file: str):
+    def file_upload(self, file: str):
         """Upload file."""
         raise NotImplementedError
 
     def widget(self):
         """Widget for information about provider and jobs."""
         return Widget(self).show()
+
+    def get_programs(self, **kwargs):
+        """Returns list of available programs."""
+        raise NotImplementedError
 
 
 class ServerlessProvider(BaseProvider):
@@ -388,11 +408,22 @@ class ServerlessProvider(BaseProvider):
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self._job_client.get(job_id)
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+    def run(
+        self, program: Union[Program, str], arguments: Optional[Dict[str, Any]] = None
+    ) -> Job:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("Provider.run"):
-            job = self._job_client.run(program, arguments)
+            if isinstance(program, Program) and program.entrypoint is not None:
+                job = self._job_client.run(program, arguments)
+            else:
+                job = self._job_client.run_existing(program, arguments)
         return job
+
+    def upload(self, program: Program):
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("Provider.upload"):
+            response = self._job_client.upload(program)
+        return response
 
     def get_jobs(self, **kwargs) -> List[Job]:
         return self._job_client.list(**kwargs)
@@ -400,14 +431,17 @@ class ServerlessProvider(BaseProvider):
     def files(self) -> List[str]:
         return self._files_client.list()
 
-    def download(self, file: str, download_location: str = "./"):
+    def file_download(self, file: str, download_location: str = "./"):
         return self._files_client.download(file, download_location)
 
-    def delete(self, file: str):
+    def file_delete(self, file: str):
         return self._files_client.delete(file)
 
-    def upload(self, file: str):
+    def file_upload(self, file: str):
         return self._files_client.upload(file)
+
+    def get_programs(self, **kwargs) -> List[Program]:
+        return self._job_client.get_programs(**kwargs)
 
     def _fetch_token(self, username: str, password: str):
         response_data = safe_json_request(
@@ -541,7 +575,12 @@ class RayProvider(BaseProvider):
         super().__init__("ray-provider", host)
         self.client = RayJobClient(JobSubmissionClient(host))
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None) -> Job:
+    def run(
+        self, program: Union[Program, str], arguments: Optional[Dict[str, Any]] = None
+    ) -> Job:
+        if isinstance(program, str):
+            raise NotImplementedError("Ray provider only supports full Programs.")
+
         return self.client.run(program, arguments)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
