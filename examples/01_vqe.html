@@ -190,7 +190,6 @@
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/upload_program.html">Upload program and run by name (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Examples</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
@@ -476,7 +475,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;ansatz&#39;: &lt;qiskit.circuit.library.n_local.efficient_su2.EfficientSU2 at 0x7f7f38774cd0&gt;,
+{&#39;ansatz&#39;: &lt;qiskit.circuit.library.n_local.efficient_su2.EfficientSU2 at 0x7ff1d0537f40&gt;,
  &#39;operator&#39;: SparsePauliOp([&#39;YZ&#39;, &#39;ZI&#39;, &#39;ZZ&#39;, &#39;XX&#39;],
                coeffs=[ 0.398 +0.j, -0.398 +0.j, -0.0113+0.j,  0.181 +0.j]),
  &#39;method&#39;: &#39;COBYLA&#39;,
@@ -488,51 +487,75 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">ServerlessProvider</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">ServerlessProvider</span>
 <span class="kn">import</span> <span class="nn">os</span>
 </pre></div>
 </div>
 </div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">provider</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
     <span class="n">username</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_USER&quot;</span><span class="p">,</span> <span class="s2">&quot;user&quot;</span><span class="p">),</span>
     <span class="n">password</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_PASSWORD&quot;</span><span class="p">,</span> <span class="s2">&quot;password123&quot;</span><span class="p">),</span>
     <span class="c1"># token=os.environ.get(&quot;GATEWAY_TOKEN&quot;, &quot;&lt;TOKEN&gt;&quot;), # token can be used instead of user/password combination</span>
     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
 <span class="p">)</span>
-
-<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
 <span class="n">serverless</span>
 </pre></div>
 </div>
 </div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;ServerlessProvider: gateway-provider&gt;
+</pre></div></div>
+</div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
 
-<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;VQE&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;vqe.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/vqe/&quot;</span><span class="p">)</span>
+<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;vqe&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;vqe.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/vqe/&quot;</span><span class="p">)</span>
 
-<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">input_arguments</span><span class="p">)</span>
+<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;vqe&#39;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;vqe&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">input_arguments</span><span class="p">)</span>
 <span class="n">job</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 56641e41-9abd-4d2d-8264-9cfd12c30a3f&gt;
+&lt;Job | 06c821c3-5f86-48f8-87b5-98e21a553d08&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -540,7 +563,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -549,7 +572,7 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -557,12 +580,30 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;{&#34;result&#34;: {&#34;0&#34;: 0.4285, &#34;1&#34;: 0.351, &#34;2&#34;: 0.1125, &#34;3&#34;: 0.108}, &#34;optimal_point&#34;: [2.892220117301835, 2.474653475445254, 2.5156199602369202, 3.3849094458844857, 0.1694958538232856, 3.655821265585715, 2.9936100331465494, 1.5278501424812023, 2.0039753506950837, 3.3523741719792515, 5.119840869627582, 4.0803877524554535, 1.283219520340234, 2.965257255909468, 1.6420489273053434, 2.583666555864834], &#34;optimal_value&#34;: -0.7029303878802236, &#34;optimizer_time&#34;: 6.884704999974929}&#39;
+{&#39;result&#39;: {&#39;0&#39;: 0.4266, &#39;1&#39;: 0.3574, &#39;2&#39;: 0.104, &#39;3&#39;: 0.112},
+ &#39;optimal_point&#39;: [2.400955119274195,
+  2.717799958252893,
+  1.3628585897978087,
+  2.4311917260940845,
+  5.754283033860017,
+  1.1224006163027451,
+  6.624675068668877,
+  4.76802186154173,
+  0.7666935155193715,
+  3.627167675726581,
+  1.6068996965600872,
+  -0.07959435779430134,
+  2.790199999683474,
+  4.248957104589368,
+  2.961996372880535,
+  5.240096622392362],
+ &#39;optimal_value&#39;: -0.702930389778663,
+ &#39;optimizer_time&#39;: 5.314694999993662}
 </pre></div></div>
 </div>
 </section>

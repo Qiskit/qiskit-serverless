@@ -190,7 +190,6 @@
 <li class="toctree-l2"><a class="reference internal" href="../basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="upload_program.html">Upload program and run by name (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -313,15 +312,13 @@
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">ServerlessProvider</span><span class="p">,</span> <span class="n">Program</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">ServerlessProvider</span><span class="p">,</span> <span class="n">Program</span>
 
-<span class="n">provider</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
     <span class="n">username</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span>
     <span class="n">password</span><span class="o">=</span><span class="s2">&quot;password123&quot;</span><span class="p">,</span>
     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
 <span class="p">)</span>
-
-<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
 <span class="n">serverless</span>
 </pre></div>
 </div>
@@ -332,7 +329,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;QuantumServerless | providers [gateway-provider]&gt;
+&lt;ServerlessProvider: gateway-provider&gt;
 </pre></div></div>
 </div>
 <p>Let’s create a program to write <code class="docutils literal notranslate"><span class="pre">tar</span></code> file into <code class="docutils literal notranslate"><span class="pre">/data</span></code> folder</p>
@@ -341,11 +338,10 @@
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;File producer&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;produce_files.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;file-producer&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;produce_files.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
 <span class="p">)</span>
 
-<span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
-<span class="n">job</span>
+<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -355,11 +351,29 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | d55b1b16-cc7d-4f4b-8d57-6f4dff6c3861&gt;
+&#39;file-producer&#39;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;file-producer&quot;</span><span class="p">)</span>
+<span class="n">job</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Job | a44441bc-16a7-421e-a9e1-73cee737e878&gt;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -367,7 +381,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -377,7 +391,7 @@
 </div>
 <p>Now we can look at files available using <code class="docutils literal notranslate"><span class="pre">files</span></code> method</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">available_files</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">files</span><span class="p">()</span>
@@ -386,7 +400,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -396,7 +410,7 @@
 </div>
 <p>And download them if needed using <code class="docutils literal notranslate"><span class="pre">download</span></code> method</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">available_files</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -409,7 +423,7 @@
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 200/200 [00:00&lt;00:00, 119kiB/s]
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 198/198 [00:00&lt;00:00, 171kiB/s]
 </pre></div></div>
 </div>
 </section>

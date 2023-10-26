@@ -98,23 +98,6 @@
    ]
   },
   {
-   "cell_type": "code",
-   "execution_count": 2,
-   "metadata": {
-    "tags": []
-   },
-   "outputs": [],
-   "source": [
-    "from quantum_serverless import Program\n",
-    "\n",
-    "program = Program(\n",
-    "    title=\"Program with arguments\",\n",
-    "    entrypoint=\"program_with_arguments.py\",\n",
-    "    working_dir=\"./source_files/\",\n",
-    ")"
-   ]
-  },
-  {
    "cell_type": "markdown",
    "metadata": {},
    "source": [
@@ -123,33 +106,59 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 3,
+   "execution_count": 2,
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "<QuantumServerless | providers [gateway-provider]>"
+       "<ServerlessProvider: gateway-provider>"
       ]
      },
-     "execution_count": 3,
+     "execution_count": 2,
      "metadata": {},
      "output_type": "execute_result"
     }
    ],
    "source": [
-    "from quantum_serverless import QuantumServerless, ServerlessProvider\n",
+    "from quantum_serverless import ServerlessProvider\n",
     "import os\n",
     "\n",
-    "provider = ServerlessProvider(\n",
+    "serverless = ServerlessProvider(\n",
     "    username=os.environ.get(\"GATEWAY_USER\", \"user\"),\n",
     "    password=os.environ.get(\"GATEWAY_PASSWORD\", \"password123\"),\n",
     "    # token=os.environ.get(\"GATEWAY_TOKEN\", \"<TOKEN>\"), # token can be used instead of user/password combination\n",
     "    host=os.environ.get(\"GATEWAY_HOST\", \"http://localhost:8000\"),\n",
     ")\n",
-    "\n",
-    "serverless = QuantumServerless(provider)\n",
     "serverless"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'program-with-arguments'"
+      ]
+     },
+     "execution_count": 4,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "from quantum_serverless import Program\n",
+    "\n",
+    "program = Program(\n",
+    "    title=\"program-with-arguments\",\n",
+    "    entrypoint=\"program_with_arguments.py\",\n",
+    "    working_dir=\"./source_files/\",\n",
+    ")\n",
+    "\n",
+    "serverless.upload(program)"
    ]
   },
   {
@@ -161,11 +170,11 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 4,
+   "execution_count": 5,
    "metadata": {},
    "outputs": [],
    "source": [
-    "job = serverless.run(program, arguments={\"circuit\": circuit})"
+    "job = serverless.run(\"program-with-arguments\", arguments={\"circuit\": circuit})"
    ]
   },
   {
@@ -177,16 +186,16 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 5,
+   "execution_count": 6,
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "'{\"quasi_dists\": {\"0\": 0.4999999999999999, \"3\": 0.4999999999999999}}'"
+       "{'quasi_dists': {'0': 0.4999999999999999, '3': 0.4999999999999999}}"
       ]
      },
-     "execution_count": 5,
+     "execution_count": 6,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -212,7 +221,7 @@
    "name": "python",
    "nbconvert_exporter": "python",
    "pygments_lexer": "ipython3",
-   "version": "3.10.13"
+   "version": "3.9.16"
   }
  },
  "nbformat": 4,

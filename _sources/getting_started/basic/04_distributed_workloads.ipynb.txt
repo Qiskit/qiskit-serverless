@@ -78,7 +78,7 @@
     {
      "data": {
       "text/plain": [
-       "<QuantumServerless | providers [gateway-provider]>"
+       "<ServerlessProvider: gateway-provider>"
       ]
      },
      "execution_count": 1,
@@ -87,17 +87,16 @@
     }
    ],
    "source": [
-    "from quantum_serverless import QuantumServerless, ServerlessProvider\n",
+    "from quantum_serverless import ServerlessProvider\n",
     "import os\n",
     "\n",
-    "provider = ServerlessProvider(\n",
+    "serverless = ServerlessProvider(\n",
     "    username=os.environ.get(\"GATEWAY_USER\", \"user\"),\n",
     "    password=os.environ.get(\"GATEWAY_PASSWORD\", \"password123\"),\n",
     "    # token=os.environ.get(\"GATEWAY_TOKEN\", \"<TOKEN>\"), # token can be used instead of user/password combination\n",
     "    host=os.environ.get(\"GATEWAY_HOST\", \"http://localhost:8000\"),\n",
     ")\n",
     "\n",
-    "serverless = QuantumServerless(provider)\n",
     "serverless"
    ]
   },
@@ -116,9 +115,9 @@
     {
      "data": {
       "text/plain": [
-       "[<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7f08545bea30>,\n",
-       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7f08545e1c70>,\n",
-       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7f08545e1dc0>]"
+       "[<qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7f9b807dbc10>,\n",
+       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7f9b807db370>,\n",
+       " <qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7f9b807dba30>]"
       ]
      },
      "execution_count": 2,
@@ -143,42 +142,13 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 3,
-   "metadata": {},
-   "outputs": [
-    {
-     "data": {
-      "text/plain": [
-       "<Job | 42b32fd1-b908-4d7d-8fca-58c8cee56cff>"
-      ]
-     },
-     "execution_count": 3,
-     "metadata": {},
-     "output_type": "execute_result"
-    }
-   ],
-   "source": [
-    "from quantum_serverless import Program\n",
-    "\n",
-    "program = Program(\n",
-    "    title=\"Program with parallel workflow\",\n",
-    "    entrypoint=\"program_with_parallel_workflow.py\",\n",
-    "    working_dir=\"./source_files/\",\n",
-    ")\n",
-    "\n",
-    "job = serverless.run(program, arguments={\"circuits\": circuits})\n",
-    "job"
-   ]
-  },
-  {
-   "cell_type": "code",
    "execution_count": 4,
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "'QUEUED'"
+       "'program-with-parallel-workflow'"
       ]
      },
      "execution_count": 4,
@@ -187,7 +157,15 @@
     }
    ],
    "source": [
-    "job.status()"
+    "from quantum_serverless import Program\n",
+    "\n",
+    "program = Program(\n",
+    "    title=\"program-with-parallel-workflow\",\n",
+    "    entrypoint=\"program_with_parallel_workflow.py\",\n",
+    "    working_dir=\"./source_files/\",\n",
+    ")\n",
+    "\n",
+    "serverless.upload(program)"
    ]
   },
   {
@@ -198,10 +176,53 @@
     {
      "data": {
       "text/plain": [
-       "'{\"results\": [{\"2\": 0.4999999999999999, \"3\": 0.4999999999999999}, {\"0\": 0.410199670072165, \"1\": 0.410199670072165, \"2\": 0.0898003299278348, \"3\": 0.0898003299278349}, {\"0\": 0.4999999999999999, \"2\": 0.4999999999999999}]}'"
+       "<Job | c4b5e37b-d4f3-41ad-8853-969850512483>"
       ]
      },
      "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "job = serverless.run(\"program-with-parallel-workflow\", arguments={\"circuits\": circuits})\n",
+    "job"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'QUEUED'"
+      ]
+     },
+     "execution_count": 6,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "job.status()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'results': [{'1': 0.4999999999999999, '3': 0.4999999999999999},\n",
+       "  {'0': 1.0},\n",
+       "  {'0': 0.25, '1': 0.2499999999999999, '2': 0.25, '3': 0.25}]}"
+      ]
+     },
+     "execution_count": 7,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -227,7 +248,7 @@
    "name": "python",
    "nbconvert_exporter": "python",
    "pygments_lexer": "ipython3",
-   "version": "3.10.13"
+   "version": "3.9.16"
   }
  },
  "nbformat": 4,

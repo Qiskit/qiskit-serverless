@@ -190,7 +190,6 @@
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../experimental/upload_program.html">Upload program and run by name (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -297,27 +296,35 @@
           <section id="Retrieving-Results-from-Old-Jobs">
 <h1>Retrieving Results from Old Jobs<a class="headerlink" href="#Retrieving-Results-from-Old-Jobs" title="Permalink to this heading">#</a></h1>
 <p>In this tutorial, we will run two programs and then retrieve the results of each program using the job IDs and the serverless client.</p>
-<p>First, create <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.ServerlessProvider">ServerlessProvider</a> and <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.QuantumServerless.html#quantum_serverless.QuantumServerless">QuantumServerless</a> instances.</p>
+<p>First, create <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.ServerlessProvider">ServerlessProvider</a> instance.</p>
 <blockquote>
 <div><p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/deployment/local.html">local infrastructure setup</a>.</p>
 </div></blockquote>
-<div class="nbinput nblast docutils container">
+<div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QuantumServerless</span><span class="p">,</span> <span class="n">ServerlessProvider</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">ServerlessProvider</span>
 <span class="kn">import</span> <span class="nn">os</span>
 
-<span class="n">provider</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
     <span class="n">username</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_USER&quot;</span><span class="p">,</span> <span class="s2">&quot;user&quot;</span><span class="p">),</span>
     <span class="n">password</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_PASSWORD&quot;</span><span class="p">,</span> <span class="s2">&quot;password123&quot;</span><span class="p">),</span>
     <span class="c1"># token=os.environ.get(&quot;GATEWAY_TOKEN&quot;, &quot;&lt;TOKEN&gt;&quot;), # token can be used instead of user/password combination</span>
     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
 <span class="p">)</span>
-
-<span class="n">serverless</span> <span class="o">=</span> <span class="n">QuantumServerless</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
+<span class="n">serverless</span>
 </pre></div>
 </div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;ServerlessProvider: gateway-provider&gt;
+</pre></div></div>
 </div>
 <p>Run two programs in parallel.</p>
 <div class="nbinput nblast docutils container">
@@ -326,15 +333,13 @@
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
 
-<span class="n">program1</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Program 1&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
+<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;program-to-fetch-results&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
 <span class="p">)</span>
-<span class="n">program2</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Program 2&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
-<span class="p">)</span>
+<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
 
-<span class="n">job1</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program1</span><span class="p">)</span>
-<span class="n">job2</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program2</span><span class="p">)</span>
+<span class="n">job1</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;program-to-fetch-results&quot;</span><span class="p">)</span>
+<span class="n">job2</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;program-to-fetch-results&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -364,7 +369,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;[{&#34;0&#34;: 0.4999999999999999, &#34;3&#34;: 0.4999999999999999}]&#39;
+[{&#39;0&#39;: 0.4999999999999999, &#39;3&#39;: 0.4999999999999999}]
 </pre></div></div>
 </div>
 <p>Retrieve the completed jobs through the serverless client, using the job IDs.</p>
@@ -392,8 +397,8 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Job 1 results: [{&#34;0&#34;: 0.4999999999999999, &#34;3&#34;: 0.4999999999999999}]
-Job 2 results: [{&#34;0&#34;: 0.4999999999999999, &#34;3&#34;: 0.4999999999999999}]
+Job 1 results: [{&#39;0&#39;: 0.4999999999999999, &#39;3&#39;: 0.4999999999999999}]
+Job 2 results: [{&#39;0&#39;: 0.4999999999999999, &#39;3&#39;: 0.4999999999999999}]
 </pre></div></div>
 </div>
 <p>To inspect the logs from a program, access them from the <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.Job.html#quantum_serverless.core.Job">Job</a> instance.</p>
@@ -410,8 +415,10 @@ Job 2 results: [{&#34;0&#34;: 0.4999999999999999, &#34;3&#34;: 0.499999999999999
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Job 1 logs: Running program 1...
-Completed running program 1.
+Job 1 logs: OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+Running program...
+Completed running program.
 
 </pre></div></div>
 </div>
@@ -430,8 +437,8 @@ Completed running program 1.
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[&lt;Job | cd08c37e-2a27-49a6-8053-40761ace35d2&gt;,
- &lt;Job | 42b32fd1-b908-4d7d-8fca-58c8cee56cff&gt;]
+[&lt;Job | 899bee33-cd8e-47b9-bea2-357ff2860313&gt;,
+ &lt;Job | c4b5e37b-d4f3-41ad-8853-969850512483&gt;]
 </pre></div></div>
 </div>
 </section>
