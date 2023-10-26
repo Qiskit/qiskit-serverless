@@ -17,6 +17,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include, re_path
+from django.views.generic import TemplateView
 from rest_framework import routers
 
 from api.views import KeycloakLogin, KeycloakUsersView
@@ -36,6 +37,7 @@ urlpatterns = [
     path("liveness/", probes.views.liveness, name="liveness"),
     path("", include("django_prometheus.urls")),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
+    path("", TemplateView.as_view(template_name="DomainVerification.html")),
 ]
 
 if settings.DEBUG:
