@@ -357,7 +357,7 @@ def distribute_qiskit_pattern(
     """
     # pylint: disable=import-outside-toplevel,cyclic-import
     from quantum_serverless import QuantumServerlessException
-    from quantum_serverless.core.program import QiskitPattern
+    from quantum_serverless.core.pattern import QiskitPattern
     from quantum_serverless.core.provider import ServerlessProvider
 
     # create provider

@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from unittest import TestCase, mock
 
-from quantum_serverless.core.program import (
+from quantum_serverless.core.pattern import (
     ProgramRepository,
     QiskitPattern,
 )

@@ -63,7 +63,7 @@ from .provider import (
     RayProvider,
 )
 from .job import BaseJobClient, RayJobClient, GatewayJobClient, Job, save_result
-from .program import (
+from .pattern import (
     QiskitPattern,
     Program,
     ProgramStorage,

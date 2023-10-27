@@ -42,7 +42,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.program import QiskitPattern
+from quantum_serverless.core.pattern import QiskitPattern
 from quantum_serverless.core.provider import BaseProvider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
 

@@ -53,7 +53,7 @@ from quantum_serverless.core.constants import (
     MAX_ARTIFACT_FILE_SIZE_MB,
     ENV_JOB_ARGUMENTS,
 )
-from quantum_serverless.core.program import QiskitPattern
+from quantum_serverless.core.pattern import QiskitPattern
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,

@@ -41,7 +41,7 @@ from .quantum_serverless import (
     get_auto_discovered_provider,
     QuantumServerlessException,
 )
-from .core.program import QiskitPattern
+from .core.pattern import QiskitPattern
 from .serializers import get_arguments
 
 try:
