@@ -7,7 +7,7 @@ from testcontainers.compose import DockerCompose
 from quantum_serverless import QuantumServerless, BaseProvider
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.program import Program
+from quantum_serverless.core.pattern import QiskitPattern
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
 resources_path = os.path.join(
@@ -34,7 +34,7 @@ def test_program():
 
         wait_for_job_client(serverless)
 
-        program = Program(
+        program = QiskitPattern(
             title="simple_job",
             entrypoint="job.py",
             working_dir=resources_path,

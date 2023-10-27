@@ -21,7 +21,7 @@ Full docs can be found at https://qiskit-extensions.github.io/quantum-serverless
 
 ## Usage
 
-### Step 1: write program
+### Step 1: write pattern
 
 ```python
   from quantum_serverless import distribute_task, get, get_arguments, save_result
@@ -67,22 +67,22 @@ Full docs can be found at https://qiskit-extensions.github.io/quantum-serverless
 ```
  
 
-### Step 2: run program
+### Step 2: run pattern
 
 ```python
-   from quantum_serverless import QuantumServerless, GatewayProvider
+   from quantum_serverless import ServerlessProvider, QiskitPattern
    from qiskit.circuit.random import random_circuit
 
-   serverless = QuantumServerless(GatewayProvider(
+   serverless = ServerlessProvider(
        username="<USERNAME>", 
        password="<PASSWORD>",
        host="<GATEWAY_ADDRESS>",
-   ))
+   )
 
    # create program
-   program = Program(
+   program = QiskitPattern(
        title="Quickstart",
-       entrypoint="program.py",
+       entrypoint="pattern.py",
        working_dir="./src"
    )
 

@@ -37,6 +37,7 @@ Core abstractions
     BaseJobClient
     RayJobClient
     save_result
+    QiskitPattern
     Program
     ProgramStorage
     ProgramRepository
@@ -46,6 +47,7 @@ Core abstractions
     fetch_execution_meta
     distribute_task
     distribute_program
+    distribute_qiskit_pattern
     get
     put
     get_refs_by_status
@@ -61,7 +63,8 @@ from .provider import (
     RayProvider,
 )
 from .job import BaseJobClient, RayJobClient, GatewayJobClient, Job, save_result
-from .program import (
+from .pattern import (
+    QiskitPattern,
     Program,
     ProgramStorage,
     ProgramRepository,
@@ -74,6 +77,7 @@ from .decorators import (
     get_refs_by_status,
     fetch_execution_meta,
     distribute_task,
+    distribute_qiskit_pattern,
     distribute_program,
     Target,
     CircuitMeta,

@@ -53,7 +53,7 @@ from quantum_serverless.core.job import (
     GatewayJobClient,
     BaseJobClient,
 )
-from quantum_serverless.core.program import Program
+from quantum_serverless.core.pattern import QiskitPattern
 from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
@@ -261,13 +261,15 @@ class BaseProvider(JsonSerializable):
         return Job(job_id=job_id, job_client=job_client)
 
     def run(
-        self, program: Union[Program, str], arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Union[QiskitPattern, str],
+        arguments: Optional[Dict[str, Any]] = None,
     ) -> Job:
         """Execute a program as a async job.
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> program = Program(
+            >>> program = QiskitPattern(
             >>>     "job.py",
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
@@ -294,7 +296,7 @@ class BaseProvider(JsonSerializable):
 
         return job_client.run(program, arguments)
 
-    def upload(self, program: Program):
+    def upload(self, program: QiskitPattern):
         """Uploads program."""
         raise NotImplementedError
 
@@ -409,17 +411,19 @@ class ServerlessProvider(BaseProvider):
         return self._job_client.get(job_id)
 
     def run(
-        self, program: Union[Program, str], arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Union[QiskitPattern, str],
+        arguments: Optional[Dict[str, Any]] = None,
     ) -> Job:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("Provider.run"):
-            if isinstance(program, Program) and program.entrypoint is not None:
+            if isinstance(program, QiskitPattern) and program.entrypoint is not None:
                 job = self._job_client.run(program, arguments)
             else:
                 job = self._job_client.run_existing(program, arguments)
         return job
 
-    def upload(self, program: Program):
+    def upload(self, program: QiskitPattern):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("Provider.upload"):
             response = self._job_client.upload(program)
@@ -440,7 +444,7 @@ class ServerlessProvider(BaseProvider):
     def file_upload(self, file: str):
         return self._files_client.upload(file)
 
-    def get_programs(self, **kwargs) -> List[Program]:
+    def get_programs(self, **kwargs) -> List[QiskitPattern]:
         return self._job_client.get_programs(**kwargs)
 
     def _fetch_token(self, username: str, password: str):
@@ -576,7 +580,9 @@ class RayProvider(BaseProvider):
         self.client = RayJobClient(JobSubmissionClient(host))
 
     def run(
-        self, program: Union[Program, str], arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Union[QiskitPattern, str],
+        arguments: Optional[Dict[str, Any]] = None,
     ) -> Job:
         if isinstance(program, str):
             raise NotImplementedError("Ray provider only supports full Programs.")

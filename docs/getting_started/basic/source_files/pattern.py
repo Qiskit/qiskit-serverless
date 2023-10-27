@@ -4,7 +4,7 @@ from qiskit.primitives import Sampler
 from quantum_serverless import save_result
 
 # all print statement will be available in job logs
-print("Running program...")
+print("Running pattern...")
 
 # creating circuit
 circuit = QuantumCircuit(2)
@@ -19,4 +19,4 @@ quasi_dists = sampler.run(circuit).result().quasi_dists
 # saves results of program execution,
 # which will be accessible by calling `.result()`
 save_result(quasi_dists)
-print("Completed running program.")
+print("Completed running pattern.")
