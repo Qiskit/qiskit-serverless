@@ -37,7 +37,7 @@ urlpatterns = [
     path("liveness/", probes.views.liveness, name="liveness"),
     path("", include("django_prometheus.urls")),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
-    path("", TemplateView.as_view(template_name="DomainVerification.html")),
+    path("DomainVerification.html", TemplateView.as_view(template_name="DomainVerification.html")),
 ]
 
 if settings.DEBUG:
