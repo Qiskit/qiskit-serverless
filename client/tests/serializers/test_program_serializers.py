@@ -10,7 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 
-"""Program serializers tests."""
+"""QiskitPattern serializers tests."""
 import json
 import os
 from unittest import TestCase, skip

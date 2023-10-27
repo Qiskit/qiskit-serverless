@@ -53,7 +53,7 @@ from quantum_serverless.core.constants import (
     MAX_ARTIFACT_FILE_SIZE_MB,
     ENV_JOB_ARGUMENTS,
 )
-from quantum_serverless.core.program import Program
+from quantum_serverless.core.program import QiskitPattern
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
@@ -68,17 +68,19 @@ class BaseJobClient:
     """Base class for Job clients."""
 
     def run(
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+        self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None
     ) -> "Job":
         """Runs program."""
         raise NotImplementedError
 
-    def upload(self, program: Program):
+    def upload(self, program: QiskitPattern):
         """Uploads program."""
         raise NotImplementedError
 
     def run_existing(
-        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Union[str, QiskitPattern],
+        arguments: Optional[Dict[str, Any]] = None,
     ):
         """Executes existing program."""
         raise NotImplementedError
@@ -144,7 +146,7 @@ class RayJobClient(BaseJobClient):
             Job(job.job_id, job_client=self) for job in self._job_client.list_jobs()
         ]
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None):
+    def run(self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None):
         arguments = arguments or {}
         entrypoint = f"python {program.entrypoint}"
 
@@ -166,11 +168,13 @@ class RayJobClient(BaseJobClient):
         )
         return Job(job_id=job_id, job_client=self)
 
-    def upload(self, program: Program):
+    def upload(self, program: QiskitPattern):
         raise NotImplementedError("Upload is not available for RayJobClient.")
 
     def run_existing(
-        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Union[str, QiskitPattern],
+        arguments: Optional[Dict[str, Any]] = None,
     ):
         raise NotImplementedError("Run existing is not available for RayJobClient.")
 
@@ -191,7 +195,7 @@ class GatewayJobClient(BaseJobClient):
         self._token = token
 
     def run(  # pylint: disable=too-many-locals
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+        self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None
     ) -> "Job":
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
@@ -249,7 +253,7 @@ class GatewayJobClient(BaseJobClient):
 
         return Job(job_id, job_client=self)
 
-    def upload(self, program: Program):
+    def upload(self, program: QiskitPattern):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
             span.set_attribute("program", program.title)
@@ -304,9 +308,11 @@ class GatewayJobClient(BaseJobClient):
         return program_title
 
     def run_existing(
-        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Union[str, QiskitPattern],
+        arguments: Optional[Dict[str, Any]] = None,
     ):
-        if isinstance(program, Program):
+        if isinstance(program, QiskitPattern):
             title = program.title
         else:
             title = str(program)
@@ -441,7 +447,7 @@ class GatewayJobClient(BaseJobClient):
                 )
             )
         return [
-            Program(program.get("title"), raw_data=program)
+            QiskitPattern(program.get("title"), raw_data=program)
             for program in response_data.get("results", [])
         ]
 

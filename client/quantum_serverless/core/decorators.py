@@ -34,6 +34,7 @@ import functools
 import inspect
 import os
 import shutil
+import warnings
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List, Callable, Sequence
 from uuid import uuid4
@@ -332,15 +333,15 @@ with open("./{file_name}", "rb") as file:
 """
 
 
-def distribute_program(
+def distribute_qiskit_pattern(
     provider: Optional[Any] = None,
     dependencies: Optional[List[str]] = None,
     working_dir: Optional[str] = None,
 ):
-    """[Experimental] Program decorator to turn function into remotely executable program.
+    """[Experimental] QiskitPattern decorator to turn function into remotely executable program.
 
     Example:
-        >>> @distribute_program(provider=ServerlessProvider(...), dependencies=[...])
+        >>> @distribute_qiskit_pattern(provider=ServerlessProvider(...), dependencies=[...])
         >>> def my_program():
         >>>     print("Hola!")
         >>>
@@ -356,7 +357,7 @@ def distribute_program(
     """
     # pylint: disable=import-outside-toplevel,cyclic-import
     from quantum_serverless import QuantumServerlessException
-    from quantum_serverless.core.program import Program
+    from quantum_serverless.core.program import QiskitPattern
     from quantum_serverless.core.provider import ServerlessProvider
 
     # create provider
@@ -411,12 +412,12 @@ def distribute_program(
                 file.write(ENTRYPOINT_CONTENT.format(file_name=pickle_file_name))
 
             # create program
-            wrapped_program = Program(
+            wrapped_program = QiskitPattern(
                 title=function.__name__,
                 entrypoint=entrypoint_file_name,
                 working_dir=working_directory,
                 dependencies=dependencies,
-                description="Program execution using @distribute_program decorator.",
+                description="QiskitPattern execution using @distribute_program decorator.",
             )
 
             # run program
@@ -434,3 +435,17 @@ def distribute_program(
         return wrapper
 
     return decorator
+
+
+def distribute_program(
+    provider: Optional[Any] = None,
+    dependencies: Optional[List[str]] = None,
+    working_dir: Optional[str] = None,
+):
+    """Decorator for distributed program."""
+    warnings.warn(
+        "`distribute_program` has been deprecated "
+        "and will be removed in future releases. "
+        "Please, use `distribute_qiskit_pattern` instead."
+    )
+    return distribute_qiskit_pattern(provider, dependencies, working_dir)
