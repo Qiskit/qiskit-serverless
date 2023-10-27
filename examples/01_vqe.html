@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Example: QAOA program" href="02_qaoa.html" /><link rel="prev" title="Examples" href="index.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Example: QAOA as QiskitPattern" href="02_qaoa.html" /><link rel="prev" title="Examples" href="index.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>Example: VQE program - Quantum serverless 0.6.6</title>
+        <title>Example: VQE as QiskitPattern - Quantum serverless 0.6.6</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -183,18 +183,18 @@
 <li class="toctree-l1"><a class="reference internal" href="../index.html">About Quantum Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a program remotely</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_dependencies.html">Using python packages with your programs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_distributed_workloads.html">Parallel workflows in programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a QiskitPattern remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/file_download.html">File download (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Examples</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Example: VQE program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="02_qaoa.html">Example: QAOA program</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Example: VQE as QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_qaoa.html">Example: QAOA as QiskitPattern</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../migration/index.html">Migration guides</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Migration guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -293,9 +293,9 @@
           </label>
         </div>
         <article role="main">
-          <section id="Example:-VQE-program">
-<h1>Example: VQE program<a class="headerlink" href="#Example:-VQE-program" title="Permalink to this heading">#</a></h1>
-<p>This tutorial will be demonstation of creating VQE Program as well as migration guide on how you can replicate IBM Quantum VQE custom runtime program.</p>
+          <section id="Example:-VQE-as-QiskitPattern">
+<h1>Example: VQE as QiskitPattern<a class="headerlink" href="#Example:-VQE-as-QiskitPattern" title="Permalink to this heading">#</a></h1>
+<p>This tutorial will be demonstation of creating VQE as QiskitPattern as well as migration guide on how you can replicate IBM Quantum VQE custom runtime program.</p>
 <p>Let’s first get information on what is VQE runtime program and what inputs and outputs it has.</p>
 <p><strong>Description</strong> of runtime program is: Variational Quantum Eigensolver (VQE) to find the minimal eigenvalue of a Hamiltonian.</p>
 <p><strong>Inputs</strong>:</p>
@@ -369,8 +369,8 @@
 </table>
 </div>
 <p>We will also add optional <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> as an argument to use that to access real devices.</p>
-<p>With that information we can start drafting our program implementation in <code class="docutils literal notranslate"><span class="pre">vqe.py</span></code> file.</p>
-<p>What our program should do:</p>
+<p>With that information we can start drafting our pattern implementation in <code class="docutils literal notranslate"><span class="pre">vqe.py</span></code> file.</p>
+<p>What our pattern should do:</p>
 <ol class="arabic simple">
 <li><p>parse input arguments</p></li>
 <li><p>create run_vqe function that accepts estimator instance, creates VQE and runs calculation</p></li>
@@ -382,7 +382,7 @@
 </li>
 <li><p>save results from vqe</p></li>
 </ol>
-<p>Roughly our VQE program will look like this. Full code can be found in <a class="reference external" href="./source_files/vqe/vqe.py">vqe.py</a> file.</p>
+<p>Roughly our VQE pattern will look like this. Full code can be found in <a class="reference external" href="./source_files/vqe/vqe.py">vqe.py</a> file.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># vqe.py</span>
 
 <span class="kn">import</span> <span class="nn">...</span>
@@ -433,9 +433,9 @@
 <span class="p">})</span>
 </pre></div>
 </div>
-<p>At this point we have our program implemented. Now we need to actually run it. But before let’s prepare input arguments from our VQE program.</p>
+<p>At this point we have our pattern implemented. Now we need to actually run it. But before let’s prepare input arguments from our VQE pattern.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -470,21 +470,21 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;ansatz&#39;: &lt;qiskit.circuit.library.n_local.efficient_su2.EfficientSU2 at 0x7ff1d0537f40&gt;,
+{&#39;ansatz&#39;: &lt;qiskit.circuit.library.n_local.efficient_su2.EfficientSU2 at 0x7f8ee8de92b0&gt;,
  &#39;operator&#39;: SparsePauliOp([&#39;YZ&#39;, &#39;ZI&#39;, &#39;ZZ&#39;, &#39;XX&#39;],
                coeffs=[ 0.398 +0.j, -0.398 +0.j, -0.0113+0.j,  0.181 +0.j]),
  &#39;method&#39;: &#39;COBYLA&#39;,
  &#39;service&#39;: None}
 </pre></div></div>
 </div>
-<p>With arguments prepared we can create our quantum serverless client, setup provider and run our program</p>
+<p>With arguments prepared we can create our quantum serverless client, setup provider and run our pattern</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">ServerlessProvider</span>
@@ -493,7 +493,7 @@
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
@@ -507,7 +507,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -516,19 +516,19 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QiskitPattern</span>
 
-<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;vqe&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;vqe.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/vqe/&quot;</span><span class="p">)</span>
+<span class="n">pattern</span> <span class="o">=</span> <span class="n">QiskitPattern</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;vqe&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;vqe.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/vqe/&quot;</span><span class="p">)</span>
 
-<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -537,7 +537,7 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;vqe&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">input_arguments</span><span class="p">)</span>
@@ -546,16 +546,16 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 06c821c3-5f86-48f8-87b5-98e21a553d08&gt;
+&lt;Job | 94ae450e-bb6f-46c3-a0b0-1ad12b91115f&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -563,7 +563,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -572,7 +572,7 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -580,30 +580,30 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;result&#39;: {&#39;0&#39;: 0.4266, &#39;1&#39;: 0.3574, &#39;2&#39;: 0.104, &#39;3&#39;: 0.112},
- &#39;optimal_point&#39;: [2.400955119274195,
-  2.717799958252893,
-  1.3628585897978087,
-  2.4311917260940845,
-  5.754283033860017,
-  1.1224006163027451,
-  6.624675068668877,
-  4.76802186154173,
-  0.7666935155193715,
-  3.627167675726581,
-  1.6068996965600872,
-  -0.07959435779430134,
-  2.790199999683474,
-  4.248957104589368,
-  2.961996372880535,
-  5.240096622392362],
- &#39;optimal_value&#39;: -0.702930389778663,
- &#39;optimizer_time&#39;: 5.314694999993662}
+{&#39;result&#39;: {&#39;0&#39;: 0.4223, &#39;1&#39;: 0.3604, &#39;2&#39;: 0.1073, &#39;3&#39;: 0.11},
+ &#39;optimal_point&#39;: [2.51762813907937,
+  1.532634671366952,
+  6.968201754881848,
+  1.8258529400009142,
+  1.5453234923701027,
+  3.905921764150066,
+  1.6694898480396192,
+  1.075020301957671,
+  0.8048376424004327,
+  2.823196594205023,
+  2.9665234835014846,
+  4.143832547893007,
+  4.382722375425133,
+  4.582108812661252,
+  6.596830693043498,
+  4.716678649450963],
+ &#39;optimal_value&#39;: -0.7029303910686284,
+ &#39;optimizer_time&#39;: 3.4171429999987595}
 </pre></div></div>
 </div>
 </section>
@@ -617,7 +617,7 @@
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Example: QAOA program</div>
+                <div class="title">Example: QAOA as QiskitPattern</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>

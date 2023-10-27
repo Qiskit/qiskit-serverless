@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Using python packages with your programs" href="03_dependencies.html" /><link rel="prev" title="Running a program remotely" href="01_running_program.html" />
+<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Using python packages with your QiskitPattern" href="03_dependencies.html" /><link rel="prev" title="Running a QiskitPattern remotely" href="01_running_program.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>Passing input arguments to your program - Quantum serverless 0.6.6</title>
+        <title>Passing input arguments to your QiskitPattern - Quantum serverless 0.6.6</title>
       <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -183,18 +183,18 @@
 <li class="toctree-l1"><a class="reference internal" href="../../index.html">About Quantum Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation/index.html">Installation</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Getting started</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a program remotely</a></li>
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Passing input arguments to your program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your programs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows in programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a QiskitPattern remotely</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Passing input arguments to your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
 <li class="toctree-l2"><a class="reference internal" href="05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/file_download.html">File download (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../experimental/running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../experimental/running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../examples/01_vqe.html">Example: VQE program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../examples/02_qaoa.html">Example: QAOA program</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples/01_vqe.html">Example: VQE as QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples/02_qaoa.html">Example: QAOA as QiskitPattern</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../migration/index.html">Migration guides</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Migration guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -293,19 +293,19 @@
           </label>
         </div>
         <article role="main">
-          <section id="Passing-input-arguments-to-your-program">
-<h1>Passing input arguments to your program<a class="headerlink" href="#Passing-input-arguments-to-your-program" title="Permalink to this heading">#</a></h1>
-<p>In this document, we will learn how to pass arguments to our program.</p>
-<p>Let’s create another file with our program <a class="reference external" href="./source_files/program_with_arguments.py">./source_files/program_with_arguments.py</a>.</p>
-<p>Instead of having the circuit defined inside the program (like we did in first example), we will pass it as an argument. We will also save the results, so we can access them later by calling <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.save_result.html#quantum_serverless.core.save_result">save_result</a>.</p>
-<p>Here is the program:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/program_with_arguments.py</span>
+          <section id="Passing-input-arguments-to-your-QiskitPattern">
+<h1>Passing input arguments to your QiskitPattern<a class="headerlink" href="#Passing-input-arguments-to-your-QiskitPattern" title="Permalink to this heading">#</a></h1>
+<p>In this document, we will learn how to pass arguments to our pattern.</p>
+<p>Let’s create another file with our pattern <a class="reference external" href="./source_files/pattern_with_arguments.py">./source_files/pattern_with_arguments.py</a>.</p>
+<p>Instead of having the circuit defined inside the pattern (like we did in first example), we will pass it as an argument. We will also save the results, so we can access them later by calling <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.save_result.html#quantum_serverless.core.save_result">save_result</a>.</p>
+<p>Here is the pattern:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/pattern_with_arguments.py</span>
 
 <span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span>
 
 <span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
 
-<span class="c1"># get all arguments passed to this program</span>
+<span class="c1"># get all arguments passed to this pattern</span>
 <span class="n">arguments</span> <span class="o">=</span> <span class="n">get_arguments</span><span class="p">()</span>
 
 <span class="c1"># get specific argument that we are interested in</span>
@@ -317,14 +317,14 @@
 
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Quasi distribution: </span><span class="si">{</span><span class="n">quasi_dists</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-<span class="c1"># saving results of a program</span>
+<span class="c1"># saving results of a pattern</span>
 <span class="n">save_result</span><span class="p">({</span>
     <span class="s2">&quot;quasi_dists&quot;</span><span class="p">:</span> <span class="n">quasi_dists</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 <span class="p">})</span>
 </pre></div>
 </div>
-<p>As you can see, the circuit construction is not inside the program anymore. Instead, we parse the arguments by calling the <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.serializers.get_arguments.html#quantum_serverless.serializers.get_arguments">get_arguments</a> function.</p>
-<p>First, we will create circuit that we want to pass as an argument to the program.</p>
+<p>As you can see, the circuit construction is not inside the pattern anymore. Instead, we parse the arguments by calling the <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.serializers.get_arguments.html#quantum_serverless.serializers.get_arguments">get_arguments</a> function.</p>
+<p>First, we will create circuit that we want to pass as an argument to the pattern.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
@@ -383,42 +383,42 @@ meas: 2/══════════════╩══╩═
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QiskitPattern</span>
 
-<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;program-with-arguments&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program_with_arguments.py&quot;</span><span class="p">,</span>
+<span class="n">pattern</span> <span class="o">=</span> <span class="n">QiskitPattern</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;pattern-with-arguments&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;pattern_with_arguments.py&quot;</span><span class="p">,</span>
     <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;program-with-arguments&#39;
+&#39;pattern-with-arguments&#39;
 </pre></div></div>
 </div>
-<p>Run the program using the <code class="docutils literal notranslate"><span class="pre">run</span></code> method and by passing an <code class="docutils literal notranslate"><span class="pre">arguments</span></code> parameter in form of a dictionary with the “circuit” string as a key and our <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code> as the value</p>
+<p>Run the pattern using the <code class="docutils literal notranslate"><span class="pre">run</span></code> method and by passing an <code class="docutils literal notranslate"><span class="pre">arguments</span></code> parameter in form of a dictionary with the “circuit” string as a key and our <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code> as the value</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;program-with-arguments&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;circuit&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="p">})</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;pattern-with-arguments&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;circuit&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="p">})</span>
 </pre></div>
 </div>
 </div>
 <p>Retrieve the results from the client</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -426,7 +426,7 @@ meas: 2/══════════════╩══╩═
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -445,7 +445,7 @@ meas: 2/══════════════╩══╩═
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Using python packages with your programs</div>
+                <div class="title">Using python packages with your QiskitPattern</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -456,7 +456,7 @@ meas: 2/══════════════╩══╩═
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Running a program remotely</div>
+                <div class="title">Running a QiskitPattern remotely</div>
                 
               </div>
             </a>

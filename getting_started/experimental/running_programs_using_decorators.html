@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Examples" href="../../examples/index.html" /><link rel="prev" title="File download (Experimental)" href="file_download.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>Running program using decorators (Experimental) - Quantum serverless 0.6.6</title>
+        <title>Running QiskitPattern using decorators (Experimental) - Quantum serverless 0.6.6</title>
       <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -183,18 +183,18 @@
 <li class="toctree-l1"><a class="reference internal" href="../../index.html">About Quantum Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation/index.html">Installation</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Getting started</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="../basic/01_running_program.html">Running a program remotely</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../basic/02_arguments_and_results.html">Passing input arguments to your program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../basic/03_dependencies.html">Using python packages with your programs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../basic/04_distributed_workloads.html">Parallel workflows in programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/01_running_program.html">Running a QiskitPattern remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="file_download.html">File download (Experimental)</a></li>
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Running program using decorators (Experimental)</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../examples/01_vqe.html">Example: VQE program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../examples/02_qaoa.html">Example: QAOA program</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples/01_vqe.html">Example: VQE as QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples/02_qaoa.html">Example: QAOA as QiskitPattern</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../migration/index.html">Migration guides</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Migration guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -293,13 +293,13 @@
           </label>
         </div>
         <article role="main">
-          <section id="Running-program-using-decorators-(Experimental)">
-<h1>Running program using decorators (Experimental)<a class="headerlink" href="#Running-program-using-decorators-(Experimental)" title="Permalink to this heading">#</a></h1>
-<p>In this tutorial we will describe alternative way (interface) of running your programs.</p>
-<p>This new interface provides a way to define program as python function and run it in a single file, using <code class="docutils literal notranslate"><span class="pre">&#64;distribute_program</span></code> decorator. All you need to do is annotate function with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_program</span></code> decorator and call it. As a result of the call of the function you will get <code class="docutils literal notranslate"><span class="pre">Job</span></code> handle to check it’s progress like we did in previous tutorials.</p>
+          <section id="Running-QiskitPattern-using-decorators-(Experimental)">
+<h1>Running QiskitPattern using decorators (Experimental)<a class="headerlink" href="#Running-QiskitPattern-using-decorators-(Experimental)" title="Permalink to this heading">#</a></h1>
+<p>In this tutorial we will describe alternative way (interface) of running your patterns.</p>
+<p>This new interface provides a way to define pattern as python function and run it in a single file, using <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_pattern</span></code> decorator. All you need to do is annotate function with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_pattern</span></code> decorator and call it. As a result of the call of the function you will get <code class="docutils literal notranslate"><span class="pre">Job</span></code> handle to check it’s progress like we did in previous tutorials.</p>
 <p>Limitations of this interface:</p>
 <ul class="simple">
-<li><p>Functions decorated with distribute_program, can only accept named arguments for now. E.g do not use <code class="docutils literal notranslate"><span class="pre">my_program(argument1)</span></code>, instead specify name of the argument <code class="docutils literal notranslate"><span class="pre">my_program(argument1=argument1)</span></code></p></li>
+<li><p>Functions decorated with distribute_qiskit_pattern, can only accept named arguments for now. E.g do not use <code class="docutils literal notranslate"><span class="pre">my_pattern(argument1)</span></code>, instead specify name of the argument <code class="docutils literal notranslate"><span class="pre">my_pattern(argument1=argument1)</span></code></p></li>
 <li><p>Function return will run <code class="docutils literal notranslate"><span class="pre">quantum_serverless.save_result</span></code> function under the hood, which means return values must be json serializable values in form of dictionary (with values as all Python native types, like strings, lists, dicts, <code class="docutils literal notranslate"><span class="pre">numpy</span></code> arrays, <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code>, <code class="docutils literal notranslate"><span class="pre">Operator</span></code>, etc.)</p></li>
 <li><p>When using local folder/modules user must specify <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> as <code class="docutils literal notranslate"><span class="pre">./</span></code> (current folder), which will be archiving and sending content of entire folder for remote execution. Make sure that folder does not have large files.</p></li>
 </ul>
@@ -308,7 +308,7 @@
 <p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/deployment/local.html">local infrastructure setup</a>.</p>
 </div></blockquote>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
@@ -324,8 +324,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
-</pre></div>
+<div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
@@ -334,8 +333,8 @@
 </div>
 <section id="Hello,-Qiskit!">
 <h2>Hello, Qiskit!<a class="headerlink" href="#Hello,-Qiskit!" title="Permalink to this heading">#</a></h2>
-<p>Let’s create simpliest program by writing a funtion <code class="docutils literal notranslate"><span class="pre">hello_qiskit</span></code> and annotating it with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_program</span></code> decorator. The <code class="docutils literal notranslate"><span class="pre">distribute_program</span></code> decorator accepts a <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.BaseProvider.html">BaseProvider</a> instance for the <code class="docutils literal notranslate"><span class="pre">provider</span></code> argument. Other arguments are <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> to specify extra packages to install during execution and <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> to specify working directory that will be shiped for
-remote execution if needed.</p>
+<p>Let’s create simpliest pattern by writing a funtion <code class="docutils literal notranslate"><span class="pre">hello_qiskit</span></code> and annotating it with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_pattern</span></code> decorator. The <code class="docutils literal notranslate"><span class="pre">distribute_qiskit_pattern</span></code> decorator accepts a <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.BaseProvider.html">BaseProvider</a> instance for the <code class="docutils literal notranslate"><span class="pre">provider</span></code> argument. Other arguments are <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> to specify extra packages to install during execution and <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> to specify working directory that will
+be shiped for remote execution if needed.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
@@ -343,10 +342,10 @@ remote execution if needed.</p>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
 <span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
 
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">distribute_program</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">save_result</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">distribute_qiskit_pattern</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">save_result</span>
 
 
-<span class="nd">@distribute_program</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
+<span class="nd">@distribute_qiskit_pattern</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">hello_qiskit</span><span class="p">():</span>
     <span class="n">circuit</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
     <span class="n">circuit</span><span class="o">.</span><span class="n">h</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
@@ -371,7 +370,7 @@ remote execution if needed.</p>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 3508d4d4-7c78-474d-a68f-3f5099195076&gt;
+&lt;Job | 96ad5b6a-f514-48fa-8ca2-927cc14e2c47&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
@@ -392,9 +391,9 @@ remote execution if needed.</p>
 </pre></div></div>
 </div>
 </section>
-<section id="Program-with-distributed-tasks">
-<h2>Program with distributed tasks<a class="headerlink" href="#Program-with-distributed-tasks" title="Permalink to this heading">#</a></h2>
-<p>As in previous examples you can define distributed tasks and call them within a program.</p>
+<section id="QiskitPattern-with-distributed-tasks">
+<h2>QiskitPattern with distributed tasks<a class="headerlink" href="#QiskitPattern-with-distributed-tasks" title="Permalink to this heading">#</a></h2>
+<p>As in previous examples you can define distributed tasks and call them within a pattern.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
@@ -411,8 +410,8 @@ remote execution if needed.</p>
     <span class="k">return</span> <span class="n">Sampler</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
 
 
-<span class="nd">@distribute_program</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">program_with_distributed_tasks</span><span class="p">(</span><span class="n">circuits</span><span class="p">):</span>
+<span class="nd">@distribute_qiskit_pattern</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">pattern_with_distributed_tasks</span><span class="p">(</span><span class="n">circuits</span><span class="p">):</span>
     <span class="n">sample_task_references</span> <span class="o">=</span> <span class="p">[</span><span class="n">distributed_sample</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span> <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">]</span>
     <span class="n">results</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">sample_task_references</span><span class="p">)</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
@@ -424,7 +423,7 @@ remote execution if needed.</p>
     <span class="n">circuit</span><span class="o">.</span><span class="n">measure_all</span><span class="p">()</span>
     <span class="n">circuits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
 
-<span class="n">job</span> <span class="o">=</span> <span class="n">program_with_distributed_tasks</span><span class="p">(</span><span class="n">circuits</span><span class="o">=</span><span class="n">circuits</span><span class="p">)</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">pattern_with_distributed_tasks</span><span class="p">(</span><span class="n">circuits</span><span class="o">=</span><span class="n">circuits</span><span class="p">)</span>
 <span class="n">job</span>
 </pre></div>
 </div>
@@ -435,7 +434,7 @@ remote execution if needed.</p>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 20c31def-c2d5-46ee-a09f-a90766a439d2&gt;
+&lt;Job | 6dbd75bc-bf32-4847-8621-bb0d247485cd&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
@@ -454,67 +453,49 @@ remote execution if needed.</p>
 <div class="highlight"><pre>
 OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
 OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
-2023-08-28 07:03:09,887 INFO worker.py:1313 -- Using address 172.19.0.2:6379 set in the environment variable RAY_ADDRESS
-2023-08-28 07:03:09,887 INFO worker.py:1431 -- Connecting to existing Ray cluster at address: 172.19.0.2:6379...
-2023-08-28 07:03:09,906 INFO worker.py:1612 -- Connected to Ray cluster. View the dashboard at <span class="ansi-green-intense-fg ansi-bold">172.19.0.2:8265 </span>
-<span class="ansi-cyan-fg">(pid=839)</span> OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
-[[{0: 1.0}], [{0: 0.71546027866628, 2: 0.2845397213337199}], [{0: 0.1898694337207903, 1: 0.4050652831396046, 3: 0.4050652831396046}]]
-<span class="ansi-cyan-fg">(pid=841)</span> OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k<span class="ansi-green-fg"> [repeated 5x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/ray-logging.html#log-deduplication for more options.)</span>
+2023-10-27 12:46:57,031 INFO worker.py:1329 -- Using address 10.42.0.245:6379 set in the environment variable RAY_ADDRESS
+2023-10-27 12:46:57,032 INFO worker.py:1458 -- Connecting to existing Ray cluster at address: 10.42.0.245:6379...
+2023-10-27 12:46:57,063 INFO worker.py:1633 -- Connected to Ray cluster. View the dashboard at <span class="ansi-green-intense-fg ansi-bold">10.42.0.245:8265 </span>
+<span class="ansi-cyan-fg">(pid=119, ip=10.42.0.246)</span> OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
+[[{0: 1.0}], [{0: 1.0}], [{0: 0.065352163370718, 1: 0.434647836629282, 2: 0.065352163370718, 3: 0.434647836629282}]]
+<span class="ansi-cyan-fg">(pid=119, ip=10.42.0.246)</span> OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k<span class="ansi-green-fg"> [repeated 3x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/ray-logging.html#log-deduplication for more options.)</span>
 
 </pre></div></div>
 </div>
 </section>
-<section id="Program-with-local-modules/folders">
-<h2>Program with local modules/folders<a class="headerlink" href="#Program-with-local-modules/folders" title="Permalink to this heading">#</a></h2>
-<p>Situation with local folders is a little bit trickier. In order to make local imports work in remote execution of a program we need to specify <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> argument for <code class="docutils literal notranslate"><span class="pre">distribute_program</span></code> decorator. It will tell quantum serverless to ship all content of current folder to remote cluster, which will make local folders discoverable by Python interpreter during remote execution.</p>
+<section id="QiskitPattern-with-local-modules/folders">
+<h2>QiskitPattern with local modules/folders<a class="headerlink" href="#QiskitPattern-with-local-modules/folders" title="Permalink to this heading">#</a></h2>
+<p>Situation with local folders is a little bit trickier. In order to make local imports work in remote execution of a pattern we need to specify <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> argument for <code class="docutils literal notranslate"><span class="pre">distribute_qiskit_pattern</span></code> decorator. It will tell quantum serverless to ship all content of current folder to remote cluster, which will make local folders discoverable by Python interpreter during remote execution.</p>
 <p>In this example we will use local folder <code class="docutils literal notranslate"><span class="pre">source_files</span></code> with <code class="docutils literal notranslate"><span class="pre">circuit_utils.py</span></code> file, which has implementation of <code class="docutils literal notranslate"><span class="pre">create_hello_world_circuit</span></code> function.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">distribute_program</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">save_result</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">distribute_qiskit_pattern</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">save_result</span>
 <span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
 
 <span class="kn">from</span> <span class="nn">source_files.circuit_utils</span> <span class="kn">import</span> <span class="n">create_hello_world_circuit</span>
 
 
-<span class="nd">@distribute_program</span><span class="p">(</span><span class="n">provider</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">my_program_with_modules</span><span class="p">():</span>
+<span class="nd">@distribute_qiskit_pattern</span><span class="p">(</span><span class="n">provider</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">my_pattern_with_modules</span><span class="p">():</span>
     <span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">create_hello_world_circuit</span><span class="p">())</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
     <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;quasi_dists&quot;</span><span class="p">:</span> <span class="n">quasi_dists</span><span class="p">}</span>
 
 
-<span class="n">job</span> <span class="o">=</span> <span class="n">my_program_with_modules</span><span class="p">()</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">my_pattern_with_modules</span><span class="p">()</span>
 <span class="n">job</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&lt;Job | fa6431c1-3ee9-4989-a6de-63675e35a98b&gt;
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
 </pre></div>
 </div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&#39;{&#34;quasi_dists&#34;: [{&#34;0&#34;: 0.4999999999999999, &#34;3&#34;: 0.4999999999999999}]}&#39;
-</pre></div></div>
 </div>
 </section>
 </section>
@@ -573,10 +554,10 @@ OpenBLAS WARNING - could not determine the L2 cache size on this system, assumin
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Running program using decorators (Experimental)</a><ul>
+<li><a class="reference internal" href="#">Running QiskitPattern using decorators (Experimental)</a><ul>
 <li><a class="reference internal" href="#Hello,-Qiskit!">Hello, Qiskit!</a></li>
-<li><a class="reference internal" href="#Program-with-distributed-tasks">Program with distributed tasks</a></li>
-<li><a class="reference internal" href="#Program-with-local-modules/folders">Program with local modules/folders</a></li>
+<li><a class="reference internal" href="#QiskitPattern-with-distributed-tasks">QiskitPattern with distributed tasks</a></li>
+<li><a class="reference internal" href="#QiskitPattern-with-local-modules/folders">QiskitPattern with local modules/folders</a></li>
 </ul>
 </li>
 </ul>

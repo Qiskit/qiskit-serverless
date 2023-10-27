@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Running program using decorators (Experimental)" href="running_programs_using_decorators.html" /><link rel="prev" title="&lt;no title&gt;" href="index.html" />
+<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Running QiskitPattern using decorators (Experimental)" href="running_programs_using_decorators.html" /><link rel="prev" title="&lt;no title&gt;" href="index.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
         <title>File download (Experimental) - Quantum serverless 0.6.6</title>
@@ -183,18 +183,18 @@
 <li class="toctree-l1"><a class="reference internal" href="../../index.html">About Quantum Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation/index.html">Installation</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Getting started</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="../basic/01_running_program.html">Running a program remotely</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../basic/02_arguments_and_results.html">Passing input arguments to your program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../basic/03_dependencies.html">Using python packages with your programs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../basic/04_distributed_workloads.html">Parallel workflows in programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/01_running_program.html">Running a QiskitPattern remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">File download (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../examples/01_vqe.html">Example: VQE program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../examples/02_qaoa.html">Example: QAOA program</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples/01_vqe.html">Example: VQE as QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples/02_qaoa.html">Example: QAOA as QiskitPattern</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../migration/index.html">Migration guides</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Migration guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -295,12 +295,12 @@
         <article role="main">
           <section id="File-download-(Experimental)">
 <h1>File download (Experimental)<a class="headerlink" href="#File-download-(Experimental)" title="Permalink to this heading">#</a></h1>
-<p>In this tutorial we will describe a way to retrieve files produced by programs.</p>
-<p>This function provides a way to download files produced by programs during execution. All you need is to call <code class="docutils literal notranslate"><span class="pre">QuantumServerless.download</span></code> function and pass <code class="docutils literal notranslate"><span class="pre">tar</span></code> file name to start downloading the file. Or you can list all available file to you by calling <code class="docutils literal notranslate"><span class="pre">QuantumServerless.files</span></code>.</p>
+<p>In this tutorial we will describe a way to retrieve files produced by patterns.</p>
+<p>This function provides a way to download files produced by patterns during execution. All you need is to call <code class="docutils literal notranslate"><span class="pre">QuantumServerless.download</span></code> function and pass <code class="docutils literal notranslate"><span class="pre">tar</span></code> file name to start downloading the file. Or you can list all available file to you by calling <code class="docutils literal notranslate"><span class="pre">QuantumServerless.files</span></code>.</p>
 <p>Limitations:</p>
 <ul class="simple">
 <li><p>only <code class="docutils literal notranslate"><span class="pre">tar</span></code> files are supported</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tar</span></code> file should be saved in <code class="docutils literal notranslate"><span class="pre">/data</span></code> directory during your program execution to be visible by <code class="docutils literal notranslate"><span class="pre">.files()</span></code> method call</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tar</span></code> file should be saved in <code class="docutils literal notranslate"><span class="pre">/data</span></code> directory during your pattern execution to be visible by <code class="docutils literal notranslate"><span class="pre">.files()</span></code> method call</p></li>
 <li><p>only <code class="docutils literal notranslate"><span class="pre">/data</span></code> directory is supported, <code class="docutils literal notranslate"><span class="pre">/data/other_folder</span></code> will not be visible</p></li>
 </ul>
 <blockquote>
@@ -312,7 +312,7 @@
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">ServerlessProvider</span><span class="p">,</span> <span class="n">Program</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">ServerlessProvider</span><span class="p">,</span> <span class="n">QiskitPattern</span>
 
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
     <span class="n">username</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span>
@@ -332,16 +332,16 @@
 &lt;ServerlessProvider: gateway-provider&gt;
 </pre></div></div>
 </div>
-<p>Let’s create a program to write <code class="docutils literal notranslate"><span class="pre">tar</span></code> file into <code class="docutils literal notranslate"><span class="pre">/data</span></code> folder</p>
+<p>Let’s create a pattern to write <code class="docutils literal notranslate"><span class="pre">tar</span></code> file into <code class="docutils literal notranslate"><span class="pre">/data</span></code> folder</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pattern</span> <span class="o">=</span> <span class="n">QiskitPattern</span><span class="p">(</span>
     <span class="n">title</span><span class="o">=</span><span class="s2">&quot;file-producer&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;produce_files.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
 <span class="p">)</span>
 
-<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -369,7 +369,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | a44441bc-16a7-421e-a9e1-73cee737e878&gt;
+&lt;Job | 5eaf1208-f1cc-4a94-a236-50110657f3a9&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
@@ -437,7 +437,7 @@
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Running program using decorators (Experimental)</div>
+                <div class="title">Running QiskitPattern using decorators (Experimental)</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>

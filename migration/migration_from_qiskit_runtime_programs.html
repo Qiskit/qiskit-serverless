@@ -183,18 +183,18 @@
 <li class="toctree-l1"><a class="reference internal" href="../index.html">About Quantum Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a program remotely</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_dependencies.html">Using python packages with your programs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_distributed_workloads.html">Parallel workflows in programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a QiskitPattern remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/file_download.html">File download (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../examples/01_vqe.html">Example: VQE program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../examples/02_qaoa.html">Example: QAOA program</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/01_vqe.html">Example: VQE as QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../examples/02_qaoa.html">Example: QAOA as QiskitPattern</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Migration guides</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Migration guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
@@ -295,7 +295,7 @@
         <article role="main">
           <section id="Converting-from-Qiskit-Runtime-Programs">
 <h1>Converting from Qiskit Runtime Programs<a class="headerlink" href="#Converting-from-Qiskit-Runtime-Programs" title="Permalink to this heading">#</a></h1>
-<p>This tutorial will be a demonstation of converting your custom Qiskit Runtime Program into a Quantum Serverless <code class="docutils literal notranslate"><span class="pre">Program</span></code>.</p>
+<p>This tutorial will be a demonstation of converting your custom Qiskit Runtime Program into a Quantum Serverless <code class="docutils literal notranslate"><span class="pre">QiskitPattern</span></code>.</p>
 <p>If you were using Qiskit Runtime Programs before, your code probably looks similar to the following example:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;A sample runtime program that submits random circuits for user-specified iterations.&quot;&quot;&quot;</span>
 
@@ -329,17 +329,17 @@
     <span class="k">return</span> <span class="s2">&quot;Hello, World!&quot;</span>
 </pre></div>
 </div>
-<p>All Qiskit Runtime Programs have a <code class="docutils literal notranslate"><span class="pre">main</span></code> method which accepts <code class="docutils literal notranslate"><span class="pre">backend</span></code>, <code class="docutils literal notranslate"><span class="pre">user_messenger</span></code> and <code class="docutils literal notranslate"><span class="pre">**kwargs</span></code>. This method is not required for Quantum Serverless programs.</p>
+<p>All Qiskit Runtime Programs have a <code class="docutils literal notranslate"><span class="pre">main</span></code> method which accepts <code class="docutils literal notranslate"><span class="pre">backend</span></code>, <code class="docutils literal notranslate"><span class="pre">user_messenger</span></code> and <code class="docutils literal notranslate"><span class="pre">**kwargs</span></code>. This method is not required for Quantum Serverless patterns.</p>
 <p>Quantum Serverless handles backends, logging, and input arguments a bit differently than Qiskit Runtime:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">backend</span></code>. For Quantum Serverless programs you are not limited to single backend for a program. You can call any number of backends from single program. Since <code class="docutils literal notranslate"><span class="pre">Backend.run</span></code> is deprecated, we will be using Qiskit Primitives to do our calculation.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">user_messenger</span></code> were used in Qiskit Runtime Programs to facilitate retrieving logs from the program. Quantum Serverless does not require passing such an object. Instead, all contents of <code class="docutils literal notranslate"><span class="pre">stdout</span></code> (e.g. print statements, logging messages) will be provided to the user via the Quantum Serverless job handler.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">**kwargs</span></code> was a variable used to capture program inputs from the user. Users should now input their arguments to the <code class="docutils literal notranslate"><span class="pre">Program</span></code> constructor, and the arguments should be retrieved within the program using the <code class="docutils literal notranslate"><span class="pre">get_arguments</span></code> function from Quantum Serverless.</p></li>
-<li><p>To save the results of a program, the <code class="docutils literal notranslate"><span class="pre">save_result</span></code> function should be used. It accepts a python dictionary and can be accessed via the job handler.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">**kwargs</span></code> was a variable used to capture program inputs from the user. Users should now input their arguments to the <code class="docutils literal notranslate"><span class="pre">ServerlessProvider.run</span></code> method, and the arguments should be retrieved within the pattern using the <code class="docutils literal notranslate"><span class="pre">get_arguments</span></code> function from Quantum Serverless.</p></li>
+<li><p>To save the results of a pattern, the <code class="docutils literal notranslate"><span class="pre">save_result</span></code> function should be used. It accepts a python dictionary and can be accessed via the job handler.</p></li>
 </ul>
-<p>Let’s use the guidelines above to transform the above Qiskit Runtime Program into a Quantum Serverless Program.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># migrated_program.py</span>
-<span class="sd">&quot;&quot;&quot;A sample runtime program that submits random circuits for user-specified iterations.&quot;&quot;&quot;</span>
+<p>Let’s use the guidelines above to transform the above Qiskit Runtime Program into a Quantum Serverless QiskitPattern.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># migrated_pattern.py</span>
+<span class="sd">&quot;&quot;&quot;A sample runtime pattern that submits random circuits for user-specified iterations.&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">random</span>
 
@@ -368,21 +368,21 @@
 <span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;Hello, World!&quot;</span><span class="p">})</span>
 </pre></div>
 </div>
-<p>Let’s save this code as <code class="docutils literal notranslate"><span class="pre">./src/migrated_program.py</span></code> and execute it using the <code class="docutils literal notranslate"><span class="pre">Program</span></code> class from the <code class="docutils literal notranslate"><span class="pre">quantum_serverless</span></code> package.</p>
+<p>Let’s save this code as <code class="docutils literal notranslate"><span class="pre">./src/migrated_pattern.py</span></code> and execute it using the <code class="docutils literal notranslate"><span class="pre">QiskitPattern</span></code> class from the <code class="docutils literal notranslate"><span class="pre">quantum_serverless</span></code> package.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QiskitPattern</span>
 
-<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;migrated-program&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;migrated_program.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./src/&quot;</span>
+<span class="n">pattern</span> <span class="o">=</span> <span class="n">QiskitPattern</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;migrated-pattern&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;migrated_pattern.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./src/&quot;</span>
 <span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">ServerlessProvider</span>
@@ -399,7 +399,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -408,43 +408,43 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;migrated-program&#39;
+&#39;migrated-pattern&#39;
 </pre></div></div>
 </div>
-<p>While Qiskit Runtime programs required users to upload their program and call it in two separate steps, the <code class="docutils literal notranslate"><span class="pre">Program</span></code> class allows users to send a job for remote execution in a single step.</p>
+<p>While Qiskit Runtime programs required users to upload their program and call it in two separate steps, the <code class="docutils literal notranslate"><span class="pre">QiskitPattern</span></code> class allows users to send a job for remote execution in a single step.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;migrated-program&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;iterations&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">})</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;migrated-pattern&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;iterations&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">})</span>
 <span class="n">job</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 901efd9c-7bb1-42e6-ad6a-14e781930f1c&gt;
+&lt;Job | 3b3d1bd1-5aa4-45a5-b2b1-fad46bd2f079&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -452,7 +452,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -461,7 +461,7 @@
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>
@@ -475,9 +475,9 @@
 <div class="highlight"><pre>
 OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
 OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
-{&#39;iteration&#39;: 0, &#39;dists&#39;: [{0: 0.0870879477472883, 1: 0.0924709553907342, 4: 0.0870879477472882, 5: 0.0924709553907341, 8: 0.0363341145102879, 9: 0.0341069823516897, 12: 0.0363341145102879, 13: 0.0341069823516897, 16: 0.0870879477472883, 17: 0.0924709553907342, 20: 0.0870879477472882, 21: 0.0924709553907341, 24: 0.0363341145102879, 25: 0.0341069823516897, 28: 0.0363341145102879, 29: 0.0341069823516897}]}
-{&#39;iteration&#39;: 1, &#39;dists&#39;: [{0: 0.1788234278657898, 4: 0.1788234278657898, 8: 0.0410003465204518, 12: 0.0410003465204518, 16: 0.22791926492318, 20: 0.22791926492318, 24: 0.0522569606905783, 28: 0.0522569606905783}]}
-{&#39;iteration&#39;: 2, &#39;dists&#39;: [{0: 0.1850255799964094, 1: 0.100389938487105, 4: 0.139108126852289, 5: 0.0754763546641966, 16: 0.1850255799964094, 17: 0.100389938487105, 20: 0.139108126852289, 21: 0.0754763546641966}]}
+{&#39;iteration&#39;: 0, &#39;dists&#39;: [{0: 3.11944954662e-05, 1: 1.7472255688e-06, 2: 0.0023491864962565, 3: 0.0001315795832142, 4: 3.11944954662e-05, 5: 1.7472255688e-06, 6: 0.0023491864962565, 7: 0.0001315795832142, 8: 0.0003717494511414, 9: 2.08219474781e-05, 10: 0.0279956055566758, 11: 0.0015680535014343, 12: 0.0003717494511414, 13: 2.08219474781e-05, 14: 0.0279956055566758, 15: 0.0015680535014343, 16: 0.0311265176657353, 17: 0.0017434180844706, 18: 0.0031482525298452, 19: 0.0001763358321658, 20: 0.0015223386227183, 21: 0.0313475971274875, 22: 0.000153975027715, 23: 0.003170613334296, 24: 0.3709393495626852, 25: 0.0207765731205209, 26: 0.0018349433509674, 27: 0.0377846715963741, 28: 0.0181419362290861, 29: 0.3735739864541202, 30: 0.0375181945574789, 31: 0.0021014203898626}]}
+{&#39;iteration&#39;: 1, &#39;dists&#39;: [{0: 0.0069643522753237, 2: 0.0019338542834274, 4: 0.0069643522753237, 6: 0.0019338542834274, 8: 0.1437387217328721, 10: 0.0399132226125896, 12: 0.1437387217328721, 14: 0.0399132226125896, 16: 0.0111201629603674, 18: 0.0030878355837216, 20: 0.0111201629603673, 22: 0.0030878355837216, 24: 0.2295113667710234, 26: 0.0637304837806736, 28: 0.2295113667710234, 30: 0.0637304837806736}]}
+{&#39;iteration&#39;: 2, &#39;dists&#39;: [{0: 0.1660856424846436, 1: 0.1169352848951222, 3: 0.1169352848951222, 4: 0.0001612756514029, 5: 0.0001135487328183, 7: 0.0001135487328183, 8: 0.0413427186633533, 9: 0.0291080102585333, 11: 0.0291080102585333, 12: 4.01453959743e-05, 13: 2.82650158392e-05, 15: 2.82650158392e-05, 16: 0.1660856424846435, 17: 0.1169352848951222, 19: 0.1169352848951222, 20: 0.0001612756514029, 21: 0.0001135487328183, 23: 0.0001135487328183, 24: 0.0413427186633533, 25: 0.0291080102585333, 27: 0.0291080102585333, 28: 4.01453959743e-05, 29: 2.82650158392e-05, 31: 2.82650158392e-05}]}
 
 </pre></div></div>
 </div>

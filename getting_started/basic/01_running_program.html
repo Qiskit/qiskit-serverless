@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Passing input arguments to your program" href="02_arguments_and_results.html" /><link rel="prev" title="&lt;no title&gt;" href="index.html" />
+<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Passing input arguments to your QiskitPattern" href="02_arguments_and_results.html" /><link rel="prev" title="&lt;no title&gt;" href="index.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>Running a program remotely - Quantum serverless 0.6.6</title>
+        <title>Running a QiskitPattern remotely - Quantum serverless 0.6.6</title>
       <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -183,18 +183,18 @@
 <li class="toctree-l1"><a class="reference internal" href="../../index.html">About Quantum Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation/index.html">Installation</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Getting started</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Running a program remotely</a></li>
-<li class="toctree-l2"><a class="reference internal" href="02_arguments_and_results.html">Passing input arguments to your program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your programs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows in programs</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Running a QiskitPattern remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
 <li class="toctree-l2"><a class="reference internal" href="05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/file_download.html">File download (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../experimental/running_programs_using_decorators.html">Running program using decorators (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../experimental/running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../examples/01_vqe.html">Example: VQE program</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../examples/02_qaoa.html">Example: QAOA program</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples/01_vqe.html">Example: VQE as QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../examples/02_qaoa.html">Example: QAOA as QiskitPattern</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../migration/index.html">Migration guides</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Migration guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -293,14 +293,14 @@
           </label>
         </div>
         <article role="main">
-          <section id="Running-a-program-remotely">
-<h1>Running a program remotely<a class="headerlink" href="#Running-a-program-remotely" title="Permalink to this heading">#</a></h1>
-<p>In this tutorial, we will write a basic program using Quantum Serverless. We will show how to run the program remotely and retrieve the results from the serverless client.</p>
-<section id="Writing-the-Program">
-<h2>Writing the Program<a class="headerlink" href="#Writing-the-Program" title="Permalink to this heading">#</a></h2>
-<p>First, we need to write the program code and save it to a file called <a class="reference external" href="./source_files/program.py">program.py</a>. This program creates a two-qubit quantum circuit that prepares a Bell state, measures the result, and saves the measured probability distribution.</p>
-<p>The code for the program is shown below:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/program.py</span>
+          <section id="Running-a-QiskitPattern-remotely">
+<h1>Running a QiskitPattern remotely<a class="headerlink" href="#Running-a-QiskitPattern-remotely" title="Permalink to this heading">#</a></h1>
+<p>In this tutorial, we will write a basic QiskitPattern using Quantum Serverless. We will show how to run the pattern remotely and retrieve the results from the serverless client.</p>
+<section id="Writing-the-QiskitPattern">
+<h2>Writing the QiskitPattern<a class="headerlink" href="#Writing-the-QiskitPattern" title="Permalink to this heading">#</a></h2>
+<p>First, we need to write the pattern code and save it to a file called <a class="reference external" href="./source_files/pattern.py">pattern.py</a>. This pattern creates a two-qubit quantum circuit that prepares a Bell state, measures the result, and saves the measured probability distribution.</p>
+<p>The code for the pattern is shown below:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/pattern.py</span>
 
 <span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
 <span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
@@ -308,7 +308,7 @@
 <span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">save_result</span>
 
 <span class="c1"># all print statement will be available in job logs</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Running program 1...&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Running pattern...&quot;</span><span class="p">)</span>
 
 <span class="c1"># creating circuit</span>
 <span class="n">circuit</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
@@ -320,20 +320,20 @@
 <span class="n">sampler</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">()</span>
 <span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
 
-<span class="c1"># save results of program execution,</span>
+<span class="c1"># save results of pattern execution,</span>
 <span class="c1"># which will be accessible by calling `.result()`</span>
 <span class="n">save_result</span><span class="p">(</span><span class="n">quasi_dists</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Completed running program 1.&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Completed running pattern.&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="Deploying-the-Program">
-<h2>Deploying the Program<a class="headerlink" href="#Deploying-the-Program" title="Permalink to this heading">#</a></h2>
-<p>To run the program, we need to import the necessary classes and configure them. One of these classes is QuantumServerless, which is a client class for interacting with compute resources.</p>
-<p>QuantumServerless takes a <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.BaseProvider.html">BaseProvider</a> instance as a constructor argument. The provider stores configuration information about our compute resources, such as where they are located and how to connect to them. In this example, we will use a provider that is connected to a local Docker Compose setup. In this case, it allows us to run the program locally on our machine. If you want to run
-the program elsewhere, you will need to provide the corresponding host and authentication details.</p>
+<section id="Deploying-the-QiskitPattern">
+<h2>Deploying the QiskitPattern<a class="headerlink" href="#Deploying-the-QiskitPattern" title="Permalink to this heading">#</a></h2>
+<p>To run the pattern, we need to import the necessary classes and configure them. One of these classes is QuantumServerless, which is a client class for interacting with compute resources.</p>
+<p>QuantumServerless takes a <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.BaseProvider.html">BaseProvider</a> instance as a constructor argument. The provider stores configuration information about our compute resources, such as where they are located and how to connect to them. In this example, we will use a provider that is connected to a local Docker Compose setup. In this case, it allows us to run the pattern locally on our machine. If you want to run
+the pattern elsewhere, you will need to provide the corresponding host and authentication details.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">ServerlessProvider</span>
@@ -345,7 +345,7 @@ the program elsewhere, you will need to provide the corresponding host and authe
 <div><p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/deployment/local.html">local infrastructure setup</a>.</p>
 </div></blockquote>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
@@ -359,7 +359,7 @@ the program elsewhere, you will need to provide the corresponding host and authe
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -367,7 +367,7 @@ the program elsewhere, you will need to provide the corresponding host and authe
 &lt;ServerlessProvider: gateway-provider&gt;
 </pre></div></div>
 </div>
-<p><a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.Program.html#quantum_serverless.core.Program">Program</a> accepts couple of required parameters:</p>
+<p><code class="docutils literal notranslate"><span class="pre">QiskitPattern</span></code> accepts couple of required parameters:</p>
 <ul class="simple">
 <li><p>title - name of the program</p></li>
 <li><p>entrypoint - name of python file you want to execute</p></li>
@@ -377,53 +377,53 @@ the program elsewhere, you will need to provide the corresponding host and authe
 <div><p>Warning! All content of <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> will be shipped to cluster for execution</p>
 </div></blockquote>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[50]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">Program</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">QiskitPattern</span>
 
-<span class="n">program</span> <span class="o">=</span> <span class="n">Program</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;my-first-program&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;program.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
+<span class="n">pattern</span> <span class="o">=</span> <span class="n">QiskitPattern</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;my-first-pattern&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;pattern.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
 <span class="p">)</span>
 
-<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[50]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;my-first-program&#39;
+&#39;my-first-pattern&#39;
 </pre></div></div>
 </div>
 </section>
-<section id="Running-the-Program">
-<h2>Running the Program<a class="headerlink" href="#Running-the-Program" title="Permalink to this heading">#</a></h2>
-<p>After deploying the Program, we can run the program by calling the <code class="docutils literal notranslate"><span class="pre">run()</span></code> method of the <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.ServerlessProvider.html#quantum_serverless.core.ServerlessProvider">ServerlessProvider</a> object:</p>
+<section id="Running-the-QiskitPattern">
+<h2>Running the QiskitPattern<a class="headerlink" href="#Running-the-QiskitPattern" title="Permalink to this heading">#</a></h2>
+<p>After deploying the QiskitPattern, we can run the pattern by calling the <code class="docutils literal notranslate"><span class="pre">run()</span></code> method of the <a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.ServerlessProvider.html#quantum_serverless.core.ServerlessProvider">ServerlessProvider</a> object:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[51]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;my-first-program&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;my-first-pattern&quot;</span><span class="p">)</span>
 <span class="n">job</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[51]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 79398e97-ea32-451c-bab3-75fde1c2d009&gt;
+&lt;Job | 7209eb52-8366-4330-9de3-e27d9a3f0f9a&gt;
 </pre></div></div>
 </div>
-<p><a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.Job.html#quantum_serverless.core.Job">Job</a> instances have a <code class="docutils literal notranslate"><span class="pre">status()</span></code> method to check status of program execution.</p>
+<p><a class="reference external" href="https://qiskit-extensions.github.io/quantum-serverless/stubs/quantum_serverless.core.Job.html#quantum_serverless.core.Job">Job</a> instances have a <code class="docutils literal notranslate"><span class="pre">status()</span></code> method to check status of pattern execution.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[52]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -431,7 +431,7 @@ the program elsewhere, you will need to provide the corresponding host and authe
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[52]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -439,9 +439,9 @@ the program elsewhere, you will need to provide the corresponding host and authe
 &#39;QUEUED&#39;
 </pre></div></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">Job</span></code> instances also have a <code class="docutils literal notranslate"><span class="pre">result()</span></code> method for retrieving results. The <code class="docutils literal notranslate"><span class="pre">result()</span></code> method will not return until the job is done running the program.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Job</span></code> instances also have a <code class="docutils literal notranslate"><span class="pre">result()</span></code> method for retrieving results. The <code class="docutils literal notranslate"><span class="pre">result()</span></code> method will not return until the job is done running the pattern.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[53]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -449,7 +449,7 @@ the program elsewhere, you will need to provide the corresponding host and authe
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[53]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -457,9 +457,9 @@ the program elsewhere, you will need to provide the corresponding host and authe
 [{&#39;0&#39;: 0.4999999999999999, &#39;3&#39;: 0.4999999999999999}]
 </pre></div></div>
 </div>
-<p>To inspect the logs from a program, access them from the <code class="docutils literal notranslate"><span class="pre">Job</span></code> instance.</p>
+<p>To inspect the logs from a pattern, access them from the <code class="docutils literal notranslate"><span class="pre">Job</span></code> instance.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[54]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>
@@ -473,20 +473,27 @@ the program elsewhere, you will need to provide the corresponding host and authe
 <div class="highlight"><pre>
 OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
 OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
-Running program...
-Completed running program.
+Running pattern...
+Completed running pattern.
 
 </pre></div></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">ServerlessProvider</span></code> object has method <code class="docutils literal notranslate"><span class="pre">.widget</span></code> which renders Jupyter widget to see list of executed programs.</p>
 <p><img alt="widget" src="../../_images/widget.png" /></p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">widget</span><span class="p">()</span>
 </pre></div>
 </div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "2a03914d42184f73ba897535e1f5d1a3", "version_major": 2, "version_minor": 0}</script></div>
 </div>
 </section>
 </section>
@@ -500,7 +507,7 @@ Completed running program.
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Passing input arguments to your program</div>
+                <div class="title">Passing input arguments to your QiskitPattern</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -545,10 +552,10 @@ Completed running program.
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Running a program remotely</a><ul>
-<li><a class="reference internal" href="#Writing-the-Program">Writing the Program</a></li>
-<li><a class="reference internal" href="#Deploying-the-Program">Deploying the Program</a></li>
-<li><a class="reference internal" href="#Running-the-Program">Running the Program</a></li>
+<li><a class="reference internal" href="#">Running a QiskitPattern remotely</a><ul>
+<li><a class="reference internal" href="#Writing-the-QiskitPattern">Writing the QiskitPattern</a></li>
+<li><a class="reference internal" href="#Deploying-the-QiskitPattern">Deploying the QiskitPattern</a></li>
+<li><a class="reference internal" href="#Running-the-QiskitPattern">Running the QiskitPattern</a></li>
 </ul>
 </li>
 </ul>
