@@ -39,7 +39,7 @@ urlpatterns = [
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
     path(
         "DomainVerification.html", 
-        TemplateView.as_view(template_name="DomainVerification.html")
+        TemplateView.as_view(template_name="DomainVerification.html"),
     ),
 ]
 
