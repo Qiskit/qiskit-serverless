@@ -99,7 +99,7 @@ class Job(models.Model):
     status = models.CharField(
         max_length=10,
         choices=JOB_STATUSES,
-        default=PENDING,
+        default=INITIALIZING,
     )
     compute_resource = models.ForeignKey(
         ComputeResource, on_delete=models.SET_NULL, null=True, blank=True
