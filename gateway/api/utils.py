@@ -34,7 +34,7 @@ def ray_job_status_to_model_job_status(ray_job_status):
         JobStatus.SUCCEEDED: Job.DONE,
         JobStatus.FAILED: Job.ERROR,
     }
-    return mapping.get(ray_job_status, Job.FAILED)
+    return mapping.get(ray_job_status, Job.ERROR)
 
 
 def retry_function(
