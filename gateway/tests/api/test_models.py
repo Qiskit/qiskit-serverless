@@ -12,17 +12,17 @@ class TestModels(APITestCase):
     def test_job_is_terminal_state(self):
         """Tests job terminal state function."""
         job = Job()
-        job.status = Job.PENDING
+        job.status = Job.INITIALIZING
         self.assertFalse(job.in_terminal_state())
 
         job.status = Job.RUNNING
         self.assertFalse(job.in_terminal_state())
 
-        job.status = Job.STOPPED
+        job.status = Job.CANCELED
         self.assertTrue(job.in_terminal_state())
 
-        job.status = Job.FAILED
+        job.status = Job.ERROR
         self.assertTrue(job.in_terminal_state())
 
-        job.status = Job.SUCCEEDED
+        job.status = Job.DONE
         self.assertTrue(job.in_terminal_state())

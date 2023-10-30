@@ -66,23 +66,23 @@ class ComputeResource(models.Model):
 class Job(models.Model):
     """Job model."""
 
-    PENDING = "PENDING"
+    INITIALIZING = "INITIALIZING"
     RUNNING = "RUNNING"
-    STOPPED = "STOPPED"
-    SUCCEEDED = "SUCCEEDED"
-    FAILED = "FAILED"
+    CANCELED = "CANCELED"
+    DONE = "DONE"
+    ERROR = "ERROR"
     QUEUED = "QUEUED"
     JOB_STATUSES = [
-        (PENDING, "Pending"),
+        (INITIALIZING, "Initializing"),
         (RUNNING, "Running"),
-        (STOPPED, "Stopped"),
-        (SUCCEEDED, "Succeeded"),
+        (CANCELED, "Canceled"),
+        (DONE, "Done"),
         (QUEUED, "Queued"),
-        (FAILED, "Failed"),
+        (ERROR, "Error"),
     ]
 
-    TERMINAL_STATES = [SUCCEEDED, FAILED, STOPPED]
-    RUNNING_STATES = [RUNNING, PENDING]
+    TERMINAL_STATES = [DONE, ERROR, CANCELED]
+    RUNNING_STATES = [RUNNING, INITIALIZING]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True)

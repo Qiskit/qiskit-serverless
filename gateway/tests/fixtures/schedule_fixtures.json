@@ -79,7 +79,7 @@
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2024-02-01T15:32:43.281796Z",
       "result": "{\"somekey\":1}",
-      "status": "PENDING",
+      "status": "INITIALIZING",
       "author": 2
     }
   },

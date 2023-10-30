@@ -94,13 +94,13 @@ class Migration(migrations.Migration):
                     "status",
                     models.CharField(
                         choices=[
-                            ("PENDING", "Pending"),
+                            ("INITIALIZING", "Initializing"),
                             ("RUNNING", "Running"),
-                            ("STOPPED", "Stopped"),
-                            ("SUCCEEDED", "Succeeded"),
-                            ("FAILED", "Failed"),
+                            ("CANCELED", "Canceled"),
+                            ("DONE", "Done"),
+                            ("ERROR", "Error"),
                         ],
-                        default="PENDING",
+                        default="INITIALIZING",
                         max_length=10,
                     ),
                 ),

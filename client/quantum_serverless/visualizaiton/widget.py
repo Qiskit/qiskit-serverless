@@ -103,7 +103,7 @@ class Widget:  # pylint: disable=too-many-instance-attributes
                 job.raw_data.get("created", "2011-11-11T11:11:11.000Z"),
                 "%Y-%m-%dT%H:%M:%S.%fZ",
             ).strftime("%m/%d/%Y")
-            status_style_map = {"succeeded": "color:green;", "failed": "color:red;"}
+            status_style_map = {"done": "color:green;", "error": "color:red;"}
 
             return f"""
                 <tr>

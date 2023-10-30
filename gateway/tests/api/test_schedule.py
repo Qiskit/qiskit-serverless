@@ -106,6 +106,6 @@ class TestScheduleApi(APITestCase):
             )
             retJob = execute_job(job)
 
-        self.assertEqual(retJob.status, Job.PENDING)
+        self.assertEqual(retJob.status, Job.INITIALIZING)
         self.assertEqual(retJob.author, user)
         self.assertIsInstance(retJob.compute_resource, ComputeResource)

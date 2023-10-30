@@ -247,9 +247,9 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         with tracer.start_as_current_span("gateway.job.stop", context=ctx):
             job = self.get_object()
             if not job.in_terminal_state():
-                job.status = Job.STOPPED
+                job.status = Job.CANCELED
                 job.save(update_fields=["status"])
-            message = "Job has been stopped."
+            message = "Job has been canceled."
             if job.compute_resource:
                 if job.compute_resource.active:
                     job_handler = get_job_handler(job.compute_resource.host)

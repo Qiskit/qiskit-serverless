@@ -57,7 +57,7 @@ def execute_job(job: Job) -> Job:
        1.1 if not: create cluster
     2. connect to cluster
     3. run a job
-    4. set status to pending
+    4. set status to initializing
 
     Args:
         job: job to execute
@@ -78,7 +78,7 @@ def execute_job(job: Job) -> Job:
             try:
                 job.compute_resource = authors_resource
                 job = submit_job(job)
-                job.status = Job.PENDING
+                job.status = Job.INITIALIZING
             except (
                 Exception  # pylint: disable=broad-exception-caught
             ) as missing_resource_exception:
@@ -94,7 +94,7 @@ def execute_job(job: Job) -> Job:
                 )
                 kill_ray_cluster(authors_resource.title)
                 authors_resource.delete()
-                job.status = Job.FAILED
+                job.status = Job.ERROR
                 job.logs = "Compute resource was not found."
         else:
             compute_resource = create_ray_cluster(job.author, cluster_name=cluster_name)
@@ -102,18 +102,18 @@ def execute_job(job: Job) -> Job:
                 # if compute resource was created in time with no problems
                 job.compute_resource = compute_resource
                 job = submit_job(job)
-                job.status = Job.PENDING
+                job.status = Job.INITIALIZING
             else:
                 # if something went wrong
                 #   try to kill resource if it was allocated
                 logger.warning(
                     "Compute resource [%s] was not created properly.\n"
-                    "Setting job [%s] status to [FAILED].",
+                    "Setting job [%s] status to [ERROR].",
                     cluster_name,
                     job,
                 )
                 kill_ray_cluster(cluster_name)
-                job.status = Job.FAILED
+                job.status = Job.ERROR
                 job.logs = "Compute resource was not created properly."
         span.set_attribute("job.status", job.status)
     return job
@@ -173,7 +173,7 @@ def check_job_timeout(job: Job, job_status):
         endtime = job.updated + timedelta(days=timeout)
         now = datetime.now(tz=endtime.tzinfo)
     if job.updated and endtime < now:
-        job_status = Job.STOPPED
+        job_status = Job.CANCELED
         job.logs = f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
         logger.warning(
             "Job [%s] reached maximum runtime [%s] days and stopped.",
@@ -196,6 +196,6 @@ def handle_job_status_not_available(job: Job, job_status):
         kill_ray_cluster(job.compute_resource.title)
         job.compute_resource.delete()
         job.compute_resource = None
-        job_status = Job.FAILED
+        job_status = Job.ERROR
         job.logs = f"{job.logs}\nSomething went wrong during updating job status."
     return job_status

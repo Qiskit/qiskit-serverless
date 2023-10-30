@@ -23,7 +23,7 @@ class Command(BaseCommand):
         jobs = Job.objects.filter(status__in=Job.RUNNING_STATES)
         for job in jobs:
             if job.compute_resource:
-                job_status = Job.PENDING
+                job_status = Job.INITIALIZING
                 success = True
                 job_handler = get_job_handler(job.compute_resource.host)
                 if job_handler:
