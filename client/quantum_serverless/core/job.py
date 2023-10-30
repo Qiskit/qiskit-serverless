@@ -673,7 +673,8 @@ def save_result(result: Dict[str, Any]):
             "authorization token in the environment."
         )
         logging.info("Result: %s", result)
-        print(f"\nSaved Result:{result}:End Saved Result\n")
+        result_record = json.dumps(result or {}, cls=QiskitObjectsEncoder)
+        print(f"\nSaved Result:{result_record}:End Saved Result\n")
         return False
 
     if not is_jsonable(result, cls=QiskitObjectsEncoder):
