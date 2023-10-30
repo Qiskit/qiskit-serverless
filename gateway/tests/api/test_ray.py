@@ -94,7 +94,7 @@ class TestJobHandler(APITestCase):
 
     def setUp(self) -> None:
         ray_client = MagicMock()
-        ray_client.get_job_status.return_value = JobStatus.INITIALIZING
+        ray_client.get_job_status.return_value = JobStatus.PENDING
         ray_client.get_job_logs.return_value = "No logs yet."
         ray_client.stop_job.return_value = True
         ray_client.submit_job.return_value = "AwesomeJobId"

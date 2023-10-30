@@ -28,11 +28,11 @@ def ray_job_status_to_model_job_status(ray_job_status):
     """Maps ray job status to model job status."""
 
     mapping = {
-        JobStatus.INITIALIZING: Job.INITIALIZING,
+        JobStatus.PENDING: Job.INITIALIZING,
         JobStatus.RUNNING: Job.RUNNING,
-        JobStatus.CANCELED: Job.CANCELED,
-        JobStatus.DONE: Job.DONE,
-        JobStatus.ERROR: Job.ERROR,
+        JobStatus.STOPPED: Job.CANCELED,
+        JobStatus.SUCCEEDED: Job.DONE,
+        JobStatus.FAILED: Job.ERROR,
     }
     return mapping.get(ray_job_status, Job.FAILED)
 

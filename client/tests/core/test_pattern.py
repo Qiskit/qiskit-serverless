@@ -50,11 +50,11 @@ def test_program():
 
         assert "42" in job.logs()
         assert job.status().is_terminal()
-        assert job.status() == JobStatus.DONE
+        assert job.status() == JobStatus.SUCCEEDED
 
         recovered_job = serverless.get_job_by_id(job.job_id)
         assert recovered_job.job_id == job.job_id
         assert "42" in recovered_job.logs()
         assert recovered_job.status().is_terminal()
-        assert recovered_job.status() == JobStatus.DONE
+        assert recovered_job.status() == JobStatus.SUCCEEDED
         assert isinstance(job.stop(), bool)
