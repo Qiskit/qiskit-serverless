@@ -34,9 +34,7 @@ class TestJobApi(APITestCase):
         jobs_response = self.client.get(reverse("v1:jobs-list"), format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 2)
-        self.assertEqual(
-            jobs_response.data.get("results")[0].get("status"), "DONE"
-        )
+        self.assertEqual(jobs_response.data.get("results")[0].get("status"), "DONE")
         self.assertEqual(
             jobs_response.data.get("results")[0].get("result"), '{"somekey":1}'
         )
@@ -87,4 +85,6 @@ class TestJobApi(APITestCase):
             id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"
         ).first()
         self.assertEqual(job.status, Job.CANCELED)
-        self.assertEqual(job_stop_response.data.get("message"), "Job has been canceled.")
+        self.assertEqual(
+            job_stop_response.data.get("message"), "Job has been canceled."
+        )
