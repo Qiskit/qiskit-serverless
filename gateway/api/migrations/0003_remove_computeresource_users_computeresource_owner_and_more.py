@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
                     ("ERROR", "Error"),
                 ],
                 default="INITIALIZING",
-                max_length=10,
+                max_length=13,
             ),
         ),
     ]
