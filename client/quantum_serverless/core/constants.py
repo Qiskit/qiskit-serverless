@@ -49,4 +49,4 @@ ENV_JOB_ARGUMENTS = "ENV_JOB_ARGUMENTS"
 MAX_ARTIFACT_FILE_SIZE_MB = 50
 
 # IBM urls
-IBM_SERVERLESS_HOST_URL = "https://gateway.middleware-prod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud"  # pylint: disable=line-too-long
+IBM_SERVERLESS_HOST_URL = "https://middleware.quantum-computing.ibm.com"
