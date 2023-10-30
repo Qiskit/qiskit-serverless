@@ -97,7 +97,7 @@ class Job(models.Model):
         on_delete=models.CASCADE,
     )
     status = models.CharField(
-        max_length=10,
+        max_length=13,
         choices=JOB_STATUSES,
         default=INITIALIZING,
     )
