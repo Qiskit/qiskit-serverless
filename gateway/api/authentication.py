@@ -71,9 +71,16 @@ class CustomTokenBackend(authentication.BaseAuthentication):
                 )
 
                 if verification_data is not None:
-                    verified = verification_data.get(
-                        settings.SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD, False
-                    )
+                    verifications = []
+                    for (
+                        verification_field
+                    ) in settings.SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD.split(";"):
+                        nested_field_value = verification_data
+                        for nested_field in verification_field.split(","):
+                            nested_field_value = nested_field_value.get(nested_field)
+                        verifications.append(nested_field_value)
+
+                    verified = all(verifications)
 
                     if user_id is not None and verified:
                         try:
