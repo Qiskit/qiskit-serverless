@@ -270,6 +270,20 @@ SETTINGS_TOKEN_AUTH_TOKEN_FIELD = os.environ.get(
 SETTINGS_TOKEN_AUTH_VERIFICATION_URL = os.environ.get(
     "SETTINGS_TOKEN_AUTH_VERIFICATION_URL", None
 )
+# verification fields to check when returned from auth api
+# Example of checking multiple fields:
+#    For following verification data
+#    {
+#       "is_valid": true,
+#       "some": {
+#         "nested": {
+#           "field": true
+#         },
+#         "other": "bla"
+#       }
+#    }
+#   setting string will be:
+#    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", "is_valid;some,nested,field"
 SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get(
     "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None
 )
