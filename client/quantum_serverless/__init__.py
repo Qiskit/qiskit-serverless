@@ -26,7 +26,7 @@ from importlib_metadata import version as metadata_version, PackageNotFoundError
 from .core import (
     BaseProvider,
     distribute_task,
-    distribute_program,
+    distribute_qiskit_pattern,
     get,
     put,
     get_refs_by_status,
@@ -34,6 +34,7 @@ from .core import (
     ServerlessProvider,
     IBMServerlessProvider,
     RayProvider,
+    LocalProvider,
     save_result,
 )
 from .quantum_serverless import (
@@ -41,7 +42,7 @@ from .quantum_serverless import (
     get_auto_discovered_provider,
     QuantumServerlessException,
 )
-from .core.program import Program
+from .core.pattern import QiskitPattern
 from .serializers import get_arguments
 
 try:

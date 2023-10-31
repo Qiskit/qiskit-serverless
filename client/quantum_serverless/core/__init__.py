@@ -31,12 +31,14 @@ Core abstractions
     IBMServerlessProvider
     BaseProvider
     RayProvider
+    LocalProvider
     ComputeResource
     Job
     GatewayJobClient
     BaseJobClient
     RayJobClient
     save_result
+    QiskitPattern
     Program
     ProgramStorage
     ProgramRepository
@@ -46,6 +48,7 @@ Core abstractions
     fetch_execution_meta
     distribute_task
     distribute_program
+    distribute_qiskit_pattern
     get
     put
     get_refs_by_status
@@ -58,11 +61,20 @@ from .provider import (
     Provider,
     ServerlessProvider,
     IBMServerlessProvider,
+    LocalProvider,
     RayProvider,
 )
-from .job import BaseJobClient, RayJobClient, GatewayJobClient, Job, save_result
-from .program import (
-    Program,
+
+from .job import (
+    BaseJobClient,
+    RayJobClient,
+    GatewayJobClient,
+    LocalJobClient,
+    Job,
+    save_result,
+)
+from .pattern import (
+    QiskitPattern,
     ProgramStorage,
     ProgramRepository,
     download_and_unpack_artifact,
@@ -74,6 +86,7 @@ from .decorators import (
     get_refs_by_status,
     fetch_execution_meta,
     distribute_task,
+    distribute_qiskit_pattern,
     distribute_program,
     Target,
     CircuitMeta,

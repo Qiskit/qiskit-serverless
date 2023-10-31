@@ -24,13 +24,14 @@ Quantum serverless program
 .. autosummary::
     :toctree: ../stubs/
 
-    Program
+    QiskitPattern
 """
 import dataclasses
 import json
 import logging
 import os
 import tarfile
+import warnings
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,8 +47,8 @@ from quantum_serverless.exception import QuantumServerlessException
 
 
 @dataclass
-class Program:  # pylint: disable=too-many-instance-attributes
-    """Serverless Program.
+class QiskitPattern:  # pylint: disable=too-many-instance-attributes
+    """Serverless QiskitPattern.
 
     Args:
         title: program name
@@ -72,12 +73,12 @@ class Program:  # pylint: disable=too-many-instance-attributes
 
     @classmethod
     def from_json(cls, data: Dict[str, Any]):
-        """Reconstructs Program from dictionary."""
-        field_names = set(f.name for f in dataclasses.fields(Program))
-        return Program(**{k: v for k, v in data.items() if k in field_names})
+        """Reconstructs QiskitPattern from dictionary."""
+        field_names = set(f.name for f in dataclasses.fields(QiskitPattern))
+        return QiskitPattern(**{k: v for k, v in data.items() if k in field_names})
 
     def __str__(self):
-        return f"Program({self.title})"
+        return f"QiskitPattern({self.title})"
 
     def __repr__(self):
         return self.__str__()
@@ -86,7 +87,7 @@ class Program:  # pylint: disable=too-many-instance-attributes
 class ProgramStorage(ABC):
     """Base program backend to save and load programs from."""
 
-    def save_program(self, program: Program) -> bool:
+    def save_program(self, program: QiskitPattern) -> bool:
         """Save program in specified backend.
 
         Args:
@@ -108,7 +109,7 @@ class ProgramStorage(ABC):
         """
         raise NotImplementedError
 
-    def get_program(self, title: str, **kwargs) -> Optional[Program]:
+    def get_program(self, title: str, **kwargs) -> Optional[QiskitPattern]:
         """Returns program by name and other query criteria.
 
         Args:
@@ -116,9 +117,42 @@ class ProgramStorage(ABC):
             **kwargs: other args
 
         Returns:
-            Program
+            QiskitPattern
         """
         raise NotImplementedError
+
+
+class Program(QiskitPattern):  # pylint: disable=too-few-public-methods
+    """[Deprecated] Program"""
+
+    def __init__(
+        self,
+        title: str,
+        entrypoint: Optional[str] = None,
+        working_dir: Optional[str] = "./",
+        env_vars: Optional[Dict[str, str]] = None,
+        dependencies: Optional[List[str]] = None,
+        description: Optional[str] = None,
+        version: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        raw_data: Optional[Dict[str, Any]] = None,
+    ):
+        """Program."""
+        warnings.warn(
+            "`Program` has been deprecated and will be removed in future releases. "
+            "Please, use `QiskitPattern` instead."
+        )
+        super().__init__(
+            title,
+            entrypoint,
+            working_dir,
+            env_vars,
+            dependencies,
+            description,
+            version,
+            tags,
+            raw_data,
+        )
 
 
 class ProgramRepository(ProgramStorage):
@@ -131,7 +165,7 @@ class ProgramRepository(ProgramStorage):
         token: Optional[str] = None,
         folder: Optional[str] = None,
     ):
-        """Program repository implementation.
+        """QiskitPattern repository implementation.
 
         Args:
             host: host of backend
@@ -145,7 +179,7 @@ class ProgramRepository(ProgramStorage):
         self._token = token
         self._base_url = f"{self._host}:{self._port}/api/v1/programs/"
 
-    def save_program(self, program: Program) -> bool:
+    def save_program(self, program: QiskitPattern) -> bool:
         raise NotImplementedError("Not implemented yet.")
 
     def get_programs(self, **kwargs) -> List[str]:
@@ -156,7 +190,7 @@ class ProgramRepository(ProgramStorage):
             result = [entry.get("title") for entry in response_data.get("results", [])]
         return result
 
-    def get_program(self, title: str, **kwargs) -> Optional[Program]:
+    def get_program(self, title: str, **kwargs) -> Optional[QiskitPattern]:
         result = None
         response = requests.get(
             url=f"{self._base_url}",
@@ -169,7 +203,7 @@ class ProgramRepository(ProgramStorage):
             results = response_data.get("results", [])
             if len(results) > 0:
                 artifact = results[0].get("artifact")
-                result = Program.from_json(results[0])
+                result = QiskitPattern.from_json(results[0])
                 result.working_dir = download_and_unpack_artifact(
                     artifact_url=artifact, program=result, folder=self.folder
                 )
@@ -180,7 +214,7 @@ class ProgramRepository(ProgramStorage):
 
 def download_and_unpack_artifact(
     artifact_url: str,
-    program: Program,
+    program: QiskitPattern,
     folder: str,
     headers: Optional[Dict[str, Any]] = None,
 ) -> str:
@@ -201,7 +235,7 @@ def download_and_unpack_artifact(
 
     # check if program path already exist on the disc
     if os.path.exists(program_folder_path):
-        logging.warning("Program folder already exist. Will be overwritten.")
+        logging.warning("QiskitPattern folder already exist. Will be overwritten.")
 
     # download file
     response = requests.get(url=artifact_url, stream=True, headers=headers, timeout=100)
