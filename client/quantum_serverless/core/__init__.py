@@ -31,6 +31,7 @@ Core abstractions
     IBMServerlessProvider
     BaseProvider
     RayProvider
+    LocalProvider
     ComputeResource
     Job
     GatewayJobClient
@@ -60,12 +61,20 @@ from .provider import (
     Provider,
     ServerlessProvider,
     IBMServerlessProvider,
+    LocalProvider,
     RayProvider,
 )
-from .job import BaseJobClient, RayJobClient, GatewayJobClient, Job, save_result
+
+from .job import (
+    BaseJobClient,
+    RayJobClient,
+    GatewayJobClient,
+    LocalJobClient,
+    Job,
+    save_result,
+)
 from .pattern import (
     QiskitPattern,
-    Program,
     ProgramStorage,
     ProgramRepository,
     download_and_unpack_artifact,

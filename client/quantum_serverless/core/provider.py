@@ -51,6 +51,7 @@ from quantum_serverless.core.job import (
     Job,
     RayJobClient,
     GatewayJobClient,
+    LocalJobClient,
     BaseJobClient,
 )
 from quantum_serverless.core.pattern import QiskitPattern
@@ -594,3 +595,38 @@ class RayProvider(BaseProvider):
 
     def get_jobs(self, **kwargs) -> List[Job]:
         return self.client.list()
+
+
+class LocalProvider(BaseProvider):
+    """RayProvider."""
+
+    def __init__(self):
+        """Local provider
+
+        Args:
+
+        Example:
+            >>> local = LocalProvider())
+        """
+        super().__init__("local-provier")
+        self.client = LocalJobClient()
+
+    def run(
+        self,
+        program: Union[QiskitPattern, str],
+        arguments: Optional[Dict[str, Any]] = None,
+    ) -> Job:
+        if isinstance(program, QiskitPattern) and program.entrypoint is not None:
+            job = self.client.run(program, arguments)
+        else:
+            job = self.client.run_existing(program, arguments)
+        return job
+
+    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        return self.client.get(job_id)
+
+    def get_jobs(self, **kwargs) -> List[Job]:
+        return self.client.list()
+
+    def upload(self, program: QiskitPattern):
+        return self.client.upload(program)
