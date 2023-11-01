@@ -16,7 +16,7 @@ application:
   superuser:
     enable: true
   ray:
-    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.7.0-py39"
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py39"
     cpu: 2
     memory: 2
     replicas: 1
