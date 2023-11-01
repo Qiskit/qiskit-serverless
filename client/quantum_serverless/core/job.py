@@ -132,7 +132,7 @@ class RayJobClient(BaseJobClient):
         self._job_client = client
 
     def status(self, job_id: str):
-        return self._job_client.get_job_status(job_id)
+        return self._job_client.get_job_status(job_id).value
 
     def stop(self, job_id: str):
         return self._job_client.stop_job(job_id)
@@ -492,7 +492,7 @@ class GatewayJobClient(BaseJobClient):
                 )
             )
 
-        return _map_status_to_serverless(response_data.get("status", default_status))
+        return response_data.get("status", default_status)
 
     def stop(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")

@@ -42,7 +42,7 @@ class TestCommands(APITestCase):
         call_command("update_jobs_statuses")
 
         job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
-        self.assertEqual(job.status, "DONE")
+        self.assertEqual(job.status, "SUCCEEDED")
 
     def test_create_social_application(self):
         """Tests create social application command."""
@@ -62,7 +62,7 @@ class TestCommands(APITestCase):
         fake_job = MagicMock()
         fake_job.id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
         fake_job.logs = ""
-        fake_job.status = "DONE"
+        fake_job.status = "SUCCEEDED"
         fake_job.program.artifact.path = "non_existing_file.tar"
         fake_job.save.return_value = None
 

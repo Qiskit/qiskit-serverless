@@ -28,13 +28,13 @@ def ray_job_status_to_model_job_status(ray_job_status):
     """Maps ray job status to model job status."""
 
     mapping = {
-        JobStatus.PENDING: Job.INITIALIZING,
+        JobStatus.PENDING: Job.PENDING,
         JobStatus.RUNNING: Job.RUNNING,
-        JobStatus.STOPPED: Job.CANCELED,
-        JobStatus.SUCCEEDED: Job.DONE,
-        JobStatus.FAILED: Job.ERROR,
+        JobStatus.STOPPED: Job.STOPPED,
+        JobStatus.SUCCEEDED: Job.SUCCEEDED,
+        JobStatus.FAILED: Job.FAILED,
     }
-    return mapping.get(ray_job_status, Job.ERROR)
+    return mapping.get(ray_job_status, Job.FAILED)
 
 
 def retry_function(
