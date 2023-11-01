@@ -13,12 +13,12 @@
 
 """
 =================================================
-Provider (:mod:`quantum_serverless.core.program`)
+Provider (:mod:`quantum_serverless.core.pattern`)
 =================================================
 
-.. currentmodule:: quantum_serverless.core.program
+.. currentmodule:: quantum_serverless.core.pattern
 
-Quantum serverless program
+Quantum serverless pattern
 ==========================
 
 .. autosummary::

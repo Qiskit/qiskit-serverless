@@ -659,7 +659,31 @@ class Job:
 
 
 def save_result(result: Dict[str, Any]):
-    """Saves job results."""
+    """Saves job results.
+
+    Note: data passed to save_result function
+        must be json serializable (use dictionaries).
+        Default serializer is compatible with
+        IBM QiskitRuntime provider serializer.
+        List of supported types (see full list via link):
+            - ndarray
+            - QuantumCircuit
+            - Parameter
+            - ParameterExpression
+            - NoiseModel
+            - Instruction
+
+    Link:
+        Source of serializer:
+            https://github.com/Qiskit/qiskit-ibm-runtime/blob/f9b4c2c33569c34b86754322fb40020bc4f073b3/qiskit_ibm_runtime/utils/json.py#L197
+
+    Example:
+        >>> save_result({"key": "value"})
+
+    Args:
+        result: data that will be accessible
+            from job handler `.result()` method.
+    """
 
     version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
     if version is None:
