@@ -39,6 +39,7 @@ Core abstractions
     RayJobClient
     save_result
     QiskitPattern
+    Program
     ProgramStorage
     ProgramRepository
     download_and_unpack_artifact
