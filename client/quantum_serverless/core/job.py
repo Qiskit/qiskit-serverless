@@ -672,7 +672,7 @@ def save_result(result: Dict[str, Any]):
 
     Links:
         Source of serializer:
-        https://github.com/Qiskit/qiskit-ibm-runtime/blob/f9b4c2c33569c34b86754322fb40020bc4f073b3/qiskit_ibm_runtime/utils/json.py#L197
+        https://github.com/Qiskit/qiskit-ibm-runtime/blob/0.13.0/qiskit_ibm_runtime/utils/json.py#L197
 
     Example:
         >>> # save dictionary
