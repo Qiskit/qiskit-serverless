@@ -492,7 +492,7 @@ class GatewayJobClient(BaseJobClient):
                 )
             )
 
-        return response_data.get("status", default_status)
+        return _map_status_to_serverless(response_data.get("status", default_status))
 
     def stop(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")
@@ -611,7 +611,7 @@ class Job:
 
     def status(self):
         """Returns status of the job."""
-        return self._job_client.status(self.job_id)
+        return _map_status_to_serverless(self._job_client.status(self.job_id))
 
     def stop(self):
         """Stops the job from running."""
@@ -634,7 +634,7 @@ class Job:
         if wait:
             if verbose:
                 logging.info("Waiting for job result.")
-            while not self._in_terminal_state():
+            while not self.in_terminal_state():
                 time.sleep(cadence)
                 if verbose:
                     logging.info(".")
@@ -649,7 +649,7 @@ class Job:
 
         return results
 
-    def _in_terminal_state(self) -> bool:
+    def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
         terminal_states = ["CANCELED", "DONE", "ERROR"]
         return self.status() in terminal_states
@@ -723,3 +723,24 @@ def save_result(result: Dict[str, Any]):
         logging.warning("Something went wrong: %s", response.text)
 
     return response.ok
+
+
+def _map_status_to_serverless(status: str) -> str:
+    """Map a status string from an arbitrary client to the Qiskit terminology."""
+    status_map = {
+        "PENDING": "INITIALIZING",
+        "INITIALIZING": "INITIALIZING",
+        "RUNNING": "RUNNING",
+        "STOPPED": "CANCELED",
+        "CANCELED": "CANCELED",
+        "SUCCEEDED": "DONE",
+        "DONE": "DONE",
+        "FAILED": "ERROR",
+        "ERROR": "ERROR",
+        "QUEUED": "QUEUED",
+    }
+
+    try:
+        return status_map[status]
+    except KeyError as exc:
+        raise KeyError(f"Cannot interpret unknown job status: {status}") from exc
