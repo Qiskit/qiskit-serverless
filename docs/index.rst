@@ -18,7 +18,7 @@ Quantum Serverless provides horizontal scalability for both quantum and classica
 
 `Remote execution`: Quantum Serverless also provides asynchronous remote job execution,
 making it ideal for long-running scripts or jobs that you want to run somewhere and
-retrieve the results later. Users may upload compute-intensive ``Program``\ s to a remote
+retrieve the results later. Users may upload compute-intensive scripts to a remote
 system and receive the results when they are ready.
 
 .. toctree::
