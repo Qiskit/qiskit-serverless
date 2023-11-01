@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>quantum_serverless.core.program - Quantum serverless 0.6.6</title>
+        <title>quantum_serverless.core.pattern - Quantum serverless 0.7.0</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -144,7 +144,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../../index.html"><div class="brand">Quantum serverless 0.6.6</div></a>
+      <a href="../../../index.html"><div class="brand">Quantum serverless 0.7.0</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -171,7 +171,7 @@
     </div>
   </a>
   
-  <span class="sidebar-brand-text">Quantum serverless 0.6.6</span>
+  <span class="sidebar-brand-text">Quantum serverless 0.7.0</span>
 </div><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
@@ -218,13 +218,14 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.IBMServerlessProvider.html">quantum_serverless.core.IBMServerlessProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.BaseProvider.html">quantum_serverless.core.BaseProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.RayProvider.html">quantum_serverless.core.RayProvider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.LocalProvider.html">quantum_serverless.core.LocalProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ComputeResource.html">quantum_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.Job.html">quantum_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.GatewayJobClient.html">quantum_serverless.core.GatewayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.BaseJobClient.html">quantum_serverless.core.BaseJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.RayJobClient.html">quantum_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.save_result.html">quantum_serverless.core.save_result</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.Program.html">quantum_serverless.core.Program</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.QiskitPattern.html">quantum_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ProgramStorage.html">quantum_serverless.core.ProgramStorage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ProgramRepository.html">quantum_serverless.core.ProgramRepository</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.download_and_unpack_artifact.html">quantum_serverless.core.download_and_unpack_artifact</a></li>
@@ -233,6 +234,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.fetch_execution_meta.html">quantum_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.distribute_task.html">quantum_serverless.core.distribute_task</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.distribute_program.html">quantum_serverless.core.distribute_program</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.distribute_qiskit_pattern.html">quantum_serverless.core.distribute_qiskit_pattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.get.html">quantum_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.put.html">quantum_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.get_refs_by_status.html">quantum_serverless.core.get_refs_by_status</a></li>
@@ -291,7 +293,7 @@
           </label>
         </div>
         <article role="main">
-          <h1>Source code for quantum_serverless.core.program</h1><div class="highlight"><pre>
+          <h1>Source code for quantum_serverless.core.pattern</h1><div class="highlight"><pre>
 <span></span><span class="c1"># This code is a Qiskit project.</span>
 <span class="c1">#</span>
 <span class="c1"># (C) Copyright IBM 2022.</span>
@@ -307,24 +309,25 @@
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">=================================================</span>
-<span class="sd">Provider (:mod:`quantum_serverless.core.program`)</span>
+<span class="sd">Provider (:mod:`quantum_serverless.core.pattern`)</span>
 <span class="sd">=================================================</span>
 
-<span class="sd">.. currentmodule:: quantum_serverless.core.program</span>
+<span class="sd">.. currentmodule:: quantum_serverless.core.pattern</span>
 
-<span class="sd">Quantum serverless program</span>
+<span class="sd">Quantum serverless pattern</span>
 <span class="sd">==========================</span>
 
 <span class="sd">.. autosummary::</span>
 <span class="sd">    :toctree: ../stubs/</span>
 
-<span class="sd">    Program</span>
+<span class="sd">    QiskitPattern</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">dataclasses</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">tarfile</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span>
 <span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
@@ -339,9 +342,9 @@
 <span class="kn">from</span> <span class="nn">quantum_serverless.exception</span> <span class="kn">import</span> <span class="n">QuantumServerlessException</span>
 
 
-<div class="viewcode-block" id="Program"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.Program.html#quantum_serverless.core.Program">[docs]</a><span class="nd">@dataclass</span>
-<span class="k">class</span> <span class="nc">Program</span><span class="p">:</span>  <span class="c1"># pylint: disable=too-many-instance-attributes</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Serverless Program.</span>
+<div class="viewcode-block" id="QiskitPattern"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.QiskitPattern.html#quantum_serverless.core.QiskitPattern">[docs]</a><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">QiskitPattern</span><span class="p">:</span>  <span class="c1"># pylint: disable=too-many-instance-attributes</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Serverless QiskitPattern.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        title: program name</span>
@@ -366,12 +369,12 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_json</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reconstructs Program from dictionary.&quot;&quot;&quot;</span>
-        <span class="n">field_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="n">Program</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">Program</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">field_names</span><span class="p">})</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reconstructs QiskitPattern from dictionary.&quot;&quot;&quot;</span>
+        <span class="n">field_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="n">QiskitPattern</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">QiskitPattern</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">field_names</span><span class="p">})</span>
 
     <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Program(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;QiskitPattern(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="si">}</span><span class="s2">)&quot;</span>
 
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__str__</span><span class="p">()</span></div>
@@ -380,7 +383,7 @@
 <div class="viewcode-block" id="ProgramStorage"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.ProgramStorage.html#quantum_serverless.core.ProgramStorage">[docs]</a><span class="k">class</span> <span class="nc">ProgramStorage</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Base program backend to save and load programs from.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">save_program</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">Program</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">save_program</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitPattern</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Save program in specified backend.</span>
 
 <span class="sd">        Args:</span>
@@ -402,7 +405,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
-    <span class="k">def</span> <span class="nf">get_program</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Program</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">get_program</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns program by name and other query criteria.</span>
 
 <span class="sd">        Args:</span>
@@ -410,9 +413,42 @@
 <span class="sd">            **kwargs: other args</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Program</span>
+<span class="sd">            QiskitPattern</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+
+<span class="k">class</span> <span class="nc">Program</span><span class="p">(</span><span class="n">QiskitPattern</span><span class="p">):</span>  <span class="c1"># pylint: disable=too-few-public-methods</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;[Deprecated] Program&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">entrypoint</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">working_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;./&quot;</span><span class="p">,</span>
+        <span class="n">env_vars</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">dependencies</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">version</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">tags</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">raw_data</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Program.&quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;`Program` has been deprecated and will be removed in future releases. &quot;</span>
+            <span class="s2">&quot;Please, use `QiskitPattern` instead.&quot;</span>
+        <span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">title</span><span class="p">,</span>
+            <span class="n">entrypoint</span><span class="p">,</span>
+            <span class="n">working_dir</span><span class="p">,</span>
+            <span class="n">env_vars</span><span class="p">,</span>
+            <span class="n">dependencies</span><span class="p">,</span>
+            <span class="n">description</span><span class="p">,</span>
+            <span class="n">version</span><span class="p">,</span>
+            <span class="n">tags</span><span class="p">,</span>
+            <span class="n">raw_data</span><span class="p">,</span>
+        <span class="p">)</span>
 
 
 <div class="viewcode-block" id="ProgramRepository"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.ProgramRepository.html#quantum_serverless.core.ProgramRepository">[docs]</a><span class="k">class</span> <span class="nc">ProgramRepository</span><span class="p">(</span><span class="n">ProgramStorage</span><span class="p">):</span>
@@ -425,7 +461,7 @@
         <span class="n">token</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">folder</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Program repository implementation.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;QiskitPattern repository implementation.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            host: host of backend</span>
@@ -439,7 +475,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_token</span> <span class="o">=</span> <span class="n">token</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_port</span><span class="si">}</span><span class="s2">/api/v1/programs/&quot;</span></div>
 
-    <span class="k">def</span> <span class="nf">save_program</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">Program</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">save_program</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitPattern</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Not implemented yet.&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
@@ -450,7 +486,7 @@
             <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])]</span>
         <span class="k">return</span> <span class="n">result</span>
 
-    <span class="k">def</span> <span class="nf">get_program</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Program</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">get_program</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">]:</span>
         <span class="n">result</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
             <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
@@ -463,7 +499,7 @@
             <span class="n">results</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">artifact</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;artifact&quot;</span><span class="p">)</span>
-                <span class="n">result</span> <span class="o">=</span> <span class="n">Program</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">QiskitPattern</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
                 <span class="n">result</span><span class="o">.</span><span class="n">working_dir</span> <span class="o">=</span> <span class="n">download_and_unpack_artifact</span><span class="p">(</span>
                     <span class="n">artifact_url</span><span class="o">=</span><span class="n">artifact</span><span class="p">,</span> <span class="n">program</span><span class="o">=</span><span class="n">result</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span>
                 <span class="p">)</span>
@@ -474,7 +510,7 @@
 
 <div class="viewcode-block" id="download_and_unpack_artifact"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.download_and_unpack_artifact.html#quantum_serverless.core.download_and_unpack_artifact">[docs]</a><span class="k">def</span> <span class="nf">download_and_unpack_artifact</span><span class="p">(</span>
     <span class="n">artifact_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">program</span><span class="p">:</span> <span class="n">Program</span><span class="p">,</span>
+    <span class="n">program</span><span class="p">:</span> <span class="n">QiskitPattern</span><span class="p">,</span>
     <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">headers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -495,7 +531,7 @@
 
     <span class="c1"># check if program path already exist on the disc</span>
     <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">program_folder_path</span><span class="p">):</span>
-        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Program folder already exist. Will be overwritten.&quot;</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;QiskitPattern folder already exist. Will be overwritten.&quot;</span><span class="p">)</span>
 
     <span class="c1"># download file</span>
     <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">artifact_url</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
@@ -551,7 +587,7 @@
   </div>
 </div><script src="../../../_static/jquery.js?v=5d32c60e"></script>
     <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=c2237175"></script>
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=dc072ff8"></script>
     <script src="../../../_static/doctools.js?v=888ff710"></script>
     <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../../../_static/thebelab-helper.js"></script>

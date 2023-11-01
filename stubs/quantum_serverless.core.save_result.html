@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.core.Program" href="quantum_serverless.core.Program.html" /><link rel="prev" title="quantum_serverless.core.RayJobClient" href="quantum_serverless.core.RayJobClient.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.core.QiskitPattern" href="quantum_serverless.core.QiskitPattern.html" /><link rel="prev" title="quantum_serverless.core.RayJobClient" href="quantum_serverless.core.RayJobClient.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>quantum_serverless.core.save_result - Quantum serverless 0.6.6</title>
+        <title>quantum_serverless.core.save_result - Quantum serverless 0.7.0</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -144,7 +144,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Quantum serverless 0.6.6</div></a>
+      <a href="../index.html"><div class="brand">Quantum serverless 0.7.0</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -171,7 +171,7 @@
     </div>
   </a>
   
-  <span class="sidebar-brand-text">Quantum serverless 0.6.6</span>
+  <span class="sidebar-brand-text">Quantum serverless 0.7.0</span>
 </div><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
@@ -218,13 +218,14 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.IBMServerlessProvider.html">quantum_serverless.core.IBMServerlessProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.BaseProvider.html">quantum_serverless.core.BaseProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RayProvider.html">quantum_serverless.core.RayProvider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.LocalProvider.html">quantum_serverless.core.LocalProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ComputeResource.html">quantum_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Job.html">quantum_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.GatewayJobClient.html">quantum_serverless.core.GatewayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.BaseJobClient.html">quantum_serverless.core.BaseJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RayJobClient.html">quantum_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3 current current-page"><a class="current reference internal" href="#">quantum_serverless.core.save_result</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Program.html">quantum_serverless.core.Program</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.QiskitPattern.html">quantum_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ProgramStorage.html">quantum_serverless.core.ProgramStorage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ProgramRepository.html">quantum_serverless.core.ProgramRepository</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.download_and_unpack_artifact.html">quantum_serverless.core.download_and_unpack_artifact</a></li>
@@ -233,6 +234,7 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.fetch_execution_meta.html">quantum_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.distribute_task.html">quantum_serverless.core.distribute_task</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.distribute_program.html">quantum_serverless.core.distribute_program</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.distribute_qiskit_pattern.html">quantum_serverless.core.distribute_qiskit_pattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.get.html">quantum_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.put.html">quantum_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.get_refs_by_status.html">quantum_serverless.core.get_refs_by_status</a></li>
@@ -298,6 +300,38 @@
 <dt class="sig sig-object py" id="quantum_serverless.core.save_result">
 <span class="sig-name descname"><span class="pre">save_result</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/job.html#save_result"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.save_result" title="Permalink to this definition">#</a></dt>
 <dd><p>Saves job results.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>data passed to save_result function
+must be json serializable (use dictionaries).
+Default serializer is compatible with
+IBM QiskitRuntime provider serializer.
+List of supported types
+[ndarray, QuantumCircuit, Parameter, ParameterExpression,
+NoiseModel, Instruction]. See full list via link.</p>
+</div>
+<dl class="simple">
+<dt>Links:</dt><dd><p>Source of serializer:
+<a class="reference external" href="https://github.com/Qiskit/qiskit-ibm-runtime/blob/0.13.0/qiskit_ibm_runtime/utils/json.py#L197">https://github.com/Qiskit/qiskit-ibm-runtime/blob/0.13.0/qiskit_ibm_runtime/utils/json.py#L197</a></p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># save dictionary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;value&quot;</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># save circuit</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span> <span class="o">=</span> <span class="o">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;circuit&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># save primitives data</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">Sampler</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># {&quot;1x0&quot;: 0.1, ...}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">save_result</span><span class="p">(</span><span class="n">quasi_dists</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>result</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]) – data that will be accessible from job handler <cite>.result()</cite> method.</p>
+</dd>
+</dl>
 </dd></dl>
 
 </section>
@@ -306,12 +340,12 @@
       </div>
       <footer>
         <div class="related-pages">
-          <a class="next-page" href="quantum_serverless.core.Program.html">
+          <a class="next-page" href="quantum_serverless.core.QiskitPattern.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">quantum_serverless.core.Program</div>
+                <div class="title">quantum_serverless.core.QiskitPattern</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -371,7 +405,7 @@
   </div>
 </div><script src="../_static/jquery.js?v=5d32c60e"></script>
     <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=c2237175"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=dc072ff8"></script>
     <script src="../_static/doctools.js?v=888ff710"></script>
     <script src="../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>

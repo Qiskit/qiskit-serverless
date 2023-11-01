@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.core.ProgramStorage" href="quantum_serverless.core.ProgramStorage.html" /><link rel="prev" title="quantum_serverless.core.save_result" href="quantum_serverless.core.save_result.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>quantum_serverless.core.Program - Quantum serverless 0.6.6</title>
+        <title>quantum_serverless.core.QiskitPattern - Quantum serverless 0.7.0</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -144,7 +144,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../index.html"><div class="brand">Quantum serverless 0.6.6</div></a>
+      <a href="../index.html"><div class="brand">Quantum serverless 0.7.0</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -171,7 +171,7 @@
     </div>
   </a>
   
-  <span class="sidebar-brand-text">Quantum serverless 0.6.6</span>
+  <span class="sidebar-brand-text">Quantum serverless 0.7.0</span>
 </div><form class="sidebar-search-container" method="get" action="../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
@@ -218,13 +218,14 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.IBMServerlessProvider.html">quantum_serverless.core.IBMServerlessProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.BaseProvider.html">quantum_serverless.core.BaseProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RayProvider.html">quantum_serverless.core.RayProvider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.LocalProvider.html">quantum_serverless.core.LocalProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ComputeResource.html">quantum_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Job.html">quantum_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.GatewayJobClient.html">quantum_serverless.core.GatewayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.BaseJobClient.html">quantum_serverless.core.BaseJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RayJobClient.html">quantum_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.save_result.html">quantum_serverless.core.save_result</a></li>
-<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">quantum_serverless.core.Program</a></li>
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">quantum_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ProgramStorage.html">quantum_serverless.core.ProgramStorage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ProgramRepository.html">quantum_serverless.core.ProgramRepository</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.download_and_unpack_artifact.html">quantum_serverless.core.download_and_unpack_artifact</a></li>
@@ -233,6 +234,7 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.fetch_execution_meta.html">quantum_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.distribute_task.html">quantum_serverless.core.distribute_task</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.distribute_program.html">quantum_serverless.core.distribute_program</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.distribute_qiskit_pattern.html">quantum_serverless.core.distribute_qiskit_pattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.get.html">quantum_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.put.html">quantum_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.get_refs_by_status.html">quantum_serverless.core.get_refs_by_status</a></li>
@@ -292,12 +294,12 @@
           </label>
         </div>
         <article role="main">
-          <section id="quantum-serverless-core-program">
-<h1>quantum_serverless.core.Program<a class="headerlink" href="#quantum-serverless-core-program" title="Permalink to this heading">#</a></h1>
+          <section id="quantum-serverless-core-qiskitpattern">
+<h1>quantum_serverless.core.QiskitPattern<a class="headerlink" href="#quantum-serverless-core-qiskitpattern" title="Permalink to this heading">#</a></h1>
 <dl class="py class">
-<dt class="sig sig-object py" id="quantum_serverless.core.Program">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Program</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">title</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env_vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dependencies</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tags</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/program.html#Program"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.Program" title="Permalink to this definition">#</a></dt>
-<dd><p>Serverless Program.</p>
+<dt class="sig sig-object py" id="quantum_serverless.core.QiskitPattern">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">QiskitPattern</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">title</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env_vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dependencies</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tags</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/pattern.html#QiskitPattern"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.QiskitPattern" title="Permalink to this definition">#</a></dt>
+<dd><p>Serverless QiskitPattern.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -313,19 +315,19 @@ ex: job.py</p></li>
 </dd>
 </dl>
 <dl class="py method">
-<dt class="sig sig-object py" id="quantum_serverless.core.Program.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">title</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env_vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dependencies</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tags</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quantum_serverless.core.Program.__init__" title="Permalink to this definition">#</a></dt>
+<dt class="sig sig-object py" id="quantum_serverless.core.QiskitPattern.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">title</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env_vars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dependencies</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tags</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#quantum_serverless.core.QiskitPattern.__init__" title="Permalink to this definition">#</a></dt>
 <dd></dd></dl>
 
 <p class="rubric">Methods</p>
 <div class="table-wrapper autosummary longtable docutils container">
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.core.Program.__init__" title="quantum_serverless.core.Program.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(title[, entrypoint, working_dir, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.core.QiskitPattern.__init__" title="quantum_serverless.core.QiskitPattern.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(title[, entrypoint, working_dir, ...])</p></td>
 <td><p></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_json</span></code>(data)</p></td>
-<td><p>Reconstructs Program from dictionary.</p></td>
+<td><p>Reconstructs QiskitPattern from dictionary.</p></td>
 </tr>
 </tbody>
 </table>
@@ -422,9 +424,9 @@ ex: job.py</p></li>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">quantum_serverless.core.Program</a><ul>
-<li><a class="reference internal" href="#quantum_serverless.core.Program"><code class="docutils literal notranslate"><span class="pre">Program</span></code></a><ul>
-<li><a class="reference internal" href="#quantum_serverless.core.Program.__init__"><code class="docutils literal notranslate"><span class="pre">Program.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#">quantum_serverless.core.QiskitPattern</a><ul>
+<li><a class="reference internal" href="#quantum_serverless.core.QiskitPattern"><code class="docutils literal notranslate"><span class="pre">QiskitPattern</span></code></a><ul>
+<li><a class="reference internal" href="#quantum_serverless.core.QiskitPattern.__init__"><code class="docutils literal notranslate"><span class="pre">QiskitPattern.__init__()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -440,7 +442,7 @@ ex: job.py</p></li>
   </div>
 </div><script src="../_static/jquery.js?v=5d32c60e"></script>
     <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=c2237175"></script>
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=dc072ff8"></script>
     <script src="../_static/doctools.js?v=888ff710"></script>
     <script src="../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>

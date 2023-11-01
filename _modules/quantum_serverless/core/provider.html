@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2023.05.20 -->
-        <title>quantum_serverless.core.provider - Quantum serverless 0.6.6</title>
+        <title>quantum_serverless.core.provider - Quantum serverless 0.7.0</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/qiskit-sphinx-theme.css?v=89723df8" />
@@ -144,7 +144,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../../index.html"><div class="brand">Quantum serverless 0.6.6</div></a>
+      <a href="../../../index.html"><div class="brand">Quantum serverless 0.7.0</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -171,7 +171,7 @@
     </div>
   </a>
   
-  <span class="sidebar-brand-text">Quantum serverless 0.6.6</span>
+  <span class="sidebar-brand-text">Quantum serverless 0.7.0</span>
 </div><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
@@ -218,13 +218,14 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.IBMServerlessProvider.html">quantum_serverless.core.IBMServerlessProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.BaseProvider.html">quantum_serverless.core.BaseProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.RayProvider.html">quantum_serverless.core.RayProvider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.LocalProvider.html">quantum_serverless.core.LocalProvider</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ComputeResource.html">quantum_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.Job.html">quantum_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.GatewayJobClient.html">quantum_serverless.core.GatewayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.BaseJobClient.html">quantum_serverless.core.BaseJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.RayJobClient.html">quantum_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.save_result.html">quantum_serverless.core.save_result</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.Program.html">quantum_serverless.core.Program</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.QiskitPattern.html">quantum_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ProgramStorage.html">quantum_serverless.core.ProgramStorage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ProgramRepository.html">quantum_serverless.core.ProgramRepository</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.download_and_unpack_artifact.html">quantum_serverless.core.download_and_unpack_artifact</a></li>
@@ -233,6 +234,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.fetch_execution_meta.html">quantum_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.distribute_task.html">quantum_serverless.core.distribute_task</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.distribute_program.html">quantum_serverless.core.distribute_program</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.distribute_qiskit_pattern.html">quantum_serverless.core.distribute_qiskit_pattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.get.html">quantum_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.put.html">quantum_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.get_refs_by_status.html">quantum_serverless.core.get_refs_by_status</a></li>
@@ -345,9 +347,10 @@
     <span class="n">Job</span><span class="p">,</span>
     <span class="n">RayJobClient</span><span class="p">,</span>
     <span class="n">GatewayJobClient</span><span class="p">,</span>
+    <span class="n">LocalJobClient</span><span class="p">,</span>
     <span class="n">BaseJobClient</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless.core.program</span> <span class="kn">import</span> <span class="n">Program</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless.core.pattern</span> <span class="kn">import</span> <span class="n">QiskitPattern</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.tracing</span> <span class="kn">import</span> <span class="n">_trace_env_vars</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.exception</span> <span class="kn">import</span> <span class="n">QuantumServerlessException</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.utils</span> <span class="kn">import</span> <span class="n">JsonSerializable</span>
@@ -555,13 +558,15 @@
         <span class="k">return</span> <span class="n">Job</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_client</span><span class="o">=</span><span class="n">job_client</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Program</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute a program as a async job.</span>
 
 <span class="sd">        Example:</span>
 <span class="sd">            &gt;&gt;&gt; serverless = QuantumServerless()</span>
-<span class="sd">            &gt;&gt;&gt; program = Program(</span>
+<span class="sd">            &gt;&gt;&gt; program = QiskitPattern(</span>
 <span class="sd">            &gt;&gt;&gt;     &quot;job.py&quot;,</span>
 <span class="sd">            &gt;&gt;&gt;     arguments={&quot;arg1&quot;: &quot;val1&quot;},</span>
 <span class="sd">            &gt;&gt;&gt;     dependencies=[&quot;requests&quot;]</span>
@@ -588,7 +593,7 @@
 
         <span class="k">return</span> <span class="n">job_client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">Program</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitPattern</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Uploads program.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
@@ -703,17 +708,19 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Program</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
         <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;Provider.run&quot;</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">Program</span><span class="p">)</span> <span class="ow">and</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitPattern</span><span class="p">)</span> <span class="ow">and</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">run_existing</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">job</span>
 
-    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">Program</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitPattern</span><span class="p">):</span>
         <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;Provider.upload&quot;</span><span class="p">):</span>
             <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
@@ -734,7 +741,7 @@
     <span class="k">def</span> <span class="nf">file_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Program</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">get_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">]:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">get_programs</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_fetch_token</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
@@ -870,7 +877,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">RayJobClient</span><span class="p">(</span><span class="n">JobSubmissionClient</span><span class="p">(</span><span class="n">host</span><span class="p">))</span></div>
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Program</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Ray provider only supports full Programs.&quot;</span><span class="p">)</span>
@@ -882,6 +891,41 @@
 
     <span class="k">def</span> <span class="nf">get_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">list</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="LocalProvider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.LocalProvider.html#quantum_serverless.core.LocalProvider">[docs]</a><span class="k">class</span> <span class="nc">LocalProvider</span><span class="p">(</span><span class="n">BaseProvider</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;RayProvider.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LocalProvider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.LocalProvider.html#quantum_serverless.core.LocalProvider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Local provider</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; local = LocalProvider())</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;local-provier&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">LocalJobClient</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitPattern</span><span class="p">)</span> <span class="ow">and</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">run_existing</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">job</span>
+
+    <span class="k">def</span> <span class="nf">get_job_by_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitPattern</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span></div>
 </pre></div>
         </article>
       </div>
@@ -915,7 +959,7 @@
   </div>
 </div><script src="../../../_static/jquery.js?v=5d32c60e"></script>
     <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=c2237175"></script>
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=dc072ff8"></script>
     <script src="../../../_static/doctools.js?v=888ff710"></script>
     <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
     <script src="../../../_static/thebelab-helper.js"></script>

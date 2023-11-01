@@ -1,0 +1,37 @@
+﻿quantum\_serverless.core.QiskitPattern
+======================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: QiskitPattern
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~QiskitPattern.__init__
+      ~QiskitPattern.from_json
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~QiskitPattern.dependencies
+      ~QiskitPattern.description
+      ~QiskitPattern.entrypoint
+      ~QiskitPattern.env_vars
+      ~QiskitPattern.raw_data
+      ~QiskitPattern.tags
+      ~QiskitPattern.version
+      ~QiskitPattern.working_dir
+      ~QiskitPattern.title
+   
+   
