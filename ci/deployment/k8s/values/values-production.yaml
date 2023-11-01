@@ -18,10 +18,10 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-body-size: 50m
   tls:
     - hosts:
-        - "gateway.middleware-prod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud"
+        - "middleware.quantum-computing.ibm.com"
       secretName: "middleware-prod-218f1d46487946bbe52597968f4638d3-0000"
   hosts:
-    - host: "gateway.middleware-prod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud"
+    - host: "middleware.quantum-computing.ibm.com"
       paths:
       - path: /
         pathType: Prefix
