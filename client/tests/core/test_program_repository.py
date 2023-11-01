@@ -5,9 +5,9 @@ import shutil
 from pathlib import Path
 from unittest import TestCase, mock
 
-from quantum_serverless.core.program import (
+from quantum_serverless.core.pattern import (
     ProgramRepository,
-    Program,
+    QiskitPattern,
 )
 
 responses = {
@@ -143,5 +143,5 @@ class TestRepository(TestCase):
         program = repository.get_program("hello_world")
         self.assertEqual(program.title, "hello_world")
         self.assertEqual(program.version, "0.0.0")
-        self.assertIsInstance(program, Program)
+        self.assertIsInstance(program, QiskitPattern)
         self.assertEqual(len(mock_get.call_args_list), 2)

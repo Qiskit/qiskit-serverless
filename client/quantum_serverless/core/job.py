@@ -32,9 +32,14 @@ import logging
 import os
 import tarfile
 import time
+import sys
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 from uuid import uuid4
+
+import subprocess
+from subprocess import Popen
+import re
 
 import ray.runtime_env
 import requests
@@ -53,7 +58,7 @@ from quantum_serverless.core.constants import (
     MAX_ARTIFACT_FILE_SIZE_MB,
     ENV_JOB_ARGUMENTS,
 )
-from quantum_serverless.core.program import Program
+from quantum_serverless.core.pattern import QiskitPattern
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
@@ -68,17 +73,19 @@ class BaseJobClient:
     """Base class for Job clients."""
 
     def run(
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+        self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None
     ) -> "Job":
         """Runs program."""
         raise NotImplementedError
 
-    def upload(self, program: Program):
+    def upload(self, program: QiskitPattern):
         """Uploads program."""
         raise NotImplementedError
 
     def run_existing(
-        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Union[str, QiskitPattern],
+        arguments: Optional[Dict[str, Any]] = None,
     ):
         """Executes existing program."""
         raise NotImplementedError
@@ -144,7 +151,7 @@ class RayJobClient(BaseJobClient):
             Job(job.job_id, job_client=self) for job in self._job_client.list_jobs()
         ]
 
-    def run(self, program: Program, arguments: Optional[Dict[str, Any]] = None):
+    def run(self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None):
         arguments = arguments or {}
         entrypoint = f"python {program.entrypoint}"
 
@@ -166,13 +173,148 @@ class RayJobClient(BaseJobClient):
         )
         return Job(job_id=job_id, job_client=self)
 
-    def upload(self, program: Program):
+    def upload(self, program: QiskitPattern):
         raise NotImplementedError("Upload is not available for RayJobClient.")
 
     def run_existing(
-        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Union[str, QiskitPattern],
+        arguments: Optional[Dict[str, Any]] = None,
     ):
         raise NotImplementedError("Run existing is not available for RayJobClient.")
+
+
+class LocalJobClient(BaseJobClient):
+    """LocalJobClient."""
+
+    def __init__(self):
+        """Local job client.
+
+        Args:
+        """
+        self._jobs = {}
+        self._patterns = {}
+
+    def status(self, job_id: str):
+        return self._jobs[job_id]["status"]
+
+    def stop(self, job_id: str):
+        """Stops job/program."""
+        return f"job:{job_id} has already stopped"
+
+    def logs(self, job_id: str):
+        return self._jobs[job_id]["logs"]
+
+    def result(self, job_id: str):
+        return self._jobs[job_id]["result"]
+
+    def get(self, job_id) -> Optional["Job"]:
+        return self._jobs[job_id]["job"]
+
+    def list(self, **kwargs) -> List["Job"]:
+        return [job["job"] for job in list(self._jobs.values())]
+
+    def run(self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None):
+        if program.dependencies:
+            for dependency in program.dependencies:
+                subprocess.check_call(
+                    [sys.executable, "-m", "pip", "install", dependency]
+                )
+        arguments = arguments or {}
+        env_vars = {
+            **(program.env_vars or {}),
+            **{OT_PROGRAM_NAME: program.title},
+            **{"PATH": os.environ["PATH"]},
+            **{ENV_JOB_ARGUMENTS: json.dumps(arguments, cls=QiskitObjectsEncoder)},
+        }
+
+        with Popen(
+            ["python", program.working_dir + program.entrypoint],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            env=env_vars,
+        ) as pipe:
+            status = "SUCCEEDED"
+            if pipe.wait():
+                status = "FAILED"
+            output, _ = pipe.communicate()
+        results = re.search("\nSaved Result:(.+?):End Saved Result\n", output)
+        result = ""
+        if results:
+            result = results.group(1)
+
+        job = Job(job_id=str(uuid4()), job_client=self)
+        entry = {"status": status, "logs": output, "result": result, "job": job}
+        self._jobs[job.job_id] = entry
+        return job
+
+    def upload(self, program: QiskitPattern):
+        # check if entrypoint exists
+        if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
+            raise QuantumServerlessException(
+                f"Entrypoint file [{program.entrypoint}] does not exist "
+                f"in [{program.working_dir}] working directory."
+            )
+        self._patterns[program.title] = {
+            "title": program.title,
+            "entrypoint": program.entrypoint,
+            "working_dir": program.working_dir,
+            "env_vars": program.env_vars,
+            "arguments": json.dumps({}),
+            "dependencies": json.dumps(program.dependencies or []),
+        }
+        return program.title
+
+    def run_existing(
+        self,
+        program: Union[str, QiskitPattern],
+        arguments: Optional[Dict[str, Any]] = None,
+    ):
+        if isinstance(program, QiskitPattern):
+            title = program.title
+        else:
+            title = str(program)
+
+        saved_program = self._patterns[title]
+        if saved_program["dependencies"]:
+            dept = json.loads(saved_program["dependencies"])
+            for dependency in dept:
+                subprocess.check_call(
+                    [sys.executable, "-m", "pip", "install", dependency]
+                )
+        arguments = arguments or {}
+        env_vars = {
+            **(saved_program["env_vars"] or {}),
+            **{OT_PROGRAM_NAME: saved_program["title"]},
+            **{"PATH": os.environ["PATH"]},
+            **{ENV_JOB_ARGUMENTS: json.dumps(arguments, cls=QiskitObjectsEncoder)},
+        }
+
+        with Popen(
+            ["python", saved_program["working_dir"] + saved_program["entrypoint"]],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            env=env_vars,
+        ) as pipe:
+            status = "SUCCEEDED"
+            if pipe.wait():
+                status = "FAILED"
+            output, _ = pipe.communicate()
+        results = re.search("\nSaved Result:(.+?):End Saved Result\n", output)
+        result = ""
+        if results:
+            result = results.group(1)
+
+        job = Job(job_id=str(uuid4()), job_client=self)
+        entry = {"status": status, "logs": output, "result": result, "job": job}
+        self._jobs[job.job_id] = entry
+        return job
+
+    def get_programs(self, **kwargs):
+        """Returns list of programs."""
+        raise NotImplementedError
 
 
 class GatewayJobClient(BaseJobClient):
@@ -191,7 +333,7 @@ class GatewayJobClient(BaseJobClient):
         self._token = token
 
     def run(  # pylint: disable=too-many-locals
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+        self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None
     ) -> "Job":
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
@@ -249,7 +391,7 @@ class GatewayJobClient(BaseJobClient):
 
         return Job(job_id, job_client=self)
 
-    def upload(self, program: Program):
+    def upload(self, program: QiskitPattern):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
             span.set_attribute("program", program.title)
@@ -304,9 +446,11 @@ class GatewayJobClient(BaseJobClient):
         return program_title
 
     def run_existing(
-        self, program: Union[str, Program], arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: Union[str, QiskitPattern],
+        arguments: Optional[Dict[str, Any]] = None,
     ):
-        if isinstance(program, Program):
+        if isinstance(program, QiskitPattern):
             title = program.title
         else:
             title = str(program)
@@ -441,7 +585,7 @@ class GatewayJobClient(BaseJobClient):
                 )
             )
         return [
-            Program(program.get("title"), raw_data=program)
+            QiskitPattern(program.get("title"), raw_data=program)
             for program in response_data.get("results", [])
         ]
 
@@ -515,7 +659,35 @@ class Job:
 
 
 def save_result(result: Dict[str, Any]):
-    """Saves job results."""
+    """Saves job results.
+
+    Note:
+        data passed to save_result function
+        must be json serializable (use dictionaries).
+        Default serializer is compatible with
+        IBM QiskitRuntime provider serializer.
+        List of supported types
+        [ndarray, QuantumCircuit, Parameter, ParameterExpression,
+        NoiseModel, Instruction]. See full list via link.
+
+    Links:
+        Source of serializer:
+        https://github.com/Qiskit/qiskit-ibm-runtime/blob/0.13.0/qiskit_ibm_runtime/utils/json.py#L197
+
+    Example:
+        >>> # save dictionary
+        >>> save_result({"key": "value"})
+        >>> # save circuit
+        >>> circuit: QuantumCircuit = ...
+        >>> save_result({"circuit": circuit})
+        >>> # save primitives data
+        >>> quasi_dists = Sampler.run(circuit).result().quasi_dists
+        >>> # {"1x0": 0.1, ...}
+        >>> save_result(quasi_dists)
+
+    Args:
+        result: data that will be accessible from job handler `.result()` method.
+    """
 
     version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
     if version is None:
@@ -529,6 +701,8 @@ def save_result(result: Dict[str, Any]):
             "authorization token in the environment."
         )
         logging.info("Result: %s", result)
+        result_record = json.dumps(result or {}, cls=QiskitObjectsEncoder)
+        print(f"\nSaved Result:{result_record}:End Saved Result\n")
         return False
 
     if not is_jsonable(result, cls=QiskitObjectsEncoder):

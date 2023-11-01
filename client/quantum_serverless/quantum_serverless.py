@@ -42,7 +42,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.program import Program
+from quantum_serverless.core.pattern import QiskitPattern
 from quantum_serverless.core.provider import BaseProvider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
 
@@ -103,13 +103,13 @@ class QuantumServerless:
         return self._selected_provider.job_client()
 
     def run(
-        self, program: Program, arguments: Optional[Dict[str, Any]] = None
+        self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None
     ) -> Optional[Job]:
         """Execute a program as a async job
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> program = Program(
+            >>> program = QiskitPattern(
             >>>     "job.py",
             >>>     dependencies=["requests"]
             >>> )
@@ -128,11 +128,11 @@ class QuantumServerless:
             job = self._selected_provider.run(program, arguments)
         return job
 
-    def upload(self, program: Program):
+    def upload(self, program: QiskitPattern):
         """Uploads program.
 
         Args:
-            program: Program
+            program: QiskitPattern
 
         Returns:
             program title
