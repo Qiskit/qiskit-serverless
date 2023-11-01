@@ -1,7 +1,6 @@
 """Tests jobs."""
 import os
 
-from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
 
 from quantum_serverless import QuantumServerless, BaseProvider

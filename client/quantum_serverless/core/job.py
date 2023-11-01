@@ -726,17 +726,13 @@ def save_result(result: Dict[str, Any]):
 
 
 def _map_status_to_serverless(status: str) -> str:
-    """Map a status string from an arbitrary client to the Qiskit terminology."""
+    """Map a status string from job client to the Qiskit terminology."""
     status_map = {
         "PENDING": "INITIALIZING",
-        "INITIALIZING": "INITIALIZING",
         "RUNNING": "RUNNING",
         "STOPPED": "CANCELED",
-        "CANCELED": "CANCELED",
         "SUCCEEDED": "DONE",
-        "DONE": "DONE",
         "FAILED": "ERROR",
-        "ERROR": "ERROR",
         "QUEUED": "QUEUED",
     }
 
