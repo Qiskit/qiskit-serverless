@@ -35,15 +35,15 @@ class Migration(migrations.Migration):
             name="status",
             field=models.CharField(
                 choices=[
-                    ("INITIALIZING", "Initializing"),
+                    ("PENDING", "Pending"),
                     ("RUNNING", "Running"),
-                    ("CANCELED", "Canceled"),
-                    ("DONE", "Done"),
+                    ("STOPPED", "Stopped"),
+                    ("SUCCEEDED", "Succeeded"),
                     ("QUEUED", "Queued"),
-                    ("ERROR", "Error"),
+                    ("FAILED", "Failed"),
                 ],
-                default="INITIALIZING",
-                max_length=13,
+                default="PENDING",
+                max_length=10,
             ),
         ),
     ]
