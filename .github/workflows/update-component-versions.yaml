@@ -1,0 +1,71 @@
+name: Update Component Versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      new_version:
+        description: 'version to update to'
+        required: true
+
+jobs:
+  update_component_versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install helm
+        shell: bash
+        run: |
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
+      - name: Set variables
+        shell: bash
+        run: |
+          NEWNUM=${{ github.event.inputs.new_version }}
+          OLDTXT=$(git describe --tags $(git rev-list --tags --max-count=1))
+          OLDNUM="${OLDTXT:1}"
+          echo "NEWNUM=$NEWNUM" >> "$GITHUB_ENV"
+          echo "OLDNUM=$OLDNUM" >> "$GITHUB_ENV"
+      - name: Update observability chart
+        shell: bash
+        run: |
+          echo $NEWNUM
+          echo $OLDTXT
+          echo $OLDNUM
+          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/qs-observability/Chart.yaml
+          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/qs-observability/Chart.yaml
+      - name: Update quantum-serverless chart
+        shell: bash
+        run: |
+          cd charts/quantum-serverless
+          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" Chart.yaml
+          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" Chart.yaml
+          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/gateway/Chart.yaml
+          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/gateway/Chart.yaml
+          sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/gateway/values.yaml
+          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/jupyter/Chart.yaml
+          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/jupyter/Chart.yaml
+          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/repository/Chart.yaml
+          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/repository/Chart.yaml
+          sed -i "s/tag: \"${OLDNUM}\"/tag: \"${NEWNUM}\"/" values.yaml
+          sed -i "s/tag: \"${OLDNUM}-py39\"/tag: \"${NEWNUM}-py39\"/" values.yaml
+          sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" values.yaml
+          helm dependency update
+          cd -
+      - name: Update client version
+        shell: bash
+        run: |
+          set -x
+          sed -i "s/${OLDNUM}/${NEWNUM}/" client/quantum_serverless/VERSION.txt
+      - name: Update compose
+        shell: bash
+        run: |
+          sed -i "s/VERSION:-${OLDNUM}/VERSION:-${NEWNUM}/g" docker-compose.yaml
+      - name: Update docs
+        shell: bash
+        run: |
+          sed -i "s/${OLDNUM}/${NEWNUM}/g" docs/deployment/cloud.rst
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v4
+        with:
+          token: ""
