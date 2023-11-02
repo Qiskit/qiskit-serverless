@@ -29,7 +29,7 @@ Quantum serverless program serializers
 import json
 import os
 from typing import Any, Dict
-
+from qiskit.primitives import SamplerResult
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.utils.json import RuntimeDecoder, RuntimeEncoder
 
@@ -45,6 +45,11 @@ class QiskitObjectsEncoder(RuntimeEncoder):
                 "__type__": "QiskitRuntimeService",
                 "__value__": obj.active_account(),
             }
+        if isinstance(obj, SamplerResult):
+            return {
+                "__type__": "SamplerResult",
+                "__value__": {"quasi_dists": obj.quasi_dists, "metadata": obj.metadata},
+            }
         return super().default(obj)
 
 
@@ -57,6 +62,8 @@ class QiskitObjectsDecoder(RuntimeDecoder):
 
             if obj_type == "QiskitRuntimeService":
                 return QiskitRuntimeService(**obj["__value__"])
+            if obj_type == "SamplerResult":
+                return SamplerResult(**obj["__value__"])
             return super().object_hook(obj)
         return obj
 
