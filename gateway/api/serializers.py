@@ -8,16 +8,16 @@ Version serializers inherit from the different serializers.
 
 from rest_framework import serializers
 
-from .models import Program, Job, ProgramConfig
+from .models import Program, Job, JobConfig
 
 
-class ProgramConfigSerializer(serializers.ModelSerializer):
+class JobConfigSerializer(serializers.ModelSerializer):
     """
-    Serializer for the Program Config model.
+    Serializer for the Job Config model.
     """
 
     class Meta:
-        model = ProgramConfig
+        model = JobConfig
 
 
 class ProgramSerializer(serializers.ModelSerializer):

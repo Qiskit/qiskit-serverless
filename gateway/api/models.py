@@ -17,8 +17,8 @@ def get_upload_path(instance, filename):
     return f"{instance.author.username}/{instance.id}/{filename}"
 
 
-class ProgramConfig(models.Model):
-    """Program Configuration model."""
+class JobConfig(models.Model):
+    """Job Configuration model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True)
@@ -44,12 +44,6 @@ class ProgramConfig(models.Model):
             MinValueValidator(0),
             MaxValueValidator(settings.RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX),
         ],
-    )
-    worker_cpu = models.IntegerField(
-        null=True, validators=[MinValueValidator(0), MaxValueValidator(5)]
-    )
-    worker_mem = models.IntegerField(
-        null=True, validators=[MinValueValidator(0), MaxValueValidator(5)]
     )
 
     def __str__(self):
@@ -78,13 +72,6 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
-    config = models.ForeignKey(
-        to=ProgramConfig,
-        on_delete=models.CASCADE,
-        default=None,
-        null=True,
-        blank=True,
-    )
 
     def __str__(self):
         return f"{self.title}"
@@ -158,6 +145,14 @@ class Job(models.Model):
     logs = models.TextField(default="No logs yet.")
 
     version = IntegerVersionField()
+
+    config = models.ForeignKey(
+        to=JobConfig,
+        on_delete=models.CASCADE,
+        default=None,
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         return f"<Job {self.pk} | {self.status}>"

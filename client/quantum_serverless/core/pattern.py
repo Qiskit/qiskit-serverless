@@ -84,25 +84,6 @@ class QiskitPattern:  # pylint: disable=too-many-instance-attributes
         return self.__str__()
 
 
-@dataclass
-class Configuration:  # pylint: disable=too-many-instance-attributes
-    """Program Configuration.
-
-    Args:
-        workers: number of worker pod when auto scaling is NOT enabled
-        auto_scaling: set True to enable auto scating of the workers
-        min_workers: minimum number of workers when auto scaling is enabled
-        max_workers: maxmum number of workers when auto scaling is enabled
-    """
-
-    workers: Optional[int] = None
-    min_workers: Optional[int] = None
-    max_workers: Optional[int] = None
-    auto_scaling: Optional[bool] = False
-    worker_cpu: Optional[int] = None
-    worker_mem: Optional[int] = None
-
-
 class ProgramStorage(ABC):
     """Base program backend to save and load programs from."""
 

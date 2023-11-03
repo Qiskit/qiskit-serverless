@@ -37,7 +37,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 from uuid import uuid4
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 
 import subprocess
 from subprocess import Popen
@@ -61,7 +61,7 @@ from quantum_serverless.core.constants import (
     ENV_JOB_ARGUMENTS,
 )
 
-from quantum_serverless.core.pattern import QiskitPattern, Configuration
+from quantum_serverless.core.pattern import QiskitPattern
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
@@ -70,6 +70,23 @@ from quantum_serverless.serializers.program_serializers import (
 from quantum_serverless.utils.json import is_jsonable, safe_json_request
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
+
+
+@dataclass
+class Configuration:  # pylint: disable=too-many-instance-attributes
+    """Program Configuration.
+
+    Args:
+        workers: number of worker pod when auto scaling is NOT enabled
+        auto_scaling: set True to enable auto scating of the workers
+        min_workers: minimum number of workers when auto scaling is enabled
+        max_workers: maxmum number of workers when auto scaling is enabled
+    """
+
+    workers: Optional[int] = None
+    min_workers: Optional[int] = None
+    max_workers: Optional[int] = None
+    auto_scaling: Optional[bool] = False
 
 
 class BaseJobClient:

@@ -71,13 +71,13 @@ from .job import (
     LocalJobClient,
     Job,
     save_result,
+    Configuration,
 )
 from .pattern import (
     QiskitPattern,
     ProgramStorage,
     ProgramRepository,
     download_and_unpack_artifact,
-    Configuration,
 )
 from .decorators import (
     remote,

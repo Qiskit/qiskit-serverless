@@ -14,7 +14,7 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
-from api.models import Job, Program, ComputeResource, ProgramConfig
+from api.models import Job, Program, ComputeResource, JobConfig
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
 from main import settings as config
 
@@ -23,40 +23,34 @@ User: Model = get_user_model()
 logger = logging.getLogger("commands")
 
 
-def save_programconfig(request) -> ProgramConfig:
-    """Save programconfig.
+def save_jobconfig(request) -> JobConfig:
+    """Save jobconfig.
 
     Args:
         request: request data.
 
     Returns:
-        saved programconfig
+        saved jobconfig
     """
-    programconfig = ProgramConfig(
+    jobconfig = JobConfig(
         workers=settings.RAY_CLUSTER_WORKER_REPLICAS,
         min_workers=settings.RAY_CLUSTER_WORKER_MIN_REPLICAS,
         max_workers=settings.RAY_CLUSTER_WORKER_MAX_REPLICAS,
-        worker_cpu=2,
-        worker_mem=3,
         auto_scaling=settings.RAY_CLUSTER_WORKER_AUTO_SCALING,
     )
     if request.data.get("config"):
         config_data = json.loads(request.data.get("config"))
         if "workers" in config_data and config_data["workers"]:
-            programconfig.workers = config_data["workers"]
+            jobconfig.workers = config_data["workers"]
         if "min_workers" in config_data and config_data["min_workers"]:
-            programconfig.min_workers = config_data["min_workers"]
+            jobconfig.min_workers = config_data["min_workers"]
         if "max_workers" in config_data and config_data["max_workers"]:
-            programconfig.max_workers = config_data["max_workers"]
-        if "worker_cpu" in config_data and config_data["worker_cpu"]:
-            programconfig.worker_cpu = config_data["worker_cpu"]
-        if "worker_mem" in config_data and config_data["worker_mem"]:
-            programconfig.worker_mem = config_data["worker_mem"]
+            jobconfig.max_workers = config_data["max_workers"]
         if "auto_scaling" in config_data and config_data["auto_scaling"]:
-            programconfig.auto_scaling = config_data["auto_scaling"]
-    programconfig.full_clean()
-    programconfig.save()
-    return programconfig
+            jobconfig.auto_scaling = config_data["auto_scaling"]
+    jobconfig.full_clean()
+    jobconfig.save()
+    return jobconfig
 
 
 def save_program(serializer, request) -> Program:
@@ -68,8 +62,6 @@ def save_program(serializer, request) -> Program:
     Returns:
         saved program
     """
-
-    programconfig = save_programconfig(request)
 
     existing_program = (
         Program.objects.filter(title=serializer.data.get("title"), author=request.user)
@@ -87,7 +79,6 @@ def save_program(serializer, request) -> Program:
         program = Program(**serializer.data)
     program.artifact = request.FILES.get("artifact")
     program.author = request.user
-    program.config = programconfig
     program.save()
     return program
 
@@ -140,7 +131,7 @@ def execute_job(job: Job) -> Job:
                 job.logs = "Compute resource was not found."
         else:
             compute_resource = create_ray_cluster(
-                job.author, cluster_name=cluster_name, program_config=job.program.config
+                job.author, cluster_name=cluster_name, job_config=job.config
             )
             if compute_resource:
                 # if compute resource was created in time with no problems

@@ -54,8 +54,9 @@ from quantum_serverless.core.job import (
     GatewayJobClient,
     LocalJobClient,
     BaseJobClient,
+    Configuration,
 )
-from quantum_serverless.core.pattern import QiskitPattern, Configuration
+from quantum_serverless.core.pattern import QiskitPattern
 from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable

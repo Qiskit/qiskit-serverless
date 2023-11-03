@@ -5,18 +5,16 @@ Serializers api for V1.
 from api import serializers
 
 
-class ProgramConfigSerializer(serializers.ProgramSerializer):
+class JobConfigSerializer(serializers.JobConfigSerializer):
     """
-    Program Config serializer first version. Include basic fields from the initial model.
+    Job Config serializer first version. Include basic fields from the initial model.
     """
 
-    class Meta(serializers.ProgramConfigSerializer.Meta):
+    class Meta(serializers.JobConfigSerializer.Meta):
         fields = [
             "workers",
             "min_workers",
             "max_workers",
-            "worker_cpu",
-            "worker_mem",
             "auto_scaling",
         ]
 

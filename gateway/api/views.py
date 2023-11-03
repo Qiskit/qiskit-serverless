@@ -37,7 +37,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from .models import Program, Job
 from .ray import get_job_handler
-from .schedule import save_program, save_programconfig
+from .schedule import save_program, save_jobconfig
 from .serializers import JobSerializer, ExistingProgramSerializer
 from .utils import build_env_variables, encrypt_env_vars
 
@@ -116,15 +116,17 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            programconfig = save_programconfig(request)
-            program.config = programconfig
-            program.save()
+            try:
+                jobconfig = save_jobconfig(request)
+            except ValidationError as exp:
+                return HttpResponseBadRequest(f"Bad Request: {exp}")
 
             job = Job(
                 program=program,
                 arguments=serializer.data.get("arguments"),
                 author=request.user,
                 status=Job.QUEUED,
+                config=jobconfig,
             )
             job.save()
 
@@ -156,14 +158,17 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             try:
-                program = save_program(serializer=serializer, request=request)
+                jobconfig = save_jobconfig(request)
             except ValidationError as exp:
                 return HttpResponseBadRequest(f"Bad Request: {exp}")
+            program = save_program(serializer=serializer, request=request)
+
             job = Job(
                 program=program,
                 arguments=program.arguments,
                 author=request.user,
                 status=Job.QUEUED,
+                config=jobconfig,
             )
             job.save()
 
