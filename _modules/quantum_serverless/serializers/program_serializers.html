@@ -325,7 +325,7 @@
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span>
-
+<span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">SamplerResult</span><span class="p">,</span> <span class="n">EstimatorResult</span>
 <span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
 <span class="kn">from</span> <span class="nn">qiskit_ibm_runtime.utils.json</span> <span class="kn">import</span> <span class="n">RuntimeDecoder</span><span class="p">,</span> <span class="n">RuntimeEncoder</span>
 
@@ -341,6 +341,16 @@
                 <span class="s2">&quot;__type__&quot;</span><span class="p">:</span> <span class="s2">&quot;QiskitRuntimeService&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;__value__&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">active_account</span><span class="p">(),</span>
             <span class="p">}</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">SamplerResult</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;__type__&quot;</span><span class="p">:</span> <span class="s2">&quot;SamplerResult&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;__value__&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;quasi_dists&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">quasi_dists</span><span class="p">,</span> <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">metadata</span><span class="p">},</span>
+            <span class="p">}</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">EstimatorResult</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;__type__&quot;</span><span class="p">:</span> <span class="s2">&quot;EstimatorResult&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;__value__&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;values&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">metadata</span><span class="p">},</span>
+            <span class="p">}</span>
         <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
 
 
@@ -353,6 +363,10 @@
 
             <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">&quot;QiskitRuntimeService&quot;</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="o">**</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__value__&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">&quot;SamplerResult&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">SamplerResult</span><span class="p">(</span><span class="o">**</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__value__&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">obj_type</span> <span class="o">==</span> <span class="s2">&quot;EstimatorResult&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">EstimatorResult</span><span class="p">(</span><span class="o">**</span><span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__value__&quot;</span><span class="p">])</span>
             <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">object_hook</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span>
 
