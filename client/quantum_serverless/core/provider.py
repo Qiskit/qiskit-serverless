@@ -620,6 +620,7 @@ class LocalProvider(BaseProvider):
         self,
         program: Union[QiskitPattern, str],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> Job:
         if isinstance(program, QiskitPattern) and program.entrypoint is not None:
             job = self.client.run(program, arguments)

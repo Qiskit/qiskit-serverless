@@ -109,6 +109,7 @@ class BaseJobClient:
         self,
         program: Union[str, QiskitPattern],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ):
         """Executes existing program."""
         raise NotImplementedError
@@ -208,6 +209,7 @@ class RayJobClient(BaseJobClient):
         self,
         program: Union[str, QiskitPattern],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ):
         raise NotImplementedError("Run existing is not available for RayJobClient.")
 
@@ -242,7 +244,12 @@ class LocalJobClient(BaseJobClient):
     def list(self, **kwargs) -> List["Job"]:
         return [job["job"] for job in list(self._jobs.values())]
 
-    def run(self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None):
+    def run(
+        self,
+        program: QiskitPattern,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
+    ):
         if program.dependencies:
             for dependency in program.dependencies:
                 subprocess.check_call(
@@ -294,10 +301,11 @@ class LocalJobClient(BaseJobClient):
         }
         return program.title
 
-    def run_existing(
+    def run_existing(  # pylint: disable=too-many-locals
         self,
         program: Union[str, QiskitPattern],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ):
         if isinstance(program, QiskitPattern):
             title = program.title
