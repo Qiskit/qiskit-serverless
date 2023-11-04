@@ -45,6 +45,7 @@ class Migration(migrations.Migration):
                         null=True,
                     ),
                 ),
+                ("python_version", models.TextField(blank=True, null=True)),
             ],
         ),
         migrations.AddField(

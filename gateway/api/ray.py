@@ -188,11 +188,18 @@ def create_ray_cluster(
         if not job_config.auto_scaling:
             job_config.auto_scaling = settings.RAY_CLUSTER_WORKER_AUTO_SCALING
 
+        py_version = job_config.python_version
+        node_image = (
+            settings.RAY_NODE_IMAGE[: settings.RAY_NODE_IMAGE.rindex("-")]
+            + "-"
+            + py_version
+        )
         cluster = get_template("rayclustertemplate.yaml")
         manifest = cluster.render(
             {
                 "cluster_name": cluster_name,
                 "user_id": user.username,
+                "node_image": node_image,
                 "workers": job_config.workers,
                 "min_workers": job_config.min_workers,
                 "max_workers": job_config.max_workers,

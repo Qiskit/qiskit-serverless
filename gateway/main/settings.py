@@ -300,6 +300,10 @@ RAY_CLUSTER_MODE = {
         "RAY_CLUSTER_MODE_LOCAL_HOST", "http://localhost:8265"
     ),
 }
+RAY_NODE_IMAGE = os.environ.get(
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.6.6-py39"
+)
+RAY_PYTHON_VERSION = RAY_NODE_IMAGE[RAY_NODE_IMAGE.rindex("-") + 1 :]
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
     os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5")

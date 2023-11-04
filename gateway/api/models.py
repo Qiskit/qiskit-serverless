@@ -31,6 +31,7 @@ class JobConfig(models.Model):
     max_workers = models.IntegerField(
         null=True,
     )
+    python_version = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return self.id
