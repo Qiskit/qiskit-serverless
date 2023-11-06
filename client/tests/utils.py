@@ -18,6 +18,6 @@ def wait_for_job_completion(job: Job, timeout: int = 60):
     """Utility function that waits for job completion."""
     must_finish = time.time() + timeout
     while time.time() < must_finish:
-        if job.in_terminal_state():
+        if job.status().is_terminal():
             break
         time.sleep(1)

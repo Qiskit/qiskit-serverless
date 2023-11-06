@@ -106,7 +106,7 @@ Full docs can be found at https://qiskit-extensions.github.io/quantum-serverless
 
 ```python
    job.status()
-   # 'DONE'
+   # <JobStatus.SUCCEEDED: 'SUCCEEDED'>
     
    # or get logs
    job.logs()

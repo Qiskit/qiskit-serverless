@@ -84,7 +84,7 @@ For user convenience, this section assumes that users will deploy the infrastruc
 
    ```
    job.status()
-   # 'DONE'
+   # <JobStatus.SUCCEEDED: 'SUCCEEDED'>
    
    job.logs()
    # 2023-09-21 03:48:40,286\tINFO worker.py:1329 -- Using address 172.18.0.4:6379 set in the environment variable RAY_ADDRESS\n2023-09-21 03:48:40,286\tINFO worker.py:1458 -- Connecting to existing Ray cluster at address: 172.18.0.4:6379...\n2023-09-21 03:48:40,295\tINFO worker.py:1633 -- Connected to Ray cluster. View the dashboard at \x1b[1m\x1b[32m172.18.0.4:8265 \x1b[39m\x1b[22m\n

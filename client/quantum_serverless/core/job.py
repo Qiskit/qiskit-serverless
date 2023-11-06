@@ -132,7 +132,7 @@ class RayJobClient(BaseJobClient):
         self._job_client = client
 
     def status(self, job_id: str):
-        return self._job_client.get_job_status(job_id).value
+        return self._job_client.get_job_status(job_id)
 
     def stop(self, job_id: str):
         return self._job_client.stop_job(job_id)
@@ -611,7 +611,7 @@ class Job:
 
     def status(self):
         """Returns status of the job."""
-        return _map_status_to_serverless(self._job_client.status(self.job_id))
+        return self._job_client.status(self.job_id)
 
     def stop(self):
         """Stops the job from running."""
@@ -634,7 +634,7 @@ class Job:
         if wait:
             if verbose:
                 logging.info("Waiting for job result.")
-            while not self.in_terminal_state():
+            while not self._in_terminal_state():
                 time.sleep(cadence)
                 if verbose:
                     logging.info(".")
@@ -649,9 +649,9 @@ class Job:
 
         return results
 
-    def in_terminal_state(self) -> bool:
+    def _in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
-        terminal_states = ["CANCELED", "DONE", "ERROR"]
+        terminal_states = ["STOPPED", "SUCCEEDED", "FAILED"]
         return self.status() in terminal_states
 
     def __repr__(self):
@@ -723,20 +723,3 @@ def save_result(result: Dict[str, Any]):
         logging.warning("Something went wrong: %s", response.text)
 
     return response.ok
-
-
-def _map_status_to_serverless(status: str) -> str:
-    """Map a status string from job client to the Qiskit terminology."""
-    status_map = {
-        "PENDING": "INITIALIZING",
-        "RUNNING": "RUNNING",
-        "STOPPED": "CANCELED",
-        "SUCCEEDED": "DONE",
-        "FAILED": "ERROR",
-        "QUEUED": "QUEUED",
-    }
-
-    try:
-        return status_map[status]
-    except KeyError:
-        return status
