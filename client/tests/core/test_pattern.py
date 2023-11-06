@@ -1,7 +1,6 @@
 """Tests jobs."""
 import os
 
-from ray.dashboard.modules.job.common import JobStatus
 from testcontainers.compose import DockerCompose
 
 from quantum_serverless import QuantumServerless, BaseProvider
@@ -49,12 +48,12 @@ def test_program():
         wait_for_job_completion(job)
 
         assert "42" in job.logs()
-        assert job.status().is_terminal()
-        assert job.status() == JobStatus.SUCCEEDED
+        assert job.in_terminal_state()
+        assert job.status() == "DONE"
 
         recovered_job = serverless.get_job_by_id(job.job_id)
         assert recovered_job.job_id == job.job_id
         assert "42" in recovered_job.logs()
-        assert recovered_job.status().is_terminal()
-        assert recovered_job.status() == JobStatus.SUCCEEDED
+        assert recovered_job.in_terminal_state()
+        assert recovered_job.status() == "DONE"
         assert isinstance(job.stop(), bool)
