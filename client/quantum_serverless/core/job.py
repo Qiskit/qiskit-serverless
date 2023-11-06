@@ -738,5 +738,5 @@ def _map_status_to_serverless(status: str) -> str:
 
     try:
         return status_map[status]
-    except KeyError as exc:
+    except KeyError:
         print(f"{status}")
