@@ -777,3 +777,35 @@ def save_result(result: Dict[str, Any]):
         logging.warning("Something went wrong: %s", response.text)
 
     return response.ok
+
+
+def set_status(status: str):
+    """set job status."""
+
+    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
+    if version is None:
+        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+
+    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    if token is None:
+        logging.warning(
+            "Results will be saved as logs since"
+            "there is no information about the"
+            "authorization token in the environment."
+        )
+        return False
+
+    url = (
+        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
+        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/status/"
+    )
+    response = requests.post(
+        url,
+        data={"status": status},
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=REQUESTS_TIMEOUT,
+    )
+    if not response.ok:
+        logging.warning("Something went wrong: %s", response.text)
+
+    return response.ok

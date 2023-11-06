@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.generic import TemplateView
 from rest_framework import routers
+from .signals import save_job
 
 from api.views import KeycloakLogin, KeycloakUsersView
 import probes.views

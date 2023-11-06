@@ -71,6 +71,7 @@ from .job import (
     LocalJobClient,
     Job,
     save_result,
+    set_status,
     Configuration,
 )
 from .pattern import (

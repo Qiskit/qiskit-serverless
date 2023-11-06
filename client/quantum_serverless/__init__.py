@@ -36,6 +36,7 @@ from .core import (
     RayProvider,
     LocalProvider,
     save_result,
+    set_status,
     Configuration,
 )
 from .quantum_serverless import (

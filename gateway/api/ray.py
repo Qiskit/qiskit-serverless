@@ -78,7 +78,8 @@ class JobHandler:
                 )
                 file.extractall(extract_folder)
 
-            entrypoint = f"python {program.entrypoint}"
+            #entrypoint = f"python {program.entrypoint}"
+            entrypoint = f"python launcher.py {program.entrypoint}"
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
             env_w_span = json.loads(job.env_vars)
@@ -86,6 +87,31 @@ class JobHandler:
                 env_w_span["OT_TRACEPARENT_ID_KEY"] = carrier["traceparent"]
             except KeyError:
                 pass
+
+            f = open(extract_folder + "/launcher.py", "w")
+            f.write(
+                '''
+import subprocess
+from subprocess import Popen
+import sys
+from quantum_serverless import set_status
+
+with Popen(
+    ["python", sys.argv[1]],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    universal_newlines=True,
+) as pipe:
+    status = "SUCCEEDED"
+    if pipe.wait():
+        status = "FAILED"
+    output, _ = pipe.communicate()
+    print(output)
+    set_status(status)
+                '''
+            )
+            f.close()
+            ff = open(extract_folder + "/launcher.py" , "r")
 
             ray_job_id = retry_function(
                 callback=lambda: self.client.submit_job(
@@ -99,7 +125,6 @@ class JobHandler:
                 num_retries=settings.RAY_SETUP_MAX_RETRIES,
                 error_message=f"Ray job [{job.id}] submission failed.",
             )
-
             if os.path.exists(extract_folder):
                 shutil.rmtree(extract_folder)
             span.set_attribute("job.rayjobid", job.ray_job_id)
