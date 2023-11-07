@@ -71,7 +71,7 @@ For user convenience, this section assumes that users will deploy the infrastruc
       
 1. Access the JupyterLab environment
    Open `localhost:8888` in your web browser. The default token for the JupyterLab is `123`
-1. Write your first example Qiskit pattern.
+1. Write your first example Qiskit Pattern.
    In the JupyterLab, create a new file, `pattern.py`, in the `work` directory. You can include any arbitrary Python code in your program, or you can use the
    [example Python file in this tutorial](https://github.com/caleb-johnson/quantum-serverless/blob/main/docs/getting_started/basic/01_running_program.ipynb).
 
