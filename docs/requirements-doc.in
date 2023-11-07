@@ -1,4 +1,4 @@
-pip install -r ../client/requirements.in
+-r ../client/requirements.in
 coverage
 pylint
 nbqa
