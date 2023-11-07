@@ -130,7 +130,7 @@ instead of forking it.
 
 This repository contains several projects with different technologies. Depending on the project that you selected
 you will run:
-- `pip install -r requirements.txt requirements-dev.txt` for python projects (strongly consider using a [virtual environment](https://docs.python.org/3/library/venv.html)!).
+- `pip install -r requirements-dev.txt` for python projects (strongly consider using a [virtual environment](https://docs.python.org/3/library/venv.html)!).
 - `helm dependency build` for helm.
 -  `terraform init` for terraform.
 

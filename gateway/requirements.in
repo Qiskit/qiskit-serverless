@@ -1,0 +1,17 @@
+django-filter
+djangorestframework
+Markdown
+django-allauth==0.54.0
+django-allow-cidr
+dj-rest-auth==4.0.1
+djangorestframework-simplejwt
+django_prometheus
+ray[default]
+Django
+gunicorn
+requests
+psycopg2-binary
+kubernetes
+opentelemetry-distro
+opentelemetry-exporter-otlp
+django-concurrency

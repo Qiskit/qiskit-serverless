@@ -1,20 +1,12 @@
 -r requirements.in
-coverage
 pylint
-nbqa
-treon
 pytest
-pytest-randomly
-mypy
-mypy-extensions
-jupyter-sphinx
-nbsphinx
-sphinx-autodoc-typehints
-reno
+pylint-django
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
-black[jupyter]
+black
 requests-mock
-testcontainers
+coverage
+responses
 tox
 pip-tools

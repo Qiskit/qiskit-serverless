@@ -4,6 +4,22 @@
 #
 #    pip-compile requirements-dev.in
 #
+aiobotocore==2.7.0
+    # via s3fs
+aiohttp==3.8.6
+    # via
+    #   aiobotocore
+    #   aiohttp-cors
+    #   ray
+    #   s3fs
+aiohttp-cors==0.7.0
+    # via ray
+aioitertools==0.11.0
+    # via aiobotocore
+aiosignal==1.3.1
+    # via
+    #   aiohttp
+    #   ray
 alabaster==0.7.13
     # via sphinx
 anyio==4.0.0
@@ -24,8 +40,11 @@ asttokens==2.4.1
     # via stack-data
 async-lru==2.0.4
     # via jupyterlab
+async-timeout==4.0.3
+    # via aiohttp
 attrs==23.1.0
     # via
+    #   aiohttp
     #   jsonschema
     #   referencing
 autopep8==2.0.4
@@ -34,44 +53,72 @@ babel==2.13.1
     # via
     #   jupyterlab-server
     #   sphinx
+backoff==2.2.1
+    # via
+    #   opentelemetry-exporter-otlp-proto-common
+    #   opentelemetry-exporter-otlp-proto-grpc
 beautifulsoup4==4.12.2
     # via nbconvert
-black[jupyter]==22.12.0
-    # via
-    #   -r requirements-dev.in
-    #   black
+black[jupyter]==23.10.1
+    # via -r requirements-dev.in
 bleach==6.1.0
     # via nbconvert
+blessed==1.20.0
+    # via gpustat
+botocore==1.31.64
+    # via aiobotocore
 cachetools==5.3.2
-    # via tox
+    # via
+    #   google-auth
+    #   tox
 certifi==2023.7.22
     # via requests
 cffi==1.16.0
-    # via argon2-cffi-bindings
+    # via
+    #   argon2-cffi-bindings
+    #   cryptography
 chardet==5.2.0
     # via tox
 charset-normalizer==3.3.2
-    # via requests
+    # via
+    #   aiohttp
+    #   requests
 click==8.1.7
-    # via black
+    # via
+    #   black
+    #   ray
+cloudpickle==3.0.0
+    # via -r requirements.in
 colorama==0.4.6
     # via tox
+colorful==0.5.5
+    # via ray
 comm==0.2.0
     # via
     #   ipykernel
     #   ipywidgets
 coverage==7.3.2
     # via -r requirements-dev.in
+cryptography==41.0.5
+    # via
+    #   pyspnego
+    #   requests-ntlm
 debugpy==1.8.0
     # via ipykernel
 decorator==5.1.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
+deprecated==1.2.14
+    # via
+    #   opentelemetry-api
+    #   opentelemetry-exporter-otlp-proto-grpc
 deprecation==2.1.0
     # via testcontainers
 dill==0.3.7
-    # via pylint
+    # via
+    #   pylint
+    #   qiskit-terra
 distlib==0.3.7
     # via virtualenv
 docker==6.1.3
@@ -95,17 +142,50 @@ fastjsonschema==2.18.1
     # via nbformat
 filelock==3.13.1
     # via
+    #   ray
     #   tox
     #   virtualenv
 fqdn==1.5.1
     # via jsonschema
+frozenlist==1.4.0
+    # via
+    #   aiohttp
+    #   aiosignal
+    #   ray
+fsspec==2023.10.0
+    # via
+    #   ray
+    #   s3fs
+google-api-core==2.13.0
+    # via opencensus
+google-auth==2.23.4
+    # via google-api-core
+googleapis-common-protos==1.61.0
+    # via
+    #   google-api-core
+    #   opentelemetry-exporter-otlp-proto-grpc
+gpustat==1.1.1
+    # via ray
+grpcio==1.59.2
+    # via
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   ray
+ibm-cloud-sdk-core==3.17.3
+    # via ibm-platform-services
+ibm-platform-services==0.46.1
+    # via qiskit-ibm-runtime
 idna==3.4
     # via
     #   anyio
     #   jsonschema
     #   requests
+    #   yarl
 imagesize==1.4.1
     # via sphinx
+importlib-metadata==6.8.0
+    # via
+    #   -r requirements.in
+    #   opentelemetry-api
 iniconfig==2.0.0
     # via pytest
 ipykernel==6.26.0
@@ -124,6 +204,7 @@ ipython==8.17.2
     #   nbqa
 ipywidgets==8.1.1
     # via
+    #   -r requirements.in
     #   jupyter
     #   jupyter-sphinx
 isoduration==20.11.0
@@ -140,6 +221,8 @@ jinja2==3.1.2
     #   nbconvert
     #   nbsphinx
     #   sphinx
+jmespath==1.0.1
+    # via botocore
 json5==0.9.14
     # via jupyterlab-server
 jsonpointer==2.4
@@ -149,6 +232,7 @@ jsonschema[format-nongpl]==4.19.2
     #   jupyter-events
     #   jupyterlab-server
     #   nbformat
+    #   ray
 jsonschema-specifications==2023.7.1
     # via jsonschema
 jupyter==1.0.0
@@ -211,6 +295,14 @@ mccabe==0.7.0
     # via pylint
 mistune==3.0.2
     # via nbconvert
+mpmath==1.3.0
+    # via sympy
+msgpack==1.0.7
+    # via ray
+multidict==6.0.4
+    # via
+    #   aiohttp
+    #   yarl
 mypy==1.6.1
     # via -r requirements-dev.in
 mypy-extensions==1.0.0
@@ -218,7 +310,7 @@ mypy-extensions==1.0.0
     #   -r requirements-dev.in
     #   black
     #   mypy
-nbclient==0.8.0
+nbclient==0.9.0
     # via nbconvert
 nbconvert==7.11.0
     # via
@@ -246,10 +338,56 @@ notebook-shim==0.2.3
     # via
     #   jupyterlab
     #   notebook
+numpy==1.26.1
+    # via
+    #   pandas
+    #   pyarrow
+    #   qiskit-ibm-provider
+    #   qiskit-ibm-runtime
+    #   qiskit-terra
+    #   ray
+    #   rustworkx
+    #   scipy
+nvidia-ml-py==12.535.133
+    # via gpustat
+opencensus==0.11.3
+    # via ray
+opencensus-context==0.1.3
+    # via opencensus
+opentelemetry-api==1.20.0
+    # via
+    #   -r requirements.in
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-instrumentation
+    #   opentelemetry-instrumentation-requests
+    #   opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-common==1.20.0
+    # via opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-otlp-proto-grpc==1.20.0
+    # via -r requirements.in
+opentelemetry-instrumentation==0.41b0
+    # via opentelemetry-instrumentation-requests
+opentelemetry-instrumentation-requests==0.41b0
+    # via -r requirements.in
+opentelemetry-proto==1.20.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-common
+    #   opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-sdk==1.20.0
+    # via
+    #   -r requirements.in
+    #   opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-semantic-conventions==0.41b0
+    # via
+    #   opentelemetry-instrumentation-requests
+    #   opentelemetry-sdk
+opentelemetry-util-http==0.41b0
+    # via opentelemetry-instrumentation-requests
 overrides==7.4.0
     # via jupyter-server
 packaging==23.2
     # via
+    #   black
     #   deprecation
     #   docker
     #   ipykernel
@@ -261,17 +399,22 @@ packaging==23.2
     #   pytest
     #   qtconsole
     #   qtpy
+    #   ray
     #   reno
     #   sphinx
     #   tox
+pandas==2.1.2
+    # via ray
 pandocfilters==1.5.0
     # via nbconvert
 parso==0.8.3
     # via jedi
 pathspec==0.11.2
     # via black
-pbr==5.11.1
-    # via reno
+pbr==6.0.0
+    # via
+    #   reno
+    #   stevedore
 pexpect==4.8.0
     # via ipython
 platformdirs==3.11.0
@@ -285,24 +428,51 @@ pluggy==1.3.0
     # via
     #   pytest
     #   tox
+ply==3.11
+    # via qiskit-terra
 prometheus-client==0.18.0
-    # via jupyter-server
+    # via
+    #   jupyter-server
+    #   ray
 prompt-toolkit==3.0.39
     # via
     #   ipython
     #   jupyter-console
+protobuf==4.25.0
+    # via
+    #   google-api-core
+    #   googleapis-common-protos
+    #   opentelemetry-proto
+    #   ray
 psutil==5.9.6
-    # via ipykernel
+    # via
+    #   gpustat
+    #   ipykernel
+    #   qiskit-terra
 ptyprocess==0.7.0
     # via
     #   pexpect
     #   terminado
 pure-eval==0.2.2
     # via stack-data
+py-spy==0.3.14
+    # via ray
+pyarrow==14.0.0
+    # via ray
+pyasn1==0.5.0
+    # via
+    #   pyasn1-modules
+    #   rsa
+pyasn1-modules==0.3.0
+    # via google-auth
 pycodestyle==2.11.1
     # via autopep8
 pycparser==2.21
     # via cffi
+pydantic==1.10.13
+    # via
+    #   -r requirements.in
+    #   ray
 pygments==2.16.1
     # via
     #   ipython
@@ -310,10 +480,14 @@ pygments==2.16.1
     #   nbconvert
     #   qtconsole
     #   sphinx
+pyjwt==2.8.0
+    # via ibm-cloud-sdk-core
 pylint==3.0.2
     # via -r requirements-dev.in
-pyproject-api==1.6.1
+pyproject-api==1.5.4
     # via tox
+pyspnego==0.10.2
+    # via requests-ntlm
 pytest==7.4.3
     # via
     #   -r requirements-dev.in
@@ -323,12 +497,21 @@ pytest-randomly==3.15.0
 python-dateutil==2.8.2
     # via
     #   arrow
+    #   botocore
+    #   ibm-cloud-sdk-core
     #   jupyter-client
+    #   pandas
+    #   qiskit-ibm-provider
+    #   qiskit-ibm-runtime
+    #   qiskit-terra
 python-json-logger==2.0.7
     # via jupyter-events
+pytz==2023.3.post1
+    # via pandas
 pyyaml==6.0.1
     # via
     #   jupyter-events
+    #   ray
     #   reno
 pyzmq==25.1.1
     # via
@@ -337,10 +520,25 @@ pyzmq==25.1.1
     #   jupyter-console
     #   jupyter-server
     #   qtconsole
+qiskit==0.45.0
+    # via
+    #   -r requirements.in
+    #   qiskit-ibm-provider
+    #   qiskit-ibm-runtime
+qiskit-ibm-provider==0.7.2
+    # via qiskit-ibm-runtime
+qiskit-ibm-runtime==0.14.0
+    # via -r requirements.in
+qiskit-terra==0.45.0
+    # via qiskit
 qtconsole==5.5.0
     # via jupyter
 qtpy==2.4.1
     # via qtconsole
+ray[data,default]==2.8.0
+    # via
+    #   -r requirements.in
+    #   ray
 referencing==0.30.2
     # via
     #   jsonschema
@@ -350,12 +548,23 @@ reno==4.0.0
     # via -r requirements-dev.in
 requests==2.31.0
     # via
+    #   -r requirements.in
     #   docker
+    #   google-api-core
+    #   ibm-cloud-sdk-core
     #   jupyterlab-server
+    #   qiskit-ibm-provider
+    #   qiskit-ibm-runtime
+    #   ray
     #   requests-mock
+    #   requests-ntlm
     #   sphinx
 requests-mock==1.11.0
     # via -r requirements-dev.in
+requests-ntlm==1.2.0
+    # via
+    #   qiskit-ibm-provider
+    #   qiskit-ibm-runtime
 rfc3339-validator==0.1.4
     # via
     #   jsonschema
@@ -368,15 +577,26 @@ rpds-py==0.12.0
     # via
     #   jsonschema
     #   referencing
+rsa==4.9
+    # via google-auth
+rustworkx==0.13.2
+    # via qiskit-terra
+s3fs==2023.10.0
+    # via -r requirements.in
+scipy==1.11.3
+    # via qiskit-terra
 send2trash==1.8.2
     # via jupyter-server
 six==1.16.0
     # via
     #   asttokens
     #   bleach
+    #   blessed
     #   python-dateutil
     #   requests-mock
     #   rfc3339-validator
+smart-open==6.4.0
+    # via ray
 sniffio==1.3.0
     # via anyio
 snowballstemmer==2.2.0
@@ -409,6 +629,12 @@ sphinxcontrib-serializinghtml==1.1.9
     # via sphinx
 stack-data==0.6.3
     # via ipython
+stevedore==5.1.0
+    # via qiskit-terra
+symengine==0.9.2
+    # via qiskit-terra
+sympy==1.12
+    # via qiskit-terra
 terminado==0.17.1
     # via
     #   jupyter-server
@@ -442,8 +668,10 @@ tornado==6.3.3
     #   jupyterlab
     #   notebook
     #   terminado
-tox==4.11.3
+tox==4.5.1.1
     # via -r requirements-dev.in
+tqdm==4.66.1
+    # via -r requirements.in
 traitlets==5.13.0
     # via
     #   comm
@@ -470,18 +698,34 @@ typing-extensions==4.8.0
     # via
     #   astroid
     #   async-lru
+    #   black
     #   mypy
+    #   opentelemetry-sdk
+    #   pydantic
+    #   pydantic-core
+    #   qiskit-ibm-provider
+    #   qiskit-terra
+tzdata==2023.3
+    # via pandas
 uri-template==1.3.0
     # via jsonschema
-urllib3==2.0.7
+urllib3==1.26.18
     # via
+    #   botocore
     #   docker
     #   dulwich
+    #   ibm-cloud-sdk-core
+    #   qiskit-ibm-provider
+    #   qiskit-ibm-runtime
     #   requests
-virtualenv==20.24.6
-    # via tox
+virtualenv==20.21.0
+    # via
+    #   ray
+    #   tox
 wcwidth==0.2.9
-    # via prompt-toolkit
+    # via
+    #   blessed
+    #   prompt-toolkit
 webcolors==1.13
     # via jsonschema
 webencodings==0.5.1
@@ -492,7 +736,22 @@ websocket-client==1.6.4
     # via
     #   docker
     #   jupyter-server
+    #   qiskit-ibm-provider
+    #   qiskit-ibm-runtime
+websockets==12.0
+    # via qiskit-ibm-provider
 widgetsnbextension==4.0.9
     # via ipywidgets
 wrapt==1.15.0
-    # via testcontainers
+    # via
+    #   aiobotocore
+    #   deprecated
+    #   opentelemetry-instrumentation
+    #   testcontainers
+yarl==1.9.2
+    # via aiohttp
+zipp==3.17.0
+    # via importlib-metadata
+
+# The following packages are considered to be unsafe in a requirements file:
+# setuptools

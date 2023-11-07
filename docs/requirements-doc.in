@@ -1,4 +1,3 @@
--r requirements.in
 coverage
 pylint
 nbqa
@@ -10,11 +9,11 @@ mypy-extensions
 jupyter-sphinx
 nbsphinx
 sphinx-autodoc-typehints
+Sphinx<7.2
 reno
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
 black[jupyter]
-requests-mock
-testcontainers
+sphinx-copybutton
+qiskit-sphinx-theme
 tox
-pip-tools

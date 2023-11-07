@@ -19,7 +19,7 @@ It manages the access to resources like: programs.
 ### Installation
 
 ```shell
-pip install -U -r requirements.txt -r requirements-dev.txt
+pip install -U -r requirements-dev.txt
 ```
 
 ----------------------------------------------------------------------------------------------------

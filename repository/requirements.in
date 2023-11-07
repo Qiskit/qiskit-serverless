@@ -1,0 +1,14 @@
+asgiref
+Django
+django-allow-cidr
+django-filter
+django_prometheus
+djangorestframework
+importlib-metadata
+Markdown
+pytz
+sqlparse
+zipp
+drf-yasg
+gunicorn
+psycopg2-binary
