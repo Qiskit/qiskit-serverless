@@ -1,3 +1,4 @@
+pip install -r ../client/requirements.in
 coverage
 pylint
 nbqa
