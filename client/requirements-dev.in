@@ -11,8 +11,6 @@ jupyter-sphinx
 nbsphinx
 sphinx-autodoc-typehints
 reno
-# Black's formatting rules can change between major versions, so we use
-# the ~= specifier for it.
 black[jupyter]
 requests-mock
 testcontainers

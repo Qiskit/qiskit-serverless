@@ -12,8 +12,6 @@ nbsphinx
 sphinx-autodoc-typehints
 Sphinx<7.2
 reno
-# Black's formatting rules can change between major versions, so we use
-# the ~= specifier for it.
 black[jupyter]
 sphinx-copybutton
 qiskit-sphinx-theme
