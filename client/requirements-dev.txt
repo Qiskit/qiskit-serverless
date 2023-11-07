@@ -67,6 +67,8 @@ blessed==1.20.0
     # via gpustat
 botocore==1.31.64
     # via aiobotocore
+build==1.0.3
+    # via pip-tools
 cachetools==5.3.2
     # via
     #   google-auth
@@ -86,6 +88,7 @@ charset-normalizer==3.3.2
 click==8.1.7
     # via
     #   black
+    #   pip-tools
     #   ray
 cloudpickle==3.0.0
     # via -r requirements.in
@@ -388,6 +391,7 @@ overrides==7.4.0
 packaging==23.2
     # via
     #   black
+    #   build
     #   deprecation
     #   docker
     #   ipykernel
@@ -417,6 +421,8 @@ pbr==6.0.0
     #   stevedore
 pexpect==4.8.0
     # via ipython
+pip-tools==7.3.0
+    # via -r requirements-dev.in
 platformdirs==3.11.0
     # via
     #   black
@@ -486,6 +492,8 @@ pylint==3.0.2
     # via -r requirements-dev.in
 pyproject-api==1.5.4
     # via tox
+pyproject-hooks==1.0.0
+    # via build
 pyspnego==0.10.2
     # via requests-ntlm
 pytest==7.4.3
@@ -651,11 +659,14 @@ tomli==2.0.1
     # via
     #   autopep8
     #   black
+    #   build
     #   jupyterlab
     #   mypy
     #   nbqa
+    #   pip-tools
     #   pylint
     #   pyproject-api
+    #   pyproject-hooks
     #   pytest
     #   tox
 tomlkit==0.12.2
@@ -740,6 +751,8 @@ websocket-client==1.6.4
     #   qiskit-ibm-runtime
 websockets==12.0
     # via qiskit-ibm-provider
+wheel==0.41.3
+    # via pip-tools
 widgetsnbextension==4.0.9
     # via ipywidgets
 wrapt==1.15.0
@@ -754,4 +767,5 @@ zipp==3.17.0
     # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
+# pip
 # setuptools

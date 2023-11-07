@@ -12,12 +12,16 @@ astroid==3.0.1
     # via pylint
 black==23.10.1
     # via -r requirements-dev.in
+build==1.0.3
+    # via pip-tools
 cachetools==5.3.2
     # via tox
 chardet==5.2.0
     # via tox
 click==8.1.7
-    # via black
+    # via
+    #   black
+    #   pip-tools
 colorama==0.4.6
     # via tox
 dill==0.3.7
@@ -68,6 +72,7 @@ mypy-extensions==1.0.0
 packaging==23.2
     # via
     #   black
+    #   build
     #   django-allow-cidr
     #   drf-yasg
     #   gunicorn
@@ -76,6 +81,8 @@ packaging==23.2
     #   tox
 pathspec==0.11.2
     # via black
+pip-tools==7.3.0
+    # via -r requirements-dev.in
 platformdirs==3.11.0
     # via
     #   black
@@ -101,6 +108,8 @@ pylint-plugin-utils==0.8.2
     # via pylint-django
 pyproject-api==1.6.1
     # via tox
+pyproject-hooks==1.0.0
+    # via build
 pytest==7.4.3
     # via -r requirements-dev.in
 pytz==2023.3.post1
@@ -117,8 +126,11 @@ sqlparse==0.4.4
 tomli==2.0.1
     # via
     #   black
+    #   build
+    #   pip-tools
     #   pylint
     #   pyproject-api
+    #   pyproject-hooks
     #   pytest
     #   tox
 tomlkit==0.12.2
@@ -134,7 +146,13 @@ uritemplate==4.1.1
     # via drf-yasg
 virtualenv==20.24.6
     # via tox
+wheel==0.41.3
+    # via pip-tools
 zipp==3.17.0
     # via
     #   -r requirements.in
     #   importlib-metadata
+
+# The following packages are considered to be unsafe in a requirements file:
+# pip
+# setuptools

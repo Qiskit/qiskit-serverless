@@ -6,3 +6,4 @@ pylint-django
 # the ~= specifier for it.
 black
 tox
+pip-tools
