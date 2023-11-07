@@ -4,8 +4,6 @@ from concurrency.fields import IntegerVersionField
 
 from django.core.validators import (
     FileExtensionValidator,
-    MinValueValidator,
-    MaxValueValidator,
 )
 from django.db import models
 from django.conf import settings
@@ -26,24 +24,12 @@ class JobConfig(models.Model):
     auto_scaling = models.BooleanField(default=False, null=True)
     workers = models.IntegerField(
         null=True,
-        validators=[
-            MinValueValidator(0),
-            MaxValueValidator(settings.RAY_CLUSTER_WORKER_REPLICAS_MAX),
-        ],
     )
     min_workers = models.IntegerField(
         null=True,
-        validators=[
-            MinValueValidator(0),
-            MaxValueValidator(settings.RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX),
-        ],
     )
     max_workers = models.IntegerField(
         null=True,
-        validators=[
-            MinValueValidator(0),
-            MaxValueValidator(settings.RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX),
-        ],
     )
 
     def __str__(self):

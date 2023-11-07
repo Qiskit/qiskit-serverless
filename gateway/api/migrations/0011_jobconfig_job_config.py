@@ -31,30 +31,18 @@ class Migration(migrations.Migration):
                     "workers",
                     models.IntegerField(
                         null=True,
-                        validators=[
-                            django.core.validators.MinValueValidator(0),
-                            django.core.validators.MaxValueValidator(5),
-                        ],
                     ),
                 ),
                 (
                     "min_workers",
                     models.IntegerField(
                         null=True,
-                        validators=[
-                            django.core.validators.MinValueValidator(0),
-                            django.core.validators.MaxValueValidator(2),
-                        ],
                     ),
                 ),
                 (
                     "max_workers",
                     models.IntegerField(
                         null=True,
-                        validators=[
-                            django.core.validators.MinValueValidator(0),
-                            django.core.validators.MaxValueValidator(10),
-                        ],
                     ),
                 ),
             ],

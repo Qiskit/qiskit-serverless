@@ -6,8 +6,8 @@ Django Rest framework serializers for api application:
 Version serializers inherit from the different serializers.
 """
 
+from django.conf import settings
 from rest_framework import serializers
-
 from .models import Program, Job, JobConfig
 
 
@@ -18,6 +18,31 @@ class JobConfigSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = JobConfig
+        fields = [
+            "workers",
+            "min_workers",
+            "max_workers",
+            "auto_scaling",
+        ]
+
+    workers = serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    min_workers = serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    max_workers = serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    auto_scaling = serializers.BooleanField(
+        default=False, required=False, allow_null=True
+    )
 
 
 class ProgramSerializer(serializers.ModelSerializer):

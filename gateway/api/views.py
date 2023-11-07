@@ -20,8 +20,7 @@ from concurrency.exceptions import RecordModifiedError
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
-from django.http import StreamingHttpResponse, HttpResponseBadRequest
+from django.http import StreamingHttpResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
@@ -37,8 +36,8 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from .models import Program, Job
 from .ray import get_job_handler
-from .schedule import save_program, save_jobconfig
-from .serializers import JobSerializer, ExistingProgramSerializer
+from .schedule import save_program
+from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
 from .utils import build_env_variables, encrypt_env_vars
 
 logger = logging.getLogger("gateway")
@@ -116,10 +115,17 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            try:
-                jobconfig = save_jobconfig(request)
-            except ValidationError as exp:
-                return HttpResponseBadRequest(f"Bad Request: {exp}")
+            jobconfig = None
+            config_data = request.data.get("config")
+            if config_data:
+                config_serializer = JobConfigSerializer(data=json.loads(config_data))
+                if not config_serializer.is_valid():
+                    print(config_serializer.errors)
+                    return Response(
+                        config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                jobconfig = config_serializer.save()
 
             job = Job(
                 program=program,
@@ -157,10 +163,17 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            try:
-                jobconfig = save_jobconfig(request)
-            except ValidationError as exp:
-                return HttpResponseBadRequest(f"Bad Request: {exp}")
+            jobconfig = None
+            config_data = request.data.get("config")
+            if config_data:
+                config_serializer = JobConfigSerializer(data=json.loads(config_data))
+                if not config_serializer.is_valid():
+                    return Response(
+                        config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                jobconfig = config_serializer.save()
+
             program = save_program(serializer=serializer, request=request)
 
             job = Job(

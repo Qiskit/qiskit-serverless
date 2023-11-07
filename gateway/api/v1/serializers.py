@@ -5,20 +5,6 @@ Serializers api for V1.
 from api import serializers
 
 
-class JobConfigSerializer(serializers.JobConfigSerializer):
-    """
-    Job Config serializer first version. Include basic fields from the initial model.
-    """
-
-    class Meta(serializers.JobConfigSerializer.Meta):
-        fields = [
-            "workers",
-            "min_workers",
-            "max_workers",
-            "auto_scaling",
-        ]
-
-
 class ProgramSerializer(serializers.ProgramSerializer):
     """
     Program serializer first version. Include basic fields from the initial model.

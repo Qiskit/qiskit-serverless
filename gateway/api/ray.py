@@ -177,6 +177,17 @@ def create_ray_cluster(
     namespace = settings.RAY_KUBERAY_NAMESPACE
     cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
     if not cluster_data:
+        if not job_config:
+            job_config = JobConfig()
+        if not job_config.workers:
+            job_config.workers = settings.RAY_CLUSTER_WORKER_REPLICAS
+        if not job_config.min_workers:
+            job_config.min_workers = settings.RAY_CLUSTER_WORKER_MIN_REPLICAS
+        if not job_config.max_workers:
+            job_config.max_workers = settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
+        if not job_config.auto_scaling:
+            job_config.auto_scaling = settings.RAY_CLUSTER_WORKER_AUTO_SCALING
+
         cluster = get_template("rayclustertemplate.yaml")
         manifest = cluster.render(
             {

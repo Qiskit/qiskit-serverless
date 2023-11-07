@@ -1,6 +1,5 @@
 """Scheduling related functions."""
 import logging
-import json
 import random
 import uuid
 from typing import List
@@ -14,43 +13,13 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
-from api.models import Job, Program, ComputeResource, JobConfig
+from api.models import Job, Program, ComputeResource
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
 from main import settings as config
 
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
-
-
-def save_jobconfig(request) -> JobConfig:
-    """Save jobconfig.
-
-    Args:
-        request: request data.
-
-    Returns:
-        saved jobconfig
-    """
-    jobconfig = JobConfig(
-        workers=settings.RAY_CLUSTER_WORKER_REPLICAS,
-        min_workers=settings.RAY_CLUSTER_WORKER_MIN_REPLICAS,
-        max_workers=settings.RAY_CLUSTER_WORKER_MAX_REPLICAS,
-        auto_scaling=settings.RAY_CLUSTER_WORKER_AUTO_SCALING,
-    )
-    if request.data.get("config"):
-        config_data = json.loads(request.data.get("config"))
-        if "workers" in config_data and config_data["workers"]:
-            jobconfig.workers = config_data["workers"]
-        if "min_workers" in config_data and config_data["min_workers"]:
-            jobconfig.min_workers = config_data["min_workers"]
-        if "max_workers" in config_data and config_data["max_workers"]:
-            jobconfig.max_workers = config_data["max_workers"]
-        if "auto_scaling" in config_data and config_data["auto_scaling"]:
-            jobconfig.auto_scaling = config_data["auto_scaling"]
-    jobconfig.full_clean()
-    jobconfig.save()
-    return jobconfig
 
 
 def save_program(serializer, request) -> Program:
