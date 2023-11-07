@@ -5,7 +5,7 @@ import setuptools
 with open("README.md", encoding="utf-8") as f:
     long_description = f.read()
 
-with open("requirements.txt") as f:
+with open("requirements.in") as f:
     install_requires = f.read().splitlines()
 
 version_path = os.path.abspath(
