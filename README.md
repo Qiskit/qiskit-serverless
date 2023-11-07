@@ -95,10 +95,11 @@ For user convenience, this section assumes that users will deploy the infrastruc
    That's all!
    
 For more detailed examples and explanations refer to the [Guide](https://qiskit-extensions.github.io/quantum-serverless/index.html):
-    1. [Getting Started](https://qiskit-extensions.github.io/quantum-serverless/getting_started/index.html#)
-    1. [Example Qiskit Patterns](https://qiskit-extensions.github.io/quantum-serverless/examples/index.html)
-    1. [Infrastructure](https://qiskit-extensions.github.io/quantum-serverless/deployment/index.html)
-    1. [Migrating from Qiskit Runtime programs](https://qiskit-extensions.github.io/quantum-serverless/migration/index.html)
+
+1. [Getting Started](https://qiskit-extensions.github.io/quantum-serverless/getting_started/index.html#)
+1. [Example Qiskit Patterns](https://qiskit-extensions.github.io/quantum-serverless/examples/index.html)
+1. [Infrastructure](https://qiskit-extensions.github.io/quantum-serverless/deployment/index.html)
+1. [Migrating from Qiskit Runtime programs](https://qiskit-extensions.github.io/quantum-serverless/migration/index.html)
 
 ----------------------------------------------------------------------------------------------------
 
