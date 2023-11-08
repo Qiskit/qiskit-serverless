@@ -187,6 +187,8 @@ def create_ray_cluster(
             job_config.max_workers = settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
         if not job_config.auto_scaling:
             job_config.auto_scaling = settings.RAY_CLUSTER_WORKER_AUTO_SCALING
+        if not job_config.python_version:
+            job_config.python_version = settings.RAY_PYTHON_VERSION
 
         py_version = job_config.python_version
         node_image = (
