@@ -71,14 +71,12 @@ For user convenience, this section assumes that users will deploy the infrastruc
       
 1. Access the JupyterLab environment
    Open `localhost:8888` in your web browser. The default token for the JupyterLab is `123`
-1. Write your first example program
-   In the JupyterLab, create a new file, `program.py`, in the `work` directory.
-   
-   Save [this example python code](https://qiskit-extensions.github.io/quantum-serverless/quickstart/index.html#id8).  
+1. Write your first example Qiskit Pattern.
+   In the JupyterLab, create a new file, `pattern.py`, in the `work` directory. You can include any arbitrary Python code in your program, or you can use the
+   [example Python file in this tutorial](https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/docs/getting_started/basic/01_running_program.ipynb).
 
-   Now, you are ready to run the first program.
 1. Run the program
-   In the JupyterLab, create a new notebook in the same directory as your program, and execute [this python code](https://qiskit-extensions.github.io/quantum-serverless/quickstart/index.html#id9).
+   In the JupyterLab, create a new notebook in the same directory as your program, and execute [the tutorial code](https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/docs/getting_started/basic/01_running_program.ipynb).
 
    You can check the job status and get the result.
 
@@ -97,16 +95,18 @@ For user convenience, this section assumes that users will deploy the infrastruc
    That's all!
    
 For more detailed examples and explanations refer to the [Guide](https://qiskit-extensions.github.io/quantum-serverless/index.html):
-[Getting Started](https://qiskit-extensions.github.io/quantum-serverless/getting_started/index.html#),
-[Deployment](https://qiskit-extensions.github.io/quantum-serverless/deployment/index.html),
-[Development](https://qiskit-extensions.github.io/quantum-serverless/development/index.html).
+
+1. [Getting Started](https://qiskit-extensions.github.io/quantum-serverless/getting_started/index.html#)
+1. [Example Qiskit Patterns](https://qiskit-extensions.github.io/quantum-serverless/examples/index.html)
+1. [Infrastructure](https://qiskit-extensions.github.io/quantum-serverless/deployment/index.html)
+1. [Migrating from Qiskit Runtime programs](https://qiskit-extensions.github.io/quantum-serverless/migration/index.html)
 
 ----------------------------------------------------------------------------------------------------
 
 ### How to Give Feedback
 
 We encourage your feedback! You can share your thoughts with us by:
-- [Opening an issue](https://github.com/Qiskit-Extensions/quantum-serverless/issues) in the repository
+- Opening an [issue](https://github.com/Qiskit-Extensions/quantum-serverless/issues) in the repository
 
 
 ----------------------------------------------------------------------------------------------------
@@ -125,8 +125,8 @@ This project is meant to evolve rapidly and, as such, do not follow [Qiskit's de
 ----------------------------------------------------------------------------------------------------
 
 ## References and Acknowledgements
-[1] Qiskit Terra \
-    https://github.com/Qiskit/qiskit-terra
+[1] Qiskit \
+    https://github.com/Qiskit/qiskit
 
 [2] Client for IBM Qiskit Runtime \
     https://github.com/Qiskit/qiskit-ibm-runtime
