@@ -120,7 +120,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if config_data:
                 config_serializer = JobConfigSerializer(data=json.loads(config_data))
                 if not config_serializer.is_valid():
-                    print(config_serializer.errors)
                     return Response(
                         config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
