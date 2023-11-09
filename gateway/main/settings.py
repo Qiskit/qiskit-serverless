@@ -303,7 +303,11 @@ RAY_CLUSTER_MODE = {
 RAY_NODE_IMAGE = os.environ.get(
     "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.6.6-py39"
 )
-RAY_PYTHON_VERSION = RAY_NODE_IMAGE[RAY_NODE_IMAGE.rindex("-") + 1 :]
+RAY_NODE_IMAGES_MAP = {
+    "py38": os.environ.get("RAY_NODE_IMAGE_PY38", RAY_NODE_IMAGE),
+    "py39": os.environ.get("RAY_NODE_IMAGE_PY39", RAY_NODE_IMAGE),
+    "py310": os.environ.get("RAY_NODE_IMAGE_PY310", RAY_NODE_IMAGE),
+}
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
     os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5")
