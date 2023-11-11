@@ -37,6 +37,7 @@ from .core import (
     LocalProvider,
     save_result,
     Configuration,
+    set_status,
 )
 from .quantum_serverless import (
     QuantumServerless,

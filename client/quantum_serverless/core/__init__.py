@@ -72,6 +72,7 @@ from .job import (
     Job,
     save_result,
     Configuration,
+    set_status,
 )
 from .pattern import (
     QiskitPattern,

@@ -133,7 +133,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                 status=Job.QUEUED,
                 config=jobconfig,
             )
-            job.save()
 
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
@@ -182,7 +181,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                 status=Job.QUEUED,
                 config=jobconfig,
             )
-            job.save()
 
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
@@ -241,6 +239,48 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                     job.result = json.dumps(request.data.get("result"))
                     job.save()
                     saved = True
+                except RecordModifiedError:
+                    logger.warning(
+                        "Job[%s] record has not been updated due to lock. "
+                        "Retrying. Attempts left %s",
+                        job.id,
+                        attempts_left,
+                    )
+                    continue
+                time.sleep(1)
+
+            serializer = self.get_serializer(job)
+        return Response(serializer.data)
+
+    @action(methods=["POST"], detail=True)
+    def status(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
+        """set status of a job."""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.status", context=ctx):
+            org = self.get_object()
+            job_handler = get_job_handler(org.compute_resource.host)
+            if job_handler:
+                logs = job_handler.logs(org.ray_job_id)
+
+            saved = False
+            attempts_left = 10
+            while not saved:
+                if attempts_left <= 0:
+                    return Response(
+                        {"error": "All attempts to save results failed."}, status=500
+                    )
+
+                attempts_left -= 1
+
+                try:
+                    job = self.get_object()
+                    job.status = request.data.get("status")
+                    job.logs = logs
+                    job.save()
+                    saved = True
+                    print("Setting status")
+                    print(request.data.get("status"))
                 except RecordModifiedError:
                     logger.warning(
                         "Job[%s] record has not been updated due to lock. "

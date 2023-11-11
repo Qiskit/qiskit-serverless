@@ -96,7 +96,7 @@ class TestScheduleApi(APITestCase):
             job.save()
 
             mocker.get(
-                "http://test_user-head-svc:8265/api/packages/gcs/_ray_pkg_6068c19fb3b8530f.zip",
+                "http://test_user-head-svc:8265/api/packages/gcs/_ray_pkg_8c72687d42a37a76.zip",
                 status_code=200,
             )
             mocker.post(

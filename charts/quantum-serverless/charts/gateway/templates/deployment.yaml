@@ -59,6 +59,9 @@ spec:
         - name: gateway-pv-storage
           persistentVolumeClaim:
             claimName: {{ .Values.cos.claimName }}
+        - name: ray-cluster-template
+          configMap:
+            name: rayclustertemplate
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -81,6 +84,8 @@ spec:
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
+            - mountPath: "/tmp/templates/"
+              name: ray-cluster-template
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
@@ -175,119 +180,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.servicePsql.name }}
                   key: {{ .Values.secrets.servicePsql.key.databasePassword }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: scheduler
-  labels:
-    {{- include "scheduler.labels" . | nindent 4 }}
-spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: 1
-  {{- end }}
-  selector:
-    matchLabels:
-      {{- include "scheduler.selectorLabels" . | nindent 6 }}
-  template:
-    metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      labels:
-        {{- include "scheduler.selectorLabels" . | nindent 8 }}
-    spec:
-      volumes:
-        - name: gateway-pv-storage
-          persistentVolumeClaim:
-            claimName: {{ .Values.cos.claimName }}
-        - name: ray-cluster-template
-          configMap:
-            name: rayclustertemplate
-      serviceAccountName: {{ include "gateway.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      initContainers:
-        - name: waitpostresql
-          image: actions/pg_isready
-          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d "dbname=${DATABASE_NAME}" -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
-          env:
-            - name: DATABASE_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.host }}
-            - name: DATABASE_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.port }}
-            - name: DATABASE_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
-            - name: DATABASE_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.userName }}
-      containers:
-        - name: gateway-scheduler
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["./scripts/scheduler.sh"]
-          volumeMounts:
-            - mountPath: "/usr/src/app/media/"
-              name: gateway-pv-storage
-            - mountPath: "/tmp/templates/"
-              name: ray-cluster-template
-          env:
-            - name: DEBUG
-              value: {{ .Values.application.debug | quote }}
-            - name: DJANGO_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.secretKey.name }}
-                  key: {{ .Values.secrets.secretKey.key }}
-            - name: DATABASE_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.host }}
-            - name: DATABASE_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.port }}
-            - name: DATABASE_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
-            - name: DATABASE_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.userName }}
-            - name: DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.servicePsql.name }}
-                  key: {{ .Values.secrets.servicePsql.key.databasePassword }}
             - name: RAY_KUBERAY_NAMESPACE
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE
@@ -306,18 +198,6 @@ spec:
             - name: RAY_CLUSTER_NO_DELETE_ON_COMPLETE
               value: "True"
 {{- end }}
-            - name: OTEL_ENABLED
-              value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
-            - name: OTEL_SERVICE_NAME
-              value: "Gateway"
-            - name: OTEL_TRACES_EXPORTER
-              value: console,otlp
-            - name: OTEL_METRICS_EXPORTER
-              value: console
-            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-              value: {{ .Values.application.ray.openTelemetryCollector.host }}:{{ .Values.application.ray.openTelemetryCollector.port }}
-            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
-              value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
             - name: PROGRAM_TIMEOUT
               value: {{ .Values.application.limits.programTimeoutDays | quote }}
       {{- with .Values.nodeSelector }}
