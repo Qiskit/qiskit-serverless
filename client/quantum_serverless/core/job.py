@@ -31,6 +31,7 @@ Quantum serverless job
 import json
 import logging
 import os
+import re
 import tarfile
 import time
 import sys
@@ -134,6 +135,10 @@ class BaseJobClient:
         """Return logs."""
         raise NotImplementedError
 
+    def filtered_logs(self, job_id: str, **kwargs):
+        """Return filtered logs."""
+        raise NotImplementedError
+
     def result(self, job_id: str):
         """Return results."""
         raise NotImplementedError
@@ -163,6 +168,9 @@ class RayJobClient(BaseJobClient):
 
     def logs(self, job_id: str):
         return self._job_client.get_job_logs(job_id)
+
+    def filtered_logs(self, job_id: str, **kwargs):
+        raise NotImplementedError
 
     def result(self, job_id: str):
         return self.logs(job_id)
@@ -568,6 +576,27 @@ class GatewayJobClient(BaseJobClient):
             )
         return response_data.get("logs")
 
+    def filtered_logs(self, job_id: str, **kwargs):
+        all_logs = self.logs(job_id=job_id)
+        included = ""
+        include = kwargs.get("include")
+        if include is not None:
+            for line in all_logs.split("\n"):
+                if re.search(include, line) is not None:
+                    included = included + line + "\n"
+        else:
+            included = all_logs
+
+        excluded = ""
+        exclude = kwargs.get("exclude")
+        if exclude is not None:
+            for line in included.split("\n"):
+                if line != "" and re.search(exclude, line) is None:
+                    excluded = excluded + line + "\n"
+        else:
+            excluded = included
+        return excluded
+
     def result(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.result"):
@@ -669,6 +698,14 @@ class Job:
     def logs(self) -> str:
         """Returns logs of the job."""
         return self._job_client.logs(self.job_id)
+
+    def filtered_logs(self, **kwargs) -> str:
+        """Returns logs of the job.
+        Args:
+            include: rex expression finds match in the log line to be included
+            exclude: rex expression finds match in the log line to be excluded
+        """
+        return self._job_client.filtered_logs(job_id=self.job_id, **kwargs)
 
     def result(self, wait=True, cadence=5, verbose=False):
         """Return results of the job.
