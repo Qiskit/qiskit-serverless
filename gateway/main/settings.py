@@ -301,7 +301,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.6.6-py39"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py39"
 )
 RAY_NODE_IMAGES_MAP = {
     "py38": os.environ.get("RAY_NODE_IMAGE_PY38", RAY_NODE_IMAGE),

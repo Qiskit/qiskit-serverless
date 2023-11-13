@@ -29,19 +29,6 @@ class Migration(migrations.Migration):
                 ("workers", models.IntegerField(null=True)),
                 ("min_workers", models.IntegerField(null=True)),
                 ("max_workers", models.IntegerField(null=True)),
-                (
-                    "python_version",
-                    models.CharField(
-                        blank=True,
-                        choices=[
-                            ("py38", "Version 3.8"),
-                            ("py39", "Version 3.9"),
-                            ("py310", "Version 3.10"),
-                        ],
-                        max_length=6,
-                        null=True,
-                    ),
-                ),
             ],
         ),
         migrations.AddField(
