@@ -1,8 +1,8 @@
 """Tests program APIs."""
-
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from api.models import Job, JobConfig
 
 
 class TestProgramApi(APITestCase):
@@ -54,3 +54,30 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.data.get("title"), "Program")
         self.assertEqual(programs_response.data.get("entrypoint"), "program.py")
+
+    def test_run_existing(self):
+        """Tests run existing authorized."""
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        programs_response = self.client.post(
+            "/api/v1/programs/run_existing/",
+            data={
+                "title": "Program",
+                "entrypoint": "program.py",
+                "arguments": {},
+                "dependencies": [],
+                "config": '{"workers": null, "min_workers": 1, "max_workers": 5, "auto_scaling": true}',
+            },
+            format="json",
+        )
+        job_id = programs_response.data.get("id")
+        job = Job.objects.get(id=job_id)
+        self.assertEqual(job.config.min_workers, 1)
+        self.assertEqual(job.config.max_workers, 5)
+        self.assertEqual(job.config.workers, None)
+        self.assertEqual(job.config.auto_scaling, True)

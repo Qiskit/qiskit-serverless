@@ -111,6 +111,12 @@ spec:
               value: {{ .Values.application.auth.keycloak.realm | quote }}
             - name: SETTINGS_KEYCLOAK_CLIENT_SECRET
               value: {{ .Values.application.auth.keycloak.clientSecret | quote }}
+            - name: RAY_CLUSTER_WORKER_REPLICAS
+              value: {{ .Values.application.ray.replicas | quote }}
+            - name: RAY_CLUSTER_WORKER_MIN_REPLICAS
+              value: {{ .Values.application.ray.minReplicas | quote }}
+            - name: RAY_CLUSTER_WORKER_MAX_REPLICAS
+              value: {{ .Values.application.ray.maxReplicas | quote }}
 {{- if .Values.application.superuser.enable }}
             - name: DJANGO_SUPERUSER_USERNAME
               valueFrom:
