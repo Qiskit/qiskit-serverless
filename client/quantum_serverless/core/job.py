@@ -42,7 +42,6 @@ from dataclasses import asdict, dataclass
 
 import subprocess
 from subprocess import Popen
-import re
 
 import ray.runtime_env
 import requests
