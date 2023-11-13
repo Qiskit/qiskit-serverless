@@ -44,8 +44,15 @@ class JobConfigSerializer(serializers.ModelSerializer):
     auto_scaling = serializers.BooleanField(
         default=False, required=False, allow_null=True
     )
-    python_version = serializers.CharField(
-        required=False, allow_null=True, allow_blank=True
+    python_version = serializers.ChoiceField(
+        choices=(
+            ("py38", "Version 3.8"),
+            ("py39", "Version 3.9"),
+            ("py310", "Version 3.10"),
+        ),
+        required=False,
+        allow_null=True,
+        allow_blank=True,
     )
 
 
