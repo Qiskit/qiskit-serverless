@@ -41,8 +41,9 @@ class Command(BaseCommand):
 
                 if job_status != job.status:
                     logger.info(
-                        "Job [%s] status changed from [%s] to [%s]",
+                        "Job [%s] of [%s] changed from [%s] to [%s]",
                         job.id,
+                        job.author,
                         job.status,
                         job_status,
                     )

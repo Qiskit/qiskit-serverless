@@ -31,6 +31,7 @@ class JobConfig(models.Model):
     max_workers = models.IntegerField(
         null=True,
     )
+
     PYTHON_V3_8 = "py38"
     PYTHON_V3_9 = "py39"
     PYTHON_V3_10 = "py310"
