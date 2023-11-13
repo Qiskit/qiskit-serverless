@@ -59,7 +59,7 @@ gateway:
     ray:
       nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py39"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
-      kubectlImage: alpine/k8s:1.28.2@sha256:d7b859ed3422c920e733e07c860867f208796a03b35960530ac8da63ffb2c262
+      kubectlImage: alpine/k8s:1.28.2@sha256:fc059f056ad003e28d19ff901b8e4dd5d8309064380dc31b61f309fc19d37c31
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
