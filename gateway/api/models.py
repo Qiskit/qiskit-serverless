@@ -2,7 +2,9 @@
 import uuid
 from concurrency.fields import IntegerVersionField
 
-from django.core.validators import FileExtensionValidator
+from django.core.validators import (
+    FileExtensionValidator,
+)
 from django.db import models
 from django.conf import settings
 from django_prometheus.models import ExportModelOperationsMixin
@@ -11,6 +13,27 @@ from django_prometheus.models import ExportModelOperationsMixin
 def get_upload_path(instance, filename):
     """Returns save path for artifacts."""
     return f"{instance.author.username}/{instance.id}/{filename}"
+
+
+class JobConfig(models.Model):
+    """Job Configuration model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True)
+
+    auto_scaling = models.BooleanField(default=False, null=True)
+    workers = models.IntegerField(
+        null=True,
+    )
+    min_workers = models.IntegerField(
+        null=True,
+    )
+    max_workers = models.IntegerField(
+        null=True,
+    )
+
+    def __str__(self):
+        return self.id
 
 
 class Program(ExportModelOperationsMixin("program"), models.Model):
@@ -108,6 +131,14 @@ class Job(models.Model):
     logs = models.TextField(default="No logs yet.")
 
     version = IntegerVersionField()
+
+    config = models.ForeignKey(
+        to=JobConfig,
+        on_delete=models.CASCADE,
+        default=None,
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         return f"<Job {self.pk} | {self.status}>"

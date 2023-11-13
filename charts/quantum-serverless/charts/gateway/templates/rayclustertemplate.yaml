@@ -17,7 +17,8 @@ data:
 {{- if .Values.application.ray.scrapeWithPrometheus }}      
       headServiceAnnotations:
         prometheus.io/scrape: "true"
-{{- end }}        
+{{- end }}
+      enableInTreeAutoscaling: {{`{{ auto_scaling }}`}}
       headGroupSpec:
         rayStartParams:
           dashboard-host: 0.0.0.0
@@ -193,11 +194,11 @@ data:
                 claimName: {{ .Values.cos.claimName }}
       workerGroupSpecs:
       - groupName: g
-        maxReplicas: {{ .Values.application.ray.maxReplicas }}
-        minReplicas: {{ .Values.application.ray.minReplicas }}
+        maxReplicas: {{`{{ max_workers }}`}}
+        minReplicas: {{`{{ min_workers }}`}}
         rayStartParams:
           block: 'true'
-        replicas: {{ .Values.application.ray.replicas }}
+        replicas: {{`{{ workers }}`}}
         template:
 {{- if .Values.application.ray.scrapeWithPrometheus }}      
           metadata:
