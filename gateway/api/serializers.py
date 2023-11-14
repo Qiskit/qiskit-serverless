@@ -23,6 +23,7 @@ class JobConfigSerializer(serializers.ModelSerializer):
             "min_workers",
             "max_workers",
             "auto_scaling",
+            "python_version",
         ]
 
     workers = serializers.IntegerField(
@@ -42,6 +43,16 @@ class JobConfigSerializer(serializers.ModelSerializer):
     )
     auto_scaling = serializers.BooleanField(
         default=False, required=False, allow_null=True
+    )
+    python_version = serializers.ChoiceField(
+        choices=(
+            ("py38", "Version 3.8"),
+            ("py39", "Version 3.9"),
+            ("py310", "Version 3.10"),
+        ),
+        required=False,
+        allow_null=True,
+        allow_blank=True,
     )
 
 
