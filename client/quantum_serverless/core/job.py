@@ -42,7 +42,6 @@ from dataclasses import asdict, dataclass
 
 import subprocess
 from subprocess import Popen
-import re
 
 import ray.runtime_env
 import requests
@@ -82,12 +81,17 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
         auto_scaling: set True to enable auto scating of the workers
         min_workers: minimum number of workers when auto scaling is enabled
         max_workers: maxmum number of workers when auto scaling is enabled
+        python_version: python version string of program execution worker node
     """
 
     workers: Optional[int] = None
     min_workers: Optional[int] = None
     max_workers: Optional[int] = None
     auto_scaling: Optional[bool] = False
+    python_version: Optional[str] = ""
+    PYTHON_V3_8 = "py38"
+    PYTHON_V3_9 = "py39"
+    PYTHON_V3_10 = "py310"
 
 
 class BaseJobClient:

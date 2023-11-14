@@ -187,12 +187,26 @@ def create_ray_cluster(
             job_config.max_workers = settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
         if not job_config.auto_scaling:
             job_config.auto_scaling = settings.RAY_CLUSTER_WORKER_AUTO_SCALING
+        if not job_config.python_version:
+            job_config.python_version = "default"
 
+        if job_config.python_version in settings.RAY_NODE_IMAGES_MAP:
+            node_image = settings.RAY_NODE_IMAGES_MAP[job_config.python_version]
+        else:
+            message = (
+                "Specified python version {job_config.python_version} "
+                "not in a list of supported python versions "
+                "{list(settings.RAY_NODE_IMAGES_MAP.keys())}. "
+                "Default image will be used instead."
+            )
+            logger.warning(message)
+            node_image = settings.RAY_NODE_IMAGE
         cluster = get_template("rayclustertemplate.yaml")
         manifest = cluster.render(
             {
                 "cluster_name": cluster_name,
                 "user_id": user.username,
+                "node_image": node_image,
                 "workers": job_config.workers,
                 "min_workers": job_config.min_workers,
                 "max_workers": job_config.max_workers,
