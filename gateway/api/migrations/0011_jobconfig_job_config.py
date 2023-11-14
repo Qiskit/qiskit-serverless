@@ -6,7 +6,6 @@ import uuid
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("api", "0010_job_version"),
     ]
