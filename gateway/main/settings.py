@@ -300,12 +300,32 @@ RAY_CLUSTER_MODE = {
         "RAY_CLUSTER_MODE_LOCAL_HOST", "http://localhost:8265"
     ),
 }
-RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "0"))
+RAY_NODE_IMAGE = os.environ.get(
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py39"
+)
+RAY_NODE_IMAGES_MAP = {
+    "py38": os.environ.get("RAY_NODE_IMAGE_PY38", RAY_NODE_IMAGE),
+    "py39": os.environ.get("RAY_NODE_IMAGE_PY39", RAY_NODE_IMAGE),
+    "py310": os.environ.get("RAY_NODE_IMAGE_PY310", RAY_NODE_IMAGE),
+}
+RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
+RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
+    os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5")
+)
 RAY_CLUSTER_WORKER_MIN_REPLICAS = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "0")
+    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1")
+)
+RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX = int(
+    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX", "2")
 )
 RAY_CLUSTER_WORKER_MAX_REPLICAS = int(
     os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4")
+)
+RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX = int(
+    os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX", "10")
+)
+RAY_CLUSTER_WORKER_AUTO_SCALING = bool(
+    os.environ.get("RAY_CLUSTER_WORKER_AUTO_SCALING", False)
 )
 RAY_CLUSTER_MAX_READINESS_TIME = int(
     os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "120")

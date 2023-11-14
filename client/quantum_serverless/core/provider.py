@@ -26,6 +26,7 @@ Quantum serverless provider
     ComputeResource
     ServerlessProvider
 """
+# pylint: disable=duplicate-code
 import logging
 import warnings
 import os.path
@@ -53,6 +54,7 @@ from quantum_serverless.core.job import (
     GatewayJobClient,
     LocalJobClient,
     BaseJobClient,
+    Configuration,
 )
 from quantum_serverless.core.pattern import QiskitPattern
 from quantum_serverless.core.tracing import _trace_env_vars
@@ -265,6 +267,7 @@ class BaseProvider(JsonSerializable):
         self,
         program: Union[QiskitPattern, str],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> Job:
         """Execute a program as a async job.
 
@@ -295,7 +298,7 @@ class BaseProvider(JsonSerializable):
             )
             return None
 
-        return job_client.run(program, arguments)
+        return job_client.run(program, arguments, config)
 
     def upload(self, program: QiskitPattern):
         """Uploads program."""
@@ -415,13 +418,14 @@ class ServerlessProvider(BaseProvider):
         self,
         program: Union[QiskitPattern, str],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> Job:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("Provider.run"):
             if isinstance(program, QiskitPattern) and program.entrypoint is not None:
-                job = self._job_client.run(program, arguments)
+                job = self._job_client.run(program, arguments, config)
             else:
-                job = self._job_client.run_existing(program, arguments)
+                job = self._job_client.run_existing(program, arguments, config)
         return job
 
     def upload(self, program: QiskitPattern):
@@ -584,11 +588,12 @@ class RayProvider(BaseProvider):
         self,
         program: Union[QiskitPattern, str],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> Job:
         if isinstance(program, str):
             raise NotImplementedError("Ray provider only supports full Programs.")
 
-        return self.client.run(program, arguments)
+        return self.client.run(program, arguments, config)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self.client.get(job_id)
@@ -615,6 +620,7 @@ class LocalProvider(BaseProvider):
         self,
         program: Union[QiskitPattern, str],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> Job:
         if isinstance(program, QiskitPattern) and program.entrypoint is not None:
             job = self.client.run(program, arguments)

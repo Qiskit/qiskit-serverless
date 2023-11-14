@@ -20,7 +20,7 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from api.models import ComputeResource, Job
+from api.models import ComputeResource, Job, JobConfig
 from api.utils import try_json_loads, retry_function, decrypt_env_vars
 from main import settings
 
@@ -157,7 +157,10 @@ def submit_job(job: Job) -> Job:
 
 
 def create_ray_cluster(
-    user: Any, cluster_name: Optional[str] = None, cluster_data: Optional[str] = None
+    user: Any,
+    cluster_name: Optional[str] = None,
+    cluster_data: Optional[str] = None,
+    job_config: Optional[JobConfig] = None,
 ) -> Optional[ComputeResource]:
     """Creates ray cluster.
 
@@ -174,9 +177,41 @@ def create_ray_cluster(
     namespace = settings.RAY_KUBERAY_NAMESPACE
     cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
     if not cluster_data:
+        if not job_config:
+            job_config = JobConfig()
+        if not job_config.workers:
+            job_config.workers = settings.RAY_CLUSTER_WORKER_REPLICAS
+        if not job_config.min_workers:
+            job_config.min_workers = settings.RAY_CLUSTER_WORKER_MIN_REPLICAS
+        if not job_config.max_workers:
+            job_config.max_workers = settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
+        if not job_config.auto_scaling:
+            job_config.auto_scaling = settings.RAY_CLUSTER_WORKER_AUTO_SCALING
+        if not job_config.python_version:
+            job_config.python_version = "default"
+
+        if job_config.python_version in settings.RAY_NODE_IMAGES_MAP:
+            node_image = settings.RAY_NODE_IMAGES_MAP[job_config.python_version]
+        else:
+            message = (
+                "Specified python version {job_config.python_version} "
+                "not in a list of supported python versions "
+                "{list(settings.RAY_NODE_IMAGES_MAP.keys())}. "
+                "Default image will be used instead."
+            )
+            logger.warning(message)
+            node_image = settings.RAY_NODE_IMAGE
         cluster = get_template("rayclustertemplate.yaml")
         manifest = cluster.render(
-            {"cluster_name": cluster_name, "user_id": user.username}
+            {
+                "cluster_name": cluster_name,
+                "user_id": user.username,
+                "node_image": node_image,
+                "workers": job_config.workers,
+                "min_workers": job_config.min_workers,
+                "max_workers": job_config.max_workers,
+                "auto_scaling": job_config.auto_scaling,
+            }
         )
         cluster_data = yaml.safe_load(manifest)
 

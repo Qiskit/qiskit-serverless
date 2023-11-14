@@ -111,6 +111,12 @@ spec:
               value: {{ .Values.application.auth.keycloak.realm | quote }}
             - name: SETTINGS_KEYCLOAK_CLIENT_SECRET
               value: {{ .Values.application.auth.keycloak.clientSecret | quote }}
+            - name: RAY_CLUSTER_WORKER_REPLICAS
+              value: {{ .Values.application.ray.replicas | quote }}
+            - name: RAY_CLUSTER_WORKER_MIN_REPLICAS
+              value: {{ .Values.application.ray.minReplicas | quote }}
+            - name: RAY_CLUSTER_WORKER_MAX_REPLICAS
+              value: {{ .Values.application.ray.maxReplicas | quote }}
 {{- if .Values.application.superuser.enable }}
             - name: DJANGO_SUPERUSER_USERNAME
               valueFrom:
@@ -286,6 +292,12 @@ spec:
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE
               value: {{ .Values.application.ray.nodeImage | quote }}
+            - name: RAY_NODE_IMAGE_PY38
+              value: {{ .Values.application.ray.nodeImage_py38 | quote }}
+            - name: RAY_NODE_IMAGE_PY39
+              value: {{ .Values.application.ray.nodeImage_py39 | quote }}
+            - name: RAY_NODE_IMAGE_PY310
+              value: {{ .Values.application.ray.nodeImage_py310 | quote }}
             - name: LIMITS_JOBS_PER_USER
               value: {{ .Values.application.limits.maxJobsPerUser | quote }}
             - name: LIMITS_MAX_CLUSTERS

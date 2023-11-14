@@ -71,10 +71,10 @@ from .job import (
     LocalJobClient,
     Job,
     save_result,
+    Configuration,
 )
 from .pattern import (
     QiskitPattern,
-    Program,
     ProgramStorage,
     ProgramRepository,
     download_and_unpack_artifact,

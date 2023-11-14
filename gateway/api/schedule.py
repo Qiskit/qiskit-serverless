@@ -17,6 +17,7 @@ from api.models import Job, Program, ComputeResource
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
 from main import settings as config
 
+
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
 
@@ -25,11 +26,12 @@ def save_program(serializer, request) -> Program:
     """Save program.
 
     Args:
-        serializer: program serializer with data attached.
+        request: request data.
 
     Returns:
         saved program
     """
+
     existing_program = (
         Program.objects.filter(title=serializer.data.get("title"), author=request.user)
         .order_by("-created")
@@ -97,7 +99,9 @@ def execute_job(job: Job) -> Job:
                 job.status = Job.FAILED
                 job.logs = "Compute resource was not found."
         else:
-            compute_resource = create_ray_cluster(job.author, cluster_name=cluster_name)
+            compute_resource = create_ray_cluster(
+                job.author, cluster_name=cluster_name, job_config=job.config
+            )
             if compute_resource:
                 # if compute resource was created in time with no problems
                 job.compute_resource = compute_resource

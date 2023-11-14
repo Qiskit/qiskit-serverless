@@ -17,6 +17,9 @@ application:
     enable: true
   ray:
     nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py39"
+    nodeImage_py38: "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py38"
+    nodeImage_py39: "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py39"
+    nodeImage_py310: "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py310"
     cpu: 2
     memory: 2
     replicas: 1

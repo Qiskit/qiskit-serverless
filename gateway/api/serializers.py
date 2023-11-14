@@ -6,9 +6,54 @@ Django Rest framework serializers for api application:
 Version serializers inherit from the different serializers.
 """
 
+from django.conf import settings
 from rest_framework import serializers
+from .models import Program, Job, JobConfig
 
-from .models import Program, Job
+
+class JobConfigSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the Job Config model.
+    """
+
+    class Meta:
+        model = JobConfig
+        fields = [
+            "workers",
+            "min_workers",
+            "max_workers",
+            "auto_scaling",
+            "python_version",
+        ]
+
+    workers = serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    min_workers = serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    max_workers = serializers.IntegerField(
+        max_value=settings.RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX,
+        required=False,
+        allow_null=True,
+    )
+    auto_scaling = serializers.BooleanField(
+        default=False, required=False, allow_null=True
+    )
+    python_version = serializers.ChoiceField(
+        choices=(
+            ("py38", "Version 3.8"),
+            ("py39", "Version 3.9"),
+            ("py310", "Version 3.10"),
+        ),
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
 
 
 class ProgramSerializer(serializers.ModelSerializer):
