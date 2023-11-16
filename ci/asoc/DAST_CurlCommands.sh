@@ -7,61 +7,61 @@
         ## Make sure the requried token is added to the travis integration or set up as an env variable that can be passed into the docker contaner for the sytem to use it
 
 curl -s -X 'POST' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/signin' \
+        'https://middleware-dev.quantum-computing.ibm.com/signin' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'GET' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'GET' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/liveness' \
+        'https://middleware-dev.quantum-computing.ibm.com/liveness' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'GET' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/readiness' \
+        'https://middleware-dev.quantum-computing.ibm.com/readiness' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'GET' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/jobs' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/jobs' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'GET' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/jobs/:id' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/jobs/:id' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'GET' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/jobs/:id/logs' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/jobs/:id/logs' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'POST' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/jobs/:id/result' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/jobs/:id/result' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'POST' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/jobs/:id/stop' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/jobs/:id/stop' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'GET' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/programs' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/programs' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'GET' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/programs/:id' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/programs/:id' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'POST' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/programs/upload' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/programs/upload' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'POST' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/programs/run' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/programs/run' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'POST' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/programs/run_existing' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/programs/run_existing' \
         -H 'accept: application/json' -k -v -x localhost:2222
 
 curl -s -X 'GET' \
-        'https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud/api/v1/files/download' \
+        'https://middleware-dev.quantum-computing.ibm.com/api/v1/files/download' \
         -H 'accept: application/json' -k -v -x localhost:2222
