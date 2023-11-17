@@ -3,7 +3,7 @@
   "DynamicScan": "true",
   "OrgName": "IBM-Q-Software",
   "RepoName": "quantum-serverless",
-  "StartingURL": "https://gateway.middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000.us-east.containers.appdomain.cloud",
+  "StartingURL": "https://middleware-dev.quantum-computing.ibm.com",
   "AssetGroupId": "dad9bdd7-53cd-4baf-9b55-9a11266d735d",
   "BusinessUnitId": "56011969-ae29-ec11-ae72-2818780a4811",
   "Technology": "IBM Quantum",
