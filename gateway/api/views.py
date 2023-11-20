@@ -38,7 +38,8 @@ from .models import Program, Job
 from .services import ProgramService
 from .exceptions import InternalServerErrorException
 from .ray import get_job_handler
-from .schedule import save_program
+
+# from .schedule import save_program
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
 from .utils import build_env_variables, encrypt_env_vars
 
@@ -192,7 +193,15 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
                 jobconfig = config_serializer.save()
 
-            program = save_program(serializer=serializer, request=request)
+            program_service = self.get_service_program_class()
+            try:
+                program = program_service.save(
+                    serializer=serializer,
+                    author=request.user,
+                    artifact=request.FILES.get("artifact"),
+                )
+            except InternalServerErrorException as exception:
+                return Response(exception, exception.http_code)
 
             job = Job(
                 program=program,

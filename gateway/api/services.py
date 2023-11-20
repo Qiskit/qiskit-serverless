@@ -6,6 +6,8 @@ Services for api application:
 Version services inherit from the different services.
 """
 
+# pylint: disable=too-few-public-methods
+
 import logging
 
 from .models import Program
@@ -15,8 +17,16 @@ logger = logging.getLogger("services")
 
 
 class ProgramService:
+    """
+    Program service allocate the logic related with programs
+    """
+
     @staticmethod
     def save(serializer, author, artifact) -> Program:
+        """
+        Save method gets a program serializer and creates or updates a program
+        """
+
         title = serializer.data.get("title")
         existing_program = (
             Program.objects.filter(title=title, author=author)
@@ -35,7 +45,7 @@ class ProgramService:
         program.artifact = artifact
         program.author = author
 
-        ## TODO: It would be nice if we could unify all the saves logic in one unique entry-point
+        # It would be nice if we could unify all the saves logic in one unique entry-point
         try:
             program.save()
         except (Exception) as save_program_exception:
@@ -46,6 +56,8 @@ class ProgramService:
                 author,
                 save_program_exception,
             )
-            raise InternalServerErrorException("Unexpected error saving the program")
+            raise InternalServerErrorException(
+                "Unexpected error saving the program"
+            ) from save_program_exception
 
         return program
