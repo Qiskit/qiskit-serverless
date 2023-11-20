@@ -35,6 +35,8 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from .models import Program, Job
+from .services import ProgramService
+from .exceptions import InternalServerErrorException
 from .ray import get_job_handler
 from .schedule import save_program
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
@@ -89,8 +91,12 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        save_program(serializer=serializer, request=request)
-        return Response(serializer.data)
+        try:
+            program = ProgramService.save(serializer=serializer, request=request)
+        except InternalServerErrorException as exception:
+            return Response(exception, exception.http_code)
+
+        return Response(program)
 
     @action(methods=["POST"], detail=False)
     def run_existing(self, request):
