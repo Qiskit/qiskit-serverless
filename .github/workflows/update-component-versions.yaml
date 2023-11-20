@@ -1,0 +1,70 @@
+name: Update Component Versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      new_version:
+        description: 'version to update to'
+        required: true
+
+jobs:
+  update_component_versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Install helm
+        shell: bash
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      - name: Set variables
+        shell: bash
+        run: |
+          NEWNUM=${{ github.event.inputs.new_version }}
+          OLDTXT=$(git describe --tags $(git rev-list --tags --max-count=1))
+          OLDNUM="${OLDTXT:1}"
+          echo "NEWNUM=$NEWNUM" >> "$GITHUB_ENV"
+          echo "OLDNUM=$OLDNUM" >> "$GITHUB_ENV"
+      - name: Update observability chart
+        shell: bash
+        run: |
+          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/qs-observability/Chart.yaml
+          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/qs-observability/Chart.yaml
+      - name: Update quantum-serverless chart
+        shell: bash
+        run: |
+          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/quantum-serverless/Chart.yaml
+          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/quantum-serverless/Chart.yaml
+          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/quantum-serverless/charts/gateway/Chart.yaml
+          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/quantum-serverless/charts/gateway/Chart.yaml
+          sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/quantum-serverless/charts/gateway/values.yaml
+          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/quantum-serverless/charts/jupyter/Chart.yaml
+          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/quantum-serverless/charts/jupyter/Chart.yaml
+          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/quantum-serverless/charts/repository/Chart.yaml
+          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/quantum-serverless/charts/repository/Chart.yaml
+          sed -i "s/tag: \"${OLDNUM}\"/tag: \"${NEWNUM}\"/" charts/quantum-serverless/values.yaml
+          sed -i "s/tag: \"${OLDNUM}-py39\"/tag: \"${NEWNUM}-py39\"/" charts/quantum-serverless/values.yaml
+          sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/quantum-serverless/values.yaml
+          cd charts/quantum-serverless
+          helm dependency update
+          cd -
+      - name: Update client version
+        shell: bash
+        run: |
+          sed -i "s/${OLDNUM}/${NEWNUM}/" client/quantum_serverless/VERSION.txt
+      - name: Update compose
+        shell: bash
+        run: |
+          sed -i "s/VERSION:-${OLDNUM}/VERSION:-${NEWNUM}/g" docker-compose.yaml
+      - name: Update docs
+        shell: bash
+        run: |
+          sed -i "s/${OLDNUM}/${NEWNUM}/g" docs/deployment/cloud.rst
+      - name: Create PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          branch: "update-version-${{ github.event.inputs.new_version }}"
+          title: "update-version-${{ github.event.inputs.new_version }}"

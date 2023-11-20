@@ -1,9 +1,10 @@
-ray[default,data]>=2.6.3, <3
+ray[default,data]>=2.8.0, <3
 requests>=2.31.0
 importlib-metadata>=5.2.0
-qiskit>=0.44.1
-qiskit-ibm-runtime>=0.12.0
-cloudpickle>=2.2.1
+qiskit>=0.45.0
+qiskit-ibm-runtime>=0.15.1
+# TODO: make sure ray node and notebook node have the same version of cloudpickle
+cloudpickle==2.2.1
 tqdm>=4.65.0
 # opentelemetry
 opentelemetry-api>=1.18.0

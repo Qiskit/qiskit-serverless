@@ -37,7 +37,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from .models import Program, Job
 from .ray import get_job_handler
 from .schedule import save_program
-from .serializers import JobSerializer, ExistingProgramSerializer
+from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
 from .utils import build_env_variables, encrypt_env_vars
 
 logger = logging.getLogger("gateway")
@@ -115,11 +115,23 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
+            jobconfig = None
+            config_data = request.data.get("config")
+            if config_data:
+                config_serializer = JobConfigSerializer(data=json.loads(config_data))
+                if not config_serializer.is_valid():
+                    return Response(
+                        config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                jobconfig = config_serializer.save()
+
             job = Job(
                 program=program,
                 arguments=serializer.data.get("arguments"),
                 author=request.user,
                 status=Job.QUEUED,
+                config=jobconfig,
             )
             job.save()
 
@@ -150,12 +162,25 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+            jobconfig = None
+            config_data = request.data.get("config")
+            if config_data:
+                config_serializer = JobConfigSerializer(data=json.loads(config_data))
+                if not config_serializer.is_valid():
+                    return Response(
+                        config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                jobconfig = config_serializer.save()
+
             program = save_program(serializer=serializer, request=request)
+
             job = Job(
                 program=program,
                 arguments=program.arguments,
                 author=request.user,
                 status=Job.QUEUED,
+                config=jobconfig,
             )
             job.save()
 

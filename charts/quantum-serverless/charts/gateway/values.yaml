@@ -16,14 +16,17 @@ application:
   superuser:
     enable: true
   ray:
-    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.7.0-py39"
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.0-py39"
+    nodeImage_py38: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.0-py38"
+    nodeImage_py39: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.0-py39"
+    nodeImage_py310: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.0-py310"
     cpu: 2
     memory: 2
     replicas: 1
     minReplicas: 1
     maxReplicas: 4
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
-    kubectlImage: alpine/k8s:1.28.2@sha256:d7b859ed3422c920e733e07c860867f208796a03b35960530ac8da63ffb2c262
+    kubectlImage: alpine/k8s:1.28.4@sha256:38887b75951c9839c276508c6ba4d55793e4724668c6ba9bd8d09a212073d914
     scrapeWithPrometheus: true
     openTelemetry: false
     openTelemetryCollector:

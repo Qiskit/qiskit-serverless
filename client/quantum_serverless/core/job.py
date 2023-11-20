@@ -27,19 +27,21 @@ Quantum serverless job
     RuntimeEnv
     Job
 """
+# pylint: disable=duplicate-code
 import json
 import logging
 import os
+import re
 import tarfile
 import time
 import sys
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 from uuid import uuid4
+from dataclasses import asdict, dataclass
 
 import subprocess
 from subprocess import Popen
-import re
 
 import ray.runtime_env
 import requests
@@ -58,6 +60,7 @@ from quantum_serverless.core.constants import (
     MAX_ARTIFACT_FILE_SIZE_MB,
     ENV_JOB_ARGUMENTS,
 )
+
 from quantum_serverless.core.pattern import QiskitPattern
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers.program_serializers import (
@@ -69,11 +72,36 @@ from quantum_serverless.utils.json import is_jsonable, safe_json_request
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
 
+@dataclass
+class Configuration:  # pylint: disable=too-many-instance-attributes
+    """Program Configuration.
+
+    Args:
+        workers: number of worker pod when auto scaling is NOT enabled
+        auto_scaling: set True to enable auto scating of the workers
+        min_workers: minimum number of workers when auto scaling is enabled
+        max_workers: maxmum number of workers when auto scaling is enabled
+        python_version: python version string of program execution worker node
+    """
+
+    workers: Optional[int] = None
+    min_workers: Optional[int] = None
+    max_workers: Optional[int] = None
+    auto_scaling: Optional[bool] = False
+    python_version: Optional[str] = ""
+    PYTHON_V3_8 = "py38"
+    PYTHON_V3_9 = "py39"
+    PYTHON_V3_10 = "py310"
+
+
 class BaseJobClient:
     """Base class for Job clients."""
 
     def run(
-        self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: QiskitPattern,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> "Job":
         """Runs program."""
         raise NotImplementedError
@@ -86,6 +114,7 @@ class BaseJobClient:
         self,
         program: Union[str, QiskitPattern],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ):
         """Executes existing program."""
         raise NotImplementedError
@@ -110,6 +139,10 @@ class BaseJobClient:
         """Return logs."""
         raise NotImplementedError
 
+    def filtered_logs(self, job_id: str, **kwargs):
+        """Return filtered logs."""
+        raise NotImplementedError
+
     def result(self, job_id: str):
         """Return results."""
         raise NotImplementedError
@@ -132,13 +165,16 @@ class RayJobClient(BaseJobClient):
         self._job_client = client
 
     def status(self, job_id: str):
-        return self._job_client.get_job_status(job_id)
+        return self._job_client.get_job_status(job_id).value
 
     def stop(self, job_id: str):
         return self._job_client.stop_job(job_id)
 
     def logs(self, job_id: str):
         return self._job_client.get_job_logs(job_id)
+
+    def filtered_logs(self, job_id: str, **kwargs):
+        raise NotImplementedError
 
     def result(self, job_id: str):
         return self.logs(job_id)
@@ -151,7 +187,12 @@ class RayJobClient(BaseJobClient):
             Job(job.job_id, job_client=self) for job in self._job_client.list_jobs()
         ]
 
-    def run(self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None):
+    def run(
+        self,
+        program: QiskitPattern,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
+    ):
         arguments = arguments or {}
         entrypoint = f"python {program.entrypoint}"
 
@@ -180,6 +221,7 @@ class RayJobClient(BaseJobClient):
         self,
         program: Union[str, QiskitPattern],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ):
         raise NotImplementedError("Run existing is not available for RayJobClient.")
 
@@ -214,7 +256,12 @@ class LocalJobClient(BaseJobClient):
     def list(self, **kwargs) -> List["Job"]:
         return [job["job"] for job in list(self._jobs.values())]
 
-    def run(self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None):
+    def run(
+        self,
+        program: QiskitPattern,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
+    ):
         if program.dependencies:
             for dependency in program.dependencies:
                 subprocess.check_call(
@@ -266,10 +313,11 @@ class LocalJobClient(BaseJobClient):
         }
         return program.title
 
-    def run_existing(
+    def run_existing(  # pylint: disable=too-many-locals
         self,
         program: Union[str, QiskitPattern],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ):
         if isinstance(program, QiskitPattern):
             title = program.title
@@ -333,7 +381,10 @@ class GatewayJobClient(BaseJobClient):
         self._token = token
 
     def run(  # pylint: disable=too-many-locals
-        self, program: QiskitPattern, arguments: Optional[Dict[str, Any]] = None
+        self,
+        program: QiskitPattern,
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> "Job":
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
@@ -367,21 +418,26 @@ class GatewayJobClient(BaseJobClient):
                 )
 
             with open(artifact_file_path, "rb") as file:
+                data = {
+                    "title": program.title,
+                    "entrypoint": program.entrypoint,
+                    "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
+                    "dependencies": json.dumps(program.dependencies or []),
+                }
+                if config:
+                    data["config"] = json.dumps(asdict(config))
+                else:
+                    data["config"] = "{}"
+
                 response_data = safe_json_request(
                     request=lambda: requests.post(
                         url=url,
-                        data={
-                            "title": program.title,
-                            "entrypoint": program.entrypoint,
-                            "arguments": json.dumps(
-                                arguments or {}, cls=QiskitObjectsEncoder
-                            ),
-                            "dependencies": json.dumps(program.dependencies or []),
-                        },
+                        data=data,
                         files={"artifact": file},
                         headers={"Authorization": f"Bearer {self._token}"},
                         timeout=REQUESTS_TIMEOUT,
-                    )
+                    ),
+                    verbose=True,
                 )
                 job_id = response_data.get("id")
                 span.set_attribute("job.id", job_id)
@@ -449,6 +505,7 @@ class GatewayJobClient(BaseJobClient):
         self,
         program: Union[str, QiskitPattern],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ):
         if isinstance(program, QiskitPattern):
             title = program.title
@@ -462,15 +519,19 @@ class GatewayJobClient(BaseJobClient):
 
             url = f"{self.host}/api/{self.version}/programs/run_existing/"
 
+            data = {
+                "title": title,
+                "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
+            }
+            if config:
+                data["config"] = json.dumps(asdict(config))
+            else:
+                data["config"] = "{}"
+
             response_data = safe_json_request(
                 request=lambda: requests.post(
                     url=url,
-                    data={
-                        "title": title,
-                        "arguments": json.dumps(
-                            arguments or {}, cls=QiskitObjectsEncoder
-                        ),
-                    },
+                    data=data,
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
@@ -518,6 +579,27 @@ class GatewayJobClient(BaseJobClient):
                 )
             )
         return response_data.get("logs")
+
+    def filtered_logs(self, job_id: str, **kwargs):
+        all_logs = self.logs(job_id=job_id)
+        included = ""
+        include = kwargs.get("include")
+        if include is not None:
+            for line in all_logs.split("\n"):
+                if re.search(include, line) is not None:
+                    included = included + line + "\n"
+        else:
+            included = all_logs
+
+        excluded = ""
+        exclude = kwargs.get("exclude")
+        if exclude is not None:
+            for line in included.split("\n"):
+                if line != "" and re.search(exclude, line) is None:
+                    excluded = excluded + line + "\n"
+        else:
+            excluded = included
+        return excluded
 
     def result(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")
@@ -611,7 +693,7 @@ class Job:
 
     def status(self):
         """Returns status of the job."""
-        return self._job_client.status(self.job_id)
+        return _map_status_to_serverless(self._job_client.status(self.job_id))
 
     def stop(self):
         """Stops the job from running."""
@@ -620,6 +702,14 @@ class Job:
     def logs(self) -> str:
         """Returns logs of the job."""
         return self._job_client.logs(self.job_id)
+
+    def filtered_logs(self, **kwargs) -> str:
+        """Returns logs of the job.
+        Args:
+            include: rex expression finds match in the log line to be included
+            exclude: rex expression finds match in the log line to be excluded
+        """
+        return self._job_client.filtered_logs(job_id=self.job_id, **kwargs)
 
     def result(self, wait=True, cadence=5, verbose=False):
         """Return results of the job.
@@ -634,7 +724,7 @@ class Job:
         if wait:
             if verbose:
                 logging.info("Waiting for job result.")
-            while not self._in_terminal_state():
+            while not self.in_terminal_state():
                 time.sleep(cadence)
                 if verbose:
                     logging.info(".")
@@ -649,9 +739,9 @@ class Job:
 
         return results
 
-    def _in_terminal_state(self) -> bool:
+    def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
-        terminal_states = ["STOPPED", "SUCCEEDED", "FAILED"]
+        terminal_states = ["CANCELED", "DONE", "ERROR"]
         return self.status() in terminal_states
 
     def __repr__(self):
@@ -723,3 +813,20 @@ def save_result(result: Dict[str, Any]):
         logging.warning("Something went wrong: %s", response.text)
 
     return response.ok
+
+
+def _map_status_to_serverless(status: str) -> str:
+    """Map a status string from job client to the Qiskit terminology."""
+    status_map = {
+        "PENDING": "INITIALIZING",
+        "RUNNING": "RUNNING",
+        "STOPPED": "CANCELED",
+        "SUCCEEDED": "DONE",
+        "FAILED": "ERROR",
+        "QUEUED": "QUEUED",
+    }
+
+    try:
+        return status_map[status]
+    except KeyError:
+        return status

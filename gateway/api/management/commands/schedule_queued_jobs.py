@@ -102,5 +102,5 @@ class Command(BaseCommand):
                             job.compute_resource = backup_resource
                             job.ray_job_id = backup_ray_job_id
 
-                    logger.info("Executing %s", job)
+                    logger.info("Executing %s of %s", job, job.author)
             logger.info("%s are scheduled for execution.", len(jobs))

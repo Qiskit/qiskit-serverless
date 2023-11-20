@@ -20,7 +20,7 @@
     QuantumServerlessException
     get_auto_discovered_provider
 """
-
+# pylint: disable=W0404
 from importlib_metadata import version as metadata_version, PackageNotFoundError
 
 from .core import (
@@ -36,6 +36,7 @@ from .core import (
     RayProvider,
     LocalProvider,
     save_result,
+    Configuration,
 )
 from .quantum_serverless import (
     QuantumServerless,
