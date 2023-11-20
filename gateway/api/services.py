@@ -16,11 +16,8 @@ logger = logging.getLogger("services")
 
 class ProgramService:
     @staticmethod
-    def save(serializer, request) -> Program:
-
+    def save(serializer, author, artifact) -> Program:
         title = serializer.data.get("title")
-        author = request.user
-
         existing_program = (
             Program.objects.filter(title=title, author=author)
             .order_by("-created")
@@ -35,7 +32,7 @@ class ProgramService:
             program.env_vars = serializer.data.get("env_vars", "{}")
         else:
             program = Program(**serializer.data)
-        program.artifact = request.FILES.get("artifact")
+        program.artifact = artifact
         program.author = author
 
         ## TODO: It would be nice if we could unify all the saves logic in one unique entry-point

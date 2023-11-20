@@ -101,7 +101,11 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
         program_service = self.get_service_program_class()
         try:
-            program = program_service.save(serializer=serializer, request=request)
+            program = program_service.save(
+                serializer=serializer,
+                author=request.user,
+                artifact=request.FILES.get("artifact"),
+            )
         except InternalServerErrorException as exception:
             return Response(exception, exception.http_code)
 
