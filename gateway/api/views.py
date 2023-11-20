@@ -73,6 +73,14 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
         return JobSerializer
 
+    @staticmethod
+    def get_service_program_class():
+        """
+        This method returns Program service to be used in Program ViewSet.
+        """
+
+        return ProgramService
+
     def get_serializer_class(self):
         return self.serializer_class
 
@@ -90,9 +98,10 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+        
+        program_service = self.get_service_program_class()
         try:
-            program = ProgramService.save(serializer=serializer, request=request)
+            program = program_service.save(serializer=serializer, request=request)
         except InternalServerErrorException as exception:
             return Response(exception, exception.http_code)
 
