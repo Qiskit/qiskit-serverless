@@ -39,7 +39,6 @@ from .services import ProgramService
 from .exceptions import InternalServerErrorException
 from .ray import get_job_handler
 
-# from .schedule import save_program
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
 from .utils import build_env_variables, encrypt_env_vars
 
