@@ -2,7 +2,7 @@
 services:
   jupyter:
     container_name: qs-jupyter
-    image: icr.io/quantum-public/quantum-serverless-notebook:${VERSION:-0.7.1}-py39
+    image: icr.io/quantum-public/quantum-serverless-notebook:${VERSION:-0.8.0}-py39
     profiles: ["jupyter", "full"]
     ports:
       - 8888:8888
@@ -13,7 +13,7 @@ services:
       - safe-tier
   ray-head:
     container_name: ray-head
-    image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.7.1}-py39
+    image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.8.0}-py39
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
@@ -62,7 +62,7 @@ services:
       always
   gateway:
     container_name: gateway
-    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.7.1}
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.8.0}
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
@@ -93,7 +93,7 @@ services:
       - postgres
   scheduler:
     container_name: scheduler
-    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.7.1}
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.8.0}
     entrypoint: "./scripts/scheduler.sh"
     environment:
       - DEBUG=0
@@ -113,7 +113,7 @@ services:
       - postgres
   repository-server:
     container_name: repository-server
-    image: icr.io/quantum-public/quantum-repository-server:${VERSION:-0.7.1}
+    image: icr.io/quantum-public/quantum-repository-server:${VERSION:-0.8.0}
     profiles: [ "full", "repo" ]
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
