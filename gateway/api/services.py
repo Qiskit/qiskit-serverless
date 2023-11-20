@@ -13,11 +13,11 @@ from .exceptions import InternalServerErrorException
 
 logger = logging.getLogger("services")
 
-class ProgramService():
-    
+
+class ProgramService:
     @staticmethod
     def save(serializer, request) -> Program:
-        
+
         title = serializer.data.get("title")
         author = request.user
 
@@ -41,17 +41,14 @@ class ProgramService():
         ## TODO: It would be nice if we could unify all the saves logic in one unique entry-point
         try:
             program.save()
-        except (
-            Exception
-        ) as save_program_exception:
+        except (Exception) as save_program_exception:
             logger.error(
                 "Exception was caught saving the program [%s] by [%s] \n"
                 "Error trace: %s",
                 title,
                 author,
-                save_program_exception
+                save_program_exception,
             )
             raise InternalServerErrorException("Unexpected error saving the program")
-        
+
         return program
-    
