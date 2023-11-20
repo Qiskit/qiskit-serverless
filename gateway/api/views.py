@@ -109,7 +109,8 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         except InternalServerErrorException as exception:
             return Response(exception, exception.http_code)
 
-        return Response(program)
+        program_serializer = self.get_serializer(program)
+        return Response(program_serializer.data)
 
     @action(methods=["POST"], detail=False)
     def run_existing(self, request):
