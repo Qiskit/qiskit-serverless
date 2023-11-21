@@ -13,7 +13,7 @@ import logging
 from .models import Program
 from .exceptions import InternalServerErrorException
 
-logger = logging.getLogger("services")
+logger = logging.getLogger("gateway.services")
 
 
 class ProgramService:
