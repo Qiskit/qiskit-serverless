@@ -84,6 +84,13 @@ docker/vscan: docker/build ## Makes a vulnerability scan over the Docker image
     --severity $(VSCAN_SEVERITIES) \
     --ignore-unfixed $(DOCKER_IMAGE):$(IMAGE_TAG)
 
+.PHONY: docker/release
+docker/release: docker/login
+docker/release: docker/build ## Builds and release over the Docker registry the image
+	@echo "docker/release"
+	@echo "Pushing: $(DOCKER_IMAGE):$(IMAGE_TAG)"
+	@docker image push $(DOCKER_IMAGE):$(IMAGE_TAG)
+
 .PHONY: docker/asoc-static-scan
 docker/asoc-static-scan: 
 	@docker run \

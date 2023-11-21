@@ -12,6 +12,8 @@ stages:
     if: type IN (push)
   - name: docker image
     if: type IN (pull_request)
+  - name: docker release
+    if: type IN (push, api) AND (branch = staging OR branch = production)
   - name: deploy staging
     if: type IN (push,api) AND branch = staging
   - name: deploy production
@@ -170,6 +172,14 @@ jobs:
       services: docker
       script:
         - make docker/vscan-repository
+
+    - stage: docker release
+      name: docker/release-selector
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/release-selector
 
     - stage: deploy staging
       name: deploy/staging
