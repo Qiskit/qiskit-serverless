@@ -185,9 +185,6 @@ def _get_least_noisy_qpu(
         **kwargs,
     )
 
-    if len(backends) == 0:
-        raise RuntimeError("No backends available which meet the criteria.")
-
     # Get a transpiled circuit, including additional SWAP gates and ancillas.
     transpile_options["backend"] = backends[0]
     trans_qc = transpile(circuits=circuit, **transpile_options)
