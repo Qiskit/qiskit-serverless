@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any, Optional, List, Callable
 
 import mapomatic as mm
 from qiskit import transpile, QuantumCircuit
-from qiskit_ibm_runtime import Session, QiskitRuntimeService, IBMBackend
-from qiskit_ibm_runtime.ibm_backend import IBMBackend
+from qiskit_ibm_runtime import QiskitRuntimeService, IBMBackend
 
 
 class IBMQPUSelector(ABC):
@@ -15,18 +14,21 @@ class IBMQPUSelector(ABC):
 
     def __init__(
         self,
-        service: QiskitRuntimeService | str,
-        **context: Dict[str, Any],
+        service: QiskitRuntimeService | dict[str, str],
+        **context,
     ):
         """
         Initialize an IBMQPUSelector instance.
 
         Args:
-            service: IBM Qiskit Runtime Service client or token
+            service: IBM Qiskit Runtime Service. This may be a ``QiskitRuntimeService``
+                instance or a dictionary specifying the account information. See the
+                [QiskitRuntimeService.active_account](https://docs.quantum-computing.ibm.com/api/qiskit-ibm-runtime/qiskit_ibm_runtime.QiskitRuntimeService#active_account) method for more details.
+
             context: Additional keyword arguments needed to contextualize QPU selection
         """
-        if isinstance(service, str):
-            runtime_service = QiskitRuntimeService(channel="ibm_quantum", token=service)
+        if isinstance(service, dict):
+            runtime_service = QiskitRuntimeService(**service)
         else:
             runtime_service = service
         self._service = runtime_service
@@ -37,7 +39,7 @@ class IBMQPUSelector(ABC):
         min_num_qubits: Optional[int] = None,
         instance: Optional[str] = None,
         filters: Optional[Callable[[List[IBMBackend]], bool]] = None,
-        **kwargs: Any,
+        **kwargs,
     ) -> IBMBackend:
         """
         Select the best backend with respect to the given context.
@@ -51,9 +53,9 @@ class IBMQPUSelector(ABC):
                     IBMQPUSelector.get_backend(filters=lambda b: b.max_shots > 50000)
                     IBMQPUSelector.get_backend(filters=lambda x: ("rz" in x.basis_gates)
 
-            **kwargs: Simple filters that require a specific  value for an attribute in
+            **kwargs: Simple filters that require a specific value for an attribute in
                 backend configuration or status.
-                Examples::
+                Example::
 
                     # Get the backends that support OpenPulse
                     IBMQPUSelector.get_backend(open_pulse=True)
@@ -64,19 +66,13 @@ class IBMQPUSelector(ABC):
         Returns:
             A backend object which fits the specified context
         """
-        pass
 
 
 class IBMLeastBusyQPUSelector(IBMQPUSelector):
     """QPU selector for choosing the least busy IBM backend."""
 
-    def __init__(self, service: QiskitRuntimeService | str):
-        """
-        Initialize an IBMLeastBusyQPUSelector instance.
-
-        Args:
-            service: IBM Qiskit Runtime Service client or token
-        """
+    def __init__(self, service: QiskitRuntimeService | dict[str, str]):
+        """Initialize an IBMLeastBusyQPUSelector instance."""
         super().__init__(service)
 
     def get_backend(
@@ -84,7 +80,7 @@ class IBMLeastBusyQPUSelector(IBMQPUSelector):
         min_num_qubits: Optional[int] = None,
         instance: Optional[str] = None,
         filters: Optional[Callable[[List[IBMBackend]], bool]] = None,
-        **kwargs: Any,
+        **kwargs,
     ) -> IBMBackend:
         """
         Get the backend with the fewest number of pending jobs.
@@ -109,32 +105,22 @@ class IBMLeastNoisyQPUSelector(IBMQPUSelector):
 
     def __init__(
         self,
-        service: QiskitRuntimeService | str,
-        transpile_options: dict[str, Any],
+        service: QiskitRuntimeService | dict[str, str],
+        *,
+        circuit: QuantumCircuit,
+        transpile_options: Optional[dict[str, Any]] = None,
     ):
         """
         Initialize an IBMLeastNoisyQPUSelector instance.
 
         Args:
             service: IBM Qiskit Runtime Service client or token
+            circuit: The circuit for which the least noisy qubit mapping will be selected
             transpile_options: Options to Qiskit's ``transpile`` function. Used to
                 determine the best backend for which to optimize the input circuit.
-
-        Raises:
-            ValueError: Transpile options must contain a value for ``circuits``.
         """
-        if "circuits" not in transpile_options:
-            raise ValueError(
-                'Input transpile options must contain a value for "circuits".'
-            )
-        if not isinstance(transpile_options["circuits"], QuantumCircuit):
-            raise ValueError(
-                'The "circuits" transpile option must be a QuantumCircuit instance. '
-                "Lists of QuantumCircuits are not supported."
-            )
-
         super().__init__(service)
-        self._circuit = transpile_options["circuits"]
+        self._circuit = circuit
         self._transpile_options = transpile_options
         self._optimized_circuit = None
 
@@ -143,12 +129,12 @@ class IBMLeastNoisyQPUSelector(IBMQPUSelector):
         min_num_qubits: Optional[int] = None,
         instance: Optional[str] = None,
         filters: Optional[Callable[[List[IBMBackend]], bool]] = None,
-        **kwargs: Any,
+        **kwargs,
     ) -> IBMBackend:
         """
         Get the backend which produces the least noisy qubit mapping for the given circuit.
 
-        See superclass for detailed documentation on input arguments.
+        See superclass for detailed documentation.
 
         Returns:
             The backend which produces the least noisy qubit mapping for the given circuit.
@@ -199,9 +185,12 @@ def _get_least_noisy_qpu(
         **kwargs,
     )
 
+    if len(backends) == 0:
+        raise RuntimeError("No backends available which meet the criteria.")
+
     # Get a transpiled circuit, including additional SWAP gates and ancillas.
-    transpile_options.setdefault("backend", backends[0])
-    trans_qc = transpile(**transpile_options)
+    transpile_options["backend"] = backends[0]
+    trans_qc = transpile(circuits=circuit, **transpile_options)
 
     # Deflate the circuit to just the number of active qubits
     small_qc = mm.deflate_circuit(trans_qc)
@@ -213,8 +202,7 @@ def _get_least_noisy_qpu(
 
     transpile_options["initial_layout"] = best_layout
     transpile_options["backend"] = backend
-    transpile_options["circuits"] = small_qc
-    optimal_circuit = transpile(**transpile_options)
+    optimal_circuit = transpile(circuits=small_qc, **transpile_options)
 
     return backend, optimal_circuit
 
@@ -224,7 +212,7 @@ def _get_least_busy_qpu(
     min_num_qubits: Optional[int] = None,
     instance: Optional[str] = None,
     filters: Optional[Callable[[List[IBMBackend]], bool]] = None,
-    **kwargs: Any,
+    **kwargs,
 ) -> IBMBackend:
     """Get the least busy backend. Filter all simulators and inactive devices."""
     kwargs["operational"] = True

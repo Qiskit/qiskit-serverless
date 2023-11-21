@@ -80,3 +80,6 @@ remove-all-unused-imports = true
 [tool.pytest.ini_options]
 testpaths = ["./quantum_serverless_tools/", "./test/"]
 addopts = "--doctest-modules -rs --durations=10"
+
+[tool.ruff]
+extend-include = ["*.ipynb"]
