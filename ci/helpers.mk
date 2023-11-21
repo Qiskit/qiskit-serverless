@@ -85,6 +85,7 @@ docker/vscan: docker/build ## Makes a vulnerability scan over the Docker image
     --ignore-unfixed $(DOCKER_IMAGE):$(IMAGE_TAG)
 
 .PHONY: docker/release
+docker/release: docker/login
 docker/release: docker/build ## Builds and release over the Docker registry the image
 	@echo "docker/release"
 	@echo "Pushing: $(DOCKER_IMAGE):$(IMAGE_TAG)"
