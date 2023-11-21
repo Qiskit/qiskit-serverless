@@ -171,6 +171,14 @@ jobs:
       script:
         - make docker/vscan-repository
 
+    - stage: docker image
+      name: docker/release-selector
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/release-selector
+
     - stage: deploy staging
       name: deploy/staging
       language: minimal
