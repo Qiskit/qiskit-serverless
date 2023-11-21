@@ -40,8 +40,10 @@ class ProgramService:
             program.entrypoint = serializer.data.get("entrypoint")
             program.dependencies = serializer.data.get("dependencies", "[]")
             program.env_vars = serializer.data.get("env_vars", "{}")
+            logger.debug("Program [%s] will be updated by [%s]", title, author)
         else:
             program = Program(**serializer.data)
+            logger.debug("Program [%s] will be created by [%s]", title, author)
         program.artifact = artifact
         program.author = author
 
@@ -59,5 +61,7 @@ class ProgramService:
             raise InternalServerErrorException(
                 "Unexpected error saving the program"
             ) from save_program_exception
+
+        logger.debug("Program [%s] saved", title)
 
         return program
