@@ -224,8 +224,6 @@ def _get_least_busy_qpu(
     **kwargs,
 ) -> IBMBackend:
     """Get the least busy backend. Filter all simulators and inactive devices."""
-    kwargs["operational"] = True
-    kwargs["simulator"] = False
     return service.least_busy(
         min_num_qubits=min_num_qubits,
         instance=instance,
