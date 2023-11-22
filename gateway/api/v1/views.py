@@ -9,6 +9,7 @@ from api import views
 from api.models import Program, Job
 from api.permissions import IsOwner
 from . import serializers as v1_serializers
+from . import services as v1_services
 
 
 class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestors
@@ -23,6 +24,10 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     @staticmethod
     def get_serializer_job_class():
         return v1_serializers.JobSerializer
+
+    @staticmethod
+    def get_service_program_class():
+        return v1_services.ProgramService
 
     def get_serializer_class(self):
         return v1_serializers.ProgramSerializer

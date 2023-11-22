@@ -13,43 +13,13 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
-from api.models import Job, Program, ComputeResource
+from api.models import Job, ComputeResource
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
 from main import settings as config
 
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
-
-
-def save_program(serializer, request) -> Program:
-    """Save program.
-
-    Args:
-        request: request data.
-
-    Returns:
-        saved program
-    """
-
-    existing_program = (
-        Program.objects.filter(title=serializer.data.get("title"), author=request.user)
-        .order_by("-created")
-        .first()
-    )
-
-    if existing_program is not None:
-        program = existing_program
-        program.arguments = serializer.data.get("arguments")
-        program.entrypoint = serializer.data.get("entrypoint")
-        program.dependencies = serializer.data.get("dependencies", "[]")
-        program.env_vars = serializer.data.get("env_vars", "{}")
-    else:
-        program = Program(**serializer.data)
-    program.artifact = request.FILES.get("artifact")
-    program.author = request.user
-    program.save()
-    return program
 
 
 def execute_job(job: Job) -> Job:

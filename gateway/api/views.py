@@ -35,8 +35,10 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from .models import Program, Job
+from .services import ProgramService
+from .exceptions import InternalServerErrorException
 from .ray import get_job_handler
-from .schedule import save_program
+
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
 from .utils import build_env_variables, encrypt_env_vars
 
@@ -71,6 +73,14 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
         return JobSerializer
 
+    @staticmethod
+    def get_service_program_class():
+        """
+        This method returns Program service to be used in Program ViewSet.
+        """
+
+        return ProgramService
+
     def get_serializer_class(self):
         return self.serializer_class
 
@@ -89,8 +99,18 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        save_program(serializer=serializer, request=request)
-        return Response(serializer.data)
+        program_service = self.get_service_program_class()
+        try:
+            program = program_service.save(
+                serializer=serializer,
+                author=request.user,
+                artifact=request.FILES.get("artifact"),
+            )
+        except InternalServerErrorException as exception:
+            return Response(exception, exception.http_code)
+
+        program_serializer = self.get_serializer(program)
+        return Response(program_serializer.data)
 
     @action(methods=["POST"], detail=False)
     def run_existing(self, request):
@@ -173,7 +193,15 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
                 jobconfig = config_serializer.save()
 
-            program = save_program(serializer=serializer, request=request)
+            program_service = self.get_service_program_class()
+            try:
+                program = program_service.save(
+                    serializer=serializer,
+                    author=request.user,
+                    artifact=request.FILES.get("artifact"),
+                )
+            except InternalServerErrorException as exception:
+                return Response(exception, exception.http_code)
 
             job = Job(
                 program=program,
