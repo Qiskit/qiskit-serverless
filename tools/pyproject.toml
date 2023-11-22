@@ -29,6 +29,7 @@ dependencies = [
     "numpy>=1.23.0",
     "qiskit>=0.43.0",
     "qiskit-ibm-runtime>=0.9.2",
+    "mapomatic"
 ]
 
 [project.optional-dependencies]
@@ -38,7 +39,6 @@ dev = [
 basetest = [
     "pytest>=6.2.5",
     "pytest-randomly>=1.2.0",
-    "mapomatic"
 ]
 test = [
     "quantum_serverless_tools[basetest]",
