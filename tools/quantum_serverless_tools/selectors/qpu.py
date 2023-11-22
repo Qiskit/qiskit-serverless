@@ -1,13 +1,24 @@
+# This code is a Qiskit project.
+
+# (C) Copyright IBM 2023.
+
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """QPU selector module."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any, Optional, Callable
 
 import mapomatic as mm
 from qiskit import transpile, QuantumCircuit
-from qiskit_ibm_runtime import Session, QiskitRuntimeService
-from qiskit_ibm_runtime.ibm_backend import IBMBackend
+from qiskit_ibm_runtime import QiskitRuntimeService, IBMBackend
 
 
 class IBMQPUSelector(ABC):
@@ -15,85 +26,86 @@ class IBMQPUSelector(ABC):
 
     def __init__(
         self,
-        service: QiskitRuntimeService | str,
-        **context: Dict[str, Any],
+        service: QiskitRuntimeService | dict[str, str],
+        **context,
     ):
         """
         Initialize an IBMQPUSelector instance.
 
         Args:
-            service: IBM Qiskit Runtime Service client or token
+            service: IBM Qiskit Runtime Service. This may be a ``QiskitRuntimeService``
+                instance or a dictionary specifying the account information. See the
+                [QiskitRuntimeService.active_account](https://docs.quantum-computing.ibm.com/api/qiskit-ibm-runtime/qiskit_ibm_runtime.QiskitRuntimeService#active_account) method for more details.
+
             context: Additional keyword arguments needed to contextualize QPU selection
         """
-        if isinstance(service, str):
-            runtime_service = QiskitRuntimeService(channel="ibm_quantum", token=service)
+        if isinstance(service, dict):
+            runtime_service = QiskitRuntimeService(**service)
         else:
             runtime_service = service
         self._service = runtime_service
 
     @abstractmethod
-    def get_backend(self, **filters: dict[str, Any]) -> IBMBackend:
+    def get_backend(
+        self,
+        min_num_qubits: Optional[int] = None,
+        instance: Optional[str] = None,
+        filters: Optional[Callable[[list[IBMBackend]], bool]] = None,
+        **kwargs,
+    ) -> IBMBackend:
         """
         Select the best backend with respect to the given context.
 
         Args:
-            filters: Criteria for filtering out backends from selection
+            min_num_qubits: Minimum number of qubits the backend has to have
+            instance: hub/group/project from which to select backend
+            filters: More complex filters, such as lambda functions.
+                Examples::
+
+                    IBMQPUSelector.get_backend(filters=lambda b: b.max_shots > 50000)
+                    IBMQPUSelector.get_backend(filters=lambda x: ("rz" in x.basis_gates)
+
+            **kwargs: Simple filters that require a specific value for an attribute in
+                backend configuration or status.
+                Example::
+
+                    # Get the backends that support OpenPulse
+                    IBMQPUSelector.get_backend(open_pulse=True)
+
+                For the full list of backend attributes, see the `IBMBackend` class documentation
+                <https://qiskit.org/documentation/apidoc/providers_models.html>
 
         Returns:
             A backend object which fits the specified context
         """
-        pass
-
-    @abstractmethod
-    def get_session(self, **filters: dict[str, Any]) -> Session:
-        """
-        Return a session for the best backend with respect to the given context.
-
-        Args:
-            filters: Criteria for filtering out backends from selection
-
-        Returns:
-            A backend session object which fits the specified context.
-        """
-        pass
 
 
 class IBMLeastBusyQPUSelector(IBMQPUSelector):
     """QPU selector for choosing the least busy IBM backend."""
 
-    def __init__(self, service: QiskitRuntimeService | str):
-        """
-        Initialize an IBMLeastBusyQPUSelector instance.
-
-        Args:
-            service: IBM Qiskit Runtime Service client or token
-        """
+    def __init__(self, service: QiskitRuntimeService | dict[str, str]):
+        """Initialize an IBMLeastBusyQPUSelector instance."""
         super().__init__(service)
 
-    def get_backend(self, *, min_num_qubits: int) -> IBMBackend:
+    def get_backend(
+        self,
+        min_num_qubits: Optional[int] = None,
+        instance: Optional[str] = None,
+        filters: Optional[Callable[[list[IBMBackend]], bool]] = None,
+        **kwargs,
+    ) -> IBMBackend:
         """
         Get the backend with the fewest number of pending jobs.
 
-        Args:
-          min_num_qubits: The number of qubits required of the QPU
-
-        Returns:
-            The backend with the fewest number of pending jobs which fits the
-            specified context.
+        See superclass for detailed documentation.
         """
-        return _get_least_busy_qpu(min_num_qubits, self._service)
-
-    def get_session(self, *, min_num_qubits: int) -> Session:
-        """
-        Get a session for the least busy backend.
-
-        Args:
-            min_num_qubits: The number of qubits required of the QPU
-
-        Returns:
-            A backend session for the least busy backend.
-        """
-        return Session(backend=_get_least_busy_qpu(min_num_qubits, self._service))
+        return _get_least_busy_qpu(
+            self._service,
+            min_num_qubits=min_num_qubits,
+            instance=instance,
+            filters=filters,
+            **kwargs,
+        )
 
 
 class IBMLeastNoisyQPUSelector(IBMQPUSelector):
@@ -105,100 +117,116 @@ class IBMLeastNoisyQPUSelector(IBMQPUSelector):
 
     def __init__(
         self,
-        service: QiskitRuntimeService | str,
+        service: QiskitRuntimeService | dict[str, str],
         *,
         circuit: QuantumCircuit,
+        transpile_options: Optional[dict[str, Any]] = None,
     ):
         """
         Initialize an IBMLeastNoisyQPUSelector instance.
 
         Args:
             service: IBM Qiskit Runtime Service client or token
-            circuit: A circuit for which to select optimal qubits
+            circuit: The circuit for which the least noisy qubit mapping will be selected
+            transpile_options: Options to Qiskit's ``transpile`` function. Used to
+                determine the best backend for which to optimize the input circuit.
         """
         super().__init__(service)
         self._circuit = circuit
+        self._transpile_options = transpile_options
+        self._optimized_circuit = None
 
-    def get_backend(self, *, min_num_qubits: int | None = None) -> IBMBackend:
+    def get_backend(
+        self,
+        min_num_qubits: Optional[int] = None,
+        instance: Optional[str] = None,
+        filters: Optional[Callable[[list[IBMBackend]], bool]] = None,
+        **kwargs,
+    ) -> IBMBackend:
         """
         Get the backend which produces the least noisy qubit mapping for the given circuit.
 
-        Args:
-            min_num_qubits: The number of qubits required of the QPU. If ``None``, the number
-                of qubits in the input circuit will be used.
+        See superclass for detailed documentation.
 
         Returns:
-            The backend which produces the least noisy qubit mapping for the given circuit
+            The backend which produces the least noisy qubit mapping for the given circuit.
         """
-        if min_num_qubits is None:
+        if min_num_qubits is None or min_num_qubits < self._circuit.num_qubits:
             min_num_qubits = self._circuit.num_qubits
 
-        return _get_least_noisy_qpu(min_num_qubits, self._service, self._circuit)
-
-    def get_session(self, *, min_num_qubits: int | None = None) -> Session:
-        """
-        Get a session for the least noisy backend.
-
-        Args:
-            min_num_qubits: The number of qubits required of the QPU. If ``None``, the number
-                of qubits in the input circuit will be used.
-
-        Returns:
-            A session for the least noisy backend
-        """
-        if min_num_qubits is None:
-            min_num_qubits = self._circuit.num_qubits
-
-        return Session(
-            backend=_get_least_noisy_qpu(min_num_qubits, self._service, self._circuit)
+        backend, self._optimized_circuit = _get_least_noisy_qpu(
+            self._service,
+            self._circuit,
+            transpile_options=self._transpile_options,
+            min_num_qubits=min_num_qubits,
+            instance=instance,
+            filters=filters,
+            **kwargs,
         )
+
+        return backend
+
+    @property
+    def optimized_circuit(self) -> Optional[QuantumCircuit]:
+        """
+        Get a circuit which has been optimized for the selected backend.
+
+        If no backend has been selected yet, this property will be ``None``.
+        Use the :meth:`get_backend` method to generate a circuit which has
+        been optimized for backend execution.
+        """
+        return self._optimized_circuit
 
 
 def _get_least_noisy_qpu(
-    min_num_qubits: int, service: QiskitRuntimeService, circuit: QuantumCircuit
-) -> IBMBackend:
+    service: QiskitRuntimeService,
+    circuit: QuantumCircuit,
+    transpile_options: Optional[dict[str, Any]],
+    min_num_qubits: Optional[int] = None,
+    instance: Optional[str] = None,
+    filters: Optional[Callable[[list[IBMBackend]], bool]] = None,
+    **kwargs,
+) -> tuple[IBMBackend, QuantumCircuit]:
     """Get the least noisy backend. Filter all simulators and inactive devices."""
-
-    # qiskit-ibm-runtime Issue #1136 submitted to address bug causing
-    # stabilizer simulator to crash when their "simulator" property is
-    # invoked. Until this is fixed, we will filter out those backends by
-    # removing backends prefixed with "simulator_".
-    #
-    # https://github.com/Qiskit/qiskit-ibm-runtime/issues/1136
+    kwargs["operational"] = True
+    kwargs["simulator"] = False
     backends = service.backends(
         min_num_qubits=min_num_qubits,
-        filters=lambda b: b.name.split("_")[0] != "simulator"
-        and not b.simulator
-        and b.status().status_msg == "active"
-        and b.status().operational,
+        instance=instance,
+        filters=filters,
+        **kwargs,
     )
-    assert len(backends) > 0
 
     # Get a transpiled circuit, including additional SWAP gates and ancillas.
-    trans_qc = transpile(circuit, backends[0], optimization_level=3)
+    transpile_options["backend"] = backends[0]
+    trans_qc = transpile(circuits=circuit, **transpile_options)
 
     # Deflate the circuit to just the number of active qubits
     small_qc = mm.deflate_circuit(trans_qc)
 
-    # Return the backend with the best noise profile wrt the input circuit
-    return service.get_backend(mm.best_overall_layout(small_qc, backends)[1])
+    # Save the optimized circuit, which has been transpiled to the most optimal backend
+    best_ovr_layout = mm.best_overall_layout(small_qc, backends)
+    backend = service.get_backend(best_ovr_layout[1])
+    best_layout = best_ovr_layout[0]
+
+    transpile_options["initial_layout"] = best_layout
+    transpile_options["backend"] = backend
+    optimal_circuit = transpile(circuits=small_qc, **transpile_options)
+
+    return backend, optimal_circuit
 
 
 def _get_least_busy_qpu(
-    min_num_qubits: int, service: QiskitRuntimeService
+    service: QiskitRuntimeService,
+    min_num_qubits: Optional[int] = None,
+    instance: Optional[str] = None,
+    filters: Optional[Callable[[list[IBMBackend]], bool]] = None,
+    **kwargs,
 ) -> IBMBackend:
     """Get the least busy backend. Filter all simulators and inactive devices."""
-
-    # qiskit-ibm-runtime Issue #1136 submitted to address bug causing
-    # stabilizer simulator to crash when their "simulator" property is
-    # invoked. Until this is fixed, we will filter out those backends by
-    # removing backends prefixed with "simulator_".
-    #
-    # https://github.com/Qiskit/qiskit-ibm-runtime/issues/1136
     return service.least_busy(
         min_num_qubits=min_num_qubits,
-        filters=lambda b: b.name.split("_")[0] != "simulator"
-        and not b.simulator
-        and b.status().status_msg == "active"
-        and b.status().operational,
+        instance=instance,
+        filters=filters,
+        **kwargs,
     )
