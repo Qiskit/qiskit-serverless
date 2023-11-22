@@ -1,8 +1,20 @@
+# This code is a Qiskit project.
+
+# (C) Copyright IBM 2023.
+
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
 """QPU selector module."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, List, Callable
+from typing import Any, Optional, Callable
 
 import mapomatic as mm
 from qiskit import transpile, QuantumCircuit
@@ -38,7 +50,7 @@ class IBMQPUSelector(ABC):
         self,
         min_num_qubits: Optional[int] = None,
         instance: Optional[str] = None,
-        filters: Optional[Callable[[List[IBMBackend]], bool]] = None,
+        filters: Optional[Callable[[list[IBMBackend]], bool]] = None,
         **kwargs,
     ) -> IBMBackend:
         """
@@ -79,7 +91,7 @@ class IBMLeastBusyQPUSelector(IBMQPUSelector):
         self,
         min_num_qubits: Optional[int] = None,
         instance: Optional[str] = None,
-        filters: Optional[Callable[[List[IBMBackend]], bool]] = None,
+        filters: Optional[Callable[[list[IBMBackend]], bool]] = None,
         **kwargs,
     ) -> IBMBackend:
         """
@@ -128,7 +140,7 @@ class IBMLeastNoisyQPUSelector(IBMQPUSelector):
         self,
         min_num_qubits: Optional[int] = None,
         instance: Optional[str] = None,
-        filters: Optional[Callable[[List[IBMBackend]], bool]] = None,
+        filters: Optional[Callable[[list[IBMBackend]], bool]] = None,
         **kwargs,
     ) -> IBMBackend:
         """
@@ -172,7 +184,7 @@ def _get_least_noisy_qpu(
     transpile_options: Optional[dict[str, Any]],
     min_num_qubits: Optional[int] = None,
     instance: Optional[str] = None,
-    filters: Optional[Callable[[List[IBMBackend]], bool]] = None,
+    filters: Optional[Callable[[list[IBMBackend]], bool]] = None,
     **kwargs,
 ) -> tuple[IBMBackend, QuantumCircuit]:
     """Get the least noisy backend. Filter all simulators and inactive devices."""
@@ -208,7 +220,7 @@ def _get_least_busy_qpu(
     service: QiskitRuntimeService,
     min_num_qubits: Optional[int] = None,
     instance: Optional[str] = None,
-    filters: Optional[Callable[[List[IBMBackend]], bool]] = None,
+    filters: Optional[Callable[[list[IBMBackend]], bool]] = None,
     **kwargs,
 ) -> IBMBackend:
     """Get the least busy backend. Filter all simulators and inactive devices."""
