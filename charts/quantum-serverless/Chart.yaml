@@ -24,7 +24,7 @@ dependencies:
     repository: https://ray-project.github.io/kuberay-helm
   - name: keycloak
     condition: keycloakEnable
-    version: 15.1.8
+    version: 14.5.0
     repository: https://charts.bitnami.com/bitnami
   - name: repository
     condition: repositoryEnable
