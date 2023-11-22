@@ -21,7 +21,7 @@
       "groupName": "qiskit packages"
     },
     {
-      "matchPackagePatterns": [
+      "matchPackageNames": [
         "nginx-ingress-controller",
         "keycloak"
       ],
