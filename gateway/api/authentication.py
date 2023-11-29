@@ -106,9 +106,9 @@ class MockAuthBackend(authentication.BaseAuthentication):
             if settings.SETTINGS_AUTH_MOCK_TOKEN is not None:
                 if token == settings.SETTINGS_AUTH_MOCK_TOKEN:
                     try:
-                        user = User.objects.get(username="mock_user")
+                        user = User.objects.get(username="mockuser")
                     except User.DoesNotExist:
-                        user = User(username="mock_user")
+                        user = User(username="mockuser")
                         user.save()
 
         return user, CustomToken(token.encode()) if token else None

@@ -115,7 +115,7 @@ class TestAuthentication(APITestCase):
 
         with self.settings(SETTINGS_AUTH_MOCK_TOKEN="my_awesome_token"):
             user, token = backend.authenticate(request)
-            self.assertEqual(user.username, "mock_user")
+            self.assertEqual(user.username, "mockuser")
             self.assertEqual(token.token.decode(), "my_awesome_token")
 
         with self.settings(SETTINGS_AUTH_MOCK_TOKEN="other_awesome_token"):
