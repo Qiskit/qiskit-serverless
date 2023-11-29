@@ -391,10 +391,8 @@
 <span class="kn">import</span> <span class="nn">os</span>
 
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
-    <span class="n">username</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_USER&quot;</span><span class="p">,</span> <span class="s2">&quot;user&quot;</span><span class="p">),</span>
-    <span class="n">password</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_PASSWORD&quot;</span><span class="p">,</span> <span class="s2">&quot;password123&quot;</span><span class="p">),</span>
-    <span class="c1"># token=os.environ.get(&quot;GATEWAY_TOKEN&quot;, &quot;&lt;TOKEN&gt;&quot;), # token can be used instead of user/password combination</span>
-    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8010&quot;</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">serverless</span>
 </pre></div>
@@ -442,7 +440,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 3b3d1bd1-5aa4-45a5-b2b1-fad46bd2f079&gt;
+&lt;Job | 0ae02e24-859a-43c1-a9e9-038dcb7dc296&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
@@ -477,9 +475,9 @@
 <div class="highlight"><pre>
 OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
 OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
-{&#39;iteration&#39;: 0, &#39;dists&#39;: [{0: 3.11944954662e-05, 1: 1.7472255688e-06, 2: 0.0023491864962565, 3: 0.0001315795832142, 4: 3.11944954662e-05, 5: 1.7472255688e-06, 6: 0.0023491864962565, 7: 0.0001315795832142, 8: 0.0003717494511414, 9: 2.08219474781e-05, 10: 0.0279956055566758, 11: 0.0015680535014343, 12: 0.0003717494511414, 13: 2.08219474781e-05, 14: 0.0279956055566758, 15: 0.0015680535014343, 16: 0.0311265176657353, 17: 0.0017434180844706, 18: 0.0031482525298452, 19: 0.0001763358321658, 20: 0.0015223386227183, 21: 0.0313475971274875, 22: 0.000153975027715, 23: 0.003170613334296, 24: 0.3709393495626852, 25: 0.0207765731205209, 26: 0.0018349433509674, 27: 0.0377846715963741, 28: 0.0181419362290861, 29: 0.3735739864541202, 30: 0.0375181945574789, 31: 0.0021014203898626}]}
-{&#39;iteration&#39;: 1, &#39;dists&#39;: [{0: 0.0069643522753237, 2: 0.0019338542834274, 4: 0.0069643522753237, 6: 0.0019338542834274, 8: 0.1437387217328721, 10: 0.0399132226125896, 12: 0.1437387217328721, 14: 0.0399132226125896, 16: 0.0111201629603674, 18: 0.0030878355837216, 20: 0.0111201629603673, 22: 0.0030878355837216, 24: 0.2295113667710234, 26: 0.0637304837806736, 28: 0.2295113667710234, 30: 0.0637304837806736}]}
-{&#39;iteration&#39;: 2, &#39;dists&#39;: [{0: 0.1660856424846436, 1: 0.1169352848951222, 3: 0.1169352848951222, 4: 0.0001612756514029, 5: 0.0001135487328183, 7: 0.0001135487328183, 8: 0.0413427186633533, 9: 0.0291080102585333, 11: 0.0291080102585333, 12: 4.01453959743e-05, 13: 2.82650158392e-05, 15: 2.82650158392e-05, 16: 0.1660856424846435, 17: 0.1169352848951222, 19: 0.1169352848951222, 20: 0.0001612756514029, 21: 0.0001135487328183, 23: 0.0001135487328183, 24: 0.0413427186633533, 25: 0.0291080102585333, 27: 0.0291080102585333, 28: 4.01453959743e-05, 29: 2.82650158392e-05, 31: 2.82650158392e-05}]}
+{&#39;iteration&#39;: 0, &#39;dists&#39;: [{0: 0.01953568379784, 1: 0.003434588839427, 2: 0.000962772320948, 3: 0.022007500316319, 4: 0.018613812117662, 5: 0.003272513622768, 6: 0.000917339944671, 7: 0.020968985795759, 8: 0.089342856396779, 9: 0.100647254570651, 10: 0.004403062114611, 11: 0.015707460288483, 12: 0.085126845839344, 13: 0.095897799438366, 14: 0.004195285498675, 15: 0.014966239097696, 16: 0.018613812117662, 17: 0.003272513622768, 18: 0.007093750939097, 19: 0.014792574801333, 20: 0.01953568379784, 21: 0.003434588839427, 22: 0.007445077580607, 23: 0.01552519505666, 24: 0.085126845839344, 25: 0.067651119863038, 26: 0.032441965074003, 27: 0.014966239097696, 28: 0.089342856396779, 29: 0.071001623840398, 30: 0.034048692844864, 31: 0.015707460288483}]}
+{&#39;iteration&#39;: 1, &#39;dists&#39;: [{0: 0.179254126288168, 1: 0.382666923582299, 4: 0.031208803971925, 5: 0.066623721595232, 16: 0.092444479011949, 17: 0.197348005974499, 20: 0.016094924471265, 21: 0.034359015104663}]}
+{&#39;iteration&#39;: 2, &#39;dists&#39;: [{0: 0.003593062771524, 2: 0.037032118667734, 4: 0.032043767985561, 6: 0.330261031899324, 8: 0.005805731220397, 10: 0.059837119799466, 12: 0.002779551551986, 14: 0.028647616104007, 16: 0.003593062771524, 18: 0.037032118667734, 20: 0.032043767985561, 22: 0.330261031899324, 24: 0.005805731220397, 26: 0.059837119799466, 28: 0.002779551551986, 30: 0.028647616104007}]}
 
 </pre></div></div>
 </div>
