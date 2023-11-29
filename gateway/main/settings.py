@@ -31,6 +31,9 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DEBUG", 1))
 
+# SECURITY WARNING: don't run with debug turned on in production!
+LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "WARNING"
+
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
 # allow connections from any kubernetes pod within the cluster
@@ -55,7 +58,6 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-    "allauth.socialaccount.providers.keycloak",
     "dj_rest_auth",
     "dj_rest_auth.registration",
     "api",
@@ -73,6 +75,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "main.urls"
@@ -111,17 +114,22 @@ LOGGING = {
     },
     "root": {
         "handlers": ["console"],
-        "level": "DEBUG",
+        "level": LOG_LEVEL,
     },
     "loggers": {
         "commands": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": LOG_LEVEL,
             "propagate": False,
         },
         "gateway": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "gateway.services": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
             "propagate": False,
         },
     },
@@ -199,6 +207,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# =============
+# AUTH SETTINGS
+# =============
 SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "default")
 SETTINGS_DEFAULT_AUTH_CLASSES = [
     "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -209,10 +220,16 @@ ALL_AUTH_CLASSES_CONFIGURATION = {
     "custom_token": [
         "api.authentication.CustomTokenBackend",
     ],
+    "mock_token": [
+        "api.authentication.MockAuthBackend",
+    ],
 }
 DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
     SETTINGS_AUTH_MECHANISM, SETTINGS_DEFAULT_AUTH_CLASSES
 )
+# mock token value
+SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
+# =============
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
@@ -304,6 +321,7 @@ RAY_NODE_IMAGE = os.environ.get(
     "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py39"
 )
 RAY_NODE_IMAGES_MAP = {
+    "default": RAY_NODE_IMAGE,
     "py38": os.environ.get("RAY_NODE_IMAGE_PY38", RAY_NODE_IMAGE),
     "py39": os.environ.get("RAY_NODE_IMAGE_PY39", RAY_NODE_IMAGE),
     "py310": os.environ.get("RAY_NODE_IMAGE_PY310", RAY_NODE_IMAGE),
