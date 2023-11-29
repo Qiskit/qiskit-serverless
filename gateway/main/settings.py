@@ -58,7 +58,6 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-    "allauth.socialaccount.providers.keycloak",
     "dj_rest_auth",
     "dj_rest_auth.registration",
     "api",
@@ -76,6 +75,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "main.urls"
@@ -207,6 +207,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# =============
+# AUTH SETTINGS
+# =============
 SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "default")
 SETTINGS_DEFAULT_AUTH_CLASSES = [
     "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -217,10 +220,16 @@ ALL_AUTH_CLASSES_CONFIGURATION = {
     "custom_token": [
         "api.authentication.CustomTokenBackend",
     ],
+    "mock_token": [
+        "api.authentication.MockAuthBackend",
+    ],
 }
 DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
     SETTINGS_AUTH_MECHANISM, SETTINGS_DEFAULT_AUTH_CLASSES
 )
+# mock token value
+SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
+# =============
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,

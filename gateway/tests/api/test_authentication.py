@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import responses
 from rest_framework.test import APITestCase
 
-from api.authentication import CustomTokenBackend, CustomToken
+from api.authentication import CustomTokenBackend, CustomToken, MockAuthBackend
 
 
 class TestAuthentication(APITestCase):
@@ -106,3 +106,18 @@ class TestAuthentication(APITestCase):
             # is not configured properly
             with self.assertRaises(AttributeError):
                 custom_auth.authenticate(request)
+
+    def test_mock_auth(self):
+        """Tests for mock authentication backend."""
+        backend = MockAuthBackend()
+        request = MagicMock()
+        request.META.get.return_value = "Bearer my_awesome_token"
+
+        with self.settings(SETTINGS_AUTH_MOCK_TOKEN="my_awesome_token"):
+            user, token = backend.authenticate(request)
+            self.assertEqual(user.username, "mockuser")
+            self.assertEqual(token.token.decode(), "my_awesome_token")
+
+        with self.settings(SETTINGS_AUTH_MOCK_TOKEN="other_awesome_token"):
+            user, token = backend.authenticate(request)
+            self.assertIsNone(user)
