@@ -7,38 +7,32 @@ Django Rest framework views for api application:
 Version views inherit from the different views.
 """
 import glob
-import mimetypes
-import os
 import json
 import logging
+import mimetypes
+import os
 import time
 from wsgiref.util import FileWrapper
 
-import requests
 from concurrency.exceptions import RecordModifiedError
-from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.http import StreamingHttpResponse
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
-from rest_framework.generics import get_object_or_404
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.generics import get_object_or_404
+from rest_framework.response import Response
 
-from .models import Program, Job
-from .services import ProgramService
 from .exceptions import InternalServerErrorException
+from .models import Program, Job
 from .ray import get_job_handler
-
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
+from .services import ProgramService
 from .utils import build_env_variables, encrypt_env_vars
 
 logger = logging.getLogger("gateway")
