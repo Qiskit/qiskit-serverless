@@ -8,7 +8,7 @@ services:
       - 8888:8888
     environment:
       - JUPYTER_TOKEN=123
-      - GATEWAY_HOST=http://gateway:8000      
+      - GATEWAY_HOST=http://gateway:8000
     networks:
       - safe-tier
   ray-head:
@@ -28,36 +28,13 @@ services:
   postgres:
     image: postgres
     environment:
-      POSTGRES_DB: testkeycloakdb
-      POSTGRES_USER: testkeycloakuser
-      POSTGRES_PASSWORD: testkeycloakpassword
+      POSTGRES_DB: serverlessdb
+      POSTGRES_USER: serverlessuser
+      POSTGRES_PASSWORD: serverlesspassword
     networks:
       - safe-tier
     ports:
       - 5432:5432
-    restart:
-      always
-  keycloak:
-    container_name: keycloak
-    image: bitnami/keycloak:20.0.5-debian-11-r4
-    volumes:
-      - ./realm-export.json:/opt/keycloak/data/import/realm-export.json
-    environment:
-      KEYCLOAK_DATABASE_HOST: postgres
-      KEYCLOAK_DATABASE_NAME: testkeycloakdb
-      KEYCLOAK_DATABASE_USER: testkeycloakuser
-      KEYCLOAK_DATABASE_SCHEMA: public
-      KEYCLOAK_DATABASE_PASSWORD: testkeycloakpassword
-      KEYCLOAK_ADMIN_USER: admin
-      KEYCLOAK_ADMIN_PASSWORD: 123
-      KEYCLOAK_HTTP_PORT: 8080
-      KEYCLOAK_EXTRA_ARGS: "-Dkeycloak.import=/opt/keycloak/data/import/realm-export.json"
-    ports:
-      - 8085:8080
-    depends_on:
-      - postgres
-    networks:
-      - safe-tier
     restart:
       always
   gateway:
@@ -77,19 +54,17 @@ services:
       - SETTING_KEYCLOAK_REALM=quantum-serverless
       - SETTINGS_KEYCLOAK_CLIENT_SECRET=supersecret
       - SITE_HOST=http://gateway:8000
-#      - SETTINGS_AUTH_MECHANISM=default #custom_token
-#      - SETTINGS_TOKEN_AUTH_URL=<URL_FOR_TOKEN_VERIFICATION>
+      - SETTINGS_AUTH_MECHANISM=mock_token
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
-      - DATABASE_NAME=testkeycloakdb
-      - DATABASE_USER=testkeycloakuser
-      - DATABASE_PASSWORD=testkeycloakpassword
+      - DATABASE_NAME=serverlessdb
+      - DATABASE_USER=serverlessuser
+      - DATABASE_PASSWORD=serverlesspassword
     networks:
       - safe-tier
     volumes:
       - program-artifacts:/usr/src/app/media/
     depends_on:
-      - keycloak
       - postgres
   scheduler:
     container_name: scheduler
@@ -99,17 +74,17 @@ services:
       - DEBUG=0
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
-      - DATABASE_NAME=testkeycloakdb
-      - DATABASE_USER=testkeycloakuser
-      - DATABASE_PASSWORD=testkeycloakpassword
+      - DATABASE_NAME=serverlessdb
+      - DATABASE_USER=serverlessuser
+      - DATABASE_PASSWORD=serverlesspassword
       - RAY_CLUSTER_MODE_LOCAL_HOST=http://ray-head:8265
       - RAY_CLUSTER_MODE_LOCAL=1
+      - SETTINGS_AUTH_MECHANISM=mock_token
     networks:
       - safe-tier
     volumes:
       - program-artifacts:/usr/src/app/media/
     depends_on:
-      - keycloak
       - postgres
   repository-server:
     container_name: repository-server

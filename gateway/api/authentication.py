@@ -90,3 +90,25 @@ class CustomTokenBackend(authentication.BaseAuthentication):
                             user.save()
 
         return user, CustomToken(token.encode()) if token else None
+
+
+class MockAuthBackend(authentication.BaseAuthentication):
+    """Custom mock auth backend for tests."""
+
+    def authenticate(self, request):
+        user = None
+        token = None
+
+        auth_header = request.META.get("HTTP_AUTHORIZATION")
+        if auth_header is not None:
+            token = auth_header.split(" ")[-1]
+
+            if settings.SETTINGS_AUTH_MOCK_TOKEN is not None:
+                if token == settings.SETTINGS_AUTH_MOCK_TOKEN:
+                    try:
+                        user = User.objects.get(username="mock_user")
+                    except User.DoesNotExist:
+                        user = User(username="mock_user")
+                        user.save()
+
+        return user, CustomToken(token.encode()) if token else None

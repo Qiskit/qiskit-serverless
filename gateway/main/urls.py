@@ -20,7 +20,6 @@ from django.urls import path, include, re_path
 from django.views.generic import TemplateView
 from rest_framework import routers
 
-from api.views import KeycloakLogin, KeycloakUsersView
 import probes.views
 
 router = routers.DefaultRouter()
@@ -28,8 +27,6 @@ router = routers.DefaultRouter()
 
 urlpatterns = [
     path("dj-rest-auth/", include("dj_rest_auth.urls")),
-    path("dj-rest-auth/keycloak/", KeycloakLogin.as_view(), name="keycloak_login"),
-    path("dj-rest-auth/keycloak/login/", KeycloakUsersView.as_view()),
     path("accounts/", include("allauth.urls")),
     path("api-auth/", include("rest_framework.urls")),
     path("admin/", admin.site.urls),
