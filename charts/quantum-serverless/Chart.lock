@@ -11,11 +11,8 @@ dependencies:
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
   version: 0.6.1
-- name: keycloak
-  repository: https://charts.bitnami.com/bitnami
-  version: 13.4.1
 - name: repository
   repository: ""
   version: 0.8.0
-digest: sha256:16d9864c27fc63b007749e640965fb8ae11a6c5380a30bfa5f351a79ae360460
-generated: "2023-11-20T14:22:27.83668771Z"
+digest: sha256:7a06b67247ee113087d6036d0103f2f1fe2b912e50a20686b17d3cd1d8e15e15
+generated: "2023-11-30T08:58:26.314319-05:00"

@@ -46,11 +46,7 @@ gateway:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
     auth:
-      keycloak:
-        clientId: "gateway-client"
-        url: "http://keycloak:31059"
-        realm: "quantum-serverless"
-        clientSecret: GATEWAYSECRET-CHANGEME
+      mechanism: mock_token
     superuser:
       enable: true
     service:
@@ -129,48 +125,6 @@ kuberay-operator:
     repository: kuberay/operator
     tag: v0.6.0
     pullPolicy: IfNotPresent
-
-# ===================
-# Keycloak
-# ===================
-
-keycloakEnable: true
-gatewayClientSecret: GATEWAYSECRET-CHANGEME
-grafanaClientSecret: GRAFANASECRET-CHANGEME
-keycloakUserID: user
-keycloakUserPassword: password123
-keycloak:
-  nameOverride: "keycloak"
-  fullnameOverride: "keycloak"
-
-  logging:
-    level: DEBUG
-  service:
-    type: ClusterIP
-    ports:
-      http: 31059
-  auth:
-    adminUser: admin
-    adminPassword: passw0rd
-  extraVolumes:
-    - name: realm
-      configMap:
-        name: keycloakrealm
-  extraVolumeMounts:
-    - name: realm
-      mountPath: /opt/bitnami/keycloak/data/import
-  extraStartupArgs: "--import-realm"
-
-  postgresql:
-    nameOverride: "postgresql"
-    fullnameOverride: "postgresql"
-    primary:
-      initdb:
-        scripts:
-          create_db.sh: |
-            #!/bin/bash
-            PGUSER=$POSTGRES_USER PGPASSWORD=$POSTGRES_PASSWORD createdb -w "repository_db"
-            PGUSER=$POSTGRES_USER PGPASSWORD=$POSTGRES_PASSWORD createdb -w "gateway_db"
 
 # ===================
 # Quantum Repository

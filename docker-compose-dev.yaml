@@ -34,11 +34,13 @@ services:
   postgres:
     image: postgres
     environment:
-      POSTGRES_DB: testkeycloakdb
-      POSTGRES_USER: testkeycloakuser
-      POSTGRES_PASSWORD: testkeycloakpassword
+      POSTGRES_DB: serverlessdb
+      POSTGRES_USER: serverlessuser
+      POSTGRES_PASSWORD: serverlesspassword
     networks:
       - safe-tier
+    ports:
+      - 5432:5432
     restart:
       always
   gateway:
@@ -52,18 +54,16 @@ services:
     environment:
       - DEBUG=1
       - RAY_HOST=http://ray-head:8265
-      - CLIENT_ID=gateway-client
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
       - SITE_HOST=http://gateway:8000
       - SETTINGS_AUTH_MECHANISM=mock_token
-#      - SETTINGS_TOKEN_AUTH_URL=<URL_FOR_TOKEN_VERIFICATION>
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
-      - DATABASE_NAME=testkeycloakdb
-      - DATABASE_USER=testkeycloakuser
-      - DATABASE_PASSWORD=testkeycloakpassword
+      - DATABASE_NAME=serverlessdb
+      - DATABASE_USER=serverlessuser
+      - DATABASE_PASSWORD=serverlesspassword
     networks:
       - safe-tier
     volumes:
@@ -77,12 +77,12 @@ services:
       dockerfile: gateway/Dockerfile
     entrypoint: "./scripts/scheduler.sh"
     environment:
-      - DEBUG=0
+      - DEBUG=1
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
-      - DATABASE_NAME=testkeycloakdb
-      - DATABASE_USER=testkeycloakuser
-      - DATABASE_PASSWORD=testkeycloakpassword
+      - DATABASE_NAME=serverlessdb
+      - DATABASE_USER=serverlessuser
+      - DATABASE_PASSWORD=serverlesspassword
       - RAY_CLUSTER_MODE_LOCAL_HOST=http://ray-head:8265
       - RAY_CLUSTER_MODE_LOCAL=1
       - SETTINGS_AUTH_MECHANISM=mock_token
