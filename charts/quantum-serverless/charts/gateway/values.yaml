@@ -12,7 +12,8 @@ application:
   rayHost: "http://ray:8265/"
   auth:
     mechanism: mock_token
-    token: {}
+    token: 
+      mock: awesome_token
   superuser:
     enable: true
   ray:
