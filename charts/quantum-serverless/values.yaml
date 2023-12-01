@@ -135,6 +135,7 @@ postgresql:
   nameOverride: "postgresql"
   fullnameOverride: "postgresql"
   auth:
+    postgresPassword: serverlessadminpassword
     username: serverlessuser
     password: serverlesspassword
     database: serverlessdb
