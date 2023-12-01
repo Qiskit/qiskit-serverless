@@ -18,6 +18,10 @@ dependencies:
     condition: nginxIngressControllerEnable
     version: 9.7.9
     repository: https://charts.bitnami.com/bitnami
+  - name: postgresql
+    condition: postgresqlEnable
+    version: 13.2.23
+    repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
     condition: kuberayOperatorEnable
     version: 0.6.1

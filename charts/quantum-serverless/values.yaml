@@ -78,11 +78,11 @@ gateway:
         port: database-port
         userName: user-name
       value:
-        databaseName: CHANGE_ME
-        databasePassword: CHANGE_ME
-        host: CHANGE_ME
-        port: CHANGE_ME
-        userName: CHANGE_ME
+        databaseName: serverlessdb
+        databasePassword: serverlesspassword
+        host: "http://postgresql:5432"
+        port: 5432
+        userName: serverlessuser
     superuser:
       create: false
       name: gateway-superuser
@@ -127,10 +127,22 @@ kuberay-operator:
     pullPolicy: IfNotPresent
 
 # ===================
+# PostgreSQL
+# ===================
+
+postgresqlEnable: true
+postgresql:
+  auth:
+    username: serverlessuser
+    password: serverlesspassword
+    database: serverlessdb
+  
+
+# ===================
 # Quantum Repository
 # ===================
 
-repositoryEnable: true
+repositoryEnable: false
 repository:
   nameOverride: "repository"
   fullnameOverride: "repository"

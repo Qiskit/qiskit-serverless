@@ -8,11 +8,14 @@ dependencies:
 - name: nginx-ingress-controller
   repository: https://charts.bitnami.com/bitnami
   version: 9.7.9
+- name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 13.2.23
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
   version: 0.6.1
 - name: repository
   repository: ""
   version: 0.8.0
-digest: sha256:7a06b67247ee113087d6036d0103f2f1fe2b912e50a20686b17d3cd1d8e15e15
-generated: "2023-11-30T08:58:26.314319-05:00"
+digest: sha256:6e132794bab5e71b1b1e7d68059f35c64f25a175a52b8bb035092382f9a35319
+generated: "2023-12-01T13:08:48.507493-05:00"
