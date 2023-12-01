@@ -80,7 +80,7 @@ gateway:
       value:
         databaseName: serverlessdb
         databasePassword: serverlesspassword
-        host: "http://postgresql:5432"
+        host: "http://postgresql"
         port: 5432
         userName: serverlessuser
     superuser:
