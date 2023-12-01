@@ -132,6 +132,8 @@ kuberay-operator:
 
 postgresqlEnable: true
 postgresql:
+  nameOverride: "postgresql"
+  fullnameOverride: "postgresql"
   auth:
     username: serverlessuser
     password: serverlesspassword
