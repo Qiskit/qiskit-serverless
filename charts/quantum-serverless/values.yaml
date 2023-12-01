@@ -136,7 +136,6 @@ postgresql:
     username: serverlessuser
     password: serverlesspassword
     database: serverlessdb
-  
 
 # ===================
 # Quantum Repository
