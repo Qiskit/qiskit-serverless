@@ -7,7 +7,7 @@ dependencies:
   version: 0.8.0
 - name: nginx-ingress-controller
   repository: https://charts.bitnami.com/bitnami
-  version: 9.7.9
+  version: 9.9.3
 - name: postgresql
   repository: https://charts.bitnami.com/bitnami
   version: 13.2.23
@@ -17,5 +17,5 @@ dependencies:
 - name: repository
   repository: ""
   version: 0.8.0
-digest: sha256:6e132794bab5e71b1b1e7d68059f35c64f25a175a52b8bb035092382f9a35319
-generated: "2023-12-01T13:08:48.507493-05:00"
+digest: sha256:c85e5218c51704735d12a6842665ad5de59519bb7da1e4aaea8d2f7f993f24a3
+generated: "2023-12-01T14:05:30.569353-05:00"
