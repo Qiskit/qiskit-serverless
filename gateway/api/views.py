@@ -328,7 +328,9 @@ class FilesViewSet(viewsets.ViewSet):
             user_dir = os.path.join(settings.MEDIA_ROOT, request.user.username)
             if os.path.exists(user_dir):
                 files = [
-                    os.path.basename(path) for path in glob.glob(f"{user_dir}/*.tar")
+                    os.path.basename(path)
+                    for path in glob.glob(f"{user_dir}/*.tar")
+                    + glob.glob(f"{user_dir}/*.h5")
                 ]
             else:
                 logger.warning(
