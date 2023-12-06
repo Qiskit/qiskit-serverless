@@ -30,7 +30,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
-          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d "dbname=${DATABASE_NAME}" -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
+          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d {DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           volumeMounts:
           - name: gateway-pv-storage
             mountPath: /usr/src/app/media/
@@ -217,7 +217,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
-          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d "dbname=${DATABASE_NAME}" -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
+          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           env:
             - name: DATABASE_HOST
               valueFrom:

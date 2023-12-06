@@ -8,7 +8,7 @@ platform: default
 # ===================
 
 # Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
-nginxIngressControllerEnable: true
+nginxIngressControllerEnable: false
 nginx-ingress-controller:
   nameOverride: "nginx-ingress-controller"
   fullnameOverride: "nginx-ingress-controller"
@@ -72,19 +72,21 @@ gateway:
       create: true
       name: service-psql-binding
       key:
+        adminPassword: admin-password
         databaseName: database-name
         databasePassword: database-password
         host: database-host
         port: database-port
         userName: user-name
       value:
+        adminPassword: serverlessadminpassword
         databaseName: serverlessdb
         databasePassword: serverlesspassword
-        host: "http://postgresql"
+        host: "postgresql"
         port: 5432
         userName: serverlessuser
     superuser:
-      create: false
+      create: true
       name: gateway-superuser
       key:
         name: name
@@ -99,7 +101,7 @@ gateway:
 # Jupyter configs
 # ===================
 
-jupyterEnable: true
+jupyterEnable: false
 jupyter:
   nameOverride: "jupyter"
   fullnameOverride: "jupyter"
@@ -135,10 +137,11 @@ postgresql:
   nameOverride: "postgresql"
   fullnameOverride: "postgresql"
   auth:
-    postgresPassword: serverlessadminpassword
-    username: serverlessuser
-    password: serverlesspassword
-    database: serverlessdb
+    secretKeys:
+      existingSecret: "service-psql-binding"
+      adminPasswordKey: "admin-password"
+      userPasswordKey: "databasePassword"
+      replicationPasswordKey: "databasePassword"
 
 # ===================
 # Quantum Repository
