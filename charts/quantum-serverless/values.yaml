@@ -137,11 +137,14 @@ postgresql:
   nameOverride: "postgresql"
   fullnameOverride: "postgresql"
   auth:
+    username: serverlessuser
+    database: serverlessdb
+    enablePostgresUser: true
     secretKeys:
       existingSecret: "service-psql-binding"
       adminPasswordKey: "admin-password"
-      userPasswordKey: "databasePassword"
-      replicationPasswordKey: "databasePassword"
+      userPasswordKey: "database-password"
+      replicationPasswordKey: "database-password"
 
 # ===================
 # Quantum Repository
