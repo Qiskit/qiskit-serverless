@@ -136,10 +136,10 @@ postgresql:
   nameOverride: "postgresql"
   fullnameOverride: "postgresql"
   auth:
+    enablePostgresUser: false
     database: serverlessdb
     username: serverlessuser
     password: serverlesspassword
-    postgresPassword: serverlessadminpassword
 
 # ===================
 # Quantum Repository
