@@ -79,7 +79,6 @@ gateway:
         port: database-port
         userName: user-name
       value:
-        adminPassword: serverlessadminpassword
         databaseName: serverlessdb
         databasePassword: serverlesspassword
         host: "postgresql"
