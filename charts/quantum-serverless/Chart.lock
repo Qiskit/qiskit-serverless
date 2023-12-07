@@ -1,21 +1,21 @@
 dependencies:
 - name: gateway
   repository: ""
-  version: 0.8.0
+  version: 0.8.1
 - name: jupyter
   repository: ""
-  version: 0.8.0
+  version: 0.8.1
 - name: nginx-ingress-controller
   repository: https://charts.bitnami.com/bitnami
-  version: 9.7.9
+  version: 9.9.4
+- name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 13.2.24
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
   version: 0.6.1
-- name: keycloak
-  repository: https://charts.bitnami.com/bitnami
-  version: 13.4.1
 - name: repository
   repository: ""
-  version: 0.8.0
-digest: sha256:16d9864c27fc63b007749e640965fb8ae11a6c5380a30bfa5f351a79ae360460
-generated: "2023-11-20T14:22:27.83668771Z"
+  version: 0.8.1
+digest: sha256:5dc398b9ff75bfaa4577eed36b2a149d4781c6cc57d8e8f13ee69b6e3ef2bdd5
+generated: "2023-12-07T16:06:04.018394427Z"

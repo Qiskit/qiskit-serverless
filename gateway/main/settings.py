@@ -58,7 +58,6 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-    "allauth.socialaccount.providers.keycloak",
     "dj_rest_auth",
     "dj_rest_auth.registration",
     "api",
@@ -76,6 +75,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "main.urls"
@@ -127,6 +127,11 @@ LOGGING = {
             "level": LOG_LEVEL,
             "propagate": False,
         },
+        "gateway.services": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
     },
 }
 
@@ -136,9 +141,9 @@ LOGGING = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DATABASE_NAME", "testkeycloakdb"),
-        "USER": os.environ.get("DATABASE_USER", "testkeycloakuser"),
-        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "testkeycloakpassword"),
+        "NAME": os.environ.get("DATABASE_NAME", "serverlessdb"),
+        "USER": os.environ.get("DATABASE_USER", "serverlessuser"),
+        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
         "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
     },
@@ -202,6 +207,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# =============
+# AUTH SETTINGS
+# =============
 SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "default")
 SETTINGS_DEFAULT_AUTH_CLASSES = [
     "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -212,10 +220,16 @@ ALL_AUTH_CLASSES_CONFIGURATION = {
     "custom_token": [
         "api.authentication.CustomTokenBackend",
     ],
+    "mock_token": [
+        "api.authentication.MockAuthBackend",
+    ],
 }
 DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
     SETTINGS_AUTH_MECHANISM, SETTINGS_DEFAULT_AUTH_CLASSES
 )
+# mock token value
+SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
+# =============
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
@@ -238,22 +252,6 @@ SITE_ID = 1
 SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
 
 # Provider specific settings
-SETTING_KEYCLOAK_URL = "SETTING_KEYCLOAK_URL"
-SETTING_KEYCLOAK_REALM = "SETTING_KEYCLOAK_REALM"
-SETTINGS_KEYCLOAK_CLIENT_ID = os.environ.get("CLIENT_ID", "gateway-client")
-SETTINGS_KEYCLOAK_CLIENT_SECRET = os.environ.get(
-    "SETTINGS_KEYCLOAK_CLIENT_SECRET", "supersecret"
-)
-SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT = int(
-    os.environ.get("SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT", 15)
-)
-SOCIALACCOUNT_PROVIDERS = {
-    "keycloak": {
-        "KEYCLOAK_URL": os.environ.get(SETTING_KEYCLOAK_URL, "http://localhost:8085"),
-        "KEYCLOAK_REALM": os.environ.get(SETTING_KEYCLOAK_REALM, "quantum-serverless"),
-    }
-}
-
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=10),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=20),
@@ -307,6 +305,7 @@ RAY_NODE_IMAGE = os.environ.get(
     "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py39"
 )
 RAY_NODE_IMAGES_MAP = {
+    "default": RAY_NODE_IMAGE,
     "py38": os.environ.get("RAY_NODE_IMAGE_PY38", RAY_NODE_IMAGE),
     "py39": os.environ.get("RAY_NODE_IMAGE_PY39", RAY_NODE_IMAGE),
     "py310": os.environ.get("RAY_NODE_IMAGE_PY310", RAY_NODE_IMAGE),

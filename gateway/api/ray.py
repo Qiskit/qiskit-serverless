@@ -194,9 +194,9 @@ def create_ray_cluster(
             node_image = settings.RAY_NODE_IMAGES_MAP[job_config.python_version]
         else:
             message = (
-                "Specified python version {job_config.python_version} "
+                f"Specified python version {job_config.python_version} "
                 "not in a list of supported python versions "
-                "{list(settings.RAY_NODE_IMAGES_MAP.keys())}. "
+                f"{list(settings.RAY_NODE_IMAGES_MAP.keys())}. "
                 "Default image will be used instead."
             )
             logger.warning(message)

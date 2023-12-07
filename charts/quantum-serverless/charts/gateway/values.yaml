@@ -11,15 +11,16 @@ application:
   siteHost: "http://127.0.0.1:8000"
   rayHost: "http://ray:8265/"
   auth:
-    token: {}
-    keycloak: {}
+    mechanism: mock_token
+    token: 
+      mock: awesome_token
   superuser:
     enable: true
   ray:
-    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.0-py39"
-    nodeImage_py38: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.0-py38"
-    nodeImage_py39: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.0-py39"
-    nodeImage_py310: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.0-py310"
+    nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.1-py39"
+    nodeImage_py38: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.1-py38"
+    nodeImage_py39: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.1-py39"
+    nodeImage_py310: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.1-py310"
     cpu: 2
     memory: 2
     replicas: 1
@@ -67,7 +68,7 @@ secrets:
       databasePassword: CHANGE_ME
       host: postgresql
       port: "5432"
-      userName: bn_keycloak
+      userName: serverlessuser
   superuser:
     create: true
     name: gateway-superuser

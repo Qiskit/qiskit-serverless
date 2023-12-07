@@ -8,7 +8,7 @@ platform: default
 # ===================
 
 # Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
-nginxIngressControllerEnable: true
+nginxIngressControllerEnable: false
 nginx-ingress-controller:
   nameOverride: "nginx-ingress-controller"
   fullnameOverride: "nginx-ingress-controller"
@@ -41,23 +41,19 @@ gateway:
   image:
     repository: "icr.io/quantum-public/quantum-serverless-gateway"
     pullPolicy: IfNotPresent
-    tag: "0.8.0"
+    tag: "0.8.1"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
     auth:
-      keycloak:
-        clientId: "gateway-client"
-        url: "http://keycloak:31059"
-        realm: "quantum-serverless"
-        clientSecret: GATEWAYSECRET-CHANGEME
+      mechanism: mock_token
     superuser:
       enable: true
     service:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.0-py39"
+      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.1-py39"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
       kubectlImage: alpine/k8s:1.28.4@sha256:38887b75951c9839c276508c6ba4d55793e4724668c6ba9bd8d09a212073d914
     limits:
@@ -77,19 +73,20 @@ gateway:
       create: true
       name: service-psql-binding
       key:
+        adminPassword: admin-password
         databaseName: database-name
         databasePassword: database-password
         host: database-host
         port: database-port
         userName: user-name
       value:
-        databaseName: CHANGE_ME
-        databasePassword: CHANGE_ME
-        host: CHANGE_ME
-        port: CHANGE_ME
-        userName: CHANGE_ME
+        databaseName: serverlessdb
+        databasePassword: serverlesspassword
+        host: "postgresql"
+        port: 5432
+        userName: serverlessuser
     superuser:
-      create: false
+      create: true
       name: gateway-superuser
       key:
         name: name
@@ -104,7 +101,7 @@ gateway:
 # Jupyter configs
 # ===================
 
-jupyterEnable: true
+jupyterEnable: false
 jupyter:
   nameOverride: "jupyter"
   fullnameOverride: "jupyter"
@@ -113,7 +110,7 @@ jupyter:
 
   image:
     repository: "icr.io/quantum-public/quantum-serverless-notebook"
-    tag: "0.8.0-py39"
+    tag: "0.8.1-py39"
     pullPolicy: IfNotPresent
   container:
     port: 8888
@@ -132,58 +129,30 @@ kuberay-operator:
     pullPolicy: IfNotPresent
 
 # ===================
-# Keycloak
+# PostgreSQL
 # ===================
 
-keycloakEnable: true
-gatewayClientSecret: GATEWAYSECRET-CHANGEME
-grafanaClientSecret: GRAFANASECRET-CHANGEME
-keycloakUserID: user
-keycloakUserPassword: password123
-keycloak:
-  nameOverride: "keycloak"
-  fullnameOverride: "keycloak"
-
-  logging:
-    level: DEBUG
-  service:
-    type: ClusterIP
-    ports:
-      http: 31059
+postgresqlEnable: true
+postgresql:
+  nameOverride: "postgresql"
+  fullnameOverride: "postgresql"
   auth:
-    adminUser: admin
-    adminPassword: passw0rd
-  extraVolumes:
-    - name: realm
-      configMap:
-        name: keycloakrealm
-  extraVolumeMounts:
-    - name: realm
-      mountPath: /opt/bitnami/keycloak/data/import
-  extraStartupArgs: "--import-realm"
-
-  postgresql:
-    nameOverride: "postgresql"
-    fullnameOverride: "postgresql"
-    primary:
-      initdb:
-        scripts:
-          create_db.sh: |
-            #!/bin/bash
-            PGUSER=$POSTGRES_USER PGPASSWORD=$POSTGRES_PASSWORD createdb -w "repository_db"
-            PGUSER=$POSTGRES_USER PGPASSWORD=$POSTGRES_PASSWORD createdb -w "gateway_db"
+    enablePostgresUser: false
+    database: serverlessdb
+    username: serverlessuser
+    password: serverlesspassword
 
 # ===================
 # Quantum Repository
 # ===================
 
-repositoryEnable: true
+repositoryEnable: false
 repository:
   nameOverride: "repository"
   fullnameOverride: "repository"
   image:
     pullPolicy: IfNotPresent
-    tag: "0.8.0"
+    tag: "0.8.1"
   application:
     superuser:
       username: "admin"

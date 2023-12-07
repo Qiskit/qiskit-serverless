@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base",
+    "config:recommended",
     ":separateMultipleMajorReleases"
   ],
   "prConcurrentLimit": 4,
@@ -19,13 +19,6 @@
         "^qiskit"
       ],
       "groupName": "qiskit packages"
-    },
-    {
-      "matchPackagePatterns": [
-        "nginx-ingress-controller",
-        "keycloak"
-      ],
-      "groupName": "bitnami packages"
     }
   ]
 }

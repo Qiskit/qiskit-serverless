@@ -9,9 +9,13 @@ jobs:
 
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false # keep running if one leg fails
       matrix:
-        python-version: ['3.9']
-    
+        python-version:
+          - '3.8'
+          - '3.9'
+          - '3.10'
+
     defaults:
       run:
         working-directory: ./gateway
@@ -38,7 +42,7 @@ jobs:
 
       - name: Run styles check
         run: tox -elint
-      
+
       - name: Test using tox environment
         run: |
           tox ${{ env.TOX_ENV }}

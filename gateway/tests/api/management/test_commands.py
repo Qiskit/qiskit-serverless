@@ -44,18 +44,6 @@ class TestCommands(APITestCase):
         job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
         self.assertEqual(job.status, "SUCCEEDED")
 
-    def test_create_social_application(self):
-        """Tests create social application command."""
-        call_command(
-            "create_social_application",
-            host="social_app_host",
-            client_id="social_app_client_id",
-        )
-        social_app = SocialApp.objects.get(provider="keycloak")
-        site = Site.objects.get(name="social_app_host")
-        self.assertEqual(social_app.client_id, "social_app_client_id")
-        self.assertEqual(site.name, "social_app_host")
-
     @patch("api.schedule.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""

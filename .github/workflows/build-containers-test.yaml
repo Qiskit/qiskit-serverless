@@ -1,0 +1,67 @@
+name: Build the containers
+
+on:
+  pull_request:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-containers:
+    name: build-containers
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # keep running if one leg fails
+      matrix:
+        dockerfile:
+          - Dockerfile-ray-node
+          - Dockerfile-notebook
+          - repository/Dockerfile
+          - gateway/Dockerfile
+        python:
+          - "3.8"
+          - "3.9"
+          - "3.10"
+        exclude:
+          # gateway is only built using python 3.9
+          - dockerfile: gateway/Dockerfile
+            python: "3.8"
+          - dockerfile: gateway/Dockerfile
+            python: "3.10"
+          # repository is only built using python 3.9
+          - dockerfile: repository/Dockerfile
+            python: "3.8"
+          - dockerfile: repository/Dockerfile
+            python: "3.10"
+
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Config python value
+        run: |
+          python_version=${{ matrix.python }}
+          dockerfile=${{ matrix.dockerfile }}
+          # ray-node image uses different string for python version
+          if [[ "$dockerfile" == *"ray-node" ]]
+          then
+            new_version=${python_version//.}
+            echo "python_version=py$new_version" >> "$GITHUB_ENV"
+          else
+            echo "python_version=$python_version" >> "$GITHUB_ENV"
+          fi
+      - name: Build ${{ matrix.dockerfile }} using python ${{ matrix.python }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./${{ matrix.dockerfile }}
+          load: true
+          tags: image:test
+          build-args:
+            IMAGE_PY_VERSION=${{ env.python_version }}
+      - name: Inspect
+        run: |
+          docker image inspect image:test

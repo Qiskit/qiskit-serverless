@@ -356,8 +356,6 @@ class ServerlessProvider(BaseProvider):
         name: Optional[str] = None,
         host: Optional[str] = None,
         version: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
         token: Optional[str] = None,
         verbose: bool = False,
     ):
@@ -368,8 +366,6 @@ class ServerlessProvider(BaseProvider):
             name: name of provider
             host: host of gateway
             version: version of gateway
-            username: username
-            password: password
             token: authorization token
         """
         name = name or "gateway-provider"
@@ -382,22 +378,17 @@ class ServerlessProvider(BaseProvider):
             version = GATEWAY_PROVIDER_VERSION_DEFAULT
 
         token = token or os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN)
-        if token is None and (username is None or password is None):
+        if token is None:
             raise QuantumServerlessException(
-                "Authentication credentials must "
-                "be provided in form of `username` "
-                "and `password` or `token`."
+                "Authentication credentials must be provided in form of `token`."
             )
 
         super().__init__(name)
         self.verbose = verbose
         self.host = host
         self.version = version
-        if token is not None:
-            self._verify_token(token)
+        self._verify_token(token)
         self._token = token
-        if token is None:
-            self._fetch_token(username, password)
 
         self._job_client = GatewayJobClient(self.host, self._token, self.version)
         self._files_client = GatewayFilesClient(self.host, self._token, self.version)
@@ -451,18 +442,6 @@ class ServerlessProvider(BaseProvider):
 
     def get_programs(self, **kwargs) -> List[QiskitPattern]:
         return self._job_client.get_programs(**kwargs)
-
-    def _fetch_token(self, username: str, password: str):
-        response_data = safe_json_request(
-            request=lambda: requests.post(
-                url=f"{self.host}/dj-rest-auth/keycloak/login/",
-                data={"username": username, "password": password},
-                timeout=REQUESTS_TIMEOUT,
-            ),
-            verbose=self.verbose,
-        )
-
-        self._token = response_data.get("access")
 
     def _verify_token(self, token: str):
         """Verify token."""

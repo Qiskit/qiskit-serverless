@@ -44,10 +44,7 @@ But if you are interested in more complex configurations, you have access to all
 
 **Grafana**
 
-- For our Grafana charts dependencies, we are configuring authentication by Keycloak and providing some predefined dashboards.
-If you are interested in more complex configurations, you have access to all the parameters documented [here](https://github.com/grafana/helm-charts/tree/main/charts/grafana).
-- The initial user ID and password for Grafana console(keycloakAdminID/keycloakAdminPassword) can be changed in the values.yaml file. It is good to change them before apply the helm.
-- Grafana console can be accessed at http://LOCAL-IP:32294/.  Its initial user ID and password are "admin" and "passw0rd".
+- For our Grafana charts dependencies, we are providing some predefined dashboards. If you are interested in more complex configurations, you have access to all the parameters documented [here](https://github.com/grafana/helm-charts/tree/main/charts/grafana).
 
 **promtail**
 
