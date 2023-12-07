@@ -216,6 +216,7 @@ def create_ray_cluster(
                 "min_workers": job_config.min_workers,
                 "max_workers": job_config.max_workers,
                 "auto_scaling": job_config.auto_scaling,
+                "user": user.username,
             }
         )
         cluster_data = yaml.safe_load(manifest)
