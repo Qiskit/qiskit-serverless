@@ -20,7 +20,7 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
   - name: postgresql
     condition: postgresqlEnable
-    version: 13.2.23
+    version: 13.2.24
     repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
     condition: kuberayOperatorEnable
