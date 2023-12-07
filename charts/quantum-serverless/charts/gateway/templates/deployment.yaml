@@ -30,7 +30,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
-          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d "dbname=${DATABASE_NAME}" -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
+          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d {DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           volumeMounts:
           - name: gateway-pv-storage
             mountPath: /usr/src/app/media/
@@ -97,20 +97,14 @@ spec:
               value: {{ .Values.application.rayHost | quote }}
             - name: SETTINGS_AUTH_MECHANISM
               value: {{ .Values.application.auth.mechanism | quote }}
+            - name: SETTINGS_AUTH_MOCK_TOKEN
+              value: {{ .Values.application.auth.token.mock | quote }}
             - name: SETTINGS_TOKEN_AUTH_URL
               value: {{ .Values.application.auth.token.url | quote }}
             - name: SETTINGS_TOKEN_AUTH_VERIFICATION_URL
               value: {{ .Values.application.auth.token.verificationUrl | quote }}
             - name: SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD
               value: {{ .Values.application.auth.token.verificationField | quote }}
-            - name: CLIENT_ID
-              value: {{ .Values.application.auth.keycloak.clientId | quote }}
-            - name: SETTING_KEYCLOAK_URL
-              value: {{ .Values.application.auth.keycloak.url | quote }}
-            - name: SETTING_KEYCLOAK_REALM
-              value: {{ .Values.application.auth.keycloak.realm | quote }}
-            - name: SETTINGS_KEYCLOAK_CLIENT_SECRET
-              value: {{ .Values.application.auth.keycloak.clientSecret | quote }}
             - name: RAY_CLUSTER_WORKER_REPLICAS
               value: {{ .Values.application.ray.replicas | quote }}
             - name: RAY_CLUSTER_WORKER_MIN_REPLICAS
@@ -223,7 +217,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
-          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d "dbname=${DATABASE_NAME}" -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
+          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           env:
             - name: DATABASE_HOST
               valueFrom:

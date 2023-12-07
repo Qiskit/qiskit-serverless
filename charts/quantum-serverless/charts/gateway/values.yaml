@@ -11,8 +11,9 @@ application:
   siteHost: "http://127.0.0.1:8000"
   rayHost: "http://ray:8265/"
   auth:
-    token: {}
-    keycloak: {}
+    mechanism: mock_token
+    token: 
+      mock: awesome_token
   superuser:
     enable: true
   ray:
@@ -67,7 +68,7 @@ secrets:
       databasePassword: CHANGE_ME
       host: postgresql
       port: "5432"
-      userName: bn_keycloak
+      userName: serverlessuser
   superuser:
     create: true
     name: gateway-superuser

@@ -16,16 +16,16 @@ dependencies:
     version: 0.8.0
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
-    version: 9.7.9
+    version: 9.9.3
+    repository: https://charts.bitnami.com/bitnami
+  - name: postgresql
+    condition: postgresqlEnable
+    version: 13.2.23
     repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
     condition: kuberayOperatorEnable
     version: 0.6.1
     repository: https://ray-project.github.io/kuberay-helm
-  - name: keycloak
-    condition: keycloakEnable
-    version: 13.4.1
-    repository: https://charts.bitnami.com/bitnami
   - name: repository
     condition: repositoryEnable
     version: 0.8.0

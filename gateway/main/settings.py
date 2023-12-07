@@ -141,9 +141,9 @@ LOGGING = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DATABASE_NAME", "testkeycloakdb"),
-        "USER": os.environ.get("DATABASE_USER", "testkeycloakuser"),
-        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "testkeycloakpassword"),
+        "NAME": os.environ.get("DATABASE_NAME", "serverlessdb"),
+        "USER": os.environ.get("DATABASE_USER", "serverlessuser"),
+        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
         "HOST": os.environ.get("DATABASE_HOST", "localhost"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
     },
@@ -252,22 +252,6 @@ SITE_ID = 1
 SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
 
 # Provider specific settings
-SETTING_KEYCLOAK_URL = "SETTING_KEYCLOAK_URL"
-SETTING_KEYCLOAK_REALM = "SETTING_KEYCLOAK_REALM"
-SETTINGS_KEYCLOAK_CLIENT_ID = os.environ.get("CLIENT_ID", "gateway-client")
-SETTINGS_KEYCLOAK_CLIENT_SECRET = os.environ.get(
-    "SETTINGS_KEYCLOAK_CLIENT_SECRET", "supersecret"
-)
-SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT = int(
-    os.environ.get("SETTINGS_KEYCLOAK_REQUESTS_TIMEOUT", 15)
-)
-SOCIALACCOUNT_PROVIDERS = {
-    "keycloak": {
-        "KEYCLOAK_URL": os.environ.get(SETTING_KEYCLOAK_URL, "http://localhost:8085"),
-        "KEYCLOAK_REALM": os.environ.get(SETTING_KEYCLOAK_REALM, "quantum-serverless"),
-    }
-}
-
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=10),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=20),

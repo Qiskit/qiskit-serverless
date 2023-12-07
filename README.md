@@ -50,21 +50,13 @@ For user convenience, this section assumes that users will deploy the infrastruc
       ```
       ~/quantum-serverless$ sudo docker compose --profile jupyter up
       [+] Running 6/0
-       ✔ Container ray-head                       Created                                                   0.0s 
-       ✔ Container qs-jupyter                     Created                                                   0.0s 
-       ✔ Container quantum-serverless-postgres-1  Created                                                   0.0s 
-       ✔ Container keycloak                       Created                                                   0.0s 
-       ✔ Container gateway                        Created                                                   0.0s 
-       ✔ Container scheduler                      Created                                                   0.0s 
-      Attaching to gateway, keycloak, qs-jupyter, quantum-serverless-postgres-1, ray-head, scheduler
-      qs-jupyter                     | Entered start.sh with args: jupyter lab
-      qs-jupyter                     | Executing the command: jupyter lab
-      quantum-serverless-postgres-1  | 
-      quantum-serverless-postgres-1  | PostgreSQL Database directory appears to contain a database; Skipping initialization
-      quantum-serverless-postgres-1  | 
-      quantum-serverless-postgres-1  | 2023-09-21 11:17:09.872 UTC [1] LOG:  starting PostgreSQL 16.0 (Debian 16.0-1.pgdg120+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
-      quantum-serverless-postgres-1  | 2023-09-21 11:17:09.872 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
-      quantum-serverless-postgres-1  | 2023-09-21 11:17:09.872 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+       ✔ Network public-quantum-serverless_safe-tier     Created                                           0.0s
+       ✔ Container ray-head                              Created                                           0.0s
+       ✔ Container qs-jupyter                            Created                                           0.0s
+       ✔ Container public-quantum-serverless-postgres-1  Created                                           0.0s
+       ✔ Container gateway                               Created                                           0.0s
+       ✔ Container scheduler                             Created                                           0.0s
+      Attaching to gateway, public-quantum-serverless-postgres-1, qs-jupyter, ray-head, scheduler
       ```
 
       Now you can access the deployed QuantumServerless infrastructure using the built-in JupyterLab.

@@ -2,7 +2,6 @@
 Django Rest framework views for api application:
     - Program ViewSet
     - Job ViewSet
-    - KeycloakUsers ApiView
 
 Version views inherit from the different views.
 """
