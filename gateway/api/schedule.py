@@ -1,4 +1,5 @@
 """Scheduling related functions."""
+import hashlib
 import logging
 import random
 import uuid
@@ -44,7 +45,8 @@ def execute_job(job: Job) -> Job:
             owner=job.author, active=True
         ).first()
 
-        cluster_name = f"c-{job.author.username}-{str(uuid.uuid4())[:8]}"
+        hashed_username = hashlib.shake_128(job.author.username.encode("utf-8"))
+        cluster_name = f"c-{hashed_username.hexdigest(6)}-{str(uuid.uuid4())[:8]}"
         span.set_attribute("job.clustername", cluster_name)
         if authors_resource:
             try:

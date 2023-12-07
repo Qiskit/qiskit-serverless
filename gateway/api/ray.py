@@ -1,4 +1,5 @@
 """Ray cluster related functions."""
+import hashlib
 import json
 import logging
 import os
@@ -175,7 +176,10 @@ def create_ray_cluster(
         or None if something went wrong with cluster creation.
     """
     namespace = settings.RAY_KUBERAY_NAMESPACE
-    cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
+    hashed_username = hashlib.shake_128(user.username.encode("utf-8"))
+    cluster_name = (
+        cluster_name or f"c-{hashed_username.hexdigest(6)}-{str(uuid.uuid4())[:8]}"
+    )
     if not cluster_data:
         if not job_config:
             job_config = JobConfig()
