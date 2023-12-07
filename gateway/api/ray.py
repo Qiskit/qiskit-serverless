@@ -1,5 +1,4 @@
 """Ray cluster related functions."""
-import hashlib
 import json
 import logging
 import os
@@ -22,7 +21,12 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from api.models import ComputeResource, Job, JobConfig
-from api.utils import try_json_loads, retry_function, decrypt_env_vars
+from api.utils import (
+    try_json_loads,
+    retry_function,
+    decrypt_env_vars,
+    generate_cluster_name,
+)
 from main import settings
 
 logger = logging.getLogger("commands")
@@ -176,10 +180,7 @@ def create_ray_cluster(
         or None if something went wrong with cluster creation.
     """
     namespace = settings.RAY_KUBERAY_NAMESPACE
-    hashed_username = hashlib.shake_128(user.username.encode("utf-8"))
-    cluster_name = (
-        cluster_name or f"c-{hashed_username.hexdigest(6)}-{str(uuid.uuid4())[:8]}"
-    )
+    cluster_name = cluster_name or generate_cluster_name(user.username)
     if not cluster_data:
         if not job_config:
             job_config = JobConfig()
