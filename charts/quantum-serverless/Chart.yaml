@@ -16,7 +16,7 @@ dependencies:
     version: 0.8.1
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
-    version: 9.9.3
+    version: 9.9.4
     repository: https://charts.bitnami.com/bitnami
   - name: postgresql
     condition: postgresqlEnable
