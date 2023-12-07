@@ -4,16 +4,16 @@ description: Quantum-Serverless helm chart that contains different dependencies.
 
 type: application
 
-version: 0.8.0
-appVersion: "0.8.0"
+version: 0.8.1
+appVersion: "0.8.1"
 
 dependencies:
   - name: gateway
     condition: gatewayEnable
-    version: 0.8.0
+    version: 0.8.1
   - name: jupyter
     condition: jupyterEnable
-    version: 0.8.0
+    version: 0.8.1
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
     version: 9.9.3
@@ -28,7 +28,7 @@ dependencies:
     repository: https://ray-project.github.io/kuberay-helm
   - name: repository
     condition: repositoryEnable
-    version: 0.8.0
+    version: 0.8.1
 
 maintainers:
   - name: akihikokuroda
