@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 
 from qiskit import QuantumCircuit
 from qiskit.primitives import BaseEstimator, Estimator as QiskitEstimator
-from qiskit.opflow import PauliSumOp
+from qiskit.quantum_info import SparsePauliOp
 
 from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options
 
@@ -40,7 +40,7 @@ def cost_func(params, ansatz, hamiltonian, estimator):
 def run_qaoa(
     ansatz: QuantumCircuit,
     estimator: BaseEstimator,
-    operator: PauliSumOp,
+    operator: SparsePauliOp,
     initial_point: np.array,
     method: str,
 ):

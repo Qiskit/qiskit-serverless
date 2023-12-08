@@ -10,7 +10,6 @@ from qiskit.primitives import (
     Estimator as QiskitEstimator,
     Sampler as QiskitSampler,
 )
-from qiskit.opflow import PauliSumOp
 
 from qiskit_ibm_runtime import (
     QiskitRuntimeService,
