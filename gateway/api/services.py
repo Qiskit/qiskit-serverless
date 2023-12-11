@@ -72,6 +72,7 @@ class ProgramService:
         It returns the last created Program by title from an author
         """
 
+        logger.debug("Filtering Program by title[%s] and author [%s]", title, author)
         program = (
             Program.objects.filter(title=title, author=author)
             .order_by("-created")
@@ -79,6 +80,7 @@ class ProgramService:
         )
 
         if program is None:
+            logger.error("Program [%s] by author [%s] not found", title, author)
             raise ResourceNotFoundException("Program [{title}] was not found")
 
         return program
