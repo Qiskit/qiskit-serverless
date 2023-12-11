@@ -58,14 +58,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
     BASE_NAME = "programs"
 
     @staticmethod
-    def get_serializer_job_class():
-        """
-        This method returns Job serializer to be used in Program ViewSet.
-        """
-
-        return JobSerializer
-
-    @staticmethod
     def get_service_program_class():
         """
         This method returns Program service to be used in Program ViewSet.
@@ -74,12 +66,34 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return ProgramService
 
     @staticmethod
+    def get_service_job_config():
+        """
+        This method return JobConfig service to be used in Program ViewSet.
+        """
+
+    @staticmethod
+    def get_serializer_job_class():
+        """
+        This method returns Job serializer to be used in Program ViewSet.
+        """
+
+        return JobSerializer
+
+    @staticmethod
     def get_serializer_existing_program():
         """
         This method returns Existign Program serializer to be used in Program ViewSet.
         """
 
         return ExistingProgramSerializer
+
+    @staticmethod
+    def get_serializer_job_config():
+        """
+        This method returns Job Config serializer to be used in Program ViewSet.
+        """
+
+        return JobConfigSerializer
 
     def get_serializer_class(self):
         return self.serializer_class
@@ -122,6 +136,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+            program = None
             program_service = self.get_service_program_class()
             try:
                 title = serializer.data.get("title")
@@ -133,13 +148,17 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             jobconfig = None
             config_data = request.data.get("config")
             if config_data:
-                config_serializer = JobConfigSerializer(data=json.loads(config_data))
+                config_serializer = self.get_serializer_job_config()(
+                    data=json.loads(config_data)
+                )
                 if not config_serializer.is_valid():
                     return Response(
                         config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
-
-                jobconfig = config_serializer.save()
+                try:
+                    jobconfig = self.get_service_job_config()(config_serializer)
+                except InternalServerErrorException as exception:
+                    return Response(exception, exception.http_code)
 
             job = Job(
                 program=program,

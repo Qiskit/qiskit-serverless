@@ -35,3 +35,18 @@ class JobSerializer(serializers.JobSerializer):
 
     class Meta(serializers.JobSerializer.Meta):
         fields = ["id", "result", "status", "program", "created"]
+
+
+class JobConfigSerilizer(serializers.JobConfigSerializer):
+    """
+    JobConfig serializer first version. Include basic fields from the initial model.
+    """
+
+    class Meta(serializers.JobConfigSerializer.Meta):
+        fields = [
+            "workers",
+            "min_workers",
+            "max_workers",
+            "auto_scaling",
+            "python_version",
+        ]

@@ -10,7 +10,7 @@ Version services inherit from the different services.
 
 import logging
 
-from .models import Program
+from .models import Program, JobConfig
 from .exceptions import InternalServerErrorException, ResourceNotFoundException
 
 logger = logging.getLogger("gateway.services")
@@ -67,7 +67,7 @@ class ProgramService:
         return program
 
     @staticmethod
-    def find_one_by_title(title, author):
+    def find_one_by_title(title, author) -> Program:
         """
         It returns the last created Program by title from an author
         """
@@ -84,3 +84,31 @@ class ProgramService:
             raise ResourceNotFoundException("Program [{title}] was not found")
 
         return program
+
+
+class JobConfigService:
+    """
+    JobConfig service allocate the logic related with job configuration
+    """
+
+    @staticmethod
+    def save_with_serializer(serializer) -> JobConfig:
+        """
+        This
+        """
+
+        # It would be nice if we could unify all the saves logic in one unique entry-point
+        try:
+            jobconfig = serializer.save()
+        except (Exception) as save_job_config_exception:
+            logger.error(
+                "Exception was caught saving a JobConfig. \n Error trace: %s",
+                save_job_config_exception,
+            )
+            raise InternalServerErrorException(
+                "Unexpected error saving the configuration of the job"
+            ) from save_job_config_exception
+
+        logger.debug("JobConfig [%s] saved", jobconfig.id)
+
+        return jobconfig
