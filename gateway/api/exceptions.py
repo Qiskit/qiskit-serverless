@@ -40,4 +40,3 @@ class ResourceNotFoundException(GatewayHttpException):
 
     def __init__(self, message, http_code=status.HTTP_404_NOT_FOUND):
         super().__init__(message, http_code)
-

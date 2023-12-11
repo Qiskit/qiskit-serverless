@@ -65,7 +65,7 @@ class ProgramService:
         logger.debug("Program [%s] saved", title)
 
         return program
-    
+
     @staticmethod
     def find_one_by_title(title, author):
         """
@@ -77,8 +77,8 @@ class ProgramService:
             .order_by("-created")
             .first()
         )
-        
+
         if program is None:
             raise ResourceNotFoundException("Program [{title}] was not found")
-        
+
         return program
