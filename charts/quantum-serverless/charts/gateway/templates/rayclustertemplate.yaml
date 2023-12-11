@@ -13,6 +13,8 @@ data:
       labels:
         nodelete: "true"
 {{- end }}
+      annotations: 
+        user: {{`{{ user }}`}}
     spec:
 {{- if .Values.application.ray.scrapeWithPrometheus }}      
       headServiceAnnotations:

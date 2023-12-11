@@ -3,7 +3,9 @@ import base64
 import inspect
 import json
 import logging
+import re
 import time
+import uuid
 from typing import Optional, Tuple, Callable, Dict, Any
 
 from cryptography.fernet import Fernet
@@ -166,3 +168,17 @@ def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
             ) as decryption_error:
                 logger.error("Cannot decrypt %s. %s", key, decryption_error)
     return env_vars
+
+
+def generate_cluster_name(username: str) -> str:
+    """generate cluster name.
+
+    Args:
+        username: user name for the cluster
+
+    Returns:
+        generated cluster name
+    """
+    pattern = re.compile("[^a-zA-Z0-9-.]")
+    cluster_name = f"c-{re.sub(pattern,'-',username)}-{str(uuid.uuid4())[:8]}"
+    return cluster_name

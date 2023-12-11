@@ -1,7 +1,6 @@
 """Scheduling related functions."""
 import logging
 import random
-import uuid
 from typing import List
 from datetime import datetime, timedelta
 
@@ -15,6 +14,7 @@ from opentelemetry import trace
 
 from api.models import Job, ComputeResource
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
+from api.utils import generate_cluster_name
 from main import settings as config
 
 
@@ -44,7 +44,7 @@ def execute_job(job: Job) -> Job:
             owner=job.author, active=True
         ).first()
 
-        cluster_name = f"c-{job.author.username}-{str(uuid.uuid4())[:8]}"
+        cluster_name = generate_cluster_name(job.author.username)
         span.set_attribute("job.clustername", cluster_name)
         if authors_resource:
             try:
