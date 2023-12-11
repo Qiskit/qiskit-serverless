@@ -11,7 +11,7 @@ Version services inherit from the different services.
 import logging
 
 from .models import Program
-from .exceptions import InternalServerErrorException
+from .exceptions import InternalServerErrorException, ResourceNotFoundException
 
 logger = logging.getLogger("gateway.services")
 
@@ -64,4 +64,21 @@ class ProgramService:
 
         logger.debug("Program [%s] saved", title)
 
+        return program
+    
+    @staticmethod
+    def find_one_by_title(title, author):
+        """
+        It returns the last created Program by title from an author
+        """
+
+        program = (
+            Program.objects.filter(title=title, author=author)
+            .order_by("-created")
+            .first()
+        )
+        
+        if program is None:
+            raise ResourceNotFoundException("Program [{title}] was not found")
+        
         return program

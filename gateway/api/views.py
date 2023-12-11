@@ -27,7 +27,7 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
-from .exceptions import InternalServerErrorException
+from .exceptions import InternalServerErrorException, ResourceNotFoundException
 from .models import Program, Job
 from .ray import get_job_handler
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
@@ -122,18 +122,13 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            title = serializer.data.get("title")
-            program = (
-                Program.objects.filter(title=title, author=request.user)
-                .order_by("-created")
-                .first()
-            )
-
-            if program is None:
-                return Response(
-                    {"message": f"program [{title}] was not found."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+            program_service = self.get_service_program_class()
+            try:
+                title = serializer.data.get("title")
+                author = request.user
+                program = program_service.find_one_by_title(title, author)
+            except ResourceNotFoundException as exception:
+                return Response(exception, exception.http_code)
 
             jobconfig = None
             config_data = request.data.get("config")
