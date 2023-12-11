@@ -66,7 +66,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return ProgramService
 
     @staticmethod
-    def get_service_job_config():
+    def get_service_job_config_class():
         """
         This method return JobConfig service to be used in Program ViewSet.
         """
@@ -80,7 +80,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return JobSerializer
 
     @staticmethod
-    def get_serializer_existing_program():
+    def get_serializer_existing_program_class():
         """
         This method returns Existign Program serializer to be used in Program ViewSet.
         """
@@ -88,7 +88,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return ExistingProgramSerializer
 
     @staticmethod
-    def get_serializer_job_config():
+    def get_serializer_job_config_class():
         """
         This method returns Job Config serializer to be used in Program ViewSet.
         """
@@ -132,7 +132,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.program.run_existing", context=ctx):
-            serializer = self.get_serializer_existing_program()(data=request.data)
+            serializer = self.get_serializer_existing_program_class()(data=request.data)
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -148,7 +148,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             jobconfig = None
             config_data = request.data.get("config")
             if config_data:
-                config_serializer = self.get_serializer_job_config()(
+                config_serializer = self.get_serializer_job_config_class()(
                     data=json.loads(config_data)
                 )
                 if not config_serializer.is_valid():
@@ -156,7 +156,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                         config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
                 try:
-                    jobconfig = self.get_service_job_config()(config_serializer)
+                    jobconfig = self.get_service_job_config_class()(config_serializer)
                 except InternalServerErrorException as exception:
                     return Response(exception, exception.http_code)
 
