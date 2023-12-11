@@ -29,6 +29,10 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     def get_service_program_class():
         return v1_services.ProgramService
 
+    @staticmethod
+    def get_serializer_existing_program():
+        return v1_serializers.ExistingProgramSerializer
+
     def get_serializer_class(self):
         return v1_serializers.ProgramSerializer
 

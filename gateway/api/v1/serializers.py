@@ -20,6 +20,12 @@ class ProgramSerializer(serializers.ProgramSerializer):
         ]
 
 
+class ExistingProgramSerializer(serializers.ExistingProgramSerializer):
+    """
+    Existing program serializer first version. This serializer limitates the fields from Program.
+    """
+
+
 class JobSerializer(serializers.JobSerializer):
     """
     Job serializer first version. Include basic fields from the initial model.

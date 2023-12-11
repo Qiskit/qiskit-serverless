@@ -73,6 +73,14 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
         return ProgramService
 
+    @staticmethod
+    def get_serializer_existing_program():
+        """
+        This method returns Existign Program serializer to be used in Program ViewSet.
+        """
+
+        return ExistingProgramSerializer
+
     def get_serializer_class(self):
         return self.serializer_class
 
@@ -110,7 +118,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.program.run_existing", context=ctx):
-            serializer = ExistingProgramSerializer(data=request.data)
+            serializer = self.get_serializer_existing_program()(data=request.data)
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
