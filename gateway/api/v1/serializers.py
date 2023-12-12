@@ -37,7 +37,7 @@ class JobSerializer(serializers.JobSerializer):
         fields = ["id", "result", "status", "program", "created"]
 
 
-class JobConfigSerilizer(serializers.JobConfigSerializer):
+class JobConfigSerializer(serializers.JobConfigSerializer):
     """
     JobConfig serializer first version. Include basic fields from the initial model.
     """

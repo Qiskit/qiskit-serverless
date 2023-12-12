@@ -2,7 +2,7 @@ import json
 from rest_framework.test import APITestCase
 from api.exceptions import ResourceNotFoundException
 from api.v1.services import ProgramService, JobConfigService
-from api.v1.serializers import ProgramSerializer, JobConfigSerilizer
+from api.v1.serializers import ProgramSerializer, JobConfigSerializer
 from api.models import Program, JobConfig
 from django.contrib.auth.models import User
 
@@ -50,7 +50,7 @@ class ServicesTest(APITestCase):
         """The test will create a job config with a basic configuration."""
 
         data = "{}"
-        job_config_serializer = JobConfigSerilizer(data=json.loads(data))
+        job_config_serializer = JobConfigSerializer(data=json.loads(data))
         job_config_serializer.is_valid()
 
         job_config = JobConfigService.save_with_serializer(job_config_serializer)
