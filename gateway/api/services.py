@@ -27,6 +27,14 @@ class ProgramService:
     def save(serializer, author, artifact) -> Program:
         """
         Save method gets a program serializer and creates or updates a program
+
+        Args:
+            serializer: django program model serializer
+            author: user tipically got it from request
+            artifact: file that is going to be run
+
+        Returns:
+            program: new Program instance
         """
 
         title = serializer.data.get("title")
@@ -72,6 +80,13 @@ class ProgramService:
     def find_one_by_title(title, author) -> Program:
         """
         It returns the last created Program by title from an author
+
+        Args:
+            title: program title
+            author: user tipically got it from request
+
+        Returns:
+            program: Program instance found
         """
 
         logger.debug("Filtering Program by title[%s] and author [%s]", title, author)
@@ -96,7 +111,13 @@ class JobConfigService:
     @staticmethod
     def save_with_serializer(serializer) -> JobConfig:
         """
-        This
+        It returns a new JobConfig from its serializer
+
+        Args:
+            serializer: JobConfig serializer from the model
+
+        Returns:
+            JobConfig: new JobConfig instance
         """
 
         # It would be nice if we could unify all the saves logic in one unique entry-point
@@ -118,13 +139,30 @@ class JobConfigService:
 
 class JobService:
     """
-    Job service allocate the logic related with job configuration
+    Job service allocate the logic related with a job
     """
 
     @staticmethod
-    def save(program, arguments, author, status, jobconfig, token, carrier) -> Job:
+    def save(
+        program: Program,
+        arguments,
+        author,
+        status: Job.JOB_STATUSES,
+        jobconfig: JobConfig,
+        token: str,
+        carrier,
+    ) -> Job:
         """
-        Creates or updtes a job
+        Creates or updates a job
+
+        Args:
+            program: instance of a Program
+            arguments: arguments from the serializer
+            author: author from the request
+            status: status of the job, QUEUED by default
+            jobconfig: instance of a JobConfig
+            token: token from the request after being decoded
+            carrier: object injected from TraceContextTextMapPropagator
         """
 
         job = None
