@@ -473,7 +473,12 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selected_provider</span><span class="o">.</span><span class="n">files</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">file_download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">download_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;./&quot;</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">file_download</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">target_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">download_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;./&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Downloads file.</span>
 <span class="sd">        Note: file will be saved with different name to avoid conflicts</span>
 <span class="sd">              and this name will be returned.</span>
@@ -486,7 +491,9 @@
 <span class="sd">            file: name of file to download</span>
 <span class="sd">            download_location: destination directory. Default: current directory</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selected_provider</span><span class="o">.</span><span class="n">file_download</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">download_location</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_selected_provider</span><span class="o">.</span><span class="n">file_download</span><span class="p">(</span>
+            <span class="n">file</span><span class="p">,</span> <span class="n">target_name</span><span class="p">,</span> <span class="n">download_location</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">file_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Deletes file uploaded or produced by the programs.</span>
