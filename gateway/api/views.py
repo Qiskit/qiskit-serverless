@@ -205,13 +205,21 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             jobconfig = None
             config_data = request.data.get("config")
             if config_data:
-                config_serializer = JobConfigSerializer(data=json.loads(config_data))
+                config_serializer = self.get_serializer_job_config_class()(
+                    data=json.loads(config_data)
+                )
                 if not config_serializer.is_valid():
                     return Response(
                         config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
-
-                jobconfig = config_serializer.save()
+                try:
+                    jobconfig = (
+                        self.get_service_job_config_class().save_with_serializer(
+                            config_serializer
+                        )
+                    )
+                except InternalServerErrorException as exception:
+                    return Response(exception, exception.http_code)
 
             program_service = self.get_service_program_class()
             try:
