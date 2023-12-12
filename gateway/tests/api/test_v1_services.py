@@ -67,7 +67,6 @@ class ServicesTest(APITestCase):
         user = User.objects.get(id=1)
         program = Program.objects.get(pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
         arguments = "{}"
-        status = Job.QUEUED
         token = "42"
         carrier = {}
         jobconfig = None
@@ -76,7 +75,6 @@ class ServicesTest(APITestCase):
             program=program,
             arguments=arguments,
             author=user,
-            status=status,
             jobconfig=jobconfig,
             token=token,
             carrier=carrier,
@@ -84,3 +82,4 @@ class ServicesTest(APITestCase):
 
         self.assertIsNotNone(job)
         self.assertEqual(Job.objects.count(), 3)
+        self.assertEqual(job.status, Job.QUEUED)

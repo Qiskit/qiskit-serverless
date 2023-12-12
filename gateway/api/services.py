@@ -147,10 +147,10 @@ class JobService:
         program: Program,
         arguments,
         author,
-        status: Job.JOB_STATUSES,
         jobconfig: JobConfig,
         token: str,
         carrier,
+        status=Job.QUEUED,
     ) -> Job:
         """
         Creates or updates a job
@@ -159,10 +159,13 @@ class JobService:
             program: instance of a Program
             arguments: arguments from the serializer
             author: author from the request
-            status: status of the job, QUEUED by default
             jobconfig: instance of a JobConfig
             token: token from the request after being decoded
             carrier: object injected from TraceContextTextMapPropagator
+            status: status of the job, QUEUED by default
+
+        Returns:
+            Job instance
         """
 
         job = None
