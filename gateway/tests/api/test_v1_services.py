@@ -1,9 +1,11 @@
 import json
+from unittest.mock import MagicMock
 from rest_framework.test import APITestCase
+
 from api.exceptions import ResourceNotFoundException
-from api.v1.services import ProgramService, JobConfigService
+from api.v1.services import ProgramService, JobConfigService, JobService
 from api.v1.serializers import ProgramSerializer, JobConfigSerializer
-from api.models import Program, JobConfig
+from api.models import Job, Program, JobConfig
 from django.contrib.auth.models import User
 
 
@@ -58,3 +60,27 @@ class ServicesTest(APITestCase):
 
         self.assertIsNotNone(job_config)
         self.assertEqual(entry.id, job_config.id)
+
+    def test_create_job(self):
+        """Creating a job with basic consfiguration."""
+
+        user = User.objects.get(id=1)
+        program = Program.objects.get(pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
+        arguments = "{}"
+        status = Job.QUEUED
+        token = "42"
+        carrier = {}
+        jobconfig = None
+
+        job = JobService.save(
+            program=program,
+            arguments=arguments,
+            author=user,
+            status=status,
+            jobconfig=jobconfig,
+            token=token,
+            carrier=carrier,
+        )
+
+        self.assertIsNotNone(job)
+        self.assertEqual(Job.objects.count(), 3)

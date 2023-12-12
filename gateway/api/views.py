@@ -31,7 +31,7 @@ from .exceptions import InternalServerErrorException, ResourceNotFoundException
 from .models import Program, Job
 from .ray import get_job_handler
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
-from .services import ProgramService, JobConfigService
+from .services import JobService, ProgramService, JobConfigService
 from .utils import build_env_variables, encrypt_env_vars
 
 logger = logging.getLogger("gateway")
@@ -72,6 +72,14 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         """
 
         return JobConfigService
+
+    @staticmethod
+    def get_service_job_class():
+        """
+        This method return Job service to be used in Program ViewSet.
+        """
+
+        return JobService
 
     @staticmethod
     def get_serializer_job_class():
@@ -138,11 +146,11 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+            author = request.user
             program = None
             program_service = self.get_service_program_class()
             try:
                 title = serializer.data.get("title")
-                author = request.user
                 program = program_service.find_one_by_title(title, author)
             except ResourceNotFoundException as exception:
                 return Response(exception, exception.http_code)
@@ -166,28 +174,23 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                 except InternalServerErrorException as exception:
                     return Response(exception, exception.http_code)
 
-            job = Job(
-                program=program,
-                arguments=serializer.data.get("arguments"),
-                author=request.user,
-                status=Job.QUEUED,
-                config=jobconfig,
-            )
-            job.save()
-
+            job = None
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
-            env = encrypt_env_vars(
-                build_env_variables(
-                    request, job, json.dumps(serializer.data.get("arguments"))
-                )
-            )
+            arguments = serializer.data.get("arguments")
+            token = request.auth.token.decode()
             try:
-                env["traceparent"] = carrier["traceparent"]
-            except KeyError:
-                pass
-            job.env_vars = json.dumps(env)
-            job.save()
+                job = self.get_service_job_class().save(
+                    program=program,
+                    arguments=arguments,
+                    author=author,
+                    status=Job.QUEUED,
+                    jobconfig=jobconfig,
+                    token=token,
+                    carrier=carrier,
+                )
+            except InternalServerErrorException as exception:
+                return Response(exception, exception.http_code)
 
             job_serializer = self.get_serializer_job_class()(job)
         return Response(job_serializer.data)
@@ -242,7 +245,8 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
-            env = encrypt_env_vars(build_env_variables(request, job, program.arguments))
+            token = request.auth.token.decode()
+            env = encrypt_env_vars(build_env_variables(token, job, program.arguments))
             try:
                 env["traceparent"] = carrier["traceparent"]
             except KeyError:

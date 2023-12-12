@@ -18,13 +18,10 @@ class TestUtils(APITestCase):
     def test_build_env_for_job(self):
         """Tests building of env vars for job."""
 
-        request = MagicMock()
-        request.auth.token.decode.return_value = "42"
+        token = "42"
         job = MagicMock()
         job.id = "42"
-        env_vars = build_env_variables(
-            request=request, job=job, arguments={"answer": 42}
-        )
+        env_vars = build_env_variables(token=token, job=job, arguments={"answer": 42})
         self.assertEqual(
             env_vars,
             {
@@ -39,7 +36,7 @@ class TestUtils(APITestCase):
             SETTINGS_AUTH_MECHANISM="custom_token", SECRET_KEY="super-secret"
         ):
             env_vars_with_qiskit_runtime = build_env_variables(
-                request=request, job=job, arguments={"answer": 42}
+                token=token, job=job, arguments={"answer": 42}
             )
             expecting = {
                 "ENV_JOB_GATEWAY_TOKEN": "42",

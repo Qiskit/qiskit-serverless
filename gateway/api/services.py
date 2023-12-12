@@ -9,9 +9,11 @@ Version services inherit from the different services.
 # pylint: disable=too-few-public-methods
 
 import logging
+import json
 
-from .models import Program, JobConfig
+from .models import Program, JobConfig, Job
 from .exceptions import InternalServerErrorException, ResourceNotFoundException
+from .utils import encrypt_env_vars, build_env_variables
 
 logger = logging.getLogger("gateway.services")
 
@@ -112,3 +114,55 @@ class JobConfigService:
         logger.debug("JobConfig [%s] saved", jobconfig.id)
 
         return jobconfig
+
+
+class JobService:
+    """
+    Job service allocate the logic related with job configuration
+    """
+
+    @staticmethod
+    def save(program, arguments, author, status, jobconfig, token, carrier) -> Job:
+        """
+        Creates or updtes a job
+        """
+
+        job = None
+        try:
+            job = Job(
+                program=program,
+                arguments=arguments,
+                author=author,
+                status=status,
+                config=jobconfig,
+            )
+            job.save()
+        except (Exception) as save_job_exception:
+            logger.error(
+                "Exception was caught saving a Job. \n Error trace: %s",
+                save_job_exception,
+            )
+            raise InternalServerErrorException(
+                "Unexpected error saving a job"
+            ) from save_job_exception
+
+        env = encrypt_env_vars(build_env_variables(token, job, json.dumps(arguments)))
+        try:
+            env["traceparent"] = carrier["traceparent"]
+        except KeyError:
+            pass
+
+        try:
+            job.env_vars = json.dumps(env)
+            job.save()
+        except (Exception) as save_job_exception:
+            logger.error(
+                "Exception was caught saving the env_vars of the Job[%s]. \n Error trace: %s",
+                job.id,
+                save_job_exception,
+            )
+            raise InternalServerErrorException(
+                "Unexpected error saving the environment variables of the job"
+            ) from save_job_exception
+
+        return job

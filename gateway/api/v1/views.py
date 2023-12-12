@@ -30,6 +30,10 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
         return v1_services.JobConfigService
 
     @staticmethod
+    def get_service_job_class():
+        return v1_services.JobService
+
+    @staticmethod
     def get_serializer_job_class():
         return v1_serializers.JobSerializer
 
