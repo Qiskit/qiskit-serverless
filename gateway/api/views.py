@@ -31,7 +31,7 @@ from .exceptions import InternalServerErrorException, ResourceNotFoundException
 from .models import Program, Job
 from .ray import get_job_handler
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
-from .services import ProgramService
+from .services import ProgramService, JobConfigService
 from .utils import build_env_variables, encrypt_env_vars
 
 logger = logging.getLogger("gateway")
@@ -70,6 +70,8 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         """
         This method return JobConfig service to be used in Program ViewSet.
         """
+
+        return JobConfigService
 
     @staticmethod
     def get_serializer_job_class():
@@ -156,7 +158,11 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                         config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
                 try:
-                    jobconfig = self.get_service_job_config_class()(config_serializer)
+                    jobconfig = (
+                        self.get_service_job_config_class().save_with_serializer(
+                            config_serializer
+                        )
+                    )
                 except InternalServerErrorException as exception:
                     return Response(exception, exception.http_code)
 
