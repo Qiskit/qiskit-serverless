@@ -205,6 +205,18 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+            author = request.user
+            program = None
+            program_service = self.get_service_program_class()
+            try:
+                program = program_service.save(
+                    serializer=serializer,
+                    author=author,
+                    artifact=request.FILES.get("artifact"),
+                )
+            except InternalServerErrorException as exception:
+                return Response(exception, exception.http_code)
+
             jobconfig = None
             config_data = request.data.get("config")
             if config_data:
@@ -224,35 +236,23 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                 except InternalServerErrorException as exception:
                     return Response(exception, exception.http_code)
 
-            program_service = self.get_service_program_class()
+            job = None
+            carrier = {}
+            TraceContextTextMapPropagator().inject(carrier)
+            arguments = serializer.data.get("arguments")
+            token = request.auth.token.decode()
             try:
-                program = program_service.save(
-                    serializer=serializer,
-                    author=request.user,
-                    artifact=request.FILES.get("artifact"),
+                job = self.get_service_job_class().save(
+                    program=program,
+                    arguments=arguments,
+                    author=author,
+                    status=Job.QUEUED,
+                    jobconfig=jobconfig,
+                    token=token,
+                    carrier=carrier,
                 )
             except InternalServerErrorException as exception:
                 return Response(exception, exception.http_code)
-
-            job = Job(
-                program=program,
-                arguments=program.arguments,
-                author=request.user,
-                status=Job.QUEUED,
-                config=jobconfig,
-            )
-            job.save()
-
-            carrier = {}
-            TraceContextTextMapPropagator().inject(carrier)
-            token = request.auth.token.decode()
-            env = encrypt_env_vars(build_env_variables(token, job, program.arguments))
-            try:
-                env["traceparent"] = carrier["traceparent"]
-            except KeyError:
-                pass
-            job.env_vars = json.dumps(env)
-            job.save()
 
             job_serializer = self.get_serializer_job_class()(job)
         return Response(job_serializer.data)
