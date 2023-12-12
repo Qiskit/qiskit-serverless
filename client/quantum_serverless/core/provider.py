@@ -308,7 +308,11 @@ class BaseProvider(JsonSerializable):
         """Returns list of available files produced by programs to download."""
         raise NotImplementedError
 
-    def download(self, file: str, download_location: str = "./"):
+    def download(
+        self,
+        file: str,
+        download_location: str = "./",
+    ):
         """Download file."""
         warnings.warn(
             "`download` method has been deprecated. "
@@ -318,7 +322,12 @@ class BaseProvider(JsonSerializable):
         )
         return self.file_download(file, download_location)
 
-    def file_download(self, file: str, download_location: str):
+    def file_download(
+        self,
+        file: str,
+        target_name: Optional[str] = None,
+        download_location: str = "./",
+    ):
         """Download file."""
         raise NotImplementedError
 
@@ -431,8 +440,13 @@ class ServerlessProvider(BaseProvider):
     def files(self) -> List[str]:
         return self._files_client.list()
 
-    def file_download(self, file: str, download_location: str = "./"):
-        return self._files_client.download(file, download_location)
+    def file_download(
+        self,
+        file: str,
+        target_name: Optional[str] = None,
+        download_location: str = "./",
+    ):
+        return self._files_client.download(file, download_location, target_name)
 
     def file_delete(self, file: str):
         return self._files_client.delete(file)
