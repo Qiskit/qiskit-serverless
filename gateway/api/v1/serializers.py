@@ -20,6 +20,12 @@ class ProgramSerializer(serializers.ProgramSerializer):
         ]
 
 
+class ExistingProgramSerializer(serializers.ExistingProgramSerializer):
+    """
+    Existing program serializer first version. This serializer limitates the fields from Program.
+    """
+
+
 class JobSerializer(serializers.JobSerializer):
     """
     Job serializer first version. Include basic fields from the initial model.
@@ -29,3 +35,18 @@ class JobSerializer(serializers.JobSerializer):
 
     class Meta(serializers.JobSerializer.Meta):
         fields = ["id", "result", "status", "program", "created"]
+
+
+class JobConfigSerializer(serializers.JobConfigSerializer):
+    """
+    JobConfig serializer first version. Include basic fields from the initial model.
+    """
+
+    class Meta(serializers.JobConfigSerializer.Meta):
+        fields = [
+            "workers",
+            "min_workers",
+            "max_workers",
+            "auto_scaling",
+            "python_version",
+        ]

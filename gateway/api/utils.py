@@ -106,11 +106,11 @@ def decrypt_string(string: str) -> str:
     return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
-def build_env_variables(request, job: Job, arguments: Dict[str, Any]) -> Dict[str, str]:
+def build_env_variables(token, job: Job, arguments: Dict[str, Any]) -> Dict[str, str]:
     """Builds env variables for job.
 
     Args:
-        request: django request
+        token: django request token decoded
         job: job
         arguments: program arguments
 
@@ -120,13 +120,13 @@ def build_env_variables(request, job: Job, arguments: Dict[str, Any]) -> Dict[st
     extra = {}
     if settings.SETTINGS_AUTH_MECHANISM != "default":
         extra = {
-            "QISKIT_IBM_TOKEN": str(request.auth.token.decode()),
+            "QISKIT_IBM_TOKEN": str(token),
             "QISKIT_IBM_CHANNEL": settings.QISKIT_IBM_CHANNEL,
             "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
         }
     return {
         **{
-            "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
+            "ENV_JOB_GATEWAY_TOKEN": str(token),
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
             "ENV_JOB_ARGUMENTS": arguments,

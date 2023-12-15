@@ -27,12 +27,11 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
-from .exceptions import InternalServerErrorException
+from .exceptions import InternalServerErrorException, ResourceNotFoundException
 from .models import Program, Job
 from .ray import get_job_handler
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
-from .services import ProgramService
-from .utils import build_env_variables, encrypt_env_vars
+from .services import JobService, ProgramService, JobConfigService
 
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})
@@ -58,6 +57,30 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
     BASE_NAME = "programs"
 
     @staticmethod
+    def get_service_program_class():
+        """
+        This method returns Program service to be used in Program ViewSet.
+        """
+
+        return ProgramService
+
+    @staticmethod
+    def get_service_job_config_class():
+        """
+        This method return JobConfig service to be used in Program ViewSet.
+        """
+
+        return JobConfigService
+
+    @staticmethod
+    def get_service_job_class():
+        """
+        This method return Job service to be used in Program ViewSet.
+        """
+
+        return JobService
+
+    @staticmethod
     def get_serializer_job_class():
         """
         This method returns Job serializer to be used in Program ViewSet.
@@ -66,12 +89,20 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return JobSerializer
 
     @staticmethod
-    def get_service_program_class():
+    def get_serializer_existing_program_class():
         """
-        This method returns Program service to be used in Program ViewSet.
+        This method returns Existign Program serializer to be used in Program ViewSet.
         """
 
-        return ProgramService
+        return ExistingProgramSerializer
+
+    @staticmethod
+    def get_serializer_job_config_class():
+        """
+        This method returns Job Config serializer to be used in Program ViewSet.
+        """
+
+        return JobConfigSerializer
 
     def get_serializer_class(self):
         return self.serializer_class
@@ -110,56 +141,54 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.program.run_existing", context=ctx):
-            serializer = ExistingProgramSerializer(data=request.data)
+            serializer = self.get_serializer_existing_program_class()(data=request.data)
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            title = serializer.data.get("title")
-            program = (
-                Program.objects.filter(title=title, author=request.user)
-                .order_by("-created")
-                .first()
-            )
-
-            if program is None:
-                return Response(
-                    {"message": f"program [{title}] was not found."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+            author = request.user
+            program = None
+            program_service = self.get_service_program_class()
+            try:
+                title = serializer.data.get("title")
+                program = program_service.find_one_by_title(title, author)
+            except ResourceNotFoundException as exception:
+                return Response(exception, exception.http_code)
 
             jobconfig = None
             config_data = request.data.get("config")
             if config_data:
-                config_serializer = JobConfigSerializer(data=json.loads(config_data))
+                config_serializer = self.get_serializer_job_config_class()(
+                    data=json.loads(config_data)
+                )
                 if not config_serializer.is_valid():
                     return Response(
                         config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
+                try:
+                    jobconfig = (
+                        self.get_service_job_config_class().save_with_serializer(
+                            config_serializer
+                        )
+                    )
+                except InternalServerErrorException as exception:
+                    return Response(exception, exception.http_code)
 
-                jobconfig = config_serializer.save()
-
-            job = Job(
-                program=program,
-                arguments=serializer.data.get("arguments"),
-                author=request.user,
-                status=Job.QUEUED,
-                config=jobconfig,
-            )
-            job.save()
-
+            job = None
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
-            env = encrypt_env_vars(
-                build_env_variables(
-                    request, job, json.dumps(serializer.data.get("arguments"))
-                )
-            )
+            arguments = serializer.data.get("arguments")
+            token = request.auth.token.decode()
             try:
-                env["traceparent"] = carrier["traceparent"]
-            except KeyError:
-                pass
-            job.env_vars = json.dumps(env)
-            job.save()
+                job = self.get_service_job_class().save(
+                    program=program,
+                    arguments=arguments,
+                    author=author,
+                    jobconfig=jobconfig,
+                    token=token,
+                    carrier=carrier,
+                )
+            except InternalServerErrorException as exception:
+                return Response(exception, exception.http_code)
 
             job_serializer = self.get_serializer_job_class()(job)
         return Response(job_serializer.data)
@@ -174,45 +203,53 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            jobconfig = None
-            config_data = request.data.get("config")
-            if config_data:
-                config_serializer = JobConfigSerializer(data=json.loads(config_data))
-                if not config_serializer.is_valid():
-                    return Response(
-                        config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                jobconfig = config_serializer.save()
-
+            author = request.user
+            program = None
             program_service = self.get_service_program_class()
             try:
                 program = program_service.save(
                     serializer=serializer,
-                    author=request.user,
+                    author=author,
                     artifact=request.FILES.get("artifact"),
                 )
             except InternalServerErrorException as exception:
                 return Response(exception, exception.http_code)
 
-            job = Job(
-                program=program,
-                arguments=program.arguments,
-                author=request.user,
-                status=Job.QUEUED,
-                config=jobconfig,
-            )
-            job.save()
+            jobconfig = None
+            config_data = request.data.get("config")
+            if config_data:
+                config_serializer = self.get_serializer_job_config_class()(
+                    data=json.loads(config_data)
+                )
+                if not config_serializer.is_valid():
+                    return Response(
+                        config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    )
+                try:
+                    jobconfig = (
+                        self.get_service_job_config_class().save_with_serializer(
+                            config_serializer
+                        )
+                    )
+                except InternalServerErrorException as exception:
+                    return Response(exception, exception.http_code)
 
+            job = None
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
-            env = encrypt_env_vars(build_env_variables(request, job, program.arguments))
+            arguments = serializer.data.get("arguments")
+            token = request.auth.token.decode()
             try:
-                env["traceparent"] = carrier["traceparent"]
-            except KeyError:
-                pass
-            job.env_vars = json.dumps(env)
-            job.save()
+                job = self.get_service_job_class().save(
+                    program=program,
+                    arguments=arguments,
+                    author=author,
+                    jobconfig=jobconfig,
+                    token=token,
+                    carrier=carrier,
+                )
+            except InternalServerErrorException as exception:
+                return Response(exception, exception.http_code)
 
             job_serializer = self.get_serializer_job_class()(job)
         return Response(job_serializer.data)

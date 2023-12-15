@@ -11,3 +11,15 @@ class ProgramService(services.ProgramService):
     """
     Program service first version.
     """
+
+
+class JobConfigService(services.JobConfigService):
+    """
+    JobConfig service first version.
+    """
+
+
+class JobService(services.JobService):
+    """
+    Job service first version.
+    """
