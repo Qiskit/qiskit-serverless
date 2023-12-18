@@ -16,17 +16,17 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
     nginx.ingress.kubernetes.io/proxy-buffer-size: "512k"
     nginx.ingress.kubernetes.io/proxy-body-size: 50m
-  tls:
-    - hosts:
-        - "middleware-dev.quantum-computing.ibm.com"
-      secretName: "middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000"
-  hosts:
-    - host: "middleware-dev.quantum-computing.ibm.com"
-      paths:
-      - path: /
-        pathType: Prefix
-        serviceName: "gateway"
-        servicePort: 8000
+  # tls:
+  #   - hosts:
+  #       - "middleware-dev.quantum-computing.ibm.com"
+  #     secretName: "middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000"
+  # hosts:
+  #   - host: "middleware-dev.quantum-computing.ibm.com"
+  #     paths:
+  #     - path: /
+  #       pathType: Prefix
+  #       serviceName: "gateway"
+  #       servicePort: 8000
 
 # ===================
 # Gateway configs
