@@ -1,34 +1,34 @@
-apiVersion: networking.istio.io/v1beta1
-kind: Gateway
-metadata:
-  name: gateway-istio
-  namespace: {{ .Release.Namespace }}
-spec:
-  selector:
-    istio: ingressgateway
-  servers:
-  - port:
-      number: 443
-      name: https-gateway
-      protocol: HTTPS
-    tls:
-      mode: SIMPLE
-      credentialName: middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000
-    hosts:
-    - middleware-dev.quantum-computing.ibm.com
+# apiVersion: networking.istio.io/v1beta1
+# kind: Gateway
+# metadata:
+#   name: gateway-istio
+#   namespace: {{ .Release.Namespace }}
+# spec:
+#   selector:
+#     istio: ingressgateway
+#   servers:
+#   - port:
+#       number: 443
+#       name: https-gateway
+#       protocol: HTTPS
+#     tls:
+#       mode: SIMPLE
+#       credentialName: middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000
+#     hosts:
+#     - middleware-dev.quantum-computing.ibm.com
 
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata:
-  name: gateway-virtual-service
-spec:
-  hosts:
-  - middleware-dev.quantum-computing.ibm.com
-  gateways:
-  - gateway-istio
-  http:
-  - route:
-    - destination:
-        host: gateway
-        port:
-          number: 8000
+# apiVersion: networking.istio.io/v1beta1
+# kind: VirtualService
+# metadata:
+#   name: gateway-virtual-service
+# spec:
+#   hosts:
+#   - middleware-dev.quantum-computing.ibm.com
+#   gateways:
+#   - gateway-istio
+#   http:
+#   - route:
+#     - destination:
+#         host: gateway
+#         port:
+#           number: 8000
