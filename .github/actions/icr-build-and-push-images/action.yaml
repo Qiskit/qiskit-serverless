@@ -35,34 +35,6 @@ runs:
         tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py310,icr.io/quantum-public/quantum-serverless-ray-node:latest-py310
         build-args:
           IMAGE_PY_VERSION=py310
-    - name: Build and push jupyter [3.8]
-      uses: docker/build-push-action@v3
-      with:
-        context: .
-        file: Dockerfile-notebook
-        push: true
-        tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py38,icr.io/quantum-public/quantum-serverless-notebook:latest-py38
-        build-args:
-          IMAGE_PY_VERSION=3.8
-    - name: Build and push jupyter [3.9]
-      uses: docker/build-push-action@v3
-      with:
-        platforms: linux/amd64,linux/arm64
-        context: .
-        file: Dockerfile-notebook
-        push: true
-        tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py39,icr.io/quantum-public/quantum-serverless-notebook:latest-py39
-        build-args:
-          IMAGE_PY_VERSION=3.9
-    - name: Build and push jupyter [3.10]
-      uses: docker/build-push-action@v3
-      with:
-        context: .
-        file: Dockerfile-notebook
-        push: true
-        tags: icr.io/quantum-public/quantum-serverless-notebook:${{inputs.tag}}-py310,icr.io/quantum-public/quantum-serverless-notebook:latest-py310
-        build-args:
-          IMAGE_PY_VERSION=3.10
     - name: Build and push repository server
       uses: docker/build-push-action@v3
       with:
