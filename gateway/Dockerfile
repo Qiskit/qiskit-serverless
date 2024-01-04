@@ -13,8 +13,8 @@ RUN apt-get -y update &&\
     rm -rf /var/lib/apt/lists/*
 
 USER 0
-COPY gateway/requirements.txt .
-RUN pip install -r requirements.txt --no-cache-dir
+COPY gateway/requirements-lock.txt .
+RUN pip install -r requirements-lock.txt --no-cache-dir
 COPY gateway .
 RUN chown -R 1000:100 /usr/src/app &&\
     mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media

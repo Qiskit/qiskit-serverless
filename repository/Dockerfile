@@ -9,7 +9,7 @@ ENV PYTHONUNBUFFERED 1
 USER 0
 COPY repository .
 RUN chown -R 1001:0 /usr/src/app &&\
-    pip install -r requirements.txt --no-cache-dir
+    pip install -r requirements-lock.txt --no-cache-dir
 
 USER 1001
 

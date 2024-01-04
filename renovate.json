@@ -20,5 +20,10 @@
       ],
       "groupName": "qiskit packages"
     }
+  ],
+  "ignorePaths": [
+    "client/requirements-lock.txt",
+    "gateway/requirements-lock.txt",
+    "repository/requirements-lock.txt"
   ]
 }
