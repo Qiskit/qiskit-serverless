@@ -36,7 +36,7 @@ ibm-cloud-sdk-core==3.18.0
 ibm-platform-services==0.48.0
 idna==3.6
 importlib-metadata==6.11.0
-ipython==8.18.1
+ipython==8.13.0
 ipywidgets==8.1.1
 jedi==0.19.1
 jmespath==1.0.1
