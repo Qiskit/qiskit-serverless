@@ -7,4 +7,4 @@ matplotlib==3.7.1
 qiskit-ibmq-provider==0.20.2
 qiskit-aer==0.13.0
 certifi==2023.7.22
-ipython==8.13.0
+ipython==8.19.0
