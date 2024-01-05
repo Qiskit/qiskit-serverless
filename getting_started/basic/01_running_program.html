@@ -189,6 +189,7 @@
 <li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
 <li class="toctree-l2"><a class="reference internal" href="05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/file_download.html">File download (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
@@ -374,7 +375,7 @@ the pattern elsewhere, you will need to provide the corresponding host and authe
 <li><p>working_dir - directory where your script is located (directory size must be less than 50MB). This is optional parameter and will be current folder by default.</p></li>
 </ul>
 <blockquote>
-<div><p>Warning! All content of <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> will be shipped to cluster for execution</p>
+<div><p>Warning! All content of <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> will be shipped to cluster for execution Warning! Execution of <code class="docutils literal notranslate"><span class="pre">upload</span></code> function ships All content of <code class="docutils literal notranslate"><span class="pre">working_dir</span></code>. When the contents of <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> is changed, the <code class="docutils literal notranslate"><span class="pre">upload</span></code> function must be called again to update the shipped directory contents.</p>
 </div></blockquote>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
