@@ -15,8 +15,7 @@ USER $NB_UID
 COPY --chown=$NB_UID:$NB_UID ./client ./qs
 
 WORKDIR /qs
-RUN pip install -r requirements-lock.txt --no-cache-dir &&\
-    pip install --no-cache-dir . &&\
+RUN pip install --no-cache-dir . &&\
     pip install --no-cache-dir -r requirements-notebook.txt
 
 WORKDIR /
