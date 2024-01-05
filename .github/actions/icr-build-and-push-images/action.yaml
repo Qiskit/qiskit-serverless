@@ -1,53 +1,47 @@
 name: 'Build and push images'
 description: 'Builds and pushes images to remote repository'
 inputs:
-  tag:
-    description: 'Tag of image that will be build'
+  name:
+    description: 'Image name'
     required: true
+  tag:
+    description: 'Release version'
+    required: true
+  dockerfile:
+    description: 'Location of dockerfile'
+    required: true
+  platforms:
+    description: '(optional) platform to build image for'
+    required: false
+    default: "linux/amd64"
+  repository:
+    description: '(optional) repository'
+    required: false
+    default: 'icr.io/quantum-public'
+  pythonversion:
+    description: '(optional) python version'
+    required: false
+    default: ''
 runs:
   using: "composite"
   steps:
-    - name: Build and push node image [3.8]
-      uses: docker/build-push-action@v3
+    - name: Build and push image with Python Version
+      if: ${{inputs.pythonversion}} != ''
+      uses: docker/build-push-action@v5
       with:
+        platforms: ${{inputs.platforms}}
         context: .
-        file: Dockerfile-ray-node
+        file: ${{inputs.dockerfile}}
         push: true
-        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py38,icr.io/quantum-public/quantum-serverless-ray-node:latest-py38
+        tags: ${{inputs.repository}}/${{inputs.name}}:${{inputs.tag}}-${{inputs.pythonversion}},${{inputs.repository}}/${{inputs.name}}:latest-${{inputs.pythonversion}}
         build-args:
-          IMAGE_PY_VERSION=py38
-    - name: Build and push node image [3.9]
-      uses: docker/build-push-action@v3
+          IMAGE_PY_VERSION=${{inputs.pythonversion}}
+    - name: Build and push image
+      if: ${{inputs.pythonversion}} == ''
+      uses: docker/build-push-action@v5
       with:
-        platforms: linux/amd64,linux/arm64
+        platforms: ${{inputs.platforms}}
         context: .
-        file: Dockerfile-ray-node
+        file: ${{inputs.dockerfile}}
         push: true
-        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py39,icr.io/quantum-public/quantum-serverless-ray-node:latest-py39
-        build-args:
-          IMAGE_PY_VERSION=py39
-    - name: Build and push node image [3.10]
-      uses: docker/build-push-action@v3
-      with:
-        context: .
-        file: Dockerfile-ray-node
-        push: true
-        tags: icr.io/quantum-public/quantum-serverless-ray-node:${{inputs.tag}}-py310,icr.io/quantum-public/quantum-serverless-ray-node:latest-py310
-        build-args:
-          IMAGE_PY_VERSION=py310
-    - name: Build and push repository server
-      uses: docker/build-push-action@v3
-      with:
-        platforms: linux/amd64,linux/arm64
-        context: .
-        file: ./repository/Dockerfile
-        push: true
-        tags: icr.io/quantum-public/quantum-repository-server:${{inputs.tag}},icr.io/quantum-public/quantum-repository-server:latest
-    - name: Build and push gateway
-      uses: docker/build-push-action@v3
-      with:
-        platforms: linux/amd64,linux/arm64
-        context: .
-        file: ./gateway/Dockerfile
-        push: true
-        tags: icr.io/quantum-public/quantum-serverless-gateway:${{inputs.tag}},icr.io/quantum-public/quantum-serverless-gateway:latest
+        tags: ${{inputs.repository}}/${{inputs.name}}:${{inputs.tag}},${{inputs.repository}}/${{inputs.name}}:latest
