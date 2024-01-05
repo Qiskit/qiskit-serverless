@@ -12,7 +12,7 @@ WORKDIR /qs
 # TODO: certifi version pinned to 2023.7.22. More info in #870
 # TODO: pyarrow version pinned to 14.0.1
 RUN pip install -r requirements-lock.txt --no-cache-dir &&\
-    pip install --no-cache-dir .  &&\
+    pip install --no-cache-dir . &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
     pip install --no-cache-dir certifi==2023.7.22
 
