@@ -13,7 +13,7 @@ spec:
       protocol: HTTPS
     tls:
       mode: SIMPLE
-      credentialName: middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000
+      credentialName: istio-ca-secret
     hosts:
     - middleware-dev.quantum-computing.ibm.com
 
