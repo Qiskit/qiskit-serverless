@@ -182,3 +182,16 @@ def generate_cluster_name(username: str) -> str:
     pattern = re.compile("[^a-zA-Z0-9-.]")
     cluster_name = f"c-{re.sub(pattern,'-',username)}-{str(uuid.uuid4())[:8]}"
     return cluster_name
+
+# TODO: Logs checker test
+# create seperate function logs_checker in utils IN:logs,job.status -> OUT logs
+# if logs in ["", None] and job.status==Job.FAILED:
+# logs = "Internal error msg"
+# local test of build pipe tox -elint; tox -epy310
+def check_logs(logs, job_status):
+    if logs in ["", None] and job_status == Job.FAILED: 
+        logs = "INTERNAL ERROR"
+    return logs
+
+def test():
+    print('Hello from utils')
