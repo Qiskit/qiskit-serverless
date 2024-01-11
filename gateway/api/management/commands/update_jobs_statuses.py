@@ -55,9 +55,8 @@ class Command(BaseCommand):
 
                 if job_handler:
                     logs = job_handler.logs(job.ray_job_id)
+                    # TODO:
                     # job.logs = logs_checker(logs,job.stats)
-                    # local test of build pipe tox -elint; tox -epy310
-                    # change local env to Python: 3.9
                     job.logs = logs
 
                 try:
