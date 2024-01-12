@@ -6,7 +6,7 @@ import logging
 import re
 import time
 import uuid
-from typing import Optional, Tuple, Callable, Dict, Any
+from typing import Optional, Tuple, Union, Callable, Dict, Any
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
@@ -183,15 +183,18 @@ def generate_cluster_name(username: str) -> str:
     cluster_name = f"c-{re.sub(pattern,'-',username)}-{str(uuid.uuid4())[:8]}"
     return cluster_name
 
-# TODO: Logs checker test
-# create seperate function logs_checker in utils IN:logs,job.status -> OUT logs
-# if logs in ["", None] and job.status==Job.FAILED:
-# logs = "Internal error msg"
-# local test of build pipe tox -elint; tox -epy310
-def check_logs(logs, job_status):
-    if logs in ["", None] and job_status == Job.FAILED: 
-        logs = "INTERNAL ERROR"
-    return logs
 
-def test():
-    print('Hello from utils')
+# TODO: add user as metadata in err msg? Is every job associated to an author?
+# local test of build pipe tox -elint; tox -epy39
+def check_logs(logs: Union[str, None], job: Job) -> str:
+    """Add error message to logs for faild jobs with empty logs.
+    Args:
+        logs: logs of the job
+        job:  job model
+
+    Returns:
+        logs with error message and metadata.
+    """
+    if job.status == Job.FAILED and logs in ["", None]:
+        logs = f"Job {job.id} failed due to an internal error."
+    return logs
