@@ -42,5 +42,3 @@ def sanitize_file_path(path: str):
         path = re.sub("..", "_", path)
     pattern = "[^0-9a-zA-Z-_." + os.sep + "]+"
     return re.sub(pattern, "_", path)
-
-

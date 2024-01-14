@@ -16,7 +16,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
-
+# pylint: disable=duplicate-code
 def sanitize_file_path(path: str):
     """sanitize file path.
 
@@ -30,6 +30,7 @@ def sanitize_file_path(path: str):
         path = re.sub("..", "_", path)
     pattern = "[^0-9a-zA-Z-_." + os.sep + "]+"
     return re.sub(pattern, "_", path)
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

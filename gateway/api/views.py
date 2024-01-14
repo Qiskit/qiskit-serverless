@@ -32,7 +32,7 @@ from .models import Program, Job
 from .ray import get_job_handler
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
 from .services import JobService, ProgramService, JobConfigService
-from .utils import sanitize_file_path 
+from .utils import sanitize_file_path
 
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})
@@ -362,7 +362,10 @@ class FilesViewSet(viewsets.ViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.list", context=ctx):
-            user_dir = os.path.join(sanitize_file_path(settings.MEDIA_ROOT), sanitize_file_path(request.user.username))
+            user_dir = os.path.join(
+                sanitize_file_path(settings.MEDIA_ROOT),
+                sanitize_file_path(request.user.username),
+            )
             if os.path.exists(user_dir):
                 files = [
                     os.path.basename(path)
@@ -391,8 +394,13 @@ class FilesViewSet(viewsets.ViewSet):
             if requested_file_name is not None:
                 # look for file in user's folder
                 filename = os.path.basename(requested_file_name)
-                user_dir = os.path.join(sanitize_file_path(settings.MEDIA_ROOT), sanitize_file_path(request.user.username))
-                file_path = os.path.join(sanitize_file_path(user_dir), sanitize_file_path(filename))
+                user_dir = os.path.join(
+                    sanitize_file_path(settings.MEDIA_ROOT),
+                    sanitize_file_path(request.user.username),
+                )
+                file_path = os.path.join(
+                    sanitize_file_path(user_dir), sanitize_file_path(filename)
+                )
 
                 if os.path.exists(user_dir) and os.path.exists(file_path) and filename:
                     chunk_size = 8192
@@ -424,8 +432,13 @@ class FilesViewSet(viewsets.ViewSet):
             if request.data and "file" in request.data:
                 # look for file in user's folder
                 filename = os.path.basename(request.data["file"])
-                user_dir = os.path.join(sanitize_file_path(settings.MEDIA_ROOT), sanitize_file_path(request.user.username))
-                file_path = os.path.join(sanitize_file_path(user_dir), sanitize_file_path(filename))
+                user_dir = os.path.join(
+                    sanitize_file_path(settings.MEDIA_ROOT),
+                    sanitize_file_path(request.user.username),
+                )
+                file_path = os.path.join(
+                    sanitize_file_path(user_dir), sanitize_file_path(filename)
+                )
 
                 if os.path.exists(user_dir) and os.path.exists(file_path) and filename:
                     os.remove(file_path)
@@ -443,8 +456,13 @@ class FilesViewSet(viewsets.ViewSet):
         with tracer.start_as_current_span("gateway.files.download", context=ctx):
             upload_file = request.FILES["file"]
             filename = os.path.basename(upload_file.name)
-            user_dir = os.path.join(sanitize_file_path(settings.MEDIA_ROOT), sanitize_file_path(request.user.username))
-            file_path = os.path.join(sanitize_file_path(user_dir), sanitize_file_path(filename))
+            user_dir = os.path.join(
+                sanitize_file_path(settings.MEDIA_ROOT),
+                sanitize_file_path(request.user.username),
+            )
+            file_path = os.path.join(
+                sanitize_file_path(user_dir), sanitize_file_path(filename)
+            )
             with open(file_path, "wb+") as destination:
                 for chunk in upload_file.chunks():
                     destination.write(chunk)
