@@ -230,7 +230,7 @@ def download_and_unpack_artifact(
     Returns:
         workdir for program
     """
-    program_folder_path= os.path.join(
+    program_folder_path = os.path.join(
         sanitize_file_path(folder), sanitize_file_path(program.title)
     )
     artifact_file_name = "artifact"
