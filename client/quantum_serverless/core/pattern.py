@@ -44,6 +44,7 @@ from quantum_serverless.core.constants import (
     REPO_PORT_KEY,
 )
 from quantum_serverless.exception import QuantumServerlessException
+from quantum_serverless.utils.utils import sanitize_file_path
 
 
 @dataclass
@@ -229,9 +230,11 @@ def download_and_unpack_artifact(
     Returns:
         workdir for program
     """
-    program_folder_path = os.path.join(folder, program.title)
+    #program_folder_path= os.path.join(folder, program.title)
+    program_folder_path= os.path.join(sanitize_file_path(folder), sanitize_file_path(program.title))
     artifact_file_name = "artifact"
-    tarfile_path = os.path.join(program_folder_path, artifact_file_name)
+    #tarfile_path = os.path.join(program_folder_path, artifact_file_name)
+    tarfile_path = os.path.join(sanitize_file_path(program_folder_path), sanitize_file_path(artifact_file_name))
 
     # check if program path already exist on the disc
     if os.path.exists(program_folder_path):

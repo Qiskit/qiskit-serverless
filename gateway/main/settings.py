@@ -11,9 +11,25 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 import os
 import os.path
+import re
 import sys
 from datetime import timedelta
 from pathlib import Path
+
+
+def sanitize_file_path(path: str):
+    """sanitize file path.
+
+    Args:
+        path: file path
+
+    Returns:
+        saanitized filepath
+    """
+    if ".." in path:
+        path = re.sub("..", "_", path)
+    pattern = "[^0-9a-zA-Z-_." + os.sep + "]+"
+    return re.sub(pattern, "_", path)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -197,10 +213,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
+STATIC_ROOT = os.path.join(sanitize_file_path(str(BASE_DIR)), "static")
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_ROOT = os.path.join(sanitize_file_path(str(BASE_DIR)), "media")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
@@ -257,7 +273,7 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=20),
 }
 
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_ROOT = os.path.join(sanitize_file_path(str(BASE_DIR)), "media")
 MEDIA_URL = "/media/"
 
 # custom token auth

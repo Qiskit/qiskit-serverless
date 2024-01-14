@@ -26,6 +26,7 @@ from api.utils import (
     retry_function,
     decrypt_env_vars,
     generate_cluster_name,
+    sanitize_file_path,
 )
 from main import settings
 
@@ -79,7 +80,7 @@ class JobHandler:
             _, dependencies = try_json_loads(program.dependencies)
             with tarfile.open(program.artifact.path) as file:
                 extract_folder = os.path.join(
-                    settings.MEDIA_ROOT, "tmp", str(uuid.uuid4())
+                    sanitize_file_path(str(settings.MEDIA_ROOT)), "tmp", str(uuid.uuid4())
                 )
                 file.extractall(extract_folder)
 

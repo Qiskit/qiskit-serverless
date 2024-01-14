@@ -32,3 +32,4 @@ Quantum serverless utilities
 from .json import JsonSerializable
 from .errors import ErrorCodes
 from .storage import S3Storage, BaseStorage
+from .utils import sanitize_file_path

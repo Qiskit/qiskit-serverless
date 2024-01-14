@@ -3,6 +3,7 @@ import base64
 import inspect
 import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -182,3 +183,18 @@ def generate_cluster_name(username: str) -> str:
     pattern = re.compile("[^a-zA-Z0-9-.]")
     cluster_name = f"c-{re.sub(pattern,'-',username)}-{str(uuid.uuid4())[:8]}"
     return cluster_name
+
+
+def sanitize_file_path(path: str):
+    """sanitize file path.
+
+    Args:
+        path: file path
+
+    Returns:
+        saanitized filepath
+    """
+    if ".." in path:
+        path = re.sub("..", "_", path)
+    pattern = "[^0-9a-zA-Z-_." + os.sep + "]+"
+    return re.sub(pattern, "_", path)

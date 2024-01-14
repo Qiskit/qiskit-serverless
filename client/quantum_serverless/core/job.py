@@ -68,6 +68,7 @@ from quantum_serverless.serializers.program_serializers import (
     QiskitObjectsDecoder,
 )
 from quantum_serverless.utils.json import is_jsonable, safe_json_request
+from quantum_serverless.utils.utils import sanitize_file_path
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
@@ -298,7 +299,8 @@ class LocalJobClient(BaseJobClient):
 
     def upload(self, program: QiskitPattern):
         # check if entrypoint exists
-        if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
+        #if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
+        if not os.path.exists(os.path.join(sanitize_file_path(program.working_dir), sanitize_file_path(program.entrypoint))):
             raise QuantumServerlessException(
                 f"Entrypoint file [{program.entrypoint}] does not exist "
                 f"in [{program.working_dir}] working directory."
@@ -392,11 +394,13 @@ class GatewayJobClient(BaseJobClient):
             span.set_attribute("arguments", str(arguments))
 
             url = f"{self.host}/api/{self.version}/programs/run/"
-            artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+            #artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+            artifact_file_path = os.path.join(sanitize_file_path(program.working_dir), "artifact.tar")
 
             # check if entrypoint exists
             if not os.path.exists(
-                os.path.join(program.working_dir, program.entrypoint)
+                #os.path.join(program.working_dir, program.entrypoint)
+                os.path.join(sanitize_file_path(program.working_dir), sanitize_file_path(program.entrypoint))
             ):
                 raise QuantumServerlessException(
                     f"Entrypoint file [{program.entrypoint}] does not exist "
@@ -405,7 +409,8 @@ class GatewayJobClient(BaseJobClient):
 
             with tarfile.open(artifact_file_path, "w") as tar:
                 for filename in os.listdir(program.working_dir):
-                    fpath = os.path.join(program.working_dir, filename)
+                    #fpath = os.path.join(program.working_dir, filename)
+                    fpath = os.path.join(sanitize_file_path(program.working_dir), sanitize_file_path(filename))
                     tar.add(fpath, arcname=filename)
 
             # check file size
@@ -453,11 +458,13 @@ class GatewayJobClient(BaseJobClient):
             span.set_attribute("program", program.title)
 
             url = f"{self.host}/api/{self.version}/programs/upload/"
-            artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+            #artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+            artifact_file_path = os.path.join(sanitize_file_path(program.working_dir), "artifact.tar")
 
             # check if entrypoint exists
             if not os.path.exists(
-                os.path.join(program.working_dir, program.entrypoint)
+                #os.path.join(program.working_dir, program.entrypoint)
+                os.path.join(sanitize_file_path(program.working_dir), sanitize_file_path(program.entrypoint))
             ):
                 raise QuantumServerlessException(
                     f"Entrypoint file [{program.entrypoint}] does not exist "
@@ -466,7 +473,8 @@ class GatewayJobClient(BaseJobClient):
 
             with tarfile.open(artifact_file_path, "w") as tar:
                 for filename in os.listdir(program.working_dir):
-                    fpath = os.path.join(program.working_dir, filename)
+                    #fpath = os.path.join(program.working_dir, filename)
+                    fpath = os.path.join(sanitize_file_path(program.working_dir), sanitize_file_path(filename))
                     tar.add(fpath, arcname=filename)
 
             # check file size
