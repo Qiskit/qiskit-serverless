@@ -195,6 +195,6 @@ def sanitize_file_path(path: str):
         saanitized filepath
     """
     if ".." in path:
-        path = re.sub("..", "_", path)
+        path = path.replace("..", "_")
     pattern = "[^0-9a-zA-Z-_." + os.sep + "]+"
     return re.sub(pattern, "_", path)
