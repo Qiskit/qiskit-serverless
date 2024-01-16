@@ -26,13 +26,13 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
+from utils import sanitize_file_path
 
 from .exceptions import InternalServerErrorException, ResourceNotFoundException
 from .models import Program, Job
 from .ray import get_job_handler
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
 from .services import JobService, ProgramService, JobConfigService
-from .utils import sanitize_file_path
 
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})

@@ -11,25 +11,10 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 import os
 import os.path
-import re
 import sys
 from datetime import timedelta
 from pathlib import Path
-
-# pylint: disable=duplicate-code
-def sanitize_file_path(path: str):
-    """sanitize file path.
-
-    Args:
-        path: file path
-
-    Returns:
-        saanitized filepath
-    """
-    if ".." in path:
-        path = path.replace("..", "_")
-    pattern = "[^0-9a-zA-Z-_." + os.sep + "]+"
-    return re.sub(pattern, "_", path)
+from utils import sanitize_file_path
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

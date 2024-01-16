@@ -26,8 +26,8 @@ from api.utils import (
     retry_function,
     decrypt_env_vars,
     generate_cluster_name,
-    sanitize_file_path,
 )
+from utils import sanitize_file_path
 from main import settings
 
 logger = logging.getLogger("commands")
