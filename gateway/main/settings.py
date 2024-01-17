@@ -349,7 +349,7 @@ QISKIT_IBM_URL = os.environ.get(
 )
 
 # Content Security Policy
-CSP_DEFAULT_SRC = "'self'"
-CSP_SCRIPT_SRC = "'self'"
+CSP_DEFAULT_SRC = "'none'"
+CSP_SCRIPT_SRC = "'none'"
 CSP_FRAME_ANCESTORS = "'self'"
 CSP_OBJECT_SRC = "'self'"
