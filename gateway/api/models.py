@@ -165,6 +165,7 @@ class Job(models.Model):
 
 class CatalogEntry(models.Model):
     """Catalog Entry model."""
+
     title = models.CharField(max_length=255)
     description = models.TextField()
     tags = models.TextField(null=False, blank=True, default="[]")
