@@ -26,9 +26,8 @@ services:
     ]
     ports:
       - 8265:8265
-    privileged: true
     volumes:
-      - /dev/shm:/dev/shm
+      - host-shm:/dev/shm
     networks:
       - safe-tier
   postgres:
@@ -143,7 +142,7 @@ services:
     image: grafana/promtail:2.8.4
     profiles: [ "full" ]
     volumes:
-      - /var/log:/var/log
+      - host-log:/var/log
     command: -config.file=/etc/promtail/config.yml
     networks:
       - safe-tier
@@ -158,3 +157,5 @@ networks:
   safe-tier:
 volumes:
   program-artifacts:
+  host-shm:
+  host-log:
