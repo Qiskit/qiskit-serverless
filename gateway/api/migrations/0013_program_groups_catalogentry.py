@@ -11,11 +11,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="program",
-            name="groups",
-            field=models.TextField(blank=True, default="[]"),
-        ),
         migrations.CreateModel(
             name="CatalogEntry",
             fields=[
