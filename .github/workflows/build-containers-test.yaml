@@ -16,7 +16,6 @@ jobs:
       matrix:
         dockerfile:
           - Dockerfile-ray-node
-          - Dockerfile-notebook
           - repository/Dockerfile
           - gateway/Dockerfile
         python:
