@@ -3,23 +3,32 @@ name: Docker notebook tests
 on:
   pull_request:
     branches: [ main ]
-    
+
 jobs:
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build the containers
-        run: docker compose -f docker-compose-dev.yaml --profile jupyter build
+        run: docker compose -f docker-compose-dev.yaml build
       - name: Run the jupyter profile
-        run: docker compose -f docker-compose-dev.yaml --profile jupyter up -d
+        run: docker compose -f docker-compose-dev.yaml up -d
       - name: Give containers time to initialize
         shell: bash
         run: sleep 90
-      - name: Test notebooks in the docker environment
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: install dependencies
         shell: bash
-        run: docker exec qs-jupyter "bash" "-c" "pip install nbmake pytest && pytest --nbmake --ignore=/home/jovyan/serverless/guides/07_working_with_datasets.ipynb /home/jovyan/serverless/"
+        run: pip install client/ && pip install nbmake pytest
+      - name: Run basic notebooks
+        shell: bash
+        run: pytest --nbmake docs/getting_started/basic/
+      - name: Run experimental notebooks
+        shell: bash
+        run: pytest --nbmake docs/getting_started/experimental/
       - name: Dump logs on failure
         if: ${{ failure() }}
         run: |

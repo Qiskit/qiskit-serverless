@@ -1,18 +1,5 @@
 # compose config for running images based on local files
 services:
-  jupyter:
-    container_name: qs-jupyter
-    build:
-      context: ./
-      dockerfile: Dockerfile-notebook
-    profiles: ["jupyter", "full"]
-    ports:
-      - 8888:8888
-    environment:
-      - JUPYTER_TOKEN=123
-      - GATEWAY_HOST=http://gateway:8000
-    networks:
-      - safe-tier
   ray-head:
     container_name: ray-head
     build:
