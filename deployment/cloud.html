@@ -340,20 +340,16 @@ $ &gt; version.BuildInfo{Version:&quot;X&quot;, GitCommit:&quot;Y&quot;, GitTree
 <p>If you have <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span></code> available you can run the next command in your terminal:</p>
 <div class="literal-block-wrapper docutils container" id="id2">
 <div class="code-block-caption"><span class="caption-text">run the command from the root of the project</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker compose --profile jupyter up
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker compose up
 </pre></div>
 </div>
 </div>
 <p>Once the execution of the command has finished, if everything went well you should be able to open the browser
-and have access to:</p>
-<ul class="simple">
-<li><p>Jupyter notebook: <a class="reference external" href="http://localhost:8888">http://localhost:8888</a></p></li>
-<li><p>Ray dashboard: <a class="reference external" href="http://localhost:8265">http://localhost:8265</a></p></li>
-</ul>
+and have access to the Ray dashboard at: <a class="reference external" href="http://localhost:8265">http://localhost:8265</a></p>
 <p>In case you want to use the <code class="docutils literal notranslate"><span class="pre">main</span></code> branch you can use the configuration for development running the next command:</p>
 <div class="literal-block-wrapper docutils container" id="id3">
 <div class="code-block-caption"><span class="caption-text">run the command from the root of the project</span><a class="headerlink" href="#id3" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker compose -f docker-compose-dev.yaml --profile jupyter up
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ docker compose -f docker-compose-dev.yaml up
 </pre></div>
 </div>
 </div>

@@ -55,20 +55,17 @@ If you have ``docker compose`` available you can run the next command in your te
 .. code-block::
    :caption: run the command from the root of the project
 
-        $ docker compose --profile jupyter up
+        $ docker compose up
 
 Once the execution of the command has finished, if everything went well you should be able to open the browser
-and have access to:
-
-* Jupyter notebook: http://localhost:8888
-* Ray dashboard: http://localhost:8265
+and have access to the Ray dashboard at: http://localhost:8265
 
 In case you want to use the ``main`` branch you can use the configuration for development running the next command:
 
 .. code-block::
    :caption: run the command from the root of the project
 
-        $ docker compose -f docker-compose-dev.yaml --profile jupyter up
+        $ docker compose -f docker-compose-dev.yaml up
 
 .. _helm-deployment:
 
