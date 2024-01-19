@@ -1,16 +1,5 @@
 # compose config on latest release builds
 services:
-  jupyter:
-    container_name: qs-jupyter
-    image: icr.io/quantum-public/quantum-serverless-notebook:${VERSION:-0.8.2}-py39
-    profiles: ["jupyter", "full"]
-    ports:
-      - 8888:8888
-    environment:
-      - JUPYTER_TOKEN=123
-      - GATEWAY_HOST=http://gateway:8000
-    networks:
-      - safe-tier
   ray-head:
     container_name: ray-head
     image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.8.2}-py39
