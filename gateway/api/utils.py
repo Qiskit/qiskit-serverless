@@ -6,7 +6,7 @@ import logging
 import re
 import time
 import uuid
-from typing import Optional, Tuple, Callable, Dict, Any
+from typing import Optional, Tuple, Union, Callable, Dict, Any
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
@@ -182,3 +182,18 @@ def generate_cluster_name(username: str) -> str:
     pattern = re.compile("[^a-zA-Z0-9-.]")
     cluster_name = f"c-{re.sub(pattern,'-',username)}-{str(uuid.uuid4())[:8]}"
     return cluster_name
+
+
+def check_logs(logs: Union[str, None], job: Job) -> str:
+    """Add error message to logs for faild jobs with empty logs.
+    Args:
+        logs: logs of the job
+        job:  job model
+
+    Returns:
+        logs with error message and metadata.
+    """
+    if job.status == Job.FAILED and logs in ["", None]:
+        logs = f"Job {job.id} failed due to an internal error."
+        logger.warning("Job %s failed due to an internal error.", job.id)
+    return logs
