@@ -172,3 +172,16 @@ class CatalogEntry(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True, null=True)
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
+
+
+class RuntimeJob(models.Model):
+    """Runtime Job model."""
+
+    job = models.ForeignKey(
+        to=Job,
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+    )
+    runtime_job = models.CharField(primary_key=True, blank=False, null=False)
