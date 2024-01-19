@@ -65,6 +65,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "csp.middleware.CSPMiddleware",
     "allow_cidr.middleware.AllowCIDRMiddleware",
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -346,3 +347,9 @@ QISKIT_IBM_CHANNEL = os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum")
 QISKIT_IBM_URL = os.environ.get(
     "QISKIT_IBM_URL", "https://auth.quantum-computing.ibm.com/api"
 )
+
+# Content Security Policy
+CSP_DEFAULT_SRC = "'none'"
+CSP_SCRIPT_SRC = "'none'"
+CSP_FRAME_ANCESTORS = "'self'"
+CSP_OBJECT_SRC = "'self'"
