@@ -184,8 +184,6 @@ def generate_cluster_name(username: str) -> str:
     return cluster_name
 
 
-# TODO: add user as metadata in err msg? Is every job associated to an author?
-# local test of build pipe tox -elint; tox -epy39
 def check_logs(logs: Union[str, None], job: Job) -> str:
     """Add error message to logs for faild jobs with empty logs.
     Args:
@@ -197,4 +195,5 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
     """
     if job.status == Job.FAILED and logs in ["", None]:
         logs = f"Job {job.id} failed due to an internal error."
+        logger.warning("Job %s failed due to an internal error.", job.id)
     return logs

@@ -77,8 +77,6 @@ class TestUtils(APITestCase):
                 env_vars_with_qiskit_runtime, decrypt_env_vars(encrypted_env_vars)
             )
 
-    # TODO: concatenate tests for check_logs?
-    # TODO: add a test in test_commands.py?
     def test_check_empty_logs(self):
         """Test error notification for failed and empty logs."""
         job = MagicMock()
@@ -86,7 +84,6 @@ class TestUtils(APITestCase):
         job.status = "FAILED"
         logs = check_logs(logs="", job=job)
         self.assertEqual(logs, "Job 42 failed due to an internal error.")
-        self.assertFalse(logs == "")
 
     def test_check_non_empty_logs(self):
         """Test logs checker for non empty logs."""
@@ -95,4 +92,3 @@ class TestUtils(APITestCase):
         job.status = "FAILED"
         logs = check_logs(logs="awsome logs", job=job)
         self.assertEqual(logs, "awsome logs")
-        self.assertFalse(logs == "Job 42 failed due to an internal error.")
