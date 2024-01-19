@@ -27,6 +27,7 @@ from api.utils import (
     decrypt_env_vars,
     generate_cluster_name,
 )
+from utils import sanitize_file_path
 from main import settings
 
 logger = logging.getLogger("commands")
@@ -79,7 +80,9 @@ class JobHandler:
             _, dependencies = try_json_loads(program.dependencies)
             with tarfile.open(program.artifact.path) as file:
                 extract_folder = os.path.join(
-                    settings.MEDIA_ROOT, "tmp", str(uuid.uuid4())
+                    sanitize_file_path(str(settings.MEDIA_ROOT)),
+                    "tmp",
+                    str(uuid.uuid4()),
                 )
                 file.extractall(extract_folder)
 

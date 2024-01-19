@@ -27,6 +27,7 @@ class TestFilesApi(APITestCase):
             "resources",
             "fake_media",
         )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
             auth = reverse("rest_login")
@@ -64,6 +65,7 @@ class TestFilesApi(APITestCase):
             "resources",
             "fake_media",
         )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
             auth = reverse("rest_login")
@@ -87,6 +89,8 @@ class TestFilesApi(APITestCase):
             "resources",
             "fake_media",
         )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
         with open(
             os.path.join(media_root, "test_user", "artifact_delete.tar"), "w"
         ) as fp:
@@ -115,6 +119,7 @@ class TestFilesApi(APITestCase):
             "resources",
             "fake_media",
         )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
             auth = reverse("rest_login")
@@ -137,6 +142,7 @@ class TestFilesApi(APITestCase):
             "resources",
             "fake_media",
         )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
             auth = reverse("rest_login")
