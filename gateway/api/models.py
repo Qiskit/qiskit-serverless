@@ -184,4 +184,6 @@ class RuntimeJob(models.Model):
         null=True,
         blank=True,
     )
-    runtime_job = models.CharField(primary_key=True, blank=False, null=False)
+    runtime_job = models.CharField(
+        primary_key=True, max_length=100, blank=False, null=False
+    )
