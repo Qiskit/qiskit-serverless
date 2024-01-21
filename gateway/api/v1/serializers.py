@@ -17,6 +17,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "artifact",
             "dependencies",
             "arguments",
+            "public",
         ]
 
 
