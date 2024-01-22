@@ -6,10 +6,10 @@
 
 # Quantum serverless
 
-Quantum Serverless is a user-friendly tool that enables you to easily run complex quantum computing tasks. 
-With this software, you can execute Qiskit programs as long running jobs and distribute them across multiple CPUs, GPUs, and QPUs. 
-This means you can take on more complex quantum-classical programs and run them with ease. 
-You don't have to worry about configuration or scaling up computational resources, as Quantum Serverless takes care of everything for you. 
+Quantum Serverless is a user-friendly tool that enables you to easily run complex quantum computing tasks.
+With this software, you can execute Qiskit programs as long running jobs and distribute them across multiple CPUs, GPUs, and QPUs.
+This means you can take on more complex quantum-classical programs and run them with ease.
+You don't have to worry about configuration or scaling up computational resources, as Quantum Serverless takes care of everything for you.
 
 ![diagram](./docs/images/qs_diagram.png)
 
@@ -35,34 +35,44 @@ For user convenience, this section assumes that users will deploy the infrastruc
 1. Prepare local QuantumServerless infrastructure
    1. Install Docker
       If Docker is not installed on your system, follow the directions on the [Docker website](https://docs.docker.com/engine/install/) to install Docker on your system.
+   1. Install quantum-serverless on your local system (we recommend using a [virtual environment](https://docs.python.org/3/library/venv.html)).
+      ```shell
+      pip install quantum-serverless
+      ```
+      Optional: install [Jupyter Lab](https://jupyter.org/)
+      ```shell
+      pip install jupyterlab
+      ```
    1. Clone the Quantum Serverless repository
       ```shell
       git clone https://github.com/Qiskit-Extensions/quantum-serverless.git
       ```
    1. Run QuantumServerless infrastructure
-      Execute Docker Compose using the following commands. (Note: Make sure to stop any running Jupyter Notebook servers before proceeding.)
+      Execute Docker Compose using the following commands.
       ```shell
       cd quantum-serverless/
-      sudo docker compose --profile jupyter up
+      sudo docker compose up
       ```
-      
+
       The output should resemble the following.
       ```
       ~/quantum-serverless$ sudo docker compose --profile jupyter up
-      [+] Running 6/0
+      [+] Running 5/0
        ✔ Network public-quantum-serverless_safe-tier     Created                                           0.0s
        ✔ Container ray-head                              Created                                           0.0s
-       ✔ Container qs-jupyter                            Created                                           0.0s
        ✔ Container public-quantum-serverless-postgres-1  Created                                           0.0s
        ✔ Container gateway                               Created                                           0.0s
        ✔ Container scheduler                             Created                                           0.0s
       Attaching to gateway, public-quantum-serverless-postgres-1, qs-jupyter, ray-head, scheduler
       ```
 
-      Now you can access the deployed QuantumServerless infrastructure using the built-in JupyterLab.
-      
-1. Access the JupyterLab environment
-   Open `localhost:8888` in your web browser. The default token for the JupyterLab is `123`
+
+1. Launch JupyterLab environment.
+   ```shell
+   cd docs/getting_started/ # the directory with sample notebooks
+   jupyter lab
+   ```
+   This will open the Jupyter Lab environment in your web browser.
 1. Write your first example Qiskit Pattern.
    In the JupyterLab, create a new file, `pattern.py`, in the `work` directory. You can include any arbitrary Python code in your program, or you can use the
    [example Python file in this tutorial](https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/docs/getting_started/basic/01_running_program.ipynb).
@@ -75,7 +85,7 @@ For user convenience, this section assumes that users will deploy the infrastruc
    ```
    job.status()
    # 'DONE'
-   
+
    job.logs()
    # 2023-09-21 03:48:40,286\tINFO worker.py:1329 -- Using address 172.18.0.4:6379 set in the environment variable RAY_ADDRESS\n2023-09-21 03:48:40,286\tINFO worker.py:1458 -- Connecting to existing Ray cluster at address: 172.18.0.4:6379...\n2023-09-21 03:48:40,295\tINFO worker.py:1633 -- Connected to Ray cluster. View the dashboard at \x1b[1m\x1b[32m172.18.0.4:8265 \x1b[39m\x1b[22m\n
    ```
@@ -85,7 +95,7 @@ For user convenience, this section assumes that users will deploy the infrastruc
    ```
 
    That's all!
-   
+
 For more detailed examples and explanations refer to the [Guide](https://qiskit-extensions.github.io/quantum-serverless/index.html):
 
 1. [Getting Started](https://qiskit-extensions.github.io/quantum-serverless/getting_started/index.html#)
