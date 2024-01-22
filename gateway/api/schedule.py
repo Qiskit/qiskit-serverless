@@ -67,7 +67,7 @@ def execute_job(job: Job) -> Job:
                 kill_ray_cluster(authors_resource.title)
                 authors_resource.delete()
                 job.status = Job.FAILED
-                job.logs = "Compute resource was not found."
+                job.logs += "\nCompute resource was not found."
         else:
             compute_resource = create_ray_cluster(
                 job.author, cluster_name=cluster_name, job_config=job.config
@@ -88,7 +88,7 @@ def execute_job(job: Job) -> Job:
                 )
                 kill_ray_cluster(cluster_name)
                 job.status = Job.FAILED
-                job.logs = "Compute resource was not created properly."
+                job.logs += "\nCompute resource was not created properly."
         span.set_attribute("job.status", job.status)
     return job
 
@@ -148,7 +148,7 @@ def check_job_timeout(job: Job, job_status):
         now = datetime.now(tz=endtime.tzinfo)
     if job.updated and endtime < now:
         job_status = Job.STOPPED
-        job.logs = f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
+        job.logs += f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
         logger.warning(
             "Job [%s] reached maximum runtime [%s] days and stopped.",
             job.id,
@@ -171,5 +171,5 @@ def handle_job_status_not_available(job: Job, job_status):
         job.compute_resource.delete()
         job.compute_resource = None
         job_status = Job.FAILED
-        job.logs = f"{job.logs}\nSomething went wrong during updating job status."
+        job.logs += f"{job.logs}\nSomething went wrong during updating job status."
     return job_status
