@@ -99,15 +99,23 @@ class TestProgramApi(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(runtime_job_response.json()["job"]["id"],"1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
-        self.assertEqual(runtime_job_response.json()["runtime_job"],"runtimejob1")
+        self.assertEqual(
+            runtime_job_response.json()["job"]["id"],
+            "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+        )
+        self.assertEqual(runtime_job_response.json()["runtime_job"], "runtimejob1")
 
         runtime_job_response = self.client.get(
             "/api/v1/runtime_jobs/",
             format="json",
         )
-        self.assertEqual(runtime_job_response.json()["results"][0]["job"]["id"],"1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
-        self.assertEqual(runtime_job_response.json()["results"][0]["runtime_job"],"runtimejob1")
+        self.assertEqual(
+            runtime_job_response.json()["results"][0]["job"]["id"],
+            "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+        )
+        self.assertEqual(
+            runtime_job_response.json()["results"][0]["runtime_job"], "runtimejob1"
+        )
 
         runtime_job_response = self.client.post(
             "/api/v1/runtime_jobs/utils/list_runtimejob/",
@@ -116,6 +124,8 @@ class TestProgramApi(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(runtime_job_response.json()[0]["job"]["id"],"1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
-        self.assertEqual(runtime_job_response.json()[0]["runtime_job"],"runtimejob1")
-
+        self.assertEqual(
+            runtime_job_response.json()[0]["job"]["id"],
+            "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+        )
+        self.assertEqual(runtime_job_response.json()[0]["runtime_job"], "runtimejob1")
