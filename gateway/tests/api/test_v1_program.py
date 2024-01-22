@@ -81,3 +81,41 @@ class TestProgramApi(APITestCase):
         self.assertEqual(job.config.max_workers, 5)
         self.assertEqual(job.config.workers, None)
         self.assertEqual(job.config.auto_scaling, True)
+
+    def test_runtimejob(self):
+        """Tests runtimejob setting."""
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        runtime_job_response = self.client.post(
+            "/api/v1/runtime_jobs/utils/create_runtimejob/",
+            data={
+                "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+                "runtime_job": "runtimejob1",
+            },
+            format="json",
+        )
+        self.assertEqual(runtime_job_response.json()["job"]["id"],"1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
+        self.assertEqual(runtime_job_response.json()["runtime_job"],"runtimejob1")
+
+        runtime_job_response = self.client.get(
+            "/api/v1/runtime_jobs/",
+            format="json",
+        )
+        self.assertEqual(runtime_job_response.json()["results"][0]["job"]["id"],"1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
+        self.assertEqual(runtime_job_response.json()["results"][0]["runtime_job"],"runtimejob1")
+
+        runtime_job_response = self.client.post(
+            "/api/v1/runtime_jobs/utils/list_runtimejob/",
+            data={
+                "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+            },
+            format="json",
+        )
+        self.assertEqual(runtime_job_response.json()[0]["job"]["id"],"1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
+        self.assertEqual(runtime_job_response.json()[0]["runtime_job"],"runtimejob1")
+
