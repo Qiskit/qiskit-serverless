@@ -499,12 +499,11 @@ class RuntimeJobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ance
             serializer = serializer_class(runtimejob)  # pylint: disable=not-callable
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    @action(methods=["GET"], detail=True)
+    @action(methods=["POST"], detail=True)
     def list_runtimejob(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
         """List runtime jobs for job."""
-        print("List runtime jobs for job")
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.primitive", context=ctx):
