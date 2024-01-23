@@ -29,13 +29,9 @@ from rest_framework.response import Response
 from utils import sanitize_file_path
 
 from .exceptions import InternalServerErrorException, ResourceNotFoundException
-from .models import Program, Job, RuntimeJob
+from .models import Program, Job
 from .ray import get_job_handler
-from .serializers import (
-    JobSerializer,
-    ExistingProgramSerializer,
-    JobConfigSerializer,
-)
+from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
 from .services import JobService, ProgramService, JobConfigService
 
 logger = logging.getLogger("gateway")
@@ -472,41 +468,3 @@ class FilesViewSet(viewsets.ViewSet):
                     destination.write(chunk)
             return Response({"message": file_path})
         return Response("server error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class RuntimeJobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
-    """ViewSet for runtime job operations handling."""
-
-    BASE_NAME = "utils"
-
-    def get_serializer_class(self):
-        return self.serializer_class
-
-    @action(methods=["POST"], detail=True)
-    def add(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
-        """Create runtime job with job."""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.runtimejob.add", context=ctx):
-            runtimejob = RuntimeJob(
-                runtime_job=request.data.get("runtime_job"),
-                job=Job.objects.all().filter(id=request.data.get("job")).first(),
-            )
-            runtimejob.save()
-            serializer_class = self.get_serializer_class()
-            serializer = serializer_class(runtimejob)  # pylint: disable=not-callable
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    @action(methods=["POST"], detail=True)
-    def issued(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
-        """List runtime jobs for job."""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.job.primitive", context=ctx):
-            job = request.data.get("job")
-            runtime_jobs = RuntimeJob.objects.all().filter(job=job)
-            serializer_class = self.get_serializer_class()
-            serializer = serializer_class(  # pylint: disable=not-callable
-                runtime_jobs, many=True
-            )
-            return Response(serializer.data, status=status.HTTP_200_OK)

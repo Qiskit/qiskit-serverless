@@ -6,7 +6,7 @@ from rest_framework import permissions
 
 
 from api import views
-from api.models import Program, Job, RuntimeJob
+from api.models import Program, Job
 from api.permissions import IsOwner
 from . import serializers as v1_serializers
 from . import services as v1_services
@@ -68,16 +68,3 @@ class FilesViewSet(views.FilesViewSet):
     """
 
     permission_classes = [permissions.IsAuthenticated, IsOwner]
-
-
-class RuntimeJobViewSet(views.RuntimeJobViewSet):  # pylint: disable=too-many-ancestors
-    """
-    RuntimeJob view set.
-    """
-
-    queryset = RuntimeJob.objects.all()
-    serializer_class = v1_serializers.RuntimeJobSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
-
-    def get_serializer_class(self):
-        return v1_serializers.RuntimeJobSerializer
