@@ -7,7 +7,6 @@
 # =========
 
 DEBUG_MODE                ?= true
-DOCKER_BUILDKIT           ?= 0
 DOCKER_FILE_GATEWAY       ?= ./gateway/Dockerfile
 DOCKER_FILE_NOTEBOOK      ?= ./Dockerfile-notebook
 DOCKER_FILE_RAY_NODE      ?= ./Dockerfile-ray-node
@@ -37,10 +36,6 @@ DOCKER_IMAGE_SELECTOR_TAG := 0.8.1
 docker/lint-gateway: DOCKER_FILE 			:= $(DOCKER_FILE_GATEWAY) 
 docker/lint-gateway: docker/lint
 
-.PHONY: docker/lint-notebook
-docker/lint-notebook: DOCKER_FILE 			:= $(DOCKER_FILE_NOTEBOOK) 
-docker/lint-notebook: docker/lint
-
 .PHONY: docker/lint-ray
 docker/lint-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE) 
 docker/lint-ray: docker/lint
@@ -56,10 +51,6 @@ docker/lint-repository: docker/lint
 .PHONY: docker/sast-gateway
 docker/sast-gateway: DOCKER_FILE 			:= $(DOCKER_FILE_GATEWAY) 
 docker/sast-gateway: docker/sast
-
-.PHONY: docker/sast-notebook
-docker/sast-notebook: DOCKER_FILE 			:= $(DOCKER_FILE_NOTEBOOK) 
-docker/sast-notebook: docker/sast
 
 .PHONY: docker/sast-ray
 docker/sast-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE) 
@@ -79,27 +70,6 @@ docker/vscan-gateway: DOCKER_IMAGE 			:= $(DOCKER_IMAGE_GATEWAY)
 docker/vscan-gateway: IMAGE_TAG 			:= $(PROJECT_VERSION)
 docker/vscan-gateway: PY_VERSION 			:= "3.9"
 docker/vscan-gateway: docker/vscan
-
-.PHONY: docker/vscan-notebook-py38
-docker/vscan-notebook-py38: DOCKER_FILE 	:= $(DOCKER_FILE_NOTEBOOK)
-docker/vscan-notebook-py38: DOCKER_IMAGE 	:= $(DOCKER_IMAGE_NOTEBOOK)
-docker/vscan-notebook-py38: IMAGE_TAG 		:= $(PROJECT_VERSION)-py38
-docker/vscan-notebook-py38: PY_VERSION 		:= "3.8"
-docker/vscan-notebook-py38: docker/vscan
-
-.PHONY: docker/vscan-notebook-py39
-docker/vscan-notebook-py39: DOCKER_FILE 	:= $(DOCKER_FILE_NOTEBOOK)
-docker/vscan-notebook-py39: DOCKER_IMAGE 	:= $(DOCKER_IMAGE_NOTEBOOK)
-docker/vscan-notebook-py39: IMAGE_TAG 		:= $(PROJECT_VERSION)-py39
-docker/vscan-notebook-py39: PY_VERSION 		:= "3.9"
-docker/vscan-notebook-py39: docker/vscan
-
-.PHONY: docker/vscan-notebook-py310
-docker/vscan-notebook-py310: DOCKER_FILE 	:= $(DOCKER_FILE_NOTEBOOK)
-docker/vscan-notebook-py310: DOCKER_IMAGE 	:= $(DOCKER_IMAGE_NOTEBOOK)
-docker/vscan-notebook-py310: IMAGE_TAG 		:= $(PROJECT_VERSION)-py310
-docker/vscan-notebook-py310: PY_VERSION 	:= "3.10"
-docker/vscan-notebook-py310: docker/vscan
 
 .PHONY: docker/vscan-ray-py38
 docker/vscan-ray-py38: DOCKER_FILE 			:= $(DOCKER_FILE_RAY_NODE)

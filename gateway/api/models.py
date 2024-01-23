@@ -161,3 +161,14 @@ class Job(models.Model):
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATES
+
+
+class CatalogEntry(models.Model):
+    """Catalog Entry model."""
+
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    tags = models.TextField(null=False, blank=True, default="[]")
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True, null=True)
+    program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)

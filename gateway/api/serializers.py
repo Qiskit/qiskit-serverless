@@ -18,13 +18,6 @@ class JobConfigSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = JobConfig
-        fields = [
-            "workers",
-            "min_workers",
-            "max_workers",
-            "auto_scaling",
-            "python_version",
-        ]
 
     workers = serializers.IntegerField(
         max_value=settings.RAY_CLUSTER_WORKER_REPLICAS_MAX,

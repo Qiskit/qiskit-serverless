@@ -9,6 +9,7 @@ from api.utils import (
     decrypt_string,
     encrypt_env_vars,
     decrypt_env_vars,
+    check_logs,
 )
 
 
@@ -18,13 +19,10 @@ class TestUtils(APITestCase):
     def test_build_env_for_job(self):
         """Tests building of env vars for job."""
 
-        request = MagicMock()
-        request.auth.token.decode.return_value = "42"
+        token = "42"
         job = MagicMock()
         job.id = "42"
-        env_vars = build_env_variables(
-            request=request, job=job, arguments={"answer": 42}
-        )
+        env_vars = build_env_variables(token=token, job=job, arguments={"answer": 42})
         self.assertEqual(
             env_vars,
             {
@@ -39,7 +37,7 @@ class TestUtils(APITestCase):
             SETTINGS_AUTH_MECHANISM="custom_token", SECRET_KEY="super-secret"
         ):
             env_vars_with_qiskit_runtime = build_env_variables(
-                request=request, job=job, arguments={"answer": 42}
+                token=token, job=job, arguments={"answer": 42}
             )
             expecting = {
                 "ENV_JOB_GATEWAY_TOKEN": "42",
@@ -78,3 +76,19 @@ class TestUtils(APITestCase):
             self.assertEqual(
                 env_vars_with_qiskit_runtime, decrypt_env_vars(encrypted_env_vars)
             )
+
+    def test_check_empty_logs(self):
+        """Test error notification for failed and empty logs."""
+        job = MagicMock()
+        job.id = "42"
+        job.status = "FAILED"
+        logs = check_logs(logs="", job=job)
+        self.assertEqual(logs, "Job 42 failed due to an internal error.")
+
+    def test_check_non_empty_logs(self):
+        """Test logs checker for non empty logs."""
+        job = MagicMock()
+        job.id = "42"
+        job.status = "FAILED"
+        logs = check_logs(logs="awsome logs", job=job)
+        self.assertEqual(logs, "awsome logs")

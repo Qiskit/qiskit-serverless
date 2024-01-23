@@ -177,7 +177,12 @@ class QuantumServerless:
         """
         return self._selected_provider.files()
 
-    def file_download(self, file: str, download_location: str = "./"):
+    def file_download(
+        self,
+        file: str,
+        target_name: Optional[str] = None,
+        download_location: str = "./",
+    ):
         """Downloads file.
         Note: file will be saved with different name to avoid conflicts
               and this name will be returned.
@@ -190,7 +195,9 @@ class QuantumServerless:
             file: name of file to download
             download_location: destination directory. Default: current directory
         """
-        return self._selected_provider.file_download(file, download_location)
+        return self._selected_provider.file_download(
+            file, target_name, download_location
+        )
 
     def file_delete(self, file: str):
         """Deletes file uploaded or produced by the programs.

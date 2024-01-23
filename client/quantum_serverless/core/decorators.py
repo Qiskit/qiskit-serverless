@@ -82,7 +82,7 @@ def get_refs_by_status(object_refs: List["ray.ObjectRef"], **kwargs):
     Returns:
         A list of refs that are ready and a list of the remaining references.
     """
-    return ray.wait(object_refs=object_refs, **kwargs)
+    return ray.wait(ray_waitables=object_refs, **kwargs)
 
 
 def get(

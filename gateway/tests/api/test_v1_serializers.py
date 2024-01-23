@@ -2,7 +2,7 @@
 
 import json
 from rest_framework.test import APITestCase
-from api.serializers import JobConfigSerializer
+from api.v1.serializers import JobConfigSerializer
 from api.models import JobConfig
 
 

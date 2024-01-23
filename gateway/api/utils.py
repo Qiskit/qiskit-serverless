@@ -3,8 +3,10 @@ import base64
 import inspect
 import json
 import logging
+import re
 import time
-from typing import Optional, Tuple, Callable, Dict, Any
+import uuid
+from typing import Optional, Tuple, Union, Callable, Dict, Any
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
@@ -104,11 +106,11 @@ def decrypt_string(string: str) -> str:
     return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
-def build_env_variables(request, job: Job, arguments: Dict[str, Any]) -> Dict[str, str]:
+def build_env_variables(token, job: Job, arguments: Dict[str, Any]) -> Dict[str, str]:
     """Builds env variables for job.
 
     Args:
-        request: django request
+        token: django request token decoded
         job: job
         arguments: program arguments
 
@@ -118,13 +120,13 @@ def build_env_variables(request, job: Job, arguments: Dict[str, Any]) -> Dict[st
     extra = {}
     if settings.SETTINGS_AUTH_MECHANISM != "default":
         extra = {
-            "QISKIT_IBM_TOKEN": str(request.auth.token.decode()),
+            "QISKIT_IBM_TOKEN": str(token),
             "QISKIT_IBM_CHANNEL": settings.QISKIT_IBM_CHANNEL,
             "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
         }
     return {
         **{
-            "ENV_JOB_GATEWAY_TOKEN": str(request.auth.token.decode()),
+            "ENV_JOB_GATEWAY_TOKEN": str(token),
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
             "ENV_JOB_ARGUMENTS": arguments,
@@ -166,3 +168,32 @@ def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
             ) as decryption_error:
                 logger.error("Cannot decrypt %s. %s", key, decryption_error)
     return env_vars
+
+
+def generate_cluster_name(username: str) -> str:
+    """generate cluster name.
+
+    Args:
+        username: user name for the cluster
+
+    Returns:
+        generated cluster name
+    """
+    pattern = re.compile("[^a-zA-Z0-9-.]")
+    cluster_name = f"c-{re.sub(pattern,'-',username)}-{str(uuid.uuid4())[:8]}"
+    return cluster_name
+
+
+def check_logs(logs: Union[str, None], job: Job) -> str:
+    """Add error message to logs for faild jobs with empty logs.
+    Args:
+        logs: logs of the job
+        job:  job model
+
+    Returns:
+        logs with error message and metadata.
+    """
+    if job.status == Job.FAILED and logs in ["", None]:
+        logs = f"Job {job.id} failed due to an internal error."
+        logger.warning("Job %s failed due to an internal error.", job.id)
+    return logs

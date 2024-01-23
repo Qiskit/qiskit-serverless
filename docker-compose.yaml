@@ -1,28 +1,16 @@
 # compose config on latest release builds
 services:
-  jupyter:
-    container_name: qs-jupyter
-    image: icr.io/quantum-public/quantum-serverless-notebook:${VERSION:-0.8.1}-py39
-    profiles: ["jupyter", "full"]
-    ports:
-      - 8888:8888
-    environment:
-      - JUPYTER_TOKEN=123
-      - GATEWAY_HOST=http://gateway:8000
-    networks:
-      - safe-tier
   ray-head:
     container_name: ray-head
-    image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.8.1}-py39
+    image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.8.2}-py39
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
     ]
     ports:
       - 8265:8265
-    privileged: true
     volumes:
-      - /dev/shm:/dev/shm
+      - host-shm:/dev/shm
     networks:
       - safe-tier
   postgres:
@@ -39,7 +27,7 @@ services:
       always
   gateway:
     container_name: gateway
-    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.8.1}
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.8.2}
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
@@ -64,7 +52,7 @@ services:
       - postgres
   scheduler:
     container_name: scheduler
-    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.8.1}
+    image: icr.io/quantum-public/quantum-serverless-gateway:${VERSION:-0.8.2}
     entrypoint: "./scripts/scheduler.sh"
     environment:
       - DEBUG=0
@@ -84,7 +72,7 @@ services:
       - postgres
   repository-server:
     container_name: repository-server
-    image: icr.io/quantum-public/quantum-repository-server:${VERSION:-0.8.1}
+    image: icr.io/quantum-public/quantum-repository-server:${VERSION:-0.8.2}
     profiles: [ "full", "repo" ]
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8060 --workers=4
     ports:
@@ -131,7 +119,7 @@ services:
     image: grafana/promtail:2.8.4
     profiles: [ "full" ]
     volumes:
-      - /var/log:/var/log
+      - host-log:/var/log
     command: -config.file=/etc/promtail/config.yml
     networks:
       - safe-tier
@@ -146,3 +134,5 @@ networks:
   safe-tier:
 volumes:
   program-artifacts:
+  host-shm:
+  host-log:
