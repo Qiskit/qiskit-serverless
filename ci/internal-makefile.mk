@@ -7,7 +7,6 @@
 # =========
 
 DEBUG_MODE                ?= true
-DOCKER_BUILDKIT           ?= 0
 DOCKER_FILE_GATEWAY       ?= ./gateway/Dockerfile
 DOCKER_FILE_NOTEBOOK      ?= ./Dockerfile-notebook
 DOCKER_FILE_RAY_NODE      ?= ./Dockerfile-ray-node
