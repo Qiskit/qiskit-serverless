@@ -21,7 +21,13 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from api.models import ComputeResource, Job, JobConfig
-from api.utils import try_json_loads, retry_function, decrypt_env_vars
+from api.utils import (
+    try_json_loads,
+    retry_function,
+    decrypt_env_vars,
+    generate_cluster_name,
+)
+from utils import sanitize_file_path
 from main import settings
 
 logger = logging.getLogger("commands")
@@ -74,7 +80,9 @@ class JobHandler:
             _, dependencies = try_json_loads(program.dependencies)
             with tarfile.open(program.artifact.path) as file:
                 extract_folder = os.path.join(
-                    settings.MEDIA_ROOT, "tmp", str(uuid.uuid4())
+                    sanitize_file_path(str(settings.MEDIA_ROOT)),
+                    "tmp",
+                    str(uuid.uuid4()),
                 )
                 file.extractall(extract_folder)
 
@@ -175,7 +183,7 @@ def create_ray_cluster(
         or None if something went wrong with cluster creation.
     """
     namespace = settings.RAY_KUBERAY_NAMESPACE
-    cluster_name = cluster_name or f"{user.username}-{str(uuid.uuid4())[:8]}"
+    cluster_name = cluster_name or generate_cluster_name(user.username)
     if not cluster_data:
         if not job_config:
             job_config = JobConfig()
@@ -211,6 +219,7 @@ def create_ray_cluster(
                 "min_workers": job_config.min_workers,
                 "max_workers": job_config.max_workers,
                 "auto_scaling": job_config.auto_scaling,
+                "user": user.username,
             }
         )
         cluster_data = yaml.safe_load(manifest)

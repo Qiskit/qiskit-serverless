@@ -32,8 +32,9 @@ class TestCommands(APITestCase):
     @patch("api.ray.get_job_handler")
     def test_update_jobs_statuses(self, get_job_handler):
         """Tests update of job statuses."""
+        # Test status change from PENDING to RUNNING
         ray_client = MagicMock()
-        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
+        ray_client.get_job_status.return_value = JobStatus.RUNNING
         ray_client.get_job_logs.return_value = "No logs yet."
         ray_client.stop_job.return_value = True
         ray_client.submit_job.return_value = "AwesomeJobId"
@@ -42,7 +43,19 @@ class TestCommands(APITestCase):
         call_command("update_jobs_statuses")
 
         job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
-        self.assertEqual(job.status, "SUCCEEDED")
+        self.assertEqual(job.status, "RUNNING")
+
+        # Test job logs for FAILED job with empty logs
+        ray_client.get_job_status.return_value = JobStatus.FAILED
+        ray_client.get_job_logs.return_value = ""
+
+        call_command("update_jobs_statuses")
+
+        job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
+        self.assertEqual(
+            job.logs,
+            "Job 1a7947f9-6ae8-4e3d-ac1e-e7d608deec84 failed due to an internal error.",
+        )
 
     @patch("api.schedule.execute_job")
     def test_schedule_queued_jobs(self, execute_job):

@@ -55,20 +55,17 @@ If you have ``docker compose`` available you can run the next command in your te
 .. code-block::
    :caption: run the command from the root of the project
 
-        $ docker compose --profile jupyter up
+        $ docker compose up
 
 Once the execution of the command has finished, if everything went well you should be able to open the browser
-and have access to:
-
-* Jupyter notebook: http://localhost:8888
-* Ray dashboard: http://localhost:8265
+and have access to the Ray dashboard at: http://localhost:8265
 
 In case you want to use the ``main`` branch you can use the configuration for development running the next command:
 
 .. code-block::
    :caption: run the command from the root of the project
 
-        $ docker compose -f docker-compose-dev.yaml --profile jupyter up
+        $ docker compose -f docker-compose-dev.yaml up
 
 .. _helm-deployment:
 
@@ -89,7 +86,7 @@ Once your cluster is ready, the installation is relatively straightforward with 
 and run the next commands:
 
 .. code-block::
-   :caption: run this commands with the release version like 0.8.1 in x.y.z (2 places)
+   :caption: run this commands with the release version like 0.8.2 in x.y.z (2 places)
 
         $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/quantum-serverless-x.y.z.tgz
 
@@ -127,6 +124,6 @@ configuration example to expose through ``ingress`` in ``localhost`` the Jupyter
 Optionally, you can install an observability package to handle logging and monitoring on your cluster by running the following command:
 
 .. code-block::
-   :caption: run this commands with the release version like 0.8.1 in x.y.z (2 places) using the same namespace as in the previous helm command
+   :caption: run this commands with the release version like 0.8.2 in x.y.z (2 places) using the same namespace as in the previous helm command
 
         $ helm -n <INSERT_YOUR_NAMESPACE> install qs-observability  https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz

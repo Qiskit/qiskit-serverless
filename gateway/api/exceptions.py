@@ -31,3 +31,12 @@ class InternalServerErrorException(GatewayHttpException):
 
     def __init__(self, message, http_code=status.HTTP_500_INTERNAL_SERVER_ERROR):
         super().__init__(message, http_code)
+
+
+class ResourceNotFoundException(GatewayHttpException):
+    """
+    A wrapper for when we want to raise a 404 error
+    """
+
+    def __init__(self, message, http_code=status.HTTP_404_NOT_FOUND):
+        super().__init__(message, http_code)

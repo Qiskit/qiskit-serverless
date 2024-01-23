@@ -12,6 +12,29 @@ on:
 jobs:
   icr_build_and_push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - imagename: quantum-serverless-ray-node
+            pythonversion: py38
+            dockerfile: Dockerfile-ray-node
+            platforms: linux/amd64
+         - imagename: quantum-serverless-ray-node
+            pythonversion: py39
+            dockerfile: Dockerfile-ray-node
+            platforms: linux/amd64,linux/arm64
+         - imagename: quantum-serverless-ray-node
+            pythonversion: py310
+            dockerfile: Dockerfile-ray-node
+            platforms: linux/amd64
+         - imagename: quantum-repository-server
+            pythonversion: ''
+            dockerfile: ./repository/Dockerfile
+            platforms: linux/amd64,linux/arm64
+         - imagename: quantum-serverless-gateway
+            pythonversion: ''
+            dockerfile: ./gateway/Dockerfile
+            platforms: linux/amd64,linux/arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -32,6 +55,10 @@ jobs:
         uses: ./.github/actions/icr-build-and-push-images
         with:
           tag: ${{ github.event.inputs.tag }}
+          name: ${{ matrix.imagename }}
+          dockerfile: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
+          pythonversion: ${{ matrix.pythonversion }}
       - name: Set version from tag
         if : github.event_name == 'release' && github.event.action == 'published'
         id: set-version-from-tag
@@ -41,3 +68,7 @@ jobs:
         uses: ./.github/actions/icr-build-and-push-images
         with:
           tag: ${{ steps.set-version-from-tag.outputs.VERSION }}
+          name: ${{ matrix.imagename }}
+          dockerfile: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
+          pythonversion: ${{ matrix.pythonversion }}

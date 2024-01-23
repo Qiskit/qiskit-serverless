@@ -14,6 +14,8 @@ import os.path
 import sys
 from datetime import timedelta
 from pathlib import Path
+from utils import sanitize_file_path
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -65,6 +67,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "csp.middleware.CSPMiddleware",
     "allow_cidr.middleware.AllowCIDRMiddleware",
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -197,10 +200,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
+STATIC_ROOT = os.path.join(sanitize_file_path(str(BASE_DIR)), "static")
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_ROOT = os.path.join(sanitize_file_path(str(BASE_DIR)), "media")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
@@ -257,7 +260,7 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=20),
 }
 
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_ROOT = os.path.join(sanitize_file_path(str(BASE_DIR)), "media")
 MEDIA_URL = "/media/"
 
 # custom token auth
@@ -346,3 +349,9 @@ QISKIT_IBM_CHANNEL = os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum")
 QISKIT_IBM_URL = os.environ.get(
     "QISKIT_IBM_URL", "https://auth.quantum-computing.ibm.com/api"
 )
+
+# Content Security Policy
+CSP_DEFAULT_SRC = "'none'"
+CSP_SCRIPT_SRC = "'none'"
+CSP_FRAME_ANCESTORS = "'self'"
+CSP_OBJECT_SRC = "'self'"

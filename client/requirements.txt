@@ -1,4 +1,4 @@
-ray[default,data]>=2.8.0, <3
+ray[default,data]>=2.9.0, <3
 requests>=2.31.0
 importlib-metadata>=5.2.0
 qiskit>=0.45.0
@@ -14,5 +14,3 @@ s3fs>=2023.6.0
 opentelemetry.instrumentation.requests>=0.40b0
 ipywidgets>=8.1.1
 ipython>=8.10.0
-# TODO: will be fixed in ray:2.6, pin pydantic < 2: https://github.com/ray-project/ray/pull/37000
-pydantic<2

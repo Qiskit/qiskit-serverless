@@ -22,12 +22,28 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     permission_classes = [permissions.IsAuthenticated]
 
     @staticmethod
+    def get_service_program_class():
+        return v1_services.ProgramService
+
+    @staticmethod
+    def get_service_job_config_class():
+        return v1_services.JobConfigService
+
+    @staticmethod
+    def get_service_job_class():
+        return v1_services.JobService
+
+    @staticmethod
     def get_serializer_job_class():
         return v1_serializers.JobSerializer
 
     @staticmethod
-    def get_service_program_class():
-        return v1_services.ProgramService
+    def get_serializer_existing_program_class():
+        return v1_serializers.ExistingProgramSerializer
+
+    @staticmethod
+    def get_serializer_job_config_class():
+        return v1_serializers.JobConfigSerializer
 
     def get_serializer_class(self):
         return v1_serializers.ProgramSerializer

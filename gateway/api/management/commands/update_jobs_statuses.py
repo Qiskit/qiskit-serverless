@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 from api.models import Job
 from api.ray import get_job_handler
 from api.schedule import check_job_timeout, handle_job_status_not_available
-from api.utils import ray_job_status_to_model_job_status
+from api.utils import ray_job_status_to_model_job_status, check_logs
 
 logger = logging.getLogger("commands")
 
@@ -55,7 +55,7 @@ class Command(BaseCommand):
 
                 if job_handler:
                     logs = job_handler.logs(job.ray_job_id)
-                    job.logs = logs
+                    job.logs = check_logs(logs, job)
 
                 try:
                     job.save()
