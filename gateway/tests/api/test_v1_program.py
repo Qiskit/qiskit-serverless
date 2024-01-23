@@ -92,7 +92,7 @@ class TestProgramApi(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
         runtime_job_response = self.client.post(
-            "/api/v1/runtime_jobs/utils/create_runtimejob/",
+            "/api/v1/runtime_jobs/utils/add/",
             data={
                 "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
                 "runtime_job": "runtimejob1",
@@ -118,7 +118,7 @@ class TestProgramApi(APITestCase):
         )
 
         runtime_job_response = self.client.post(
-            "/api/v1/runtime_jobs/utils/list_runtimejob/",
+            "/api/v1/runtime_jobs/utils/issued/",
             data={
                 "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
             },
