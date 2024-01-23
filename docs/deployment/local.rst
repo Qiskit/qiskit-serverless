@@ -54,5 +54,5 @@ monitorying systems.
 Step 4: Run a program in the test environment
 
 Once the containers are running, you can simulate a remote cluster with the resources on your
-local machine. To create and run programs in this simulated cluster, we recommend using [Jupyter Lab](https://jupyter.org/install). Refer to the :ref:`getting_started` guides
+local machine. To create and run programs in this simulated cluster, we recommend using `Jupyter Lab <https://jupyter.org/install>`_. Refer to the :ref:`getting_started` guides
 for details about running your program remotely.
