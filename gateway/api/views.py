@@ -31,7 +31,6 @@ from utils import sanitize_file_path
 from .exceptions import InternalServerErrorException, ResourceNotFoundException
 from .models import Program, Job
 from .ray import get_job_handler
-
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
 from .services import JobService, ProgramService, JobConfigService
 
@@ -97,14 +96,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         """
 
         return ExistingProgramSerializer
-
-    @staticmethod
-    def get_serializer_access_control_class():
-        """
-        This method returns Access Control serializer to be used in Program ViewSet.
-        """
-
-        return AccessControlSerializer
 
     @staticmethod
     def get_serializer_job_config_class():

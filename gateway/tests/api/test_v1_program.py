@@ -81,23 +81,3 @@ class TestProgramApi(APITestCase):
         self.assertEqual(job.config.max_workers, 5)
         self.assertEqual(job.config.workers, None)
         self.assertEqual(job.config.auto_scaling, True)
-
-    def test_set_public(self):
-        """Tests run existing authorized."""
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
-
-        response = self.client.post(
-            "/api/v1/programs/set_public/",
-            data={
-                "title": "Program",
-                "public": True,
-            },
-            format="json",
-        )
-        self.assertEqual(response.json()["public"], True)
-        self.assertEqual(response.json()["title"], "Program")

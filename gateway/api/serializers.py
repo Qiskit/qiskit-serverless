@@ -87,16 +87,3 @@ class RuntimeJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RuntimeJob
-
-
-class AccessControlSerializer(serializers.Serializer):
-    """Serializer for launching existing program."""
-
-    title = serializers.CharField(max_length=255)
-    public = serializers.BooleanField()
-
-    def update(self, instance, validated_data):
-        pass
-
-    def create(self, validated_data):
-        pass
