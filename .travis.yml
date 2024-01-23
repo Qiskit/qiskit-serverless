@@ -98,6 +98,8 @@ jobs:
       language: minimal
       install: skip
       services: docker
+      before_script:
+        - .travis/bin/install_docker_buildx.sh
       script:
         - make docker/vscan-gateway
 
@@ -106,6 +108,8 @@ jobs:
       language: minimal
       install: skip
       services: docker
+      before_script:
+        - .travis/bin/install_docker_buildx.sh
       script:
         - make docker/vscan-ray-py38
 
@@ -114,6 +118,8 @@ jobs:
       language: minimal
       install: skip
       services: docker
+      before_script:
+        - .travis/bin/install_docker_buildx.sh
       script:
         - make docker/vscan-ray-py39
     
@@ -122,6 +128,8 @@ jobs:
       language: minimal
       install: skip
       services: docker
+      before_script:
+        - .travis/bin/install_docker_buildx.sh
       script:
         - make docker/vscan-ray-py310
 
@@ -130,6 +138,8 @@ jobs:
       language: minimal
       install: skip
       services: docker
+      before_script:
+        - .travis/bin/install_docker_buildx.sh
       script:
         - make docker/vscan-repository
 
