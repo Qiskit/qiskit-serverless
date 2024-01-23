@@ -321,9 +321,6 @@ that you can use to connect with local and non-local resources.</p>
 <li><p><a class="reference external" href="https://helm.sh/">Helm</a></p></li>
 </ul>
 <p>Each of these tools’ webpages contain instructions for installing on Windows, MacOS, and Linux.</p>
-<ul class="simple">
-<li><p><strong>Important</strong>: before you download the above packages, check the <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/tree/main/infrastructure#tools">versions listed in our Github</a> of each tool to ensure that you download a compatible version.</p></li>
-</ul>
 <p>Once you have these tools installed, you can check the installation by running the following commands in a terminal:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker --version
 $ &gt; Docker version X, build Y
@@ -382,10 +379,9 @@ and run the next commands:</p>
 <p>To connect with the different services, you have some options depending on your environment. The easiest and most consistent
 approach is to use the <code class="docutils literal notranslate"><span class="pre">port-forward</span></code> command:</p>
 <div class="literal-block-wrapper docutils container" id="id5">
-<div class="code-block-caption"><span class="caption-text">get gateway and jupyter pods</span><a class="headerlink" href="#id5" title="Permalink to this code">#</a></div>
+<div class="code-block-caption"><span class="caption-text">get gateway pod</span><a class="headerlink" href="#id5" title="Permalink to this code">#</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ kubectl get service
      $ &gt; ...
-     $ &gt; jupyter ClusterIP 10.43.74.253 &lt;none&gt;   80/TCP
      $ &gt; gateway ClusterIP 10.43.86.146 &lt;none&gt; 8000/TCP
      $ &gt; ...
 </pre></div>
@@ -395,15 +391,13 @@ approach is to use the <code class="docutils literal notranslate"><span class="p
 <div class="literal-block-wrapper docutils container" id="id6">
 <div class="code-block-caption"><span class="caption-text">ports 8265 and 8888 are the the default ports for each service</span><a class="headerlink" href="#id6" title="Permalink to this code">#</a></div>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $  kubectl port-forward service/gateway  3333:8000
-     $  kubectl port-forward jupyter-&lt;POD_ID&gt; 4444:80
 </pre></div>
 </div>
 </div>
 <p>Now you may access your cluster services from localhost.</p>
 <p>For development this is more than enough, but if you are considering deploying it remotely you will need to
 configure the various <code class="docutils literal notranslate"><span class="pre">ingress</span></code> properties in <a class="reference external" href="https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/charts/quantum-serverless/values.yaml">values.yaml</a>
-with the configuration of your domain and provider. In the <code class="docutils literal notranslate"><span class="pre">Jupyter</span> <span class="pre">configs</span></code> section you have a
-configuration example to expose through <code class="docutils literal notranslate"><span class="pre">ingress</span></code> in <code class="docutils literal notranslate"><span class="pre">localhost</span></code> the Jupyter service (disabled by default).</p>
+with the configuration of your domain and provider.</p>
 <ul class="simple">
 <li><p><strong>Important</strong>: <code class="docutils literal notranslate"><span class="pre">nginx-ingress-controller</span></code> is disabled by default because third party providers should provide its own Ingress controller. To use it locally you need to activate it too.</p></li>
 </ul>
