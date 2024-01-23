@@ -3,7 +3,6 @@ name: Docker verify process
 on:
   push:
     paths:
-      - "Dockerfile-notebook"
       - "Dockerfile-ray-node"
       - "gateway/Dockerfile"
       - "repository/Dockerfile"
@@ -21,7 +20,6 @@ jobs:
       matrix:
         dockerfile:
           [
-            "Dockerfile-notebook",
             "Dockerfile-ray-node",
             "./gateway/Dockerfile",
             "./repository/Dockerfile",
@@ -36,7 +34,6 @@ jobs:
       matrix:
         dockerfile:
           [
-            "Dockerfile-notebook",
             "Dockerfile-ray-node",
             "./gateway/Dockerfile",
             "./repository/Dockerfile",
@@ -59,9 +56,6 @@ jobs:
         image:
           [
             "quantum-serverless-gateway:latest",
-            "quantum-serverless-notebook:latest-py38",
-            "quantum-serverless-notebook:latest-py39",
-            "quantum-serverless-notebook:latest-py310",
             "quantum-serverless-ray-node:latest-py38",
             "quantum-serverless-ray-node:latest-py39",
             "quantum-serverless-ray-node:latest-py310",
@@ -71,15 +65,6 @@ jobs:
           - image: "quantum-serverless-gateway:latest"
             dockerfile: "./gateway/Dockerfile"
             pyversion: "3.9"
-          - image: "quantum-serverless-notebook:latest-py38"
-            dockerfile: "Dockerfile-notebook"
-            pyversion: "3.8"
-          - image: "quantum-serverless-notebook:latest-py39"
-            dockerfile: "Dockerfile-notebook"
-            pyversion: "3.9"
-          - image: "quantum-serverless-notebook:latest-py310"
-            dockerfile: "Dockerfile-notebook"
-            pyversion: "3.10"
           - image: "quantum-serverless-ray-node:latest-py38"
             dockerfile: "Dockerfile-ray-node"
             pyversion: "py38"
