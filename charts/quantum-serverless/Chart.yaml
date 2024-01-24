@@ -11,9 +11,6 @@ dependencies:
   - name: gateway
     condition: gatewayEnable
     version: 0.8.2
-  - name: jupyter
-    condition: jupyterEnable
-    version: 0.8.2
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
     version: 9.9.4
