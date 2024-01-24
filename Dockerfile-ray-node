@@ -15,7 +15,7 @@ RUN pip install . --no-cache-dir &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
     pip install --no-cache-dir certifi==2023.7.22
 
-WORKDIR / 
+WORKDIR /
 RUN rm -r ./qs
 
 FROM rayproject/ray:2.9.0-$IMAGE_PY_VERSION-aarch64 AS ray-node-arm64
@@ -24,9 +24,9 @@ WORKDIR /
 USER 0
 RUN mkdir /data && chown "$RAY_UID":"$RAY_UID" /data
 USER $RAY_UID
-RUN apt-get -y update &&\ 
-    apt-get install --no-install-recommends -y \ 
-    gcc=4:9.3.0-1ubuntu2 \ 
+RUN apt-get -y update &&\
+    apt-get install --no-install-recommends -y \
+    gcc=4:9.3.0-1ubuntu2 \
     build-essential=12.8ubuntu1
 COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 
