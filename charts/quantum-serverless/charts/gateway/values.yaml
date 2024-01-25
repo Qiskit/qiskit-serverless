@@ -103,6 +103,7 @@ serviceAccount:
 podAnnotations:
   prometheus.io/scrape: "true"
 
+
 podSecurityContext: 
   fsGroup: 1000
   runAsUser: 1000
