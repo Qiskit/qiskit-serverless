@@ -102,7 +102,6 @@ serviceAccount:
 
 podAnnotations:
   prometheus.io/scrape: "true"
-  sidecar.istio.io/inject: "true"
 
 podSecurityContext: 
   fsGroup: 1000
