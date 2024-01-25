@@ -97,26 +97,6 @@ gateway:
         email: admin@examplemail.io
 
 # ===================
-# Jupyter configs
-# ===================
-
-jupyterEnable: false
-jupyter:
-  nameOverride: "jupyter"
-  fullnameOverride: "jupyter"
-
-  jupyterToken: "YOUR_JUPYTER_PASSWORD_HERE"
-
-  image:
-    repository: "icr.io/quantum-public/quantum-serverless-notebook"
-    tag: "0.8.2-py39"
-    pullPolicy: IfNotPresent
-  container:
-    port: 8888
-  service:
-    port: 80
-
-# ===================
 # Kuberay Operator
 # ===================
 
