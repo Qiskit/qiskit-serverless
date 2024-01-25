@@ -81,3 +81,37 @@ class TestProgramApi(APITestCase):
         self.assertEqual(job.config.max_workers, 5)
         self.assertEqual(job.config.workers, None)
         self.assertEqual(job.config.auto_scaling, True)
+
+    def test_public(self):
+        """Tests public flag."""
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        programs_response = self.client.get(
+            "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/",
+            format="json",
+        )
+        print(programs_response.json())
+        public = programs_response.json()["public"]
+        self.assertEqual(public, False)
+
+        programs_response = self.client.patch(
+            "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/",
+            data={
+                "public": True,
+            },
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+
+        programs_response = self.client.get(
+            "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/",
+            format="json",
+        )
+        print(programs_response.json())
+        public = programs_response.json()["public"]
+        self.assertEqual(public, True)

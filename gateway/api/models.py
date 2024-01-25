@@ -69,6 +69,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
+    public = models.BooleanField(null=False, default=False)
 
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
