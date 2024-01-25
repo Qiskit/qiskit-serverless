@@ -8,7 +8,7 @@ Version serializers inherit from the different serializers.
 
 from django.conf import settings
 from rest_framework import serializers
-from .models import Program, Job, JobConfig
+from .models import Program, Job, JobConfig, RuntimeJob
 
 
 class JobConfigSerializer(serializers.ModelSerializer):
@@ -78,3 +78,12 @@ class ExistingProgramSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         pass
+
+
+class RuntimeJobSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the runtime job model.
+    """
+
+    class Meta:
+        model = RuntimeJob

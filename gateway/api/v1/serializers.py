@@ -50,3 +50,14 @@ class JobConfigSerializer(serializers.JobConfigSerializer):
             "auto_scaling",
             "python_version",
         ]
+
+
+class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
+    """
+    Runtime job serializer first version. Serializer for the runtime job model.
+    """
+
+    job = JobSerializer(many=False)
+
+    class Meta(serializers.RuntimeJobSerializer.Meta):
+        fields = ["job", "runtime_job"]
