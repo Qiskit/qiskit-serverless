@@ -17,3 +17,4 @@ requests-mock>=1.11.0
 # new versions of testcontainers don't support docker compose
 testcontainers==3.7.1
 tox>=4.0.0
+nbmake>=1.4.6
