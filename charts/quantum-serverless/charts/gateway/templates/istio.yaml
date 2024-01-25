@@ -29,6 +29,6 @@ spec:
   http:
   - route:
     - destination:
-        host: gateway
+        host: gateway-not-work
         port:
           number: 8000
