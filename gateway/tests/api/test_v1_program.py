@@ -115,3 +115,32 @@ class TestProgramApi(APITestCase):
         print(programs_response.json())
         public = programs_response.json()["public"]
         self.assertEqual(public, True)
+
+    def test_runtime_job(self):
+        """Tests run existing authorized."""
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        programs_response = self.client.get(
+            "/api/v1/runtime_jobs/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 3)
+
+        programs_response = self.client.delete(
+            "/api/v1/runtime_jobs/runtime_job_1/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        programs_response = self.client.get(
+            "/api/v1/runtime_jobs/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 2)

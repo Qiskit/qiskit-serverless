@@ -41,5 +41,29 @@
       "status": "QUEUED",
       "author": 1
     }
+  },
+  {
+    "model": "api.runtimejob",
+    "pk": "runtime_job_1",
+    "fields": {
+      "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
+      "runtime_job": "runtime_job_1"
+    }
+  },
+  {
+    "model": "api.runtimejob",
+    "pk": "runtime_job_2",
+    "fields": {
+      "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
+      "runtime_job": "runtime_job_2"
+    }
+  },
+  {
+    "model": "api.runtimejob",
+    "pk": "runtime_job_3",
+    "fields": {
+      "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "runtime_job": "runtime_job_3"
+    }
   }
 ]
