@@ -105,6 +105,12 @@ kuberay-operator:
     pullPolicy: IfNotPresent
 
 # ===================
+# PostgreSQL
+# ===================
+
+postgresqlEnable: false
+
+# ===================
 # Keycloak
 # ===================
 
