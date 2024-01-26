@@ -95,7 +95,6 @@ class TestProgramApi(APITestCase):
             "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/",
             format="json",
         )
-        print(programs_response.json())
         public = programs_response.json()["public"]
         self.assertEqual(public, False)
 
@@ -112,7 +111,6 @@ class TestProgramApi(APITestCase):
             "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/",
             format="json",
         )
-        print(programs_response.json())
         public = programs_response.json()["public"]
         self.assertEqual(public, True)
 
