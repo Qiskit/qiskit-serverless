@@ -347,6 +347,38 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                         )
         return Response({"message": message})
 
+    @action(methods=["POST"], detail=True)
+    def add_runtimejob(
+        self, request, pk=None
+    ):  # pylint: disable=invalid-name,unused-argument
+        """Add RuntimeJob to job"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.add_runtimejob", context=ctx):
+            job = self.get_object()
+            runtimejob = RuntimeJob(
+                job=job,
+                runtime_job=request.data.get("runtime_job"),
+            )
+            runtimejob.save()
+            message = "RuntimeJob is added."
+        return Response({"message": message})
+
+    @action(methods=["GET"], detail=True)
+    def list_runtimejob(
+        self, request, pk=None
+    ):  # pylint: disable=invalid-name,unused-argument
+        """Add RuntimeJpb to job"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.stop", context=ctx):
+            job = self.get_object()
+            runtimejobs = RuntimeJob.objects.all().filter(job=job)
+            ids = []
+            for runtimejob in runtimejobs:
+                ids.append(runtimejob.runtime_job)
+        return Response(json.dumps(ids))
+
 
 class FilesViewSet(viewsets.ViewSet):
     """ViewSet for file operations handling.
