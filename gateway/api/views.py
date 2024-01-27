@@ -481,4 +481,4 @@ class RuntimeJobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ance
         return self.serializer_class
 
     def get_queryset(self):
-        return RuntimeJob.objects.all()
+        return RuntimeJob.objects.all().filter(job__author=self.request.user)

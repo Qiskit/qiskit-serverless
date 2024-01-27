@@ -81,5 +81,5 @@ class ServicesTest(APITestCase):
         )
 
         self.assertIsNotNone(job)
-        self.assertEqual(Job.objects.count(), 3)
+        self.assertEqual(Job.objects.count(), 4)
         self.assertEqual(job.status, Job.QUEUED)

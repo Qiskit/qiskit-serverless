@@ -142,3 +142,17 @@ class TestProgramApi(APITestCase):
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.json().get("count"), 2)
+
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user_2", "password": "123"}, format="json"
+        )
+        token_2 = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token_2)
+
+        programs_response = self.client.get(
+            "/api/v1/runtime_jobs/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 1)

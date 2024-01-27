@@ -75,9 +75,11 @@ class RuntimeJobViewSet(views.RuntimeJobViewSet):  # pylint: disable=too-many-an
     RuntimeJob view set first version. Use RuntomeJobSerializer V1.
     """
 
-    queryset = RuntimeJob.objects.all()
     serializer_class = v1_serializers.RuntimeJobSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
 
     def get_serializer_class(self):
         return v1_serializers.RuntimeJobSerializer
+
+    def get_queryset(self):
+        return RuntimeJob.objects.all().filter(job__author=self.request.user)
