@@ -3,6 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from api.models import Job, JobConfig
+import json
 
 
 class TestProgramApi(APITestCase):
@@ -156,3 +157,51 @@ class TestProgramApi(APITestCase):
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.json().get("count"), 1)
+
+    def test_add_runtimejob(self):
+        """Tests run existing authorized."""
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        programs_response = self.client.post(
+            "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec83/add_runtimejob/",
+            data={
+                "runtime_job": "runtime_job_4",
+            },
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+
+        programs_response = self.client.get(
+            "/api/v1/runtime_jobs/runtime_job_4/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            programs_response.json()["job"]["id"],
+            "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
+        )
+
+    def test_list_runtimejob(self):
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        programs_response = self.client.get(
+            "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec83/list_runtimejob/",
+            format="json",
+        )
+        self.assertEqual(programs_response.json(), '["runtime_job_1", "runtime_job_2"]')
+
+        programs_response = self.client.get(
+            "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/list_runtimejob/",
+            format="json",
+        )
+        self.assertEqual(programs_response.json(), '["runtime_job_3"]')
