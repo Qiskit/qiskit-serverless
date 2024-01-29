@@ -95,7 +95,6 @@ class TestProgramApi(APITestCase):
             "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/",
             format="json",
         )
-        print(programs_response.json())
         public = programs_response.json()["public"]
         self.assertEqual(public, False)
 
@@ -112,6 +111,48 @@ class TestProgramApi(APITestCase):
             "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/",
             format="json",
         )
-        print(programs_response.json())
         public = programs_response.json()["public"]
         self.assertEqual(public, True)
+
+    def test_runtime_job(self):
+        """Tests run existing authorized."""
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        programs_response = self.client.get(
+            "/api/v1/runtime_jobs/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 3)
+
+        programs_response = self.client.delete(
+            "/api/v1/runtime_jobs/runtime_job_1/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        programs_response = self.client.get(
+            "/api/v1/runtime_jobs/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 2)
+
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user_2", "password": "123"}, format="json"
+        )
+        token_2 = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token_2)
+
+        programs_response = self.client.get(
+            "/api/v1/runtime_jobs/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 1)
