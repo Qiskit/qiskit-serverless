@@ -355,6 +355,13 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.add_runtimejob", context=ctx):
+            if not request.data.get("runtime_job"):
+                return Response(
+                    {
+                        "message": "Got empty `runtime_job` field. Please, specify `runtime_job`."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             job = self.get_object()
             runtimejob = RuntimeJob(
                 job=job,
@@ -373,7 +380,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.stop", context=ctx):
             job = self.get_object()
-            runtimejobs = RuntimeJob.objects.all().filter(job=job)
+            runtimejobs = RuntimeJob.objects.filter(job=job)
             ids = []
             for runtimejob in runtimejobs:
                 ids.append(runtimejob.runtime_job)
