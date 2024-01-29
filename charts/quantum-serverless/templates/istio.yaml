@@ -13,9 +13,9 @@ spec:
       protocol: HTTPS
     tls:
       mode: SIMPLE
-      credentialName: {{ .Values.istio.secretName | quote }}
+      credentialName: {{ .Values.istio.secretName }}
     hosts:
-    - {{ .Values.istio.host | quote }}
+    - {{ .Values.istio.host }}
 
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -23,12 +23,13 @@ metadata:
   name: gateway-virtual-service
 spec:
   hosts:
-  - {{ .Values.istio.host | quote }}
+  - {{ .Values.istio.host }}
   gateways:
   - gateway-istio
   http:
   - route:
     - destination:
-        host: {{ .Values.gateway.fullnameOverride | quote }}
+        host: {{ .Values.gateway.fullnameOverride }}
         port:
-          number: {{ .Values.gateway.application.service.port }}
+          number: {{ .Values.gateway.application.service.port  }}
+{{ end }}
