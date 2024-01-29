@@ -29,6 +29,6 @@ spec:
   http:
   - route:
     - destination:
-        host: {{ .Values.istio.gateway.fullnameOverride }}
+        host: {{ .Values.gateway.fullnameOverride }}
         port:
-          number: {{ .Values.istio.gateway.application.service.port }}
+          number: {{ .Values.gateway.application.service.port }}
