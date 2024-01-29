@@ -1,3 +1,4 @@
+{{ if .Values.istioEnable }}
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
@@ -12,9 +13,9 @@ spec:
       protocol: HTTPS
     tls:
       mode: SIMPLE
-      credentialName: qc-ibm-com
+      credentialName: {{ .Values.istio.secretName }}
     hosts:
-    - middleware-dev.quantum-computing.ibm.com
+    - {{ .Values.istio.host }}
 
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -22,12 +23,12 @@ metadata:
   name: gateway-virtual-service
 spec:
   hosts:
-  - middleware-dev.quantum-computing.ibm.com
+  - {{ .Values.istio.host }}
   gateways:
   - gateway-istio
   http:
   - route:
     - destination:
-        host: gateway
+        host: {{ .Values.istio.gateway.fullnameOverride }}
         port:
-          number: 8000
+          number: {{ .Values.istio.gateway.application.service.port }}

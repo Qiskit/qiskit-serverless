@@ -9,24 +9,6 @@ platform: ibm
 
 # Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
 nginxIngressControllerEnable: false
-# ingress:
-#   annotations:
-    # For IBM Cloud the valid ingress class values are: public-iks-k8s-nginx and private-iks-k8s-nginx
-    # kubernetes.io/ingress.class: "public-iks-k8s-nginx"
-    # nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
-    # nginx.ingress.kubernetes.io/proxy-buffer-size: "512k"
-    # nginx.ingress.kubernetes.io/proxy-body-size: 50m
-  # tls:
-  #   - hosts:
-  #       - "middleware-dev.quantum-computing.ibm.com"
-  #     secretName: "middleware-nonprod-218f1d46487946bbe52597968f4638d3-0000"
-  # hosts:
-  #   - host: "middleware-dev.quantum-computing.ibm.com"
-  #     paths:
-  #     - path: /
-  #       pathType: Prefix
-  #       serviceName: "gateway"
-  #       servicePort: 8000
 
 # ===================
 # Gateway configs
@@ -123,3 +105,12 @@ repositoryEnable: false
 # ===================
 
 cosEnable: false
+
+# ===================
+# Istio
+# ===================
+
+istioEnable: true
+istio:
+  host: middleware-dev.quantum-computing.ibm.com
+  secretName: qc-ibm-com
