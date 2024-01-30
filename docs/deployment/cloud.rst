@@ -84,7 +84,7 @@ Once your cluster is ready, the installation is relatively straightforward with 
 and run the next commands:
 
 .. code-block::
-   :caption: run this commands with the release version like 0.8.2 in x.y.z (2 places)
+   :caption: run this commands with the release version like 0.9.0 in x.y.z (2 places)
 
         $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/quantum-serverless-x.y.z.tgz
 
@@ -119,6 +119,6 @@ with the configuration of your domain and provider.
 Optionally, you can install an observability package to handle logging and monitoring on your cluster by running the following command:
 
 .. code-block::
-   :caption: run this commands with the release version like 0.8.2 in x.y.z (2 places) using the same namespace as in the previous helm command
+   :caption: run this commands with the release version like 0.9.0 in x.y.z (2 places) using the same namespace as in the previous helm command
 
         $ helm -n <INSERT_YOUR_NAMESPACE> install qs-observability  https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz

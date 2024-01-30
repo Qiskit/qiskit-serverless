@@ -41,7 +41,7 @@ gateway:
   image:
     repository: "icr.io/quantum-public/quantum-serverless-gateway"
     pullPolicy: IfNotPresent
-    tag: "0.8.2"
+    tag: "0.9.0"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
@@ -53,7 +53,7 @@ gateway:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.2-py39"
+      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.9.0-py39"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
       kubectlImage: alpine/k8s:1.28.4@sha256:38887b75951c9839c276508c6ba4d55793e4724668c6ba9bd8d09a212073d914
     limits:
@@ -131,7 +131,7 @@ repository:
   fullnameOverride: "repository"
   image:
     pullPolicy: IfNotPresent
-    tag: "0.8.2"
+    tag: "0.9.0"
   application:
     superuser:
       username: "admin"
