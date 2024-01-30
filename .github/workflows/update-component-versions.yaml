@@ -40,8 +40,6 @@ jobs:
           sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/quantum-serverless/charts/gateway/Chart.yaml
           sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/quantum-serverless/charts/gateway/Chart.yaml
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/quantum-serverless/charts/gateway/values.yaml
-          sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/quantum-serverless/charts/jupyter/Chart.yaml
-          sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/quantum-serverless/charts/jupyter/Chart.yaml
           sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/quantum-serverless/charts/repository/Chart.yaml
           sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/quantum-serverless/charts/repository/Chart.yaml
           sed -i "s/tag: \"${OLDNUM}\"/tag: \"${NEWNUM}\"/" charts/quantum-serverless/values.yaml
