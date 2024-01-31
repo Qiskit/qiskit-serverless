@@ -16,7 +16,7 @@ spec:
       credentialName: {{ .Values.istio.secretName }}
     hosts:
     - {{ .Values.istio.host }}
-
+---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
