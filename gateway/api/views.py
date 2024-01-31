@@ -29,7 +29,7 @@ from rest_framework.response import Response
 from utils import sanitize_file_path
 
 from .exceptions import InternalServerErrorException, ResourceNotFoundException
-from .models import Program, Job, RuntimeJob
+from .models import Program, Job, RuntimeJob, CatalogEntry
 from .ray import get_job_handler
 from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
 from .services import JobService, ProgramService, JobConfigService
@@ -521,3 +521,17 @@ class RuntimeJobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ance
 
     def get_queryset(self):
         return RuntimeJob.objects.all().filter(job__author=self.request.user)
+
+
+class CatalogEntryViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+    """
+    CatalogEntry ViewSet configuration using ModelViewSet.
+    """
+
+    BASE_NAME = "catalog_entries"
+
+    def get_serializer_class(self):
+        return self.serializer_class
+
+    def get_queryset(self):
+        return CatalogEntry.objects.all()

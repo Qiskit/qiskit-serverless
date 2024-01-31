@@ -13,3 +13,14 @@ class IsOwner(permissions.BasePermission):
         if isinstance(obj, RuntimeJob):
             return obj.job.author == request.user
         return obj.author == request.user
+
+
+class CatalogUpdate(permissions.BasePermission):
+    """
+    Custom permission to only allow owners of an object to update it.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        if request.method == "GET":
+            return True
+        return obj.program.author == request.user

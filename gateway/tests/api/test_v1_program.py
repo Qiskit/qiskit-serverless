@@ -205,3 +205,90 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(programs_response.json(), '["runtime_job_3"]')
+
+    def test_catalog_entry(self):
+        """Tests catalog entry."""
+
+        # Non-owner
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user_2", "password": "123"}, format="json"
+        )
+        token_2 = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token_2)
+
+        # list catalog
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 2)
+
+        id = programs_response.json()["results"][0]["id"]
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/" + str(id) + "/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+
+        # Update catalog
+        programs_response = self.client.patch(
+            "/api/v1/catalog_entries/" + str(id) + "/",
+            data={"tags": "newtag"},
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Program owner
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        # list catalog
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 2)
+
+        id = programs_response.json()["results"][0]["id"]
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/" + str(id) + "/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+
+        # Update catalog
+        programs_response = self.client.patch(
+            "/api/v1/catalog_entries/" + str(id) + "/",
+            data={"tags": "newtag"},
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/" + str(id) + "/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json()["tags"], "newtag")
+
+        # delete catalog
+        programs_response = self.client.delete(
+            "/api/v1/catalog_entries/" + str(id) + "/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 1)
+        self.assertNotEqual(programs_response.json()["results"][0]["id"], id)
