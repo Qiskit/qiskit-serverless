@@ -15,7 +15,6 @@ jobs:
             "quantum-serverless-ray-node:latest-py38",
             "quantum-serverless-ray-node:latest-py39",
             "quantum-serverless-ray-node:latest-py310",
-            "quantum-repository-server:latest",
           ]
         include:
           - image: "quantum-serverless-gateway:latest"
@@ -30,9 +29,6 @@ jobs:
           - image: "quantum-serverless-ray-node:latest-py310"
             dockerfile: "Dockerfile-ray-node"
             pyversion: "py310"
-          - image: "quantum-repository-server:latest"
-            dockerfile: "./repository/Dockerfile"
-            pyversion: "3.9"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

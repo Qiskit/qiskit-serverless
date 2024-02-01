@@ -5,7 +5,6 @@ on:
     paths:
       - "Dockerfile-ray-node"
       - "gateway/Dockerfile"
-      - "repository/Dockerfile"
       - ".github/actions/docker-vscan/action.yaml"
       - ".github/scripts/dockerfile-security.rego"
       - ".github/workflows/docker-verify.yaml"
@@ -22,7 +21,6 @@ jobs:
           [
             "Dockerfile-ray-node",
             "./gateway/Dockerfile",
-            "./repository/Dockerfile",
           ]
     runs-on: ubuntu-latest
     steps:
@@ -36,7 +34,6 @@ jobs:
           [
             "Dockerfile-ray-node",
             "./gateway/Dockerfile",
-            "./repository/Dockerfile",
           ]
     runs-on: ubuntu-latest
     steps:
@@ -59,7 +56,6 @@ jobs:
             "quantum-serverless-ray-node:latest-py38",
             "quantum-serverless-ray-node:latest-py39",
             "quantum-serverless-ray-node:latest-py310",
-            "quantum-repository-server:latest",
           ]
         include:
           - image: "quantum-serverless-gateway:latest"
@@ -74,9 +70,6 @@ jobs:
           - image: "quantum-serverless-ray-node:latest-py310"
             dockerfile: "Dockerfile-ray-node"
             pyversion: "py310"
-          - image: "quantum-repository-server:latest"
-            dockerfile: "./gateway/Dockerfile"
-            pyversion: "3.9"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

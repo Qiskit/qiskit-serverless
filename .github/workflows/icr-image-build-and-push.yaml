@@ -27,10 +27,6 @@ jobs:
             pythonversion: py310
             dockerfile: Dockerfile-ray-node
             platforms: linux/amd64
-          - imagename: quantum-repository-server
-            pythonversion: ''
-            dockerfile: ./repository/Dockerfile
-            platforms: linux/amd64,linux/arm64
           - imagename: quantum-serverless-gateway
             pythonversion: ''
             dockerfile: ./gateway/Dockerfile
