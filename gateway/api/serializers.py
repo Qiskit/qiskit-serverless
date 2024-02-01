@@ -91,8 +91,21 @@ class RuntimeJobSerializer(serializers.ModelSerializer):
 
 class CatalogEntrySerializer(serializers.ModelSerializer):
     """
-    Serializer for the catalog entry model.
+    Serializer for the catalog entry.
     """
 
     class Meta:
         model = CatalogEntry
+
+        fields = ["id", "title", "description", "tags", "program"]
+
+
+class ToCatalogSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the to catalog.
+    """
+
+    class Meta:
+        model = CatalogEntry
+
+        fields = ["id", "title", "description", "tags"]

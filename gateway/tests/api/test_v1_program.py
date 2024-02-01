@@ -292,3 +292,99 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.json().get("count"), 1)
         self.assertNotEqual(programs_response.json()["results"][0]["id"], id)
+
+    def test_to_catalog(self):
+        """Tests add catalog entry."""
+
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        # to catalog entry
+        programs_response = self.client.post(
+            "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/to_catalog/",
+            data={
+                "title": "AddedCatalog",
+                "description": "description of AddedCatalog",
+                "tags": "[tag1, tag2]",
+            },
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        programs_response = self.client.patch(
+            "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/",
+            data={
+                "public": True,
+            },
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+
+        # to catalog entry
+        programs_response = self.client.post(
+            "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/to_catalog/",
+            data={
+                "title": "AddedCatalog",
+                "description": "description of AddedCatalog",
+                "tags": "[tag1, tag2]",
+            },
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+
+        # list catalog
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 3)
+
+    def test_list_catalog_entry(self):
+        """Tests list catalog entry."""
+
+        auth = reverse("rest_login")
+        response = self.client.post(
+            auth, {"username": "test_user", "password": "123"}, format="json"
+        )
+        token = response.data.get("access")
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/?tags=tag3",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 1)
+
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/?tags=tag2",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 1)
+
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/?title=Entry1",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 1)
+
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/?title=Entry",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 2)
+
+        programs_response = self.client.get(
+            "/api/v1/catalog_entries/?description=1",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.json().get("count"), 1)

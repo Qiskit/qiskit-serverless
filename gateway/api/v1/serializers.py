@@ -73,3 +73,10 @@ class CatalogEntrySerializer(serializers.CatalogEntrySerializer):
 
     class Meta(serializers.CatalogEntrySerializer.Meta):
         fields = ["id", "title", "description", "tags", "created", "updated", "program"]
+
+
+class ToCatalogSerializer(serializers.ToCatalogSerializer):
+    """
+    To catalog serializer first version.
+    This serializer limitates the fields from CatalogEntry.
+    """
