@@ -5,6 +5,7 @@ Django Rest framework views for api application:
 
 Version views inherit from the different views.
 """
+
 import glob
 import json
 import logging
