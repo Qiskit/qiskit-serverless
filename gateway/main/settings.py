@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "dj_rest_auth.registration",
     "api",
     "psycopg2",
+    "drf_yasg",
 ]
 
 MIDDLEWARE = [
@@ -355,3 +356,8 @@ CSP_DEFAULT_SRC = "'none'"
 CSP_SCRIPT_SRC = "'none'"
 CSP_FRAME_ANCESTORS = "'self'"
 CSP_OBJECT_SRC = "'self'"
+CSP_IMG_SRC = ("'self'", "data:", "https://cdn.redoc.ly")
+CSP_STYLE_SRC_ELEM = ("'self'", "'unsafe-inline'")
+CSP_SCRIPT_SRC_ELEM = "'self'"
+CSP_CONNECT_SRC = "'self'"
+CSP_WORKER_SRC = ("'self'", "blob:")

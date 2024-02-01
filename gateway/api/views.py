@@ -109,6 +109,9 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return self.serializer_class
 
     def get_queryset(self):
+        # Allow unauthenticated users to read the swagger documentation
+        if not self.request.user.is_authenticated:
+            return Program.objects.none()
         return (
             Program.objects.all().filter(author=self.request.user).order_by("-created")
         )
@@ -267,7 +270,10 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         return self.serializer_class
 
     def get_queryset(self):
-        return Job.objects.all().filter(author=self.request.user).order_by("-created")
+        # Allow unauthenticated users to read the swagger documentation
+        if not self.request.user.is_authenticated:
+            return Job.objects.none()
+        return (Job.objects.all()).filter(author=self.request.user).order_by("-created")
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
