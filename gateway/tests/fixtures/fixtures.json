@@ -10,6 +10,16 @@
     }
   },
   {
+    "model": "auth.user",
+    "pk": 2,
+    "fields": {
+      "email": "test_user_2@email.com",
+      "username": "test_user_2",
+      "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
+      "is_active": true
+    }
+  },
+  {
     "model": "api.program",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
     "fields": {
@@ -41,5 +51,71 @@
       "status": "QUEUED",
       "author": 1
     }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84",
+    "fields": {
+      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "QUEUED",
+      "author": 2
+    }
+  },
+  {
+    "model": "api.runtimejob",
+    "pk": "runtime_job_1",
+    "fields": {
+      "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
+      "runtime_job": "runtime_job_1"
+    }
+  },
+  {
+    "model": "api.runtimejob",
+    "pk": "runtime_job_2",
+    "fields": {
+      "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
+      "runtime_job": "runtime_job_2"
+    }
+  },
+  {
+    "model": "api.runtimejob",
+    "pk": "runtime_job_3",
+    "fields": {
+      "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "runtime_job": "runtime_job_3"
+    }
+  },
+  {
+    "model": "api.runtimejob",
+    "pk": "runtime_job_5",
+    "fields": {
+      "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84",
+      "runtime_job": "runtime_job_5"
+    }
+  },
+  {
+    "model": "api.catalogentry",
+    "fields": {
+      "title": "CatalogEntry1",
+      "description": "tast catalog entry 1",
+      "tags": "tag1, tag2",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "updated": "2023-02-03T15:30:43.281796Z",
+      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
+    }
+  },
+  {
+    "model": "api.catalogentry",
+    "fields": {
+      "title": "CatalogEntry2",
+      "description": "tast catalog entry 2",
+      "tags": "tag3",
+      "created": "2023-03-01T15:30:43.281796Z",
+      "updated": "2023-03-03T15:30:43.281796Z",
+      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
+    }
   }
 ]
+

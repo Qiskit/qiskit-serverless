@@ -4,8 +4,8 @@ description: Quantum-Serverless helm chart for observabililty (i.e. logging/moni
 
 type: application
 
-version: 0.8.2
-appVersion: "0.8.2"
+version: 0.9.0
+appVersion: "0.9.0"
 
 dependencies:
   - name: kube-prometheus-stack
@@ -18,7 +18,7 @@ dependencies:
     repository: https://grafana.github.io/helm-charts
   - name: promtail
     condition: promtailEnable
-    version: 6.15.3
+    version: 6.15.4
     repository: https://grafana.github.io/helm-charts
 
 maintainers:

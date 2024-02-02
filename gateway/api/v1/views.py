@@ -6,8 +6,8 @@ from rest_framework import permissions
 
 
 from api import views
-from api.models import Program, Job
-from api.permissions import IsOwner
+from api.models import Program, Job, RuntimeJob, CatalogEntry
+from api.permissions import IsOwner, CatalogUpdate
 from . import serializers as v1_serializers
 from . import services as v1_services
 
@@ -68,3 +68,35 @@ class FilesViewSet(views.FilesViewSet):
     """
 
     permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+
+class RuntimeJobViewSet(views.RuntimeJobViewSet):  # pylint: disable=too-many-ancestors
+    """
+    RuntimeJob view set first version. Use RuntomeJobSerializer V1.
+    """
+
+    serializer_class = v1_serializers.RuntimeJobSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+    def get_serializer_class(self):
+        return v1_serializers.RuntimeJobSerializer
+
+    def get_queryset(self):
+        return RuntimeJob.objects.all().filter(job__author=self.request.user)
+
+
+class CatalogEntryViewSet(
+    views.CatalogEntryViewSet
+):  # pylint: disable=too-many-ancestors
+    """
+    CatalogEntry view set first version. Use CatalogEntrySerializer V1.
+    """
+
+    serializer_class = v1_serializers.CatalogEntrySerializer
+    permission_classes = [permissions.IsAuthenticated, CatalogUpdate]
+
+    def get_serializer_class(self):
+        return v1_serializers.CatalogEntrySerializer
+
+    def get_queryset(self):
+        return CatalogEntry.objects.all()

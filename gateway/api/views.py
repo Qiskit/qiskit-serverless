@@ -29,9 +29,15 @@ from rest_framework.response import Response
 from utils import sanitize_file_path
 
 from .exceptions import InternalServerErrorException, ResourceNotFoundException
-from .models import Program, Job
+from .models import Program, Job, RuntimeJob, CatalogEntry
 from .ray import get_job_handler
-from .serializers import JobSerializer, ExistingProgramSerializer, JobConfigSerializer
+from .serializers import (
+    JobSerializer,
+    ExistingProgramSerializer,
+    JobConfigSerializer,
+    CatalogEntrySerializer,
+    ToCatalogSerializer,
+)
 from .services import JobService, ProgramService, JobConfigService
 
 logger = logging.getLogger("gateway")
@@ -104,6 +110,22 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         """
 
         return JobConfigSerializer
+
+    @staticmethod
+    def get_serializer_catalog_entry_class():
+        """
+        This method returns add catalog entry serializer to be used in Program ViewSet.
+        """
+
+        return CatalogEntrySerializer
+
+    @staticmethod
+    def get_serializer_to_catalog_class():
+        """
+        This method returns to catalog serializer to be used in Program ViewSet.
+        """
+
+        return ToCatalogSerializer
 
     def get_serializer_class(self):
         return self.serializer_class
@@ -255,6 +277,35 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             job_serializer = self.get_serializer_job_class()(job)
         return Response(job_serializer.data)
 
+    @action(methods=["POST"], detail=True)
+    def to_catalog(self, request, pk=None):  # pylint: disable=unused-argument
+        """To catalog."""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.program.to_catalog", context=ctx):
+            serializer = self.get_serializer_to_catalog_class()(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            if not self.get_object().public:
+                return Response(
+                    "program must be public", status=status.HTTP_400_BAD_REQUEST
+                )
+
+            try:
+                catalogentry = CatalogEntry(
+                    title=serializer.data.get("title"),
+                    description=serializer.data.get("description"),
+                    tags=serializer.data.get("tags"),
+                    program=self.get_object(),
+                )
+                catalogentry.save()
+            except InternalServerErrorException as exception:
+                return Response(exception, status=status.HTTP_400_BAD_REQUEST)
+            catalog_entry_serializer = self.get_serializer_catalog_entry_class()(
+                catalogentry
+            )
+        return Response(catalog_entry_serializer.data)
+
 
 class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     """
@@ -346,6 +397,45 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                             job.compute_resource,
                         )
         return Response({"message": message})
+
+    @action(methods=["POST"], detail=True)
+    def add_runtimejob(
+        self, request, pk=None
+    ):  # pylint: disable=invalid-name,unused-argument
+        """Add RuntimeJob to job"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.add_runtimejob", context=ctx):
+            if not request.data.get("runtime_job"):
+                return Response(
+                    {
+                        "message": "Got empty `runtime_job` field. Please, specify `runtime_job`."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            job = self.get_object()
+            runtimejob = RuntimeJob(
+                job=job,
+                runtime_job=request.data.get("runtime_job"),
+            )
+            runtimejob.save()
+            message = "RuntimeJob is added."
+        return Response({"message": message})
+
+    @action(methods=["GET"], detail=True)
+    def list_runtimejob(
+        self, request, pk=None
+    ):  # pylint: disable=invalid-name,unused-argument
+        """Add RuntimeJpb to job"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.stop", context=ctx):
+            job = self.get_object()
+            runtimejobs = RuntimeJob.objects.filter(job=job)
+            ids = []
+            for runtimejob in runtimejobs:
+                ids.append(runtimejob.runtime_job)
+        return Response(json.dumps(ids))
 
 
 class FilesViewSet(viewsets.ViewSet):
@@ -468,3 +558,51 @@ class FilesViewSet(viewsets.ViewSet):
                     destination.write(chunk)
             return Response({"message": file_path})
         return Response("server error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RuntimeJobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+    """
+    RuntimeJob ViewSet configuration using ModelViewSet.
+    """
+
+    BASE_NAME = "runtime_jobs"
+
+    def get_serializer_class(self):
+        return self.serializer_class
+
+    def get_queryset(self):
+        return RuntimeJob.objects.all().filter(job__author=self.request.user)
+
+
+class CatalogEntryViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+    """
+    CatalogEntry ViewSet configuration using ModelViewSet.
+    """
+
+    BASE_NAME = "catalog_entries"
+
+    def get_serializer_class(self):
+        return self.serializer_class
+
+    def get_queryset(self):
+        return CatalogEntry.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        title = request.query_params.get("title")
+        description = request.query_params.get("description")
+        tags = request.query_params.get("tags")
+        if title:
+            queryset = queryset.filter(title__contains=title)
+        if description:
+            queryset = queryset.filter(description__contains=description)
+        if tags:
+            queryset = queryset.filter(tags__contains=tags)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
