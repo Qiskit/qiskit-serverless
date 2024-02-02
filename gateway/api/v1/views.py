@@ -83,6 +83,6 @@ class RuntimeJobViewSet(views.RuntimeJobViewSet):  # pylint: disable=too-many-an
 
     def get_queryset(self):
         # Allow unauthenticated users to read the swagger documentation
-        if not self.request.user.is_authenticated:
-            return Program.objects.none()
+        if self.request.user is None or not self.request.user.is_authenticated:
+            return RuntimeJob.objects.none()
         return RuntimeJob.objects.all().filter(job__author=self.request.user)

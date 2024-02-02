@@ -110,7 +110,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
     def get_queryset(self):
         # Allow unauthenticated users to read the swagger documentation
-        if not self.request.user.is_authenticated:
+        if self.request.user is None or not self.request.user.is_authenticated:
             return Program.objects.none()
         return (
             Program.objects.all().filter(author=self.request.user).order_by("-created")
@@ -271,7 +271,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
 
     def get_queryset(self):
         # Allow unauthenticated users to read the swagger documentation
-        if not self.request.user.is_authenticated:
+        if self.request.user is None or not self.request.user.is_authenticated:
             return Job.objects.none()
         return (Job.objects.all()).filter(author=self.request.user).order_by("-created")
 
