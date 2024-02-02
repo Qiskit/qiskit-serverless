@@ -48,43 +48,6 @@ data:
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 0
-          },
-          "id": 3,
-          "options": {
-            "dedupStrategy": "none",
-            "enableLogDetails": true,
-            "prettifyLogMessage": false,
-            "showCommonLabels": false,
-            "showLabels": false,
-            "showTime": false,
-            "sortOrder": "Descending",
-            "wrapLogMessage": false
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "P982945308D3682D1"
-              },
-              "editorMode": "builder",
-              "expr": "{container=\"repository\"} |= ``",
-              "queryType": "range",
-              "refId": "A"
-            }
-          ],
-          "title": "Repository",
-          "type": "logs"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "P982945308D3682D1"
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 24,
-            "x": 0,
             "y": 9
           },
           "id": 1,
