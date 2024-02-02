@@ -46,9 +46,8 @@ Once you have Docker and docker compose installed, you can run the following com
 
         $ docker compose [--profile <PROFILE>] up
 
-The available profiles are `full` and `repo`.
-The repo profile installs core services and the program repository;
-and the full profile installs all core services, including logging and
+Additionally, you can include the profile `full`.
+With the full profile installs all core services, including logging and
 monitorying systems.
 
 Step 4: Run a program in the test environment

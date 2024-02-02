@@ -227,9 +227,6 @@
 <li class="toctree-l3"><a class="reference internal" href="../stubs/quantum_serverless.core.RayJobClient.html">quantum_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/quantum_serverless.core.save_result.html">quantum_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/quantum_serverless.core.QiskitPattern.html">quantum_serverless.core.QiskitPattern</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../stubs/quantum_serverless.core.ProgramStorage.html">quantum_serverless.core.ProgramStorage</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../stubs/quantum_serverless.core.ProgramRepository.html">quantum_serverless.core.ProgramRepository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../stubs/quantum_serverless.core.download_and_unpack_artifact.html">quantum_serverless.core.download_and_unpack_artifact</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/quantum_serverless.core.Target.html">quantum_serverless.core.Target</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/quantum_serverless.core.CircuitMeta.html">quantum_serverless.core.CircuitMeta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/quantum_serverless.core.fetch_execution_meta.html">quantum_serverless.core.fetch_execution_meta</a></li>
@@ -334,9 +331,8 @@ on your local machine straightforward. The first thing we will do is clone the r
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker compose [--profile &lt;PROFILE&gt;] up
 </pre></div>
 </div>
-<p>The available profiles are <cite>full</cite> and <cite>repo</cite>.
-The repo profile installs core services and the program repository;
-and the full profile installs all core services, including logging and
+<p>Additionally, you can include the profile <cite>full</cite>.
+With the full profile installs all core services, including logging and
 monitorying systems.</p>
 <p>Step 4: Run a program in the test environment</p>
 <p>Once the containers are running, you can simulate a remote cluster with the resources on your

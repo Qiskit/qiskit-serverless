@@ -1,6 +1,0 @@
-﻿quantum\_serverless.core.download\_and\_unpack\_artifact
-========================================================
-
-.. currentmodule:: quantum_serverless.core
-
-.. autofunction:: download_and_unpack_artifact
