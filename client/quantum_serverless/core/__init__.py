@@ -39,9 +39,6 @@ Core abstractions
     RayJobClient
     save_result
     QiskitPattern
-    ProgramStorage
-    ProgramRepository
-    download_and_unpack_artifact
     Target
     CircuitMeta
     fetch_execution_meta
@@ -73,12 +70,7 @@ from .job import (
     save_result,
     Configuration,
 )
-from .pattern import (
-    QiskitPattern,
-    ProgramStorage,
-    ProgramRepository,
-    download_and_unpack_artifact,
-)
+from .pattern import QiskitPattern
 from .decorators import (
     remote,
     get,

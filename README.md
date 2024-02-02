@@ -18,7 +18,7 @@ You don't have to worry about configuration or scaling up computational resource
 1. [Quickstart](#quickstart)
 1. Modules
    1. [Client](./client)
-   1. [Repository](./repository)
+   1. [Gateway](./gateway)
    1. [Charts](./charts)
 1. [How to Give Feedback](#how-to-give-feedback)
 1. [Contribution Guidelines](#contribution-guidelines)

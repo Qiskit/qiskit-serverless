@@ -122,28 +122,6 @@ postgresql:
     password: serverlesspassword
 
 # ===================
-# Quantum Repository
-# ===================
-
-repositoryEnable: false
-repository:
-  nameOverride: "repository"
-  fullnameOverride: "repository"
-  image:
-    pullPolicy: IfNotPresent
-    tag: "0.9.0"
-  application:
-    superuser:
-      username: "admin"
-      password: "passw0rd"
-      email: "admin@examplemail.io"
-  service:
-    type: ClusterIP
-    port: 8060
-  database:
-    name: repository_db
-
-# ===================
 # COS
 # ===================
 
