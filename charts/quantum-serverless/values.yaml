@@ -13,7 +13,7 @@ nginx-ingress-controller:
   nameOverride: "nginx-ingress-controller"
   fullnameOverride: "nginx-ingress-controller"
 ingress:
-  ingressClassName: "nginx"
+  className: "nginx"
   annotations:
     # For IBM Cloud the valid ingress class values are: public-iks-k8s-nginx and private-iks-k8s-nginx
     nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
