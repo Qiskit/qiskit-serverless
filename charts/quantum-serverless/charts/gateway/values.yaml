@@ -124,7 +124,7 @@ service:
 
 ingress:
   enabled: false
-  className: ""
+  className: "nginx"
   annotations: {}
     # kubernetes.io/tls-acme: "true"
   hosts:
