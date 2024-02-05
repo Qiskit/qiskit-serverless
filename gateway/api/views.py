@@ -16,6 +16,7 @@ from wsgiref.util import FileWrapper
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
 from django.http import StreamingHttpResponse
+from django.db.models import Q
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -296,6 +297,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                     title=serializer.data.get("title"),
                     description=serializer.data.get("description"),
                     tags=serializer.data.get("tags"),
+                    status=serializer.data.get("status"),
                     program=self.get_object(),
                 )
                 catalogentry.save()
@@ -588,7 +590,9 @@ class CatalogEntryViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-an
         return CatalogEntry.objects.all()
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(
+            Q(program__author=self.request.user) | ~Q(status=CatalogEntry.PRIVATE)
+        )
         title = request.query_params.get("title")
         description = request.query_params.get("description")
         tags = request.query_params.get("tags")

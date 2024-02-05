@@ -223,7 +223,7 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.json().get("count"), 2)
+        self.assertEqual(programs_response.json().get("count"), 1)
 
         id = programs_response.json()["results"][0]["id"]
         programs_response = self.client.get(
@@ -310,6 +310,7 @@ class TestProgramApi(APITestCase):
                 "title": "AddedCatalog",
                 "description": "description of AddedCatalog",
                 "tags": "[tag1, tag2]",
+                "status": "PRIVATE",
             },
             format="json",
         )
@@ -331,6 +332,7 @@ class TestProgramApi(APITestCase):
                 "title": "AddedCatalog",
                 "description": "description of AddedCatalog",
                 "tags": "[tag1, tag2]",
+                "status": "PRIVATE",
             },
             format="json",
         )

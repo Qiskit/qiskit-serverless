@@ -167,12 +167,30 @@ class Job(models.Model):
 class CatalogEntry(models.Model):
     """Catalog Entry model."""
 
+    PRIVATE = "PRIVATE"
+    ACTIVE = "ACTIVE"
+    PUBLIC = "PUBLIC"
+    REVIEWED = "REVIEWED"
+    APPROVED = "APPROVED"
+    STATUSES = [
+        (PRIVATE, "Private"),
+        (ACTIVE, "Active"),
+        (PUBLIC, "Public"),
+        (REVIEWED, "Reviewed"),
+        (APPROVED, "Approved"),
+    ]
+
     title = models.CharField(max_length=255)
     description = models.TextField()
     tags = models.TextField(null=False, blank=True, default="[]")
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True, null=True)
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
+    status = models.CharField(
+        max_length=10,
+        choices=STATUSES,
+        default=PRIVATE,
+    )
 
 
 class RuntimeJob(models.Model):
