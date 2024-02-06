@@ -72,7 +72,16 @@ class CatalogEntrySerializer(serializers.CatalogEntrySerializer):
     program = ProgramSerializer(many=False)
 
     class Meta(serializers.CatalogEntrySerializer.Meta):
-        fields = ["id", "title", "description", "tags", "created", "updated", "program"]
+        fields = [
+            "id",
+            "title",
+            "description",
+            "tags",
+            "created",
+            "updated",
+            "program",
+            "status",
+        ]
 
 
 class ToCatalogSerializer(serializers.ToCatalogSerializer):
