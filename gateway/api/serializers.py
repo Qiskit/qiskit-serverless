@@ -97,7 +97,7 @@ class CatalogEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = CatalogEntry
 
-        fields = ["id", "title", "description", "tags", "program"]
+        fields = ["id", "title", "description", "tags", "program", "status"]
 
 
 class ToCatalogSerializer(serializers.ModelSerializer):
@@ -108,4 +108,4 @@ class ToCatalogSerializer(serializers.ModelSerializer):
     class Meta:
         model = CatalogEntry
 
-        fields = ["id", "title", "description", "tags"]
+        fields = ["id", "title", "description", "tags", "status"]
