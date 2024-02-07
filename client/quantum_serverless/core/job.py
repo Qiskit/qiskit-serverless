@@ -256,6 +256,10 @@ class LocalJobClient(BaseJobClient):
     def list(self, **kwargs) -> List["Job"]:
         return [job["job"] for job in list(self._jobs.values())]
 
+    def filtered_logs(self, job_id: str, **kwargs):
+        """Return filtered logs."""
+        raise NotImplementedError
+
     def run(
         self,
         program: QiskitPattern,
@@ -362,7 +366,7 @@ class LocalJobClient(BaseJobClient):
 
     def get_programs(self, **kwargs):
         """Returns list of programs."""
-        raise NotImplementedError
+        return self._patterns
 
 
 class GatewayJobClient(BaseJobClient):
