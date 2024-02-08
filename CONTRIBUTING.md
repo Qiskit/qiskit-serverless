@@ -69,11 +69,12 @@ if needed.
 
 You'll need to install these tools on your development environment:
 
-1. [python](https://www.python.org/): the language quantum-serverless is written in
+1. [python](https://www.python.org/): the language quantum-serverless is written in (Note that we currently support Python >=3.8,<3.11).
 1. [git](https://git-scm.com/): for source control
 1. [docker](https://docs.docker.com/engine/install/) or [podman](https://podman.io/): for building dev environment
 1. [kubectl](https://kubectl.docs.kubernetes.io/): for interacting with Kubernetes clusters
 1. [helm](https://helm.sh/): to install quantum-serverless on Kubernetes
+1. [tox](https://tox.wiki/en): to run tests and build the documentation
 
 Note: Installing the `pip` and `venv` python libraries will also be useful
 
@@ -128,10 +129,9 @@ instead of forking it.
 
 ### Development environment
 
-This repository contains several projects with different technologies. Depending on the project that you selected
-you will run:
+This repository contains several projects with different technologies. Depending on the project that you selected (eg. gateway), from the project directory you will run:
 - `pip install -r requirements.txt requirements-dev.txt` for python projects (strongly consider using a [virtual environment](https://docs.python.org/3/library/venv.html)!).
-- `helm dependency build` for helm.
+- `helm dependency build` for helm (Before running this command, make sure to check for helm configuration instructions specific to your selected project charts).
 -  `terraform init` for terraform.
 
 To set up a local development environment for the quantum-serverless components (including the gateway, repository, ray nodes, etc.) using the latest changes you've made, use `docker compose` or `podman-compose`.
@@ -202,8 +202,10 @@ git rebase main issue-1234-new-feature
 
 ### Adding tests
 
-Our team upholds the philosophy that a healthy codebase will include the proper amount of testing, you can run them
-just typing `tox -epy39`.
+Our team upholds the philosophy that a healthy codebase will include the proper amount of testing. 
+From the project you are working on, you can run tests with `tox -epy39`.
+Note if you run this command from quantum-serverless top directory, it will build the project documentation.
+For detailed testing guidelines using tox environments, please refer to [this documentation](./client/tests/README.md).
 
 As a part of the development backlog planning, we have internal discussions to determine which scenarios should be
 tested. For code that requires testing, please look for notes in the original issues, as we will do our best to

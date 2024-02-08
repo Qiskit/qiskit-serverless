@@ -1,0 +1,38 @@
+name: Notebook LocalProvider tests
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: patch notebooks
+        shell: bash
+        run: |
+          sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" docs/examples/02_qaoa.ipynb
+          sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" docs/examples/01_vqe.ipynb
+          sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" docs/getting_started/experimental/running_programs_using_decorators.ipynb
+          sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" docs/getting_started/experimental/manage_data_directory.ipynb
+          sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" docs/getting_started/experimental/file_download.ipynb
+          sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" docs/getting_started/basic/02_arguments_and_results.ipynb
+          sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" docs/getting_started/basic/04_distributed_workloads.ipynb
+          sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" docs/getting_started/basic/05_retrieving_past_results.ipynb
+          sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" docs/getting_started/basic/03_dependencies.ipynb
+          sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" docs/getting_started/basic/01_running_program.ipynb
+      - name: install dependencies
+        shell: bash
+        run: pip install client/ && pip install nbmake pytest
+      - name: Run basic notebooks
+        shell: bash
+        run: IN_TEST=True pytest --nbmake docs/getting_started/basic/
+      - name: Run experimental notebooks
+        shell: bash
+        run: IN_TEST=True pytest --nbmake docs/getting_started/experimental/
+
