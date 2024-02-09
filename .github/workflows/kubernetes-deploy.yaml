@@ -82,7 +82,7 @@ jobs:
           export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
 
           echo $GATEWAY_HOST
-          pytest --nbmake /home/runner/work/quantum-serverless/quantum-serverless/docs/running/notebooks/01_running_program.ipynb
+          pytest --nbmake /home/runner/work/quantum-serverless/quantum-serverless/docs/getting_started/basic/01_running_program.ipynb
       - name: Echo gateway logs
         if: ${{ failure() }}
         run: |
