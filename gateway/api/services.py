@@ -168,25 +168,13 @@ class JobService:
             Job instance
         """
 
-        job = None
-        try:
-            job = Job(
-                program=program,
-                arguments=arguments,
-                author=author,
-                status=status,
-                config=jobconfig,
-            )
-            job.save()
-        except (Exception) as save_job_exception:
-            logger.error(
-                "Exception was caught saving a Job. \n Error trace: %s",
-                save_job_exception,
-            )
-            raise InternalServerErrorException(
-                "Unexpected error saving a job"
-            ) from save_job_exception
-
+        job = Job(
+            program=program,
+            arguments=arguments,
+            author=author,
+            status=status,
+            config=jobconfig,
+        )
         env = encrypt_env_vars(build_env_variables(token, job, json.dumps(arguments)))
         try:
             env["traceparent"] = carrier["traceparent"]
