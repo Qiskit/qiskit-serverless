@@ -17,18 +17,10 @@ jobs:
           sudo mv kind /usr/local/bin
           which kind
       - name: Create Kind cluster
-        run: |
-          cat > /tmp/kind.yaml <<EOF
-          apiVersion: kind.x-k8s.io/v1alpha4
-          kind: Cluster
-          nodes:
-          - role: control-plane
-            image: kindest/node:v1.27.3
-            extraPortMappings:
-            - containerPort: 80
-              hostPort: 80
-          EOF
-          kind create cluster --config /tmp/kind.yaml --wait 5m
+        uses: chainguard-dev/actions/setup-kind@main
+        with:
+          k8s-version: 1.27.x
+          kind-worker-count: 0
       - name: Build and load gateway
         run: |
           docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
