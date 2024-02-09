@@ -201,7 +201,9 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
             arguments = serializer.data.get("arguments")
-            token = request.auth.token.decode()
+            token = ""
+            if request.auth:
+                token = request.auth.token.decode()
             try:
                 job = self.get_service_job_class().save(
                     program=program,
