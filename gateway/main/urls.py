@@ -16,7 +16,6 @@ Including another URLconf
 
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.urls import path, include, re_path
 from django.views.generic import TemplateView
 from rest_framework import routers, permissions
@@ -43,10 +42,7 @@ router = routers.DefaultRouter()
 
 
 urlpatterns = [
-    path("dj-rest-auth/", include("dj_rest_auth.urls")),
     path("accounts/", include("allauth.urls")),
-    path("api-auth/", include("rest_framework.urls")),
-    path("admin/", admin.site.urls),
     path("readiness/", probes.views.readiness, name="readiness"),
     path("liveness/", probes.views.liveness, name="liveness"),
     path("", include("django_prometheus.urls")),
