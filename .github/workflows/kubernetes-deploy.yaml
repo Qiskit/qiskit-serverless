@@ -72,7 +72,7 @@ jobs:
 
           echo $GATEWAY_HOST
           pytest --full-trace --nbmake /home/runner/work/quantum-serverless/quantum-serverless/docs/getting_started/basic/
-          pytest --full-trace --nbmake /home/runner/work/quantum-serverless/quantum-serverless/docs/getting_started/experimental/
+          pytest --full-trace --nbmake -vvv /home/runner/work/quantum-serverless/quantum-serverless/docs/getting_started/experimental/
       - name: Echo gateway logs
         if: ${{ failure() }}
         run: |
