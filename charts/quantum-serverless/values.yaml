@@ -104,7 +104,7 @@ kuberayOperatorEnable: true
 kuberay-operator:
   image:
     repository: kuberay/operator
-    tag: v0.6.0
+    tag: v1.0.0
     pullPolicy: IfNotPresent
 
 # ===================
