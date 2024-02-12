@@ -175,6 +175,8 @@ class JobService:
             status=status,
             config=jobconfig,
         )
+        print("!!!!")
+        print(job.id)
         env = encrypt_env_vars(build_env_variables(token, job, json.dumps(arguments)))
         try:
             env["traceparent"] = carrier["traceparent"]
@@ -186,7 +188,7 @@ class JobService:
             job.save()
         except (Exception) as save_job_exception:
             logger.error(
-                "Exception was caught saving the env_vars of the Job[%s]. \n Error trace: %s",
+                "Exception was caught saving the Job[%s]. \n Error trace: %s",
                 job.id,
                 save_job_exception,
             )
