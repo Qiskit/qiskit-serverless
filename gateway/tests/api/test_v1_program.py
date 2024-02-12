@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from api.models import Job, JobConfig
 import json
+from django.contrib.auth import models
 
 
 class TestProgramApi(APITestCase):
@@ -20,12 +21,8 @@ class TestProgramApi(APITestCase):
     def test_programs_list(self):
         """Tests programs list authorized."""
 
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
 
         programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
@@ -38,13 +35,9 @@ class TestProgramApi(APITestCase):
 
     def test_program_detail(self):
         """Tests program detail authorized."""
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
         programs_response = self.client.get(
             reverse(
                 "v1:programs-detail",
@@ -58,13 +51,9 @@ class TestProgramApi(APITestCase):
 
     def test_run_existing(self):
         """Tests run existing authorized."""
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
         programs_response = self.client.post(
             "/api/v1/programs/run_existing/",
             data={
@@ -85,13 +74,9 @@ class TestProgramApi(APITestCase):
 
     def test_public(self):
         """Tests public flag."""
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
         programs_response = self.client.get(
             "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/",
             format="json",
@@ -117,13 +102,9 @@ class TestProgramApi(APITestCase):
 
     def test_runtime_job(self):
         """Tests run existing authorized."""
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
         programs_response = self.client.get(
             "/api/v1/runtime_jobs/",
             format="json",
@@ -144,13 +125,8 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.json().get("count"), 2)
 
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user_2", "password": "123"}, format="json"
-        )
-        token_2 = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token_2)
-
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
         programs_response = self.client.get(
             "/api/v1/runtime_jobs/",
             format="json",
@@ -160,13 +136,9 @@ class TestProgramApi(APITestCase):
 
     def test_add_runtimejob(self):
         """Tests run existing authorized."""
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
         programs_response = self.client.post(
             "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec83/add_runtimejob/",
             data={
@@ -187,13 +159,9 @@ class TestProgramApi(APITestCase):
         )
 
     def test_list_runtimejob(self):
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
 
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
         programs_response = self.client.get(
             "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec83/list_runtimejob/",
             format="json",
@@ -209,14 +177,8 @@ class TestProgramApi(APITestCase):
     def test_catalog_entry(self):
         """Tests catalog entry."""
 
-        # Non-owner
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user_2", "password": "123"}, format="json"
-        )
-        token_2 = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token_2)
-
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
         # list catalog
         programs_response = self.client.get(
             "/api/v1/catalog_entries/",
@@ -241,13 +203,8 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_403_FORBIDDEN)
 
         # Program owner
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
-
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
         # list catalog
         programs_response = self.client.get(
             "/api/v1/catalog_entries/",
@@ -296,13 +253,8 @@ class TestProgramApi(APITestCase):
     def test_to_catalog(self):
         """Tests add catalog entry."""
 
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
-
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
         # to catalog entry
         programs_response = self.client.post(
             "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/to_catalog/",
@@ -349,13 +301,8 @@ class TestProgramApi(APITestCase):
     def test_list_catalog_entry(self):
         """Tests list catalog entry."""
 
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
-
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
         programs_response = self.client.get(
             "/api/v1/catalog_entries/?tags=tag3",
             format="json",

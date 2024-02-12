@@ -5,6 +5,7 @@ from urllib.parse import quote_plus
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from django.contrib.auth import models
 
 
 class TestFilesApi(APITestCase):
@@ -30,12 +31,8 @@ class TestFilesApi(APITestCase):
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
-            auth = reverse("rest_login")
-            response = self.client.post(
-                auth, {"username": "test_user", "password": "123"}, format="json"
-            )
-            token = response.data.get("access")
-            self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+            user = models.User.objects.get(username="test_user")
+            self.client.force_authenticate(user=user)
             url = reverse("v1:files-list")
             response = self.client.get(url, format="json")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -43,12 +40,8 @@ class TestFilesApi(APITestCase):
 
     def test_non_existing_file_download(self):
         """Tests downloading non-existing file."""
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
         url = reverse("v1:files-download")
         response = self.client.get(
             url, data={"file": "non_existing.tar"}, format="json"
@@ -68,12 +61,8 @@ class TestFilesApi(APITestCase):
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
-            auth = reverse("rest_login")
-            response = self.client.post(
-                auth, {"username": "test_user", "password": "123"}, format="json"
-            )
-            token = response.data.get("access")
-            self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+            user = models.User.objects.get(username="test_user")
+            self.client.force_authenticate(user=user)
             url = reverse("v1:files-download")
             response = self.client.get(
                 url, data={"file": "artifact.tar"}, format="json"
@@ -99,12 +88,8 @@ class TestFilesApi(APITestCase):
             fp.close()
 
         with self.settings(MEDIA_ROOT=media_root):
-            auth = reverse("rest_login")
-            response = self.client.post(
-                auth, {"username": "test_user", "password": "123"}, format="json"
-            )
-            token = response.data.get("access")
-            self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+            user = models.User.objects.get(username="test_user")
+            self.client.force_authenticate(user=user)
             url = reverse("v1:files-delete")
             response = self.client.delete(
                 url, data={"file": "artifact_delete.tar"}, format="json"
@@ -122,12 +107,8 @@ class TestFilesApi(APITestCase):
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
-            auth = reverse("rest_login")
-            response = self.client.post(
-                auth, {"username": "test_user", "password": "123"}, format="json"
-            )
-            token = response.data.get("access")
-            self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+            user = models.User.objects.get(username="test_user")
+            self.client.force_authenticate(user=user)
             url = reverse("v1:files-delete")
             response = self.client.delete(
                 url, data={"file": "artifact_delete.tar"}, format="json"
@@ -145,12 +126,8 @@ class TestFilesApi(APITestCase):
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
-            auth = reverse("rest_login")
-            response = self.client.post(
-                auth, {"username": "test_user", "password": "123"}, format="json"
-            )
-            token = response.data.get("access")
-            self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+            user = models.User.objects.get(username="test_user")
+            self.client.force_authenticate(user=user)
             url = reverse("v1:files-upload")
             with open("README.md") as f:
                 response = self.client.post(
@@ -172,12 +149,8 @@ class TestFilesApi(APITestCase):
                 "fake_media",
             )
         ):
-            auth = reverse("rest_login")
-            response = self.client.post(
-                auth, {"username": "test_user", "password": "123"}, format="json"
-            )
-            token = response.data.get("access")
-            self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+            user = models.User.objects.get(username="test_user")
+            self.client.force_authenticate(user=user)
             url = reverse("v1:files-download")
             response = self.client.get(
                 url, data={"file": "../test_user_2/artifact_2.tar"}, format="json"
