@@ -4,7 +4,7 @@ metadata:
   name: rayclustertemplate
 data:
   rayclustertemplate.yaml: |
-    apiVersion: ray.io/v1alpha1
+    apiVersion: ray.io/v1
     kind: RayCluster
     metadata:
       name: {{`{{ cluster_name }}`}}
