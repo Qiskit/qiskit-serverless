@@ -175,8 +175,6 @@ class JobService:
             status=status,
             config=jobconfig,
         )
-        print("!!!!")
-        print(job.id)
         env = encrypt_env_vars(build_env_variables(token, job, json.dumps(arguments)))
         try:
             env["traceparent"] = carrier["traceparent"]
