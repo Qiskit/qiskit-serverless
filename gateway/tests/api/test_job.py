@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from api.models import Job
+from django.contrib.auth import models
 
 
 class TestJobApi(APITestCase):
@@ -14,12 +15,8 @@ class TestJobApi(APITestCase):
 
     def _authorize(self):
         """Authorize client."""
-        auth = reverse("rest_login")
-        resp = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = resp.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
 
     def test_job_non_auth_user(self):
         """Tests job list non-authorized."""
@@ -68,12 +65,7 @@ class TestJobApi(APITestCase):
 
     def test_stop_job(self):
         """Tests job stop."""
-        auth = reverse("rest_login")
-        response = self.client.post(
-            auth, {"username": "test_user", "password": "123"}, format="json"
-        )
-        token = response.data.get("access")
-        self.client.credentials(HTTP_AUTHORIZATION="Bearer " + token)
+        self._authorize()
 
         job_stop_response = self.client.post(
             reverse(
