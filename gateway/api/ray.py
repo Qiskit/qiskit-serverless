@@ -227,9 +227,7 @@ def create_ray_cluster(
     config.load_incluster_config()
     k8s_client = kubernetes_client.api_client.ApiClient()
     dyn_client = DynamicClient(k8s_client)
-    raycluster_client = dyn_client.resources.get(
-        api_version="v1", kind="RayCluster"
-    )
+    raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
     if response.metadata.name != cluster_name:
         raise RuntimeError(
@@ -287,9 +285,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     config.load_incluster_config()
     k8s_client = kubernetes_client.api_client.ApiClient()
     dyn_client = DynamicClient(k8s_client)
-    raycluster_client = dyn_client.resources.get(
-        api_version="v1", kind="RayCluster"
-    )
+    raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
     try:
         delete_response = raycluster_client.delete(
             name=cluster_name, namespace=namespace

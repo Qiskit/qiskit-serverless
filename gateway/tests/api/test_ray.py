@@ -78,9 +78,7 @@ class TestRayUtils(APITestCase):
 
         success = kill_ray_cluster("some_cluster")
         self.assertTrue(success)
-        DynamicClient.resources.get.assert_any_call(
-            api_version="v1", kind="RayCluster"
-        )
+        DynamicClient.resources.get.assert_any_call(api_version="v1", kind="RayCluster")
         DynamicClient.resources.get.assert_any_call(
             api_version="v1", kind="Certificate"
         )
