@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/4.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
+
 import os
 import os.path
 import sys
@@ -250,6 +251,17 @@ REST_AUTH = {
     "USE_JWT": True,
     # 'JWT_AUTH_COOKIE': 'gateway-app-auth',
     # 'JWT_AUTH_REFRESH_COOKIE': 'gateway-refresh-token',
+}
+
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer Token": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+        },
+    },
+    "USE_SESSION_AUTH": False,
 }
 
 SITE_ID = 1
