@@ -134,6 +134,8 @@ helm/deploy: docker/login
 	$(call assert-set,ENVIRONMENT)
 	$(call assert-set,TARGET_SERVICE)
 #	@helm dependency update /workspace/charts/$(TARGET_SERVICE)
+	@helm repo add bitnami https://charts.bitnami.com/bitnami
+	@helm repo add kuberay https://ray-project.github.io/kuberay-helm
 	@helm dep build /workspace/charts/$(TARGET_SERVICE)
 #	@pydtb release \
 #		--loglevel $(DTB_LOGLEVEL) \
