@@ -134,7 +134,7 @@ helm/deploy: docker/login
 	$(call assert-set,ENVIRONMENT)
 	$(call assert-set,TARGET_SERVICE)
 #	@helm dependency update /workspace/charts/$(TARGET_SERVICE)
-#	@helm dependency build /workspace/charts/$(TARGET_SERVICE)
+	@helm dep build /workspace/charts/$(TARGET_SERVICE)
 	@pydtb release \
 		--loglevel $(DTB_LOGLEVEL) \
 		--config /workspace/ci/deployment/k8s/conf/environments.yaml \
