@@ -143,10 +143,7 @@ helm/deploy: docker/login
 	$(call assert-set,IBMCLOUD_API_KEY)
 	$(call assert-set,ENVIRONMENT)
 	$(call assert-set,TARGET_SERVICE)
-#	@helm dependency update /workspace/charts/$(TARGET_SERVICE)
-#	@helm repo add bitnami https://charts.bitnami.com/bitnami
-#	@helm repo add kuberay https://ray-project.github.io/kuberay-helm
-#	@helm dep build /workspace/charts/$(TARGET_SERVICE)
+	@helm template /workspace/charts/$(TARGET_SERVICE)
 #	@pydtb release \
 #		--loglevel $(DTB_LOGLEVEL) \
 #		--config /workspace/ci/deployment/k8s/conf/environments.yaml \
