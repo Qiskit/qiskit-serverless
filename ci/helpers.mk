@@ -130,6 +130,8 @@ helm/check: docker/login ## Helm check (template)
 .PHONY: helm/build
 helm/build: SHELL := /bin/bash
 helm/build:
+	@curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+	@helm version
 	@helm dep build charts/$(TARGET_SERVICE)
 
 .PHONY: helm/deploy
