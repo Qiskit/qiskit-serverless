@@ -87,7 +87,7 @@ If you are on a Mac machine, it is recommended to use [Colima](https://github.co
 ```bash
 brew install colima
 brew install docker
-colima start -- cpu 4 --memory 8
+colima start --cpu 4 --memory 8
 ```
 
 ### Deciding what to work on
