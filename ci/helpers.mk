@@ -143,11 +143,10 @@ helm/deploy: docker/login
 	$(call assert-set,IBMCLOUD_API_KEY)
 	$(call assert-set,ENVIRONMENT)
 	$(call assert-set,TARGET_SERVICE)
-	@helm template /workspace/charts/$(TARGET_SERVICE)
-#	@pydtb release \
-#		--loglevel $(DTB_LOGLEVEL) \
-#		--config /workspace/ci/deployment/k8s/conf/environments.yaml \
-#		--environment $(ENVIRONMENT) \
-#		--release $(TARGET_SERVICE) \
-#		--chart /workspace/charts/$(TARGET_SERVICE) \
-#		--values /workspace/ci/deployment/k8s/values/values-$(ENVIRONMENT).yaml
+	@pydtb release \
+		--loglevel $(DTB_LOGLEVEL) \
+		--config /workspace/ci/deployment/k8s/conf/environments.yaml \
+		--environment $(ENVIRONMENT) \
+		--release $(TARGET_SERVICE) \
+		--chart /workspace/charts/$(TARGET_SERVICE) \
+		--values /workspace/ci/deployment/k8s/values/values-$(ENVIRONMENT).yaml
