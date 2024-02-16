@@ -15,7 +15,7 @@ from unittest import TestCase
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
-from qiskit.providers.fake_provider import Fake20QV1, FakeBrooklynV2
+from qiskit.providers.fake_provider import Fake20QV1, GenericBackendV2
 
 from quantum_serverless import QuantumServerless
 from quantum_serverless.exception import QuantumServerlessException
@@ -32,7 +32,7 @@ class TestParallelTranspile(TestCase):
         circuit2 = random_circuit(5, 3)
 
         backend1 = Fake20QV1()
-        backend2 = FakeBrooklynV2()
+        backend2 = GenericBackendV2()
 
         with QuantumServerless().context():
             transpiled_circuits = parallel_transpile(
@@ -49,7 +49,7 @@ class TestParallelTranspile(TestCase):
         circuit1 = random_circuit(5, 3)
 
         backend1 = Fake20QV1()
-        backend2 = FakeBrooklynV2()
+        backend2 = GenericBackendV2()
 
         with QuantumServerless().context():
             # inconsistent number of circuits and backends
