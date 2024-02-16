@@ -32,7 +32,7 @@ class TestParallelTranspile(TestCase):
         circuit2 = random_circuit(5, 3)
 
         backend1 = Fake20QV1()
-        backend2 = GenericBackendV2()
+        backend2 = GenericBackendV2(num_qubits=5)
 
         with QuantumServerless().context():
             transpiled_circuits = parallel_transpile(
@@ -49,7 +49,7 @@ class TestParallelTranspile(TestCase):
         circuit1 = random_circuit(5, 3)
 
         backend1 = Fake20QV1()
-        backend2 = GenericBackendV2()
+        backend2 = GenericBackendV2(num_qubits=5)
 
         with QuantumServerless().context():
             # inconsistent number of circuits and backends
