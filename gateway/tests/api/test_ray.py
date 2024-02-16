@@ -61,7 +61,7 @@ class TestRayUtils(APITestCase):
             self.assertEqual(user.username, compute_resource.title)
             self.assertEqual(compute_resource.host, head_node_url)
             DynamicClient.resources.get.assert_called_once_with(
-                api_version="v1alpha1", kind="RayCluster"
+                api_version="v1", kind="RayCluster"
             )
 
     def test_kill_cluster(self):
@@ -78,9 +78,7 @@ class TestRayUtils(APITestCase):
 
         success = kill_ray_cluster("some_cluster")
         self.assertTrue(success)
-        DynamicClient.resources.get.assert_any_call(
-            api_version="v1alpha1", kind="RayCluster"
-        )
+        DynamicClient.resources.get.assert_any_call(api_version="v1", kind="RayCluster")
         DynamicClient.resources.get.assert_any_call(
             api_version="v1", kind="Certificate"
         )
