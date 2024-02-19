@@ -15,7 +15,7 @@ from unittest import TestCase
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
-from qiskit.providers.fake_provider import GenericBackendV2, GenericBackendV2
+from qiskit.providers.fake_provider import GenericBackendV2
 
 from quantum_serverless import QuantumServerless
 from quantum_serverless.exception import QuantumServerlessException
