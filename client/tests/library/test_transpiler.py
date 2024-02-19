@@ -31,8 +31,8 @@ class TestParallelTranspile(TestCase):
         circuit1 = random_circuit(5, 3)
         circuit2 = random_circuit(5, 3)
 
-        backend1 = GenericBackendV2()
-        backend2 = GenericBackendV2()
+        backend1 = GenericBackendV2(num_qubits=5)
+        backend2 = GenericBackendV2(num_qubits=5)
 
         with QuantumServerless().context():
             transpiled_circuits = parallel_transpile(
@@ -48,8 +48,8 @@ class TestParallelTranspile(TestCase):
         """Test failing cases for parallel transpile."""
         circuit1 = random_circuit(5, 3)
 
-        backend1 = GenericBackendV2()
-        backend2 = GenericBackendV2()
+        backend1 = GenericBackendV2(num_qubits=5)
+        backend2 = GenericBackendV2(num_qubits=5)
 
         with QuantumServerless().context():
             # inconsistent number of circuits and backends
