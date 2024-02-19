@@ -61,7 +61,8 @@ jobs:
             matplotlib==3.7.1 \
             pyscf==2.2.1 \
             scipy==1.10 \
-            qiskit-aer>=0.13.1 \
+            qiskit-ibm-provider==0.9.0 \
+            qiskit-aer==0.13.1 \
             certifi==2023.7.22
           pip install nbmake pytest
       - name: Run notebooks
