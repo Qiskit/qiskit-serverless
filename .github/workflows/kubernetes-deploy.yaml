@@ -57,12 +57,11 @@ jobs:
           pip install . --no-cache-dir
           pip install --no-cache-dir \
             ipywidgets==8.1.0 \
-            circuit-knitting-toolbox==0.2.0 \
+            circuit-knitting-toolbox>=0.6.0 \
             matplotlib==3.7.1 \
             pyscf==2.2.1 \
             scipy==1.10 \
-            qiskit-ibmq-provider==0.20.2 \
-            qiskit-aer==0.12.0 \
+            qiskit-aer>=0.13.1 \
             certifi==2023.7.22
           pip install nbmake pytest
       - name: Run notebooks
