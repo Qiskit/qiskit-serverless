@@ -3,7 +3,7 @@
 
 # Local helm dependencies
 # Commented line below due to problems with helm build
-# charts/**/*.tgz
+charts/**/*.tgz
 charts/values/**
 
 # .tfstate files

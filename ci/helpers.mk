@@ -127,14 +127,22 @@ helm/check: docker/login ## Helm check (template)
 		/workspace/charts/$(TARGET_SERVICE) \
 		--values /workspace/ci/deployment/k8s/values/values-$(ENVIRONMENT).yaml
 
+.PHONY: helm/build
+helm/build: SHELL := /bin/bash
+helm/build: # this step needs to be done outside DTB_SHELL due to permission problems with the volume
+	@curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+	@helm repo add bitnami https://charts.bitnami.com/bitnami
+	@helm repo add kuberay https://ray-project.github.io/kuberay-helm
+	@helm version
+	@helm dep build charts/$(TARGET_SERVICE)
+
 .PHONY: helm/deploy
+helm/deploy: helm/build
 helm/deploy: SHELL := $(DTB_SHELL)
 helm/deploy: docker/login
 	$(call assert-set,IBMCLOUD_API_KEY)
 	$(call assert-set,ENVIRONMENT)
 	$(call assert-set,TARGET_SERVICE)
-#	@helm dependency update /workspace/charts/$(TARGET_SERVICE)
-#	@helm dependency build /workspace/charts/$(TARGET_SERVICE)
 	@pydtb release \
 		--loglevel $(DTB_LOGLEVEL) \
 		--config /workspace/ci/deployment/k8s/conf/environments.yaml \
