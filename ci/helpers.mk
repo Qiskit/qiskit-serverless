@@ -129,7 +129,7 @@ helm/check: docker/login ## Helm check (template)
 
 .PHONY: helm/build
 helm/build: SHELL := /bin/bash
-helm/build:
+helm/build: # this step needs to be done outside DTB_SHELL due to permission problems with the volume
 	@curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 	@helm repo add bitnami https://charts.bitnami.com/bitnami
 	@helm repo add kuberay https://ray-project.github.io/kuberay-helm
