@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Optional
 
 import numpy as np
@@ -8,7 +7,7 @@ from scipy.optimize import minimize
 from qiskit import QuantumCircuit
 from qiskit.primitives import BaseEstimator, Estimator as QiskitEstimator
 from qiskit.quantum_info import SparsePauliOp
-from qiskit.circuit.library import QAOAAnsatz
+
 from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options
 
 from quantum_serverless import (
@@ -32,7 +31,6 @@ def cost_func(params, ansatz, hamiltonian, estimator):
     Returns:
         float: Energy estimate
     """
-    print(os.environ)
     cost = (
         estimator.run(ansatz, hamiltonian, parameter_values=params).result().values[0]
     )
@@ -52,25 +50,12 @@ def run_qaoa(
 
 
 if __name__ == "__main__":
-    arguments ={
-        'initial_point': None,
-        'operator': SparsePauliOp(
-            ['IIIZZ', 'IIZIZ', 'IZIIZ', 'ZIIIZ'],
-            coeffs=[1.+0.j, 1.+0.j, 1.+0.j, 1.+0.j]
-        ),
-        'backend': 'ibmq_qasm_simulator',
-    }
+    arguments = get_arguments()
 
-    service = QiskitRuntimeService(
-        channel='ibm_quantum',
-        instance='ibm-q/open/main',
-        token='45e8a763ccfb5a7a60e3b8cffd25677e866e2271214ea288fd0f68a996c8b027d91a769c9900cc3b41f2f1bd7e608be214a5d795c5d2fb5e9a5d420470a13b6e'
-    )
+    service = arguments.get("service")
 
     operator = arguments.get("operator")
-    ansatz = QAOAAnsatz(operator, reps=2)
-    ansatz = ansatz.decompose(reps=3)
-    ansatz.draw(fold=-1)
+    ansatz = arguments.get("ansatz")
     initial_point = arguments.get("initial_point")
     method = arguments.get("method", "COBYLA")
 
@@ -81,15 +66,11 @@ if __name__ == "__main__":
         # if we have service we need to open a session and create sampler
         service = arguments.get("service")
         backend = arguments.get("backend", "ibmq_qasm_simulator")
-        session = Session(service=service, backend=backend)
-        print("session")
-        print(session)
-        print(session.status())
-        options = Options()
-        options.optimization_level = 3
+        with Session(service=service, backend=backend) as session:
+            options = Options()
+            options.optimization_level = 3
 
-        estimator = Estimator(session=session, options=options)
-        print(session.status())
+            estimator = Estimator(session=session, options=options)
     else:
         # if we do not have a service let's use standart local sampler
         estimator = QiskitEstimator()
