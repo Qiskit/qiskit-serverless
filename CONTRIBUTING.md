@@ -79,15 +79,30 @@ You'll need to install these tools on your development environment:
 Note: Installing the `pip` and `venv` python libraries will also be useful
 
 #### For non-Linux users
+To simplify the steps required to build and deploy quantum-serverless, we recommend the use of virtual machines for runtime containers.
 
 If you are on a Windows machine, it is recommended to use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install).
 
-If you are on a Mac machine, it is recommended to use [Colima](https://github.com/abiosoft/colima), which can be set up as follows:
+If you are on a Mac machine, it is recommended to use [Colima](https://github.com/abiosoft/colima) to run docker and kubernetes container environments. It automatically installs [`containerd`](https://github.com/containerd/containerd) runtime and provides support for `nerdctl`, a CLI tool for `containerd`. Colima can be set up as follows:
 
 ```bash
 brew install colima
 brew install docker
-colima start -- cpu 4 --memory 8
+colima start --cpu 4 --memory 8
+```
+To check if colima is running:
+```bash
+colima status
+```
+
+To list running containers:
+```bash
+nerdctl ps -a
+```
+
+To list container images:
+```bash
+nerdctl images
 ```
 
 ### Deciding what to work on
