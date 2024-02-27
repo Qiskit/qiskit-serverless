@@ -147,6 +147,7 @@ data:
               #command: ["/bin/bash"]
               #args: ["-c", "while true; do ping localhost; sleep 60;done"]
               securityContext:
+                runAsGroup: 123
                 privileged: true
                 capabilities:
                   add: ["NET_ADMIN"]
@@ -449,6 +450,7 @@ data:
                   cpu: {{ .Values.application.ray.cpu }}
                   memory: {{ .Values.application.ray.memory }}Gi
               securityContext:
+                runAsGroup: 123
                 privileged: true
                 capabilities:
                   add: ["NET_ADMIN"]
