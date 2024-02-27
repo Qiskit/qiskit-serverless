@@ -13,13 +13,30 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include, re_path
 from django.views.generic import TemplateView
-from rest_framework import routers
-
+from rest_framework import routers, permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
 import probes.views
+
+schema = get_schema_view(  # pylint: disable=invalid-name
+    openapi.Info(
+        title="Gateway API",
+        default_version="v1",
+        description="List of available API endpoint for gateway.",
+    ),
+    public=True,
+    permission_classes=[permissions.AllowAny],
+    # Patterns to be included in the Swagger documentation
+    patterns=[
+        re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
+        # Add other included patterns if necessary
+    ],
+)
 
 router = routers.DefaultRouter()
 
@@ -30,6 +47,18 @@ urlpatterns = [
     path("liveness/", probes.views.liveness, name="liveness"),
     path("", include("django_prometheus.urls")),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
+    # docs
+    re_path(
+        r"^swagger(?P<format>\.json|\.yaml)$",
+        schema.without_ui(cache_timeout=0),
+        name="schema-json",
+    ),
+    re_path(
+        r"^swagger/$",
+        schema.with_ui("swagger", cache_timeout=0),
+        name="schema-swagger-ui",
+    ),
+    re_path(r"^redoc/$", schema.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
     path(
         "DomainVerification.html",
         TemplateView.as_view(template_name="DomainVerification.html"),

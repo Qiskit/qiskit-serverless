@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/4.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
+
 import os
 import os.path
 import sys
@@ -59,6 +60,7 @@ INSTALLED_APPS = [
     "allauth",
     "api",
     "psycopg2",
+    "drf_yasg",
 ]
 
 MIDDLEWARE = [
@@ -242,6 +244,17 @@ REST_AUTH = {
     # 'JWT_AUTH_REFRESH_COOKIE': 'gateway-refresh-token',
 }
 
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer Token": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+        },
+    },
+    "USE_SESSION_AUTH": False,
+}
+
 SITE_ID = 1
 SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
 
@@ -346,3 +359,8 @@ CSP_DEFAULT_SRC = "'none'"
 CSP_SCRIPT_SRC = "'none'"
 CSP_FRAME_ANCESTORS = "'self'"
 CSP_OBJECT_SRC = "'self'"
+CSP_IMG_SRC = ("'self'", "data:", "https://cdn.redoc.ly")
+CSP_STYLE_SRC_ELEM = ("'self'", "'unsafe-inline'")
+CSP_SCRIPT_SRC_ELEM = "'self'"
+CSP_CONNECT_SRC = "'self'"
+CSP_WORKER_SRC = ("'self'", "blob:")
