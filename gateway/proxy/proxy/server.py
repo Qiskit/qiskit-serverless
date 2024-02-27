@@ -29,19 +29,14 @@ def process_connection(connection):
         msg = parser.parse(headers)
         host = msg["Host"].split(":", -1)
         print(host[0])
-        #print(host[1])
-
 
         c_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        c_context.load_cert_chain(certfile="/etc/ray/tls/tls.crt", keyfile="/etc/ray/tls/tls.key")
-        c_context.load_verify_locations(cafile="/etc/ca/tls/ca.crt")
-    
+        c_context.load_verify_locations("cert.pem")
         client_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client = c_context.wrap_socket(client_s, server_hostname=HOST)
-        client_s.close()
+        client = c_context.wrap_socket(client_s, server_hostname=host[0])
 
         print("connecting backend")
-        client.connect((host[0], 9999))
+        client.connect((host[0], 443))
         print("eonnected")
         client.sendall(data)
         print("data sent to backend")
