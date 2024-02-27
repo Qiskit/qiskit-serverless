@@ -11,6 +11,7 @@ RUN apt-get -y update
 RUN apt-get install -y iptables
 RUN apt-get install -y tcpdump
 RUN pip install headerparser
+RUN pip install certifi
 COPY proxy .
 RUN chown -R 0:123 /usr/src/app
 

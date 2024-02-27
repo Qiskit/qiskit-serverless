@@ -2,6 +2,7 @@ import socket
 import ssl
 import headerparser
 import threading
+import certifi
 
 HOST = "127.0.0.1"
 PORT = 8443
@@ -31,7 +32,7 @@ def process_connection(connection):
         print(host[0])
 
         c_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        c_context.load_verify_locations("cert.pem")
+        c_context.load_verify_locations(certifi.where())
         client_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client = c_context.wrap_socket(client_s, server_hostname=host[0])
 
