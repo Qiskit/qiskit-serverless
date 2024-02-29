@@ -4,9 +4,15 @@ import headerparser
 import threading
 import certifi
 import gzip
+import json
 
 HOST = "127.0.0.1"
 PORT = 8443
+
+class Flag:
+    def __init__(self, request):
+        self.request = request
+        self.done = False
 
 def process_connection(connection):
     print("Recieving data")
@@ -34,13 +40,14 @@ def process_connection(connection):
     print("connected")
     client.sendall(data)
     print("data sent to backend")
-    t = threading.Thread(target=process_from_backend, args=(client, connection, ))
+    flag = Flag(False)
+    t = threading.Thread(target=process_from_backend, args=(client, connection, flag, ))
     t.start()
-    t = threading.Thread(target=process_from_program, args=(connection, client, ))
+    t = threading.Thread(target=process_from_program, args=(connection, client, flag,  ))
     t.start()
     print("piping threads created")
 
-def process_from_backend(client, connection):
+def process_from_backend(client, connection, flag):
     parser = headerparser.HeaderParser()
     parser.add_field('Content-Type', required=False)
     parser.add_field('Transfer-Encoding', required=False)
@@ -58,6 +65,9 @@ def process_from_backend(client, connection):
         print("data received from backend")
         #print(f"Received: {data}")
         connection.send(data)
+        print(flag.request)
+        if not flag.request or flag.done:
+            continue
         alldata = alldata+data
         if in_header :
             _, headers = alldata.split(b'\x0d\x0a', 1)
@@ -74,13 +84,17 @@ def process_from_backend(client, connection):
             # print(alldata)
             if "Content-Encoding" in msg and msg["Content-Encoding"] == "gzip":
                 print(gzip.decompress(alldata.split(b'\r\n\r\n',2)[1].split(b'\r\n',2)[1]))
+                if flag.request:
+                    jsondata = json.loads(gzip.decompress(alldata.split(b'\r\n\r\n',2)[1].split(b'\r\n',2)[1]).decode("utf-8"))
+                    print(f"ID: {jsondata['id']}")
+                    flag.done = True
             if not "Connection" in msg or not msg["Connection"] == "keep-alive":
                 break
             in_header = True
             alldata = b''
     print("receive from backend completed")
 
-def process_from_program(connection, client):
+def process_from_program(connection, client, flag):
     while True:
         data = connection.recv(1024)
         if not data:
@@ -89,6 +103,11 @@ def process_from_program(connection, client):
         print("data received from program")
         print(f"Received: {data}")
         client.sendall(data)
+        if flag.done:
+            continue
+        if data.find(b'POST /runtime/jobs') != -1:
+            flag.request = True
+        print(flag.request)
     print("receive from program completed")
 
 if __name__ == "__main__":
