@@ -1,0 +1,173 @@
+entrypoint.sh
+/usr/src/app
+total 16
+-rw-r--r-- 1 root 123 5814 Feb 28 23:03 #a#
+-rwxr-xr-x 1 root 123  715 Feb 27 01:29 entrypoint.sh
+-rw-r--r-- 1 root 123 3934 Feb 29 01:55 server.py
+0
+123
+waiting for new connection
+new connection
+Recieving data
+Received: b'GET /api/Network HTTP/1.1\r\nHost: api-qcon.quantum.ibm.com\r\nUser-Agent: python-requests/2.31.0\r\nAccept-Encoding: gzip, deflate, br\r\nAccept: */*\r\nConnection: keep-alive\r\nX-Qx-Client-Application: qiskit/0.45.2\r\nX-Access-Token: <fake>\r\n\r\n'
+api-qcon.quantum.ibm.com
+waiting for new connection
+connecting backend
+connected
+data sent to backend
+piping threads created
+data received from backend
+Received header from backend: Date: Thu, 29 Feb 2024 02:16:01 GMT
+Content-Type: application/json; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+x-xss-protection: 0
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=15552000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+surrogate-control: no-store
+cache-control: no-store, no-cache, must-revalidate, proxy-revalidate
+pragma: no-cache
+expires: 0
+vary: Origin, Accept-Encoding
+access-control-allow-credentials: true
+access-control-expose-headers: x-total-count
+uber-trace-id: de2596dfb145f419:de2596dfb145f419:0:1
+content-security-policy: font-src 'self' https: data: https://1.www.s81c.com;frame-src 'self' https://prepiam.ice.ibmcloud.com https://login.ibm.com;script-src 'self' 'nonce-5946c699-8a0e-4a3c-a657-0b1f40570118';default-src 'self';base-uri 'self';block-all-mixed-content;frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src-attr 'none';style-src 'self' https: 'unsafe-inline'
+x-dns-prefetch-control: off
+expect-ct: max-age=0
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-ratelimit-limit: 50
+x-ratelimit-remaining: 49
+x-ratelimit-reset: 1709172962
+etag: W/"afb-v79KWDymwZ6BAZiwJAMGvEBuZVs"
+content-encoding: gzip
+x-envoy-upstream-service-time: 151
+CF-Cache-Status: DYNAMIC
+Server: clou
+data received from backend
+data received from backend
+end of chunked data received from backend
+b'[{"name":"ibm-quantum-lear","title":"IBM Quantum Learning Demo","description":"This hub is for access control for content testing","creationDate":"2023-05-05T19:55:37.921Z","deleted":false,"private":false,"licenseNotRequired":false,"isDefault":false,"analytics":true,"class":"Premium","priority":1,"id":"64555f39ba1af281ee4150f9","groups":{"early-access":{"title":"Early Access","description":"This group is for early access for courses","creationDate":"2023-09-06T14:15:03.938Z","priority":1,"name":"early-access","projects":{"quantum-safe-1":{"title":"Quantum Safe 1","description":"Early access to Practical Introduction to Quantum Safe Cryptography","creationDate":"2023-09-06T14:16:03.166Z","priority":1,"name":"quantum-safe-1","users":{"636d49345c1c6d779cac67f2":{"deleted":false,"email":"akuroda@us.ibm.com","name":"Akihiko Kuroda","dateJoined":"2023-09-11T17:28:11.811Z"}}}}}}},{"name":"ibm-q","title":"IBM Quantum","description":"Open access quantum systems. Jobs sent to these systems are processed in the United States.","creationDate":"2019-05-05T00:28:10.601Z","deleted":false,"private":false,"licenseNotRequired":false,"isDefault":true,"analytics":false,"class":"Open","priority":90000,"id":"5cce18331b339b17b4734f98","ownerId":"5b27a47e8551ba667d96c787","device":["ibmqx4","ibmqx2","ibmq_qasm_simulator"],"groups":{"open":{"name":"open","title":"open","isDefault":true,"description":"","creationDate":"2019-05-05T00:28:30.040Z","deleted":false,"projects":{"main":{"name":"main","title":"main","isDefault":true,"description":"","creationDate":"2019-05-05T00:28:49.312Z","deleted":false,"devices":{"5ae875670f020500393162ad":{"priority":1,"name":"ibmq_qasm_simulator","deleted":false,"configuration":{"capabilities":{}}},"60427bc8fd7d013b65e51e2c":{"priority":1,"name":"simulator_extended_stabilizer","deleted":false,"configuration":{"capabilities":{"openPulse":false},"limit":-1}},"60427b82fd7d013b65e51e2b":{"priority":1,"name":"simulator_mps","deleted":false,"configuration":{"capabilities":{"openPulse":false},"limit":-1}},"60427b19fd7d013b65e51e2a":{"priority":1,"name":"simulator_statevector","deleted":false,"configuration":{"capabilities":{"openPulse":false},"limit":-1}},"60427c0cfd7d013b65e51e2d":{"priority":1,"name":"simulator_stabilizer","deleted":false,"configuration":{"capabilities":{"openPulse":false},"limit":-1}},"63cfbfe96b8599358a44ca27":{"priority":1,"name":"ibm_brisbane","deleted":false,"configuration":{"capabilities":{"openPulse":true},"limit":-1}},"653bbb656b1bf3d90a0e2ee1":{"priority":1,"name":"ibm_kyoto","deleted":false,"configuration":{"capabilities":{"openPulse":true},"limit":-1}},"653f8074d1e19f8193fd1f9b":{"priority":1,"name":"ibm_osaka","deleted":false,"configuration":{"capabilities":{"openPulse":true},"limit":-1}}},"priority":1,"users":{}}},"priority":1}}}]'
+receive from backend completed
+new connection
+Recieving data
+Received: b'GET /runtime/backends?provider=ibm-q%2Fopen%2Fmain HTTP/1.1\r\nHost: api.quantum.ibm.com\r\nUser-Agent: python-requests/2.31.0\r\nAccept-Encoding: gzip, deflate, br\r\nAccept: */*\r\nConnection: keep-alive\r\nX-Qx-Client-Application: qiskit-version-2/qiskit_ibm_runtime-0.18.0,qiskit_terra-0.45.2/qiskit\r\nX-Access-Token: <fake>\r\n\r\n'
+api.quantum.ibm.com
+waiting for new connection
+connecting backend
+connected
+data sent to backend
+piping threads created
+data received from backend
+Received header from backend: Date: Thu, 29 Feb 2024 02:16:03 GMT
+Content-Type: application/json; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+content-security-policy: default-src 'self' https://cdnjs.cloudflare.com data:; frame-ancestors 'none'; form-action 'self'
+cross-origin-embedder-policy: require-corp
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+x-dns-prefetch-control: off
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=15724800; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+origin-agent-cluster: ?1
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 1
+access-control-allow-origin: *
+correlation-id: cnfuhom6ll0enki0tmng
+x-envoy-upstream-service-time: 627
+cf-cache-status: DYNAMIC
+content-encoding: gzip
+Server: cloudflare
+CF-RAY: 85cd67289e44825a-IAD
+data received from backend
+end of chunked data received from backend
+b'{"devices":["simulator_stabilizer","ibm_brisbane","ibm_kyoto","ibm_osaka","ibmq_qasm_simulator","simulator_extended_stabilizer","simulator_mps","simulator_statevector"]}'
+receive from backend completed
+new connection
+Recieving datawaiting for new connection
+
+Received: b'GET /runtime/backends?provider=ibm-quantum-lear%2Fearly-access%2Fquantum-safe-1 HTTP/1.1\r\nHost: api.quantum.ibm.com\r\nUser-Agent: python-requests/2.31.0\r\nAccept-Encoding: gzip, deflate, br\r\nAccept: */*\r\nConnection: keep-alive\r\nX-Qx-Client-Application: qiskit-version-2/qiskit_ibm_runtime-0.18.0,qiskit_terra-0.45.2/qiskit\r\nX-Access-Token: <fake>\r\n\r\n'
+api.quantum.ibm.com
+connecting backend
+connected
+data sent to backend
+piping threads created
+data received from backend
+Received header from backend: Date: Thu, 29 Feb 2024 02:16:03 GMT
+Content-Type: application/json; charset=utf-8
+Content-Length: 16
+Connection: keep-alive
+content-security-policy: default-src 'self' https://cdnjs.cloudflare.com data:; frame-ancestors 'none'; form-action 'self'
+cross-origin-embedder-policy: require-corp
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+x-dns-prefetch-control: off
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=15724800; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+origin-agent-cluster: ?1
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 1
+access-control-allow-origin: *
+correlation-id: cnfuhor3gjubrg2vkgc0
+x-envoy-upstream-service-time: 93
+cf-cache-status: DYNAMIC
+Server: cloudflare
+CF-RAY: 85cd672dba990602-IAD
+Received: b'HTTP/1.1 200 OK\r\nDate: Thu, 29 Feb 2024 02:16:03 GMT\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: 16\r\nConnection: keep-alive\r\ncontent-security-policy: default-src \'self\' https://cdnjs.cloudflare.com data:; frame-ancestors \'none\'; form-action \'self\'\r\ncross-origin-embedder-policy: require-corp\r\ncross-origin-opener-policy: same-origin\r\ncross-origin-resource-policy: same-origin\r\nx-dns-prefetch-control: off\r\nx-frame-options: SAMEORIGIN\r\nstrict-transport-security: max-age=15724800; includeSubDomains\r\nx-download-options: noopen\r\nx-content-type-options: nosniff\r\norigin-agent-cluster: ?1\r\nx-permitted-cross-domain-policies: none\r\nreferrer-policy: no-referrer\r\nx-xss-protection: 1\r\naccess-control-allow-origin: *\r\ncorrelation-id: cnfuhor3gjubrg2vkgc0\r\nx-envoy-upstream-service-time: 93\r\ncf-cache-status: DYNAMIC\r\nServer: cloudflare\r\nCF-RAY: 85cd672dba990602-IAD\r\n\r\n{"devices":null}'
+new connection
+Recieving data
+Received: b'GET /runtime/backends/ibmq_qasm_simulator/configuration HTTP/1.1\r\nHost: api.quantum.ibm.com\r\nUser-Agent: python-requests/2.31.0\r\nAccept-Encoding: gzip, deflate, br\r\nAccept: */*\r\nConnection: keep-alive\r\nX-Qx-Client-Application: qiskit-version-2/qiskit_ibm_runtime-0.18.0,qiskit_terra-0.45.2/qiskit_ibm_runtime~estimator.py\r\nX-Access-Token: <fake>\r\n\r\n'
+api.quantum.ibm.com
+waiting for new connection
+connecting backend
+connected
+data sent to backend
+piping threads created
+data received from backend
+Received header from backend: Date: Thu, 29 Feb 2024 02:16:04 GMT
+Content-Type: application/json; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+content-security-policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests
+cross-origin-embedder-policy: require-corp
+cross-origin-opener-policy: same-origin
+cross-origin-resource-policy: same-origin
+x-dns-prefetch-control: off
+x-frame-options: SAMEORIGIN
+strict-transport-security: max-age=15552000; includeSubDomains
+x-download-options: noopen
+x-content-type-options: nosniff
+origin-agent-cluster: ?1
+x-permitted-cross-domain-policies: none
+referrer-policy: no-referrer
+x-xss-protection: 0
+access-control-allow-origin: *
+x-ratelimit-limit: 1000
+x-ratelimit-remaining: 998
+x-ratelimit-reset: 60
+etag: W/"22ba-ZwaFdARLO77UwXP10V4Qzo3rhgA"
+x-envoy-upstream-service-time: 286
+CF-Cache-Status: DYNAMIC
+Server: cloudflare
+CF-RAY: 85cd672f6a16073e-IAD
+Content-Encoding: gzip
+data received from backend
+data received from backend
+data received from backend
+end of chunked data received from backend
+b'{"backend_name":"ibmq_qasm_simulator","coupling_map":null,"backend_version":"0.1.547","n_qubits":32,"basis_gates":["u1","u2","u3","u","p","r","rx","ry","rz","id","x","y","z","h","s","sdg","sx","t","tdg","swap","cx","cy","cz","csx","cp","cu1","cu2","cu3","rxx","ryy","rzz","rzx","ccx","cswap","mcx","mcy","mcz","mcsx","mcp","mcu1","mcu2","mcu3","mcrx","mcry","mcrz","mcr","mcswap","unitary","diagonal","multiplexer","initialize","kraus","roerror","delay"],"gates":[{"name":"u1","parameters":["lam"],"conditional":true,"description":"Single-qubit gate [[1, 0], [0, exp(1j*lam)]]","qasm_def":"gate u1(lam) q { U(0,0,lam) q; }"},{"name":"u2","parameters":["phi","lam"],"conditional":true,"description":"Single-qubit gate [[1, -exp(1j*lam)], [exp(1j*phi), exp(1j*(phi+lam))]]/sqrt(2)","qasm_def":"gate u2(phi,lam) q { U(pi/2,phi,lam) q; }"},{"name":"u3","parameters":["theta","phi","lam"],"conditional":true,"description":"Single-qubit gate with three rotation angles","qasm_def":"gate u3(theta,phi,lam) q { U(theta,phi,lam) q; }"},{"name":"u","parameters":["theta","phi","lam"],"conditional":true,"description":"Single-qubit gate with three rotation angles","qasm_def":"gate u(theta,phi,lam) q { U(theta,phi,lam) q; }"},{"name":"p","parameters":["lam"],"conditional":true,"description":"Single-qubit rotation about the Z axis","qasm_def":"gate p(lam) q { U(0,0,lam) q; }"},{"name":"r","parameters":["theta","phi"],"conditional":true,"description":"Rotation around an axis in x-y plane","qasm_def":"gate r(theta,phi) q { U(theta,phi-pi/2,-phi+pi/2) q; }"},{"name":"rx","parameters":["theta"],"conditional":true,"description":"Rotation around the X axis","qasm_def":"gate rx(theta) q { U(theta,-pi/2,pi/2) q; }"},{"name":"ry","parameters":["theta"],"conditional":true,"description":"Rotation around the Y axis","qasm_def":"gate ry(theta) q { U(theta,0,0) q; }"},{"name":"rz","parameters":["phi"],"conditional":true,"description":"Rotation around the Z axis","qasm_def":"gate rz(phi) q { U(0,0,phi) q; }"},{"name":"cx","parameters":[],"conditional":true,"description":"Two-qubit Controlled-NOT gate","qasm_def":"gate cx c,t { CX c,t; }"},{"name":"cy","parameters":[],"conditional":true,"description":"Two-qubit Controlled-Y gate","qasm_def":"gate cy a,b { U(0,0,-pi/2) b; CX a,b; U(0,0,pi/2) b; }"},{"name":"cz","parameters":[],"conditional":true,"description":"Two-qubit Controlled-Z gate","qasm_def":"gate cz a,b { U(pi/2,0,pi) b; CX a,b; U(pi/2,0,pi) b; }"},{"name":"csx","parameters":[],"conditional":true,"description":"Two-qubit Controlled Sqrt(X) gate","qasm_def":"gate csx a,b { U(pi/2,0,pi) b; CX a,b; U(pi/2,0,pi) b; U(0,0,lam/2) a; CX a,b; U(0,0,-lam/2) b; CX a,b; U(0,0,lam/2) b; U(pi/2,0,pi) b; }"},{"name":"cp","parameters":[],"conditional":true,"description":"Controlled-Phase gate","qasm_def":"gate cp(theta) a,b { U(0,0,theta/2) a; CX a,b; U(0,0,-theta/2) b; CX a,b; U(0,0,theta/2) b; }"},{"name":"id","parameters":[],"conditional":true,"description":"Single-qubit identity gate","qasm_def":"gate id a { U(0,0,0) a; }"},{"name":"x","parameters":[],"conditional":true,"description":"Single-qubit Pauli-X gate","qasm_def":"gate x a { U(pi,0,pi) a; }"},{"name":"y","parameters":[],"conditional":true,"description":"Single-qubit Pauli-Y gate","qasm_def":"gate y a { U(pi,pi/2,pi/2) a; }"},{"name":"z","parameters":[],"conditional":true,"description":"Single-qubit Pauli-Z gate","qasm_def":"gate z a { U(0,0,pi) a; }"},{"name":"h","parameters":[],"conditional":true,"description":"Single-qubit Hadamard gate","qasm_def":"gate h q { U(pi/2,0,pi) q; }"},{"name":"s","parameters":[],"conditional":true,"description":"Single-qubit phase gate","qasm_def":"gate s q { U(0,0,pi/2) q; }"},{"name":"sdg","parameters":[],"conditional":true,"description":"Single-qubit adjoint phase gate","qasm_def":"gate sdg q { U(0,0,-pi/2) q; }"},{"name":"sx","parameters":[],"conditional":true,"description":"Single-qubit Sqrt(X) gate","qasm_def":"gate sx q { U(pi/2,-pi/2,pi/2) q; }"},{"name":"t","parameters":[],"conditional":true,"description":"Single-qubit T gate","qasm_def":"gate t q { U(0,0,pi/4) q; }"},{"name":"tdg","parameters":[],"conditional":true,"description":"Single-qubit adjoint T gate","qasm_def":"gate t q { U(0,0,-pi/4) q; }"},{"name":"swap","parameters":[],"conditional":true,"description":"Two-qubit SWAP gate","qasm_def":"TODO"},{"name":"ccx","parameters":[],"conditional":true,"description":"Three-qubit Toffoli gate","qasm_def":"TODO"},{"name":"cswap","parameters":[],"conditional":true,"description":"Three-qubit Fredkin (controlled-SWAP) gate","qasm_def":"TODO"},{"name":"unitary","parameters":["matrix"],"conditional":true,"description":"N-qubit unitary gate. The parameter is the N-qubit matrix to apply.","qasm_def":"unitary(matrix) q1, q2,..."},{"name":"diagonal","parameters":["diag_elements"],"conditional":true,"description":"N-qubit diagonal unitary gate. The parameters are the diagonal entries of the N-qubit matrix to apply.","qasm_def":"TODO"},{"name":"initialize","parameters":["vector"],"conditional":false,"description":"N-qubit state initialize. Resets qubits then sets statevector to the parameter vector.","qasm_def":"initialize(vector) q1, q2,..."},{"name":"cu1","parameters":["lam"],"conditional":true,"description":"Two-qubit Controlled-u1 gate","qasm_def":"gate cu1(lam) a,b { U(0,0,lam/2) a; CX a,b; U(0,0,-lam/2) b; CX a,b; U(0,0,lam/2) b; }"},{"name":"cu2","parameters":["phi","lam"],"conditional":true,"description":"Two-qubit Controlled-u2 gate","qasm_def":"TODO"},{"name":"cu3","parameters":["theta","phi","lam"],"conditional":true,"description":"Two-qubit Controlled-u3 gate","qasm_def":"TODO"},{"name":"rxx","parameters":["theta"],"conditional":true,"description":"Two-qubit XX-rotation gate","qasm_def":"gate rxx a,b { U(pi/2,0,pi) a; U(pi/2,0,pi) b; CX a,b; U(0,0,phi) b; CX a,b; U(pi/2,0,pi) b; U(pi/2,0,pi) a; }"},{"name":"ryy","parameters":["theta"],"conditional":true,"description":"Two-qubit YY-rotation gate","qasm_def":"gate ryy a,b { U(pi/2,-pi/2,pi/2) a; U(pi/2,-pi/2,pi/2) b; CX a,b; U(0,0,theta) q; CX a,b; U(-pi/2,-pi/2,pi/2) a; U(-pi/2,-pi/2,pi/2) b; }"},{"name":"rzz","parameters":["theta"],"conditional":true,"description":"Two-qubit ZZ-rotation gate","qasm_def":"gate rzz a,b { CX a,b; U(0,0,theta) b; CX a,b; }"},{"name":"rzx","parameters":["theta"],"conditional":true,"description":"Two-qubit ZX-rotation gate","qasm_def":"gate rzx a,b { U(pi/2,0,pi) b; CX a,b; U(0,0,theta) b; CX a,b; U(pi/2,0,pi) b; }"},{"name":"mcx","parameters":[],"conditional":true,"description":"N-qubit multi-controlled-X gate","qasm_def":"TODO"},{"name":"mcy","parameters":[],"conditional":true,"description":"N-qubit multi-controlled-Y gate","qasm_def":"TODO"},{"name":"mcz","parameters":[],"conditional":true,"description":"N-qubit multi-controlled-Z gate","qasm_def":"TODO"},{"name":"mcsx","parameters":[],"conditional":true,"description":"","qasm_def":"TODO"},{"name":"mcp","parameters":["lam"],"conditional":true,"description":"Multi-controlled-Phase gate","qasm_def":"TODO"},{"name":"mcu1","parameters":["lam"],"conditional":true,"description":"N-qubit multi-controlled-u1 gate","qasm_def":"TODO"},{"name":"mcu2","parameters":["phi","lam"],"conditional":true,"description":"N-qubit multi-controlled-u2 gate","qasm_def":"TODO"},{"name":"mcu3","parameters":["theta","phi","lam"],"conditional":true,"description":"N-qubit multi-controlled-u3 gate","qasm_def":"TODO"},{"name":"mcrx","parameters":["theta"],"conditional":true,"description":"Multiple-Controlled X rotation gate","qasm_def":"TODO"},{"name":"mcry","parameters":["theta"],"conditional":true,"description":"Multiple-Controlled Y rotation gate","qasm_def":"TODO"},{"name":"mcrz","parameters":["theta"],"conditional":true,"description":"Multiple-Controlled Z rotation gate","qasm_def":"TODO"},{"name":"mcr","parameters":[],"conditional":true,"description":"Multiple-Controlled rotation gate","qasm_def":"TODO"},{"name":"mcswap","parameters":[],"conditional":true,"description":"N-qubit multi-controlled-SWAP gate","qasm_def":"TODO"},{"name":"multiplexer","parameters":["mat1","mat2","..."],"conditional":true,"description":"N-qubit multi-plexer gate. The input parameters are the gates for each value.","qasm_def":"TODO"},{"name":"kraus","parameters":["mat1","mat2","..."],"conditional":true,"description":"N-qubit Kraus error instruction. The input parameters are the Kraus matrices.","qasm_def":"TODO"},{"name":"delay","parameters":[],"conditional":true,"description":"Delay instruction","qasm_def":"TODO"},{"name":"roerror","parameters":["matrix"],"conditional":false,"description":"N-bit classical readout error instruction. The input parameter is the readout error probability matrix.","qasm_def":"TODO"}],"local":false,"simulator":true,"conditional":true,"open_pulse":false,"online_date":"2019-05-02T08:15:00Z","max_shots":100000,"memory":true,"max_experiments":300,"allow_q_object":true}'
+receive from backend completed
+no data
+receive from program completed
+data received from program
+Received: b'GET /runtime/backends/ibmq_qasm_simulator/status HTTP/1.1\r\nHost: api.quantum.ibm.com\r\nUser-Agent: python-requests/2.31.0\r\nAccept-Encoding: gzip, deflate, br\r\nAccept: */*\r\nConnection: keep-alive\r\nX-Qx-Client-Application: qiskit-version-2/qiskit_ibm_runtime-0.18.0,qiskit_terra-0.45.2/qiskit_ibm_runtime~estimator.py\r\nX-Access-Token: <fake>\r\n\r\n'
