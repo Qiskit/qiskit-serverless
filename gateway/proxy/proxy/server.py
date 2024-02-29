@@ -74,8 +74,10 @@ def process_from_backend(client, connection):
             # print(alldata)
             if "Content-Encoding" in msg and msg["Content-Encoding"] == "gzip":
                 print(gzip.decompress(alldata.split(b'\r\n\r\n',2)[1].split(b'\r\n',2)[1]))
-            if not "Connection" in msg or not msg["Connection"] == "keep-active":
+            if not "Connection" in msg or not msg["Connection"] == "keep-alive":
                 break
+            in_header = True
+            alldata = b''
     print("receive from backend completed")
 
 def process_from_program(connection, client):
