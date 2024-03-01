@@ -5,6 +5,7 @@ import threading
 import certifi
 import gzip
 import json
+import requests
 
 HOST = "127.0.0.1"
 PORT = 8443
@@ -13,6 +14,7 @@ class Flag:
     def __init__(self, request):
         self.request = request
         self.done = False
+        self.id = None
 
 def process_connection(connection):
     print("Recieving data")
@@ -24,11 +26,18 @@ def process_connection(connection):
     print(f"Received: {data}")
     parser = headerparser.HeaderParser()
     parser.add_field('Host', required=True)
+    parser.add_field('X-Qx-Client-Application', required=False)
     parser.add_additional()
     _, headers = data.decode('utf-8').split('\r\n', 1)
     msg = parser.parse(headers)
     host = msg["Host"].split(":", -1)
     print(host[0])
+    flag = Flag(False)
+    if "X-Qx-Client-Application" in msg:
+        pos = msg["X-Qx-Client-Application"].find("middleware_job_id")
+        if pos != -1:
+            flag.id = msg["X-Qx-Client-Application"][pos+len("middleware_job_id/"):pos+len("middleware_job_id/")+36]
+            print(flag.id)
 
     c_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     c_context.load_verify_locations(certifi.where())
@@ -40,7 +49,6 @@ def process_connection(connection):
     print("connected")
     client.sendall(data)
     print("data sent to backend")
-    flag = Flag(False)
     t = threading.Thread(target=process_from_backend, args=(client, connection, flag, ))
     t.start()
     t = threading.Thread(target=process_from_program, args=(connection, client, flag,  ))
@@ -86,7 +94,13 @@ def process_from_backend(client, connection, flag):
                 print(gzip.decompress(alldata.split(b'\r\n\r\n',2)[1].split(b'\r\n',2)[1]))
                 if flag.request:
                     jsondata = json.loads(gzip.decompress(alldata.split(b'\r\n\r\n',2)[1].split(b'\r\n',2)[1]).decode("utf-8"))
-                    print(f"ID: {jsondata['id']}")
+                    print(f"job id: {jsondata['id']}")
+                    print(f"middleware job id: {flag.id}")
+                    token = "awesome_token"
+                    headers =  {"Content-Type":"application/json", "Authorization": f"Bearer {token}"}
+                    print("Issue add_runtimejob")
+                    r = requests.post(f"http://gateway:8000/api/v1/jobs/{flag.id}/add_runtimejob/", headers = headers, json = {"runtime_job": jsondata['id']})
+                    print(r)
                     flag.done = True
             if not "Connection" in msg or not msg["Connection"] == "keep-alive":
                 break
