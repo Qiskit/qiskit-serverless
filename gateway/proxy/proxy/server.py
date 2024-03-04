@@ -13,7 +13,6 @@ PORT = 8443
 class Flag:
     def __init__(self, request):
         self.request = request
-        self.done = False
         self.id = None
 
 def process_connection(connection):
@@ -74,7 +73,7 @@ def process_from_backend(client, connection, flag):
         #print(f"Received: {data}")
         connection.send(data)
         print(flag.request)
-        if not flag.request or flag.done:
+        if not flag.request:
             continue
         alldata = alldata+data
         if in_header :
@@ -101,7 +100,7 @@ def process_from_backend(client, connection, flag):
                     print("Issue add_runtimejob")
                     r = requests.post(f"http://gateway:8000/api/v1/jobs/{flag.id}/add_runtimejob/", headers = headers, json = {"runtime_job": jsondata['id']})
                     print(r)
-                    flag.done = True
+                    flag.request = False
             if not "Connection" in msg or not msg["Connection"] == "keep-alive":
                 break
             in_header = True
@@ -117,8 +116,6 @@ def process_from_program(connection, client, flag):
         print("data received from program")
         print(f"Received: {data}")
         client.sendall(data)
-        if flag.done:
-            continue
         if data.find(b'POST /runtime/jobs') != -1:
             flag.request = True
         print(flag.request)
@@ -140,7 +137,11 @@ if __name__ == "__main__":
 
     while True:
         print("waiting for new connection")
-        connection, client_address = server.accept()
+        try:
+            connection, client_address = server.accept()
+        except ssl.SSLError as e:
+            print(e)
+            continue
         print("new connection")
         t = threading.Thread(target=process_connection, args=(connection, ))
         t.start()
