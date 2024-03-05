@@ -96,7 +96,9 @@ class JobHandler:
                 pass
 
             env = decrypt_env_vars(env_w_span)
-            env["QISKIT_IBM_RUNTIME_CUSTOM_CLIENT_APP_HEADER"] = "middleware_job_id/" + str(job.id) 
+            env[
+                "QISKIT_IBM_RUNTIME_CUSTOM_CLIENT_APP_HEADER"
+            ] = "middleware_job_id/" + str(job.id)
             ray_job_id = retry_function(
                 callback=lambda: self.client.submit_job(
                     entrypoint=entrypoint,
