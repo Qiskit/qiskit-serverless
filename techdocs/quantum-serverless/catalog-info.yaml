@@ -1,0 +1,101 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: quantum-serverless
+  title: Quantum Serverless
+  description: Quantum Serverless is a set of tools that enable you to easily run complex quantum computing tasks.
+  annotations:
+    github.com/project-slug: IBM-Q-Software/quantum-serverless
+    # backstage.io/techdocs-ref: dir:techdocs/quantum-serverless
+spec:
+  owner: vt-middleware
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: gateway-production-psql
+spec:
+  type: postgresql
+  lifecycle: experimental
+  owner: vt-middleware
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: gateway-staging-psql
+spec:
+  type: postgresql
+  owner: vt-middleware
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: middleware-programs-prod
+spec:
+  type: cos-bucket
+  lifecycle: experimental
+  owner: vt-middleware
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: middleware-programs-nonprod
+spec:
+  type: cos-bucket
+  owner: vt-middleware
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: middleware-prod
+spec:
+  type: kubernetes-cluster
+  lifecycle: experimental
+  owner: vt-middleware
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: middleware-nonprod
+spec:
+  type: kubernetes-cluster
+  owner: vt-middleware
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: quantum-serverless
+  annotations:
+    github.com/project-slug: IBM-Q-Software/quantum-serverless
+  links:
+    - url: https://middleware-dev.quantum-computing.ibm.com/api/v1
+      title: Quantum Serverless Gateway API for development
+    - url: https://middleware.quantum-computing.ibm.com/api/v1
+      title: Quantum Serverless Gateway API for production
+spec:
+  type: service
+  lifecycle: experimental
+  owner: vt-middleware
+  dependsOn:
+    - resource:default/gateway-production-psql
+    - resource:default/gateway-staging-psql
+    - resource:default/middleware-programs-prod
+    - resource:default/middleware-programs-nonprod
+    - resource:default/middleware-nonprod
+    - resource:default/middleware-prod
+---
+# apiVersion: backstage.io/v1alpha1
+# kind: API
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: quantum-serverless-client
+  annotations:
+    github.com/project-slug: IBM-Q-Software/quantum-serverless
+  links:
+    - url: https://pypi.org/project/quantum-serverless/
+      title: PyPI reference
+spec:
+  type: library
+  lifecycle: experimental
+  owner: vt-middleware

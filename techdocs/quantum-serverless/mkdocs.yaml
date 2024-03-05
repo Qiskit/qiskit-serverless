@@ -1,0 +1,11 @@
+site_name: 'Quantum Serverless'
+site_description: 'Quantum Serverless'
+
+repo_url: https://github.ibm.com/IBM-Q-Software/quantum-serverless/
+edit_uri: edit/master/techdocs/quantum-serverless/docs/
+
+nav:
+  - index.md
+
+plugins:
+  - techdocs-core
