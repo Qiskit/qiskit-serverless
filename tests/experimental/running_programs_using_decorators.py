@@ -5,7 +5,7 @@ from source_files.circuit_utils import create_hello_world_circuit
 from qiskit import QuantumCircuit
 from qiskit.primitives import Sampler
 from qiskit.circuit.random import random_circuit
-from quantum_serverless import distribute_qiskit_pattern, distribute_task, get, ServerlessProvider
+from quantum_serverless import ServerlessProvider, distribute_qiskit_pattern, distribute_task, get
 
 
 provider = ServerlessProvider(
