@@ -11,7 +11,9 @@ serverless = ServerlessProvider(
 print(serverless)
 
 pattern = QiskitPattern(
-    title="my-first-pattern", entrypoint="pattern.py", working_dir="./source_files/"
+    title="my-first-pattern",
+    entrypoint="pattern.py",
+    working_dir="./source_files/",
 )
 serverless.upload(pattern)
 job = serverless.run("my-first-pattern")
