@@ -9,6 +9,7 @@ metadata:
     # backstage.io/techdocs-ref: dir:techdocs/quantum-serverless
 spec:
   owner: vt-middleware
+  domain: vt-middleware
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource

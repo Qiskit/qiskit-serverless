@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: vt-middleware
+  title: VT Middleware
+  description: Middleware Vertical
+  annotations:
+    github.com/project-slug: IBM-Q-Software/quantum-serverless
+    # backstage.io/techdocs-ref: dir:.
+spec:
+  owner: vt-middlewere
