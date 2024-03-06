@@ -76,6 +76,7 @@ spec:
   type: service
   lifecycle: experimental
   owner: vt-middleware
+  system: quantum-serverless
   dependsOn:
     - resource:default/gateway-production-psql
     - resource:default/gateway-staging-psql
@@ -99,3 +100,4 @@ spec:
   type: library
   lifecycle: experimental
   owner: vt-middleware
+  system: quantum-serverless
