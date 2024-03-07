@@ -1,10 +1,6 @@
 #!/bin/bash
 
 echo "entrypoint.sh"
-pwd
-ls -l
-id -u
-id -g
 
 iptables -t nat -N proxy_redirect
 iptables -t nat -A proxy_redirect -p tcp -d 104.18.29.94 -j REDIRECT --to-ports 8443
@@ -17,5 +13,5 @@ iptables -t nat -A proxy_output -j proxy_redirect
 
 iptables -t nat -A OUTPUT -p tcp -j proxy_output
 
-python server.py
+python httpserver.py
 
