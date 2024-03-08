@@ -1,6 +1,7 @@
 import ssl
 import requests
 import logging
+import zlib
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 logging.basicConfig(level=logging.DEBUG)
@@ -10,6 +11,11 @@ PORT = 8443
 
 
 class ProxyRequestHandler(BaseHTTPRequestHandler):
+    def gzip_encode(self, content):
+        gzip_compress = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
+        data = gzip_compress.compress(content) + gzip_compress.flush()
+        return data
+
     def handle_one_request(self):
         """Handle a single HTTP request.
 
@@ -39,10 +45,20 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 logging.debug("Passthrough none POST request: %s", url)
                 resp = requests.request(self.command, url, headers=self.headers)
                 self.send_response(resp.status_code)
+                if resp.content and len(resp.content) != 0:
+                    content = self.gzip_encode(resp.content)
                 for header in resp.headers:
+                    if header == "Transfer-Encoding" and resp.headers[header] == "chunked":
+                        continue
+                    if header == "Connection" and resp.headers[header] == "keep-alive":
+                        continue
                     self.send_header(header, resp.headers[header])
+                    logging.debug("header: %s, %s", header, resp.headers[header])
+                if resp.content and len(resp.content) != 0:
+                    self.send_header("Content-Length", len(content))
                 self.flush_headers()
-                self.wfile.write(resp.content)
+                self.wfile.write(content)
+                logging.debug("data from backend: %s", resp.content.decode("utf-8"))
                 logging.debug("response from backend: %s", resp.status_code)
             self.wfile.flush()  # actually send the response if not already done.
         except TimeoutError as e:
@@ -73,7 +89,13 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         resp = requests.request(self.command, url, headers=self.headers, data=data)
         self.send_response(resp.status_code)
         for header in resp.headers:
+            if header == "Transfer-Encoding" and resp.headers[header] == "chunked":
+                continue
+            if header == "Connection" and resp.headers[header] == "keep-alive":
+                continue
             self.send_header(header, resp.headers[header])
+        if resp.content and len(resp.content) != 0:
+            self.send_header("Content-Length", len(resp.content))
         self.flush_headers()
         self.wfile.write(resp.content)
         if job_request:
