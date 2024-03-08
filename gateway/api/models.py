@@ -55,9 +55,9 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     """Program model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
 
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, db_index=True)
     entrypoint = models.CharField(max_length=255)
     artifact = models.FileField(
         upload_to=get_upload_path,

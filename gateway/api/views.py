@@ -39,6 +39,7 @@ from .serializers import (
     JobConfigSerializer,
     CatalogEntrySerializer,
     ToCatalogSerializer,
+    UploadProgramSerializer,
 )
 from .services import JobService, ProgramService, JobConfigService
 
@@ -129,6 +130,14 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
         return ToCatalogSerializer
 
+    @staticmethod
+    def get_serializer_upload_program_class():
+        """
+        This method returns the program serializer for the upload end-point
+        """
+
+        return UploadProgramSerializer
+
     def get_serializer_class(self):
         return self.serializer_class
 
@@ -145,23 +154,24 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
     @action(methods=["POST"], detail=False)
     def upload(self, request):
-        """Uploads program."""
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        """Uploads a program: """
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.program.upload", context=ctx):
+            serializer = self.get_serializer_upload_program_class()(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            title = serializer.validated_data.get("title")
+            author = request.user
+            program = serializer.retrieve_one_by_title(title=title, author=author)
+            if program is not None:
+                serializer = self.get_serializer_upload_program_class()(program, data=request.data)
+                if not serializer.is_valid():
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save(author=author)
 
-        program_service = self.get_service_program_class()
-        try:
-            program = program_service.save(
-                serializer=serializer,
-                author=request.user,
-                artifact=request.FILES.get("artifact"),
-            )
-        except InternalServerErrorException as exception:
-            return Response(exception, exception.http_code)
-
-        program_serializer = self.get_serializer(program)
-        return Response(program_serializer.data)
+            return Response(serializer.data)
 
     @action(methods=["POST"], detail=False)
     def run_existing(self, request):

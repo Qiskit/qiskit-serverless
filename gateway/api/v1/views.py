@@ -45,6 +45,10 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     def get_serializer_job_config_class():
         return v1_serializers.JobConfigSerializer
 
+    @staticmethod
+    def get_serializer_upload_program_class() -> v1_serializers.UploadProgramSerializer:
+        return v1_serializers.UploadProgramSerializer
+
     def get_serializer_class(self):
         return v1_serializers.ProgramSerializer
 

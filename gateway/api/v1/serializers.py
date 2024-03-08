@@ -16,7 +16,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "entrypoint",
             "artifact",
             "dependencies",
-            "arguments",
+            "env_vars",
             "public",
         ]
 
@@ -25,6 +25,22 @@ class ExistingProgramSerializer(serializers.ExistingProgramSerializer):
     """
     Existing program serializer first version. This serializer limitates the fields from Program.
     """
+
+
+class UploadProgramSerializer(serializers.UploadProgramSerializer):
+    """
+    UploadProgramSerializer is used by the /upload end-point
+    """
+
+    class Meta(serializers.UploadProgramSerializer.Meta):
+        fields = [
+            "title",
+            "entrypoint",
+            "artifact",
+            "dependencies",
+            "env_vars",
+            "public",
+        ]
 
 
 class JobSerializer(serializers.JobSerializer):
