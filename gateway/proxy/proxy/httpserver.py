@@ -47,20 +47,21 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 self.send_response(resp.status_code)
                 if resp.content and len(resp.content) != 0:
                     content = self.gzip_encode(resp.content)
+                    content = bytes(f"{len(content):x}", "utf-8") + b"\x0d\x0a" + content + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
                 for header in resp.headers:
-                    if header == "Transfer-Encoding" and resp.headers[header] == "chunked":
-                        continue
+                    #if header == "Transfer-Encoding" and resp.headers[header] == "chunked":
+                    #    continue
                     if header == "Connection" and resp.headers[header] == "keep-alive":
                         continue
                     self.send_header(header, resp.headers[header])
                     logging.debug("header: %s, %s", header, resp.headers[header])
-                if resp.content and len(resp.content) != 0:
-                    self.send_header("Content-Length", len(content))
+                #if resp.content and len(resp.content) != 0:
+                #    self.send_header("Content-Length", len(content))
                 self.flush_headers()
                 self.wfile.write(content)
                 logging.debug("data from backend: %s", resp.content.decode("utf-8"))
-                logging.debug("response from backend: %s", resp.status_code)
             self.wfile.flush()  # actually send the response if not already done.
+            logging.debug("Sending response content: %s", content)
         except TimeoutError as e:
             # a read or a write timed out.  Discard this connection
             self.log_error("Request timed out: %r", e)
