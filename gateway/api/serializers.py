@@ -13,19 +13,22 @@ from .models import Program, Job, JobConfig, RuntimeJob, CatalogEntry
 
 class UploadProgramSerializer(serializers.ModelSerializer):
     """
-    Program serializer for the /upload end-point 
+    Program serializer for the /upload end-point
     """
 
     class Meta:
         model = Program
 
     def retrieve_one_by_title(self, title, author):
+        """
+        This method returns a Program entry if it finds an entry searching by the title, if not None
+        """
         return (
             Program.objects.filter(title=title, author=author)
             .order_by("-created")
             .first()
         )
-    
+
     def create(self, validated_data):
         return Program.objects.create(**validated_data)
 
@@ -38,6 +41,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         instance.author = validated_data.get("author")
         instance.save()
         return instance
+
 
 class JobConfigSerializer(serializers.ModelSerializer):
     """

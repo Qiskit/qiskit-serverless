@@ -46,8 +46,10 @@ class SerializerTest(APITestCase):
             "resources",
             "artifact.tar",
         )
-        data = File(open(path_to_resource_artifact, 'rb'))
-        upload_file = SimpleUploadedFile("artifact.tar", data.read(), content_type='multipart/form-data')
+        data = File(open(path_to_resource_artifact, "rb"))
+        upload_file = SimpleUploadedFile(
+            "artifact.tar", data.read(), content_type="multipart/form-data"
+        )
 
         user = models.User.objects.get(username="test_user")
 
@@ -61,7 +63,7 @@ class SerializerTest(APITestCase):
         data["entrypoint"] = entrypoint
         data["env_vars"] = env_vars
         data["dependencies"] = dependencies
-        data["artifact"] =  upload_file
+        data["artifact"] = upload_file
 
         serializer = UploadProgramSerializer(data=data)
         self.assertTrue(serializer.is_valid())
@@ -79,8 +81,10 @@ class SerializerTest(APITestCase):
             "resources",
             "artifact.tar",
         )
-        data = File(open(path_to_resource_artifact, 'rb'))
-        upload_file = SimpleUploadedFile("artifact.tar", data.read(), content_type='multipart/form-data')
+        data = File(open(path_to_resource_artifact, "rb"))
+        upload_file = SimpleUploadedFile(
+            "artifact.tar", data.read(), content_type="multipart/form-data"
+        )
 
         user = models.User.objects.get(username="test_user")
 
@@ -93,15 +97,15 @@ class SerializerTest(APITestCase):
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
         self.assertListEqual(["title", "entrypoint", "artifact"], list(errors.keys()))
-        
+
         env_vars = {}
         dependencies = []
         data["title"] = title
         data["entrypoint"] = entrypoint
-        data["artifact"] =  upload_file
+        data["artifact"] = upload_file
         data["env_vars"] = env_vars
         data["dependencies"] = dependencies
-        
+
         serializer = UploadProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
