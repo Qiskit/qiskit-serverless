@@ -71,7 +71,8 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                     self.send_header(header, resp.headers[header])
                     logging.debug("header: %s, %s", header, resp.headers[header])
                 self.end_headers()
-                self.wfile.write(content)
+                if resp.content and len(resp.content) != 0:
+                    self.wfile.write(content)
                 logging.debug("data from backend: %s", resp.content.decode("utf-8"))
             self.wfile.flush()  # actually send the response if not already done.
             logging.debug("Sending response content: %s", content)
@@ -123,7 +124,9 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
             self.send_header(header, resp.headers[header])
             logging.debug("header: %s, %s", header, resp.headers[header])
         self.end_headers()
-        self.wfile.write(content)
+        if resp.content and len(resp.content) != 0:
+            self.wfile.write(content)
+        self.wfile.flush()  # actually send the response if not already done.
         if job_request:
             jsondata = json.loads(resp.content.decode("utf-8"))
             logging.debug("job id: %s", jsondata["id"])
