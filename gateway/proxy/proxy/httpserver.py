@@ -73,9 +73,8 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 if resp.content and len(resp.content) != 0:
                     self.wfile.write(content)
-                logging.debug("data from backend: %s", resp.content.decode("utf-8"))
+                    logging.debug("Sending response content: %s", content)
             self.wfile.flush()  # actually send the response if not already done.
-            logging.debug("Sending response content: %s", content)
         except TimeoutError as e:
             # a read or a write timed out.  Discard this connection
             self.log_error("Request timed out: %r", e)
