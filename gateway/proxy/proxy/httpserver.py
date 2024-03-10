@@ -25,18 +25,23 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 
         """
         try:
+            logging.debug("New request")
             self.raw_requestline = self.rfile.readline(65537)
+            logging.debug("New request: %s", self.raw_requestline)
             if len(self.raw_requestline) > 65536:
                 self.requestline = ""
                 self.request_version = ""
                 self.command = ""
                 self.send_error(HTTPStatus.REQUEST_URI_TOO_LONG)
+                logging.debug("New request: return 1")
                 return
             if not self.raw_requestline:
                 self.close_connection = True
+                logging.debug("New request: return 2")
                 return
             if not self.parse_request():
                 # An error code has been sent, just exit
+                logging.debug("New request: return 3")
                 return
             if self.command == "POST":
                 self.do_POST()
@@ -51,13 +56,13 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 for header in resp.headers:
                     #if header == "Transfer-Encoding" and resp.headers[header] == "chunked":
                     #    continue
-                    if header == "Connection" and resp.headers[header] == "keep-alive":
-                        continue
+                    #if header == "Connection" and resp.headers[header] == "keep-alive":
+                    #    continue
                     self.send_header(header, resp.headers[header])
                     logging.debug("header: %s, %s", header, resp.headers[header])
                 #if resp.content and len(resp.content) != 0:
                 #    self.send_header("Content-Length", len(content))
-                self.flush_headers()
+                self.end_headers()
                 self.wfile.write(content)
                 logging.debug("data from backend: %s", resp.content.decode("utf-8"))
             self.wfile.flush()  # actually send the response if not already done.
