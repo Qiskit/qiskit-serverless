@@ -57,14 +57,8 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                     if "Transfer-Encoding" in resp.headers and resp.headers["Transfer-Encoding"] == "chunked": 
                         content = bytes(f"{len(content):x}", "utf-8") + b"\x0d\x0a" + content + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
                 for header in resp.headers:
-                    #if header == "Transfer-Encoding" and resp.headers[header] == "chunked":
-                    #    continue
-                    #if header == "Connection" and resp.headers[header] == "keep-alive":
-                    #    continue
                     self.send_header(header, resp.headers[header])
                     logging.debug("header: %s, %s", header, resp.headers[header])
-                #if resp.content and len(resp.content) != 0:
-                #    self.send_header("Content-Length", len(content))
                 self.end_headers()
                 self.wfile.write(content)
                 logging.debug("data from backend: %s", resp.content.decode("utf-8"))
@@ -97,16 +91,17 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 
         resp = requests.request(self.command, url, headers=self.headers, data=data)
         self.send_response(resp.status_code)
-        for header in resp.headers:
-            if header == "Transfer-Encoding" and resp.headers[header] == "chunked":
-                continue
-            if header == "Connection" and resp.headers[header] == "keep-alive":
-                continue
-            self.send_header(header, resp.headers[header])
         if resp.content and len(resp.content) != 0:
-            self.send_header("Content-Length", len(resp.content))
-        self.flush_headers()
-        self.wfile.write(resp.content)
+            content = resp.content
+            if "content-encoding" in resp.headers and resp.headers["content-encoding"] == "gzip": 
+                content = self.gzip_encode(content)
+            if "Transfer-Encoding" in resp.headers and resp.headers["Transfer-Encoding"] == "chunked": 
+                content = bytes(f"{len(content):x}", "utf-8") + b"\x0d\x0a" + content + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
+        for header in resp.headers:
+            self.send_header(header, resp.headers[header])
+            logging.debug("header: %s, %s", header, resp.headers[header])
+        self.end_headers()
+        self.wfile.write(content)
         if job_request:
             jsondata = json.loads(resp.content.decode("utf-8"))
             logging.debug("job id: %s", jsondata["id"])
