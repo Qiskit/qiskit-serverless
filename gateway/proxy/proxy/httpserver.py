@@ -51,8 +51,11 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 resp = requests.request(self.command, url, headers=self.headers)
                 self.send_response(resp.status_code)
                 if resp.content and len(resp.content) != 0:
-                    content = self.gzip_encode(resp.content)
-                    content = bytes(f"{len(content):x}", "utf-8") + b"\x0d\x0a" + content + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
+                    content = resp.content
+                    if "content-encoding" in resp.headers and resp.headers["content-encoding"] == "gzip": 
+                        content = self.gzip_encode(content)
+                    if "Transfer-Encoding" in resp.headers and resp.headers["Transfer-Encoding"] == "chunked": 
+                        content = bytes(f"{len(content):x}", "utf-8") + b"\x0d\x0a" + content + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
                 for header in resp.headers:
                     #if header == "Transfer-Encoding" and resp.headers[header] == "chunked":
                     #    continue
