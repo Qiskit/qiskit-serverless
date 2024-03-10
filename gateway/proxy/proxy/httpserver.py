@@ -52,10 +52,21 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 self.send_response(resp.status_code)
                 if resp.content and len(resp.content) != 0:
                     content = resp.content
-                    if "content-encoding" in resp.headers and resp.headers["content-encoding"] == "gzip": 
+                    if (
+                        "content-encoding" in resp.headers
+                        and resp.headers["content-encoding"] == "gzip"
+                    ):
                         content = self.gzip_encode(content)
-                    if "Transfer-Encoding" in resp.headers and resp.headers["Transfer-Encoding"] == "chunked": 
-                        content = bytes(f"{len(content):x}", "utf-8") + b"\x0d\x0a" + content + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
+                    if (
+                        "Transfer-Encoding" in resp.headers
+                        and resp.headers["Transfer-Encoding"] == "chunked"
+                    ):
+                        content = (
+                            bytes(f"{len(content):x}", "utf-8")
+                            + b"\x0d\x0a"
+                            + content
+                            + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
+                        )
                 for header in resp.headers:
                     self.send_header(header, resp.headers[header])
                     logging.debug("header: %s, %s", header, resp.headers[header])
@@ -93,10 +104,21 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         self.send_response(resp.status_code)
         if resp.content and len(resp.content) != 0:
             content = resp.content
-            if "content-encoding" in resp.headers and resp.headers["content-encoding"] == "gzip": 
+            if (
+                "content-encoding" in resp.headers
+                and resp.headers["content-encoding"] == "gzip"
+            ):
                 content = self.gzip_encode(content)
-            if "Transfer-Encoding" in resp.headers and resp.headers["Transfer-Encoding"] == "chunked": 
-                content = bytes(f"{len(content):x}", "utf-8") + b"\x0d\x0a" + content + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
+            if (
+                "Transfer-Encoding" in resp.headers
+                and resp.headers["Transfer-Encoding"] == "chunked"
+            ):
+                content = (
+                    bytes(f"{len(content):x}", "utf-8")
+                    + b"\x0d\x0a"
+                    + content
+                    + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
+                )
         for header in resp.headers:
             self.send_header(header, resp.headers[header])
             logging.debug("header: %s, %s", header, resp.headers[header])
