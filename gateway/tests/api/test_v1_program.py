@@ -59,8 +59,8 @@ class TestProgramApi(APITestCase):
             data={
                 "title": "Program",
                 "entrypoint": "program.py",
-                "arguments": {},
-                "dependencies": [],
+                "arguments": "{}",
+                "dependencies": "[]",
                 "config": '{"workers": null, "min_workers": 1, "max_workers": 5, "auto_scaling": true}',
             },
             format="json",

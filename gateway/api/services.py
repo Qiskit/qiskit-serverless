@@ -145,7 +145,7 @@ class JobService:
     @staticmethod
     def save(
         program: Program,
-        arguments,
+        arguments: str,
         author,
         jobconfig: JobConfig,
         token: str,
@@ -175,7 +175,7 @@ class JobService:
             status=status,
             config=jobconfig,
         )
-        env = encrypt_env_vars(build_env_variables(token, job, json.dumps(arguments)))
+        env = encrypt_env_vars(build_env_variables(token, job, arguments))
         try:
             env["traceparent"] = carrier["traceparent"]
         except KeyError:

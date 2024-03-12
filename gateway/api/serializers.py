@@ -71,7 +71,7 @@ class ExistingProgramSerializer(serializers.Serializer):
     """Serializer for launching existing program."""
 
     title = serializers.CharField(max_length=255)
-    arguments = serializers.JSONField()
+    arguments = serializers.CharField()
 
     def update(self, instance, validated_data):
         pass
