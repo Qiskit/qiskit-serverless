@@ -91,7 +91,10 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         job_request = self.path.find("/runtime/jobs") != -1
         if job_request:
             if "X-Qx-Client-Application" in self.headers:
-                logging.debug("X-Qx-Client-Application: %s", self.headers["X-Qx-Client-Application"])
+                logging.debug(
+                    "X-Qx-Client-Application: %s",
+                    self.headers["X-Qx-Client-Application"],
+                )
                 pos = self.headers["X-Qx-Client-Application"].find("middleware_job_id")
                 if pos != -1:
                     id = self.headers["X-Qx-Client-Application"][
