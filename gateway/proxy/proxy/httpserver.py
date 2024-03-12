@@ -17,6 +17,33 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         data = gzip_compress.compress(content) + gzip_compress.flush()
         return data
 
+    def handle_response(self, resp):
+        self.send_response(resp.status_code)
+        if resp.content and len(resp.content) != 0:
+            content = resp.content
+            if (
+                    "content-encoding" in resp.headers
+                    and resp.headers["content-encoding"] == "gzip"
+            ):
+                content = self.gzip_encode(content)
+            if (
+                "Transfer-Encoding" in resp.headers
+                and resp.headers["Transfer-Encoding"] == "chunked"
+            ):
+                content = (
+                    bytes(f"{len(content):x}", "utf-8")
+                    + b"\x0d\x0a"
+                    + content
+                    + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
+                )
+        for header in resp.headers:
+            self.send_header(header, resp.headers[header])
+            logging.debug("header: %s, %s", header, resp.headers[header])
+        self.end_headers()
+        if resp.content and len(resp.content) != 0:
+            self.wfile.write(content)
+            logging.debug("Sending response content: %s", content)
+
     def handle_one_request(self):
         """Handle a single HTTP request.
 
@@ -50,31 +77,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 url = "https://" + self.headers["Host"] + self.path
                 logging.debug("Passthrough none POST request: %s", url)
                 resp = requests.request(self.command, url, headers=self.headers)
-                self.send_response(resp.status_code)
-                if resp.content and len(resp.content) != 0:
-                    content = resp.content
-                    if (
-                        "content-encoding" in resp.headers
-                        and resp.headers["content-encoding"] == "gzip"
-                    ):
-                        content = self.gzip_encode(content)
-                    if (
-                        "Transfer-Encoding" in resp.headers
-                        and resp.headers["Transfer-Encoding"] == "chunked"
-                    ):
-                        content = (
-                            bytes(f"{len(content):x}", "utf-8")
-                            + b"\x0d\x0a"
-                            + content
-                            + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
-                        )
-                for header in resp.headers:
-                    self.send_header(header, resp.headers[header])
-                    logging.debug("header: %s, %s", header, resp.headers[header])
-                self.end_headers()
-                if resp.content and len(resp.content) != 0:
-                    self.wfile.write(content)
-                    logging.debug("Sending response content: %s", content)
+                self.handle_response(resp)
             self.wfile.flush()  # actually send the response if not already done.
         except TimeoutError as e:
             # a read or a write timed out.  Discard this connection
@@ -106,30 +109,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                     logging.debug("Middleware Job ID: %s", id)
 
         resp = requests.request(self.command, url, headers=self.headers, data=data)
-        self.send_response(resp.status_code)
-        if resp.content and len(resp.content) != 0:
-            content = resp.content
-            if (
-                "content-encoding" in resp.headers
-                and resp.headers["content-encoding"] == "gzip"
-            ):
-                content = self.gzip_encode(content)
-            if (
-                "Transfer-Encoding" in resp.headers
-                and resp.headers["Transfer-Encoding"] == "chunked"
-            ):
-                content = (
-                    bytes(f"{len(content):x}", "utf-8")
-                    + b"\x0d\x0a"
-                    + content
-                    + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
-                )
-        for header in resp.headers:
-            self.send_header(header, resp.headers[header])
-            logging.debug("header: %s, %s", header, resp.headers[header])
-        self.end_headers()
-        if resp.content and len(resp.content) != 0:
-            self.wfile.write(content)
+        self.handle_response(resp)
         self.wfile.flush()  # actually send the response if not already done.
         if job_request:
             jsondata = json.loads(resp.content.decode("utf-8"))
