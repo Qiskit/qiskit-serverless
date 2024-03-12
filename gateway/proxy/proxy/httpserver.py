@@ -2,6 +2,7 @@ import ssl
 import requests
 import logging
 import zlib
+import json
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 logging.basicConfig(level=logging.DEBUG)
@@ -87,9 +88,10 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         logging.debug("Passthrough POST request: %s", url)
         content_length = int(self.headers["Content-Length"])
         data = self.rfile.read(content_length)
-        job_request = self.path.find("/api/jobs") != -1
+        job_request = self.path.find("/runtime/jobs") != -1
         if job_request:
             if "X-Qx-Client-Application" in self.headers:
+                logging.debug("X-Qx-Client-Application: %s", self.headers["X-Qx-Client-Application"])
                 pos = self.headers["X-Qx-Client-Application"].find("middleware_job_id")
                 if pos != -1:
                     id = self.headers["X-Qx-Client-Application"][
