@@ -55,13 +55,13 @@ class SerializerTest(APITestCase):
 
         title = "Hello world"
         entrypoint = "pattern.py"
-        env_vars = "{}"
+        arguments = "{}"
         dependencies = "[]"
 
         data = {}
         data["title"] = title
         data["entrypoint"] = entrypoint
-        data["env_vars"] = env_vars
+        data["arguments"] = arguments
         data["dependencies"] = dependencies
         data["artifact"] = upload_file
 
@@ -71,7 +71,7 @@ class SerializerTest(APITestCase):
         program: Program = serializer.save(author=user)
         self.assertEqual(title, program.title)
         self.assertEqual(entrypoint, program.entrypoint)
-        self.assertEqual(env_vars, program.env_vars)
+        self.assertEqual(arguments, program.arguments)
         self.assertEqual(dependencies, program.dependencies)
 
     def test_upload_program_serializer_fails_at_validation(self):
@@ -86,8 +86,6 @@ class SerializerTest(APITestCase):
             "artifact.tar", data.read(), content_type="multipart/form-data"
         )
 
-        user = models.User.objects.get(username="test_user")
-
         title = "Hello world"
         entrypoint = "pattern.py"
 
@@ -98,15 +96,15 @@ class SerializerTest(APITestCase):
         errors = serializer.errors
         self.assertListEqual(["title", "entrypoint", "artifact"], list(errors.keys()))
 
-        env_vars = {}
+        arguments = {}
         dependencies = []
         data["title"] = title
         data["entrypoint"] = entrypoint
         data["artifact"] = upload_file
-        data["env_vars"] = env_vars
+        data["arguments"] = arguments
         data["dependencies"] = dependencies
 
         serializer = UploadProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
-        self.assertListEqual(["dependencies", "env_vars"], list(errors.keys()))
+        self.assertListEqual(["dependencies", "arguments"], list(errors.keys()))
