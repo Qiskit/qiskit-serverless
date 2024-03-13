@@ -131,12 +131,12 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return ToCatalogSerializer
 
     @staticmethod
-    def get_serializer_upload_program_class():
+    def get_serializer_upload_program_class(*args, **kwargs):
         """
         This method returns the program serializer for the upload end-point
         """
 
-        return UploadProgramSerializer
+        return UploadProgramSerializer(*args, **kwargs)
 
     def get_serializer_class(self):
         return self.serializer_class
@@ -158,7 +158,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.program.upload", context=ctx):
-            serializer = self.get_serializer_upload_program_class()(data=request.data)
+            serializer = self.get_serializer_upload_program_class(data=request.data)
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -166,7 +166,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             author = request.user
             program = serializer.retrieve_one_by_title(title=title, author=author)
             if program is not None:
-                serializer = self.get_serializer_upload_program_class()(
+                serializer = self.get_serializer_upload_program_class(
                     program, data=request.data
                 )
                 if not serializer.is_valid():
