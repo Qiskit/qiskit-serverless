@@ -65,14 +65,17 @@ jobs:
             qiskit-aer>=0.13.3 \
             certifi==2023.7.22
           pip install nbmake pytest
-      - name: Run notebooks
+      - name: Run tests
         run: |
           kubectl patch svc gateway -p '{"spec": {"type": "LoadBalancer"}}'
           export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
-
           echo $GATEWAY_HOST
-          pytest --nbmake /home/runner/work/quantum-serverless/quantum-serverless/docs/getting_started/basic/
-          pytest --nbmake /home/runner/work/quantum-serverless/quantum-serverless/docs/getting_started/experimental/
+          # basic tests
+          cd /home/runner/work/quantum-serverless/quantum-serverless/tests/basic
+          for f in *.py; do echo "$f" && python "$f"; done
+          # experimental tests
+          cd /home/runner/work/quantum-serverless/quantum-serverless/tests/experimental
+          for f in *.py; do echo "$f" && python "$f"; done
       - name: Echo gateway logs
         if: ${{ failure() }}
         run: |
