@@ -27,6 +27,21 @@ class ExistingProgramSerializer(serializers.ExistingProgramSerializer):
     """
 
 
+class UploadProgramSerializer(serializers.UploadProgramSerializer):
+    """
+    UploadProgramSerializer is used by the /upload end-point
+    """
+
+    class Meta(serializers.UploadProgramSerializer.Meta):
+        fields = [
+            "title",
+            "entrypoint",
+            "artifact",
+            "dependencies",
+            "arguments",
+        ]
+
+
 class JobSerializer(serializers.JobSerializer):
     """
     Job serializer first version. Include basic fields from the initial model.

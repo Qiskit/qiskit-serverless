@@ -2,7 +2,9 @@
 Views api for V1.
 """
 
-from rest_framework import permissions
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import permissions, status
+from rest_framework.decorators import action
 
 
 from api import views
@@ -45,8 +47,21 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     def get_serializer_job_config_class():
         return v1_serializers.JobConfigSerializer
 
+    @staticmethod
+    def get_serializer_upload_program_class(*args, **kwargs):
+        return v1_serializers.UploadProgramSerializer(*args, **kwargs)
+
     def get_serializer_class(self):
         return v1_serializers.ProgramSerializer
+
+    @swagger_auto_schema(
+        operation_description="Upload a Qiskit Pattern",
+        request_body=v1_serializers.UploadProgramSerializer,
+        responses={status.HTTP_200_OK: v1_serializers.UploadProgramSerializer},
+    )
+    @action(methods=["POST"], detail=False)
+    def upload(self, request):
+        return super().upload(request)
 
 
 class JobViewSet(views.JobViewSet):  # pylint: disable=too-many-ancestors
