@@ -1,4 +1,3 @@
-django-filter>=23.3
 djangorestframework>=3.14.0
 django-allauth>=0.58.2
 django-allow-cidr>=0.7.1
