@@ -51,16 +51,17 @@ There are tons of useful resources about Git [out there](https://try.github.io/)
 
 ## Opening issues
 
-You can [open 4 types of issues](https://github.com/Qiskit-Extensions/quantum-serverless/issues/new/choose):
+You can [open 3 types of issues](https://github.com/Qiskit-Extensions/quantum-serverless/issues/new/choose):
 
 * Bug reports: for reporting a misfunction. Provide steps to reproduce and expected behaviour.
 * Enhancement request: to suggest improvements to the current code.
 * Feature request: if you have a new use case or feature that we are not supporting.
-* Security vulnerability: in case you find a vulnerability in the project.
 
 Core contributors classify the tasks according to its nature and prioritize them
 from sprint to sprint. Types are not mutually exclusive and can change over time
 if needed.
+
+Security vulnerabilities must be privately reported by following our [Security Policy](SECURITY.md).
 
 
 ## Contributing code
