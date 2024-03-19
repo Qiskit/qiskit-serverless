@@ -48,7 +48,7 @@ class JobConfig(models.Model):
     )
 
     def __str__(self):
-        return self.id
+        return f"{self.id}"
 
 
 class Program(ExportModelOperationsMixin("program"), models.Model):

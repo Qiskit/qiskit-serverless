@@ -6,41 +6,12 @@ Django Rest framework serializers for api application:
 Version serializers inherit from the different serializers.
 """
 
+import json
 from django.conf import settings
 from rest_framework import serializers
+
+from api.utils import build_env_variables, encrypt_env_vars
 from .models import Program, Job, JobConfig, RuntimeJob, CatalogEntry
-
-
-class UploadProgramSerializer(serializers.ModelSerializer):
-    """
-    Program serializer for the /upload end-point
-    """
-
-    class Meta:
-        model = Program
-
-    def retrieve_one_by_title(self, title, author):
-        """
-        This method returns a Program entry if it finds an entry searching by the title, if not None
-        """
-        return (
-            Program.objects.filter(title=title, author=author)
-            .order_by("-created")
-            .first()
-        )
-
-    def create(self, validated_data):
-        return Program.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        instance.arguments = validated_data.get("arguments", "{}")
-        instance.entrypoint = validated_data.get("entrypoint")
-        instance.dependencies = validated_data.get("dependencies", "[]")
-        instance.env_vars = validated_data.get("env_vars", "{}")
-        instance.artifact = validated_data.get("artifact")
-        instance.author = validated_data.get("author")
-        instance.save()
-        return instance
 
 
 class JobConfigSerializer(serializers.ModelSerializer):
@@ -90,6 +61,90 @@ class ProgramSerializer(serializers.ModelSerializer):
         model = Program
 
 
+class UploadProgramSerializer(serializers.ModelSerializer):
+    """
+    Program serializer for the /upload end-point
+    """
+
+    class Meta:
+        model = Program
+
+    def retrieve_one_by_title(self, title, author):
+        """
+        This method returns a Program entry if it finds an entry searching by the title, if not None
+        """
+        return (
+            Program.objects.filter(title=title, author=author)
+            .order_by("-created")
+            .first()
+        )
+
+    def create(self, validated_data):
+        return Program.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.arguments = validated_data.get("arguments", "{}")
+        instance.entrypoint = validated_data.get("entrypoint")
+        instance.dependencies = validated_data.get("dependencies", "[]")
+        instance.env_vars = validated_data.get("env_vars", "{}")
+        instance.artifact = validated_data.get("artifact")
+        instance.author = validated_data.get("author")
+        instance.save()
+        return instance
+
+
+class RunExistingProgramSerializer(serializers.Serializer):
+    """
+    Program serializer for the /run_existing end-point
+    """
+
+    title = serializers.CharField(max_length=255)
+    arguments = serializers.JSONField()
+    config = serializers.JSONField()
+
+    def retrieve_one_by_title(self, title, author):
+        """
+        This method returns a Program entry if it finds an entry searching by the title, if not None
+        """
+        return (
+            Program.objects.filter(title=title, author=author)
+            .order_by("-created")
+            .first()
+        )
+
+
+class RunExistingJobSerializer(serializers.ModelSerializer):
+    """
+    Job serializer for the /run_existing end-point
+    """
+
+    arguments = serializers.JSONField()
+
+    class Meta:
+        model = Job
+        fields = ["id", "result", "status", "program", "created", "arguments"]
+
+    def create(self, validated_data):
+        status = Job.QUEUED
+        arguments = validated_data.get("arguments", "{}")
+        token = validated_data.pop("token")
+        carrier = validated_data.pop("carrier")
+
+        job = Job(status=status, **validated_data)
+
+        # env = encrypt_env_vars(build_env_variables(token, job, json.dumps(arguments)))
+        env = encrypt_env_vars(build_env_variables(token, job, arguments))
+        try:
+            env["traceparent"] = carrier["traceparent"]
+        except KeyError:
+            pass
+
+        job.env_vars = json.dumps(env)
+        job.save()
+        
+        return job
+
+
 class JobSerializer(serializers.ModelSerializer):
     """
     Serializer for the job model.
@@ -97,19 +152,6 @@ class JobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-
-
-class ExistingProgramSerializer(serializers.Serializer):
-    """Serializer for launching existing program."""
-
-    title = serializers.CharField(max_length=255)
-    arguments = serializers.CharField()
-
-    def update(self, instance, validated_data):
-        pass
-
-    def create(self, validated_data):
-        pass
 
 
 class RuntimeJobSerializer(serializers.ModelSerializer):
