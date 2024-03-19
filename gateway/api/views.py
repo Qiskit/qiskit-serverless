@@ -35,10 +35,9 @@ from .models import Program, Job, RuntimeJob, CatalogEntry
 from .ray import get_job_handler
 from .serializers import (
     JobSerializer,
-    # ExistingProgramSerializer,
     JobConfigSerializer,
     CatalogEntrySerializer,
-    # RunExistingJobConfigSerializer,
+    RunExistingJobSerializer,
     RunExistingProgramSerializer,
     ToCatalogSerializer,
     UploadProgramSerializer,
@@ -100,14 +99,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
         return JobSerializer(*args, **kwargs)
 
-    # @staticmethod
-    # def get_serializer_existing_program_class():
-    #     """
-    #     This method returns Existign Program serializer to be used in Program ViewSet.
-    #     """
-
-    #     return ExistingProgramSerializer
-
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):
         """
@@ -148,13 +139,13 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
         return RunExistingProgramSerializer(*args, **kwargs)
 
-    # @staticmethod
-    # def get_serializer_run_existing_job_config(*args, **kwargs):
-    #     """
-    #     This method returns the program serializer for the run_existing end-point
-    #     """
+    @staticmethod
+    def get_serializer_run_existing_job(*args, **kwargs):
+        """
+        This method returns the job serializer for the run_existing end-point
+        """
 
-    #     return RunExistingJobConfigSerializer(*args, **kwargs)
+        return RunExistingJobSerializer(*args, **kwargs)
 
     def get_serializer_class(self):
         return self.serializer_class
@@ -216,53 +207,35 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
             jobconfig = None
             config_json = serializer.data.get("config")
-            print("JOB CONFIG DATA --------------------------------")
-            print(config_json)
             if config_json:
                 job_config_serializer = self.get_serializer_job_config(data=config_json)
                 if not job_config_serializer.is_valid():
-                    print("JOB CONFIG VALIDATION --------------------------------")
-                    print(config_json)
                     return Response(
                         job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
                 jobconfig = job_config_serializer.save()
-                print("JOB CONFIG INSTANCE --------------------------------")
-                print(jobconfig)
 
-            job = None
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
             arguments = serializer.data.get("arguments")
             token = ""
             if request.auth:
                 token = request.auth.token.decode()
-            
-            
+            job_serializer = self.get_serializer_run_existing_job(data={})
+            if not job_serializer.is_valid():
+                return Response(
+                    job_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                )
+            job_serializer.save(
+                arguments=arguments,
+                author=author,
+                carrier=carrier,
+                token=token,
+                program=program,
+                config=jobconfig,
+            )
 
-            return Response(job_config_serializer.data)
-
-        #     job = None
-        #     carrier = {}
-        #     TraceContextTextMapPropagator().inject(carrier)
-        #     arguments = serializer.data.get("arguments")
-        #     token = ""
-        #     if request.auth:
-        #         token = request.auth.token.decode()
-        #     try:
-        #         job = self.get_service_job_class().save(
-        #             program=program,
-        #             arguments=arguments,
-        #             author=author,
-        #             jobconfig=jobconfig,
-        #             token=token,
-        #             carrier=carrier,
-        #         )
-        #     except InternalServerErrorException as exception:
-        #         return Response(exception, exception.http_code)
-
-        #     job_serializer = self.get_serializer_job_class()(job)
-        # return Response(job_serializer.data)
+        return Response(job_serializer.data)
 
     @action(methods=["POST"], detail=False)
     def run(self, request):
@@ -289,7 +262,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             jobconfig = None
             config_data = request.data.get("config")
             if config_data:
-                config_serializer = self.get_serializer_job_config_class()(
+                config_serializer = self.get_serializer_job_config(
                     data=json.loads(config_data)
                 )
                 if not config_serializer.is_valid():
@@ -322,7 +295,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             except InternalServerErrorException as exception:
                 return Response(exception, exception.http_code)
 
-            job_serializer = self.get_serializer_job_class()(job)
+            job_serializer = self.get_serializer_job(job)
         return Response(job_serializer.data)
 
     @action(methods=["POST"], detail=True)

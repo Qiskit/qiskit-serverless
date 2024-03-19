@@ -99,7 +99,7 @@ class RunExistingProgramSerializer(serializers.Serializer):
     """
 
     title = serializers.CharField(max_length=255)
-    arguments = serializers.JSONField()
+    arguments = serializers.CharField()
     config = serializers.JSONField()
 
     def retrieve_one_by_title(self, title, author):
@@ -112,13 +112,17 @@ class RunExistingProgramSerializer(serializers.Serializer):
             .first()
         )
 
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
 
 class RunExistingJobSerializer(serializers.ModelSerializer):
     """
     Job serializer for the /run_existing end-point
     """
-
-    arguments = serializers.JSONField()
 
     class Meta:
         model = Job
@@ -126,13 +130,22 @@ class RunExistingJobSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         status = Job.QUEUED
+        program = validated_data.get("program")
         arguments = validated_data.get("arguments", "{}")
+        author = validated_data.get("author")
+        config = validated_data.get("config", None)
+
         token = validated_data.pop("token")
         carrier = validated_data.pop("carrier")
 
-        job = Job(status=status, **validated_data)
+        job = Job(
+            status=status,
+            program=program,
+            arguments=arguments,
+            author=author,
+            config=config,
+        )
 
-        # env = encrypt_env_vars(build_env_variables(token, job, json.dumps(arguments)))
         env = encrypt_env_vars(build_env_variables(token, job, arguments))
         try:
             env["traceparent"] = carrier["traceparent"]
@@ -141,7 +154,7 @@ class RunExistingJobSerializer(serializers.ModelSerializer):
 
         job.env_vars = json.dumps(env)
         job.save()
-        
+
         return job
 
 

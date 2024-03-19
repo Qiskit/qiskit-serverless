@@ -35,6 +35,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "arguments",
         ]
 
+
 class RunExistingProgramSerializer(serializers.RunExistingProgramSerializer):
     """
     RunExistingProgramSerializer is used by the /upload end-point
@@ -54,14 +55,6 @@ class JobConfigSerializer(serializers.JobConfigSerializer):
             "auto_scaling",
             "python_version",
         ]
-
-
-# class RunExistingJobConfigSerializer(serializers.RunExistingJobConfigSerializer):
-#     """
-#     JobConfig serializer for the /run_existing end-point
-#     """
-
-#     config = JobConfigSerializer()
 
 
 class JobSerializer(serializers.JobSerializer):
