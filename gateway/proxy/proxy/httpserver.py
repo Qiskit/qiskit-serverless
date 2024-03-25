@@ -4,6 +4,7 @@ import logging
 import zlib
 import json
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+
 logging.basicConfig(level=logging.DEBUG)
 
 HOST = "127.0.0.1"
