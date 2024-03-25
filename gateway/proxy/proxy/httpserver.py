@@ -4,7 +4,6 @@ import logging
 import zlib
 import json
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-
 logging.basicConfig(level=logging.DEBUG)
 
 HOST = "127.0.0.1"
@@ -22,8 +21,8 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         if resp.content and len(resp.content) != 0:
             content = resp.content
             if (
-                    "content-encoding" in resp.headers
-                    and resp.headers["content-encoding"] == "gzip"
+                "content-encoding" in resp.headers
+                and resp.headers["content-encoding"] == "gzip"
             ):
                 content = self.gzip_encode(content)
             if (
