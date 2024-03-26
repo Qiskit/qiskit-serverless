@@ -159,7 +159,6 @@ class TestProgramApi(APITestCase):
         )
 
     def test_list_runtimejob(self):
-
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
         programs_response = self.client.get(
