@@ -313,7 +313,6 @@ RAY_NODE_IMAGE = os.environ.get(
 )
 RAY_NODE_IMAGES_MAP = {
     "default": RAY_NODE_IMAGE,
-    "py38": os.environ.get("RAY_NODE_IMAGE_PY38", RAY_NODE_IMAGE),
     "py39": os.environ.get("RAY_NODE_IMAGE_PY39", RAY_NODE_IMAGE),
     "py310": os.environ.get("RAY_NODE_IMAGE_PY310", RAY_NODE_IMAGE),
 }
