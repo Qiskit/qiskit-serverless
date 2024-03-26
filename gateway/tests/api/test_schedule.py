@@ -1,30 +1,12 @@
 """Tests scheduling."""
 
-from rest_framework.test import APITestCase
 from unittest.mock import MagicMock, patch
-import uuid, os, requests_mock, json
 
+from django.contrib.auth import get_user_model
+from rest_framework.test import APITestCase
 
-from api.models import Job, ComputeResource
+from api.models import Job
 from api.schedule import get_jobs_to_schedule_fair_share, execute_job
-from api.ray import create_ray_cluster
-from django.contrib.auth import get_user_model
-
-from django.conf import settings
-from django.contrib.auth import get_user_model
-
-from kubernetes import client, config
-from kubernetes.dynamic.client import DynamicClient
-
-
-class response:
-    status = "Success"
-    metadata = client.V1ObjectMeta(name="test_user")
-
-
-class mock_create(MagicMock):
-    def create(self, namespace, body):
-        return response()
 
 
 class TestScheduleApi(APITestCase):
