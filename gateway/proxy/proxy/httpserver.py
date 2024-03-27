@@ -1,4 +1,5 @@
 import ssl
+import os
 import requests
 import logging
 import zlib
@@ -9,6 +10,11 @@ logging.basicConfig(level=logging.DEBUG)
 
 HOST = "127.0.0.1"
 PORT = 8443
+
+TEST_DST_PROTOCOL = "http"
+TEST_GATEWAY_URL = "127.0.0.1:60000"
+dst_protocol = os.environ.get("DST_PROTOCOL", TEST_DST_PROTOCOL)
+gateway_url = os.environ.get("GATEWAY_URL", TEST_GATEWAY_URL)
 
 
 class ProxyRequestHandler(BaseHTTPRequestHandler):
@@ -74,7 +80,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
             if self.command == "POST":
                 self.do_POST()
             else:
-                url = "https://" + self.headers["Host"] + self.path
+                url = f"{dst_protocol}://" + self.headers["Host"] + self.path
                 logging.debug("Passthrough none POST request: %s", url)
                 resp = requests.request(self.command, url, headers=self.headers)
                 self.handle_response(resp)
@@ -87,7 +93,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         logging.debug("POST")
-        url = "https://" + self.headers["Host"] + self.path
+        url = f"{dst_protocol}://" + self.headers["Host"] + self.path
         logging.debug("Passthrough POST request: %s", url)
         content_length = int(self.headers["Content-Length"])
         data = self.rfile.read(content_length)
@@ -108,7 +114,16 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                     ]
                     logging.debug("Middleware Job ID: %s", id)
 
-        resp = requests.request(self.command, url, headers=self.headers, data=data)
+        resp = None
+        while resp == None:
+            try:
+                resp = requests.request(
+                    self.command, url, headers=self.headers, data=data
+                )
+            except:
+                None
+
+            requests.exceptions.ChunkedEncodingError
         self.handle_response(resp)
         self.wfile.flush()  # actually send the response if not already done.
         if job_request:
@@ -121,7 +136,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 "Authorization": f"Bearer {token}",
             }
             r = requests.post(
-                f"http://gateway:8000/api/v1/jobs/{id}/add_runtimejob/",
+                f"http://{gateway_url}/api/v1/jobs/{id}/add_runtimejob/",
                 headers=headers,
                 json={"runtime_job": jsondata["id"]},
             )
