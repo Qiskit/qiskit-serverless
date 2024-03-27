@@ -31,6 +31,11 @@ jobs:
           docker build -t ray:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-ray-node .
           kind load docker-image ray:test
           docker image rm ray:test
+      - name: Build and load proxy
+        run: |
+          docker build -t proxy:test --build-arg TARGETARCH="amd64" -f ./gateway/proxy/Dockerfile .
+          kind load docker-image proxy:test
+          docker image rm proxy:test
       - name: Install helm chart
         run: |
           cd charts/quantum-serverless
@@ -44,6 +49,7 @@ jobs:
             --set gateway.image.repository=gateway \
             --set gateway.image.tag=test \
             --set gateway.application.ray.nodeImage=ray:test \
+            --set gateway.application.ray.proxyImage=proxy:test \
             --set gateway.application.limits.keepClusterOnComplete=false \
             .
       - name: setup python
