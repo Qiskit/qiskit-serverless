@@ -12,6 +12,7 @@ endif
 
 rayNodeImageName=$(repository)/quantum-serverless-ray-node
 gatewayImageName=$(repository)/quantum-serverless-gateway
+proxyImageName=$(repository)/quantum-serverless-proxy
 
 # =============
 # Docker images
@@ -19,8 +20,8 @@ gatewayImageName=$(repository)/quantum-serverless-gateway
 
 build-and-push: build-all push-all
 
-build-all: build-ray-node build-gateway
-push-all: push-ray-node push-gateway
+build-all: build-ray-node build-gateway build-proxy
+push-all: push-ray-node push-gateway push-proxy
 
 build-ray-node:
 	docker build -t $(rayNodeImageName):$(version) --build-arg TARGETARCH=$(arch) -f Dockerfile-ray-node .
@@ -30,8 +31,14 @@ build-ray-node:
 build-gateway:
 	docker build -t $(gatewayImageName):$(version) -f ./gateway/Dockerfile .
 
+build-proxy:
+	docker build -t $(proxyImageName):$(version) -f ./gateway/proxy/Dockerfile .
+
 push-ray-node:
 	docker push $(rayNodeImageName):$(version)
 
 push-gateway:
 	docker push $(gatewayImageName):$(version)
+
+push-proxy:
+	docker push $(proxyImageName):$(version)

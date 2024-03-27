@@ -13,7 +13,7 @@ RUN apt-get install -y tcpdump
 RUN pip install headerparser
 RUN pip install certifi
 RUN pip install requests
-COPY proxy .
+COPY gateway/proxy/proxy .
 RUN chown -R 0:123 /usr/src/app
 
 USER 0:123
