@@ -141,11 +141,7 @@ data:
                 - name: OT_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
 {{- end }}
-            - image: proxy:local
-              #imagePullPolicy: IfNotPresent
-              #name: tcpdump-sidecar
-              #command: ["/bin/bash"]
-              #args: ["-c", "while true; do ping localhost; sleep 60;done"]
+            - image: {{ .Values.application.ray.proxyImage }}
               securityContext:
                 runAsGroup: 123
                 privileged: true
@@ -218,6 +214,11 @@ data:
                   value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
                 - name: OT_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
+                - name: DST_PROTOCOL
+                  value: "https"
+                - name: GATEWAY_URL
+                  value: "gateway:8000"
+                  
 {{- end }}
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
@@ -434,12 +435,11 @@ data:
                 - name: OT_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
 {{- end }}
-              image: proxy:local
-              #image: nicolaka/netshoot
-              #imagePullPolicy: IfNotPresent
-              #name: tcpdump-sidecar
-              #command: ["/bin/bash"]
-              #args: ["-c", "while true; do ping localhost; sleep 60;done"]
+                - name: DST_PROTOCOL
+                  value: "https"
+                - name: GATEWAY_URL
+                  value: "gateway:8000"
+              image: {{ .Values.application.ray.proxyImage }}
               imagePullPolicy: Never
               name: proxy
               resources:
