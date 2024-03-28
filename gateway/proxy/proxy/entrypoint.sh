@@ -11,7 +11,7 @@ iptables -t nat -A proxy_output -p tcp --dport 6379 -j RETURN
 iptables -t nat -A proxy_output -p tcp -m owner --gid-owner 123 -j RETURN
 iptables -t nat -A proxy_output -j proxy_redirect
 
-# iptables -t nat -A OUTPUT -p tcp -j proxy_output
+ iptables -t nat -A OUTPUT -p tcp -j proxy_output
 
 python httpserver.py
 
