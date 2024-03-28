@@ -184,6 +184,10 @@ data:
               env:
                 # Environment variables for Ray TLS authentication.
                 # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
+                - name: DST_PROTOCOL
+                  value: "https"
+                - name: GATEWAY_URL
+                  value: "gateway:8000"
                 - name: RAY_USE_TLS
                   value: "1"
 {{- if .Values.useCertManager }}
@@ -214,10 +218,6 @@ data:
                   value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
                 - name: OT_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
-                - name: DST_PROTOCOL
-                  value: "https"
-                - name: GATEWAY_URL
-                  value: "gateway:8000"
                   
 {{- end }}
             imagePullSecrets: []
@@ -404,6 +404,10 @@ data:
               env:
                 # Environment variables for Ray TLS authentication.
                 # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
+                - name: DST_PROTOCOL
+                  value: "https"
+                - name: GATEWAY_URL
+                  value: "gateway:8000"
                 - name: RAY_USE_TLS
                   value: "1"
 {{- if .Values.useCertManager }}
@@ -435,10 +439,6 @@ data:
                 - name: OT_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
 {{- end }}
-                - name: DST_PROTOCOL
-                  value: "https"
-                - name: GATEWAY_URL
-                  value: "gateway:8000"
               image: {{ .Values.application.ray.proxyImage }}
               imagePullPolicy: Never
               name: proxy

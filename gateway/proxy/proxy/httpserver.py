@@ -27,6 +27,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         self.send_response(resp.status_code)
         if resp.content and len(resp.content) != 0:
             content = resp.content
+            logging.debug("Recieved response content: %s", content.decode("utf-8"))
             if (
                 "content-encoding" in resp.headers
                 and resp.headers["content-encoding"] == "gzip"
@@ -98,6 +99,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers["Content-Length"])
         data = self.rfile.read(content_length)
         job_request = self.path.find("/runtime/jobs") != -1
+        id = None
         if job_request:
             if "X-Qx-Client-Application" in self.headers:
                 logging.debug(
@@ -122,11 +124,9 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 )
             except:
                 None
-
-            requests.exceptions.ChunkedEncodingError
         self.handle_response(resp)
         self.wfile.flush()  # actually send the response if not already done.
-        if job_request:
+        if job_request and id:
             jsondata = json.loads(resp.content.decode("utf-8"))
             logging.debug("job id: %s", jsondata["id"])
 
