@@ -36,7 +36,7 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
         except Exception as json_exception:  # pylint: disable=broad-exception-caught
             logger.error(json_exception)
     if response is not None and not response.ok:
-        logger.error(f"{response.status_code}: {response.text}")
+        logger.error("%d : %s", response.status_code, response.text)
 
     return result
 
