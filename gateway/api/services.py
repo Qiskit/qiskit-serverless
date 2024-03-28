@@ -7,6 +7,8 @@ Version services inherit from the different services.
 """
 
 # pylint: disable=too-few-public-methods
+# pylint: disable=duplicate-code
+# Disable duplicate code due to refactorization. This file will be delited.
 
 import logging
 import json

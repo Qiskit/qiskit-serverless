@@ -117,7 +117,7 @@ class RunExistingProgramSerializer(serializers.Serializer):
         Transforms string `config` to JSON
         """
         representation = super().to_representation(instance)
-        representation['config'] = json.loads(representation['config'])
+        representation["config"] = json.loads(representation["config"])
         return representation
 
     def update(self, instance, validated_data):
