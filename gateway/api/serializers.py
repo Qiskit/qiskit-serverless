@@ -100,7 +100,7 @@ class RunExistingProgramSerializer(serializers.Serializer):
 
     title = serializers.CharField(max_length=255)
     arguments = serializers.CharField()
-    config = serializers.JSONField()
+    config = serializers.CharField()
 
     def retrieve_one_by_title(self, title, author):
         """
@@ -111,6 +111,14 @@ class RunExistingProgramSerializer(serializers.Serializer):
             .order_by("-created")
             .first()
         )
+
+    def to_representation(self, instance):
+        """
+        Transforms string `config` to JSON
+        """
+        representation = super().to_representation(instance)
+        representation['config'] = json.loads(representation['config'])
+        return representation
 
     def update(self, instance, validated_data):
         pass
