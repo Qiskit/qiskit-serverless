@@ -67,6 +67,15 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     def upload(self, request):
         return super().upload(request)
 
+    @swagger_auto_schema(
+        operation_description="Run an existing Qiskit Pattern",
+        request_body=v1_serializers.RunExistingProgramSerializer,
+        responses={status.HTTP_200_OK: v1_serializers.RunExistingJobSerializer},
+    )
+    @action(methods=["POST"], detail=False)
+    def run_existing(self, request):
+        return super().run_existing(request)
+
 
 class JobViewSet(views.JobViewSet):  # pylint: disable=too-many-ancestors
     """
