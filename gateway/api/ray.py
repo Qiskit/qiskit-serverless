@@ -233,6 +233,10 @@ def create_ray_cluster(
     dyn_client = DynamicClient(k8s_client)
     raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
+    print(cluster_data)
+    print("#####")
+    print(response)
+    print("#####")
     if response.metadata.name != cluster_name:
         raise RuntimeError(
             f"Something went wrong during cluster creation: {response.text}"
