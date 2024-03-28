@@ -134,7 +134,6 @@ class RunExistingJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = ["id", "result", "status", "program", "created", "arguments"]
 
     def create(self, validated_data):
         status = Job.QUEUED

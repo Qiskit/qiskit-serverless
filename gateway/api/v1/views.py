@@ -50,6 +50,10 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     @staticmethod
     def get_serializer_run_existing_program(*args, **kwargs):
         return v1_serializers.RunExistingProgramSerializer(*args, **kwargs)
+    
+    @staticmethod
+    def get_serializer_run_existing_job(*args, **kwargs):
+        return v1_serializers.RunExistingJobSerializer(*args, **kwargs)
 
     def get_serializer_class(self):
         return v1_serializers.ProgramSerializer
