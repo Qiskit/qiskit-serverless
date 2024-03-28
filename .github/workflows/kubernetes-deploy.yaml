@@ -78,7 +78,10 @@ jobs:
           echo $GATEWAY_HOST
           # basic tests
           cd /home/runner/work/quantum-serverless/quantum-serverless/tests/basic
-          for f in *.py; do echo "$f" && python "$f" && kubectl get raycluster -o yaml; done
+          for f in *.py; do echo "$f" && python "$f"; done
+          # experimental tests
+          cd /home/runner/work/quantum-serverless/quantum-serverless/tests/experimental
+          for f in *.py; do echo "$f" && python "$f"; done
       - name: Echo gateway logs
         run: |
           GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
