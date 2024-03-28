@@ -44,7 +44,7 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
 class CustomTokenBackend(authentication.BaseAuthentication):
     """Custom token backend for authentication against 3rd party auth service."""
 
-    def authenticate(self, request):
+    def authenticate(self, request):  # pylint: disable=too-many-branches
         auth_url = settings.SETTINGS_TOKEN_AUTH_URL
         verification_url = settings.SETTINGS_TOKEN_AUTH_VERIFICATION_URL
         auth_header = request.META.get("HTTP_AUTHORIZATION")
