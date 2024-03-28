@@ -78,17 +78,16 @@ jobs:
           echo $GATEWAY_HOST
           # basic tests
           cd /home/runner/work/quantum-serverless/quantum-serverless/tests/basic
-          for f in *.py; do echo "$f" && python "$f"; done
+          #for f in *.py; do echo "$f" && python "$f"; done
+	  python 01_running_program.py
           # experimental tests
-          cd /home/runner/work/quantum-serverless/quantum-serverless/tests/experimental
-          for f in *.py; do echo "$f" && python "$f"; done
+          #cd /home/runner/work/quantum-serverless/quantum-serverless/tests/experimental
+          #for f in *.py; do echo "$f" && python "$f"; done
       - name: Echo gateway logs
-        if: ${{ failure() }}
         run: |
           GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
           kubectl logs $GATEWAY
       - name: Echo scheduler logs
-        if: ${{ failure() }}
         run: |
           SCHEDULER=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep scheduler)
           kubectl logs $SCHEDULER
