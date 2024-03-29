@@ -7,11 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 USER 0:123
-RUN apt-get -y update
-RUN apt-get install -y iptables
-RUN pip install headerparser
-RUN pip install certifi
-RUN pip install requests
+RUN apt-get -y update && apt-get install -y iptables
+RUN pip install headerparser certifi requests
 COPY proxy/proxy .
 RUN chown -R 0:123 /usr/src/app
 
