@@ -170,7 +170,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             serializer = self.get_serializer_upload_program(data=request.data)
             if not serializer.is_valid():
                 logger.error(
-                    "Upload program serializer validation failed:\n %s",
+                    "UploadProgramSerializer validation failed:\n %s",
                     serializer.errors,
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -185,7 +185,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                 )
                 if not serializer.is_valid():
                     logger.error(
-                        "Upload program serializer validation failed with program instance:\n %s",
+                        "UploadProgramSerializer validation failed with program instance:\n %s",
                         serializer.errors,
                     )
                     return Response(
@@ -204,12 +204,17 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         with tracer.start_as_current_span("gateway.program.run_existing", context=ctx):
             serializer = self.get_serializer_run_existing_program(data=request.data)
             if not serializer.is_valid():
+                logger.error(
+                    "RunExistingProgramSerializer validation failed:\n %s",
+                    serializer.errors,
+                )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             author = request.user
             title = serializer.data.get("title")
             program = serializer.retrieve_one_by_title(title=title, author=author)
             if program is None:
+                logger.error("Qiskit Pattern [%s] was not found.", title)
                 return Response(
                     {"message": f"Qiskit Pattern [{title}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
@@ -218,12 +223,18 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             jobconfig = None
             config_json = serializer.data.get("config")
             if config_json:
+                logger.info("Configuration for [%s] was found.", title)
                 job_config_serializer = self.get_serializer_job_config(data=config_json)
                 if not job_config_serializer.is_valid():
+                    logger.error(
+                        "JobConfigSerializer validation failed:\n %s",
+                        serializer.errors,
+                    )
                     return Response(
                         job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
                 jobconfig = job_config_serializer.save()
+                logger.info("JobConfig [%s] created.", jobconfig.id)
 
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
@@ -233,10 +244,14 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                 token = request.auth.token.decode()
             job_serializer = self.get_serializer_run_existing_job(data={})
             if not job_serializer.is_valid():
+                logger.error(
+                    "RunExistingJobSerializer validation failed:\n %s",
+                    serializer.errors,
+                )
                 return Response(
                     job_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                 )
-            job_serializer.save(
+            job = job_serializer.save(
                 arguments=arguments,
                 author=author,
                 carrier=carrier,
@@ -244,6 +259,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                 program=program,
                 config=jobconfig,
             )
+            logger.info("Returning Job [%s] created.", job.id)
 
         return Response(job_serializer.data)
 

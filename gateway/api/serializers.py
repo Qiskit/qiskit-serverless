@@ -153,6 +153,7 @@ class RunExistingJobSerializer(serializers.ModelSerializer):
         model = Job
 
     def create(self, validated_data):
+        logger.info("Creating Job with RunExistingJobSerializer")
         status = Job.QUEUED
         program = validated_data.get("program")
         arguments = validated_data.get("arguments", "{}")
