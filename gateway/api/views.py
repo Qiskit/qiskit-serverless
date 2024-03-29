@@ -169,21 +169,31 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         with tracer.start_as_current_span("gateway.program.upload", context=ctx):
             serializer = self.get_serializer_upload_program(data=request.data)
             if not serializer.is_valid():
+                logger.error(
+                    "Upload program serializer validation failed:\n %s",
+                    serializer.errors,
+                )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             title = serializer.validated_data.get("title")
             author = request.user
             program = serializer.retrieve_one_by_title(title=title, author=author)
             if program is not None:
+                logger.info("Program found. [%s] is going to be updated", title)
                 serializer = self.get_serializer_upload_program(
                     program, data=request.data
                 )
                 if not serializer.is_valid():
+                    logger.error(
+                        "Upload program serializer validation failed with program instance:\n %s",
+                        serializer.errors,
+                    )
                     return Response(
                         serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
             serializer.save(author=author)
 
+            logger.info("Return response with Program [%s]", title)
             return Response(serializer.data)
 
     @action(methods=["POST"], detail=False)

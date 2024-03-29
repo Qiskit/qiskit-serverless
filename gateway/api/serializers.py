@@ -7,11 +7,14 @@ Version serializers inherit from the different serializers.
 """
 
 import json
+import logging
 from django.conf import settings
 from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
 from .models import Program, Job, JobConfig, RuntimeJob, CatalogEntry
+
+logger = logging.getLogger("gateway.serializers")
 
 
 class JobConfigSerializer(serializers.ModelSerializer):
@@ -80,9 +83,14 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         )
 
     def create(self, validated_data):
+        title = validated_data.get("title")
+        logger.info("Creating program [%s] with UploadProgramSerializer", title)
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
+        logger.info(
+            "Updating program [%s] with UploadProgramSerializer", instance.title
+        )
         instance.arguments = validated_data.get("arguments", "{}")
         instance.entrypoint = validated_data.get("entrypoint")
         instance.dependencies = validated_data.get("dependencies", "[]")
