@@ -5,14 +5,16 @@ import json
 import logging
 import os
 import ssl
+import time
 import zlib
 import requests
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=os.environ.get("LOG_LEVEL", logging.DEBUG))
 
 HOST = "127.0.0.1"
-PORT = 8443
-TIMEOUT = 30
+TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "30"))
+PORT = int(os.environ.get("PROXY_PORT", "8443"))
+MIDDLEWARE_JOB_ID_LENGTH = 36
 
 TEST_DST_PROTOCOL = "http"
 TEST_GATEWAY_URL = "127.0.0.1:60000"
@@ -29,6 +31,16 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         data = gzip_compress.compress(content) + gzip_compress.flush()
         return data
 
+    def chunked_transfer(self, content):
+        """chunked transfer"""
+        content = (
+            bytes(f"{len(content):x}", "utf-8")
+            + b"\x0d\x0a"
+            + content
+            + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
+        )
+        return content
+
     def handle_response(self, resp):
         """handle response."""
         self.send_response(resp.status_code)
@@ -44,12 +56,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 "Transfer-Encoding" in resp.headers
                 and resp.headers["Transfer-Encoding"] == "chunked"
             ):
-                content = (
-                    bytes(f"{len(content):x}", "utf-8")
-                    + b"\x0d\x0a"
-                    + content
-                    + b"\x0d\x0a0\x0d\x0a\x0d\x0a"
-                )
+                content = self.chunked_transfer(content)
         for header in resp.headers:
             self.send_header(header, resp.headers[header])
             logging.debug("header: %s, %s", header, resp.headers[header])
@@ -122,18 +129,21 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                         pos
                         + len("middleware_job_id/") : pos
                         + len("middleware_job_id/")
-                        + 36
+                        + MIDDLEWARE_JOB_ID_LENGTH
                     ]
                     logging.debug("Middleware Job ID: %s", middleware_job_id)
 
         resp = None
-        while resp is None:
+        retry = 5
+        while resp is None and retry > 0:
             try:
                 resp = requests.request(
                     self.command, url, headers=self.headers, data=data, timeout=TIMEOUT
                 )
             except:  # pylint: disable=bare-except
                 logging.debug("request error retrying")
+                time.sleep(3)
+                retry -= 1
 
         self.handle_response(resp)
         self.wfile.flush()  # actually send the response if not already done.
@@ -162,7 +172,6 @@ if __name__ == "__main__":
         certfile="/etc/ray/tls/tls.crt", keyfile="/etc/ray/tls/tls.key"
     )
     server_context.load_verify_locations(cafile="/etc/ca/tls/ca.crt")
-    server_context.verify_mode = ssl.CERT_NONE
 
     httpd = ThreadingHTTPServer((HOST, PORT), ProxyRequestHandler)
     httpd.socket = server_context.wrap_socket(httpd.socket, server_hostname=HOST)
