@@ -17,6 +17,43 @@ from .models import Program, Job, JobConfig, RuntimeJob, CatalogEntry
 logger = logging.getLogger("gateway.serializers")
 
 
+class UploadProgramSerializer(serializers.ModelSerializer):
+    """
+    Program serializer for the /upload end-point
+    """
+
+    class Meta:
+        model = Program
+
+    def retrieve_one_by_title(self, title, author):
+        """
+        This method returns a Program entry if it finds an entry searching by the title, if not None
+        """
+        return (
+            Program.objects.filter(title=title, author=author)
+            .order_by("-created")
+            .first()
+        )
+
+    def create(self, validated_data):
+        title = validated_data.get("title")
+        logger.info("Creating program [%s] with UploadProgramSerializer", title)
+        return Program.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        logger.info(
+            "Updating program [%s] with UploadProgramSerializer", instance.title
+        )
+        instance.arguments = validated_data.get("arguments", "{}")
+        instance.entrypoint = validated_data.get("entrypoint")
+        instance.dependencies = validated_data.get("dependencies", "[]")
+        instance.env_vars = validated_data.get("env_vars", "{}")
+        instance.artifact = validated_data.get("artifact")
+        instance.author = validated_data.get("author")
+        instance.save()
+        return instance
+
+
 class JobConfigSerializer(serializers.ModelSerializer):
     """
     Serializer for the Job Config model.
@@ -62,43 +99,6 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
-
-
-class UploadProgramSerializer(serializers.ModelSerializer):
-    """
-    Program serializer for the /upload end-point
-    """
-
-    class Meta:
-        model = Program
-
-    def retrieve_one_by_title(self, title, author):
-        """
-        This method returns a Program entry if it finds an entry searching by the title, if not None
-        """
-        return (
-            Program.objects.filter(title=title, author=author)
-            .order_by("-created")
-            .first()
-        )
-
-    def create(self, validated_data):
-        title = validated_data.get("title")
-        logger.info("Creating program [%s] with UploadProgramSerializer", title)
-        return Program.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        logger.info(
-            "Updating program [%s] with UploadProgramSerializer", instance.title
-        )
-        instance.arguments = validated_data.get("arguments", "{}")
-        instance.entrypoint = validated_data.get("entrypoint")
-        instance.dependencies = validated_data.get("dependencies", "[]")
-        instance.env_vars = validated_data.get("env_vars", "{}")
-        instance.artifact = validated_data.get("artifact")
-        instance.author = validated_data.get("author")
-        instance.save()
-        return instance
 
 
 class RunExistingProgramSerializer(serializers.Serializer):
