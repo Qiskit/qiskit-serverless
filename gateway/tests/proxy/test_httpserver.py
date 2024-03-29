@@ -10,6 +10,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 class TestServerThread(threading.Thread):
     """TestServerThread"""
+
     def __init__(self, test_object, request_handler):
         """init"""
         threading.Thread.__init__(self)
@@ -35,6 +36,7 @@ class TestServerThread(threading.Thread):
 
 class TestMockServerThread(threading.Thread):
     """TestMockserverThread"""
+
     def __init__(self, test_object, request_handler):
         """init"""
         threading.Thread.__init__(self)
@@ -58,6 +60,7 @@ class TestMockServerThread(threading.Thread):
 
 class MockServer(unittest.TestCase):
     """MockServer"""
+
     class mock_handler(BaseHTTPRequestHandler):
         def do_GET(self):
             """do_GET"""
@@ -85,6 +88,7 @@ class MockServer(unittest.TestCase):
 
 class BaseTestCase(unittest.TestCase):
     """BaseTestCase"""
+
     def setUp(self, mock):
         """setUp"""
         self.server_started = threading.Event()
@@ -122,6 +126,7 @@ class TestHTTPServer(unittest.TestCase):
 
     class request_handler(ProxyRequestHandler):
         """request handler"""
+
         None
 
     def test_none_post(self):

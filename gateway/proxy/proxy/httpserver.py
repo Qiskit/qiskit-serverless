@@ -18,7 +18,8 @@ gateway_url = os.environ.get("GATEWAY_URL", TEST_GATEWAY_URL)
 
 
 class ProxyRequestHandler(BaseHTTPRequestHandler):
-    """Proxy Request HHandler."""
+    """Proxy Request Handler."""
+
     def gzip_encode(self, content):
         """gzip encode"""
         gzip_compress = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
