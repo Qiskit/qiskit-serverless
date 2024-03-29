@@ -4,7 +4,7 @@ from http.server import HTTPServer
 import http, http.client, urllib.parse
 import unittest
 import operator
-from proxy.proxy.httpserver import ProxyRequestHandler
+from proxy.httpserver import ProxyRequestHandler
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 

@@ -1,15 +1,18 @@
-import ssl
-import os
-import requests
-import logging
-import zlib
-import json
+"""proxy server"""
+from http import HTTPStatus
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+import json
+import logging
+import os
+import ssl
+import zlib
+import requests
 
 logging.basicConfig(level=logging.DEBUG)
 
 HOST = "127.0.0.1"
 PORT = 8443
+TIMEOUT = 30
 
 TEST_DST_PROTOCOL = "http"
 TEST_GATEWAY_URL = "127.0.0.1:60000"
@@ -60,38 +63,45 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 
         try:
             logging.debug("New request")
-            self.raw_requestline = self.rfile.readline(65537)
+            self.raw_requestline = (  # pylint: disable=attribute-defined-outside-init
+                self.rfile.readline(65537)
+            )
             logging.debug("New request: %s", self.raw_requestline)
             if len(self.raw_requestline) > 65536:
-                self.requestline = ""
-                self.request_version = ""
-                self.command = ""
+                self.requestline = ""  # pylint: disable=attribute-defined-outside-init
+                self.request_version = (  # pylint: disable=attribute-defined-outside-init
+                    ""
+                )
+                self.command = ""  # pylint: disable=attribute-defined-outside-init
                 self.send_error(HTTPStatus.REQUEST_URI_TOO_LONG)
-                logging.debug("New request: return 1")
                 return
             if not self.raw_requestline:
-                self.close_connection = True
-                logging.debug("New request: return 2")
+                self.close_connection = (  # pylint: disable=attribute-defined-outside-init
+                    True
+                )
                 return
             if not self.parse_request():
                 # An error code has been sent, just exit
-                logging.debug("New request: return 3")
                 return
             if self.command == "POST":
                 self.do_POST()
             else:
                 url = f"{dst_protocol}://" + self.headers["Host"] + self.path
                 logging.debug("Passthrough none POST request: %s", url)
-                resp = requests.request(self.command, url, headers=self.headers)
+                resp = requests.request(
+                    self.command, url, headers=self.headers, timeout=TIMEOUT
+                )
                 self.handle_response(resp)
             self.wfile.flush()  # actually send the response if not already done.
         except TimeoutError as e:
             # a read or a write timed out.  Discard this connection
             self.log_error("Request timed out: %r", e)
-            self.close_connection = True
+            self.close_connection = (  # pylint: disable=attribute-defined-outside-init
+                True
+            )
             return
 
-    def do_POST(self):
+    def do_POST(self):  # pylint: disable=invalid-name
         """do POST"""
         logging.debug("POST")
         url = f"{dst_protocol}://" + self.headers["Host"] + self.path
@@ -99,7 +109,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers["Content-Length"])
         data = self.rfile.read(content_length)
         job_request = self.path.find("/runtime/jobs") != -1
-        id = None
+        middleware_job_id = None
         if job_request:
             if "X-Qx-Client-Application" in self.headers:
                 logging.debug(
@@ -108,25 +118,26 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 )
                 pos = self.headers["X-Qx-Client-Application"].find("middleware_job_id")
                 if pos != -1:
-                    id = self.headers["X-Qx-Client-Application"][
+                    middleware_job_id = self.headers["X-Qx-Client-Application"][
                         pos
                         + len("middleware_job_id/") : pos
                         + len("middleware_job_id/")
                         + 36
                     ]
-                    logging.debug("Middleware Job ID: %s", id)
+                    logging.debug("Middleware Job ID: %s", middleware_job_id)
 
         resp = None
-        while resp == None:
+        while resp is None:
             try:
                 resp = requests.request(
-                    self.command, url, headers=self.headers, data=data
+                    self.command, url, headers=self.headers, data=data, timeout=TIMEOUT
                 )
-            except:
-                None
+            except:  # pylint: disable=bare-except
+                logging.debug("request error retrying")
+
         self.handle_response(resp)
         self.wfile.flush()  # actually send the response if not already done.
-        if job_request and id:
+        if job_request and middleware_job_id:
             jsondata = json.loads(resp.content.decode("utf-8"))
             logging.debug("job id: %s", jsondata["id"])
 
@@ -136,9 +147,10 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 "Authorization": f"Bearer {token}",
             }
             r = requests.post(
-                f"http://{gateway_url}/api/v1/jobs/{id}/add_runtimejob/",
+                f"http://{gateway_url}/api/v1/jobs/{middleware_job_id}/add_runtimejob/",
                 headers=headers,
                 json={"runtime_job": jsondata["id"]},
+                timeout=TIMEOUT,
             )
             logging.debug("Gateway API Response: %s", r)
         logging.debug("response from backend: %s", resp.status_code)

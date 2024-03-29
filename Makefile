@@ -2,7 +2,7 @@
 # Constants
 # =========
 
-version=local
+version=latest
 repository=icr.io/quantum-public
 ifeq ($(shell uname -p), arm)
 	arch="arm64"
@@ -11,10 +11,8 @@ else
 endif
 
 rayNodeImageName=$(repository)/quantum-serverless-ray-node
-#gatewayImageName=$(repository)/quantum-serverless-gateway
-gatewayImageName=qiskit/quantum-serverless-gateway
-#proxyImageName=$(repository)/quantum-serverless-proxy
-proxyImageName=qiskit/quantum-serverless-proxy
+gatewayImageName=$(repository)/quantum-serverless-gateway
+proxyImageName=$(repository)/quantum-serverless-proxy
 
 # =============
 # Docker images
