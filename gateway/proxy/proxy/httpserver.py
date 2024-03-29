@@ -18,12 +18,15 @@ gateway_url = os.environ.get("GATEWAY_URL", TEST_GATEWAY_URL)
 
 
 class ProxyRequestHandler(BaseHTTPRequestHandler):
+    """Proxy Request HHandler."""
     def gzip_encode(self, content):
+        """gzip encode"""
         gzip_compress = zlib.compressobj(9, zlib.DEFLATED, zlib.MAX_WBITS | 16)
         data = gzip_compress.compress(content) + gzip_compress.flush()
         return data
 
     def handle_response(self, resp):
+        """handle response."""
         self.send_response(resp.status_code)
         if resp.content and len(resp.content) != 0:
             content = resp.content
@@ -52,13 +55,8 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
             logging.debug("Sending response content: %s", content)
 
     def handle_one_request(self):
-        """Handle a single HTTP request.
+        """Handle a single HTTP request."""
 
-        You normally don't need to override this method; see the class
-        __doc__ string for information on how to handle specific HTTP
-        commands such as GET and POST.
-
-        """
         try:
             logging.debug("New request")
             self.raw_requestline = self.rfile.readline(65537)
@@ -93,6 +91,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
             return
 
     def do_POST(self):
+        """do POST"""
         logging.debug("POST")
         url = f"{dst_protocol}://" + self.headers["Host"] + self.path
         logging.debug("Passthrough POST request: %s", url)
@@ -155,5 +154,5 @@ if __name__ == "__main__":
     httpd = ThreadingHTTPServer((HOST, PORT), ProxyRequestHandler)
     httpd.socket = server_context.wrap_socket(httpd.socket, server_hostname=HOST)
 
-    print("forever")
+    logging.info("Running proxy server...")
     httpd.serve_forever()

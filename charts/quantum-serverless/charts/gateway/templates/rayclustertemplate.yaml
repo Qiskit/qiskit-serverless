@@ -147,18 +147,8 @@ data:
                 privileged: true
                 capabilities:
                   add: ["NET_ADMIN"]
-              imagePullPolicy: Never
+              imagePullPolicy: IfNotPresent
               name: proxy
-              ports:
-              - containerPort: 6379
-                name: gcs
-                protocol: TCP
-              - containerPort: 8265
-                name: dashboard
-                protocol: TCP
-              - containerPort: 10001
-                name: client
-                protocol: TCP
               resources:
                 limits:
                   cpu: {{ .Values.application.ray.cpu }}
@@ -377,8 +367,6 @@ data:
                   cpu: {{ .Values.application.ray.cpu }}
                   memory: {{ .Values.application.ray.memory }}Gi
               securityContext:
-
-
             - resources:
                 limits:
                   cpu: 1
@@ -440,7 +428,7 @@ data:
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
 {{- end }}
               image: {{ .Values.application.ray.proxyImage }}
-              imagePullPolicy: Never
+              imagePullPolicy: IfNotPresent
               name: proxy
               resources:
                 limits:
@@ -454,10 +442,6 @@ data:
                 privileged: true
                 capabilities:
                   add: ["NET_ADMIN"]
-
-
-
-
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
             serviceAccountName: ray-cluster-sa
