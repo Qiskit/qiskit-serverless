@@ -29,7 +29,7 @@ jobs:
             platforms: linux/amd64,linux/arm64
           - imagename: quantum-serverless-proxy
             pythonversion: ''
-            dockerfile: ./gateway/proxy/Dockerfile
+            dockerfile: ./proxy/Dockerfile
             platforms: linux/amd64,linux/arm64
     steps:
       - name: Checkout

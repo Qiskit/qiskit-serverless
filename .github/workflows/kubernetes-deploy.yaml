@@ -33,7 +33,7 @@ jobs:
           docker image rm ray:test
       - name: Build and load proxy
         run: |
-          docker build -t proxy:test --build-arg TARGETARCH="amd64" -f ./gateway/proxy/Dockerfile .
+          docker build -t proxy:test --build-arg TARGETARCH="amd64" -f ./proxy/Dockerfile .
           kind load docker-image proxy:test
           docker image rm proxy:test
       - name: Install helm chart
