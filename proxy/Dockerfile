@@ -9,7 +9,6 @@ ENV PYTHONUNBUFFERED 1
 USER 0:123
 RUN apt-get -y update
 RUN apt-get install -y iptables
-RUN apt-get install -y tcpdump
 RUN pip install headerparser
 RUN pip install certifi
 RUN pip install requests

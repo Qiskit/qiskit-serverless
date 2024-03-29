@@ -151,11 +151,11 @@ data:
               name: proxy
               resources:
                 limits:
-                  cpu: {{ .Values.application.ray.cpu }}
-                  memory: {{ .Values.application.ray.memory }}Gi
+                  cpu: {{ .Values.application.proxy.cpu }}
+                  memory: {{ .Values.application.proxy.memory }}Gi
                 requests:
-                  cpu: {{ .Values.application.ray.cpu }}
-                  memory: {{ .Values.application.ray.memory }}Gi
+                  cpu: {{ .Values.application.proxy.cpu }}
+                  memory: {{ .Values.application.proxy.memory }}Gi
               volumeMounts:
               - mountPath: /tmp/ray
                 name: log-volume
@@ -208,7 +208,6 @@ data:
                   value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
                 - name: OT_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
-                  
 {{- end }}
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
@@ -432,11 +431,11 @@ data:
               name: proxy
               resources:
                 limits:
-                  cpu: {{ .Values.application.ray.cpu }}
-                  memory: {{ .Values.application.ray.memory }}Gi
+                  cpu: {{ .Values.application.proxy.cpu }}
+                  memory: {{ .Values.application.proxy.memory }}Gi
                 requests:
-                  cpu: {{ .Values.application.ray.cpu }}
-                  memory: {{ .Values.application.ray.memory }}Gi
+                  cpu: {{ .Values.application.proxy.cpu }}
+                  memory: {{ .Values.application.proxy.memory }}Gi
               securityContext:
                 runAsGroup: 123
                 privileged: true

@@ -36,6 +36,9 @@ application:
       host: "http://otel-collector"
       port: 4317
       insecure: 0
+  proxy:
+    cpu: 2
+    memory: 2    
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
