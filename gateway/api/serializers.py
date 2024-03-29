@@ -101,6 +101,15 @@ class ProgramSerializer(serializers.ModelSerializer):
         model = Program
 
 
+class JobSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the job model.
+    """
+
+    class Meta:
+        model = Job
+
+
 class RunExistingProgramSerializer(serializers.Serializer):
     """
     Program serializer for the /run_existing end-point
@@ -171,15 +180,6 @@ class RunExistingJobSerializer(serializers.ModelSerializer):
         job.save()
 
         return job
-
-
-class JobSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the job model.
-    """
-
-    class Meta:
-        model = Job
 
 
 class RuntimeJobSerializer(serializers.ModelSerializer):
