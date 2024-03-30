@@ -12,7 +12,7 @@ RUN apt-get -y update && apt-get install  --no-install-recommends -y iptables=1.
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install headerparser==0.5.1 certifi==2024.2.2 requests==2.31.0
+RUN pip install headerparser==0.5.1 certifi==2024.2.2 requests==2.31.0 --no-cache-dir
 COPY proxy/proxy .
 RUN chown -R 0:123 /usr/src/app
 
