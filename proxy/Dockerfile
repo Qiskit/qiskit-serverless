@@ -1,3 +1,6 @@
+# This must be removed when iptables are taken out
+# hadolint disable=DL3002
+
 FROM python:3.9.16-slim-buster
 
 WORKDIR /usr/src/app
