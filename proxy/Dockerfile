@@ -16,12 +16,11 @@ RUN pip install headerparser==0.5.1 certifi==2024.2.2 requests==2.31.0 --no-cach
 COPY proxy/proxy .
 RUN chown -R 0:123 /usr/src/app
 
+# This must be removed when iptables are taken out
+# hadolint disable=DL3002
 USER 0:123
 RUN chmod +x /usr/src/app/entrypoint.sh
 
 EXPOSE 8443
 # run entrypoint.sh
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
-
-# This must be removed when iptables are taken out
-# hadolint disable=DL3002
