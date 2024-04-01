@@ -15,6 +15,7 @@ HOST = "127.0.0.1"
 TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "30"))
 PORT = int(os.environ.get("PROXY_PORT", "8443"))
 MIDDLEWARE_JOB_ID_LENGTH = 36
+MAX_URI_LENGTH = 8000  # https://www.rfc-editor.org/rfc/rfc9110#section-4.1
 
 TEST_DST_PROTOCOL = "http"
 TEST_GATEWAY_URL = "127.0.0.1:60000"
@@ -71,7 +72,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         try:
             logging.debug("New request")
             self.raw_requestline = (  # pylint: disable=attribute-defined-outside-init
-                self.rfile.readline(65537)
+                self.rfile.readline(MAX_URI_LENGTH)
             )
             logging.debug("New request: %s", self.raw_requestline)
             if len(self.raw_requestline) > 65536:
