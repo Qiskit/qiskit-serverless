@@ -4,11 +4,11 @@ FROM python:3.9.16-slim-buster
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-RUN apt-get -y update && apt-get install  --no-install-recommends -y iptables=1.8.2-4 sudo &&\
+RUN apt-get -y update && apt-get install  --no-install-recommends -y iptables=1.8.2-4 sudo=1.8.27-1+deb10u6 &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install --upgrade pip
+RUN pip install --upgrade pip==24.0 --no-cache-dir
 
 RUN adduser --disabled-password --gecos '' worker
 RUN adduser worker sudo
