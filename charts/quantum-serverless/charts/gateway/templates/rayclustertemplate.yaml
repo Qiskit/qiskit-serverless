@@ -216,6 +216,8 @@ data:
 {{- end }}
             nodeSelector:
             tolerations: []
+            securityContext:
+              fsGroup: 123
             volumes:
             - emptyDir:
               name: log-volume
@@ -448,6 +450,8 @@ data:
 {{- end }}
             nodeSelector:
             tolerations: []
+            securityContext:
+              fsGroup: 123
             volumes:
             - emptyDir:
               name: log-volume

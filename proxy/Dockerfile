@@ -1,26 +1,28 @@
 FROM python:3.9.16-slim-buster
 
-WORKDIR /usr/src/app
-
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-USER 0:123
-
-RUN apt-get -y update && apt-get install  --no-install-recommends -y iptables=1.8.2-4 &&\
+RUN apt-get -y update && apt-get install  --no-install-recommends -y iptables=1.8.2-4 sudo &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install headerparser==0.5.1 certifi==2024.2.2 requests==2.31.0 --no-cache-dir
-COPY proxy/proxy .
-RUN chown -R 0:123 /usr/src/app
+RUN pip install --upgrade pip
 
-# This must be removed when iptables are taken out
-# hadolint disable=DL3002
-USER 0:123
-RUN chmod +x /usr/src/app/entrypoint.sh
+RUN adduser --disabled-password --gecos '' worker
+RUN adduser worker sudo
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+USER worker
+WORKDIR /home/worker
+
+RUN pip install headerparser==0.5.1 certifi==2024.2.2 requests==2.31.0 --no-cache-dir
+
+ENV PATH="/home/worker/.local/bin:${PATH}"
+
+COPY --chown=worker:worker proxy/proxy .
+RUN chmod +x /home/worker/entrypoint.sh
 
 EXPOSE 8443
-# run entrypoint.sh
-ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
+ENTRYPOINT ["/home/worker/entrypoint.sh"]

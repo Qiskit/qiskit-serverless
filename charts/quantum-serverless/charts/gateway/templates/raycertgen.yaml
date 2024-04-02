@@ -69,6 +69,7 @@ data:
     #!/bin/sh
     ## Create tls.key
     openssl genrsa -out /etc/ray/tls/tls.key 2048
+    chmod +r /etc/ray/tls/tls.key
 
     ## Write CSR Config
     cat > /etc/ray/tls/csr.conf <<EOF
