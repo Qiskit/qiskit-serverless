@@ -267,13 +267,11 @@ def wait_for_cluster_ready(cluster_name: str):
                     success = True
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.debug("Head node %s is not ready yet.", url)
-                logger.warning("Head node %s is not ready yet.", e)
             time.sleep(1)
         else:
             logger.warning("Waiting too long for cluster [%s] creation", cluster_name)
             break
-    #return url, success
-    return url, True
+    return url, success
 
 
 def kill_ray_cluster(cluster_name: str) -> bool:
