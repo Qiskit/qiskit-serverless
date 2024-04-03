@@ -12,27 +12,14 @@ jobs:
         image:
           [
             "quantum-serverless-gateway:latest",
-            "quantum-serverless-notebook:latest-py38",
-            "quantum-serverless-notebook:latest-py39",
-            "quantum-serverless-notebook:latest-py310",
             "quantum-serverless-ray-node:latest-py38",
             "quantum-serverless-ray-node:latest-py39",
             "quantum-serverless-ray-node:latest-py310",
-            "quantum-repository-server:latest",
           ]
         include:
           - image: "quantum-serverless-gateway:latest"
             dockerfile: "./gateway/Dockerfile"
             pyversion: "3.9"
-          - image: "quantum-serverless-notebook:latest-py38"
-            dockerfile: "Dockerfile-notebook"
-            pyversion: "3.8"
-          - image: "quantum-serverless-notebook:latest-py39"
-            dockerfile: "Dockerfile-notebook"
-            pyversion: "3.9"
-          - image: "quantum-serverless-notebook:latest-py310"
-            dockerfile: "Dockerfile-notebook"
-            pyversion: "3.10"
           - image: "quantum-serverless-ray-node:latest-py38"
             dockerfile: "Dockerfile-ray-node"
             pyversion: "py38"
@@ -42,15 +29,12 @@ jobs:
           - image: "quantum-serverless-ray-node:latest-py310"
             dockerfile: "Dockerfile-ray-node"
             pyversion: "py310"
-          - image: "quantum-repository-server:latest"
-            dockerfile: "./repository/Dockerfile"
-            pyversion: "3.9"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      
+
       - name: Scan image ${{ matrix.image }}
         uses: ./.github/actions/docker-vscan
         with:
@@ -58,6 +42,6 @@ jobs:
           dockerfile: ${{ matrix.dockerfile }}
           docker_image_name: ${{ matrix.image }}
           pyversion: ${{ matrix.pyversion }}
-      
+
       - name: Scan helm
         uses: ./.github/actions/helm-lint

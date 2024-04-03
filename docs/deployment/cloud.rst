@@ -28,8 +28,6 @@ To deploy the infrastructure required for ``Quantum Serverless`` you need to hav
 
 Each of these tools' webpages contain instructions for installing on Windows, MacOS, and Linux.
 
-* **Important**: before you download the above packages, check the `versions listed in our Github <https://github.com/Qiskit-Extensions/quantum-serverless/tree/main/infrastructure#tools>`_ of each tool to ensure that you download a compatible version.
-
 Once you have these tools installed, you can check the installation by running the following commands in a terminal:
 
 .. code-block::
@@ -86,7 +84,7 @@ Once your cluster is ready, the installation is relatively straightforward with 
 and run the next commands:
 
 .. code-block::
-   :caption: run this commands with the release version like 0.8.2 in x.y.z (2 places)
+   :caption: run this commands with the release version like 0.9.0 in x.y.z (2 places)
 
         $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/quantum-serverless-x.y.z.tgz
 
@@ -96,11 +94,10 @@ To connect with the different services, you have some options depending on your 
 approach is to use the ``port-forward`` command:
 
 .. code-block::
-   :caption: get gateway and jupyter pods
+   :caption: get gateway pod
 
         $ kubectl get service
         $ > ...
-        $ > jupyter ClusterIP 10.43.74.253 <none>   80/TCP
         $ > gateway ClusterIP 10.43.86.146 <none> 8000/TCP
         $ > ...
 
@@ -110,20 +107,18 @@ Now that we have the desired services, we can expose their ports:
    :caption: ports 8265 and 8888 are the the default ports for each service
 
         $  kubectl port-forward service/gateway  3333:8000
-        $  kubectl port-forward jupyter-<POD_ID> 4444:80
 
 Now you may access your cluster services from localhost.
 
 For development this is more than enough, but if you are considering deploying it remotely you will need to
 configure the various ``ingress`` properties in `values.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/charts/quantum-serverless/values.yaml>`_
-with the configuration of your domain and provider. In the ``Jupyter configs`` section you have a
-configuration example to expose through ``ingress`` in ``localhost`` the Jupyter service (disabled by default).
+with the configuration of your domain and provider.
 
 * **Important**: ``nginx-ingress-controller`` is disabled by default because third party providers should provide its own Ingress controller. To use it locally you need to activate it too.
 
 Optionally, you can install an observability package to handle logging and monitoring on your cluster by running the following command:
 
 .. code-block::
-   :caption: run this commands with the release version like 0.8.2 in x.y.z (2 places) using the same namespace as in the previous helm command
+   :caption: run this commands with the release version like 0.9.0 in x.y.z (2 places) using the same namespace as in the previous helm command
 
         $ helm -n <INSERT_YOUR_NAMESPACE> install qs-observability  https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz

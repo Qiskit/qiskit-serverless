@@ -17,6 +17,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "artifact",
             "dependencies",
             "arguments",
+            "public",
         ]
 
 
@@ -24,6 +25,21 @@ class ExistingProgramSerializer(serializers.ExistingProgramSerializer):
     """
     Existing program serializer first version. This serializer limitates the fields from Program.
     """
+
+
+class UploadProgramSerializer(serializers.UploadProgramSerializer):
+    """
+    UploadProgramSerializer is used by the /upload end-point
+    """
+
+    class Meta(serializers.UploadProgramSerializer.Meta):
+        fields = [
+            "title",
+            "entrypoint",
+            "artifact",
+            "dependencies",
+            "arguments",
+        ]
 
 
 class JobSerializer(serializers.JobSerializer):
@@ -50,3 +66,41 @@ class JobConfigSerializer(serializers.JobConfigSerializer):
             "auto_scaling",
             "python_version",
         ]
+
+
+class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
+    """
+    Runtime job serializer first version. Serializer for the runtime job model.
+    """
+
+    job = JobSerializer(many=False)
+
+    class Meta(serializers.RuntimeJobSerializer.Meta):
+        fields = ["job", "runtime_job"]
+
+
+class CatalogEntrySerializer(serializers.CatalogEntrySerializer):
+    """
+    Catalog entry serializer first version. Serializer for the catalog entry model.
+    """
+
+    program = ProgramSerializer(many=False)
+
+    class Meta(serializers.CatalogEntrySerializer.Meta):
+        fields = [
+            "id",
+            "title",
+            "description",
+            "tags",
+            "created",
+            "updated",
+            "program",
+            "status",
+        ]
+
+
+class ToCatalogSerializer(serializers.ToCatalogSerializer):
+    """
+    To catalog serializer first version.
+    This serializer limitates the fields from CatalogEntry.
+    """

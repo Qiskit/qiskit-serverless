@@ -51,16 +51,17 @@ There are tons of useful resources about Git [out there](https://try.github.io/)
 
 ## Opening issues
 
-You can [open 4 types of issues](https://github.com/Qiskit-Extensions/quantum-serverless/issues/new/choose):
+You can [open 3 types of issues](https://github.com/Qiskit-Extensions/quantum-serverless/issues/new/choose):
 
 * Bug reports: for reporting a misfunction. Provide steps to reproduce and expected behaviour.
 * Enhancement request: to suggest improvements to the current code.
 * Feature request: if you have a new use case or feature that we are not supporting.
-* Security vulnerability: in case you find a vulnerability in the project.
 
 Core contributors classify the tasks according to its nature and prioritize them
 from sprint to sprint. Types are not mutually exclusive and can change over time
 if needed.
+
+Security vulnerabilities must be privately reported by following our [Security Policy](SECURITY.md).
 
 
 ## Contributing code
@@ -69,24 +70,40 @@ if needed.
 
 You'll need to install these tools on your development environment:
 
-1. [python](https://www.python.org/): the language quantum-serverless is written in
+1. [python](https://www.python.org/): the language quantum-serverless is written in (Note that we currently support Python >=3.8,<3.11).
 1. [git](https://git-scm.com/): for source control
 1. [docker](https://docs.docker.com/engine/install/) or [podman](https://podman.io/): for building dev environment
 1. [kubectl](https://kubectl.docs.kubernetes.io/): for interacting with Kubernetes clusters
 1. [helm](https://helm.sh/): to install quantum-serverless on Kubernetes
+1. [tox](https://tox.wiki/en): to run tests and build the documentation
 
 Note: Installing the `pip` and `venv` python libraries will also be useful
 
 #### For non-Linux users
+To simplify the steps required to build and deploy quantum-serverless, we recommend the use of virtual machines for runtime containers.
 
 If you are on a Windows machine, it is recommended to use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install).
 
-If you are on a Mac machine, it is recommended to use [Colima](https://github.com/abiosoft/colima), which can be set up as follows:
+If you are on a Mac machine, it is recommended to use [Colima](https://github.com/abiosoft/colima) to run docker and kubernetes container environments. It automatically installs [`containerd`](https://github.com/containerd/containerd) runtime and provides support for `nerdctl`, a CLI tool for `containerd`. Colima can be set up as follows:
 
 ```bash
 brew install colima
 brew install docker
-colima start -- cpu 4 --memory 8
+colima start --cpu 4 --memory 8
+```
+To check if colima is running:
+```bash
+colima status
+```
+
+To list running containers:
+```bash
+nerdctl ps -a
+```
+
+To list container images:
+```bash
+nerdctl images
 ```
 
 ### Deciding what to work on
@@ -128,10 +145,9 @@ instead of forking it.
 
 ### Development environment
 
-This repository contains several projects with different technologies. Depending on the project that you selected
-you will run:
+This repository contains several projects with different technologies. Depending on the project that you selected (eg. gateway), from the project directory you will run:
 - `pip install -r requirements.txt requirements-dev.txt` for python projects (strongly consider using a [virtual environment](https://docs.python.org/3/library/venv.html)!).
-- `helm dependency build` for helm.
+- `helm dependency build` for helm (Before running this command, make sure to check for helm configuration instructions specific to your selected project charts).
 -  `terraform init` for terraform.
 
 To set up a local development environment for the quantum-serverless components (including the gateway, repository, ray nodes, etc.) using the latest changes you've made, use `docker compose` or `podman-compose`.
@@ -202,8 +218,10 @@ git rebase main issue-1234-new-feature
 
 ### Adding tests
 
-Our team upholds the philosophy that a healthy codebase will include the proper amount of testing, you can run them
-just typing `tox -epy39`.
+Our team upholds the philosophy that a healthy codebase will include the proper amount of testing. 
+From the project you are working on, you can run tests with `tox -epy39`.
+Note if you run this command from quantum-serverless top directory, it will build the project documentation.
+For detailed testing guidelines using tox environments, please refer to [this documentation](./client/tests/README.md).
 
 As a part of the development backlog planning, we have internal discussions to determine which scenarios should be
 tested. For code that requires testing, please look for notes in the original issues, as we will do our best to

@@ -30,6 +30,7 @@ Quantum serverless provider
 import logging
 import warnings
 import os.path
+import os
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any, Union
 
@@ -608,6 +609,7 @@ class LocalProvider(BaseProvider):
         """
         super().__init__("local-provier")
         self.client = LocalJobClient()
+        self.in_test = os.getenv("IN_TEST")
 
     def run(
         self,
@@ -629,3 +631,39 @@ class LocalProvider(BaseProvider):
 
     def upload(self, program: QiskitPattern):
         return self.client.upload(program)
+
+    def widget(self):
+        """Widget for information about provider and jobs."""
+        return Widget(self).show()
+
+    def get_programs(self, **kwargs) -> List[QiskitPattern]:
+        return self.client.get_programs(**kwargs)
+
+    def files(self) -> List[str]:
+        if self.in_test:
+            logging.warning("files method is not implemented in LocalProvider.")
+            return []
+        raise NotImplementedError("files method is not implemented in LocalProvider.")
+
+    def file_upload(self, file: str):
+        if self.in_test:
+            logging.warning("file_upload method is not implemented in LocalProvider.")
+            return
+        raise NotImplementedError("files method is not implemented in LocalProvider.")
+
+    def file_download(
+        self,
+        file: str,
+        target_name: Optional[str] = None,
+        download_location: str = "./",
+    ):
+        if self.in_test:
+            logging.warning("file_download method is not implemented in LocalProvider.")
+            return None
+        raise NotImplementedError("files method is not implemented in LocalProvider.")
+
+    def file_delete(self, file: str):
+        if self.in_test:
+            logging.warning("file_delete method is not implemented in LocalProvider.")
+            return None
+        raise NotImplementedError("files method is not implemented in LocalProvider.")

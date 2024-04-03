@@ -1,21 +1,15 @@
 dependencies:
 - name: gateway
   repository: ""
-  version: 0.8.2
-- name: jupyter
-  repository: ""
-  version: 0.8.2
+  version: 0.9.0
 - name: nginx-ingress-controller
   repository: https://charts.bitnami.com/bitnami
-  version: 9.9.4
+  version: 9.11.0
 - name: postgresql
   repository: https://charts.bitnami.com/bitnami
-  version: 13.2.24
+  version: 13.4.4
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
-  version: 0.6.1
-- name: repository
-  repository: ""
-  version: 0.8.2
-digest: sha256:7098fcf09532c0f5452b9ae5b93c2d844347065cc01ecf5927be3e2662072c74
-generated: "2024-01-05T15:55:50.700792989Z"
+  version: 1.0.0
+digest: sha256:9b10c7858508eede98d9302d08742dbb3adcaa7d3afe165219145d4c68ab29ee
+generated: "2024-02-21T17:19:57.852813464Z"

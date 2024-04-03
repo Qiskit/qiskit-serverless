@@ -22,13 +22,19 @@ jobs:
           python-version: '3.9'
       - name: install dependencies
         shell: bash
-        run: pip install client/ && pip install nbmake pytest
-      - name: Run basic notebooks
+        run: pip install client/
+      - name: Run basic tests
         shell: bash
-        run: pytest --nbmake docs/getting_started/basic/
-      - name: Run experimental notebooks
+        run: |
+          cd tests/basic
+          for f in *.py; do echo "$f" && python "$f"; done
+          cd -
+      - name: Run experimental tests
         shell: bash
-        run: pytest --nbmake docs/getting_started/experimental/
+        run: |
+          cd tests/experimental
+          for f in *.py; do echo "$f" && python "$f"; done
+          cd -
       - name: Dump logs on failure
         if: ${{ failure() }}
         run: |

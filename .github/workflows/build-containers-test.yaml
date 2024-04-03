@@ -16,7 +16,6 @@ jobs:
       matrix:
         dockerfile:
           - Dockerfile-ray-node
-          - repository/Dockerfile
           - gateway/Dockerfile
         python:
           - "3.8"
@@ -28,13 +27,6 @@ jobs:
             python: "3.8"
           - dockerfile: gateway/Dockerfile
             python: "3.10"
-          # repository is only built using python 3.9
-          - dockerfile: repository/Dockerfile
-            python: "3.8"
-          - dockerfile: repository/Dockerfile
-            python: "3.10"
-
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4

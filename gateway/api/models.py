@@ -55,9 +55,9 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     """Program model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
 
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, db_index=True)
     entrypoint = models.CharField(max_length=255)
     artifact = models.FileField(
         upload_to=get_upload_path,
@@ -69,6 +69,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
+    public = models.BooleanField(null=False, default=False)
 
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
@@ -166,9 +167,42 @@ class Job(models.Model):
 class CatalogEntry(models.Model):
     """Catalog Entry model."""
 
+    PRIVATE = "PRIVATE"
+    ACTIVE = "ACTIVE"
+    PUBLIC = "PUBLIC"
+    REVIEWED = "REVIEWED"
+    APPROVED = "APPROVED"
+    STATUSES = [
+        (PRIVATE, "Private"),
+        (ACTIVE, "Active"),
+        (PUBLIC, "Public"),
+        (REVIEWED, "Reviewed"),
+        (APPROVED, "Approved"),
+    ]
+
     title = models.CharField(max_length=255)
     description = models.TextField()
     tags = models.TextField(null=False, blank=True, default="[]")
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True, null=True)
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
+    status = models.CharField(
+        max_length=10,
+        choices=STATUSES,
+        default=PRIVATE,
+    )
+
+
+class RuntimeJob(models.Model):
+    """Runtime Job model."""
+
+    job = models.ForeignKey(
+        to=Job,
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+    )
+    runtime_job = models.CharField(
+        primary_key=True, max_length=100, blank=False, null=False
+    )

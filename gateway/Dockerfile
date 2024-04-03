@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED 1
 
 # install psycopg2 dependencies
 RUN apt-get -y update &&\
-    apt-get install --no-install-recommends -y gcc=4:8.3.0-1 python3-dev=3.7.3-1 &&\
+    apt-get install --no-install-recommends -y gcc=4:8.3.0-1 python3-dev=3.7.3-1 vim=2:8.1.0875-5+deb10u6 &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 

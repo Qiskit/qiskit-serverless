@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/4.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
+
 import os
 import os.path
 import sys
@@ -46,7 +47,6 @@ ALLOWED_CIDR_NETS = ["10.0.0.0/8"]
 # Application definition
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -58,12 +58,9 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "rest_framework_simplejwt",
     "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
-    "dj_rest_auth",
-    "dj_rest_auth.registration",
     "api",
     "psycopg2",
+    "drf_yasg",
 ]
 
 MIDDLEWARE = [
@@ -74,11 +71,9 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "main.urls"
@@ -178,8 +173,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 AUTHENTICATION_BACKENDS = [
-    # Needed to login by username in Django admin, regardless of `allauth`
-    "django.contrib.auth.backends.ModelBackend",
     # `allauth` specific authentication methods, such as login by e-mail
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
@@ -249,6 +242,17 @@ REST_AUTH = {
     "USE_JWT": True,
     # 'JWT_AUTH_COOKIE': 'gateway-app-auth',
     # 'JWT_AUTH_REFRESH_COOKIE': 'gateway-refresh-token',
+}
+
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer Token": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+        },
+    },
+    "USE_SESSION_AUTH": False,
 }
 
 SITE_ID = 1
@@ -355,3 +359,8 @@ CSP_DEFAULT_SRC = "'none'"
 CSP_SCRIPT_SRC = "'none'"
 CSP_FRAME_ANCESTORS = "'self'"
 CSP_OBJECT_SRC = "'self'"
+CSP_IMG_SRC = ("'self'", "data:", "https://cdn.redoc.ly")
+CSP_STYLE_SRC_ELEM = ("'self'", "'unsafe-inline'")
+CSP_SCRIPT_SRC_ELEM = "'self'"
+CSP_CONNECT_SRC = "'self'"
+CSP_WORKER_SRC = ("'self'", "blob:")
