@@ -29,6 +29,7 @@ from api.utils import (
 )
 from utils import sanitize_file_path
 from main import settings
+from pprint import pprint
 
 logger = logging.getLogger("commands")
 
@@ -289,6 +290,17 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     config.load_incluster_config()
     k8s_client = kubernetes_client.api_client.ApiClient()
     dyn_client = DynamicClient(k8s_client)
+
+    corev1 = kubernetes_client.CoreV1Api()
+    try:
+        pods = corev1.list_namespaced_pod(namespace)
+        pprint(pods)
+    except ApiException as e:
+        logger.error(
+            "Something went wrong: %s",
+            e,
+        )
+
     raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
     try:
         delete_response = raycluster_client.delete(
