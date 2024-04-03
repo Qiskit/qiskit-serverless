@@ -263,15 +263,17 @@ def wait_for_cluster_ready(cluster_name: str):
         if attempts <= max_attempts:
             try:
                 response = requests.get(url, timeout=5)
+                logger.warning("Response of get: [%s]", response)
                 if response.ok:
                     success = True
             except Exception:  # pylint: disable=broad-exception-caught
-                logger.debug("Head node %s is not ready yet.", url)
+                logger.warning("Head node %s is not ready yet.", url)
             time.sleep(1)
         else:
             logger.warning("Waiting too long for cluster [%s] creation", cluster_name)
             break
     return url, success
+    return url, True
 
 
 def kill_ray_cluster(cluster_name: str) -> bool:
