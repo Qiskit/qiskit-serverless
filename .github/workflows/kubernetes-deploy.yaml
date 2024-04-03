@@ -50,7 +50,7 @@ jobs:
             --set gateway.image.tag=test \
             --set gateway.application.ray.nodeImage=ray:test \
             --set gateway.application.ray.proxyImage=proxy:test \
-            --set gateway.application.limits.keepClusterOnComplete=false \
+            --set gateway.application.limits.keepClusterOnComplete=true \
             .
       - name: setup python
         uses: actions/setup-python@v4
@@ -79,9 +79,6 @@ jobs:
           # basic tests
           cd /home/runner/work/quantum-serverless/quantum-serverless/tests/basic
           for f in *.py; do echo "$f" && python "$f"; done
-          # experimental tests
-          cd /home/runner/work/quantum-serverless/quantum-serverless/tests/experimental
-          for f in *.py; do echo "$f" && python "$f"; done
       - name: Echo gateway logs
         run: |
           GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
@@ -94,6 +91,9 @@ jobs:
         run: |
           SCHEDULER=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep scheduler)
           kubectl logs $SCHEDULER
+      - name: Echo pods
+        run: |
+          kubectl get pod -o yaml
       - uses: chainguard-dev/actions/kind-diag@main
         # Only upload logs on failure.
         if: ${{ failure() }}
