@@ -37,8 +37,8 @@ application:
       port: 4317
       insecure: 0
   proxy:
-    cpu: 2
-    memory: 2    
+    cpu: 1
+    memory: 1    
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
