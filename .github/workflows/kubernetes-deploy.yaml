@@ -50,7 +50,7 @@ jobs:
             --set gateway.image.tag=test \
             --set gateway.application.ray.nodeImage=ray:test \
             --set gateway.application.ray.proxyImage=proxy:test \
-            --set gateway.application.limits.keepClusterOnComplete=true \
+            --set gateway.application.limits.keepClusterOnComplete=True \
             .
       - name: setup python
         uses: actions/setup-python@v4
