@@ -265,7 +265,7 @@ def wait_for_cluster_ready(cluster_name: str):
                 response = requests.get(url, timeout=5)
                 if response.ok:
                     success = True
-            except Exception as e:  # pylint: disable=broad-exception-caught
+            except Exception:  # pylint: disable=broad-exception-caught
                 logger.debug("Head node %s is not ready yet.", url)
             time.sleep(1)
         else:
