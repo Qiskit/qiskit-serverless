@@ -12,13 +12,6 @@ rules:
   - delete
   - get
   - list
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
 {{- if .Values.useCertManager }}
 - apiGroups:
   - cert-manager.io
