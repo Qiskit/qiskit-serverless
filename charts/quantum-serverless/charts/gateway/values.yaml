@@ -38,7 +38,7 @@ application:
       insecure: 0
   proxy:
     cpu: 0.1
-    memory: 0.1    
+    memory: 1    
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
