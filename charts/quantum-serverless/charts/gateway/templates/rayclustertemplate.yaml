@@ -151,10 +151,10 @@ data:
               name: proxy
               resources:
                 limits:
-                  cpu: {{ .Values.application.proxy.cpu }}
+                  cpu: {{ .Values.application.proxy.cpu_limit }}
                   memory: {{ .Values.application.proxy.memory }}Gi
                 requests:
-                  cpu: {{ .Values.application.proxy.cpu }}
+                  cpu: {{ .Values.application.proxy.cpu_request }}
                   memory: {{ .Values.application.proxy.memory }}Gi
               volumeMounts:
               - mountPath: /tmp/ray
@@ -433,10 +433,10 @@ data:
               name: proxy
               resources:
                 limits:
-                  cpu: {{ .Values.application.proxy.cpu }}
+                  cpu: {{ .Values.application.proxy.cpu_limit }}
                   memory: {{ .Values.application.proxy.memory }}Gi
                 requests:
-                  cpu: {{ .Values.application.proxy.cpu }}
+                  cpu: {{ .Values.application.proxy.cpu_request }}
                   memory: {{ .Values.application.proxy.memory }}Gi
               securityContext:
                 runAsGroup: 123
