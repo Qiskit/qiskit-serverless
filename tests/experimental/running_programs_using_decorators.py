@@ -15,51 +15,51 @@ provider = ServerlessProvider(
 print(provider)
 
 
-@distribute_qiskit_pattern(provider)
-def hello_qiskit():
-    circuit = QuantumCircuit(2)
-    circuit.h(0)
-    circuit.cx(0, 1)
-    circuit.measure_all()
-    circuit.draw()
-
-    sampler = Sampler()
-    quasi_dists = sampler.run(circuit).result().quasi_dists
-
-    return quasi_dists
-
-
-job = hello_qiskit()
-print(job)
-print(job.result())
-print(job.status())
-print(job.logs())
-
-
-#@distribute_task(target={"cpu": 2})
-#def distributed_sample(circuit: QuantumCircuit):
-#    """Distributed task that returns quasi distribution for given circuit."""
-#    return Sampler().run(circuit).result().quasi_dists
-
-
 #@distribute_qiskit_pattern(provider)
-#def pattern_with_distributed_tasks(circuits):
-#    sample_task_references = [distributed_sample(circuit) for circuit in circuits]
-#    results = get(sample_task_references)
-#    print(results)
-
-
-#circuits = []
-#for _ in range(3):
-#    circuit = random_circuit(2, 2)
+#def hello_qiskit():
+#    circuit = QuantumCircuit(2)
+#    circuit.h(0)
+#    circuit.cx(0, 1)
 #    circuit.measure_all()
-#    circuits.append(circuit)
+#    circuit.draw()
 
-#job = pattern_with_distributed_tasks(circuits=circuits)
+#    sampler = Sampler()
+#    quasi_dists = sampler.run(circuit).result().quasi_dists
+
+#    return quasi_dists
+
+
+#job = hello_qiskit()
 #print(job)
 #print(job.result())
 #print(job.status())
 #print(job.logs())
+
+
+@distribute_task(target={"cpu": 2})
+def distributed_sample(circuit: QuantumCircuit):
+    """Distributed task that returns quasi distribution for given circuit."""
+    return Sampler().run(circuit).result().quasi_dists
+
+
+@distribute_qiskit_pattern(provider)
+def pattern_with_distributed_tasks(circuits):
+    sample_task_references = [distributed_sample(circuit) for circuit in circuits]
+    results = get(sample_task_references)
+    print(results)
+
+
+circuits = []
+for _ in range(3):
+    circuit = random_circuit(2, 2)
+    circuit.measure_all()
+    circuits.append(circuit)
+
+job = pattern_with_distributed_tasks(circuits=circuits)
+print(job)
+print(job.result())
+print(job.status())
+print(job.logs())
 
 
 #@distribute_qiskit_pattern(provider, working_dir="./")
