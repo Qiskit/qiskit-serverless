@@ -36,40 +36,40 @@ print(job.status())
 print(job.logs())
 
 
-@distribute_task(target={"cpu": 2})
-def distributed_sample(circuit: QuantumCircuit):
-    """Distributed task that returns quasi distribution for given circuit."""
-    return Sampler().run(circuit).result().quasi_dists
+#@distribute_task(target={"cpu": 2})
+#def distributed_sample(circuit: QuantumCircuit):
+#    """Distributed task that returns quasi distribution for given circuit."""
+#    return Sampler().run(circuit).result().quasi_dists
 
 
-@distribute_qiskit_pattern(provider)
-def pattern_with_distributed_tasks(circuits):
-    sample_task_references = [distributed_sample(circuit) for circuit in circuits]
-    results = get(sample_task_references)
-    print(results)
+#@distribute_qiskit_pattern(provider)
+#def pattern_with_distributed_tasks(circuits):
+#    sample_task_references = [distributed_sample(circuit) for circuit in circuits]
+#    results = get(sample_task_references)
+#    print(results)
 
 
-circuits = []
-for _ in range(3):
-    circuit = random_circuit(2, 2)
-    circuit.measure_all()
-    circuits.append(circuit)
+#circuits = []
+#for _ in range(3):
+#    circuit = random_circuit(2, 2)
+#    circuit.measure_all()
+#    circuits.append(circuit)
 
-job = pattern_with_distributed_tasks(circuits=circuits)
-print(job)
-print(job.result())
-print(job.status())
-print(job.logs())
-
-
-@distribute_qiskit_pattern(provider, working_dir="./")
-def my_pattern_with_modules():
-    quasi_dists = Sampler().run(create_hello_world_circuit()).result().quasi_dists
-    return {"quasi_dists": quasi_dists}
+#job = pattern_with_distributed_tasks(circuits=circuits)
+#print(job)
+#print(job.result())
+#print(job.status())
+#print(job.logs())
 
 
-job = my_pattern_with_modules()
-print(job)
-print(job.result())
-print(job.status())
-print(job.logs())
+#@distribute_qiskit_pattern(provider, working_dir="./")
+#def my_pattern_with_modules():
+#    quasi_dists = Sampler().run(create_hello_world_circuit()).result().quasi_dists
+#    return {"quasi_dists": quasi_dists}
+
+
+#job = my_pattern_with_modules()
+#print(job)
+#print(job.result())
+#print(job.status())
+#print(job.logs())
