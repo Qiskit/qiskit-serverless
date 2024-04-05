@@ -17,7 +17,6 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "artifact",
             "dependencies",
             "arguments",
-            "public",
         ]
 
 
@@ -77,30 +76,3 @@ class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
 
     class Meta(serializers.RuntimeJobSerializer.Meta):
         fields = ["job", "runtime_job"]
-
-
-class CatalogEntrySerializer(serializers.CatalogEntrySerializer):
-    """
-    Catalog entry serializer first version. Serializer for the catalog entry model.
-    """
-
-    program = ProgramSerializer(many=False)
-
-    class Meta(serializers.CatalogEntrySerializer.Meta):
-        fields = [
-            "id",
-            "title",
-            "description",
-            "tags",
-            "created",
-            "updated",
-            "program",
-            "status",
-        ]
-
-
-class ToCatalogSerializer(serializers.ToCatalogSerializer):
-    """
-    To catalog serializer first version.
-    This serializer limitates the fields from CatalogEntry.
-    """

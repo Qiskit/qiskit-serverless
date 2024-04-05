@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0013_program_groups_catalogentry"),
+        ("api", "0012_jobconfig_python_version"),
     ]
 
     operations = [
