@@ -42,14 +42,6 @@ jobs:
         - make docker/lint-ray
     
     - stage: checks
-      name: docker/lint-repository
-      language: minimal
-      install: skip
-      services: docker
-      script:
-        - make docker/lint-repository
-    
-    - stage: checks
       name: docker/sast-gateway
       language: minimal
       install: skip
@@ -64,34 +56,6 @@ jobs:
       services: docker
       script:
         - make docker/sast-ray
-    
-    - stage: checks
-      name: docker/sast-repository
-      language: minimal
-      install: skip
-      services: docker
-      script:
-        - make docker/sast-repository
-
-    - stage: checks
-      name: helm/check-staging
-      language: minimal
-      install: skip
-      services: docker
-      env:
-        - ENVIRONMENT: staging
-      script:
-        - make docker/sast-repository
-    
-    - stage: checks
-      name: helm/check-production
-      language: minimal
-      install: skip
-      services: docker
-      env:
-        - ENVIRONMENT: production
-      script:
-        - make docker/sast-repository
 
     - stage: docker image
       name: docker/vscan-gateway
@@ -132,16 +96,6 @@ jobs:
         - .travis/bin/install_docker_buildx.sh
       script:
         - make docker/vscan-ray-py310
-
-    - stage: docker image
-      name: docker/vscan-repository
-      language: minimal
-      install: skip
-      services: docker
-      before_script:
-        - .travis/bin/install_docker_buildx.sh
-      script:
-        - make docker/vscan-repository
 
     - stage: docker release
       name: docker/release-selector
