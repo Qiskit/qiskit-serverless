@@ -90,22 +90,22 @@ class CustomTokenBackend(authentication.BaseAuthentication):
                         except User.DoesNotExist:
                             user = User(username=user_id)
                             user.save()
-                    if user_id is None:
+                    elif user_id is None:
                         logger.warning("No user id.")
 
-                    if not verified:
+                    else:  # not verified
                         logger.warning("User is not verified.")
 
-                if verification_data is None:
+                else:  # verification_data is None
                     logger.warning("No verification data returned from request.")
 
-            if auth_data is None:
+            else:  # auth_data is None
                 logger.warning("No authorization data returned from auth url.")
 
-        if auth_header is None:
+        elif auth_header is None:
             logger.warning("User did not provide authorization token.")
 
-        if auth_url is None:
+        else:  # auth_url is None
             logger.warning("No auth url: something is broken in our settings.")
 
         return user, CustomToken(token.encode()) if token else None
