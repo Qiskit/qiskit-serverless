@@ -96,15 +96,23 @@ class CustomTokenBackend(authentication.BaseAuthentication):
                         logger.warning("Problems authenticating: User is not verified.")
 
                 else:  # verification_data is None
-                    logger.warning("Problems authenticating: No verification data returned from request.")
+                    logger.warning(
+                        "Problems authenticating: No verification data returned from request."
+                    )
 
             else:  # auth_data is None
-                logger.warning("Problems authenticating: No authorization data returned from auth url.")
+                logger.warning(
+                    "Problems authenticating: No authorization data returned from auth url."
+                )
 
         elif auth_header is None:
-            logger.warning("Problems authenticating: User did not provide authorization token.")
+            logger.warning(
+                "Problems authenticating: User did not provide authorization token."
+            )
         else:  # auth_url is None
-            logger.warning("Problems authenticating: No auth url: something is broken in our settings.")
+            logger.warning(
+                "Problems authenticating: No auth url: something is broken in our settings."
+            )
 
         return user, CustomToken(token.encode()) if token else None
 
