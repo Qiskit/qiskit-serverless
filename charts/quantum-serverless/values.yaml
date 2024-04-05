@@ -128,7 +128,6 @@ postgresql:
 storageClassName: manual
 claimName: gateway-claim
 
-cosEnable: false
 cos:
   bucket: BUCKETNAME-CHANGEME
   endpoint: ENDPOINT-CHANGEME

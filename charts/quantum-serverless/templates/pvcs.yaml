@@ -1,4 +1,4 @@
-{{ if and (eq .Values.platform "kind") (eq .Values.cosEnable false) }}
+{{ if eq .Values.platform "kind" }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -10,7 +10,7 @@ spec:
   resources:
     requests:
       storage: 1Gi
-{{ else if and (eq .Values.platform "ibm") .Values.cosEnable }}
+{{ else if eq .Values.platform "ibm" }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
