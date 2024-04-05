@@ -3,6 +3,8 @@
 # ===================
 platform: default
 
+storageClassName: manual
+claimName: gateway-claim
 # ===================
 # Ingress Nginx controller configs
 # ===================
