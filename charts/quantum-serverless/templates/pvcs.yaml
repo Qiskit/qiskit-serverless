@@ -14,7 +14,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.cos.claimName }}
+  name: {{ .Values.claimName }}
   annotations:
     ibm.io/auto-create-bucket: "false"
     ibm.io/auto-delete-bucket: "false"
@@ -29,7 +29,7 @@ spec:
   resources:
     requests:
       storage: {{ .Values.cos.storageSize | quote }}
-  storageClassName: {{ .Values.cos.storageClassName | quote }}
+  storageClassName: {{ .Values.storageClassName | quote }}
 {{ else }}
 apiVersion: v1
 kind: PersistentVolume

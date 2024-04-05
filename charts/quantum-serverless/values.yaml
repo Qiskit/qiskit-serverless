@@ -3,8 +3,6 @@
 # ===================
 platform: default
 
-storageClassName: manual
-claimName: gateway-claim
 # ===================
 # Ingress Nginx controller configs
 # ===================
@@ -124,14 +122,15 @@ postgresql:
     password: serverlesspassword
 
 # ===================
-# COS
+# PVC
 # ===================
+
+storageClassName: manual
+claimName: gateway-claim
 
 cosEnable: false
 cos:
   bucket: BUCKETNAME-CHANGEME
-  claimName: gateway-claim
   endpoint: ENDPOINT-CHANGEME
   secretName: SECRETNAME-CHANGEME
-  storageClassName: STORAGECLASSNAME-CHANGEME
   storageSize: 10Gi
