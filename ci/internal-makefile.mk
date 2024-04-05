@@ -10,7 +10,6 @@ DEBUG_MODE                ?= true
 DOCKER_FILE_GATEWAY       ?= ./gateway/Dockerfile
 DOCKER_FILE_NOTEBOOK      ?= ./Dockerfile-notebook
 DOCKER_FILE_RAY_NODE      ?= ./Dockerfile-ray-node
-DOCKER_FILE_REPOSITORY    ?= ./repository/Dockerfile
 DOCKER_FILE_SELECTOR  	  ?= ./tools/Dockerfile
 
 DOCKER_REGISTRY           			:= icr.io
@@ -24,7 +23,6 @@ PROJECT_VERSION			  ?= latest
 DOCKER_IMAGE_GATEWAY      := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-serverless-gateway
 DOCKER_IMAGE_NOTEBOOK     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-serverless-notebook
 DOCKER_IMAGE_RAY_NODE     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-serverless-ray-node
-DOCKER_IMAGE_REPOSITORY   := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-repository-server
 DOCKER_IMAGE_SELECTOR 	  := $(DOCKER_REGISTRY)/$(DOCKER_PRIVATE_REGISTRY_NAMESPACE)/quantum-serverless-selector
 DOCKER_IMAGE_SELECTOR_TAG := 0.8.1
 
@@ -40,10 +38,6 @@ docker/lint-gateway: docker/lint
 docker/lint-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE) 
 docker/lint-ray: docker/lint
 
-.PHONY: docker/lint-repository
-docker/lint-repository: DOCKER_FILE 		:= $(DOCKER_FILE_REPOSITORY) 
-docker/lint-repository: docker/lint
-
 # .PHONY: docker/lint-selector
 # docker/lint-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR) 
 # docker/lint-selector: docker/lint
@@ -55,10 +49,6 @@ docker/sast-gateway: docker/sast
 .PHONY: docker/sast-ray
 docker/sast-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE) 
 docker/sast-ray: docker/sast
-
-.PHONY: docker/sast-repository
-docker/sast-repository: DOCKER_FILE 		:= $(DOCKER_FILE_REPOSITORY) 
-docker/sast-repository: docker/sast
 
 # .PHONY: docker/sast-selector
 # docker/sast-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR) 
@@ -91,13 +81,6 @@ docker/vscan-ray-py310: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_RAY_NODE)
 docker/vscan-ray-py310: IMAGE_TAG 			:= $(PROJECT_VERSION)-py310
 docker/vscan-ray-py310: PY_VERSION 			:= "py310"
 docker/vscan-ray-py310: docker/vscan
-
-.PHONY: docker/vscan-repository
-docker/vscan-repository: DOCKER_FILE 		:= $(DOCKER_FILE_REPOSITORY)
-docker/vscan-repository: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_REPOSITORY)
-docker/vscan-repository: IMAGE_TAG 			:= $(PROJECT_VERSION)
-docker/vscan-repository: PY_VERSION 		:= "3.9"
-docker/vscan-repository: docker/vscan
 
 # .PHONY: docker/vscan-selector
 # docker/vscan-selector: DOCKER_FILE 			:= $(DOCKER_FILE_SELECTOR)
