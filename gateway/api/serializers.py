@@ -71,7 +71,6 @@ class JobConfigSerializer(serializers.ModelSerializer):
     )
     python_version = serializers.ChoiceField(
         choices=(
-            ("py38", "Version 3.8"),
             ("py39", "Version 3.9"),
             ("py310", "Version 3.10"),
         ),

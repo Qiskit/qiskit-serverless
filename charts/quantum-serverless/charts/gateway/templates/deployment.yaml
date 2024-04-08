@@ -286,8 +286,6 @@ spec:
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE
               value: {{ .Values.application.ray.nodeImage | quote }}
-            - name: RAY_NODE_IMAGE_PY38
-              value: {{ .Values.application.ray.nodeImage_py38 | quote }}
             - name: RAY_NODE_IMAGE_PY39
               value: {{ .Values.application.ray.nodeImage_py39 | quote }}
             - name: RAY_NODE_IMAGE_PY310

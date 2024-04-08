@@ -16,10 +16,6 @@ jobs:
       matrix:
         include:
           - imagename: quantum-serverless-ray-node
-            pythonversion: py38
-            dockerfile: Dockerfile-ray-node
-            platforms: linux/amd64
-          - imagename: quantum-serverless-ray-node
             pythonversion: py39
             dockerfile: Dockerfile-ray-node
             platforms: linux/amd64,linux/arm64
