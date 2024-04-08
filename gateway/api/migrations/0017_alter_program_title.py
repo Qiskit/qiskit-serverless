@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0014_runtimejob"),
+        ("api", "0016_catalogentry_status"),
     ]
 
     operations = [
