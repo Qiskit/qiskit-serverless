@@ -8,7 +8,7 @@ Version serializers inherit from the different serializers.
 
 from django.conf import settings
 from rest_framework import serializers
-from .models import Program, Job, JobConfig, RuntimeJob, CatalogEntry
+from .models import Program, Job, JobConfig, RuntimeJob
 
 
 class UploadProgramSerializer(serializers.ModelSerializer):
@@ -118,25 +118,3 @@ class RuntimeJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RuntimeJob
-
-
-class CatalogEntrySerializer(serializers.ModelSerializer):
-    """
-    Serializer for the catalog entry.
-    """
-
-    class Meta:
-        model = CatalogEntry
-
-        fields = ["id", "title", "description", "tags", "program", "status"]
-
-
-class ToCatalogSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the to catalog.
-    """
-
-    class Meta:
-        model = CatalogEntry
-
-        fields = ["id", "title", "description", "tags", "status"]

@@ -24,10 +24,5 @@ router.register(
     v1_views.RuntimeJobViewSet,
     basename=v1_views.RuntimeJobViewSet.BASE_NAME,
 )
-router.register(
-    r"catalog_entries",
-    v1_views.CatalogEntryViewSet,
-    basename=v1_views.CatalogEntryViewSet.BASE_NAME,
-)
 
 urlpatterns = router.urls
