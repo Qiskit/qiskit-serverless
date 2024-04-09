@@ -12,7 +12,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
-from .models import Program, Job, JobConfig, RuntimeJob, CatalogEntry
+from .models import Program, Job, JobConfig, RuntimeJob
 
 logger = logging.getLogger("gateway.serializers")
 
@@ -82,7 +82,6 @@ class JobConfigSerializer(serializers.ModelSerializer):
     )
     python_version = serializers.ChoiceField(
         choices=(
-            ("py38", "Version 3.8"),
             ("py39", "Version 3.9"),
             ("py310", "Version 3.10"),
         ),
@@ -190,25 +189,3 @@ class RuntimeJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RuntimeJob
-
-
-class CatalogEntrySerializer(serializers.ModelSerializer):
-    """
-    Serializer for the catalog entry.
-    """
-
-    class Meta:
-        model = CatalogEntry
-
-        fields = ["id", "title", "description", "tags", "program", "status"]
-
-
-class ToCatalogSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the to catalog.
-    """
-
-    class Meta:
-        model = CatalogEntry
-
-        fields = ["id", "title", "description", "tags", "status"]

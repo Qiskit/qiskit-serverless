@@ -94,30 +94,6 @@
       "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84",
       "runtime_job": "runtime_job_5"
     }
-  },
-  {
-    "model": "api.catalogentry",
-    "fields": {
-      "title": "CatalogEntry1",
-      "description": "tast catalog entry 1",
-      "tags": "tag1, tag2",
-      "created": "2023-02-01T15:30:43.281796Z",
-      "updated": "2023-02-03T15:30:43.281796Z",
-      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
-      "status": "PRIVATE"
-    }
-  },
-  {
-    "model": "api.catalogentry",
-    "fields": {
-      "title": "CatalogEntry2",
-      "description": "tast catalog entry 2",
-      "tags": "tag3",
-      "created": "2023-03-01T15:30:43.281796Z",
-      "updated": "2023-03-03T15:30:43.281796Z",
-      "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
-      "status": "ACTIVE"
-    }
   }
 ]
 

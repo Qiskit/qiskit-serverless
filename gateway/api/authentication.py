@@ -35,6 +35,8 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
             result = json.loads(response.text)
         except Exception as json_exception:  # pylint: disable=broad-exception-caught
             logger.error(json_exception)
+    if response is not None and not response.ok:
+        logger.error("%d : %s", response.status_code, response.text)
 
     return result
 
@@ -42,7 +44,7 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
 class CustomTokenBackend(authentication.BaseAuthentication):
     """Custom token backend for authentication against 3rd party auth service."""
 
-    def authenticate(self, request):
+    def authenticate(self, request):  # pylint: disable=too-many-branches
         auth_url = settings.SETTINGS_TOKEN_AUTH_URL
         verification_url = settings.SETTINGS_TOKEN_AUTH_VERIFICATION_URL
         auth_header = request.META.get("HTTP_AUTHORIZATION")
@@ -88,6 +90,29 @@ class CustomTokenBackend(authentication.BaseAuthentication):
                         except User.DoesNotExist:
                             user = User(username=user_id)
                             user.save()
+                    elif user_id is None:
+                        logger.warning("Problems authenticating: No user id.")
+                    else:  # not verified
+                        logger.warning("Problems authenticating: User is not verified.")
+
+                else:  # verification_data is None
+                    logger.warning(
+                        "Problems authenticating: No verification data returned from request."
+                    )
+
+            else:  # auth_data is None
+                logger.warning(
+                    "Problems authenticating: No authorization data returned from auth url."
+                )
+
+        elif auth_header is None:
+            logger.warning(
+                "Problems authenticating: User did not provide authorization token."
+            )
+        else:  # auth_url is None
+            logger.warning(
+                "Problems authenticating: No auth url: something is broken in our settings."
+            )
 
         return user, CustomToken(token.encode()) if token else None
 

@@ -17,7 +17,6 @@ from wsgiref.util import FileWrapper
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
 from django.http import StreamingHttpResponse
-from django.db.models import Q
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -31,15 +30,13 @@ from rest_framework.response import Response
 from utils import sanitize_file_path
 
 from .exceptions import InternalServerErrorException
-from .models import Program, Job, RuntimeJob, CatalogEntry
+from .models import Program, Job, RuntimeJob
 from .ray import get_job_handler
 from .serializers import (
     JobSerializer,
     JobConfigSerializer,
-    CatalogEntrySerializer,
     RunExistingJobSerializer,
     RunExistingProgramSerializer,
-    ToCatalogSerializer,
     UploadProgramSerializer,
 )
 from .services import JobService, ProgramService, JobConfigService
@@ -108,23 +105,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return JobConfigSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_catalog_entry_class():
-        """
-        This method returns add catalog entry serializer to be used in Program ViewSet.
-        """
-
-        return CatalogEntrySerializer
-
-    @staticmethod
-    def get_serializer_to_catalog_class():
-        """
-        This method returns to catalog serializer to be used in Program ViewSet.
-        """
-
-        return ToCatalogSerializer
-
-    @staticmethod
-    def get_serializer_upload_program(*args, **kwargs):
+    def get_serializer_upload_program_class(*args, **kwargs):
         """
         This method returns the program serializer for the upload end-point
         """
@@ -323,36 +304,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
 
             job_serializer = self.get_serializer_job(job)
         return Response(job_serializer.data)
-
-    @action(methods=["POST"], detail=True)
-    def to_catalog(self, request, pk=None):  # pylint: disable=unused-argument
-        """To catalog."""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.program.to_catalog", context=ctx):
-            serializer = self.get_serializer_to_catalog_class()(data=request.data)
-            if not serializer.is_valid():
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            if not self.get_object().public:
-                return Response(
-                    "program must be public", status=status.HTTP_400_BAD_REQUEST
-                )
-
-            try:
-                catalogentry = CatalogEntry(
-                    title=serializer.data.get("title"),
-                    description=serializer.data.get("description"),
-                    tags=serializer.data.get("tags"),
-                    status=serializer.data.get("status"),
-                    program=self.get_object(),
-                )
-                catalogentry.save()
-            except InternalServerErrorException as exception:
-                return Response(exception, status=status.HTTP_400_BAD_REQUEST)
-            catalog_entry_serializer = self.get_serializer_catalog_entry_class()(
-                catalogentry
-            )
-        return Response(catalog_entry_serializer.data)
 
 
 class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
@@ -623,39 +574,3 @@ class RuntimeJobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ance
 
     def get_queryset(self):
         return RuntimeJob.objects.all().filter(job__author=self.request.user)
-
-
-class CatalogEntryViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
-    """
-    CatalogEntry ViewSet configuration using ModelViewSet.
-    """
-
-    BASE_NAME = "catalog_entries"
-
-    def get_serializer_class(self):
-        return self.serializer_class
-
-    def get_queryset(self):
-        return CatalogEntry.objects.all()
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset()).filter(
-            Q(program__author=self.request.user) | ~Q(status=CatalogEntry.PRIVATE)
-        )
-        title = request.query_params.get("title")
-        description = request.query_params.get("description")
-        tags = request.query_params.get("tags")
-        if title:
-            queryset = queryset.filter(title__contains=title)
-        if description:
-            queryset = queryset.filter(description__contains=description)
-        if tags:
-            queryset = queryset.filter(tags__contains=tags)
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)

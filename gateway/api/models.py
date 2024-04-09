@@ -69,7 +69,6 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
-    public = models.BooleanField(null=False, default=False)
 
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
@@ -162,35 +161,6 @@ class Job(models.Model):
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""
         return self.status in self.TERMINAL_STATES
-
-
-class CatalogEntry(models.Model):
-    """Catalog Entry model."""
-
-    PRIVATE = "PRIVATE"
-    ACTIVE = "ACTIVE"
-    PUBLIC = "PUBLIC"
-    REVIEWED = "REVIEWED"
-    APPROVED = "APPROVED"
-    STATUSES = [
-        (PRIVATE, "Private"),
-        (ACTIVE, "Active"),
-        (PUBLIC, "Public"),
-        (REVIEWED, "Reviewed"),
-        (APPROVED, "Approved"),
-    ]
-
-    title = models.CharField(max_length=255)
-    description = models.TextField()
-    tags = models.TextField(null=False, blank=True, default="[]")
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True, null=True)
-    program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
-    status = models.CharField(
-        max_length=10,
-        choices=STATUSES,
-        default=PRIVATE,
-    )
 
 
 class RuntimeJob(models.Model):

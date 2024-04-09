@@ -17,6 +17,7 @@ from datetime import timedelta
 from pathlib import Path
 from utils import sanitize_file_path
 
+RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -318,7 +319,6 @@ RAY_NODE_IMAGE = os.environ.get(
 )
 RAY_NODE_IMAGES_MAP = {
     "default": RAY_NODE_IMAGE,
-    "py38": os.environ.get("RAY_NODE_IMAGE_PY38", RAY_NODE_IMAGE),
     "py39": os.environ.get("RAY_NODE_IMAGE_PY39", RAY_NODE_IMAGE),
     "py310": os.environ.get("RAY_NODE_IMAGE_PY310", RAY_NODE_IMAGE),
 }

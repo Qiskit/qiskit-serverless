@@ -12,13 +12,12 @@ application:
   rayHost: "http://ray:8265/"
   auth:
     mechanism: mock_token
-    token: 
+    token:
       mock: awesome_token
   superuser:
     enable: true
   ray:
     nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.9.0-py39"
-    nodeImage_py38: "icr.io/quantum-public/quantum-serverless-ray-node:0.9.0-py38"
     nodeImage_py39: "icr.io/quantum-public/quantum-serverless-ray-node:0.9.0-py39"
     nodeImage_py310: "icr.io/quantum-public/quantum-serverless-ray-node:0.9.0-py310"
     cpu: 2
@@ -104,7 +103,7 @@ podAnnotations:
   prometheus.io/scrape: "true"
 
 
-podSecurityContext: 
+podSecurityContext:
   fsGroup: 1000
   runAsUser: 1000
   runAsGroup: 100

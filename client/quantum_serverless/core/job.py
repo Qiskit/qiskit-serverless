@@ -89,7 +89,6 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
     max_workers: Optional[int] = None
     auto_scaling: Optional[bool] = False
     python_version: Optional[str] = ""
-    PYTHON_V3_8 = "py38"
     PYTHON_V3_9 = "py39"
     PYTHON_V3_10 = "py310"
 
