@@ -1,4 +1,10 @@
 # ===================
+# Quantum Serverless Info
+# ===================
+global:
+  version: 0.9.0
+
+# ===================
 # Quantum Serverless configs
 # ===================
 platform: default
