@@ -22,6 +22,7 @@ from rest_framework import routers, permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 import probes.views
+import version.views as version
 
 schema = get_schema_view(  # pylint: disable=invalid-name
     openapi.Info(
@@ -45,6 +46,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("readiness/", probes.views.readiness, name="readiness"),
     path("liveness/", probes.views.liveness, name="liveness"),
+    path("version/", version.version, name="version"),
     path("", include("django_prometheus.urls")),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
     # docs

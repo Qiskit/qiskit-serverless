@@ -84,6 +84,8 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
+            - name: VERSION
+              value: {{ .Values.global.version | quote }}
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
             - name: DJANGO_SECRET_KEY
