@@ -105,7 +105,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return JobConfigSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_upload_program_class(*args, **kwargs):
+    def get_serializer_upload_program(*args, **kwargs):
         """
         This method returns the program serializer for the upload end-point
         """
