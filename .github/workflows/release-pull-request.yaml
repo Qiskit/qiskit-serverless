@@ -18,7 +18,7 @@ jobs:
         include:
           - image: "quantum-serverless-gateway:latest"
             dockerfile: "./gateway/Dockerfile"
-            pyversion: "3.9"
+            pyversion: "3.10"
           - image: "quantum-serverless-ray-node:latest-py39"
             dockerfile: "Dockerfile-ray-node"
             pyversion: "py39"

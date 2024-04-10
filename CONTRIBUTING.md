@@ -203,8 +203,8 @@ Add a new feature.
 The new feature will provide the possibility to do something awesome.
 ```
 
-From time to time, you want to check if your `main` branch is still up-to-date. If not, you will need to 
-[rebase](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase) 
+From time to time, you want to check if your `main` branch is still up-to-date. If not, you will need to
+[rebase](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase)
 (or [merge](https://www.atlassian.com/git/tutorials/using-branches/git-merge)), then continue working:
 
 ```sh
@@ -218,8 +218,8 @@ git rebase main issue-1234-new-feature
 
 ### Adding tests
 
-Our team upholds the philosophy that a healthy codebase will include the proper amount of testing. 
-From the project you are working on, you can run tests with `tox -epy39`.
+Our team upholds the philosophy that a healthy codebase will include the proper amount of testing.
+From the project you are working on, you can run tests with `tox -epy310`.
 Note if you run this command from quantum-serverless top directory, it will build the project documentation.
 For detailed testing guidelines using tox environments, please refer to [this documentation](./client/tests/README.md).
 
@@ -290,7 +290,7 @@ a core contributor.
 
 ## Code style
 
-Code in this repository should conform to [PEP8](https://peps.python.org/pep-0008/) standards. 
+Code in this repository should conform to [PEP8](https://peps.python.org/pep-0008/) standards.
 Style/lint checks are run to validate this. Line length must be limited to no more than 88 characters.
 
 **Readability** is what we value most. We expect reviewers to pay special attention on readability

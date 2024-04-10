@@ -1,4 +1,4 @@
-ARG IMAGE_PY_VERSION=py39
+ARG IMAGE_PY_VERSION=py310
 
 FROM rayproject/ray:2.9.3-$IMAGE_PY_VERSION AS ray-node-amd64
 

@@ -2,7 +2,7 @@
 services:
   ray-head:
     container_name: ray-head
-    image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.9.0}-py39
+    image: icr.io/quantum-public/quantum-serverless-ray-node:${VERSION:-0.9.0}-py310
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
