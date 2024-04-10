@@ -1,28 +1,9 @@
 import requests
 
-from dataclasses import dataclass
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from typing import Dict, List
 
 from api.utils import safe_request
-
-
-@dataclass
-class IQPProject:
-    name: str
-
-
-@dataclass
-class IQPGroup:
-    name: str
-    projects: Dict[str, IQPProject]
-
-
-@dataclass
-class IQPHub:
-    name: str
-    groups: Dict[str, IQPGroup]
 
 
 class QuantumUserProxy(get_user_model()):
@@ -31,7 +12,7 @@ class QuantumUserProxy(get_user_model()):
     class Meta:
         proxy = True
 
-    def get_network(self, access_token: str) -> List[IQPHub]:
+    def get_network(self, access_token: str):
         if self.instances_url is None:
             return []
 
@@ -43,21 +24,22 @@ class QuantumUserProxy(get_user_model()):
             )
         )
 
-    def get_instances_from_network(self, access_token: str) -> List[str]:
+    def get_instances_from_network(self, access_token: str) -> list[str]:
         instances = []
 
         network = self.get_network(access_token)
-        for hub in network:
-            groups = hub.groups.values()
-            if not groups:
-                instances.append(hub.name)
-            else:
-                for group in groups:
-                    projects = group.projects.values()
-                    if not projects:
-                        instances.append(f"{hub.name}/{group.name}")
-                    else:
-                        for project in projects:
-                            instances.append(f"{hub.name}/{group.name}/{project.name}")
+        if network:
+            for hub in network:
+                groups = hub.get("groups")
+                if not groups:
+                    instances.append(hub.get("name"))
+                else:
+                    for group in groups.values():
+                        projects = group.get("projects")
+                        if not projects:
+                            instances.append(f"{hub.get('name')}/{group.get('name')}")
+                        else:
+                            for project in projects.values():
+                                instances.append(f"{hub.get('name')}/{group.get('name')}/{project.get('name')}")
 
         return instances
