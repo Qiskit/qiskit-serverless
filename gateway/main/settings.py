@@ -369,3 +369,6 @@ CSP_STYLE_SRC_ELEM = ("'self'", "'unsafe-inline'")
 CSP_SCRIPT_SRC_ELEM = "'self'"
 CSP_CONNECT_SRC = "'self'"
 CSP_WORKER_SRC = ("'self'", "blob:")
+
+# quantum api
+IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
