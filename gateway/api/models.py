@@ -3,7 +3,6 @@ import uuid
 from concurrency.fields import IntegerVersionField
 
 from django.conf import settings
-from django.contrib.postgres.fields import ArrayField
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
