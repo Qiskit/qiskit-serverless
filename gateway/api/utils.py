@@ -6,7 +6,7 @@ import logging
 import re
 import time
 import uuid
-from typing import Optional, Tuple, Union, Callable, Dict
+from typing import Any, Optional, Tuple, Union, Callable, Dict
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
@@ -197,3 +197,23 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
         logs = f"Job {job.id} failed due to an internal error."
         logger.warning("Job %s failed due to an internal error.", job.id)
     return logs
+
+
+def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
+    """Makes safe request and parses json response."""
+    result = None
+    response = None
+    try:
+        response = request()
+    except Exception as request_exception:  # pylint: disable=broad-exception-caught
+        logger.error(request_exception)
+
+    if response is not None and response.ok:
+        try:
+            result = json.loads(response.text)
+        except Exception as json_exception:  # pylint: disable=broad-exception-caught
+            logger.error(json_exception)
+    if response is not None and not response.ok:
+        logger.error("%d : %s", response.status_code, response.text)
+
+    return result
