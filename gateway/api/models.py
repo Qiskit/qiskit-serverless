@@ -19,7 +19,7 @@ class JobConfig(models.Model):
     """Job Configuration model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
 
     auto_scaling = models.BooleanField(default=False, null=True)
     workers = models.IntegerField(
@@ -48,7 +48,7 @@ class JobConfig(models.Model):
     )
 
     def __str__(self):
-        return self.id
+        return f"{self.id}"
 
 
 class Program(ExportModelOperationsMixin("program"), models.Model):
@@ -123,7 +123,7 @@ class Job(models.Model):
     RUNNING_STATES = [RUNNING, PENDING]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, null=True)
 
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
@@ -137,7 +137,7 @@ class Job(models.Model):
     status = models.CharField(
         max_length=10,
         choices=JOB_STATUSES,
-        default=PENDING,
+        default=QUEUED,
     )
     compute_resource = models.ForeignKey(
         ComputeResource, on_delete=models.SET_NULL, null=True, blank=True
@@ -156,7 +156,7 @@ class Job(models.Model):
     )
 
     def __str__(self):
-        return f"<Job {self.pk} | {self.status}>"
+        return f"<Job {self.id} | {self.status}>"
 
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""

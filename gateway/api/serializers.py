@@ -6,9 +6,15 @@ Django Rest framework serializers for api application:
 Version serializers inherit from the different serializers.
 """
 
+import json
+import logging
 from django.conf import settings
 from rest_framework import serializers
+
+from api.utils import build_env_variables, encrypt_env_vars
 from .models import Program, Job, JobConfig, RuntimeJob
+
+logger = logging.getLogger("gateway.serializers")
 
 
 class UploadProgramSerializer(serializers.ModelSerializer):
@@ -30,9 +36,14 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         )
 
     def create(self, validated_data):
+        title = validated_data.get("title")
+        logger.info("Creating program [%s] with UploadProgramSerializer", title)
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
+        logger.info(
+            "Updating program [%s] with UploadProgramSerializer", instance.title
+        )
         instance.arguments = validated_data.get("arguments", "{}")
         instance.entrypoint = validated_data.get("entrypoint")
         instance.dependencies = validated_data.get("dependencies", "[]")
@@ -98,17 +109,77 @@ class JobSerializer(serializers.ModelSerializer):
         model = Job
 
 
-class ExistingProgramSerializer(serializers.Serializer):
-    """Serializer for launching existing program."""
+class RunExistingProgramSerializer(serializers.Serializer):
+    """
+    Program serializer for the /run_existing end-point
+    """
 
     title = serializers.CharField(max_length=255)
     arguments = serializers.CharField()
+    config = serializers.CharField()
+
+    def retrieve_one_by_title(self, title, author):
+        """
+        This method returns a Program entry if it finds an entry searching by the title, if not None
+        """
+        return (
+            Program.objects.filter(title=title, author=author)
+            .order_by("-created")
+            .first()
+        )
+
+    def to_representation(self, instance):
+        """
+        Transforms string `config` to JSON
+        """
+        representation = super().to_representation(instance)
+        representation["config"] = json.loads(representation["config"])
+        return representation
 
     def update(self, instance, validated_data):
         pass
 
     def create(self, validated_data):
         pass
+
+
+class RunExistingJobSerializer(serializers.ModelSerializer):
+    """
+    Job serializer for the /run_existing end-point
+    """
+
+    class Meta:
+        model = Job
+
+    def create(self, validated_data):
+        logger.info("Creating Job with RunExistingJobSerializer")
+        status = Job.QUEUED
+        program = validated_data.get("program")
+        arguments = validated_data.get("arguments", "{}")
+        author = validated_data.get("author")
+        config = validated_data.get("config", None)
+
+        token = validated_data.pop("token")
+        carrier = validated_data.pop("carrier")
+
+        job = Job(
+            status=status,
+            program=program,
+            arguments=arguments,
+            author=author,
+            config=config,
+        )
+
+        env = encrypt_env_vars(build_env_variables(token, job, arguments))
+        try:
+            env["traceparent"] = carrier["traceparent"]
+        except KeyError:
+            pass
+
+        job.env_vars = json.dumps(env)
+        job.save()
+
+        return job
 
 
 class RuntimeJobSerializer(serializers.ModelSerializer):

@@ -6,7 +6,7 @@ import logging
 import re
 import time
 import uuid
-from typing import Optional, Tuple, Union, Callable, Dict, Any
+from typing import Optional, Tuple, Union, Callable, Dict
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
@@ -106,7 +106,7 @@ def decrypt_string(string: str) -> str:
     return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
-def build_env_variables(token, job: Job, arguments: Dict[str, Any]) -> Dict[str, str]:
+def build_env_variables(token, job: Job, arguments: str) -> Dict[str, str]:
     """Builds env variables for job.
 
     Args:

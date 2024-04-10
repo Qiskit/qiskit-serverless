@@ -20,12 +20,6 @@ class ProgramSerializer(serializers.ProgramSerializer):
         ]
 
 
-class ExistingProgramSerializer(serializers.ExistingProgramSerializer):
-    """
-    Existing program serializer first version. This serializer limitates the fields from Program.
-    """
-
-
 class UploadProgramSerializer(serializers.UploadProgramSerializer):
     """
     UploadProgramSerializer is used by the /upload end-point
@@ -41,15 +35,10 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         ]
 
 
-class JobSerializer(serializers.JobSerializer):
+class RunExistingProgramSerializer(serializers.RunExistingProgramSerializer):
     """
-    Job serializer first version. Include basic fields from the initial model.
+    RunExistingProgramSerializer is used by the /upload end-point
     """
-
-    program = ProgramSerializer(many=False)
-
-    class Meta(serializers.JobSerializer.Meta):
-        fields = ["id", "result", "status", "program", "created"]
 
 
 class JobConfigSerializer(serializers.JobConfigSerializer):
@@ -65,6 +54,26 @@ class JobConfigSerializer(serializers.JobConfigSerializer):
             "auto_scaling",
             "python_version",
         ]
+
+
+class RunExistingJobSerializer(serializers.RunExistingJobSerializer):
+    """
+    RunExistingJobSerializer is used by the /run_existing end-point
+    """
+
+    class Meta(serializers.RunExistingJobSerializer.Meta):
+        fields = ["id", "result", "status", "program", "created", "arguments"]
+
+
+class JobSerializer(serializers.JobSerializer):
+    """
+    Job serializer first version. Include basic fields from the initial model.
+    """
+
+    program = ProgramSerializer(many=False)
+
+    class Meta(serializers.JobSerializer.Meta):
+        fields = ["id", "result", "status", "program", "created"]
 
 
 class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
