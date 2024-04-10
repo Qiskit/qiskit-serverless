@@ -527,9 +527,9 @@ class GatewayJobClient(BaseJobClient):
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
             }
             if config:
-                data["config"] = json.dumps(asdict(config))
+                data["config"] = asdict(config)
             else:
-                data["config"] = "{}"
+                data["config"] = {}
 
             response_data = safe_json_request(
                 request=lambda: requests.post(
