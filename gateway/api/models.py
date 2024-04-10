@@ -69,7 +69,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
 
-    instances = ArrayField(models.CharField(max_length=255), blank=True, default=list)
+    instances = models.JSONField(null=False, blank=True, default=list)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
