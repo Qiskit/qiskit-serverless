@@ -2,11 +2,10 @@
 import uuid
 from concurrency.fields import IntegerVersionField
 
-from django.core.validators import (
-    FileExtensionValidator,
-)
-from django.db import models
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField
+from django.core.validators import FileExtensionValidator
+from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
 
@@ -65,14 +64,16 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         blank=False,
         validators=[FileExtensionValidator(allowed_extensions=["tar"])],
     )
-    author = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-    )
 
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
+
+    instances = ArrayField(models.CharField(max_length=255), blank=True, default=list)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+    )
 
     def __str__(self):
         return f"{self.title}"
