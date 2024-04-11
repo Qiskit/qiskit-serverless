@@ -128,14 +128,14 @@ postgresql:
     password: serverlesspassword
 
 # ===================
-# COS
+# PVC
 # ===================
 
-cosEnable: false
+storageClassName: manual
+claimName: gateway-claim
+
 cos:
   bucket: BUCKETNAME-CHANGEME
-  claimName: gateway-claim
   endpoint: ENDPOINT-CHANGEME
   secretName: SECRETNAME-CHANGEME
-  storageClassName: STORAGECLASSNAME-CHANGEME
   storageSize: 10Gi
