@@ -40,7 +40,7 @@ from .serializers import (
     RunProgramSerializer,
     UploadProgramSerializer,
 )
-from .services import JobService, JobConfigService
+from .services import JobService
 
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})
@@ -64,14 +64,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
     """
 
     BASE_NAME = "programs"
-
-    @staticmethod
-    def get_service_job_config_class():
-        """
-        This method return JobConfig service to be used in Program ViewSet.
-        """
-
-        return JobConfigService
 
     @staticmethod
     def get_service_job_class():
@@ -276,23 +268,20 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             serializer.save(author=author)
 
             jobconfig = None
-            config_data = request.data.get("config")
-            if config_data:
-                config_serializer = self.get_serializer_job_config(
-                    data=json.loads(config_data)
-                )
-                if not config_serializer.is_valid():
+            config_json = serializer.data.get("config")
+            if config_json:
+                logger.info("Configuration for [%s] was found.", title)
+                job_config_serializer = self.get_serializer_job_config(data=config_json)
+                if not job_config_serializer.is_valid():
+                    logger.error(
+                        "JobConfigSerializer validation failed:\n %s",
+                        serializer.errors,
+                    )
                     return Response(
-                        config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                        job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
-                try:
-                    jobconfig = (
-                        self.get_service_job_config_class().save_with_serializer(
-                            config_serializer
-                        )
-                    )
-                except InternalServerErrorException as exception:
-                    return Response(exception, exception.http_code)
+                jobconfig = job_config_serializer.save()
+                logger.info("JobConfig [%s] created.", jobconfig.id)
 
             job = None
             carrier = {}

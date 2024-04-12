@@ -20,40 +20,6 @@ from .utils import encrypt_env_vars, build_env_variables
 logger = logging.getLogger("gateway.services")
 
 
-class JobConfigService:
-    """
-    JobConfig service allocate the logic related with job configuration
-    """
-
-    @staticmethod
-    def save_with_serializer(serializer) -> JobConfig:
-        """
-        It returns a new JobConfig from its serializer
-
-        Args:
-            serializer: JobConfig serializer from the model
-
-        Returns:
-            JobConfig: new JobConfig instance
-        """
-
-        # It would be nice if we could unify all the saves logic in one unique entry-point
-        try:
-            jobconfig = serializer.save()
-        except (Exception) as save_job_config_exception:
-            logger.error(
-                "Exception was caught saving a JobConfig. \n Error trace: %s",
-                save_job_config_exception,
-            )
-            raise InternalServerErrorException(
-                "Unexpected error saving the configuration of the job"
-            ) from save_job_config_exception
-
-        logger.debug("JobConfig [%s] saved", jobconfig.id)
-
-        return jobconfig
-
-
 class JobService:
     """
     Job service allocate the logic related with a job

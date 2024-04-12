@@ -24,10 +24,6 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     permission_classes = [permissions.IsAuthenticated]
 
     @staticmethod
-    def get_service_job_config_class():
-        return v1_services.JobConfigService
-
-    @staticmethod
     def get_service_job_class():
         return v1_services.JobService
 
