@@ -156,13 +156,13 @@ class SerializerTest(APITestCase):
         self.assertEqual(type(assert_json), type(config))
         self.assertDictEqual(assert_json, config)
 
-    def test_run_existing_job_serializer_check_empty_data(self):
+    def test_run_and_run_existing_job_serializer_check_empty_data(self):
         data = {}
 
         serializer = RunExistingJobSerializer(data=data)
         self.assertTrue(serializer.is_valid())
 
-    def test_run_existing_job_serializer_creates_job(self):
+    def test_run_and_run_existing_job_serializer_creates_job(self):
         user = models.User.objects.get(username="test_user")
         program_instance = Program.objects.get(
             id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
