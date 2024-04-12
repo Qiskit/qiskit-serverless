@@ -92,7 +92,7 @@ class RunProgramSerializer(serializers.RunProgramSerializer):
     Run Programs serliazer is used in /run end-point
     """
 
-    class Meta(serializers.RuntimeJobSerializer.Meta):
+    class Meta(serializers.RunProgramSerializer.Meta):
         fields = [
             "title",
             "entrypoint",
