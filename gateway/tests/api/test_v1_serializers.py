@@ -134,7 +134,7 @@ class SerializerTest(APITestCase):
         serializer = RunExistingProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
-        self.assertListEqual(["arguments", "config"], list(errors.keys()))
+        self.assertListEqual(["arguments"], list(errors.keys()))
 
     def test_run_existing_program_serializer_config_json(self):
         assert_json = {
@@ -146,7 +146,7 @@ class SerializerTest(APITestCase):
         data = {
             "title": "Program",
             "arguments": "{}",
-            "config": json.dumps(assert_json),
+            "config": assert_json,
         }
 
         serializer = RunExistingProgramSerializer(data=data)
