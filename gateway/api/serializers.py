@@ -143,9 +143,9 @@ class RunExistingProgramSerializer(serializers.Serializer):
         pass
 
 
-class RunExistingJobSerializer(serializers.ModelSerializer):
+class RunAndRunExistingJobSerializer(serializers.ModelSerializer):
     """
-    Job serializer for the /run_existing end-point
+    Job serializer for the /run and /run_existing end-point
     """
 
     class Meta:
@@ -196,7 +196,7 @@ class RunProgramSerializer(serializers.ModelSerializer):
     Program serializer for the /run end-point
     """
 
-    config = serializers.CharField()
+    config = serializers.CharField(read_only=True)
 
     class Meta:
         model = Program

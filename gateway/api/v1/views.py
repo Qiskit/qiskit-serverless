@@ -11,7 +11,6 @@ from api import views
 from api.models import Program, Job, RuntimeJob
 from api.permissions import IsOwner
 from . import serializers as v1_serializers
-from . import services as v1_services
 
 
 class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestors
@@ -22,14 +21,6 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     queryset = Program.objects.all()
     serializer_class = v1_serializers.ProgramSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    @staticmethod
-    def get_service_job_class():
-        return v1_services.JobService
-
-    @staticmethod
-    def get_serializer_job(*args, **kwargs):
-        return v1_serializers.JobSerializer(*args, **kwargs)
 
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):
@@ -44,7 +35,7 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
         return v1_serializers.RunExistingProgramSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_run_existing_job(*args, **kwargs):
+    def get_serializer_run_and_run_existing_job(*args, **kwargs):
         return v1_serializers.RunExistingJobSerializer(*args, **kwargs)
 
     def get_serializer_class(self):

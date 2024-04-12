@@ -126,11 +126,6 @@ LOGGING = {
             "level": LOG_LEVEL,
             "propagate": False,
         },
-        "gateway.services": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        },
         "gateway.serializers": {
             "handlers": ["console"],
             "level": LOG_LEVEL,
