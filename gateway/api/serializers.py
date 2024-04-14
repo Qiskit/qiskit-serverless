@@ -13,6 +13,7 @@ from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
 from .models import Program, Job, JobConfig, RuntimeJob
+
 logger = logging.getLogger("gateway.serializers")
 
 
@@ -38,8 +39,9 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         title = validated_data.get("title")
         logger.info("Creating program [%s] with UploadProgramSerializer", title)
         env_vars = validated_data.get("env_vars")
-        encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
-        validated_data["env_vars"] =  json.dumps(encrypted_env_vars)
+        if env_vars:
+            encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
+            validated_data["env_vars"] = json.dumps(encrypted_env_vars)
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
