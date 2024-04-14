@@ -37,6 +37,9 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         title = validated_data.get("title")
         logger.info("Creating program [%s] with UploadProgramSerializer", title)
+        env_vars = validated_data.get("env_vars")
+        encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
+        validated_data["env_vars"] =  json.dumps(encrypted_env_vars)
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
