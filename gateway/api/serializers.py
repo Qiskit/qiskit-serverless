@@ -13,7 +13,6 @@ from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
 from .models import Program, Job, JobConfig, RuntimeJob
-
 logger = logging.getLogger("gateway.serializers")
 
 
@@ -174,6 +173,9 @@ class RunExistingJobSerializer(serializers.ModelSerializer):
             env["traceparent"] = carrier["traceparent"]
         except KeyError:
             pass
+        if program.env_vars:
+            program_env = json.loads(program.env_vars)
+            env.update(program_env)
 
         job.env_vars = json.dumps(env)
         job.save()
