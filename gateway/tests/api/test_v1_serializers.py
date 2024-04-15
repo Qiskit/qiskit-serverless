@@ -76,7 +76,6 @@ class SerializerTest(APITestCase):
         program: Program = serializer.save(author=user)
         self.assertEqual(title, program.title)
         self.assertEqual(entrypoint, program.entrypoint)
-        self.assertEqual(arguments, program.arguments)
         self.assertEqual(dependencies, program.dependencies)
 
     def test_upload_program_serializer_check_empty_data(self):
@@ -114,7 +113,7 @@ class SerializerTest(APITestCase):
         serializer = UploadProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
-        self.assertListEqual(["dependencies", "arguments"], list(errors.keys()))
+        self.assertListEqual(["dependencies"], list(errors.keys()))
 
     def test_run_existing_program_serializer_check_emtpy_data(self):
         data = {}

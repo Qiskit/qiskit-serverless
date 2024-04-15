@@ -44,7 +44,6 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         logger.info(
             "Updating program [%s] with UploadProgramSerializer", instance.title
         )
-        instance.arguments = validated_data.get("arguments", "{}")
         instance.entrypoint = validated_data.get("entrypoint")
         instance.dependencies = validated_data.get("dependencies", "[]")
         instance.env_vars = validated_data.get("env_vars", "{}")
