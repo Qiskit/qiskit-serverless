@@ -16,7 +16,6 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "entrypoint",
             "artifact",
             "dependencies",
-            "arguments",
         ]
 
 
@@ -31,7 +30,6 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "entrypoint",
             "artifact",
             "dependencies",
-            "arguments",
         ]
 
 

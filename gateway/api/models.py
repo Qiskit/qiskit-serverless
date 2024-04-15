@@ -70,7 +70,6 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         on_delete=models.CASCADE,
     )
 
-    arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
 
