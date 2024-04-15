@@ -244,6 +244,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             title = serializer.validated_data.get("title")
             author = request.user
             program = serializer.retrieve_one_by_title(title=title, author=author)
+            # We need to add request artifact to maintain the reference that the serializer lost
             program_data = serializer.data
             program_data["artifact"] = request.data.get("artifact")
             if program is None:
