@@ -35,6 +35,7 @@ from .serializers import (
     JobConfigSerializer,
     RunAndRunExistingJobSerializer,
     RunExistingProgramSerializer,
+    RunProgramModelSerializer,
     RunProgramSerializer,
     UploadProgramSerializer,
 )
@@ -101,6 +102,14 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         """
 
         return RunProgramSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_model_serializer_run_program(*args, **kwargs):
+        """
+        This method returns the program model serializer for the run end-point
+        """
+
+        return RunProgramModelSerializer(*args, **kwargs)
 
     def get_serializer_class(self):
         return self.serializer_class
@@ -235,18 +244,27 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             title = serializer.validated_data.get("title")
             author = request.user
             program = serializer.retrieve_one_by_title(title=title, author=author)
-            if program is not None:
+            program_data = serializer.data
+            program_data["artifact"] = request.data.get("artifact")
+            if program is None:
+                logger.info("Program not found. [%s] is going to be created", title)
+                program_serializer = self.get_model_serializer_run_program(
+                    data=program_data
+                )
+            else:
                 logger.info("Program found. [%s] is going to be updated", title)
-                serializer = self.get_serializer_run_program(program, data=request.data)
-                if not serializer.is_valid():
-                    logger.error(
-                        "RunProgramSerializer validation failed with program instance:\n %s",
-                        serializer.errors,
-                    )
-                    return Response(
-                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                    )
-            program = serializer.save(author=author)
+                program_serializer = self.get_model_serializer_run_program(
+                    program, data=program_data
+                )
+            if not program_serializer.is_valid():
+                logger.error(
+                    "RunProgramModelSerializer validation failed with program instance:\n %s",
+                    program_serializer.errors,
+                )
+                return Response(
+                    program_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                )
+            program = program_serializer.save(author=author)
 
             jobconfig = None
             config_json = serializer.data.get("config")

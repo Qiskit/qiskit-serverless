@@ -191,15 +191,25 @@ class RuntimeJobSerializer(serializers.ModelSerializer):
         model = RuntimeJob
 
 
-class RunProgramSerializer(serializers.ModelSerializer):
+class RunProgramSerializer(serializers.Serializer):
     """
     Program serializer for the /run end-point
     """
 
-    config = serializers.CharField(read_only=True)
+    title = serializers.CharField(max_length=255, allow_blank=False)
+    entrypoint = serializers.CharField(max_length=255)
+    artifact = serializers.FileField(allow_empty_file=False, use_url=False)
+    dependencies = serializers.CharField(allow_blank=False)
+    arguments = serializers.CharField(allow_blank=False)
+    config = serializers.CharField(allow_blank=False)
 
-    class Meta:
-        model = Program
+    def to_representation(self, instance):
+        """
+        Transforms string `config` to JSON
+        """
+        representation = super().to_representation(instance)
+        representation["config"] = json.loads(representation["config"])
+        return representation
 
     def retrieve_one_by_title(self, title, author):
         """
@@ -210,6 +220,23 @@ class RunProgramSerializer(serializers.ModelSerializer):
             .order_by("-created")
             .first()
         )
+
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+
+class RunProgramModelSerializer(serializers.ModelSerializer):
+    """
+    Program model serializer for the /run end-point
+    """
+
+    config = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Program
 
     def create(self, validated_data):
         title = validated_data.get("title")

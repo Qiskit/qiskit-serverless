@@ -11,7 +11,9 @@ from api.v1.serializers import (
     JobConfigSerializer,
     UploadProgramSerializer,
     RunExistingProgramSerializer,
-    RunExistingJobSerializer,
+    RunAndRunExistingJobSerializer,
+    RunProgramSerializer,
+    RunProgramModelSerializer,
 )
 from api.models import JobConfig, Program
 
@@ -159,7 +161,7 @@ class SerializerTest(APITestCase):
     def test_run_and_run_existing_job_serializer_check_empty_data(self):
         data = {}
 
-        serializer = RunExistingJobSerializer(data=data)
+        serializer = RunAndRunExistingJobSerializer(data=data)
         self.assertTrue(serializer.is_valid())
 
     def test_run_and_run_existing_job_serializer_creates_job(self):
@@ -169,7 +171,7 @@ class SerializerTest(APITestCase):
         )
         arguments = "{}"
 
-        job_serializer = RunExistingJobSerializer(data={})
+        job_serializer = RunAndRunExistingJobSerializer(data={})
         job_serializer.is_valid()
         job = job_serializer.save(
             arguments=arguments,
@@ -180,3 +182,149 @@ class SerializerTest(APITestCase):
             config=None,
         )
         self.assertIsNotNone(job)
+
+    def test_run_program_serializer_check_emtpy_data(self):
+        data = {}
+
+        serializer = RunProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        errors = serializer.errors
+        self.assertListEqual(
+            ["title", "entrypoint", "artifact", "dependencies", "arguments", "config"],
+            list(errors.keys()),
+        )
+
+    def test_run_program_serializer_fails_at_validation(self):
+        path_to_resource_artifact = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "artifact.tar",
+        )
+        file_data = File(open(path_to_resource_artifact, "rb"))
+        upload_file = SimpleUploadedFile(
+            "artifact.tar", file_data.read(), content_type="multipart/form-data"
+        )
+
+        data = {
+            "title": "Program",
+            "entrypoint": "pattern.py",
+            "dependencies": [],
+            "arguments": {},
+            "config": {},
+        }
+        data["artifact"] = upload_file
+
+        serializer = RunProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        errors = serializer.errors
+        self.assertListEqual(
+            ["dependencies", "arguments", "config"], list(errors.keys())
+        )
+
+    def test_run_program_serializer_config_json(self):
+        path_to_resource_artifact = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "artifact.tar",
+        )
+        file_data = File(open(path_to_resource_artifact, "rb"))
+        upload_file = SimpleUploadedFile(
+            "artifact.tar", file_data.read(), content_type="multipart/form-data"
+        )
+
+        assert_json = {
+            "workers": None,
+            "min_workers": 1,
+            "max_workers": 5,
+            "auto_scaling": True,
+        }
+
+        data = {
+            "title": "Program",
+            "entrypoint": "pattern.py",
+            "dependencies": "[]",
+            "arguments": "{}",
+            "config": json.dumps(assert_json),
+        }
+        data["artifact"] = upload_file
+
+        serializer = RunProgramSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+
+        config = serializer.data.get("config")
+        self.assertEqual(type(assert_json), type(config))
+        self.assertDictEqual(assert_json, config)
+
+    def test_run_program_model_serializer_creates_program(self):
+        path_to_resource_artifact = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "artifact.tar",
+        )
+        file_data = File(open(path_to_resource_artifact, "rb"))
+        upload_file = SimpleUploadedFile(
+            "artifact.tar", file_data.read(), content_type="multipart/form-data"
+        )
+
+        user = models.User.objects.get(username="test_user")
+
+        title = "Hello world"
+        entrypoint = "pattern.py"
+        arguments = "{}"
+        dependencies = "[]"
+
+        data = {}
+        data["title"] = title
+        data["entrypoint"] = entrypoint
+        data["arguments"] = arguments
+        data["dependencies"] = dependencies
+        data["artifact"] = upload_file
+
+        serializer = RunProgramModelSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+
+        program: Program = serializer.save(author=user)
+        self.assertEqual(title, program.title)
+        self.assertEqual(entrypoint, program.entrypoint)
+        self.assertEqual(arguments, program.arguments)
+        self.assertEqual(dependencies, program.dependencies)
+
+    def test_run_program_model_serializer_check_empty_data(self):
+        data = {}
+
+        serializer = RunProgramModelSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        errors = serializer.errors
+        self.assertListEqual(["title", "entrypoint", "artifact"], list(errors.keys()))
+
+    def test_run_program_model_serializer_fails_at_validation(self):
+        path_to_resource_artifact = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "artifact.tar",
+        )
+        file_data = File(open(path_to_resource_artifact, "rb"))
+        upload_file = SimpleUploadedFile(
+            "artifact.tar", file_data.read(), content_type="multipart/form-data"
+        )
+
+        title = "Hello world"
+        entrypoint = "pattern.py"
+        arguments = {}
+        dependencies = []
+
+        data = {}
+        data["title"] = title
+        data["entrypoint"] = entrypoint
+        data["artifact"] = upload_file
+        data["arguments"] = arguments
+        data["dependencies"] = dependencies
+
+        serializer = RunProgramModelSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        errors = serializer.errors
+        self.assertListEqual(["dependencies", "arguments"], list(errors.keys()))
