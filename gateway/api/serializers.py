@@ -217,9 +217,7 @@ class RunProgramSerializer(serializers.ModelSerializer):
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
-        logger.info(
-            "Updating program [%s] with RunProgramSerializer", instance.title
-        )
+        logger.info("Updating program [%s] with RunProgramSerializer", instance.title)
         instance.arguments = validated_data.get("arguments", "{}")
         instance.entrypoint = validated_data.get("entrypoint")
         instance.dependencies = validated_data.get("dependencies", "[]")
