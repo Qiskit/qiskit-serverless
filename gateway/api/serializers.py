@@ -213,12 +213,12 @@ class RunProgramSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         title = validated_data.get("title")
-        logger.info("Creating program [%s] with UploadProgramSerializer", title)
+        logger.info("Creating program [%s] with RunProgramSerializer", title)
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         logger.info(
-            "Updating program [%s] with UploadProgramSerializer", instance.title
+            "Updating program [%s] with RunProgramSerializer", instance.title
         )
         instance.arguments = validated_data.get("arguments", "{}")
         instance.entrypoint = validated_data.get("entrypoint")
