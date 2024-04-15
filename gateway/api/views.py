@@ -246,7 +246,7 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                     return Response(
                         serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
-            serializer.save(author=author)
+            program = serializer.save(author=author)
 
             jobconfig = None
             config_json = serializer.data.get("config")
