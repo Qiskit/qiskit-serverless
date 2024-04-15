@@ -232,6 +232,7 @@ class RunProgramModelSerializer(serializers.ModelSerializer):
     Program model serializer for the /run end-point
     """
 
+    arguments = serializers.CharField(read_only=True)
     config = serializers.CharField(read_only=True)
 
     class Meta:
@@ -244,7 +245,6 @@ class RunProgramModelSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         logger.info("Updating program [%s] with RunProgramSerializer", instance.title)
-        instance.arguments = validated_data.get("arguments", "{}")
         instance.entrypoint = validated_data.get("entrypoint")
         instance.dependencies = validated_data.get("dependencies", "[]")
         instance.env_vars = validated_data.get("env_vars", "{}")

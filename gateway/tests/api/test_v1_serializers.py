@@ -272,13 +272,11 @@ class SerializerTest(APITestCase):
 
         title = "Hello world"
         entrypoint = "pattern.py"
-        arguments = "{}"
         dependencies = "[]"
 
         data = {}
         data["title"] = title
         data["entrypoint"] = entrypoint
-        data["arguments"] = arguments
         data["dependencies"] = dependencies
         data["artifact"] = upload_file
 
@@ -288,7 +286,6 @@ class SerializerTest(APITestCase):
         program: Program = serializer.save(author=user)
         self.assertEqual(title, program.title)
         self.assertEqual(entrypoint, program.entrypoint)
-        self.assertEqual(arguments, program.arguments)
         self.assertEqual(dependencies, program.dependencies)
 
     def test_run_program_model_serializer_check_empty_data(self):
@@ -313,17 +310,15 @@ class SerializerTest(APITestCase):
 
         title = "Hello world"
         entrypoint = "pattern.py"
-        arguments = {}
         dependencies = []
 
         data = {}
         data["title"] = title
         data["entrypoint"] = entrypoint
         data["artifact"] = upload_file
-        data["arguments"] = arguments
         data["dependencies"] = dependencies
 
         serializer = RunProgramModelSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
-        self.assertListEqual(["dependencies", "arguments"], list(errors.keys()))
+        self.assertListEqual(["dependencies"], list(errors.keys()))
