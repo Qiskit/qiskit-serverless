@@ -206,22 +206,18 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             token = ""
             if request.auth:
                 token = request.auth.token.decode()
-            job_serializer = self.get_serializer_run_and_run_existing_job(data={})
+            job_data = {"arguments": arguments, "program": program.id}
+            job_serializer = self.get_serializer_run_and_run_existing_job(data=job_data)
             if not job_serializer.is_valid():
                 logger.error(
-                    "RunExistingJobSerializer validation failed:\n %s",
+                    "RunAndRunExistingJobSerializer validation failed:\n %s",
                     serializer.errors,
                 )
                 return Response(
                     job_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                 )
             job = job_serializer.save(
-                arguments=arguments,
-                author=author,
-                carrier=carrier,
-                token=token,
-                program=program,
-                config=jobconfig,
+                author=author, carrier=carrier, token=token, config=jobconfig
             )
             logger.info("Returning Job [%s] created.", job.id)
 
@@ -289,22 +285,18 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             token = ""
             if request.auth:
                 token = request.auth.token.decode()
-            job_serializer = self.get_serializer_run_and_run_existing_job(data={})
+            job_data = {"arguments": arguments, "program": program.id}
+            job_serializer = self.get_serializer_run_and_run_existing_job(data=job_data)
             if not job_serializer.is_valid():
                 logger.error(
-                    "JobSerializer validation failed:\n %s",
+                    "RunAndRunExistingJobSerializer validation failed:\n %s",
                     serializer.errors,
                 )
                 return Response(
                     job_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                 )
             job = job_serializer.save(
-                arguments=arguments,
-                author=author,
-                carrier=carrier,
-                token=token,
-                program=program,
-                config=jobconfig,
+                author=author, carrier=carrier, token=token, config=jobconfig
             )
             logger.info("Returning Job [%s] created.", job.id)
 

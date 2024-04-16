@@ -157,12 +157,6 @@ class SerializerTest(APITestCase):
         self.assertEqual(type(assert_json), type(config))
         self.assertDictEqual(assert_json, config)
 
-    def test_run_and_run_existing_job_serializer_check_empty_data(self):
-        data = {}
-
-        serializer = RunAndRunExistingJobSerializer(data=data)
-        self.assertTrue(serializer.is_valid())
-
     def test_run_and_run_existing_job_serializer_creates_job(self):
         user = models.User.objects.get(username="test_user")
         program_instance = Program.objects.get(
@@ -170,17 +164,28 @@ class SerializerTest(APITestCase):
         )
         arguments = "{}"
 
-        job_serializer = RunAndRunExistingJobSerializer(data={})
+        config_data = {
+            "workers": None,
+            "min_workers": 1,
+            "max_workers": 5,
+            "auto_scaling": True,
+        }
+        config_serializer = JobConfigSerializer(data=config_data)
+        config_serializer.is_valid()
+        jobconfig = config_serializer.save()
+
+        job_data = {"arguments": arguments, "program": program_instance.id}
+        job_serializer = RunAndRunExistingJobSerializer(data=job_data)
         job_serializer.is_valid()
         job = job_serializer.save(
-            arguments=arguments,
-            author=user,
-            carrier={},
-            token="my_token",
-            program=program_instance,
-            config=None,
+            author=user, carrier={}, token="my_token", config=jobconfig
         )
+
         self.assertIsNotNone(job)
+        self.assertIsNotNone(job.program)
+        self.assertIsNotNone(job.arguments)
+        self.assertIsNotNone(job.config)
+        self.assertIsNotNone(job.author)
 
     def test_run_program_serializer_check_emtpy_data(self):
         data = {}
