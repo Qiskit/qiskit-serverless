@@ -116,7 +116,7 @@ class RunExistingProgramSerializer(serializers.Serializer):
 
     title = serializers.CharField(max_length=255)
     arguments = serializers.CharField()
-    config = serializers.DictField()
+    config = serializers.JSONField()
 
     def retrieve_one_by_title(self, title, author):
         """

@@ -534,7 +534,7 @@ class GatewayJobClient(BaseJobClient):
             response_data = safe_json_request(
                 request=lambda: requests.post(
                     url=url,
-                    data=data,
+                    json=data,
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
