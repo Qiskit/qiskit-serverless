@@ -427,11 +427,11 @@ class GatewayJobClient(BaseJobClient):
                     "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
                     "dependencies": json.dumps(program.dependencies or []),
                     "env_var": json.dumps(program.env_vars or {}),
-                }
+                }  # type: Dict[str, Any]
                 if config:
-                    data["config"] = json.dumps(asdict(config))
+                    data["config"] = asdict(config)
                 else:
-                    data["config"] = "{}"
+                    data["config"] = {}
 
                 response_data = safe_json_request(
                     request=lambda: requests.post(
@@ -527,16 +527,16 @@ class GatewayJobClient(BaseJobClient):
             data = {
                 "title": title,
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
-            }
+            }  # type: Dict[str, Any]
             if config:
-                data["config"] = json.dumps(asdict(config))
+                data["config"] = asdict(config)
             else:
-                data["config"] = "{}"
+                data["config"] = {}
 
             response_data = safe_json_request(
                 request=lambda: requests.post(
                     url=url,
-                    data=data,
+                    json=data,
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
