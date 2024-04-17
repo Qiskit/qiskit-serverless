@@ -178,4 +178,7 @@ class SerializerTest(APITestCase):
             program=program_instance,
             config=None,
         )
+        env_vars = json.loads(job.env_vars)
+        self.assertTrue(env_vars["PROGRAM_ENV1"] == "VALUE1")
+        self.assertTrue(env_vars["PROGRAM_ENV2"] == "VALUE2")
         self.assertIsNotNone(job)

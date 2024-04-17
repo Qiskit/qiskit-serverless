@@ -426,6 +426,7 @@ class GatewayJobClient(BaseJobClient):
                     "entrypoint": program.entrypoint,
                     "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
                     "dependencies": json.dumps(program.dependencies or []),
+                    "env_var": json.dumps(program.env_vars or {}),
                 }
                 if config:
                     data["config"] = json.dumps(asdict(config))
@@ -490,6 +491,7 @@ class GatewayJobClient(BaseJobClient):
                             "entrypoint": program.entrypoint,
                             "arguments": json.dumps({}),
                             "dependencies": json.dumps(program.dependencies or []),
+                            "env_vars": json.dumps(program.env_vars or {}),
                         },
                         files={"artifact": file},
                         headers={"Authorization": f"Bearer {self._token}"},

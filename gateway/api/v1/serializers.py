@@ -30,6 +30,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "entrypoint",
             "artifact",
             "dependencies",
+            "env_vars",
         ]
 
 
