@@ -181,7 +181,7 @@ class SerializerTest(APITestCase):
             author=user, carrier={}, token="my_token", config=jobconfig
         )
         env_vars = json.loads(job.env_vars)
-        
+
         self.assertIsNotNone(job)
         self.assertIsNotNone(job.program)
         self.assertIsNotNone(job.arguments)
