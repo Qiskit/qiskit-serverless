@@ -27,7 +27,8 @@
       "title": "Program",
       "entrypoint": "program.py",
       "artifact": "path",
-      "author": 1
+      "author": 1,
+      "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}"
     }
   },
   {

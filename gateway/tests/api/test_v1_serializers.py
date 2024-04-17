@@ -135,7 +135,7 @@ class SerializerTest(APITestCase):
         serializer = RunExistingProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
-        self.assertListEqual(["arguments", "config"], list(errors.keys()))
+        self.assertListEqual(["arguments"], list(errors.keys()))
 
     def test_run_existing_program_serializer_config_json(self):
         assert_json = {
@@ -147,7 +147,7 @@ class SerializerTest(APITestCase):
         data = {
             "title": "Program",
             "arguments": "{}",
-            "config": json.dumps(assert_json),
+            "config": assert_json,
         }
 
         serializer = RunExistingProgramSerializer(data=data)
@@ -180,12 +180,15 @@ class SerializerTest(APITestCase):
         job = job_serializer.save(
             author=user, carrier={}, token="my_token", config=jobconfig
         )
-
+        env_vars = json.loads(job.env_vars)
+        
         self.assertIsNotNone(job)
         self.assertIsNotNone(job.program)
         self.assertIsNotNone(job.arguments)
         self.assertIsNotNone(job.config)
         self.assertIsNotNone(job.author)
+        self.assertTrue(env_vars["PROGRAM_ENV1"] == "VALUE1")
+        self.assertTrue(env_vars["PROGRAM_ENV2"] == "VALUE2")
 
     def test_run_program_serializer_check_emtpy_data(self):
         data = {}

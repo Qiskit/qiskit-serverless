@@ -38,6 +38,10 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         title = validated_data.get("title")
         logger.info("Creating program [%s] with UploadProgramSerializer", title)
+        env_vars = validated_data.get("env_vars")
+        if env_vars:
+            encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
+            validated_data["env_vars"] = json.dumps(encrypted_env_vars)
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
@@ -46,7 +50,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         )
         instance.entrypoint = validated_data.get("entrypoint")
         instance.dependencies = validated_data.get("dependencies", "[]")
-        instance.env_vars = validated_data.get("env_vars", "{}")
+        instance.env_vars = validated_data.get("env_vars", {})
         instance.artifact = validated_data.get("artifact")
         instance.author = validated_data.get("author")
         instance.save()
@@ -115,7 +119,7 @@ class RunExistingProgramSerializer(serializers.Serializer):
 
     title = serializers.CharField(max_length=255)
     arguments = serializers.CharField()
-    config = serializers.CharField()
+    config = serializers.JSONField()
 
     def retrieve_one_by_title(self, title, author):
         """
@@ -126,14 +130,6 @@ class RunExistingProgramSerializer(serializers.Serializer):
             .order_by("-created")
             .first()
         )
-
-    def to_representation(self, instance):
-        """
-        Transforms string `config` to JSON
-        """
-        representation = super().to_representation(instance)
-        representation["config"] = json.loads(representation["config"])
-        return representation
 
     def update(self, instance, validated_data):
         pass
@@ -174,6 +170,9 @@ class RunAndRunExistingJobSerializer(serializers.ModelSerializer):
             env["traceparent"] = carrier["traceparent"]
         except KeyError:
             pass
+        if program.env_vars:
+            program_env = json.loads(program.env_vars)
+            env.update(program_env)
 
         job.env_vars = json.dumps(env)
         job.save()
@@ -201,14 +200,6 @@ class RunProgramSerializer(serializers.Serializer):
     dependencies = serializers.CharField(allow_blank=False)
     arguments = serializers.CharField(allow_blank=False)
     config = serializers.CharField(allow_blank=False)
-
-    def to_representation(self, instance):
-        """
-        Transforms string `config` to JSON
-        """
-        representation = super().to_representation(instance)
-        representation["config"] = json.loads(representation["config"])
-        return representation
 
     def retrieve_one_by_title(self, title, author):
         """
@@ -241,13 +232,17 @@ class RunProgramModelSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         title = validated_data.get("title")
         logger.info("Creating program [%s] with RunProgramSerializer", title)
+        env_vars = validated_data.get("env_vars")
+        if env_vars:
+            encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
+            validated_data["env_vars"] = json.dumps(encrypted_env_vars)
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         logger.info("Updating program [%s] with RunProgramSerializer", instance.title)
         instance.entrypoint = validated_data.get("entrypoint")
         instance.dependencies = validated_data.get("dependencies", "[]")
-        instance.env_vars = validated_data.get("env_vars", "{}")
+        instance.env_vars = validated_data.get("env_vars", {})
         instance.artifact = validated_data.get("artifact")
         instance.author = validated_data.get("author")
         instance.save()

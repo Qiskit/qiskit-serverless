@@ -30,6 +30,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "entrypoint",
             "artifact",
             "dependencies",
+            "env_vars",
         ]
 
 
@@ -102,6 +103,5 @@ class RunProgramModelSerializer(serializers.RunProgramModelSerializer):
             "entrypoint",
             "artifact",
             "dependencies",
-            "arguments",
-            "config",
+            "env_vars",
         ]

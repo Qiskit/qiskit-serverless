@@ -61,7 +61,12 @@ class TestProgramApi(APITestCase):
                 "entrypoint": "program.py",
                 "arguments": "{}",
                 "dependencies": "[]",
-                "config": '{"workers": null, "min_workers": 1, "max_workers": 5, "auto_scaling": true}',
+                "config": {
+                    "workers": None,
+                    "min_workers": 1,
+                    "max_workers": 5,
+                    "auto_scaling": True,
+                },
             },
             format="json",
         )
