@@ -199,7 +199,15 @@ class RunProgramSerializer(serializers.Serializer):
     artifact = serializers.FileField(allow_empty_file=False, use_url=False)
     dependencies = serializers.CharField(allow_blank=False)
     arguments = serializers.CharField(allow_blank=False)
-    config = serializers.JSONField()
+    config = serializers.CharField(allow_blank=False)
+
+    def to_representation(self, instance):
+        """
+        Transforms string `config` to JSON
+        """
+        representation = super().to_representation(instance)
+        representation["config"] = json.loads(representation["config"])
+        return representation
 
     def retrieve_one_by_title(self, title, author):
         """
