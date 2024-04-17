@@ -225,9 +225,7 @@ class SerializerTest(APITestCase):
         serializer = RunProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
-        self.assertListEqual(
-            ["dependencies", "arguments"], list(errors.keys())
-        )
+        self.assertListEqual(["dependencies", "arguments"], list(errors.keys()))
 
     def test_run_program_serializer_config_json(self):
         path_to_resource_artifact = os.path.join(
