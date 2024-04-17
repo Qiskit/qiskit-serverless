@@ -1,8 +1,8 @@
-{{ if and (eq .Values.platform "kind") (eq .Values.cosEnable false) }}
+{{ if eq .Values.platform "kind" }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.cos.claimName }}
+  name: {{ .Values.claimName }}
 spec:
   storageClassName: standard 
   accessModes:
@@ -10,11 +10,11 @@ spec:
   resources:
     requests:
       storage: 1Gi
-{{ else if and (eq .Values.platform "ibm") .Values.cosEnable }}
+{{ else if eq .Values.platform "ibm" }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.cos.claimName }}
+  name: {{ .Values.claimName }}
   annotations:
     ibm.io/auto-create-bucket: "false"
     ibm.io/auto-delete-bucket: "false"
@@ -29,7 +29,7 @@ spec:
   resources:
     requests:
       storage: {{ .Values.cos.storageSize | quote }}
-  storageClassName: {{ .Values.cos.storageClassName | quote }}
+  storageClassName: {{ .Values.storageClassName | quote }}
 {{ else }}
 apiVersion: v1
 kind: PersistentVolume
@@ -51,9 +51,9 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.cos.claimName }}
+  name: {{ .Values.claimName }}
 spec:
-  storageClassName: manual
+  storageClassName:  {{ .Values.storageClassName | quote }}
   accessModes:
     - ReadWriteMany
   resources:
