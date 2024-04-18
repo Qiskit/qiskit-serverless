@@ -1,14 +1,16 @@
 """CustomTokenBackend."""
 
-import json
 import logging
 from dataclasses import dataclass
-from typing import Callable, Any, Dict, Optional
 
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import authentication
+
+from api.models_proxies import QuantumUserProxy
+from api.utils import safe_request
+
 
 User = get_user_model()
 logger = logging.getLogger("gateway")
@@ -19,26 +21,6 @@ class CustomToken:
     """CustomToken."""
 
     token: str
-
-
-def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
-    """Makes safe request and parses json response."""
-    result = None
-    response = None
-    try:
-        response = request()
-    except Exception as request_exception:  # pylint: disable=broad-exception-caught
-        logger.error(request_exception)
-
-    if response is not None and response.ok:
-        try:
-            result = json.loads(response.text)
-        except Exception as json_exception:  # pylint: disable=broad-exception-caught
-            logger.error(json_exception)
-    if response is not None and not response.ok:
-        logger.error("%d : %s", response.status_code, response.text)
-
-    return result
 
 
 class CustomTokenBackend(authentication.BaseAuthentication):
@@ -90,6 +72,10 @@ class CustomTokenBackend(authentication.BaseAuthentication):
                         except User.DoesNotExist:
                             user = User(username=user_id)
                             user.save()
+
+                        quantum_user = QuantumUserProxy.objects.get(username=user_id)
+                        quantum_user.update_groups(auth_data.get("id"))
+
                     elif user_id is None:
                         logger.warning("Problems authenticating: No user id.")
                     else:  # not verified

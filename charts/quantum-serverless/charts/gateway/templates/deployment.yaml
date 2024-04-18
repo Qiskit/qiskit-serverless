@@ -146,6 +146,8 @@ spec:
               value: {{ .Values.application.qiskitRuntime.channel }}
             - name: QISKIT_IBM_URL
               value: {{ .Values.application.qiskitRuntime.url }}
+            - name: IQP_QCON_API_BASE_URL
+              value: {{ .Values.application.iqpQcon.url }}
             - name: DATABASE_HOST
               valueFrom:
                 secretKeyRef:
