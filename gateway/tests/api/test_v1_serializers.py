@@ -11,7 +11,7 @@ from api.v1.serializers import (
     JobConfigSerializer,
     UploadProgramSerializer,
     RunExistingProgramSerializer,
-    RunAndRunExistingJobSerializer,
+    RunJobSerializer,
     RunProgramSerializer,
     RunProgramModelSerializer,
 )
@@ -157,7 +157,7 @@ class SerializerTest(APITestCase):
         self.assertEqual(type(assert_json), type(config))
         self.assertDictEqual(assert_json, config)
 
-    def test_run_and_run_existing_job_serializer_creates_job(self):
+    def test_run_job_serializer_creates_job(self):
         user = models.User.objects.get(username="test_user")
         program_instance = Program.objects.get(
             id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
@@ -175,7 +175,7 @@ class SerializerTest(APITestCase):
         jobconfig = config_serializer.save()
 
         job_data = {"arguments": arguments, "program": program_instance.id}
-        job_serializer = RunAndRunExistingJobSerializer(data=job_data)
+        job_serializer = RunJobSerializer(data=job_data)
         job_serializer.is_valid()
         job = job_serializer.save(
             author=user, carrier={}, token="my_token", config=jobconfig

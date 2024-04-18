@@ -138,7 +138,7 @@ class RunExistingProgramSerializer(serializers.Serializer):
         pass
 
 
-class RunAndRunExistingJobSerializer(serializers.ModelSerializer):
+class RunJobSerializer(serializers.ModelSerializer):
     """
     Job serializer for the /run and /run_existing end-point
     """

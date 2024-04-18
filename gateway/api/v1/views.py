@@ -35,8 +35,8 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
         return v1_serializers.RunExistingProgramSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_run_and_run_existing_job(*args, **kwargs):
-        return v1_serializers.RunAndRunExistingJobSerializer(*args, **kwargs)
+    def get_serializer_run_job(*args, **kwargs):
+        return v1_serializers.RunJobSerializer(*args, **kwargs)
 
     @staticmethod
     def get_serializer_run_program(*args, **kwargs):
@@ -61,7 +61,7 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     @swagger_auto_schema(
         operation_description="Run an existing Qiskit Pattern",
         request_body=v1_serializers.RunExistingProgramSerializer,
-        responses={status.HTTP_200_OK: v1_serializers.RunAndRunExistingJobSerializer},
+        responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
     )
     @action(methods=["POST"], detail=False)
     def run_existing(self, request):
@@ -70,7 +70,7 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     @swagger_auto_schema(
         operation_description="Run and upload a Qiskit Pattern",
         request_body=v1_serializers.RunProgramSerializer,
-        responses={status.HTTP_200_OK: v1_serializers.RunAndRunExistingJobSerializer},
+        responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
     )
     @action(methods=["POST"], detail=False)
     def run(self, request):

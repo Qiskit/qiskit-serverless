@@ -33,7 +33,7 @@ from .models import Program, Job, RuntimeJob
 from .ray import get_job_handler
 from .serializers import (
     JobConfigSerializer,
-    RunAndRunExistingJobSerializer,
+    RunJobSerializer,
     RunExistingProgramSerializer,
     RunProgramModelSerializer,
     RunProgramSerializer,
@@ -88,12 +88,12 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return RunExistingProgramSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_run_and_run_existing_job(*args, **kwargs):
+    def get_serializer_run_job(*args, **kwargs):
         """
         This method returns the job serializer for the run_existing end-point
         """
 
-        return RunAndRunExistingJobSerializer(*args, **kwargs)
+        return RunJobSerializer(*args, **kwargs)
 
     @staticmethod
     def get_serializer_run_program(*args, **kwargs):
@@ -207,10 +207,10 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if request.auth:
                 token = request.auth.token.decode()
             job_data = {"arguments": arguments, "program": program.id}
-            job_serializer = self.get_serializer_run_and_run_existing_job(data=job_data)
+            job_serializer = self.get_serializer_run_job(data=job_data)
             if not job_serializer.is_valid():
                 logger.error(
-                    "RunAndRunExistingJobSerializer validation failed:\n %s",
+                    "RunJobSerializer validation failed:\n %s",
                     serializer.errors,
                 )
                 return Response(
@@ -286,10 +286,10 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             if request.auth:
                 token = request.auth.token.decode()
             job_data = {"arguments": arguments, "program": program.id}
-            job_serializer = self.get_serializer_run_and_run_existing_job(data=job_data)
+            job_serializer = self.get_serializer_run_job(data=job_data)
             if not job_serializer.is_valid():
                 logger.error(
-                    "RunAndRunExistingJobSerializer validation failed:\n %s",
+                    "RunJobSerializer validation failed:\n %s",
                     serializer.errors,
                 )
                 return Response(
