@@ -197,7 +197,15 @@ class SerializerTest(APITestCase):
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
         self.assertListEqual(
-            ["title", "entrypoint", "artifact", "dependencies", "arguments", "config"],
+            [
+                "title",
+                "entrypoint",
+                "artifact",
+                "dependencies",
+                "arguments",
+                "env_vars",
+                "config",
+            ],
             list(errors.keys()),
         )
 
@@ -218,6 +226,7 @@ class SerializerTest(APITestCase):
             "entrypoint": "pattern.py",
             "dependencies": [],
             "arguments": {},
+            "env_vars": {},
             "config": {},
         }
         data["artifact"] = upload_file
@@ -226,7 +235,7 @@ class SerializerTest(APITestCase):
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
         self.assertListEqual(
-            ["dependencies", "arguments", "config"], list(errors.keys())
+            ["dependencies", "arguments", "env_vars", "config"], list(errors.keys())
         )
 
     def test_run_program_serializer_config_json(self):
@@ -253,6 +262,7 @@ class SerializerTest(APITestCase):
             "entrypoint": "pattern.py",
             "dependencies": "[]",
             "arguments": "{}",
+            "env_vars": "{}",
             "config": json.dumps(assert_json),
         }
         data["artifact"] = upload_file

@@ -199,6 +199,7 @@ class RunProgramSerializer(serializers.Serializer):
     artifact = serializers.FileField(allow_empty_file=False, use_url=False)
     dependencies = serializers.CharField(allow_blank=False)
     arguments = serializers.CharField(allow_blank=False)
+    env_vars = serializers.CharField(allow_blank=False)
     config = serializers.CharField(allow_blank=False)
 
     def to_representation(self, instance):
