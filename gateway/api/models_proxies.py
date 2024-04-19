@@ -9,7 +9,7 @@ from django.contrib.auth.models import Group
 from api.utils import safe_request, remove_duplicates_from_list
 
 
-class QuantumUserProxy(get_user_model()):
+class QuantumUserProxy(get_user_model()):  # pylint: disable=too-few-public-methods
     """
     This proxy manages custom values for QuantumUser users like instances.
     """
@@ -55,7 +55,7 @@ class QuantumUserProxy(get_user_model()):
         Returns an array of instances from network configuration.
         """
         instances = []
-        if network:
+        if network:  # pylint: disable=too-many-nested-blocks
             for hub in network:
                 instances.append(hub.get("name"))
                 groups = hub.get("groups")
@@ -63,7 +63,7 @@ class QuantumUserProxy(get_user_model()):
                     for group in groups.values():
                         instances.append(f"{hub.get('name')}/{group.get('name')}")
                         projects = group.get("projects")
-                        if projects: 
+                        if projects:
                             for project in projects.values():
                                 instances.append(
                                     f"{hub.get('name')}/{group.get('name')}/{project.get('name')}"
@@ -77,8 +77,9 @@ class QuantumUserProxy(get_user_model()):
         """
         network = self._get_network(access_token)
         instances = self._get_instances_from_network(network)
-        
-        # Initially the list generated should not contain duplicates but this is just to sanitize the entry
+
+        # Initially the list generated should not contain duplicates
+        # but this is just to sanitize the entry
         unique_instances = remove_duplicates_from_list(instances)
 
         self.groups.clear()

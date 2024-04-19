@@ -219,6 +219,7 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
 
     return result
 
+
 def remove_duplicates_from_list(original_list: list[Any]) -> list[Any]:
     """Remove duplicates from a list maintining the order.
     Args:

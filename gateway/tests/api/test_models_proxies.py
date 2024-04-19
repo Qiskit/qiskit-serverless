@@ -45,7 +45,9 @@ class ProxiesTest(APITestCase):
 
     def test_instances_generation_from_quantum_network_without_projects(self):
         proxy = QuantumUserProxy()
-        instances = proxy._get_instances_from_network(self.network_configuration_without_project)
+        instances = proxy._get_instances_from_network(
+            self.network_configuration_without_project
+        )
         self.assertListEqual(instances, ["ibm-q", "ibm-q/open"])
 
     @patch.object(QuantumUserProxy, "_get_network")
@@ -56,5 +58,6 @@ class ProxiesTest(APITestCase):
 
         groups_names = proxy.groups.values_list("name", flat=True).distinct()
         groups_names_list = list(groups_names)
-        self.assertListEqual(groups_names_list, ["ibm-q", "ibm-q/open", "ibm-q/open/main"])
-
+        self.assertListEqual(
+            groups_names_list, ["ibm-q", "ibm-q/open", "ibm-q/open/main"]
+        )

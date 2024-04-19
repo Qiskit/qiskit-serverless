@@ -68,7 +68,9 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
                     if user_id is not None and verified:
                         try:
-                            quantum_user = QuantumUserProxy.objects.get(username=user_id)
+                            quantum_user = QuantumUserProxy.objects.get(
+                                username=user_id
+                            )
                         except User.DoesNotExist:
                             quantum_user = QuantumUserProxy(username=user_id)
                             quantum_user.save()
@@ -94,7 +96,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             logger.warning(
                 "Problems authenticating: User did not provide authorization token."
             )
-            
+
         else:  # auth_url is None
             logger.warning(
                 "Problems authenticating: No auth url: something is broken in our settings."
