@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 
-from api.utils import safe_request
+from api.utils import safe_request, remove_duplicates_from_list
 
 
 class QuantumUserProxy(get_user_model()):
@@ -77,9 +77,12 @@ class QuantumUserProxy(get_user_model()):
         """
         network = self._get_network(access_token)
         instances = self._get_instances_from_network(network)
+        
+        # Initially the list generated should not contain duplicates but this is just to sanitize the entry
+        unique_instances = remove_duplicates_from_list(instances)
 
         self.groups.clear()
-        for instance in instances:
+        for instance in unique_instances:
             try:
                 group = Group.objects.get(name=instance)
             except Group.DoesNotExist:

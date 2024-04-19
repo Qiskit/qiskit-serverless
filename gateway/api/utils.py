@@ -1,5 +1,6 @@
 """Utilities."""
 import base64
+from collections import OrderedDict
 import inspect
 import json
 import logging
@@ -217,3 +218,13 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
         logger.error("%d : %s", response.status_code, response.text)
 
     return result
+
+def remove_duplicates_from_list(original_list: list[Any]) -> list[Any]:
+    """Remove duplicates from a list maintining the order.
+    Args:
+        original_list: list with the original values
+
+    Returns:
+        a list without duplicates maintining the order
+    """
+    return list(OrderedDict.fromkeys(original_list))

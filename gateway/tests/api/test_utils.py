@@ -10,6 +10,7 @@ from api.utils import (
     encrypt_env_vars,
     decrypt_env_vars,
     check_logs,
+    remove_duplicates_from_list
 )
 
 
@@ -92,3 +93,8 @@ class TestUtils(APITestCase):
         job.status = "FAILED"
         logs = check_logs(logs="awsome logs", job=job)
         self.assertEqual(logs, "awsome logs")
+
+    def test_remove_duplicates_from_list(self):
+        list_with_duplicates = ["value_one", "value_two", "value_two"]
+        test_list = ["value_one", "value_two"]
+        self.assertListEqual(test_list, remove_duplicates_from_list(list_with_duplicates))
