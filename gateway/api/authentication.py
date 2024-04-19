@@ -31,7 +31,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         verification_url = settings.SETTINGS_TOKEN_AUTH_VERIFICATION_URL
         auth_header = request.META.get("HTTP_AUTHORIZATION")
 
-        user = None
+        quantum_user = None
         token = None
         if auth_header is not None and auth_url is not None:
             token = auth_header.split(" ")[-1]
@@ -68,16 +68,15 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
                     if user_id is not None and verified:
                         try:
-                            user = User.objects.get(username=user_id)
+                            quantum_user = QuantumUserProxy.objects.get(username=user_id)
                         except User.DoesNotExist:
-                            user = User(username=user_id)
-                            user.save()
-
-                        quantum_user = QuantumUserProxy.objects.get(username=user_id)
+                            quantum_user = QuantumUserProxy(username=user_id)
+                            quantum_user.save()
                         quantum_user.update_groups(auth_data.get("id"))
 
                     elif user_id is None:
                         logger.warning("Problems authenticating: No user id.")
+
                     else:  # not verified
                         logger.warning("Problems authenticating: User is not verified.")
 
@@ -95,12 +94,13 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             logger.warning(
                 "Problems authenticating: User did not provide authorization token."
             )
+            
         else:  # auth_url is None
             logger.warning(
                 "Problems authenticating: No auth url: something is broken in our settings."
             )
 
-        return user, CustomToken(token.encode()) if token else None
+        return quantum_user, CustomToken(token.encode()) if token else None
 
 
 class MockAuthBackend(authentication.BaseAuthentication):

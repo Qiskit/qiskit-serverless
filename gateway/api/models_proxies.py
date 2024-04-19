@@ -21,7 +21,7 @@ class QuantumUserProxy(get_user_model()):
 
         proxy = True
 
-    def __get_network(self, access_token: str):
+    def _get_network(self, access_token: str):
         """
         Obtain network configuration for a specific user:
         Returns:
@@ -50,45 +50,39 @@ class QuantumUserProxy(get_user_model()):
             )
         )
 
-    def __get_instances_from_network(self, network) -> list[str]:
+    def _get_instances_from_network(self, network) -> list[str]:
         """
         Returns an array of instances from network configuration.
         """
         instances = []
         if network:
             for hub in network:
-                groups = hub.get("groups")
                 instances.append(hub.get("name"))
-                for group in groups.values():
-                    projects = group.get("projects")
-                    instances.append(f"{hub.get('name')}/{group.get('name')}")
-                    for project in projects.values():
-                        instances.append(
-                            f"{hub.get('name')}/{group.get('name')}/{project.get('name')}"
-                        )
+                groups = hub.get("groups")
+                if groups:
+                    for group in groups.values():
+                        instances.append(f"{hub.get('name')}/{group.get('name')}")
+                        projects = group.get("projects")
+                        if projects: 
+                            for project in projects.values():
+                                instances.append(
+                                    f"{hub.get('name')}/{group.get('name')}/{project.get('name')}"
+                                )
         return instances
 
-    def update_groups(self, access_token):
+    def update_groups(self, access_token) -> None:
         """
         This method obtains the instances of a user from IQP Network User information
         and update Django Groups with that information.
         """
-        network = self.__get_network(access_token)
-        instances = self.__get_instances_from_network(network)
+        network = self._get_network(access_token)
+        instances = self._get_instances_from_network(network)
 
         self.groups.clear()
         for instance in instances:
             try:
                 group = Group.objects.get(name=instance)
             except Group.DoesNotExist:
-                group = Group.objects.create(name=instance)
+                group = Group(name=instance)
+                group.save()
             group.user_set.add(self)
-
-        groups_names = self.groups.values_list("name", flat=True).distinct()
-        groups_names_list = list(groups_names)
-
-        print("INFORMACION DE LOS GRUPOS DEL USUARIO ----------------------")
-        print(instances)
-        print(groups_names_list)
-
-        return True
