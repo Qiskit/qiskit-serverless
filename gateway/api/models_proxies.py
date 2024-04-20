@@ -4,7 +4,7 @@ import requests
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 
 from api.utils import safe_request, remove_duplicates_from_list
 
@@ -84,9 +84,8 @@ class QuantumUserProxy(get_user_model()):  # pylint: disable=too-few-public-meth
 
         self.groups.clear()
         for instance in unique_instances:
-            try:
-                group = Group.objects.get(name=instance)
-            except Group.DoesNotExist:
-                group = Group(name=instance)
-                group.save()
+            group, created = Group.objects.get_or_create(name=instance)
+            if created:
+                view_program = Permission.objects.get(codename="view_program")
+                group.permissions.add(view_program)
             group.user_set.add(self)

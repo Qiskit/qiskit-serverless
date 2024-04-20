@@ -74,6 +74,11 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         on_delete=models.CASCADE,
     )
 
+    class Meta:
+        permissions = (
+            ("run_program", "Can run function"),
+        )
+
     def __str__(self):
         return f"{self.title}"
 
