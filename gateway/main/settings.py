@@ -360,7 +360,6 @@ QISKIT_IBM_URL = os.environ.get(
 )
 
 # quantum api
-# quantum api
 IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
 
 # Content Security Policy
