@@ -75,9 +75,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     )
 
     class Meta:
-        permissions = (
-            ("run_program", "Can run function"),
-        )
+        permissions = (("run_program", "Can run function"),)
 
     def __str__(self):
         return f"{self.title}"
