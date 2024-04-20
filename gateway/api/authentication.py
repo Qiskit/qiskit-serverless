@@ -13,7 +13,7 @@ from api.utils import safe_request
 
 
 User = get_user_model()
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("gateway.authentication")
 
 
 @dataclass
@@ -67,10 +67,11 @@ class CustomTokenBackend(authentication.BaseAuthentication):
                     verified = all(verifications)
 
                     if user_id is not None and verified:
-                        # pylint: disable=unused-variable
                         quantum_user, created = QuantumUserProxy.objects.get_or_create(
                             username=user_id
                         )
+                        if created:
+                            logger.info("New user created")
                         quantum_user.update_groups(auth_data.get("id"))
 
                     elif user_id is None:
@@ -115,7 +116,8 @@ class MockAuthBackend(authentication.BaseAuthentication):
 
             if settings.SETTINGS_AUTH_MOCK_TOKEN is not None:
                 if token == settings.SETTINGS_AUTH_MOCK_TOKEN:
-                    # pylint: disable=unused-variable
                     user, created = User.objects.get_or_create(username="mockuser")
+                    if created:
+                        logger.info("New user created")
 
         return user, CustomToken(token.encode()) if token else None

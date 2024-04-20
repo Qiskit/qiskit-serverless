@@ -136,6 +136,11 @@ LOGGING = {
             "level": LOG_LEVEL,
             "propagate": False,
         },
+        "gateway.authentication": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
     },
 }
 
