@@ -55,12 +55,12 @@ class JobConfigSerializer(serializers.JobConfigSerializer):
         ]
 
 
-class RunExistingJobSerializer(serializers.RunExistingJobSerializer):
+class RunJobSerializer(serializers.RunJobSerializer):
     """
-    RunExistingJobSerializer is used by the /run_existing end-point
+    RunJobSerializer is used by the /run and /run_existing end-points
     """
 
-    class Meta(serializers.RunExistingJobSerializer.Meta):
+    class Meta(serializers.RunJobSerializer.Meta):
         fields = ["id", "result", "status", "program", "created", "arguments"]
 
 
@@ -84,3 +84,24 @@ class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
 
     class Meta(serializers.RuntimeJobSerializer.Meta):
         fields = ["job", "runtime_job"]
+
+
+class RunProgramSerializer(serializers.RunProgramSerializer):
+    """
+    RunProgram serializer is used in /run end-point
+    """
+
+
+class RunProgramModelSerializer(serializers.RunProgramModelSerializer):
+    """
+    RunProgram model serializer is used in /run end-point
+    """
+
+    class Meta(serializers.RunProgramModelSerializer.Meta):
+        fields = [
+            "title",
+            "entrypoint",
+            "artifact",
+            "dependencies",
+            "env_vars",
+        ]

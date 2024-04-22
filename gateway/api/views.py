@@ -29,17 +29,16 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from utils import sanitize_file_path
 
-from .exceptions import InternalServerErrorException
 from .models import Program, Job, RuntimeJob
 from .ray import get_job_handler
 from .serializers import (
-    JobSerializer,
     JobConfigSerializer,
-    RunExistingJobSerializer,
+    RunJobSerializer,
     RunExistingProgramSerializer,
+    RunProgramModelSerializer,
+    RunProgramSerializer,
     UploadProgramSerializer,
 )
-from .services import JobService, ProgramService, JobConfigService
 
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})
@@ -63,38 +62,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
     """
 
     BASE_NAME = "programs"
-
-    @staticmethod
-    def get_service_program_class():
-        """
-        This method returns Program service to be used in Program ViewSet.
-        """
-
-        return ProgramService
-
-    @staticmethod
-    def get_service_job_config_class():
-        """
-        This method return JobConfig service to be used in Program ViewSet.
-        """
-
-        return JobConfigService
-
-    @staticmethod
-    def get_service_job_class():
-        """
-        This method return Job service to be used in Program ViewSet.
-        """
-
-        return JobService
-
-    @staticmethod
-    def get_serializer_job(*args, **kwargs):
-        """
-        This method returns Job serializer to be used in Program ViewSet.
-        """
-
-        return JobSerializer(*args, **kwargs)
 
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):
@@ -121,12 +88,28 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return RunExistingProgramSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_run_existing_job(*args, **kwargs):
+    def get_serializer_run_job(*args, **kwargs):
         """
         This method returns the job serializer for the run_existing end-point
         """
 
-        return RunExistingJobSerializer(*args, **kwargs)
+        return RunJobSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_serializer_run_program(*args, **kwargs):
+        """
+        This method returns the program serializer for the run end-point
+        """
+
+        return RunProgramSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_model_serializer_run_program(*args, **kwargs):
+        """
+        This method returns the program model serializer for the run end-point
+        """
+
+        return RunProgramModelSerializer(*args, **kwargs)
 
     def get_serializer_class(self):
         return self.serializer_class
@@ -223,22 +206,18 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             token = ""
             if request.auth:
                 token = request.auth.token.decode()
-            job_serializer = self.get_serializer_run_existing_job(data={})
+            job_data = {"arguments": arguments, "program": program.id}
+            job_serializer = self.get_serializer_run_job(data=job_data)
             if not job_serializer.is_valid():
                 logger.error(
-                    "RunExistingJobSerializer validation failed:\n %s",
+                    "RunJobSerializer validation failed:\n %s",
                     serializer.errors,
                 )
                 return Response(
                     job_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                 )
             job = job_serializer.save(
-                arguments=arguments,
-                author=author,
-                carrier=carrier,
-                token=token,
-                program=program,
-                config=jobconfig,
+                author=author, carrier=carrier, token=token, config=jobconfig
             )
             logger.info("Returning Job [%s] created.", job.id)
 
@@ -250,59 +229,77 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.program.run", context=ctx):
-            serializer = self.get_serializer(data=request.data)
+            serializer = self.get_serializer_run_program(data=request.data)
             if not serializer.is_valid():
+                logger.error(
+                    "RunProgramSerializer validation failed:\n %s",
+                    serializer.errors,
+                )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+            title = serializer.validated_data.get("title")
             author = request.user
-            program = None
-            program_service = self.get_service_program_class()
-            try:
-                program = program_service.save(
-                    serializer=serializer,
-                    author=author,
-                    artifact=request.FILES.get("artifact"),
+            program = serializer.retrieve_one_by_title(title=title, author=author)
+            # We need to add request artifact to maintain the reference that the serializer lost
+            program_data = serializer.data
+            program_data["artifact"] = request.data.get("artifact")
+            if program is None:
+                logger.info("Program not found. [%s] is going to be created", title)
+                program_serializer = self.get_model_serializer_run_program(
+                    data=program_data
                 )
-            except InternalServerErrorException as exception:
-                return Response(exception, exception.http_code)
+            else:
+                logger.info("Program found. [%s] is going to be updated", title)
+                program_serializer = self.get_model_serializer_run_program(
+                    program, data=program_data
+                )
+            if not program_serializer.is_valid():
+                logger.error(
+                    "RunProgramModelSerializer validation failed with program instance:\n %s",
+                    program_serializer.errors,
+                )
+                return Response(
+                    program_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                )
+            program = program_serializer.save(author=author)
 
             jobconfig = None
-            config_data = request.data.get("config")
-            if config_data:
-                config_serializer = self.get_serializer_job_config(
-                    data=json.loads(config_data)
-                )
-                if not config_serializer.is_valid():
+            config_json = serializer.data.get("config")
+            if config_json:
+                logger.info("Configuration for [%s] was found.", title)
+                job_config_serializer = self.get_serializer_job_config(data=config_json)
+                if not job_config_serializer.is_valid():
+                    logger.error(
+                        "JobConfigSerializer validation failed:\n %s",
+                        serializer.errors,
+                    )
                     return Response(
-                        config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                        job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
-                try:
-                    jobconfig = (
-                        self.get_service_job_config_class().save_with_serializer(
-                            config_serializer
-                        )
-                    )
-                except InternalServerErrorException as exception:
-                    return Response(exception, exception.http_code)
+                jobconfig = job_config_serializer.save()
+                logger.info("JobConfig [%s] created.", jobconfig.id)
 
-            job = None
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
-            arguments = serializer.data.get("arguments") or "{}"
-            token = request.auth.token.decode()
-            try:
-                job = self.get_service_job_class().save(
-                    program=program,
-                    arguments=arguments,
-                    author=author,
-                    jobconfig=jobconfig,
-                    token=token,
-                    carrier=carrier,
+            arguments = serializer.data.get("arguments")
+            token = ""
+            if request.auth:
+                token = request.auth.token.decode()
+            job_data = {"arguments": arguments, "program": program.id}
+            job_serializer = self.get_serializer_run_job(data=job_data)
+            if not job_serializer.is_valid():
+                logger.error(
+                    "RunJobSerializer validation failed:\n %s",
+                    serializer.errors,
                 )
-            except InternalServerErrorException as exception:
-                return Response(exception, exception.http_code)
+                return Response(
+                    job_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                )
+            job = job_serializer.save(
+                author=author, carrier=carrier, token=token, config=jobconfig
+            )
+            logger.info("Returning Job [%s] created.", job.id)
 
-            job_serializer = self.get_serializer_job(job)
         return Response(job_serializer.data)
 
 

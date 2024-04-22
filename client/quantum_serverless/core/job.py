@@ -426,12 +426,12 @@ class GatewayJobClient(BaseJobClient):
                     "entrypoint": program.entrypoint,
                     "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
                     "dependencies": json.dumps(program.dependencies or []),
-                    "env_var": json.dumps(program.env_vars or {}),
-                }  # type: Dict[str, Any]
+                    "env_vars": json.dumps(program.env_vars or {}),
+                }
                 if config:
-                    data["config"] = asdict(config)
+                    data["config"] = json.dumps(asdict(config))
                 else:
-                    data["config"] = {}
+                    data["config"] = "{}"
 
                 response_data = safe_json_request(
                     request=lambda: requests.post(

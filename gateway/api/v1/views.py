@@ -11,7 +11,6 @@ from api import views
 from api.models import Program, Job, RuntimeJob
 from api.permissions import IsOwner
 from . import serializers as v1_serializers
-from . import services as v1_services
 
 
 class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestors
@@ -22,22 +21,6 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     queryset = Program.objects.all()
     serializer_class = v1_serializers.ProgramSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    @staticmethod
-    def get_service_program_class():
-        return v1_services.ProgramService
-
-    @staticmethod
-    def get_service_job_config_class():
-        return v1_services.JobConfigService
-
-    @staticmethod
-    def get_service_job_class():
-        return v1_services.JobService
-
-    @staticmethod
-    def get_serializer_job(*args, **kwargs):
-        return v1_serializers.JobSerializer(*args, **kwargs)
 
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):
@@ -52,8 +35,16 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
         return v1_serializers.RunExistingProgramSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_run_existing_job(*args, **kwargs):
-        return v1_serializers.RunExistingJobSerializer(*args, **kwargs)
+    def get_serializer_run_job(*args, **kwargs):
+        return v1_serializers.RunJobSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_serializer_run_program(*args, **kwargs):
+        return v1_serializers.RunProgramSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_model_serializer_run_program(*args, **kwargs):
+        return v1_serializers.RunProgramModelSerializer(*args, **kwargs)
 
     def get_serializer_class(self):
         return v1_serializers.ProgramSerializer
@@ -70,11 +61,20 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     @swagger_auto_schema(
         operation_description="Run an existing Qiskit Pattern",
         request_body=v1_serializers.RunExistingProgramSerializer,
-        responses={status.HTTP_200_OK: v1_serializers.RunExistingJobSerializer},
+        responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
     )
     @action(methods=["POST"], detail=False)
     def run_existing(self, request):
         return super().run_existing(request)
+
+    @swagger_auto_schema(
+        operation_description="Run and upload a Qiskit Pattern",
+        request_body=v1_serializers.RunProgramSerializer,
+        responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
+    )
+    @action(methods=["POST"], detail=False)
+    def run(self, request):
+        return super().run(request)
 
 
 class JobViewSet(views.JobViewSet):  # pylint: disable=too-many-ancestors
