@@ -1,6 +1,11 @@
 name: Helm Package
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag for images'
+        required: true
   release:
     types: [published]
 
