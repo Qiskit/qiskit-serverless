@@ -61,7 +61,7 @@ from quantum_serverless.core.constants import (
     ENV_JOB_ARGUMENTS,
 )
 
-from quantum_serverless.core.pattern import QiskitPattern
+from quantum_serverless.core.function import QiskitFunction
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
@@ -98,20 +98,20 @@ class BaseJobClient:
 
     def run(
         self,
-        program: QiskitPattern,
+        program: QiskitFunction,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> "Job":
         """Runs program."""
         raise NotImplementedError
 
-    def upload(self, program: QiskitPattern):
+    def upload(self, program: QiskitFunction):
         """Uploads program."""
         raise NotImplementedError
 
     def run_existing(
         self,
-        program: Union[str, QiskitPattern],
+        program: Union[str, QiskitFunction],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
@@ -188,7 +188,7 @@ class RayJobClient(BaseJobClient):
 
     def run(
         self,
-        program: QiskitPattern,
+        program: QiskitFunction,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
@@ -213,12 +213,12 @@ class RayJobClient(BaseJobClient):
         )
         return Job(job_id=job_id, job_client=self)
 
-    def upload(self, program: QiskitPattern):
+    def upload(self, program: QiskitFunction):
         raise NotImplementedError("Upload is not available for RayJobClient.")
 
     def run_existing(
         self,
-        program: Union[str, QiskitPattern],
+        program: Union[str, QiskitFunction],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
@@ -261,7 +261,7 @@ class LocalJobClient(BaseJobClient):
 
     def run(
         self,
-        program: QiskitPattern,
+        program: QiskitFunction,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
@@ -299,7 +299,7 @@ class LocalJobClient(BaseJobClient):
         self._jobs[job.job_id] = entry
         return job
 
-    def upload(self, program: QiskitPattern):
+    def upload(self, program: QiskitFunction):
         # check if entrypoint exists
         if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
             raise QuantumServerlessException(
@@ -318,11 +318,11 @@ class LocalJobClient(BaseJobClient):
 
     def run_existing(  # pylint: disable=too-many-locals
         self,
-        program: Union[str, QiskitPattern],
+        program: Union[str, QiskitFunction],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
-        if isinstance(program, QiskitPattern):
+        if isinstance(program, QiskitFunction):
             title = program.title
         else:
             title = str(program)
@@ -385,7 +385,7 @@ class GatewayJobClient(BaseJobClient):
 
     def run(  # pylint: disable=too-many-locals
         self,
-        program: QiskitPattern,
+        program: QiskitFunction,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> "Job":
@@ -412,7 +412,7 @@ class GatewayJobClient(BaseJobClient):
                     tar.add(fpath, arcname=filename)
 
             # check file size
-            size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
+            size_in_mb = Path(artifact_file_path).stat().st_size / 1024 ** 2
             if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
                 raise QuantumServerlessException(
                     f"{artifact_file_path} is {int(size_in_mb)} Mb, "
@@ -451,7 +451,7 @@ class GatewayJobClient(BaseJobClient):
 
         return Job(job_id, job_client=self)
 
-    def upload(self, program: QiskitPattern):
+    def upload(self, program: QiskitFunction):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
             span.set_attribute("program", program.title)
@@ -474,7 +474,7 @@ class GatewayJobClient(BaseJobClient):
                     tar.add(fpath, arcname=filename)
 
             # check file size
-            size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
+            size_in_mb = Path(artifact_file_path).stat().st_size / 1024 ** 2
             if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
                 raise QuantumServerlessException(
                     f"{artifact_file_path} is {int(size_in_mb)} Mb, "
@@ -508,11 +508,11 @@ class GatewayJobClient(BaseJobClient):
 
     def run_existing(
         self,
-        program: Union[str, QiskitPattern],
+        program: Union[str, QiskitFunction],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
-        if isinstance(program, QiskitPattern):
+        if isinstance(program, QiskitFunction):
             title = program.title
         else:
             title = str(program)
@@ -635,10 +635,7 @@ class GatewayJobClient(BaseJobClient):
             job = None
             job_id = response_data.get("id")
             if job_id is not None:
-                job = Job(
-                    job_id=response_data.get("id"),
-                    job_client=self,
-                )
+                job = Job(job_id=response_data.get("id"), job_client=self,)
 
         return job
 
@@ -672,7 +669,7 @@ class GatewayJobClient(BaseJobClient):
                 )
             )
         return [
-            QiskitPattern(program.get("title"), raw_data=program)
+            QiskitFunction(program.get("title"), raw_data=program, job_client=self)
             for program in response_data.get("results", [])
         ]
 

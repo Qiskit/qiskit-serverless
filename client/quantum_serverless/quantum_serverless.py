@@ -42,8 +42,8 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 from quantum_serverless.core.job import Job, Configuration
-from quantum_serverless.core.pattern import QiskitPattern
-from quantum_serverless.core.provider import BaseProvider, ComputeResource
+from quantum_serverless.core.function import QiskitPattern
+from quantum_serverless.core.client import BaseProvider, ComputeResource
 from quantum_serverless.exception import QuantumServerlessException
 
 Context = Union[BaseContext]
@@ -235,9 +235,7 @@ class QuantumServerless:
         return self._selected_provider.get_programs(**kwargs)
 
     def context(
-        self,
-        provider: Optional[Union[str, BaseProvider]] = None,
-        **kwargs,
+        self, provider: Optional[Union[str, BaseProvider]] = None, **kwargs,
     ):
         """Sets context for allocation
 
@@ -271,11 +269,7 @@ class QuantumServerless:
 
         return provider.context(**kwargs)
 
-    def provider(
-        self,
-        provider: Union[str, BaseProvider],
-        **kwargs,
-    ) -> Context:
+    def provider(self, provider: Union[str, BaseProvider], **kwargs,) -> Context:
         """Sets provider for context allocation.
 
         Args:

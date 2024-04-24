@@ -25,16 +25,20 @@ from importlib_metadata import version as metadata_version, PackageNotFoundError
 
 from .core import (
     BaseProvider,
+    BaseClient,
     distribute_task,
     distribute_qiskit_pattern,
     get,
     put,
     get_refs_by_status,
-    Provider,
     ServerlessProvider,
+    ServerlessClient,
     IBMServerlessProvider,
+    IBMServerlessClient,
     RayProvider,
+    RayClient,
     LocalProvider,
+    LocalClient,
     save_result,
     Configuration,
 )
@@ -43,7 +47,7 @@ from .quantum_serverless import (
     get_auto_discovered_provider,
     QuantumServerlessException,
 )
-from .core.pattern import QiskitPattern
+from .core.function import QiskitPattern, QiskitFunction
 from .serializers import get_arguments
 
 try:

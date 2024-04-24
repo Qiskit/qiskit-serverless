@@ -92,8 +92,7 @@ def safe_json_request(request: Callable, verbose: bool = False) -> Dict[str, Any
         response = request()
     except requests.exceptions.RequestException as request_exception:
         error_message = format_err_msg(
-            ErrorCodes.AUTH1001,
-            str(request_exception.args) if verbose else None,
+            ErrorCodes.AUTH1001, str(request_exception.args) if verbose else None,
         )
         response = None
 
@@ -103,8 +102,7 @@ def safe_json_request(request: Callable, verbose: bool = False) -> Dict[str, Any
     if response is not None and not response.ok:
         raise QuantumServerlessException(
             format_err_msg(
-                response.status_code,
-                str(response.text) if verbose else None,
+                response.status_code, str(response.text) if verbose else None,
             )
         )
 
@@ -113,8 +111,7 @@ def safe_json_request(request: Callable, verbose: bool = False) -> Dict[str, Any
         json_data = json.loads(response.text)
     except json.JSONDecodeError as json_error:
         decoding_error_message = format_err_msg(
-            ErrorCodes.JSON1001,
-            str(json_error.args) if verbose else None,
+            ErrorCodes.JSON1001, str(json_error.args) if verbose else None,
         )
         json_data = {}
 

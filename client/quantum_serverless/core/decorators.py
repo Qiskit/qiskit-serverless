@@ -257,9 +257,7 @@ def _tracible_function(
     return decorator
 
 
-def distribute_task(
-    target: Optional[Union[Dict[str, Any], Target]] = None,
-):
+def distribute_task(target: Optional[Union[Dict[str, Any], Target]] = None,):
     """Wraps local function as remote executable function.
     New function will return reference object when called.
 
@@ -357,8 +355,8 @@ def distribute_qiskit_pattern(
     """
     # pylint: disable=import-outside-toplevel,cyclic-import
     from quantum_serverless import QuantumServerlessException
-    from quantum_serverless.core.pattern import QiskitPattern
-    from quantum_serverless.core.provider import ServerlessProvider
+    from quantum_serverless.core.function import QiskitPattern
+    from quantum_serverless.core.client import ServerlessProvider
 
     # create provider
     if provider is None:

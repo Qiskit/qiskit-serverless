@@ -3,10 +3,10 @@ import os
 
 from testcontainers.compose import DockerCompose
 
-from quantum_serverless import QuantumServerless, BaseProvider
+from quantum_serverless import QuantumServerless, BaseClient
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.job import Job
-from quantum_serverless.core.pattern import QiskitPattern
+from quantum_serverless.core.function import QiskitFunction
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
 resources_path = os.path.join(
@@ -23,17 +23,17 @@ def test_program():
         host = compose.get_service_host("testrayhead", 8265)
         port = compose.get_service_port("testrayhead", 8265)
 
-        provider = BaseProvider(
+        client = BaseClient(
             name="docker",
             compute_resource=ComputeResource(
                 name="docker", host=host, port_job_server=port
             ),
         )
-        serverless = QuantumServerless(provider).set_provider("docker")
+        serverless = QuantumServerless(client).set_provider("docker")
 
         wait_for_job_client(serverless)
 
-        program = QiskitPattern(
+        program = QiskitFunction(
             title="simple_job",
             entrypoint="job.py",
             working_dir=resources_path,
