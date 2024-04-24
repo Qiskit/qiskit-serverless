@@ -412,7 +412,7 @@ class GatewayJobClient(BaseJobClient):
                     tar.add(fpath, arcname=filename)
 
             # check file size
-            size_in_mb = Path(artifact_file_path).stat().st_size / 1024 ** 2
+            size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
             if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
                 raise QuantumServerlessException(
                     f"{artifact_file_path} is {int(size_in_mb)} Mb, "
@@ -474,7 +474,7 @@ class GatewayJobClient(BaseJobClient):
                     tar.add(fpath, arcname=filename)
 
             # check file size
-            size_in_mb = Path(artifact_file_path).stat().st_size / 1024 ** 2
+            size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
             if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
                 raise QuantumServerlessException(
                     f"{artifact_file_path} is {int(size_in_mb)} Mb, "
@@ -635,7 +635,10 @@ class GatewayJobClient(BaseJobClient):
             job = None
             job_id = response_data.get("id")
             if job_id is not None:
-                job = Job(job_id=response_data.get("id"), job_client=self,)
+                job = Job(
+                    job_id=response_data.get("id"),
+                    job_client=self,
+                )
 
         return job
 

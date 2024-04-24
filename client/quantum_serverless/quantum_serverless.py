@@ -235,7 +235,9 @@ class QuantumServerless:
         return self._selected_provider.get_programs(**kwargs)
 
     def context(
-        self, provider: Optional[Union[str, BaseProvider]] = None, **kwargs,
+        self,
+        provider: Optional[Union[str, BaseProvider]] = None,
+        **kwargs,
     ):
         """Sets context for allocation
 
@@ -269,7 +271,11 @@ class QuantumServerless:
 
         return provider.context(**kwargs)
 
-    def provider(self, provider: Union[str, BaseProvider], **kwargs,) -> Context:
+    def provider(
+        self,
+        provider: Union[str, BaseProvider],
+        **kwargs,
+    ) -> Context:
         """Sets provider for context allocation.
 
         Args:

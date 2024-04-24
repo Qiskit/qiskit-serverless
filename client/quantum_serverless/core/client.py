@@ -115,7 +115,8 @@ class ComputeResource:
             **kwargs,
             **{
                 "address": kwargs.get(
-                    "address", self.connection_string_interactive_mode(),
+                    "address",
+                    self.connection_string_interactive_mode(),
                 ),
                 "ignore_reinit_error": kwargs.get("ignore_reinit_error", True),
                 "logging_level": kwargs.get("logging_level", "warning"),
@@ -309,7 +310,9 @@ class BaseClient(JsonSerializable):
         raise NotImplementedError
 
     def download(
-        self, file: str, download_location: str = "./",
+        self,
+        file: str,
+        download_location: str = "./",
     ):
         """Download file."""
         warnings.warn(
