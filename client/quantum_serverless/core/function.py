@@ -27,7 +27,6 @@ Quantum serverless function
     QiskitFunction
 """
 import dataclasses
-import warnings
 from dataclasses import dataclass
 from typing import Optional, Dict, List, Any, Tuple
 
@@ -82,21 +81,20 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         Returns:
             Job: job handler for function execution
         """
-        if self.client is None:
-            raise Exception("No clients specified for a function.")
+        if self.job_client is None:
+            raise ValueError("No clients specified for a function.")
 
         if self.validate:
             is_valid, validation_errors = self._validate_funciton()
             if not is_valid:
-                raise Exception(
-                    "Function validation failed. Validation errors:\n %s",
-                    "\n".join(validation_errors),
+                error_string = "\n".join(validation_errors)
+                raise ValueError(
+                    f"Function validation failed. Validation errors:\n {error_string}",
                 )
 
         if self._is_local_function():
             return self.job_client.run(program=self, arguments=kwargs)
-        else:
-            return self.job_client.run_existing(program=self.title, arguments=kwargs)
+        return self.job_client.run_existing(program=self.title, arguments=kwargs)
 
     def _is_local_function(self) -> bool:
         raise NotImplementedError
@@ -112,6 +110,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         return True, []
 
 
+# pylint: disable=abstract-method
 class QiskitPattern(QiskitFunction):
     """
     [Deprecated since version 0.10.0] Use :class:`.QiskitFunction` instead.
