@@ -90,14 +90,6 @@ class TestProgramApi(APITestCase):
                 "arguments": arguments,
                 "dependencies": "[]",
                 "env_vars": env_vars,
-                "config": json.dumps(
-                    {
-                        "workers": None,
-                        "min_workers": 1,
-                        "max_workers": 5,
-                        "auto_scaling": True,
-                    }
-                ),
                 "artifact": fake_file,
             },
         )
@@ -107,10 +99,6 @@ class TestProgramApi(APITestCase):
         self.assertEqual(job.arguments, arguments)
         self.assertEqual(job.program.dependencies, "[]")
         self.assertEqual(job.program.env_vars, env_vars)
-        self.assertEqual(job.config.min_workers, 1)
-        self.assertEqual(job.config.max_workers, 5)
-        self.assertEqual(job.config.workers, None)
-        self.assertEqual(job.config.auto_scaling, True)
 
     def test_runtime_job(self):
         """Tests run existing authorized."""
