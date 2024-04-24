@@ -16,9 +16,7 @@
 .. autosummary::
     :toctree: ../stubs/
 
-    QuantumServerless
     QuantumServerlessException
-    get_auto_discovered_provider
 """
 # pylint: disable=W0404
 from importlib_metadata import version as metadata_version, PackageNotFoundError
