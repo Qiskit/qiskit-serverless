@@ -42,11 +42,7 @@ from .core import (
     save_result,
     Configuration,
 )
-from .quantum_serverless import (
-    QuantumServerless,
-    get_auto_discovered_provider,
-    QuantumServerlessException,
-)
+from .exception import QuantumServerlessException
 from .core.function import QiskitPattern, QiskitFunction
 from .serializers import get_arguments
 

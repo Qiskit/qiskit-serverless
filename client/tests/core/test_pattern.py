@@ -3,7 +3,7 @@ import os
 
 from testcontainers.compose import DockerCompose
 
-from quantum_serverless import QuantumServerless, BaseClient
+from quantum_serverless import BaseClient
 from quantum_serverless.core import ComputeResource
 from quantum_serverless.core.job import Job
 from quantum_serverless.core.function import QiskitFunction
@@ -23,14 +23,12 @@ def test_program():
         host = compose.get_service_host("testrayhead", 8265)
         port = compose.get_service_port("testrayhead", 8265)
 
-        client = BaseClient(
+        serverless = BaseClient(
             name="docker",
             compute_resource=ComputeResource(
                 name="docker", host=host, port_job_server=port
             ),
         )
-        serverless = QuantumServerless(client).set_provider("docker")
-
         wait_for_job_client(serverless)
 
         program = QiskitFunction(
