@@ -9,7 +9,7 @@ def wait_for_job_client(serverless: BaseClient, timeout: int = 60):
     """Utility function that wait for job client to awake."""
     must_finish = time.time() + timeout
     while time.time() < must_finish:
-        if serverless.job_client is not None:
+        if serverless.job_client() is not None:
             break
         time.sleep(1)
 

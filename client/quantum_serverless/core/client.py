@@ -223,7 +223,7 @@ class BaseClient(JsonSerializable):
         return False
 
     def __repr__(self):
-        return f"<ServerlessProvider: {self.name}>"
+        return f"<{self.name}>"
 
     def get_compute_resources(self) -> List[ComputeResource]:
         """Return compute resources for provider."""
