@@ -20,7 +20,7 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from api.models import ComputeResource, Job, JobConfig
+from api.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
 from api.utils import (
     try_json_loads,
     retry_function,
@@ -76,17 +76,42 @@ class JobHandler:
         """
         tracer = trace.get_tracer("scheduler.tracer")
         with tracer.start_as_current_span("submit.job") as span:
+            # get program
             program = job.program
+            
+            # get dependencies
             _, dependencies = try_json_loads(program.dependencies)
-            with tarfile.open(program.artifact.path) as file:
-                extract_folder = os.path.join(
-                    sanitize_file_path(str(settings.MEDIA_ROOT)),
-                    "tmp",
-                    str(uuid.uuid4()),
+            
+            # get artifact
+            working_directory_for_upload = os.path.join(
+                sanitize_file_path(str(settings.MEDIA_ROOT)),
+                "tmp",
+                str(uuid.uuid4()),
+            )
+            if program.image is not None:
+                # load default artifact
+                os.makedirs(working_directory_for_upload, exist_ok=True)
+                default_entrypoint_template = get_template("main.py")
+                default_entrypoint_content = default_entrypoint_template.render(
+                    {
+                        "mount_path": settings.CUSTOM_IMAGE_PACKAGE_PATH,
+                        "package_name": settings.CUSTOM_IMAGE_PACKAGE_NAME,
+                    }
                 )
-                file.extractall(extract_folder)
+                with open(
+                    os.path.join(working_directory_for_upload, DEFAULT_PROGRAM_ENTRYPOINT), "w"
+                ) as entrypoint_file:
+                    entrypoint_file.write(default_entrypoint_content)
+            elif program.artifact is not None:
+                with tarfile.open(program.artifact.path) as file:
+                    file.extractall(working_directory_for_upload)
+            else:
+                raise ResourceNotFoundError(f"Program [{program.title}] has no image or artifact associated.")
 
+            # get entrypoint
             entrypoint = f"python {program.entrypoint}"
+            
+            # set tracing
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
             env_w_span = json.loads(job.env_vars)
@@ -95,11 +120,12 @@ class JobHandler:
             except KeyError:
                 pass
 
+            # submit job
             ray_job_id = retry_function(
                 callback=lambda: self.client.submit_job(
                     entrypoint=entrypoint,
                     runtime_env={
-                        "working_dir": extract_folder,
+                        "working_dir": working_directory_for_upload,
                         "env_vars": decrypt_env_vars(env_w_span),
                         "pip": dependencies or [],
                     },
@@ -108,8 +134,8 @@ class JobHandler:
                 error_message=f"Ray job [{job.id}] submission failed.",
             )
 
-            if os.path.exists(extract_folder):
-                shutil.rmtree(extract_folder)
+            if os.path.exists(working_directory_for_upload):
+                shutil.rmtree(working_directory_for_upload)
             span.set_attribute("job.rayjobid", job.ray_job_id)
 
         return ray_job_id
@@ -165,10 +191,11 @@ def submit_job(job: Job) -> Job:
 
 
 def create_ray_cluster(
-    user: Any,
+    job: Job,
+    # user: Any,
     cluster_name: Optional[str] = None,
     cluster_data: Optional[str] = None,
-    job_config: Optional[JobConfig] = None,
+    # job_config: Optional[JobConfig] = None,
 ) -> Optional[ComputeResource]:
     """Creates ray cluster.
 
@@ -182,6 +209,9 @@ def create_ray_cluster(
         returns compute resource associated with ray cluster
         or None if something went wrong with cluster creation.
     """
+    user = job.author
+    job_config = job.config
+    
     namespace = settings.RAY_KUBERAY_NAMESPACE
     cluster_name = cluster_name or generate_cluster_name(user.username)
     if not cluster_data:
@@ -209,6 +239,11 @@ def create_ray_cluster(
             )
             logger.warning(message)
             node_image = settings.RAY_NODE_IMAGE
+        
+        # if user specified image use specified image
+        if job.program.image is not None:
+            node_image = job.program.image
+        
         cluster = get_template("rayclustertemplate.yaml")
         manifest = cluster.render(
             {

@@ -15,6 +15,9 @@ def get_upload_path(instance, filename):
     return f"{instance.author.username}/{instance.id}/{filename}"
 
 
+DEFAULT_PROGRAM_ENTRYPOINT = "main.py"
+
+
 class JobConfig(models.Model):
     """Job Configuration model."""
 
@@ -58,17 +61,18 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
 
     title = models.CharField(max_length=255, db_index=True)
-    entrypoint = models.CharField(max_length=255)
+    entrypoint = models.CharField(max_length=255, default=DEFAULT_PROGRAM_ENTRYPOINT)
     artifact = models.FileField(
         upload_to=get_upload_path,
-        null=False,
-        blank=False,
+        null=True,
+        blank=True,
         validators=[FileExtensionValidator(allowed_extensions=["tar"])],
     )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
+    image = models.CharField(max_length=511, null=True, blank=True)
 
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")

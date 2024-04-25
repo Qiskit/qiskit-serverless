@@ -364,3 +364,7 @@ CSP_STYLE_SRC_ELEM = ("'self'", "'unsafe-inline'")
 CSP_SCRIPT_SRC_ELEM = "'self'"
 CSP_CONNECT_SRC = "'self'"
 CSP_WORKER_SRC = ("'self'", "blob:")
+
+# Custom image for programs settings
+CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "src")
+CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/src")
