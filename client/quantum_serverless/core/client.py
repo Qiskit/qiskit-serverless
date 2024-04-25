@@ -345,6 +345,16 @@ class BaseClient(JsonSerializable):
         return Widget(self).show()
 
     def get_programs(self, **kwargs):
+        """[Deprecated] Returns list of available programs."""
+        warnings.warn(
+            "`get_programs` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `list` instead.",
+            DeprecationWarning,
+        )
+        return self.list(**kwargs)
+
+    def list(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
         raise NotImplementedError
 
@@ -470,7 +480,8 @@ class ServerlessClient(BaseClient):
     def file_upload(self, file: str):
         return self._files_client.upload(file)
 
-    def get_programs(self, **kwargs) -> List[QiskitFunction]:
+    def list(self, **kwargs) -> List[QiskitFunction]:
+        """Returns list of available programs."""
         return self._job_client.get_programs(**kwargs)
 
     def _verify_token(self, token: str):

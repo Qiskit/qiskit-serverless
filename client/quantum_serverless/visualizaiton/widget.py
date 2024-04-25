@@ -134,7 +134,7 @@ class Widget:  # pylint: disable=too-many-instance-attributes
         """Renders list of jobs."""
 
         def render_program_row(program):
-            title = program.raw_data.get("title", "QiskitPattern")
+            title = program.raw_data.get("title", "QiskitFunction")
             date = datetime.strptime(
                 program.raw_data.get("created", "2011-11-11T11:11:11.000Z"),
                 "%Y-%m-%dT%H:%M:%S.%fZ",
@@ -295,7 +295,7 @@ class Widget:  # pylint: disable=too-many-instance-attributes
                     <th>Value</th>
                 </tr>
                 <tr>
-                    <td>Provider</td>
+                    <td>Client</td>
                     <td>{self.provider.name}</td>
                 </tr>
                 <tr>
@@ -322,8 +322,8 @@ class Widget:  # pylint: disable=too-many-instance-attributes
             program_list_widget,
             self.render_information(),
         ]
-        tab_nest.set_title(0, "QiskitPattern jobs")
-        tab_nest.set_title(1, "Programs")
+        tab_nest.set_title(0, "Jobs")
+        tab_nest.set_title(1, "Functions")
         tab_nest.set_title(2, "Info")
 
         return tab_nest

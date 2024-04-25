@@ -97,7 +97,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         return self.job_client.run_existing(program=self.title, arguments=kwargs)
 
     def _is_local_function(self) -> bool:
-        raise NotImplementedError
+        return self.entrypoint and self.working_dir
 
     def _validate_funciton(self) -> Tuple[bool, List[str]]:
         """Validate function arguments using schema provided.
