@@ -70,7 +70,7 @@ def execute_job(job: Job) -> Job:
                 job.logs += "\nCompute resource was not found."
         else:
             compute_resource = create_ray_cluster(
-                job.author, cluster_name=cluster_name, job_config=job.config
+                job, cluster_name=cluster_name
             )
             if compute_resource:
                 # if compute resource was created in time with no problems
