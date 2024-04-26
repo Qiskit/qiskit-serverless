@@ -131,6 +131,11 @@ LOGGING = {
             "level": LOG_LEVEL,
             "propagate": False,
         },
+        "gateway.authentication": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
     },
 }
 
@@ -353,6 +358,9 @@ QISKIT_IBM_CHANNEL = os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum")
 QISKIT_IBM_URL = os.environ.get(
     "QISKIT_IBM_URL", "https://auth.quantum-computing.ibm.com/api"
 )
+
+# quantum api
+IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
 
 # Content Security Policy
 CSP_DEFAULT_SRC = "'none'"
