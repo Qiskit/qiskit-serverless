@@ -43,24 +43,11 @@ router = routers.DefaultRouter()
 
 
 urlpatterns = [
-    path("accounts/", include("allauth.urls")),
     path("readiness/", probes.views.readiness, name="readiness"),
     path("liveness/", probes.views.liveness, name="liveness"),
     path("version/", version.views.version, name="version"),
     path("", include("django_prometheus.urls")),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
-    # docs
-    re_path(
-        r"^swagger(?P<format>\.json|\.yaml)$",
-        schema.without_ui(cache_timeout=0),
-        name="schema-json",
-    ),
-    re_path(
-        r"^swagger/$",
-        schema.with_ui("swagger", cache_timeout=0),
-        name="schema-swagger-ui",
-    ),
-    re_path(r"^redoc/$", schema.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
     path(
         "DomainVerification.html",
         TemplateView.as_view(template_name="DomainVerification.html"),
@@ -70,3 +57,16 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += re_path(
+        r"^swagger(?P<format>\.json|\.yaml)$",
+        schema.without_ui(cache_timeout=0),
+        name="schema-json",
+    )
+    urlpatterns += re_path(
+        r"^swagger/$",
+        schema.with_ui("swagger", cache_timeout=0),
+        name="schema-swagger-ui",
+    )
+    urlpatterns += re_path(
+        r"^redoc/$", schema.with_ui("redoc", cache_timeout=0), name="schema-redoc"
+    )
