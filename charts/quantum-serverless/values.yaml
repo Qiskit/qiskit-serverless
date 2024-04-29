@@ -131,9 +131,9 @@ postgresql:
 # PVC
 # ===================
 
+createPvc: true
 storageClassName: manual
 claimName: gateway-claim
-
 cos:
   bucket: BUCKETNAME-CHANGEME
   endpoint: ENDPOINT-CHANGEME
