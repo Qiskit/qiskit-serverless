@@ -11,11 +11,11 @@
 # that they have been altered from the originals.
 
 """
-==================================================
-Provider (:mod:`quantum_serverless.core.provider`)
-==================================================
+================================================
+Provider (:mod:`quantum_serverless.core.client`)
+================================================
 
-.. currentmodule:: quantum_serverless.core.provider
+.. currentmodule:: quantum_serverless.core.client
 
 Quantum serverless provider
 ===========================
@@ -24,7 +24,7 @@ Quantum serverless provider
     :toctree: ../stubs/
 
     ComputeResource
-    ServerlessProvider
+    ServerlessClient
 """
 # pylint: disable=duplicate-code
 import logging
@@ -57,7 +57,7 @@ from quantum_serverless.core.job import (
     BaseJobClient,
     Configuration,
 )
-from quantum_serverless.core.pattern import QiskitPattern
+from quantum_serverless.core.function import QiskitFunction
 from quantum_serverless.core.tracing import _trace_env_vars
 from quantum_serverless.exception import QuantumServerlessException
 from quantum_serverless.utils import JsonSerializable
@@ -151,12 +151,12 @@ class ComputeResource:
         return f"<ComputeResource: {self.name}>"
 
 
-class BaseProvider(JsonSerializable):
+class BaseClient(JsonSerializable):
     """
-    A provider class for specifying custom compute resources.
+    A client class for specifying custom compute resources.
 
     Example:
-        >>> provider = BaseProvider(
+        >>> client = BaseClient(
         >>>    name="<NAME>",
         >>>    host="<HOST>",
         >>>    token="<TOKEN>",
@@ -176,11 +176,11 @@ class BaseProvider(JsonSerializable):
         available_compute_resources: Optional[List[ComputeResource]] = None,
     ):
         """
-        Initialize a BaseProvider instance.
+        Initialize a BaseClient instance.
 
         Args:
-            name: name of provider
-            host: host of provider a.k.a managers host
+            name: name of client
+            host: host of client a.k.a managers host
             token: authentication token for manager
             compute_resource: selected compute_resource from provider
             available_compute_resources: available clusters in provider
@@ -223,7 +223,7 @@ class BaseProvider(JsonSerializable):
         return False
 
     def __repr__(self):
-        return f"<ServerlessProvider: {self.name}>"
+        return f"<{self.name}>"
 
     def get_compute_resources(self) -> List[ComputeResource]:
         """Return compute resources for provider."""
@@ -266,7 +266,7 @@ class BaseProvider(JsonSerializable):
 
     def run(
         self,
-        program: Union[QiskitPattern, str],
+        program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> Job:
@@ -274,7 +274,7 @@ class BaseProvider(JsonSerializable):
 
         Example:
             >>> serverless = QuantumServerless()
-            >>> program = QiskitPattern(
+            >>> program = QiskitFunction(
             >>>     "job.py",
             >>>     arguments={"arg1": "val1"},
             >>>     dependencies=["requests"]
@@ -301,7 +301,7 @@ class BaseProvider(JsonSerializable):
 
         return job_client.run(program, arguments, config)
 
-    def upload(self, program: QiskitPattern):
+    def upload(self, program: QiskitFunction):
         """Uploads program."""
         raise NotImplementedError
 
@@ -345,16 +345,35 @@ class BaseProvider(JsonSerializable):
         return Widget(self).show()
 
     def get_programs(self, **kwargs):
+        """[Deprecated] Returns list of available programs."""
+        warnings.warn(
+            "`get_programs` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `list` instead.",
+            DeprecationWarning,
+        )
+        return self.list(**kwargs)
+
+    def list(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
         raise NotImplementedError
 
 
-class ServerlessProvider(BaseProvider):
+class BaseProvider(BaseClient):
     """
-    A provider for connecting to a specified host.
+    [Deprecated since version 0.10.0] Use :class:`.BaseClient` instead.
+
+    A provider for connecting to a specified host. This class has been
+    renamed to :class:`.BaseClient`.
+    """
+
+
+class ServerlessClient(BaseClient):
+    """
+    A client for connecting to a specified host.
 
     Example:
-        >>> provider = ServerlessProvider(
+        >>> client = ServerlessClient(
         >>>    name="<NAME>",
         >>>    host="<HOST>",
         >>>    token="<TOKEN>",
@@ -370,15 +389,15 @@ class ServerlessProvider(BaseProvider):
         verbose: bool = False,
     ):
         """
-        Initializes the ServerlessProvider instance.
+        Initializes the ServerlessClient instance.
 
         Args:
-            name: name of provider
+            name: name of client
             host: host of gateway
             version: version of gateway
             token: authorization token
         """
-        name = name or "gateway-provider"
+        name = name or "gateway-client"
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
             raise QuantumServerlessException("Please provide `host` of gateway.")
@@ -404,32 +423,38 @@ class ServerlessProvider(BaseProvider):
         self._files_client = GatewayFilesClient(self.host, self._token, self.version)
 
     def get_compute_resources(self) -> List[ComputeResource]:
-        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(
+            "ServerlessClient does not support resources api yet."
+        )
 
     def create_compute_resource(self, resource) -> int:
-        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(
+            "ServerlessClient does not support resources api yet."
+        )
 
     def delete_compute_resource(self, resource) -> int:
-        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(
+            "ServerlessClient does not support resources api yet."
+        )
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self._job_client.get(job_id)
 
     def run(
         self,
-        program: Union[QiskitPattern, str],
+        program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> Job:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("Provider.run"):
-            if isinstance(program, QiskitPattern) and program.entrypoint is not None:
+            if isinstance(program, QiskitFunction) and program.entrypoint is not None:
                 job = self._job_client.run(program, arguments, config)
             else:
                 job = self._job_client.run_existing(program, arguments, config)
         return job
 
-    def upload(self, program: QiskitPattern):
+    def upload(self, program: QiskitFunction):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("Provider.upload"):
             response = self._job_client.upload(program)
@@ -455,7 +480,8 @@ class ServerlessProvider(BaseProvider):
     def file_upload(self, file: str):
         return self._files_client.upload(file)
 
-    def get_programs(self, **kwargs) -> List[QiskitPattern]:
+    def list(self, **kwargs) -> List[QiskitFunction]:
+        """Returns list of available programs."""
         return self._job_client.get_programs(**kwargs)
 
     def _verify_token(self, token: str):
@@ -473,52 +499,46 @@ class ServerlessProvider(BaseProvider):
             raise QuantumServerlessException("Cannot verify token.") from reason
 
 
-class Provider(ServerlessProvider):
+class ServerlessProvider(ServerlessClient):
     """
-    [Deprecated since version 0.6.4] Use :class:`.ServerlessProvider` instead.
+    [Deprecated since version 0.10.0] Use :class:`.ServerlessClient` instead.
 
     A provider for connecting to a specified host. This class has been
-    renamed to :class:`.ServerlessProvider`.
+    renamed to :class:`.ServerlessClient`.
     """
 
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "The Provider class is deprecated. Use the identical ServerlessProvider class instead."
-        )
-        super().__init__(*args, **kwargs)
 
-
-class IBMServerlessProvider(ServerlessProvider):
+class IBMServerlessClient(ServerlessClient):
     """
-    A provider for connecting to the IBM serverless host.
+    A client for connecting to the IBM serverless host.
 
     Credentials can be saved to disk by calling the `save_account()` method::
 
-        from quantum_serverless import IBMServerlessProvider
-        IBMServerlessProvider.save_account(token=<INSERT_IBM_QUANTUM_TOKEN>)
+        from quantum_serverless import IBMServerlessClient
+        IBMServerlessClient.save_account(token=<INSERT_IBM_QUANTUM_TOKEN>)
 
-    Once the credentials are saved, you can simply instantiate the provider with no
+    Once the credentials are saved, you can simply instantiate the client with no
     constructor args, as shown below.
 
-        from quantum_serverless import IBMServerlessProvider
-        provider = IBMServerlessProvider()
+        from quantum_serverless import IBMServerlessClient
+        client = IBMServerlessClient()
 
     Instead of saving credentials to disk, you can also set the environment variable
-    ENV_GATEWAY_PROVIDER_TOKEN and then instantiate the provider as below::
+    ENV_GATEWAY_PROVIDER_TOKEN and then instantiate the client as below::
 
-        from quantum_serverless import IBMServerlessProvider
-        provider = IBMServerlessProvider()
+        from quantum_serverless import IBMServerlessClient
+        client = IBMServerlessClient()
 
     You can also enable an account just for the current session by instantiating the
     provider with the API token::
 
-        from quantum_serverless import IBMServerlessProvider
-        provider = IBMServerlessProvider(token=<INSERT_IBM_QUANTUM_TOKEN>)
+        from quantum_serverless import IBMServerlessClient
+        client = IBMServerlessClient(token=<INSERT_IBM_QUANTUM_TOKEN>)
     """
 
     def __init__(self, token: Optional[str] = None, name: Optional[str] = None):
         """
-        Initialize a provider with access to an IBMQ-provided remote cluster.
+        Initialize a client with access to an IBMQ-provided remote cluster.
 
         If a ``token`` is used to initialize an instance, the ``name`` argument
         will be ignored.
@@ -554,38 +574,53 @@ class IBMServerlessProvider(ServerlessProvider):
         IBMProvider.save_account(token=token, name=name, overwrite=overwrite)
 
     def get_compute_resources(self) -> List[ComputeResource]:
-        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(
+            "IBMServerlessClient does not support resources api yet."
+        )
 
     def create_compute_resource(self, resource) -> int:
-        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(
+            "IBMServerlessClient does not support resources api yet."
+        )
 
     def delete_compute_resource(self, resource) -> int:
-        raise NotImplementedError("GatewayProvider does not support resources api yet.")
+        raise NotImplementedError(
+            "IBMServerlessClient does not support resources api yet."
+        )
 
 
-class RayProvider(BaseProvider):
-    """RayProvider."""
+class IBMServerlessProvider(IBMServerlessClient):
+    """
+    [Deprecated since version 0.10.0] Use :class:`.IBMServerlessClient` instead.
+
+    A provider for connecting to IBM Serverless instance. This class has been
+    renamed to :class:`.IBMServerlessClient`.
+    """
+
+
+class RayClient(BaseClient):
+    """RayClient."""
 
     def __init__(self, host: str):
-        """Ray provider
+        """Ray client
 
         Args:
             host: ray head node host
 
         Example:
-            >>> ray_provider = RayProvider("http://localhost:8265")
+            >>> ray_provider = RayClient("http://localhost:8265")
         """
-        super().__init__("ray-provider", host)
+        super().__init__("ray-client", host)
         self.client = RayJobClient(JobSubmissionClient(host))
 
     def run(
         self,
-        program: Union[QiskitPattern, str],
+        program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> Job:
         if isinstance(program, str):
-            raise NotImplementedError("Ray provider only supports full Programs.")
+            raise NotImplementedError("Ray client only supports full Programs.")
 
         return self.client.run(program, arguments, config)
 
@@ -596,28 +631,37 @@ class RayProvider(BaseProvider):
         return self.client.list()
 
 
-class LocalProvider(BaseProvider):
-    """RayProvider."""
+class RayProvider(RayClient):
+    """
+    [Deprecated since version 0.10.0] Use :class:`.RayClient` instead.
+
+    A provider for connecting to a ray head node. This class has been
+    renamed to :class:`.RayClient`.
+    """
+
+
+class LocalClient(BaseClient):
+    """LocalClient."""
 
     def __init__(self):
-        """Local provider
+        """Local client
 
         Args:
 
         Example:
-            >>> local = LocalProvider())
+            >>> local = LocalClient())
         """
-        super().__init__("local-provier")
+        super().__init__("local-client")
         self.client = LocalJobClient()
         self.in_test = os.getenv("IN_TEST")
 
     def run(
         self,
-        program: Union[QiskitPattern, str],
+        program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> Job:
-        if isinstance(program, QiskitPattern) and program.entrypoint is not None:
+        if isinstance(program, QiskitFunction) and program.entrypoint is not None:
             job = self.client.run(program, arguments)
         else:
             job = self.client.run_existing(program, arguments)
@@ -629,14 +673,14 @@ class LocalProvider(BaseProvider):
     def get_jobs(self, **kwargs) -> List[Job]:
         return self.client.list()
 
-    def upload(self, program: QiskitPattern):
+    def upload(self, program: QiskitFunction):
         return self.client.upload(program)
 
     def widget(self):
         """Widget for information about provider and jobs."""
         return Widget(self).show()
 
-    def get_programs(self, **kwargs) -> List[QiskitPattern]:
+    def get_programs(self, **kwargs) -> List[QiskitFunction]:
         return self.client.get_programs(**kwargs)
 
     def files(self) -> List[str]:
@@ -667,3 +711,12 @@ class LocalProvider(BaseProvider):
             logging.warning("file_delete method is not implemented in LocalProvider.")
             return None
         raise NotImplementedError("files method is not implemented in LocalProvider.")
+
+
+class LocalProvider(LocalClient):
+    """
+    [Deprecated since version 0.10.0] Use :class:`.LocalClient` instead.
+
+    A provider for connecting to local job execution instance. This class has been
+    renamed to :class:`.LocalClient`.
+    """
