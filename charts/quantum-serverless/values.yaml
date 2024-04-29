@@ -131,7 +131,7 @@ postgresql:
 # PVC
 # ===================
 
-pvcEnable: true
+createPvc: true
 storageClassName: manual
 claimName: gateway-claim
 cos:

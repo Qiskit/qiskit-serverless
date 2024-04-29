@@ -1,4 +1,4 @@
-{{ if eq .Values.pvcEnable true }}
+{{ if eq .Values.createPvc true }}
 {{ if eq .Values.platform "kind" }}
 apiVersion: v1
 kind: PersistentVolumeClaim
