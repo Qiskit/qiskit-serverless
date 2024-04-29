@@ -1,3 +1,4 @@
+{{ if eq .Values.pvcEnable true }}
 {{ if eq .Values.platform "kind" }}
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -59,4 +60,5 @@ spec:
   resources:
     requests:
       storage: 1Gi
+{{ end }}
 {{ end }}
