@@ -1,4 +1,10 @@
 # ===================
+# Quantum Serverless Info
+# ===================
+global:
+  version: 0.10.0
+
+# ===================
 # Quantum Serverless configs
 # ===================
 platform: ibm
@@ -41,7 +47,14 @@ gateway:
   image:
     repository: "icr.io/quantum-public/quantum-serverless-gateway"
     pullPolicy: IfNotPresent
-    tag: "0.8.1"
+    tag: "0.10.0"
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: 200m
+    limits:
+      memory: 4Gi
+      cpu: 2000m
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
@@ -57,9 +70,9 @@ gateway:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-experimental/quantum-serverless-selector:0.8.1"
+      nodeImage: "icr.io/quantum-experimental/quantum-serverless-selector:0.10.0"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
-      kubectlImage: alpine/k8s:1.28.4@sha256:38887b75951c9839c276508c6ba4d55793e4724668c6ba9bd8d09a212073d914
+      kubectlImage: alpine/k8s:1.28.9@sha256:4f97e78a640d569731ac71dccc27d7783b03488b383f15ca75ea975d31c3fe57
       cpu: 4
       memory: 8
       replicas: 1
@@ -90,12 +103,6 @@ gateway:
       create: false
 
 # ===================
-# Jupyter configs
-# ===================
-
-jupyterEnable: false
-
-# ===================
 # Kuberay Operator
 # ===================
 
@@ -103,7 +110,7 @@ kuberayOperatorEnable: true
 kuberay-operator:
   image:
     repository: kuberay/operator
-    tag: v0.6.0
+    tag: v1.0.0
     pullPolicy: IfNotPresent
 
 # ===================
@@ -119,7 +126,13 @@ postgresqlEnable: false
 repositoryEnable: false
 
 # ===================
-# COS
+# PVC
 # ===================
 
-cosEnable: false
+createPvc: false
+
+# ===================
+# Istio
+# ===================
+
+istioEnable: false
