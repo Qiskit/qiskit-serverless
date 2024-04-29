@@ -16,15 +16,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "entrypoint",
             "artifact",
             "dependencies",
-            "arguments",
-            "public",
         ]
-
-
-class ExistingProgramSerializer(serializers.ExistingProgramSerializer):
-    """
-    Existing program serializer first version. This serializer limitates the fields from Program.
-    """
 
 
 class UploadProgramSerializer(serializers.UploadProgramSerializer):
@@ -38,19 +30,14 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "entrypoint",
             "artifact",
             "dependencies",
-            "arguments",
+            "env_vars",
         ]
 
 
-class JobSerializer(serializers.JobSerializer):
+class RunExistingProgramSerializer(serializers.RunExistingProgramSerializer):
     """
-    Job serializer first version. Include basic fields from the initial model.
+    RunExistingProgramSerializer is used by the /upload end-point
     """
-
-    program = ProgramSerializer(many=False)
-
-    class Meta(serializers.JobSerializer.Meta):
-        fields = ["id", "result", "status", "program", "created"]
 
 
 class JobConfigSerializer(serializers.JobConfigSerializer):
@@ -68,6 +55,26 @@ class JobConfigSerializer(serializers.JobConfigSerializer):
         ]
 
 
+class RunJobSerializer(serializers.RunJobSerializer):
+    """
+    RunJobSerializer is used by the /run and /run_existing end-points
+    """
+
+    class Meta(serializers.RunJobSerializer.Meta):
+        fields = ["id", "result", "status", "program", "created", "arguments"]
+
+
+class JobSerializer(serializers.JobSerializer):
+    """
+    Job serializer first version. Include basic fields from the initial model.
+    """
+
+    program = ProgramSerializer(many=False)
+
+    class Meta(serializers.JobSerializer.Meta):
+        fields = ["id", "result", "status", "program", "created"]
+
+
 class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
     """
     Runtime job serializer first version. Serializer for the runtime job model.
@@ -79,28 +86,22 @@ class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
         fields = ["job", "runtime_job"]
 
 
-class CatalogEntrySerializer(serializers.CatalogEntrySerializer):
+class RunProgramSerializer(serializers.RunProgramSerializer):
     """
-    Catalog entry serializer first version. Serializer for the catalog entry model.
+    RunProgram serializer is used in /run end-point
     """
 
-    program = ProgramSerializer(many=False)
 
-    class Meta(serializers.CatalogEntrySerializer.Meta):
+class RunProgramModelSerializer(serializers.RunProgramModelSerializer):
+    """
+    RunProgram model serializer is used in /run end-point
+    """
+
+    class Meta(serializers.RunProgramModelSerializer.Meta):
         fields = [
-            "id",
             "title",
-            "description",
-            "tags",
-            "created",
-            "updated",
-            "program",
-            "status",
+            "entrypoint",
+            "artifact",
+            "dependencies",
+            "env_vars",
         ]
-
-
-class ToCatalogSerializer(serializers.ToCatalogSerializer):
-    """
-    To catalog serializer first version.
-    This serializer limitates the fields from CatalogEntry.
-    """

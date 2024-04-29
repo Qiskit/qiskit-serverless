@@ -12,17 +12,13 @@ jobs:
         image:
           [
             "quantum-serverless-gateway:latest",
-            "quantum-serverless-ray-node:latest-py38",
             "quantum-serverless-ray-node:latest-py39",
             "quantum-serverless-ray-node:latest-py310",
           ]
         include:
           - image: "quantum-serverless-gateway:latest"
             dockerfile: "./gateway/Dockerfile"
-            pyversion: "3.9"
-          - image: "quantum-serverless-ray-node:latest-py38"
-            dockerfile: "Dockerfile-ray-node"
-            pyversion: "py38"
+            pyversion: "3.10"
           - image: "quantum-serverless-ray-node:latest-py39"
             dockerfile: "Dockerfile-ray-node"
             pyversion: "py39"

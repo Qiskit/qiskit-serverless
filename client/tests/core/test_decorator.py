@@ -17,7 +17,8 @@ from unittest import TestCase
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 
-from quantum_serverless import QuantumServerless, get
+import ray
+from quantum_serverless import get
 from quantum_serverless.core.decorators import (
     distribute_task,
     Target,
@@ -30,8 +31,6 @@ class TestDecorators(TestCase):
 
     def test_distribute_task(self):
         """Test for run_qiskit_remote."""
-
-        serverless = QuantumServerless()
 
         @distribute_task()
         def another_function(
@@ -51,7 +50,7 @@ class TestDecorators(TestCase):
             )
             return mid_result
 
-        with serverless.context():
+        with ray.init():
             reference = ultimate_function(1)
             result = get(reference)
             self.assertEqual(result, 4)

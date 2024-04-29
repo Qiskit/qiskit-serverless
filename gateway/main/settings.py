@@ -17,6 +17,7 @@ from datetime import timedelta
 from pathlib import Path
 from utils import sanitize_file_path
 
+RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -125,7 +126,12 @@ LOGGING = {
             "level": LOG_LEVEL,
             "propagate": False,
         },
-        "gateway.services": {
+        "gateway.serializers": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "gateway.authentication": {
             "handlers": ["console"],
             "level": LOG_LEVEL,
             "propagate": False,
@@ -309,11 +315,10 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.7.1-py39"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.10.0-py310"
 )
 RAY_NODE_IMAGES_MAP = {
     "default": RAY_NODE_IMAGE,
-    "py38": os.environ.get("RAY_NODE_IMAGE_PY38", RAY_NODE_IMAGE),
     "py39": os.environ.get("RAY_NODE_IMAGE_PY39", RAY_NODE_IMAGE),
     "py310": os.environ.get("RAY_NODE_IMAGE_PY310", RAY_NODE_IMAGE),
 }
@@ -353,6 +358,9 @@ QISKIT_IBM_CHANNEL = os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum")
 QISKIT_IBM_URL = os.environ.get(
     "QISKIT_IBM_URL", "https://auth.quantum-computing.ibm.com/api"
 )
+
+# quantum api
+IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
 
 # Content Security Policy
 CSP_DEFAULT_SRC = "'none'"

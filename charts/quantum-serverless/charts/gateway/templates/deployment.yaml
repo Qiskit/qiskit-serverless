@@ -84,6 +84,8 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
+            - name: VERSION
+              value: {{ .Values.global.version | quote }}
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}
             - name: DJANGO_SECRET_KEY
@@ -144,6 +146,8 @@ spec:
               value: {{ .Values.application.qiskitRuntime.channel }}
             - name: QISKIT_IBM_URL
               value: {{ .Values.application.qiskitRuntime.url }}
+            - name: IQP_QCON_API_BASE_URL
+              value: {{ .Values.application.iqpQcon.url }}
             - name: DATABASE_HOST
               valueFrom:
                 secretKeyRef:
@@ -286,8 +290,6 @@ spec:
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE
               value: {{ .Values.application.ray.nodeImage | quote }}
-            - name: RAY_NODE_IMAGE_PY38
-              value: {{ .Values.application.ray.nodeImage_py38 | quote }}
             - name: RAY_NODE_IMAGE_PY39
               value: {{ .Values.application.ray.nodeImage_py39 | quote }}
             - name: RAY_NODE_IMAGE_PY310

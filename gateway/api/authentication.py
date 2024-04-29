@@ -1,17 +1,19 @@
 """CustomTokenBackend."""
 
-import json
 import logging
 from dataclasses import dataclass
-from typing import Callable, Any, Dict, Optional
 
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import authentication
 
+from api.models_proxies import QuantumUserProxy
+from api.utils import safe_request
+
+
 User = get_user_model()
-logger = logging.getLogger("gateway")
+logger = logging.getLogger("gateway.authentication")
 
 
 @dataclass
@@ -21,33 +23,15 @@ class CustomToken:
     token: str
 
 
-def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
-    """Makes safe request and parses json response."""
-    result = None
-    response = None
-    try:
-        response = request()
-    except Exception as request_exception:  # pylint: disable=broad-exception-caught
-        logger.error(request_exception)
-
-    if response is not None and response.ok:
-        try:
-            result = json.loads(response.text)
-        except Exception as json_exception:  # pylint: disable=broad-exception-caught
-            logger.error(json_exception)
-
-    return result
-
-
 class CustomTokenBackend(authentication.BaseAuthentication):
     """Custom token backend for authentication against 3rd party auth service."""
 
-    def authenticate(self, request):
+    def authenticate(self, request):  # pylint: disable=too-many-branches
         auth_url = settings.SETTINGS_TOKEN_AUTH_URL
         verification_url = settings.SETTINGS_TOKEN_AUTH_VERIFICATION_URL
         auth_header = request.META.get("HTTP_AUTHORIZATION")
 
-        user = None
+        quantum_user = None
         token = None
         if auth_header is not None and auth_url is not None:
             token = auth_header.split(" ")[-1]
@@ -83,13 +67,40 @@ class CustomTokenBackend(authentication.BaseAuthentication):
                     verified = all(verifications)
 
                     if user_id is not None and verified:
-                        try:
-                            user = User.objects.get(username=user_id)
-                        except User.DoesNotExist:
-                            user = User(username=user_id)
-                            user.save()
+                        quantum_user, created = QuantumUserProxy.objects.get_or_create(
+                            username=user_id
+                        )
+                        if created:
+                            logger.info("New user created")
+                        quantum_user.update_groups(auth_data.get("id"))
 
-        return user, CustomToken(token.encode()) if token else None
+                    elif user_id is None:
+                        logger.warning("Problems authenticating: No user id.")
+
+                    else:  # not verified
+                        logger.warning("Problems authenticating: User is not verified.")
+
+                else:  # verification_data is None
+                    logger.warning(
+                        "Problems authenticating: No verification data returned from request."
+                    )
+
+            else:  # auth_data is None
+                logger.warning(
+                    "Problems authenticating: No authorization data returned from auth url."
+                )
+
+        elif auth_header is None:
+            logger.warning(
+                "Problems authenticating: User did not provide authorization token."
+            )
+
+        else:  # auth_url is None
+            logger.warning(
+                "Problems authenticating: No auth url: something is broken in our settings."
+            )
+
+        return quantum_user, CustomToken(token.encode()) if token else None
 
 
 class MockAuthBackend(authentication.BaseAuthentication):
@@ -105,10 +116,8 @@ class MockAuthBackend(authentication.BaseAuthentication):
 
             if settings.SETTINGS_AUTH_MOCK_TOKEN is not None:
                 if token == settings.SETTINGS_AUTH_MOCK_TOKEN:
-                    try:
-                        user = User.objects.get(username="mockuser")
-                    except User.DoesNotExist:
-                        user = User(username="mockuser")
-                        user.save()
+                    user, created = User.objects.get_or_create(username="mockuser")
+                    if created:
+                        logger.info("New user created")
 
         return user, CustomToken(token.encode()) if token else None

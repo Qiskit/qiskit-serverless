@@ -1,18 +1,34 @@
 """Tests authentication."""
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import responses
 from rest_framework.test import APITestCase
 
 from api.authentication import CustomTokenBackend, CustomToken, MockAuthBackend
+from api.models_proxies import QuantumUserProxy
 
 
 class TestAuthentication(APITestCase):
     """Tests authentication."""
 
+    network_configuration_without_project = [
+        {
+            "name": "ibm-q",
+            "groups": {
+                "open": {
+                    "name": "open",
+                }
+            },
+        }
+    ]
+
     @responses.activate
-    def test_custom_token_authentication(self):
+    @patch.object(QuantumUserProxy, "_get_network")
+    def test_custom_token_authentication(self, get_network_mock: MagicMock):
         """Tests custom token auth."""
+
+        get_network_mock.return_value = self.network_configuration_without_project
+
         responses.add(
             responses.POST,
             "http://token_auth_url",
@@ -38,11 +54,14 @@ class TestAuthentication(APITestCase):
             SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD="is_valid",
         ):
             user, token = custom_auth.authenticate(request)
+            groups_names = user.groups.values_list("name", flat=True).distinct()
+            groups_names_list = list(groups_names)
 
             self.assertIsInstance(token, CustomToken)
             self.assertEqual(token.token, b"AWESOME_TOKEN")
 
             self.assertEqual(user.username, "AwesomeUser")
+            self.assertListEqual(groups_names_list, ["ibm-q", "ibm-q/open"])
 
     @responses.activate
     def test_with_nested_verification_fields(self):

@@ -8,10 +8,9 @@ from rest_framework.decorators import action
 
 
 from api import views
-from api.models import Program, Job, RuntimeJob, CatalogEntry
-from api.permissions import IsOwner, CatalogUpdate
+from api.models import Program, Job, RuntimeJob
+from api.permissions import IsOwner
 from . import serializers as v1_serializers
-from . import services as v1_services
 
 
 class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestors
@@ -24,32 +23,28 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     permission_classes = [permissions.IsAuthenticated]
 
     @staticmethod
-    def get_service_program_class():
-        return v1_services.ProgramService
+    def get_serializer_job_config(*args, **kwargs):
+        return v1_serializers.JobConfigSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_service_job_config_class():
-        return v1_services.JobConfigService
-
-    @staticmethod
-    def get_service_job_class():
-        return v1_services.JobService
-
-    @staticmethod
-    def get_serializer_job_class():
-        return v1_serializers.JobSerializer
-
-    @staticmethod
-    def get_serializer_existing_program_class():
-        return v1_serializers.ExistingProgramSerializer
-
-    @staticmethod
-    def get_serializer_job_config_class():
-        return v1_serializers.JobConfigSerializer
-
-    @staticmethod
-    def get_serializer_upload_program_class(*args, **kwargs):
+    def get_serializer_upload_program(*args, **kwargs):
         return v1_serializers.UploadProgramSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_serializer_run_existing_program(*args, **kwargs):
+        return v1_serializers.RunExistingProgramSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_serializer_run_job(*args, **kwargs):
+        return v1_serializers.RunJobSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_serializer_run_program(*args, **kwargs):
+        return v1_serializers.RunProgramSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_model_serializer_run_program(*args, **kwargs):
+        return v1_serializers.RunProgramModelSerializer(*args, **kwargs)
 
     def get_serializer_class(self):
         return v1_serializers.ProgramSerializer
@@ -62,6 +57,24 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     @action(methods=["POST"], detail=False)
     def upload(self, request):
         return super().upload(request)
+
+    @swagger_auto_schema(
+        operation_description="Run an existing Qiskit Pattern",
+        request_body=v1_serializers.RunExistingProgramSerializer,
+        responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
+    )
+    @action(methods=["POST"], detail=False)
+    def run_existing(self, request):
+        return super().run_existing(request)
+
+    @swagger_auto_schema(
+        operation_description="Run and upload a Qiskit Pattern",
+        request_body=v1_serializers.RunProgramSerializer,
+        responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
+    )
+    @action(methods=["POST"], detail=False)
+    def run(self, request):
+        return super().run(request)
 
 
 class JobViewSet(views.JobViewSet):  # pylint: disable=too-many-ancestors
@@ -101,20 +114,3 @@ class RuntimeJobViewSet(views.RuntimeJobViewSet):  # pylint: disable=too-many-an
         if self.request.user is None or not self.request.user.is_authenticated:
             return RuntimeJob.objects.none()
         return RuntimeJob.objects.all().filter(job__author=self.request.user)
-
-
-class CatalogEntryViewSet(
-    views.CatalogEntryViewSet
-):  # pylint: disable=too-many-ancestors
-    """
-    CatalogEntry view set first version. Use CatalogEntrySerializer V1.
-    """
-
-    serializer_class = v1_serializers.CatalogEntrySerializer
-    permission_classes = [permissions.IsAuthenticated, CatalogUpdate]
-
-    def get_serializer_class(self):
-        return v1_serializers.CatalogEntrySerializer
-
-    def get_queryset(self):
-        return CatalogEntry.objects.all()
