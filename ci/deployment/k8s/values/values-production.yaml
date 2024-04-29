@@ -48,6 +48,13 @@ gateway:
     repository: "icr.io/quantum-public/quantum-serverless-gateway"
     pullPolicy: IfNotPresent
     tag: "0.10.0"
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: 200m
+    limits:
+      memory: 4Gi
+      cpu: 2000m
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
