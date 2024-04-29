@@ -1,4 +1,5 @@
 """Errors utilities."""
+
 from typing import Optional, Dict, Union
 
 ErrorCodeType = Union[int, str]

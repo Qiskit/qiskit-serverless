@@ -26,12 +26,11 @@ Core abstractions
 .. autosummary::
     :toctree: ../stubs/
 
-    Provider
-    ServerlessProvider
-    IBMServerlessProvider
-    BaseProvider
-    RayProvider
-    LocalProvider
+    ServerlessClient
+    IBMServerlessClient
+    BaseClient
+    RayClient
+    LocalClient
     ComputeResource
     Job
     GatewayJobClient
@@ -39,6 +38,7 @@ Core abstractions
     RayJobClient
     save_result
     QiskitPattern
+    QiskitFunction
     Target
     CircuitMeta
     fetch_execution_meta
@@ -51,14 +51,18 @@ Core abstractions
 
 """
 
-from .provider import (
+from .client import (
     BaseProvider,
+    BaseClient,
     ComputeResource,
-    Provider,
     ServerlessProvider,
+    ServerlessClient,
     IBMServerlessProvider,
+    IBMServerlessClient,
     LocalProvider,
+    LocalClient,
     RayProvider,
+    RayClient,
 )
 
 from .job import (
@@ -70,7 +74,7 @@ from .job import (
     save_result,
     Configuration,
 )
-from .pattern import QiskitPattern
+from .function import QiskitPattern, QiskitFunction
 from .decorators import (
     remote,
     get,
