@@ -1,0 +1,42 @@
+﻿quantum\_serverless.core.IBMServerlessClient
+============================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: IBMServerlessClient
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~IBMServerlessClient.__init__
+      ~IBMServerlessClient.context
+      ~IBMServerlessClient.create_compute_resource
+      ~IBMServerlessClient.delete_compute_resource
+      ~IBMServerlessClient.download
+      ~IBMServerlessClient.file_delete
+      ~IBMServerlessClient.file_download
+      ~IBMServerlessClient.file_upload
+      ~IBMServerlessClient.files
+      ~IBMServerlessClient.from_dict
+      ~IBMServerlessClient.get_compute_resources
+      ~IBMServerlessClient.get_job_by_id
+      ~IBMServerlessClient.get_jobs
+      ~IBMServerlessClient.get_programs
+      ~IBMServerlessClient.job_client
+      ~IBMServerlessClient.list
+      ~IBMServerlessClient.run
+      ~IBMServerlessClient.save_account
+      ~IBMServerlessClient.to_dict
+      ~IBMServerlessClient.upload
+      ~IBMServerlessClient.widget
+   
+   
+
+   
+   
+   

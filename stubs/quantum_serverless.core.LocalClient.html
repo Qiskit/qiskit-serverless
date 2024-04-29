@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.QuantumServerlessException" href="quantum_serverless.QuantumServerlessException.html" /><link rel="prev" title="Quantum serverless API References" href="../apidocs/index.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.core.ComputeResource" href="quantum_serverless.core.ComputeResource.html" /><link rel="prev" title="quantum_serverless.core.RayClient" href="quantum_serverless.core.RayClient.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.01.29 -->
-        <title>quantum_serverless.QuantumServerless - Quantum serverless 0.10.0</title>
+        <title>quantum_serverless.core.LocalClient - Quantum serverless 0.10.0</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=135e06be" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=fe84956c" />
@@ -182,7 +182,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../index.html">About Quantum Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a QiskitPattern remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a QiskitPattern as a function</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
@@ -210,16 +210,13 @@
 </ul>
 <ul class="current">
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../apidocs/index.html">API References</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of API References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">quantum_serverless.QuantumServerless</a></li>
 <li class="toctree-l2"><a class="reference internal" href="quantum_serverless.QuantumServerlessException.html">quantum_serverless.QuantumServerlessException</a></li>
-<li class="toctree-l2"><a class="reference internal" href="quantum_serverless.get_auto_discovered_provider.html">quantum_serverless.get_auto_discovered_provider</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.core</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (quantum_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Provider.html">quantum_serverless.core.Provider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ServerlessProvider.html">quantum_serverless.core.ServerlessProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.IBMServerlessProvider.html">quantum_serverless.core.IBMServerlessProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.BaseProvider.html">quantum_serverless.core.BaseProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RayProvider.html">quantum_serverless.core.RayProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.LocalProvider.html">quantum_serverless.core.LocalProvider</a></li>
+<li class="toctree-l2 current has-children"><a class="reference internal" href="../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.core</span></code>)</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (quantum_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ServerlessClient.html">quantum_serverless.core.ServerlessClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.IBMServerlessClient.html">quantum_serverless.core.IBMServerlessClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.BaseClient.html">quantum_serverless.core.BaseClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RayClient.html">quantum_serverless.core.RayClient</a></li>
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">quantum_serverless.core.LocalClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ComputeResource.html">quantum_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Job.html">quantum_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.GatewayJobClient.html">quantum_serverless.core.GatewayJobClient</a></li>
@@ -227,6 +224,7 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RayJobClient.html">quantum_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.save_result.html">quantum_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.QiskitPattern.html">quantum_serverless.core.QiskitPattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.QiskitFunction.html">quantum_serverless.core.QiskitFunction</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Target.html">quantum_serverless.core.Target</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.CircuitMeta.html">quantum_serverless.core.CircuitMeta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.fetch_execution_meta.html">quantum_serverless.core.fetch_execution_meta</a></li>
@@ -238,11 +236,7 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.get_refs_by_status.html">quantum_serverless.core.get_refs_by_status</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/library.html">Library (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.library</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Library (quantum_serverless.library)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.library.parallel_transpile.html">quantum_serverless.library.parallel_transpile</a></li>
-</ul>
-</li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Serializers (quantum_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (quantum_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.serializers.register_all_serializers.html">quantum_serverless.serializers.register_all_serializers</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.serializers.circuit_serializer.html">quantum_serverless.serializers.circuit_serializer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.serializers.circuit_deserializer.html">quantum_serverless.serializers.circuit_deserializer</a></li>
@@ -251,7 +245,7 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.serializers.get_arguments.html">quantum_serverless.serializers.get_arguments</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of Utilities (quantum_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Utilities (quantum_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.utils.BaseStorage.html">quantum_serverless.utils.BaseStorage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.utils.S3Storage.html">quantum_serverless.utils.S3Storage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.utils.ErrorCodes.html">quantum_serverless.utils.ErrorCodes</a></li>
@@ -292,96 +286,92 @@
           </label>
         </div>
         <article role="main">
-          <section id="quantum-serverless-quantumserverless">
-<h1>quantum_serverless.QuantumServerless<a class="headerlink" href="#quantum-serverless-quantumserverless" title="Permalink to this heading">#</a></h1>
+          <section id="quantum-serverless-core-localclient">
+<h1>quantum_serverless.core.LocalClient<a class="headerlink" href="#quantum-serverless-core-localclient" title="Permalink to this heading">#</a></h1>
 <dl class="py class">
-<dt class="sig sig-object py" id="quantum_serverless.QuantumServerless">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">QuantumServerless</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">providers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/quantum_serverless.html#QuantumServerless"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.QuantumServerless" title="Permalink to this definition">#</a></dt>
-<dd><p>QuantumServerless class.</p>
-<p>Quantum serverless management class.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>config</strong> – configuration</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="quantum_serverless.QuantumServerlessException.html#quantum_serverless.QuantumServerlessException" title="quantum_serverless.QuantumServerlessException"><strong>QuantumServerlessException</strong></a> – </p>
-</dd>
-</dl>
+<dt class="sig sig-object py" id="quantum_serverless.core.LocalClient">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">LocalClient</span></span><a class="reference internal" href="../_modules/quantum_serverless/core/client.html#LocalClient"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.LocalClient" title="Permalink to this definition">#</a></dt>
+<dd><p>LocalClient.</p>
+<p>Local client</p>
+<p>Args:</p>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">local</span> <span class="o">=</span> <span class="n">LocalClient</span><span class="p">())</span>
+</pre></div>
+</div>
 <dl class="py method">
-<dt class="sig sig-object py" id="quantum_serverless.QuantumServerless.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">providers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/quantum_serverless.html#QuantumServerless.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.QuantumServerless.__init__" title="Permalink to this definition">#</a></dt>
-<dd><p>Quantum serverless management class.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>config</strong> – configuration</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="quantum_serverless.QuantumServerlessException.html#quantum_serverless.QuantumServerlessException" title="quantum_serverless.QuantumServerlessException"><strong>QuantumServerlessException</strong></a> – </p>
-</dd>
-</dl>
+<dt class="sig sig-object py" id="quantum_serverless.core.LocalClient.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/client.html#LocalClient.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.LocalClient.__init__" title="Permalink to this definition">#</a></dt>
+<dd><p>Local client</p>
+<p>Args:</p>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">local</span> <span class="o">=</span> <span class="n">LocalClient</span><span class="p">())</span>
+</pre></div>
+</div>
 </dd></dl>
 
 <p class="rubric">Methods</p>
 <div class="table-wrapper autosummary longtable docutils container">
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.QuantumServerless.__init__" title="quantum_serverless.QuantumServerless.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>([providers])</p></td>
-<td><p>Quantum serverless management class.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.core.LocalClient.__init__" title="quantum_serverless.core.LocalClient.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>()</p></td>
+<td><p>Local client</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_provider</span></code>(provider)</p></td>
-<td><p>Adds provider to the list of available providers.</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">context</span></code>(**kwargs)</p></td>
+<td><p>Allocated context for selected compute_resource for provider.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">context</span></code>([provider])</p></td>
-<td><p>Sets context for allocation</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_compute_resource</span></code>(resource)</p></td>
+<td><p>Create compute resource for provider.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">delete_compute_resource</span></code>(resource)</p></td>
+<td><p>Delete compute resource for provider.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">download</span></code>(file[, download_location])</p></td>
+<td><p>Download file.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_delete</span></code>(file)</p></td>
-<td><p>Deletes file uploaded or produced by the programs.</p></td>
+<td><p>Deletes file uploaded or produced by the programs,</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_download</span></code>(file[, target_name, ...])</p></td>
-<td><p>Downloads file. Note: file will be saved with different name to avoid conflicts       and this name will be returned.</p></td>
+<td><p>Download file.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">file_upload</span></code>(file)</p></td>
-<td><p>Downloads file.</p></td>
+<td><p>Upload file.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">files</span></code>()</p></td>
-<td><p>Returns list of available files to download.</p></td>
+<td><p>Returns list of available files produced by programs to download.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_dict</span></code>(dictionary)</p></td>
+<td><p>Converts dict to object.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_compute_resources</span></code>()</p></td>
+<td><p>Return compute resources for provider.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_job_by_id</span></code>(job_id)</p></td>
 <td><p>Returns job by job id.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_jobs</span></code>(**kwargs)</p></td>
-<td><p>Return jobs.</p></td>
+<td><p>Return list of jobs.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_programs</span></code>(**kwargs)</p></td>
-<td><p>Get list of available programs.</p></td>
+<td><p>[Deprecated] Returns list of available programs.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">provider</span></code>(provider, **kwargs)</p></td>
-<td><p>Sets provider for context allocation.</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job_client</span></code>()</p></td>
+<td><p>Return job client for configured compute resource of provider.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">providers</span></code>()</p></td>
-<td><p>Returns list of available providers.</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code>(**kwargs)</p></td>
+<td><p>Returns list of available programs.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments, config])</p></td>
-<td><p>Execute a program as a async job</p></td>
+<td><p>Execute a program as a async job.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_provider</span></code>(provider)</p></td>
-<td><p>Set provider for default context allocation.</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code>()</p></td>
+<td><p>Converts class to dict.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">upload</span></code>(program)</p></td>
 <td><p>Uploads program.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">widget</span></code>()</p></td>
 <td><p>Widget for information about provider and jobs.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p class="rubric">Attributes</p>
-<div class="table-wrapper autosummary longtable docutils container">
-<table class="autosummary longtable docutils align-default">
-<tbody>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job_client</span></code></p></td>
-<td><p>Job client for given provider.</p></td>
 </tr>
 </tbody>
 </table>
@@ -394,23 +384,23 @@
       </div>
       <footer>
         <div class="related-pages">
-          <a class="next-page" href="quantum_serverless.QuantumServerlessException.html">
+          <a class="next-page" href="quantum_serverless.core.ComputeResource.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">quantum_serverless.QuantumServerlessException</div>
+                <div class="title">quantum_serverless.core.ComputeResource</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="../apidocs/index.html">
+          <a class="prev-page" href="quantum_serverless.core.RayClient.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Quantum serverless API References</div>
+                <div class="title">quantum_serverless.core.RayClient</div>
                 
               </div>
             </a>
@@ -444,9 +434,9 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">quantum_serverless.QuantumServerless</a><ul>
-<li><a class="reference internal" href="#quantum_serverless.QuantumServerless"><code class="docutils literal notranslate"><span class="pre">QuantumServerless</span></code></a><ul>
-<li><a class="reference internal" href="#quantum_serverless.QuantumServerless.__init__"><code class="docutils literal notranslate"><span class="pre">QuantumServerless.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#">quantum_serverless.core.LocalClient</a><ul>
+<li><a class="reference internal" href="#quantum_serverless.core.LocalClient"><code class="docutils literal notranslate"><span class="pre">LocalClient</span></code></a><ul>
+<li><a class="reference internal" href="#quantum_serverless.core.LocalClient.__init__"><code class="docutils literal notranslate"><span class="pre">LocalClient.__init__()</span></code></a></li>
 </ul>
 </li>
 </ul>

@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.01.29 -->
-        <title>quantum_serverless.core.provider - Quantum serverless 0.10.0</title>
+        <title>quantum_serverless.core.client - Quantum serverless 0.10.0</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=135e06be" />
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/qiskit-sphinx-theme.css?v=fe84956c" />
@@ -182,7 +182,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../index.html">About Quantum Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation/index.html">Installation</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../getting_started/index.html">Getting started</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/basic/01_running_program.html">Running a QiskitPattern remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/basic/01_running_program.html">Running a QiskitPattern as a function</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../getting_started/basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../getting_started/basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
@@ -210,16 +210,13 @@
 </ul>
 <ul>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../apidocs/index.html">API References</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of API References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../stubs/quantum_serverless.QuantumServerless.html">quantum_serverless.QuantumServerless</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../stubs/quantum_serverless.QuantumServerlessException.html">quantum_serverless.QuantumServerlessException</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../stubs/quantum_serverless.get_auto_discovered_provider.html">quantum_serverless.get_auto_discovered_provider</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.core</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (quantum_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.Provider.html">quantum_serverless.core.Provider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ServerlessProvider.html">quantum_serverless.core.ServerlessProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.IBMServerlessProvider.html">quantum_serverless.core.IBMServerlessProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.BaseProvider.html">quantum_serverless.core.BaseProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.RayProvider.html">quantum_serverless.core.RayProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.LocalProvider.html">quantum_serverless.core.LocalProvider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ServerlessClient.html">quantum_serverless.core.ServerlessClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.IBMServerlessClient.html">quantum_serverless.core.IBMServerlessClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.BaseClient.html">quantum_serverless.core.BaseClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.RayClient.html">quantum_serverless.core.RayClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.LocalClient.html">quantum_serverless.core.LocalClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.ComputeResource.html">quantum_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.Job.html">quantum_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.GatewayJobClient.html">quantum_serverless.core.GatewayJobClient</a></li>
@@ -227,6 +224,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.RayJobClient.html">quantum_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.save_result.html">quantum_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.QiskitPattern.html">quantum_serverless.core.QiskitPattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.QiskitFunction.html">quantum_serverless.core.QiskitFunction</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.Target.html">quantum_serverless.core.Target</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.CircuitMeta.html">quantum_serverless.core.CircuitMeta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.fetch_execution_meta.html">quantum_serverless.core.fetch_execution_meta</a></li>
@@ -238,11 +236,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.core.get_refs_by_status.html">quantum_serverless.core.get_refs_by_status</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/library.html">Library (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.library</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Library (quantum_serverless.library)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.library.parallel_transpile.html">quantum_serverless.library.parallel_transpile</a></li>
-</ul>
-</li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Serializers (quantum_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (quantum_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.serializers.register_all_serializers.html">quantum_serverless.serializers.register_all_serializers</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.serializers.circuit_serializer.html">quantum_serverless.serializers.circuit_serializer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.serializers.circuit_deserializer.html">quantum_serverless.serializers.circuit_deserializer</a></li>
@@ -251,7 +245,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.serializers.get_arguments.html">quantum_serverless.serializers.get_arguments</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of Utilities (quantum_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Utilities (quantum_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.utils.BaseStorage.html">quantum_serverless.utils.BaseStorage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.utils.S3Storage.html">quantum_serverless.utils.S3Storage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/quantum_serverless.utils.ErrorCodes.html">quantum_serverless.utils.ErrorCodes</a></li>
@@ -291,7 +285,7 @@
           </label>
         </div>
         <article role="main">
-          <h1>Source code for quantum_serverless.core.provider</h1><div class="highlight"><pre>
+          <h1>Source code for quantum_serverless.core.client</h1><div class="highlight"><pre>
 <span></span><span class="c1"># This code is a Qiskit project.</span>
 <span class="c1">#</span>
 <span class="c1"># (C) Copyright IBM 2022.</span>
@@ -305,11 +299,11 @@
 <span class="c1"># that they have been altered from the originals.</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">==================================================</span>
-<span class="sd">Provider (:mod:`quantum_serverless.core.provider`)</span>
-<span class="sd">==================================================</span>
+<span class="sd">================================================</span>
+<span class="sd">Provider (:mod:`quantum_serverless.core.client`)</span>
+<span class="sd">================================================</span>
 
-<span class="sd">.. currentmodule:: quantum_serverless.core.provider</span>
+<span class="sd">.. currentmodule:: quantum_serverless.core.client</span>
 
 <span class="sd">Quantum serverless provider</span>
 <span class="sd">===========================</span>
@@ -318,7 +312,7 @@
 <span class="sd">    :toctree: ../stubs/</span>
 
 <span class="sd">    ComputeResource</span>
-<span class="sd">    ServerlessProvider</span>
+<span class="sd">    ServerlessClient</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="c1"># pylint: disable=duplicate-code</span>
 <span class="kn">import</span> <span class="nn">logging</span>
@@ -351,7 +345,7 @@
     <span class="n">BaseJobClient</span><span class="p">,</span>
     <span class="n">Configuration</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span> <span class="nn">quantum_serverless.core.pattern</span> <span class="kn">import</span> <span class="n">QiskitPattern</span>
+<span class="kn">from</span> <span class="nn">quantum_serverless.core.function</span> <span class="kn">import</span> <span class="n">QiskitFunction</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.core.tracing</span> <span class="kn">import</span> <span class="n">_trace_env_vars</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.exception</span> <span class="kn">import</span> <span class="n">QuantumServerlessException</span>
 <span class="kn">from</span> <span class="nn">quantum_serverless.utils</span> <span class="kn">import</span> <span class="n">JsonSerializable</span>
@@ -445,12 +439,12 @@
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;ComputeResource: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&gt;&quot;</span></div>
 
 
-<div class="viewcode-block" id="BaseProvider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.BaseProvider.html#quantum_serverless.core.BaseProvider">[docs]</a><span class="k">class</span> <span class="nc">BaseProvider</span><span class="p">(</span><span class="n">JsonSerializable</span><span class="p">):</span>
+<div class="viewcode-block" id="BaseClient"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.BaseClient.html#quantum_serverless.core.BaseClient">[docs]</a><span class="k">class</span> <span class="nc">BaseClient</span><span class="p">(</span><span class="n">JsonSerializable</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A provider class for specifying custom compute resources.</span>
+<span class="sd">    A client class for specifying custom compute resources.</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; provider = BaseProvider(</span>
+<span class="sd">        &gt;&gt;&gt; client = BaseClient(</span>
 <span class="sd">        &gt;&gt;&gt;    name=&quot;&lt;NAME&gt;&quot;,</span>
 <span class="sd">        &gt;&gt;&gt;    host=&quot;&lt;HOST&gt;&quot;,</span>
 <span class="sd">        &gt;&gt;&gt;    token=&quot;&lt;TOKEN&gt;&quot;,</span>
@@ -461,7 +455,7 @@
 <span class="sd">        &gt;&gt;&gt; )</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="BaseProvider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.BaseProvider.html#quantum_serverless.core.BaseProvider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<div class="viewcode-block" id="BaseClient.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.BaseClient.html#quantum_serverless.core.BaseClient.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">host</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -470,11 +464,11 @@
         <span class="n">available_compute_resources</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">ComputeResource</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Initialize a BaseProvider instance.</span>
+<span class="sd">        Initialize a BaseClient instance.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name: name of provider</span>
-<span class="sd">            host: host of provider a.k.a managers host</span>
+<span class="sd">            name: name of client</span>
+<span class="sd">            host: host of client a.k.a managers host</span>
 <span class="sd">            token: authentication token for manager</span>
 <span class="sd">            compute_resource: selected compute_resource from provider</span>
 <span class="sd">            available_compute_resources: available clusters in provider</span>
@@ -517,7 +511,7 @@
         <span class="k">return</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;ServerlessProvider: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&gt;&quot;</span>
 
     <span class="k">def</span> <span class="nf">get_compute_resources</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ComputeResource</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return compute resources for provider.&quot;&quot;&quot;</span>
@@ -560,7 +554,7 @@
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
         <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
@@ -568,7 +562,7 @@
 
 <span class="sd">        Example:</span>
 <span class="sd">            &gt;&gt;&gt; serverless = QuantumServerless()</span>
-<span class="sd">            &gt;&gt;&gt; program = QiskitPattern(</span>
+<span class="sd">            &gt;&gt;&gt; program = QiskitFunction(</span>
 <span class="sd">            &gt;&gt;&gt;     &quot;job.py&quot;,</span>
 <span class="sd">            &gt;&gt;&gt;     arguments={&quot;arg1&quot;: &quot;val1&quot;},</span>
 <span class="sd">            &gt;&gt;&gt;     dependencies=[&quot;requests&quot;]</span>
@@ -595,7 +589,7 @@
 
         <span class="k">return</span> <span class="n">job_client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitPattern</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Uploads program.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
@@ -639,23 +633,42 @@
         <span class="k">return</span> <span class="n">Widget</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">get_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;[Deprecated] Returns list of available programs.&quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;`get_programs` method has been deprecated. &quot;</span>
+            <span class="s2">&quot;And will be removed in future releases. &quot;</span>
+            <span class="s2">&quot;Please, use `list` instead.&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of available programs.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 
-<div class="viewcode-block" id="ServerlessProvider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.ServerlessProvider.html#quantum_serverless.core.ServerlessProvider">[docs]</a><span class="k">class</span> <span class="nc">ServerlessProvider</span><span class="p">(</span><span class="n">BaseProvider</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">BaseProvider</span><span class="p">(</span><span class="n">BaseClient</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A provider for connecting to a specified host.</span>
+<span class="sd">    [Deprecated since version 0.10.0] Use :class:`.BaseClient` instead.</span>
+
+<span class="sd">    A provider for connecting to a specified host. This class has been</span>
+<span class="sd">    renamed to :class:`.BaseClient`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="ServerlessClient"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.ServerlessClient.html#quantum_serverless.core.ServerlessClient">[docs]</a><span class="k">class</span> <span class="nc">ServerlessClient</span><span class="p">(</span><span class="n">BaseClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A client for connecting to a specified host.</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; provider = ServerlessProvider(</span>
+<span class="sd">        &gt;&gt;&gt; client = ServerlessClient(</span>
 <span class="sd">        &gt;&gt;&gt;    name=&quot;&lt;NAME&gt;&quot;,</span>
 <span class="sd">        &gt;&gt;&gt;    host=&quot;&lt;HOST&gt;&quot;,</span>
 <span class="sd">        &gt;&gt;&gt;    token=&quot;&lt;TOKEN&gt;&quot;,</span>
 <span class="sd">        &gt;&gt;&gt; )</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="ServerlessProvider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.ServerlessProvider.html#quantum_serverless.core.ServerlessProvider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<div class="viewcode-block" id="ServerlessClient.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.ServerlessClient.html#quantum_serverless.core.ServerlessClient.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">host</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -664,15 +677,15 @@
         <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Initializes the ServerlessProvider instance.</span>
+<span class="sd">        Initializes the ServerlessClient instance.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name: name of provider</span>
+<span class="sd">            name: name of client</span>
 <span class="sd">            host: host of gateway</span>
 <span class="sd">            version: version of gateway</span>
 <span class="sd">            token: authorization token</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="s2">&quot;gateway-provider&quot;</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="s2">&quot;gateway-client&quot;</span>
         <span class="n">host</span> <span class="o">=</span> <span class="n">host</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_GATEWAY_PROVIDER_HOST</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">host</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">QuantumServerlessException</span><span class="p">(</span><span class="s2">&quot;Please provide `host` of gateway.&quot;</span><span class="p">)</span>
@@ -698,32 +711,38 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span> <span class="o">=</span> <span class="n">GatewayFilesClient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">get_compute_resources</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ComputeResource</span><span class="p">]:</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;GatewayProvider does not support resources api yet.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;ServerlessClient does not support resources api yet.&quot;</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">create_compute_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;GatewayProvider does not support resources api yet.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;ServerlessClient does not support resources api yet.&quot;</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">delete_compute_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;GatewayProvider does not support resources api yet.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;ServerlessClient does not support resources api yet.&quot;</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_job_by_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
         <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
         <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;Provider.run&quot;</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitPattern</span><span class="p">)</span> <span class="ow">and</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="ow">and</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">run_existing</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">job</span>
 
-    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitPattern</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
         <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;Provider.upload&quot;</span><span class="p">):</span>
             <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
@@ -749,7 +768,8 @@
     <span class="k">def</span> <span class="nf">file_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of available programs.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">get_programs</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_verify_token</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
@@ -767,52 +787,46 @@
             <span class="k">raise</span> <span class="n">QuantumServerlessException</span><span class="p">(</span><span class="s2">&quot;Cannot verify token.&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">reason</span></div>
 
 
-<div class="viewcode-block" id="Provider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider">[docs]</a><span class="k">class</span> <span class="nc">Provider</span><span class="p">(</span><span class="n">ServerlessProvider</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">ServerlessProvider</span><span class="p">(</span><span class="n">ServerlessClient</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    [Deprecated since version 0.6.4] Use :class:`.ServerlessProvider` instead.</span>
+<span class="sd">    [Deprecated since version 0.10.0] Use :class:`.ServerlessClient` instead.</span>
 
 <span class="sd">    A provider for connecting to a specified host. This class has been</span>
-<span class="sd">    renamed to :class:`.ServerlessProvider`.</span>
+<span class="sd">    renamed to :class:`.ServerlessClient`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="Provider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="s2">&quot;The Provider class is deprecated. Use the identical ServerlessProvider class instead.&quot;</span>
-        <span class="p">)</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
 
-
-<div class="viewcode-block" id="IBMServerlessProvider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.IBMServerlessProvider.html#quantum_serverless.core.IBMServerlessProvider">[docs]</a><span class="k">class</span> <span class="nc">IBMServerlessProvider</span><span class="p">(</span><span class="n">ServerlessProvider</span><span class="p">):</span>
+<div class="viewcode-block" id="IBMServerlessClient"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.IBMServerlessClient.html#quantum_serverless.core.IBMServerlessClient">[docs]</a><span class="k">class</span> <span class="nc">IBMServerlessClient</span><span class="p">(</span><span class="n">ServerlessClient</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A provider for connecting to the IBM serverless host.</span>
+<span class="sd">    A client for connecting to the IBM serverless host.</span>
 
 <span class="sd">    Credentials can be saved to disk by calling the `save_account()` method::</span>
 
-<span class="sd">        from quantum_serverless import IBMServerlessProvider</span>
-<span class="sd">        IBMServerlessProvider.save_account(token=&lt;INSERT_IBM_QUANTUM_TOKEN&gt;)</span>
+<span class="sd">        from quantum_serverless import IBMServerlessClient</span>
+<span class="sd">        IBMServerlessClient.save_account(token=&lt;INSERT_IBM_QUANTUM_TOKEN&gt;)</span>
 
-<span class="sd">    Once the credentials are saved, you can simply instantiate the provider with no</span>
+<span class="sd">    Once the credentials are saved, you can simply instantiate the client with no</span>
 <span class="sd">    constructor args, as shown below.</span>
 
-<span class="sd">        from quantum_serverless import IBMServerlessProvider</span>
-<span class="sd">        provider = IBMServerlessProvider()</span>
+<span class="sd">        from quantum_serverless import IBMServerlessClient</span>
+<span class="sd">        client = IBMServerlessClient()</span>
 
 <span class="sd">    Instead of saving credentials to disk, you can also set the environment variable</span>
-<span class="sd">    ENV_GATEWAY_PROVIDER_TOKEN and then instantiate the provider as below::</span>
+<span class="sd">    ENV_GATEWAY_PROVIDER_TOKEN and then instantiate the client as below::</span>
 
-<span class="sd">        from quantum_serverless import IBMServerlessProvider</span>
-<span class="sd">        provider = IBMServerlessProvider()</span>
+<span class="sd">        from quantum_serverless import IBMServerlessClient</span>
+<span class="sd">        client = IBMServerlessClient()</span>
 
 <span class="sd">    You can also enable an account just for the current session by instantiating the</span>
 <span class="sd">    provider with the API token::</span>
 
-<span class="sd">        from quantum_serverless import IBMServerlessProvider</span>
-<span class="sd">        provider = IBMServerlessProvider(token=&lt;INSERT_IBM_QUANTUM_TOKEN&gt;)</span>
+<span class="sd">        from quantum_serverless import IBMServerlessClient</span>
+<span class="sd">        client = IBMServerlessClient(token=&lt;INSERT_IBM_QUANTUM_TOKEN&gt;)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="IBMServerlessProvider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.IBMServerlessProvider.html#quantum_serverless.core.IBMServerlessProvider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="IBMServerlessClient.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.IBMServerlessClient.html#quantum_serverless.core.IBMServerlessClient.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Initialize a provider with access to an IBMQ-provided remote cluster.</span>
+<span class="sd">        Initialize a client with access to an IBMQ-provided remote cluster.</span>
 
 <span class="sd">        If a ``token`` is used to initialize an instance, the ``name`` argument</span>
 <span class="sd">        will be ignored.</span>
@@ -848,38 +862,53 @@
         <span class="n">IBMProvider</span><span class="o">.</span><span class="n">save_account</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_compute_resources</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">ComputeResource</span><span class="p">]:</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;GatewayProvider does not support resources api yet.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;IBMServerlessClient does not support resources api yet.&quot;</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">create_compute_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;GatewayProvider does not support resources api yet.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;IBMServerlessClient does not support resources api yet.&quot;</span>
+        <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">delete_compute_resource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;GatewayProvider does not support resources api yet.&quot;</span><span class="p">)</span></div>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;IBMServerlessClient does not support resources api yet.&quot;</span>
+        <span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="RayProvider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.RayProvider.html#quantum_serverless.core.RayProvider">[docs]</a><span class="k">class</span> <span class="nc">RayProvider</span><span class="p">(</span><span class="n">BaseProvider</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;RayProvider.&quot;&quot;&quot;</span>
+<span class="k">class</span> <span class="nc">IBMServerlessProvider</span><span class="p">(</span><span class="n">IBMServerlessClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    [Deprecated since version 0.10.0] Use :class:`.IBMServerlessClient` instead.</span>
 
-<div class="viewcode-block" id="RayProvider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.RayProvider.html#quantum_serverless.core.RayProvider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ray provider</span>
+<span class="sd">    A provider for connecting to IBM Serverless instance. This class has been</span>
+<span class="sd">    renamed to :class:`.IBMServerlessClient`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="RayClient"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.RayClient.html#quantum_serverless.core.RayClient">[docs]</a><span class="k">class</span> <span class="nc">RayClient</span><span class="p">(</span><span class="n">BaseClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;RayClient.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="RayClient.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.RayClient.html#quantum_serverless.core.RayClient.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ray client</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            host: ray head node host</span>
 
 <span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; ray_provider = RayProvider(&quot;http://localhost:8265&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; ray_provider = RayClient(&quot;http://localhost:8265&quot;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;ray-provider&quot;</span><span class="p">,</span> <span class="n">host</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;ray-client&quot;</span><span class="p">,</span> <span class="n">host</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">RayJobClient</span><span class="p">(</span><span class="n">JobSubmissionClient</span><span class="p">(</span><span class="n">host</span><span class="p">))</span></div>
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
         <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Ray provider only supports full Programs.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Ray client only supports full Programs.&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
 
@@ -890,28 +919,37 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">list</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="LocalProvider"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.LocalProvider.html#quantum_serverless.core.LocalProvider">[docs]</a><span class="k">class</span> <span class="nc">LocalProvider</span><span class="p">(</span><span class="n">BaseProvider</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;RayProvider.&quot;&quot;&quot;</span>
+<span class="k">class</span> <span class="nc">RayProvider</span><span class="p">(</span><span class="n">RayClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    [Deprecated since version 0.10.0] Use :class:`.RayClient` instead.</span>
 
-<div class="viewcode-block" id="LocalProvider.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.LocalProvider.html#quantum_serverless.core.LocalProvider.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Local provider</span>
+<span class="sd">    A provider for connecting to a ray head node. This class has been</span>
+<span class="sd">    renamed to :class:`.RayClient`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="LocalClient"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.LocalClient.html#quantum_serverless.core.LocalClient">[docs]</a><span class="k">class</span> <span class="nc">LocalClient</span><span class="p">(</span><span class="n">BaseClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;LocalClient.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LocalClient.__init__"><a class="viewcode-back" href="../../../stubs/quantum_serverless.core.LocalClient.html#quantum_serverless.core.LocalClient.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Local client</span>
 
 <span class="sd">        Args:</span>
 
 <span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; local = LocalProvider())</span>
+<span class="sd">            &gt;&gt;&gt; local = LocalClient())</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;local-provier&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;local-client&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">LocalJobClient</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">in_test</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;IN_TEST&quot;</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
         <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitPattern</span><span class="p">)</span> <span class="ow">and</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="ow">and</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">run_existing</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
@@ -923,14 +961,14 @@
     <span class="k">def</span> <span class="nf">get_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitPattern</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">widget</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Widget for information about provider and jobs.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">Widget</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">get_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QiskitPattern</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">get_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">]:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get_programs</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">files</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
@@ -961,6 +999,15 @@
             <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;file_delete method is not implemented in LocalProvider.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;files method is not implemented in LocalProvider.&quot;</span><span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">LocalProvider</span><span class="p">(</span><span class="n">LocalClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    [Deprecated since version 0.10.0] Use :class:`.LocalClient` instead.</span>
+
+<span class="sd">    A provider for connecting to local job execution instance. This class has been</span>
+<span class="sd">    renamed to :class:`.LocalClient`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 </pre></div>
         </article>
       </div>

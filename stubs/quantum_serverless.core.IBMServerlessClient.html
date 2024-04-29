@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.core.LocalProvider" href="quantum_serverless.core.LocalProvider.html" /><link rel="prev" title="quantum_serverless.core.BaseProvider" href="quantum_serverless.core.BaseProvider.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="quantum_serverless.core.BaseClient" href="quantum_serverless.core.BaseClient.html" /><link rel="prev" title="quantum_serverless.core.ServerlessClient" href="quantum_serverless.core.ServerlessClient.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.01.29 -->
-        <title>quantum_serverless.core.RayProvider - Quantum serverless 0.10.0</title>
+        <title>quantum_serverless.core.IBMServerlessClient - Quantum serverless 0.10.0</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=135e06be" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=fe84956c" />
@@ -182,7 +182,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../index.html">About Quantum Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a QiskitPattern remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a QiskitPattern as a function</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
@@ -210,16 +210,13 @@
 </ul>
 <ul class="current">
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../apidocs/index.html">API References</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of API References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="quantum_serverless.QuantumServerless.html">quantum_serverless.QuantumServerless</a></li>
 <li class="toctree-l2"><a class="reference internal" href="quantum_serverless.QuantumServerlessException.html">quantum_serverless.QuantumServerlessException</a></li>
-<li class="toctree-l2"><a class="reference internal" href="quantum_serverless.get_auto_discovered_provider.html">quantum_serverless.get_auto_discovered_provider</a></li>
 <li class="toctree-l2 current has-children"><a class="reference internal" href="../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.core</span></code>)</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (quantum_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Provider.html">quantum_serverless.core.Provider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ServerlessProvider.html">quantum_serverless.core.ServerlessProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.IBMServerlessProvider.html">quantum_serverless.core.IBMServerlessProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.BaseProvider.html">quantum_serverless.core.BaseProvider</a></li>
-<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">quantum_serverless.core.RayProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.LocalProvider.html">quantum_serverless.core.LocalProvider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ServerlessClient.html">quantum_serverless.core.ServerlessClient</a></li>
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">quantum_serverless.core.IBMServerlessClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.BaseClient.html">quantum_serverless.core.BaseClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RayClient.html">quantum_serverless.core.RayClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.LocalClient.html">quantum_serverless.core.LocalClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.ComputeResource.html">quantum_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Job.html">quantum_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.GatewayJobClient.html">quantum_serverless.core.GatewayJobClient</a></li>
@@ -227,6 +224,7 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.RayJobClient.html">quantum_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.save_result.html">quantum_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.QiskitPattern.html">quantum_serverless.core.QiskitPattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.QiskitFunction.html">quantum_serverless.core.QiskitFunction</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.Target.html">quantum_serverless.core.Target</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.CircuitMeta.html">quantum_serverless.core.CircuitMeta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.fetch_execution_meta.html">quantum_serverless.core.fetch_execution_meta</a></li>
@@ -238,11 +236,7 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.core.get_refs_by_status.html">quantum_serverless.core.get_refs_by_status</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/library.html">Library (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.library</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Library (quantum_serverless.library)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="quantum_serverless.library.parallel_transpile.html">quantum_serverless.library.parallel_transpile</a></li>
-</ul>
-</li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Serializers (quantum_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (quantum_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.serializers.register_all_serializers.html">quantum_serverless.serializers.register_all_serializers</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.serializers.circuit_serializer.html">quantum_serverless.serializers.circuit_serializer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.serializers.circuit_deserializer.html">quantum_serverless.serializers.circuit_deserializer</a></li>
@@ -251,7 +245,7 @@
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.serializers.get_arguments.html">quantum_serverless.serializers.get_arguments</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of Utilities (quantum_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Utilities (quantum_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.utils.BaseStorage.html">quantum_serverless.utils.BaseStorage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.utils.S3Storage.html">quantum_serverless.utils.S3Storage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="quantum_serverless.utils.ErrorCodes.html">quantum_serverless.utils.ErrorCodes</a></li>
@@ -292,43 +286,78 @@
           </label>
         </div>
         <article role="main">
-          <section id="quantum-serverless-core-rayprovider">
-<h1>quantum_serverless.core.RayProvider<a class="headerlink" href="#quantum-serverless-core-rayprovider" title="Permalink to this heading">#</a></h1>
+          <section id="quantum-serverless-core-ibmserverlessclient">
+<h1>quantum_serverless.core.IBMServerlessClient<a class="headerlink" href="#quantum-serverless-core-ibmserverlessclient" title="Permalink to this heading">#</a></h1>
 <dl class="py class">
-<dt class="sig sig-object py" id="quantum_serverless.core.RayProvider">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RayProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#RayProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.RayProvider" title="Permalink to this definition">#</a></dt>
-<dd><p>RayProvider.</p>
-<p>Ray provider</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>host</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – ray head node host</p>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ray_provider</span> <span class="o">=</span> <span class="n">RayProvider</span><span class="p">(</span><span class="s2">&quot;http://localhost:8265&quot;</span><span class="p">)</span>
+<dt class="sig sig-object py" id="quantum_serverless.core.IBMServerlessClient">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">IBMServerlessClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/client.html#IBMServerlessClient"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.IBMServerlessClient" title="Permalink to this definition">#</a></dt>
+<dd><p>A client for connecting to the IBM serverless host.</p>
+<p>Credentials can be saved to disk by calling the <cite>save_account()</cite> method:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">IBMServerlessClient</span>
+<span class="n">IBMServerlessClient</span><span class="o">.</span><span class="n">save_account</span><span class="p">(</span><span class="n">token</span><span class="o">=&lt;</span><span class="n">INSERT_IBM_QUANTUM_TOKEN</span><span class="o">&gt;</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Once the credentials are saved, you can simply instantiate the client with no
+constructor args, as shown below.</p>
+<blockquote>
+<div><p>from quantum_serverless import IBMServerlessClient
+client = IBMServerlessClient()</p>
+</div></blockquote>
+<p>Instead of saving credentials to disk, you can also set the environment variable
+ENV_GATEWAY_PROVIDER_TOKEN and then instantiate the client as below:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">IBMServerlessClient</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">IBMServerlessClient</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>You can also enable an account just for the current session by instantiating the
+provider with the API token:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">quantum_serverless</span> <span class="kn">import</span> <span class="n">IBMServerlessClient</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">IBMServerlessClient</span><span class="p">(</span><span class="n">token</span><span class="o">=&lt;</span><span class="n">INSERT_IBM_QUANTUM_TOKEN</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Initialize a client with access to an IBMQ-provided remote cluster.</p>
+<p>If a <code class="docutils literal notranslate"><span class="pre">token</span></code> is used to initialize an instance, the <code class="docutils literal notranslate"><span class="pre">name</span></code> argument
+will be ignored.</p>
+<p>If only a <code class="docutils literal notranslate"><span class="pre">name</span></code> is provided, the token for the named account will
+be retrieved from the user’s local IBM Quantum account config file.</p>
+<p>If neither argument is provided, the token will be searched for in the
+environment variables and also in the local IBM Quantum account config
+file using the default account name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>token</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – IBM quantum token</p></li>
+<li><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Name of the account to load</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py method">
-<dt class="sig sig-object py" id="quantum_serverless.core.RayProvider.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/provider.html#RayProvider.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.RayProvider.__init__" title="Permalink to this definition">#</a></dt>
-<dd><p>Ray provider</p>
+<dt class="sig sig-object py" id="quantum_serverless.core.IBMServerlessClient.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/quantum_serverless/core/client.html#IBMServerlessClient.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#quantum_serverless.core.IBMServerlessClient.__init__" title="Permalink to this definition">#</a></dt>
+<dd><p>Initialize a client with access to an IBMQ-provided remote cluster.</p>
+<p>If a <code class="docutils literal notranslate"><span class="pre">token</span></code> is used to initialize an instance, the <code class="docutils literal notranslate"><span class="pre">name</span></code> argument
+will be ignored.</p>
+<p>If only a <code class="docutils literal notranslate"><span class="pre">name</span></code> is provided, the token for the named account will
+be retrieved from the user’s local IBM Quantum account config file.</p>
+<p>If neither argument is provided, the token will be searched for in the
+environment variables and also in the local IBM Quantum account config
+file using the default account name.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>host</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – ray head node host</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>token</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – IBM quantum token</p></li>
+<li><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Name of the account to load</p></li>
+</ul>
 </dd>
 </dl>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ray_provider</span> <span class="o">=</span> <span class="n">RayProvider</span><span class="p">(</span><span class="s2">&quot;http://localhost:8265&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
 </dd></dl>
 
 <p class="rubric">Methods</p>
 <div class="table-wrapper autosummary longtable docutils container">
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.core.RayProvider.__init__" title="quantum_serverless.core.RayProvider.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(host)</p></td>
-<td><p>Ray provider</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#quantum_serverless.core.IBMServerlessClient.__init__" title="quantum_serverless.core.IBMServerlessClient.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>([token, name])</p></td>
+<td><p>Initialize a client with access to an IBMQ-provided remote cluster.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">context</span></code>(**kwargs)</p></td>
 <td><p>Allocated context for selected compute_resource for provider.</p></td>
@@ -367,13 +396,19 @@
 <td><p>Return list of jobs.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_programs</span></code>(**kwargs)</p></td>
-<td><p>Returns list of available programs.</p></td>
+<td><p>[Deprecated] Returns list of available programs.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job_client</span></code>()</p></td>
 <td><p>Return job client for configured compute resource of provider.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments, config])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code>(**kwargs)</p></td>
+<td><p>Returns list of available programs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments, config])</p></td>
 <td><p>Execute a program as a async job.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_account</span></code>([token, name, overwrite])</p></td>
+<td><p>Save the account to disk for future use.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code>()</p></td>
 <td><p>Converts class to dict.</p></td>
@@ -395,23 +430,23 @@
       </div>
       <footer>
         <div class="related-pages">
-          <a class="next-page" href="quantum_serverless.core.LocalProvider.html">
+          <a class="next-page" href="quantum_serverless.core.BaseClient.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">quantum_serverless.core.LocalProvider</div>
+                <div class="title">quantum_serverless.core.BaseClient</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="quantum_serverless.core.BaseProvider.html">
+          <a class="prev-page" href="quantum_serverless.core.ServerlessClient.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">quantum_serverless.core.BaseProvider</div>
+                <div class="title">quantum_serverless.core.ServerlessClient</div>
                 
               </div>
             </a>
@@ -445,9 +480,9 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">quantum_serverless.core.RayProvider</a><ul>
-<li><a class="reference internal" href="#quantum_serverless.core.RayProvider"><code class="docutils literal notranslate"><span class="pre">RayProvider</span></code></a><ul>
-<li><a class="reference internal" href="#quantum_serverless.core.RayProvider.__init__"><code class="docutils literal notranslate"><span class="pre">RayProvider.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#">quantum_serverless.core.IBMServerlessClient</a><ul>
+<li><a class="reference internal" href="#quantum_serverless.core.IBMServerlessClient"><code class="docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code></a><ul>
+<li><a class="reference internal" href="#quantum_serverless.core.IBMServerlessClient.__init__"><code class="docutils literal notranslate"><span class="pre">IBMServerlessClient.__init__()</span></code></a></li>
 </ul>
 </li>
 </ul>

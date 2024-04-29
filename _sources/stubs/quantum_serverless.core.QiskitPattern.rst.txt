@@ -15,6 +15,7 @@
    
       ~QiskitPattern.__init__
       ~QiskitPattern.from_json
+      ~QiskitPattern.run
    
    
 
@@ -28,8 +29,12 @@
       ~QiskitPattern.description
       ~QiskitPattern.entrypoint
       ~QiskitPattern.env_vars
+      ~QiskitPattern.image
+      ~QiskitPattern.job_client
       ~QiskitPattern.raw_data
+      ~QiskitPattern.schema
       ~QiskitPattern.tags
+      ~QiskitPattern.validate
       ~QiskitPattern.version
       ~QiskitPattern.working_dir
       ~QiskitPattern.title

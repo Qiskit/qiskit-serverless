@@ -1,6 +1,0 @@
-﻿quantum\_serverless.library.parallel\_transpile
-===============================================
-
-.. currentmodule:: quantum_serverless.library
-
-.. autofunction:: parallel_transpile

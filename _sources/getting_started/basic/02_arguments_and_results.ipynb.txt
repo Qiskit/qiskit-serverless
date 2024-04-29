@@ -112,7 +112,7 @@
     {
      "data": {
       "text/plain": [
-       "<ServerlessProvider: gateway-provider>"
+       "<gateway-client>"
       ]
      },
      "execution_count": 2,
@@ -121,10 +121,10 @@
     }
    ],
    "source": [
-    "from quantum_serverless import ServerlessProvider\n",
+    "from quantum_serverless import ServerlessClient\n",
     "import os\n",
     "\n",
-    "serverless = ServerlessProvider(\n",
+    "serverless = ServerlessClient(\n",
     "    token=os.environ.get(\"GATEWAY_TOKEN\", \"awesome_token\"),\n",
     "    host=os.environ.get(\"GATEWAY_HOST\", \"http://localhost:8000\"),\n",
     ")\n",
@@ -133,7 +133,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 3,
+   "execution_count": 8,
    "metadata": {},
    "outputs": [
     {
@@ -142,37 +142,71 @@
        "'pattern-with-arguments'"
       ]
      },
-     "execution_count": 3,
+     "execution_count": 8,
      "metadata": {},
      "output_type": "execute_result"
     }
    ],
    "source": [
-    "from quantum_serverless import QiskitPattern\n",
+    "from quantum_serverless import QiskitFunction\n",
     "\n",
-    "pattern = QiskitPattern(\n",
+    "function = QiskitFunction(\n",
     "    title=\"pattern-with-arguments\",\n",
     "    entrypoint=\"pattern_with_arguments.py\",\n",
     "    working_dir=\"./source_files/\",\n",
     ")\n",
     "\n",
-    "serverless.upload(pattern)"
+    "serverless.upload(function)"
    ]
   },
   {
    "cell_type": "markdown",
    "metadata": {},
    "source": [
-    "Run the pattern using the `run` method and by passing an `arguments` parameter in form of a dictionary with the \"circuit\" string as a key and our `QuantumCircuit` as the value"
+    "Run the function using the `run` method and by passing arguments."
    ]
   },
   {
    "cell_type": "code",
-   "execution_count": 4,
+   "execution_count": 9,
    "metadata": {},
-   "outputs": [],
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "QiskitFunction(pattern-with-arguments)"
+      ]
+     },
+     "execution_count": 9,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
    "source": [
-    "job = serverless.run(\"pattern-with-arguments\", arguments={\"circuit\": circuit})"
+    "functions = {f.title: f for f in serverless.list()}\n",
+    "my_function = functions.get(\"pattern-with-arguments\")\n",
+    "my_function"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<Job | 1d087725-0f00-45e3-a56c-ccac10b551d2>"
+      ]
+     },
+     "execution_count": 10,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "job = my_function.run(circuit=circuit)\n",
+    "job"
    ]
   },
   {
@@ -184,7 +218,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 5,
+   "execution_count": 11,
    "metadata": {},
    "outputs": [
     {
@@ -193,7 +227,7 @@
        "{'quasi_dists': {'0': 0.4999999999999999, '3': 0.4999999999999999}}"
       ]
      },
-     "execution_count": 5,
+     "execution_count": 11,
      "metadata": {},
      "output_type": "execute_result"
     }

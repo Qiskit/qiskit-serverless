@@ -1,0 +1,41 @@
+﻿quantum\_serverless.core.LocalClient
+====================================
+
+.. currentmodule:: quantum_serverless.core
+
+.. autoclass:: LocalClient
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~LocalClient.__init__
+      ~LocalClient.context
+      ~LocalClient.create_compute_resource
+      ~LocalClient.delete_compute_resource
+      ~LocalClient.download
+      ~LocalClient.file_delete
+      ~LocalClient.file_download
+      ~LocalClient.file_upload
+      ~LocalClient.files
+      ~LocalClient.from_dict
+      ~LocalClient.get_compute_resources
+      ~LocalClient.get_job_by_id
+      ~LocalClient.get_jobs
+      ~LocalClient.get_programs
+      ~LocalClient.job_client
+      ~LocalClient.list
+      ~LocalClient.run
+      ~LocalClient.to_dict
+      ~LocalClient.upload
+      ~LocalClient.widget
+   
+   
+
+   
+   
+   

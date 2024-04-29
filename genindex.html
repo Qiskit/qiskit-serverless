@@ -181,7 +181,7 @@
 <li class="toctree-l1"><a class="reference internal" href="index.html">About Quantum Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation/index.html">Installation</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="getting_started/index.html">Getting started</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="getting_started/basic/01_running_program.html">Running a QiskitPattern remotely</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/basic/01_running_program.html">Running a QiskitPattern as a function</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting_started/basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting_started/basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting_started/basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
@@ -209,16 +209,13 @@
 </ul>
 <ul>
 <li class="toctree-l1 has-children"><a class="reference internal" href="apidocs/index.html">API References</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of API References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="stubs/quantum_serverless.QuantumServerless.html">quantum_serverless.QuantumServerless</a></li>
 <li class="toctree-l2"><a class="reference internal" href="stubs/quantum_serverless.QuantumServerlessException.html">quantum_serverless.QuantumServerlessException</a></li>
-<li class="toctree-l2"><a class="reference internal" href="stubs/quantum_serverless.get_auto_discovered_provider.html">quantum_serverless.get_auto_discovered_provider</a></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.core</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (quantum_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.Provider.html">quantum_serverless.core.Provider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.ServerlessProvider.html">quantum_serverless.core.ServerlessProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.IBMServerlessProvider.html">quantum_serverless.core.IBMServerlessProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.BaseProvider.html">quantum_serverless.core.BaseProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.RayProvider.html">quantum_serverless.core.RayProvider</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.LocalProvider.html">quantum_serverless.core.LocalProvider</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.ServerlessClient.html">quantum_serverless.core.ServerlessClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.IBMServerlessClient.html">quantum_serverless.core.IBMServerlessClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.BaseClient.html">quantum_serverless.core.BaseClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.RayClient.html">quantum_serverless.core.RayClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.LocalClient.html">quantum_serverless.core.LocalClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.ComputeResource.html">quantum_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.Job.html">quantum_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.GatewayJobClient.html">quantum_serverless.core.GatewayJobClient</a></li>
@@ -226,6 +223,7 @@
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.RayJobClient.html">quantum_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.save_result.html">quantum_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.QiskitPattern.html">quantum_serverless.core.QiskitPattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.QiskitFunction.html">quantum_serverless.core.QiskitFunction</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.Target.html">quantum_serverless.core.Target</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.CircuitMeta.html">quantum_serverless.core.CircuitMeta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.fetch_execution_meta.html">quantum_serverless.core.fetch_execution_meta</a></li>
@@ -237,11 +235,7 @@
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.core.get_refs_by_status.html">quantum_serverless.core.get_refs_by_status</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="apidocs/library.html">Library (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.library</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Library (quantum_serverless.library)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.library.parallel_transpile.html">quantum_serverless.library.parallel_transpile</a></li>
-</ul>
-</li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Serializers (quantum_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (quantum_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.serializers.register_all_serializers.html">quantum_serverless.serializers.register_all_serializers</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.serializers.circuit_serializer.html">quantum_serverless.serializers.circuit_serializer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.serializers.circuit_deserializer.html">quantum_serverless.serializers.circuit_deserializer</a></li>
@@ -250,7 +244,7 @@
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.serializers.get_arguments.html">quantum_serverless.serializers.get_arguments</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of Utilities (quantum_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">quantum_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Utilities (quantum_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.utils.BaseStorage.html">quantum_serverless.utils.BaseStorage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.utils.S3Storage.html">quantum_serverless.utils.S3Storage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/quantum_serverless.utils.ErrorCodes.html">quantum_serverless.utils.ErrorCodes</a></li>
@@ -299,10 +293,10 @@
   <h2>_</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="stubs/quantum_serverless.core.BaseJobClient.html#quantum_serverless.core.BaseJobClient.__init__">__init__() (BaseJobClient method)</a>
+        <li><a href="stubs/quantum_serverless.core.BaseClient.html#quantum_serverless.core.BaseClient.__init__">__init__() (BaseClient method)</a>
 
         <ul>
-          <li><a href="stubs/quantum_serverless.core.BaseProvider.html#quantum_serverless.core.BaseProvider.__init__">(BaseProvider method)</a>
+          <li><a href="stubs/quantum_serverless.core.BaseJobClient.html#quantum_serverless.core.BaseJobClient.__init__">(BaseJobClient method)</a>
 </li>
           <li><a href="stubs/quantum_serverless.utils.BaseStorage.html#quantum_serverless.utils.BaseStorage.__init__">(BaseStorage method)</a>
 </li>
@@ -314,27 +308,25 @@
 </li>
           <li><a href="stubs/quantum_serverless.core.GatewayJobClient.html#quantum_serverless.core.GatewayJobClient.__init__">(GatewayJobClient method)</a>
 </li>
-          <li><a href="stubs/quantum_serverless.core.IBMServerlessProvider.html#quantum_serverless.core.IBMServerlessProvider.__init__">(IBMServerlessProvider method)</a>
+          <li><a href="stubs/quantum_serverless.core.IBMServerlessClient.html#quantum_serverless.core.IBMServerlessClient.__init__">(IBMServerlessClient method)</a>
 </li>
           <li><a href="stubs/quantum_serverless.core.Job.html#quantum_serverless.core.Job.__init__">(Job method)</a>
 </li>
           <li><a href="stubs/quantum_serverless.utils.JsonSerializable.html#quantum_serverless.utils.JsonSerializable.__init__">(JsonSerializable method)</a>
 </li>
-          <li><a href="stubs/quantum_serverless.core.LocalProvider.html#quantum_serverless.core.LocalProvider.__init__">(LocalProvider method)</a>
+          <li><a href="stubs/quantum_serverless.core.LocalClient.html#quantum_serverless.core.LocalClient.__init__">(LocalClient method)</a>
 </li>
-          <li><a href="stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider.__init__">(Provider method)</a>
+          <li><a href="stubs/quantum_serverless.core.QiskitFunction.html#quantum_serverless.core.QiskitFunction.__init__">(QiskitFunction method)</a>
 </li>
           <li><a href="stubs/quantum_serverless.core.QiskitPattern.html#quantum_serverless.core.QiskitPattern.__init__">(QiskitPattern method)</a>
 </li>
-          <li><a href="stubs/quantum_serverless.QuantumServerless.html#quantum_serverless.QuantumServerless.__init__">(QuantumServerless method)</a>
+          <li><a href="stubs/quantum_serverless.core.RayClient.html#quantum_serverless.core.RayClient.__init__">(RayClient method)</a>
 </li>
           <li><a href="stubs/quantum_serverless.core.RayJobClient.html#quantum_serverless.core.RayJobClient.__init__">(RayJobClient method)</a>
 </li>
-          <li><a href="stubs/quantum_serverless.core.RayProvider.html#quantum_serverless.core.RayProvider.__init__">(RayProvider method)</a>
-</li>
           <li><a href="stubs/quantum_serverless.utils.S3Storage.html#quantum_serverless.utils.S3Storage.__init__">(S3Storage method)</a>
 </li>
-          <li><a href="stubs/quantum_serverless.core.ServerlessProvider.html#quantum_serverless.core.ServerlessProvider.__init__">(ServerlessProvider method)</a>
+          <li><a href="stubs/quantum_serverless.core.ServerlessClient.html#quantum_serverless.core.ServerlessClient.__init__">(ServerlessClient method)</a>
 </li>
           <li><a href="stubs/quantum_serverless.core.Target.html#quantum_serverless.core.Target.__init__">(Target method)</a>
 </li>
@@ -347,11 +339,11 @@
   <h2>B</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="stubs/quantum_serverless.core.BaseJobClient.html#quantum_serverless.core.BaseJobClient">BaseJobClient (class in quantum_serverless.core)</a>
+        <li><a href="stubs/quantum_serverless.core.BaseClient.html#quantum_serverless.core.BaseClient">BaseClient (class in quantum_serverless.core)</a>
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="stubs/quantum_serverless.core.BaseProvider.html#quantum_serverless.core.BaseProvider">BaseProvider (class in quantum_serverless.core)</a>
+        <li><a href="stubs/quantum_serverless.core.BaseJobClient.html#quantum_serverless.core.BaseJobClient">BaseJobClient (class in quantum_serverless.core)</a>
 </li>
         <li><a href="stubs/quantum_serverless.utils.BaseStorage.html#quantum_serverless.utils.BaseStorage">BaseStorage (class in quantum_serverless.utils)</a>
 </li>
@@ -425,8 +417,6 @@
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="stubs/quantum_serverless.serializers.get_arguments.html#quantum_serverless.serializers.get_arguments">get_arguments() (in module quantum_serverless.serializers)</a>
 </li>
-        <li><a href="stubs/quantum_serverless.get_auto_discovered_provider.html#quantum_serverless.get_auto_discovered_provider">get_auto_discovered_provider() (in module quantum_serverless)</a>
-</li>
         <li><a href="stubs/quantum_serverless.core.get_refs_by_status.html#quantum_serverless.core.get_refs_by_status">get_refs_by_status() (in module quantum_serverless.core)</a>
 </li>
     </ul></td>
@@ -437,7 +427,7 @@
   <h2>I</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="stubs/quantum_serverless.core.IBMServerlessProvider.html#quantum_serverless.core.IBMServerlessProvider">IBMServerlessProvider (class in quantum_serverless.core)</a>
+        <li><a href="stubs/quantum_serverless.core.IBMServerlessClient.html#quantum_serverless.core.IBMServerlessClient">IBMServerlessClient (class in quantum_serverless.core)</a>
 </li>
     </ul></td>
   </tr></table>
@@ -461,7 +451,7 @@
   <h2>L</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="stubs/quantum_serverless.core.LocalProvider.html#quantum_serverless.core.LocalProvider">LocalProvider (class in quantum_serverless.core)</a>
+        <li><a href="stubs/quantum_serverless.core.LocalClient.html#quantum_serverless.core.LocalClient">LocalClient (class in quantum_serverless.core)</a>
 </li>
     </ul></td>
   </tr></table>
@@ -479,8 +469,6 @@
 </li>
           <li><a href="apidocs/core.html#module-quantum_serverless.core">quantum_serverless.core</a>
 </li>
-          <li><a href="apidocs/library.html#module-quantum_serverless.library">quantum_serverless.library</a>
-</li>
           <li><a href="apidocs/serializers.html#module-quantum_serverless.serializers">quantum_serverless.serializers</a>
 </li>
           <li><a href="apidocs/utils.html#module-quantum_serverless.utils">quantum_serverless.utils</a>
@@ -494,12 +482,6 @@
   <h2>P</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="stubs/quantum_serverless.library.parallel_transpile.html#quantum_serverless.library.parallel_transpile">parallel_transpile() (in module quantum_serverless.library)</a>
-</li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="stubs/quantum_serverless.core.Provider.html#quantum_serverless.core.Provider">Provider (class in quantum_serverless.core)</a>
-</li>
         <li><a href="stubs/quantum_serverless.core.put.html#quantum_serverless.core.put">put() (in module quantum_serverless.core)</a>
 </li>
     </ul></td>
@@ -510,6 +492,8 @@
   <h2>Q</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="stubs/quantum_serverless.core.QiskitFunction.html#quantum_serverless.core.QiskitFunction">QiskitFunction (class in quantum_serverless.core)</a>
+</li>
         <li><a href="stubs/quantum_serverless.core.QiskitPattern.html#quantum_serverless.core.QiskitPattern">QiskitPattern (class in quantum_serverless.core)</a>
 </li>
         <li>
@@ -524,13 +508,6 @@
 
         <ul>
           <li><a href="apidocs/core.html#module-quantum_serverless.core">module</a>
-</li>
-        </ul></li>
-        <li>
-    quantum_serverless.library
-
-        <ul>
-          <li><a href="apidocs/library.html#module-quantum_serverless.library">module</a>
 </li>
         </ul></li>
     </ul></td>
@@ -549,8 +526,6 @@
           <li><a href="apidocs/utils.html#module-quantum_serverless.utils">module</a>
 </li>
         </ul></li>
-        <li><a href="stubs/quantum_serverless.QuantumServerless.html#quantum_serverless.QuantumServerless">QuantumServerless (class in quantum_serverless)</a>
-</li>
         <li><a href="stubs/quantum_serverless.QuantumServerlessException.html#quantum_serverless.QuantumServerlessException">QuantumServerlessException</a>
 </li>
     </ul></td>
@@ -561,11 +536,11 @@
   <h2>R</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="stubs/quantum_serverless.core.RayJobClient.html#quantum_serverless.core.RayJobClient">RayJobClient (class in quantum_serverless.core)</a>
+        <li><a href="stubs/quantum_serverless.core.RayClient.html#quantum_serverless.core.RayClient">RayClient (class in quantum_serverless.core)</a>
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="stubs/quantum_serverless.core.RayProvider.html#quantum_serverless.core.RayProvider">RayProvider (class in quantum_serverless.core)</a>
+        <li><a href="stubs/quantum_serverless.core.RayJobClient.html#quantum_serverless.core.RayJobClient">RayJobClient (class in quantum_serverless.core)</a>
 </li>
         <li><a href="stubs/quantum_serverless.serializers.register_all_serializers.html#quantum_serverless.serializers.register_all_serializers">register_all_serializers() (in module quantum_serverless.serializers)</a>
 </li>
@@ -583,7 +558,7 @@
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="stubs/quantum_serverless.core.ServerlessProvider.html#quantum_serverless.core.ServerlessProvider">ServerlessProvider (class in quantum_serverless.core)</a>
+        <li><a href="stubs/quantum_serverless.core.ServerlessClient.html#quantum_serverless.core.ServerlessClient">ServerlessClient (class in quantum_serverless.core)</a>
 </li>
         <li><a href="stubs/quantum_serverless.serializers.service_deserializer.html#quantum_serverless.serializers.service_deserializer">service_deserializer() (in module quantum_serverless.serializers)</a>
 </li>
