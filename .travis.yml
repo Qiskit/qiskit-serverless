@@ -102,6 +102,8 @@ jobs:
       language: minimal
       install: skip
       services: docker
+      before_script:
+        - .travis/bin/install_docker_buildx.sh
       script:
         - make docker/release-selector
 
