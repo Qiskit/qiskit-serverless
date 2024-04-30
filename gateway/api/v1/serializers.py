@@ -3,6 +3,7 @@ Serializers api for V1.
 """
 
 from api import serializers
+from rest_framework.serializers import ValidationError
 
 
 class ProgramSerializer(serializers.ProgramSerializer):
@@ -24,6 +25,11 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
     UploadProgramSerializer is used by the /upload end-point
     """
 
+    def validate_image(self, value):
+        """Validaes image."""
+        # place to add image validation
+        return value
+
     class Meta(serializers.UploadProgramSerializer.Meta):
         fields = [
             "title",
@@ -31,6 +37,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "artifact",
             "dependencies",
             "env_vars",
+            "image"
         ]
 
 

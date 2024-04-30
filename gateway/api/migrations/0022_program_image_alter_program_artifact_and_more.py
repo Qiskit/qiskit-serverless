@@ -7,7 +7,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("api", "0020_remove_program_arguments"),
+        ("api", "0021_alter_program_options_program_instances"),
     ]
 
     operations = [

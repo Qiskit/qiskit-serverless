@@ -117,6 +117,25 @@ class SerializerTest(APITestCase):
         errors = serializer.errors
         self.assertListEqual(["dependencies"], list(errors.keys()))
 
+    def test_upload_program_with_custom_iamge(self):
+        """Tests image upload serializer."""
+        title = "Hello world"
+        entrypoint = "main.py"
+        arguments = {}
+        dependencies = '[]'
+        image = "docker.io/awesome/awesome-image:latest"
+
+        data = {}
+        data["title"] = title
+        data["entrypoint"] = entrypoint
+        data["arguments"] = arguments
+        data["dependencies"] = dependencies
+        data["image"] = image
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        self.assertTrue("image" in list(serializer.validated_data.keys()))
+
     def test_run_existing_program_serializer_check_emtpy_data(self):
         data = {}
 

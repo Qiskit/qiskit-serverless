@@ -1,7 +1,10 @@
 
 
 class Runner:
-    def run(arguments: dict) -> dict:
+    def run(self, arguments: dict) -> dict:
         return {
-            "answer": 42
+            **arguments,
+            **{
+                "answer": 42
+            }
         }

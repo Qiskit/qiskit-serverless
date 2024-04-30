@@ -102,7 +102,7 @@ class JobHandler:
                     os.path.join(working_directory_for_upload, DEFAULT_PROGRAM_ENTRYPOINT), "w"
                 ) as entrypoint_file:
                     entrypoint_file.write(default_entrypoint_content)
-            elif program.artifact is not None:
+            elif bool(program.artifact):
                 with tarfile.open(program.artifact.path) as file:
                     file.extractall(working_directory_for_upload)
             else:
