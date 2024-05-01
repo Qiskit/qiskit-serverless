@@ -8,6 +8,8 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
+from api.permissions import RUN_PROGRAM_PERMISSION
+
 
 def get_upload_path(instance, filename):
     """Returns save path for artifacts."""
@@ -75,7 +77,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     )
 
     class Meta:
-        permissions = (("run_program", "Can run function"),)
+        permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
 
     def __str__(self):
         return f"{self.title}"

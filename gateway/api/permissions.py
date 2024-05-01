@@ -4,6 +4,11 @@ from rest_framework import permissions
 from api.models import RuntimeJob
 
 
+# Program permissions
+VIEW_PROGRAM_PERMISSION = "view_program"
+RUN_PROGRAM_PERMISSION = "run_program"
+
+
 class IsOwner(permissions.BasePermission):
     """
     Custom permission to only allow owners of an object to edit it.

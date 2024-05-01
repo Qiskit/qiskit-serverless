@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from api.models import Program
 from api.models_proxies import QuantumUserProxy
+from api.permissions import VIEW_PROGRAM_PERMISSION
 
 
 class ProxiesTest(APITestCase):
@@ -43,7 +44,7 @@ class ProxiesTest(APITestCase):
 
     def test_query_to_view_test_user_programs(self):
         groups_id_for_view = [100, 101, 102, 103, 104]
-        view_program_permission = Permission.objects.get(codename="view_program")
+        view_program_permission = Permission.objects.get(codename=VIEW_PROGRAM_PERMISSION)
 
         # We give view permission to all groups
         for group_id_to_view in groups_id_for_view:
@@ -79,7 +80,7 @@ class ProxiesTest(APITestCase):
 
     def test_query_to_view_test_user_2_programs(self):
         groups_id_for_view = [100, 101, 102, 103, 104]
-        view_program_permission = Permission.objects.get(codename="view_program")
+        view_program_permission = Permission.objects.get(codename=VIEW_PROGRAM_PERMISSION)
 
         # We give view permission to all groups
         for group_id_to_view in groups_id_for_view:

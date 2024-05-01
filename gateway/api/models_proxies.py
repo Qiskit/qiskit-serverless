@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 
+from api.permissions import VIEW_PROGRAM_PERMISSION
 from api.utils import safe_request, remove_duplicates_from_list
 
 
@@ -103,7 +104,7 @@ class QuantumUserProxy(get_user_model()):  # pylint: disable=too-few-public-meth
         self.groups.clear()
 
         logger.info("Update [%s] groups", len(unique_instances))
-        view_program = Permission.objects.get(codename="view_program")
+        view_program = Permission.objects.get(codename=VIEW_PROGRAM_PERMISSION)
         for instance in unique_instances:
             group, created = Group.objects.get_or_create(name=instance)
             if created:
