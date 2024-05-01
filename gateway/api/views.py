@@ -31,8 +31,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from utils import sanitize_file_path
 
-from .models import Program, Job, RuntimeJob
-from .permissions import VIEW_PROGRAM_PERMISSION
+from .models import VIEW_PROGRAM_PERMISSION, Program, Job, RuntimeJob
 from .ray import get_job_handler
 from .serializers import (
     JobConfigSerializer,
@@ -119,7 +118,6 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
 
     def get_object(self):
         logger.warning("ProgramViewSet.get_object not implemented")
-        return None
 
     def get_queryset(self):
         author = self.request.user

@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 
-from api.permissions import VIEW_PROGRAM_PERMISSION
+from api.models import VIEW_PROGRAM_PERMISSION
 from api.utils import safe_request, remove_duplicates_from_list
 
 

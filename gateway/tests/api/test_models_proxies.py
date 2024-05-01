@@ -5,9 +5,8 @@ from django.db.models import Q
 from rest_framework.test import APITestCase
 from unittest.mock import MagicMock, patch
 
-from api.models import Program
+from api.models import VIEW_PROGRAM_PERMISSION, Program
 from api.models_proxies import QuantumUserProxy
-from api.permissions import VIEW_PROGRAM_PERMISSION
 
 
 class ProxiesTest(APITestCase):

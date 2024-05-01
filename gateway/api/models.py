@@ -8,7 +8,9 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
-from api.permissions import RUN_PROGRAM_PERMISSION
+
+VIEW_PROGRAM_PERMISSION = "view_program"
+RUN_PROGRAM_PERMISSION = "run_program"
 
 
 def get_upload_path(instance, filename):
