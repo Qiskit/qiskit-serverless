@@ -124,7 +124,9 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
     def get_queryset(self):
         author = self.request.user
 
-        view_program_permission = Permission.objects.get(codename=VIEW_PROGRAM_PERMISSION)
+        view_program_permission = Permission.objects.get(
+            codename=VIEW_PROGRAM_PERMISSION
+        )
 
         user_criteria = Q(user=author)
         author_criteria = Q(author=author)
@@ -139,7 +141,6 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
             author_criteria | author_groups_with_view_permissions_criteria
         ).distinct()
 
-
     def list(self, request):
         """List programs:"""
         tracer = trace.get_tracer("gateway.tracer")
@@ -148,7 +149,6 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
             serializer = self.get_serializer(self.get_queryset(), many=True)
 
         return Response(serializer.data)
-        
 
     @action(methods=["POST"], detail=False)
     def upload(self, request):
