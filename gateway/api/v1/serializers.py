@@ -29,13 +29,15 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         """Validaes image."""
         # place to add image validation
         return value
-    
+
     def validate(self, attrs):
         """Validates serializer data."""
         entrypoint = attrs.get("entrypoint", None)
         image = attrs.get("image", None)
         if entrypoint is None and image is None:
-            raise ValidationError("At least one of attributes (entrypoint, image) is required.")
+            raise ValidationError(
+                "At least one of attributes (entrypoint, image) is required."
+            )
         return super().validate(attrs)
 
     class Meta(serializers.UploadProgramSerializer.Meta):
