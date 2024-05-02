@@ -60,7 +60,7 @@ class ProxiesTest(APITestCase):
         titles_from_response = []
         for program in response.data:
             titles_from_response.append(program["title"])
-        
+
         programs_to_test = ["Public program", "Private program", "My program"]
         self.assertListEqual(titles_from_response, programs_to_test)
 
