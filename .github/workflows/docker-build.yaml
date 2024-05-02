@@ -34,7 +34,7 @@ jobs:
             echo "OK"
             exit 0
           else
-            echo "not OK"
+            echo "FAILED: One or more programs failed during execution"
             cat basic.log
             exit 1
           fi
@@ -44,7 +44,7 @@ jobs:
             echo "OK"
             exit 0
           else
-            echo "not OK"
+            echo "FAILED: One or more programs failed during execution"
             cat basic.log
             exit 1
           fi
