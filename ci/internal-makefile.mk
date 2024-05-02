@@ -61,13 +61,6 @@ docker/vscan-gateway: IMAGE_TAG 			:= $(PROJECT_VERSION)
 docker/vscan-gateway: PY_VERSION 			:= "3.9"
 docker/vscan-gateway: docker/vscan
 
-.PHONY: docker/vscan-ray-py38
-docker/vscan-ray-py38: DOCKER_FILE 			:= $(DOCKER_FILE_RAY_NODE)
-docker/vscan-ray-py38: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_RAY_NODE)
-docker/vscan-ray-py38: IMAGE_TAG 			:= $(PROJECT_VERSION)-py38
-docker/vscan-ray-py38: PY_VERSION 			:= "py38"
-docker/vscan-ray-py38: docker/vscan
-
 .PHONY: docker/vscan-ray-py39
 docker/vscan-ray-py39: DOCKER_FILE 			:= $(DOCKER_FILE_RAY_NODE)
 docker/vscan-ray-py39: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_RAY_NODE)
