@@ -52,14 +52,14 @@ class TestRayUtils(APITestCase):
         mock = mock_create()
         DynamicClient.resources.get = MagicMock(return_value=mock)
         head_node_url = "http://test_user-head-svc:8265/"
+        job = Job.objects.first()
         with requests_mock.Mocker() as mocker:
             mocker.get(head_node_url, status_code=200)
-            user = get_user_model().objects.first()
             compute_resource = create_ray_cluster(
-                user, "test_user", "dummy yaml file contents"
+                job, "test_user", "dummy yaml file contents"
             )
             self.assertIsInstance(compute_resource, ComputeResource)
-            self.assertEqual(user.username, compute_resource.title)
+            self.assertEqual(job.author.username, compute_resource.title)
             self.assertEqual(compute_resource.host, head_node_url)
             DynamicClient.resources.get.assert_called_once_with(
                 api_version="v1", kind="RayCluster"
