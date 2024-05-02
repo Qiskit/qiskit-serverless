@@ -35,6 +35,7 @@ jobs:
           sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/quantum-serverless/charts/gateway/Chart.yaml
           sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/quantum-serverless/charts/gateway/Chart.yaml
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/quantum-serverless/charts/gateway/values.yaml
+          sed -i "s/quantum-serverless-proxy:${OLDNUM}/quantum-serverless-proxy:${NEWNUM}/" charts/quantum-serverless/charts/gateway/values.yaml
           sed -i "s/tag: \"${OLDNUM}\"/tag: \"${NEWNUM}\"/" charts/quantum-serverless/values.yaml
           sed -i "s/tag: \"${OLDNUM}-py39\"/tag: \"${NEWNUM}-py39\"/" charts/quantum-serverless/values.yaml
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/quantum-serverless/values.yaml
