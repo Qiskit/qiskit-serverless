@@ -37,6 +37,7 @@ application:
       port: 4317
       insecure: 0
   proxy:
+    enabled: true
     cpu: 1
     memory: 1    
   limits:

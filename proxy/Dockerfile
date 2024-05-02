@@ -17,7 +17,8 @@ RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 USER worker
 WORKDIR /home/worker
 
-RUN pip install headerparser==0.5.1 certifi==2024.2.2 requests==2.31.0 --no-cache-dir
+COPY --chown=worker:worker proxy/requirements.txt .
+RUN pip install -r requirements.txt --no-cache-dir
 
 ENV PATH="/home/worker/.local/bin:${PATH}"
 

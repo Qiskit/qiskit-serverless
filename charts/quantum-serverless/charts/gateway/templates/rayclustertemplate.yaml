@@ -141,6 +141,7 @@ data:
                 - name: OT_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
 {{- end }}
+{{- if .Values.application.proxy.enabled }}
             - image: {{ .Values.application.ray.proxyImage }}
               securityContext:
                 runAsGroup: 123
@@ -205,6 +206,7 @@ data:
                   value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
                 - name: OT_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
+{{- end }}
 {{- end }}
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
@@ -365,6 +367,7 @@ data:
                   cpu: {{ .Values.application.ray.cpu }}
                   memory: {{ .Values.application.ray.memory }}Gi
               securityContext:
+{{- if .Values.application.proxy.enabled }}
             - resources:
                 limits:
                   cpu: 1
@@ -437,6 +440,7 @@ data:
                 privileged: true
                 capabilities:
                   add: ["NET_ADMIN"]
+{{- end }}
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
             serviceAccountName: ray-cluster-sa
