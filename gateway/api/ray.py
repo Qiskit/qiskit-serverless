@@ -202,7 +202,6 @@ def create_ray_cluster(
     # user: Any,
     cluster_name: Optional[str] = None,
     cluster_data: Optional[str] = None,
-    # job_config: Optional[JobConfig] = None,
 ) -> Optional[ComputeResource]:
     """Creates ray cluster.
 
