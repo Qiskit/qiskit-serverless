@@ -2,6 +2,7 @@
 
 from django.contrib.auth.models import Group, Permission
 from django.db.models import Q
+from django.urls import reverse
 from rest_framework.test import APITestCase
 from unittest.mock import MagicMock, patch
 
@@ -52,32 +53,16 @@ class ProxiesTest(APITestCase):
             group = Group.objects.get(pk=group_id_to_view)
             group.permissions.add(view_program_permission)
 
-        # Test user groups with view permissions
+        # Call to program-list end-point
         test_user_proxy = QuantumUserProxy.objects.get(username="test_user")
-        user_criteria = Q(user=test_user_proxy)
-        view_permission_criteria = Q(permissions=view_program_permission)
-        test_user_groups_with_view_permissions = Group.objects.filter(
-            user_criteria & view_permission_criteria
-        )
-        groups_pks_list = list(
-            test_user_groups_with_view_permissions.values_list("pk", flat=True)
-        )
-        groups_to_test = [100, 101, 103, 104]
-        self.assertListEqual(groups_pks_list, groups_to_test)
-
-        # List programs that user has access
-        author_criteria = Q(author=test_user_proxy)
-        test_user_groups_with_view_permissions_criteria = Q(
-            instances__in=test_user_groups_with_view_permissions
-        )
-        test_user_programs_with_access = Program.objects.filter(
-            author_criteria | test_user_groups_with_view_permissions_criteria
-        ).distinct()
-        programs_title_list = list(
-            test_user_programs_with_access.values_list("title", flat=True)
-        )
-        programs_to_test = ["My program", "Private program", "Public program"]
-        self.assertListEqual(programs_title_list, programs_to_test)
+        self.client.force_authenticate(user=test_user_proxy)
+        response = self.client.get(reverse("v1:programs-list"), format="json")
+        titles_from_response = []
+        for program in response.data:
+            titles_from_response.append(program["title"])
+        
+        programs_to_test = ["Public program", "Private program", "My program"]
+        self.assertListEqual(titles_from_response, programs_to_test)
 
     def test_query_to_view_test_user_2_programs(self):
         groups_id_for_view = [100, 101, 102, 103, 104]
@@ -91,31 +76,15 @@ class ProxiesTest(APITestCase):
             group.permissions.add(view_program_permission)
 
         # Test user groups with view permissions
-        test_user_proxy = QuantumUserProxy.objects.get(username="test_user_2")
-        user_criteria = Q(user=test_user_proxy)
-        view_permission_criteria = Q(permissions=view_program_permission)
-        test_user_groups_with_view_permissions = Group.objects.filter(
-            user_criteria & view_permission_criteria
-        )
-        groups_pks_list = list(
-            test_user_groups_with_view_permissions.values_list("pk", flat=True)
-        )
-        groups_to_test = [100, 101, 102]
-        self.assertListEqual(groups_pks_list, groups_to_test)
+        test_user_2_proxy = QuantumUserProxy.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=test_user_2_proxy)
+        response = self.client.get(reverse("v1:programs-list"), format="json")
+        titles_from_response = []
+        for program in response.data:
+            titles_from_response.append(program["title"])
 
-        # List programs that user has access
-        author_criteria = Q(author=test_user_proxy)
-        test_user_groups_with_view_permissions_criteria = Q(
-            instances__in=test_user_groups_with_view_permissions
-        )
-        test_user_programs_with_access = Program.objects.filter(
-            author_criteria | test_user_groups_with_view_permissions_criteria
-        ).distinct()
-        programs_title_list = list(
-            test_user_programs_with_access.values_list("title", flat=True)
-        )
         programs_to_test = ["Public program"]
-        self.assertListEqual(programs_title_list, programs_to_test)
+        self.assertListEqual(titles_from_response, programs_to_test)
 
     def test_query_to_run_test_user_programs(self):
         groups_id_for_run = [102, 104]
