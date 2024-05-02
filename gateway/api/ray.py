@@ -1,4 +1,5 @@
 """Ray cluster related functions."""
+
 import json
 import logging
 import os
@@ -6,7 +7,7 @@ import shutil
 import tarfile
 import time
 import uuid
-from typing import Any, Optional
+from typing import Optional
 
 import requests
 import yaml
@@ -78,10 +79,10 @@ class JobHandler:
         with tracer.start_as_current_span("submit.job") as span:
             # get program
             program = job.program
-            
+
             # get dependencies
             _, dependencies = try_json_loads(program.dependencies)
-            
+
             # get artifact
             working_directory_for_upload = os.path.join(
                 sanitize_file_path(str(settings.MEDIA_ROOT)),
@@ -91,7 +92,7 @@ class JobHandler:
             if program.image is not None:
                 # load default artifact
                 os.makedirs(working_directory_for_upload, exist_ok=True)
-                default_entrypoint_template = get_template("main.py")
+                default_entrypoint_template = get_template("main.tmpl")
                 default_entrypoint_content = default_entrypoint_template.render(
                     {
                         "mount_path": settings.CUSTOM_IMAGE_PACKAGE_PATH,
@@ -99,18 +100,24 @@ class JobHandler:
                     }
                 )
                 with open(
-                    os.path.join(working_directory_for_upload, DEFAULT_PROGRAM_ENTRYPOINT), "w"
+                    os.path.join(
+                        working_directory_for_upload, DEFAULT_PROGRAM_ENTRYPOINT
+                    ),
+                    "w",
+                    encoding="utf-8",
                 ) as entrypoint_file:
                     entrypoint_file.write(default_entrypoint_content)
             elif bool(program.artifact):
                 with tarfile.open(program.artifact.path) as file:
                     file.extractall(working_directory_for_upload)
             else:
-                raise ResourceNotFoundError(f"Program [{program.title}] has no image or artifact associated.")
+                raise ResourceNotFoundError(
+                    f"Program [{program.title}] has no image or artifact associated."
+                )
 
             # get entrypoint
             entrypoint = f"python {program.entrypoint}"
-            
+
             # set tracing
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
@@ -211,7 +218,7 @@ def create_ray_cluster(
     """
     user = job.author
     job_config = job.config
-    
+
     namespace = settings.RAY_KUBERAY_NAMESPACE
     cluster_name = cluster_name or generate_cluster_name(user.username)
     if not cluster_data:
@@ -239,11 +246,11 @@ def create_ray_cluster(
             )
             logger.warning(message)
             node_image = settings.RAY_NODE_IMAGE
-        
+
         # if user specified image use specified image
         if job.program.image is not None:
             node_image = job.program.image
-        
+
         cluster = get_template("rayclustertemplate.yaml")
         manifest = cluster.render(
             {

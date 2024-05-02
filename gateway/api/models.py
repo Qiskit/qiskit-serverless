@@ -1,4 +1,5 @@
 """Models."""
+
 import uuid
 
 from concurrency.fields import IntegerVersionField

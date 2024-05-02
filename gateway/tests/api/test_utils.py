@@ -1,4 +1,5 @@
 """Tests for utilities."""
+
 from unittest.mock import MagicMock
 
 from rest_framework.test import APITestCase

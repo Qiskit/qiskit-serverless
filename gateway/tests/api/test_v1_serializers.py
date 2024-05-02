@@ -122,7 +122,7 @@ class SerializerTest(APITestCase):
         title = "Hello world"
         entrypoint = "main.py"
         arguments = {}
-        dependencies = '[]'
+        dependencies = "[]"
         image = "docker.io/awesome/awesome-image:latest"
 
         data = {}

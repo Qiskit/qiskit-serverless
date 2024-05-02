@@ -460,18 +460,12 @@ class GatewayJobClient(BaseJobClient):
             if program.image is not None:
                 # upload function with custom image
                 program_title = _upload_with_docker_image(
-                    program=program,
-                    url=url,
-                    token=self._token,
-                    span=span
+                    program=program, url=url, token=self._token, span=span
                 )
             elif program.entrypoint is not None:
                 # upload funciton with artifact
                 program_title = _upload_with_artifact(
-                    program=program,
-                    url=url,
-                    token=self._token,
-                    span=span
+                    program=program, url=url, token=self._token, span=span
                 )
             else:
                 raise QuantumServerlessException(
@@ -811,7 +805,9 @@ def _map_status_to_serverless(status: str) -> str:
         return status
 
 
-def _upload_with_docker_image(program: QiskitFunction, url: str, token: str, span: Any) -> str:
+def _upload_with_docker_image(
+    program: QiskitFunction, url: str, token: str, span: Any
+) -> str:
     """Uploads function with custom docker image.
 
     Args:
@@ -842,7 +838,9 @@ def _upload_with_docker_image(program: QiskitFunction, url: str, token: str, spa
     return program_title
 
 
-def _upload_with_artifact(program: QiskitFunction, url: str, token: str, span: Any) -> str:
+def _upload_with_artifact(
+    program: QiskitFunction, url: str, token: str, span: Any
+) -> str:
     """Uploads function with artifact.
 
     Args:
@@ -860,9 +858,7 @@ def _upload_with_artifact(program: QiskitFunction, url: str, token: str, span: A
     artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
 
     # check if entrypoint exists
-    if not os.path.exists(
-        os.path.join(program.working_dir, program.entrypoint)
-    ):
+    if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
         raise QuantumServerlessException(
             f"Entrypoint file [{program.entrypoint}] does not exist "
             f"in [{program.working_dir}] working directory."

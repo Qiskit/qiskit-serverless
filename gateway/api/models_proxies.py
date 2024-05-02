@@ -1,5 +1,6 @@
 """Proxies for database models"""
 
+from typing import List
 import logging
 import requests
 
@@ -57,7 +58,7 @@ class QuantumUserProxy(get_user_model()):  # pylint: disable=too-few-public-meth
             )
         )
 
-    def _get_instances_from_network(self, network) -> list[str]:
+    def _get_instances_from_network(self, network) -> List[str]:
         """
         Returns an array of instances from network configuration.
         Args:

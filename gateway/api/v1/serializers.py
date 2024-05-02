@@ -3,7 +3,6 @@ Serializers api for V1.
 """
 
 from api import serializers
-from rest_framework.serializers import ValidationError
 
 
 class ProgramSerializer(serializers.ProgramSerializer):
@@ -37,7 +36,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "artifact",
             "dependencies",
             "env_vars",
-            "image"
+            "image",
         ]
 
 

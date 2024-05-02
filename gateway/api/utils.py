@@ -1,4 +1,5 @@
 """Utilities."""
+
 import base64
 from collections import OrderedDict
 import inspect
@@ -7,7 +8,7 @@ import logging
 import re
 import time
 import uuid
-from typing import Any, Optional, Tuple, Union, Callable, Dict
+from typing import Any, Optional, Tuple, Union, Callable, Dict, List
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
@@ -220,7 +221,7 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
     return result
 
 
-def remove_duplicates_from_list(original_list: list[Any]) -> list[Any]:
+def remove_duplicates_from_list(original_list: List[Any]) -> List[Any]:
     """Remove duplicates from a list maintining the order.
     Args:
         original_list: list with the original values
