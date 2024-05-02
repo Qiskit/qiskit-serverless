@@ -86,7 +86,7 @@ class SerializerTest(APITestCase):
         serializer = UploadProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
-        self.assertListEqual(["title", "entrypoint", "artifact"], list(errors.keys()))
+        self.assertListEqual(["title"], list(errors.keys()))
 
     def test_upload_program_serializer_fails_at_validation(self):
         path_to_resource_artifact = os.path.join(
@@ -331,7 +331,7 @@ class SerializerTest(APITestCase):
         serializer = RunProgramModelSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
-        self.assertListEqual(["title", "entrypoint", "artifact"], list(errors.keys()))
+        self.assertListEqual(["title"], list(errors.keys()))
 
     def test_run_program_model_serializer_fails_at_validation(self):
         path_to_resource_artifact = os.path.join(
@@ -359,3 +359,16 @@ class SerializerTest(APITestCase):
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
         self.assertListEqual(["dependencies"], list(errors.keys()))
+
+    def test_upload_program_serializer_with_only_title(self):
+        """Tests upload serializer with only title."""
+        data = {"title": "awesome"}
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        errors = serializer.errors
+        self.assertListEqual(["non_field_errors"], list(errors.keys()))
+        self.assertListEqual(
+            ["At least one of attributes (entrypoint, image) is required."],
+            [value[0] for value in errors.values()],
+        )
