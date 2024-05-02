@@ -129,14 +129,13 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
 
         # Groups logic
         user_criteria = Q(user=author)
-        author_criteria = Q(author=author)
         view_permission_criteria = Q(permissions=view_program_permission)
         author_groups_with_view_permissions = Group.objects.filter(
             user_criteria & view_permission_criteria
         )
-        author_groups_with_view_permissions_count = Group.objects.filter(
-            user_criteria & view_permission_criteria
-        ).count()
+        author_groups_with_view_permissions_count = (
+            author_groups_with_view_permissions.count()
+        )
         logger.info(
             "ProgramViewSet get author[%s] groups [%s]",
             author.id,
@@ -144,19 +143,14 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         )
 
         # Programs logic
+        author_criteria = Q(author=author)
         author_groups_with_view_permissions_criteria = Q(
             instances__in=author_groups_with_view_permissions
         )
         author_programs = Program.objects.filter(
             author_criteria | author_groups_with_view_permissions_criteria
         ).distinct()
-        author_programs_count = (
-            Program.objects.filter(
-                author_criteria | author_groups_with_view_permissions_criteria
-            )
-            .distinct()
-            .count()
-        )
+        author_programs_count = author_programs.count()
         logger.info(
             "ProgramViewSet get author[%s] programs[%s]",
             author.id,
