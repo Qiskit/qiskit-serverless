@@ -122,6 +122,7 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
     def get_queryset(self):
         author = self.request.user
 
+        logger.info("ProgramViewSet get view_program permission")
         view_program_permission = Permission.objects.get(
             codename=VIEW_PROGRAM_PERMISSION
         )
@@ -129,12 +130,14 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         user_criteria = Q(user=author)
         author_criteria = Q(author=author)
         view_permission_criteria = Q(permissions=view_program_permission)
+        logger.info("ProgramViewSet get author groups with view permissions")
         author_groups_with_view_permissions = Group.objects.filter(
             user_criteria & view_permission_criteria
         )
         author_groups_with_view_permissions_criteria = Q(
             instances__in=author_groups_with_view_permissions
         )
+        logger.info("ProgramViewSet get programs for authenticated user")
         return Program.objects.filter(
             author_criteria | author_groups_with_view_permissions_criteria
         ).distinct()
