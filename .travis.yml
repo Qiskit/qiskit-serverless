@@ -68,16 +68,6 @@ jobs:
         - make docker/vscan-gateway
 
     - stage: docker image
-      name: docker/vscan-ray-py38
-      language: minimal
-      install: skip
-      services: docker
-      before_script:
-        - .travis/bin/install_docker_buildx.sh
-      script:
-        - make docker/vscan-ray-py38
-
-    - stage: docker image
       name: docker/vscan-ray-py39
       language: minimal
       install: skip
