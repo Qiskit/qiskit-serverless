@@ -41,7 +41,7 @@ from .serializers import (
 )
 
 logger = logging.getLogger("gateway")
-resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})
+resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)
 otel_exporter = BatchSpanProcessor(
     OTLPSpanExporter(

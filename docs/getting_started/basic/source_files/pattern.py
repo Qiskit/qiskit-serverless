@@ -1,7 +1,7 @@
 from qiskit import QuantumCircuit
 from qiskit.primitives import Sampler
 
-from quantum_serverless import save_result
+from qiskit_serverless import save_result
 
 # all print statement will be available in job logs
 print("Running pattern...")

@@ -3,7 +3,7 @@ Cloud infrastructure setup
 ==========================
 
 
-``Quantum Serverless`` is a project that contains different resources. One of the most important ones is the ``client``
+``Qiskit Serverless`` is a project that contains different resources. One of the most important ones is the ``client``
 that you can use to connect with local and non-local resources.
 
 The main purpose of this guide is to explain to you, step-by-step, how to deploy these resources to be able to load and use that
@@ -21,7 +21,7 @@ This guide contains:
 Installation requirements
 =========================
 
-To deploy the infrastructure required for ``Quantum Serverless`` you need to have installed two main tools:
+To deploy the infrastructure required for ``Qiskit Serverless`` you need to have installed two main tools:
 
 * `Docker <https://www.docker.com/>`_
 * `Helm <https://helm.sh/>`_
@@ -70,7 +70,7 @@ In case you want to use the ``main`` branch you can use the configuration for de
 Helm: Use your own cluster locally or in the cloud
 ==================================================
 
-Until now you deployed ``Quantum Serverless`` locally with a default configuration and minimum customization. With
+Until now you deployed ``Qiskit Serverless`` locally with a default configuration and minimum customization. With
 **Helm** you are going to be able to deploy this project with a **production**-ready configuration and make it fully
 customizable on a local or cloud **k8s cluster**.
 
@@ -86,7 +86,7 @@ and run the next commands:
 .. code-block::
    :caption: run this commands with the release version like 0.10.1 in x.y.z (2 places)
 
-        $ helm -n <INSERT_YOUR_NAMESPACE> install quantum-serverless --create-namespace https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/quantum-serverless-x.y.z.tgz
+        $ helm -n <INSERT_YOUR_NAMESPACE> install qiskit-serverless --create-namespace https://github.com/Qiskit-Extensions/qiskit-serverless/releases/download/vx.y.z/qiskit-serverless-x.y.z.tgz
 
 This will deploy the required components to your cluster.
 
@@ -111,7 +111,7 @@ Now that we have the desired services, we can expose their ports:
 Now you may access your cluster services from localhost.
 
 For development this is more than enough, but if you are considering deploying it remotely you will need to
-configure the various ``ingress`` properties in `values.yaml <https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/charts/quantum-serverless/values.yaml>`_
+configure the various ``ingress`` properties in `values.yaml <https://github.com/Qiskit-Extensions/qiskit-serverless/blob/main/charts/qiskit-serverless/values.yaml>`_
 with the configuration of your domain and provider.
 
 * **Important**: ``nginx-ingress-controller`` is disabled by default because third party providers should provide its own Ingress controller. To use it locally you need to activate it too.
@@ -121,4 +121,4 @@ Optionally, you can install an observability package to handle logging and monit
 .. code-block::
    :caption: run this commands with the release version like 0.10.1 in x.y.z (2 places) using the same namespace as in the previous helm command
 
-        $ helm -n <INSERT_YOUR_NAMESPACE> install qs-observability  https://github.com/Qiskit-Extensions/quantum-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz
+        $ helm -n <INSERT_YOUR_NAMESPACE> install qs-observability  https://github.com/Qiskit-Extensions/qiskit-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz

@@ -1,30 +1,30 @@
-[![Stability](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/Qiskit-Extensions/quantum-serverless/releases)
-[![Client verify process](https://github.com/Qiskit-Extensions/quantum-serverless/actions/workflows/client-verify.yaml/badge.svg)](https://github.com/Qiskit-Extensions/quantum-serverless/actions/workflows/client-verify.yaml)
+[![Stability](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/Qiskit-Extensions/qiskit-serverless/releases)
+[![Client verify process](https://github.com/Qiskit-Extensions/qiskit-serverless/actions/workflows/client-verify.yaml/badge.svg)](https://github.com/Qiskit-Extensions/qiskit-serverless/actions/workflows/client-verify.yaml)
 [![License](https://img.shields.io/github/license/qiskit-community/quantum-prototype-template?label=License)](https://github.com/qiskit-community/quantum-prototype-template/blob/main/LICENSE.txt)
 [![Code style: Black](https://img.shields.io/badge/Code%20style-Black-000.svg)](https://github.com/psf/black)
 [![Python](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10-informational)](https://www.python.org/)
 [![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A5%200.39.0-6133BD)](https://github.com/Qiskit/qiskit)
 
-# Quantum Serverless client
+# Qiskit Serverless client
 
-![diagram](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/images/qs_diagram.png)
+![diagram](https://raw.githubusercontent.com/Qiskit-Extensions/qiskit-serverless/main/docs/images/qs_diagram.png)
 
 # Installation
 
 ```shell
-pip install quantum_serverless
+pip install qiskit_serverless
 ```
 
 ## Documentation
 
-Full docs can be found at https://qiskit-extensions.github.io/quantum-serverless/
+Full docs can be found at https://qiskit-extensions.github.io/qiskit-serverless/
 
 ## Usage
 
 ### Step 1: write pattern
 
 ```python
-  from quantum_serverless import distribute_task, get, get_arguments, save_result
+  from qiskit_serverless import distribute_task, get, get_arguments, save_result
 
    from qiskit import QuantumCircuit
    from qiskit.circuit.random import random_circuit
@@ -70,7 +70,7 @@ Full docs can be found at https://qiskit-extensions.github.io/quantum-serverless
 ### Step 2: run pattern
 
 ```python
-   from quantum_serverless import ServerlessProvider, QiskitPattern
+   from qiskit_serverless import ServerlessProvider, QiskitPattern
    from qiskit.circuit.random import random_circuit
 
    serverless = ServerlessProvider(

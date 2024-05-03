@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from quantum_serverless import QiskitPattern
+from qiskit_serverless import QiskitPattern
 
 pattern = QiskitPattern(
     title="pattern-with-dependencies",
@@ -9,7 +9,7 @@ pattern = QiskitPattern(
     dependencies=["qiskit-experiments==0.6.0"],
 )
 
-from quantum_serverless import ServerlessProvider
+from qiskit_serverless import ServerlessProvider
 import os
 
 serverless = ServerlessProvider(

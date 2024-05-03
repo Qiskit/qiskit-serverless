@@ -14,7 +14,7 @@ authors:
   given-names: "Paul"
 - family-names: "Kuroda"
   given-names: "Akihiko"
-title: "Quantum Serverless"
+title: "Qiskit Serverless"
 version: 0.0.3
 date-released: 2023-02-14
-url: "https://github.com/Qiskit-Extensions/quantum-serverless"
+url: "https://github.com/Qiskit-Extensions/qiskit-serverless"

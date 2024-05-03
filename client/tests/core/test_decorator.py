@@ -18,8 +18,8 @@ from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 
 import ray
-from quantum_serverless import get
-from quantum_serverless.core.decorators import (
+from qiskit_serverless import get
+from qiskit_serverless.core.decorators import (
     distribute_task,
     Target,
     fetch_execution_meta,

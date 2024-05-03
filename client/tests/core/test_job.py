@@ -8,12 +8,12 @@ import requests_mock
 
 from qiskit.circuit.random import random_circuit
 
-from quantum_serverless.core.constants import (
+from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
     ENV_JOB_GATEWAY_TOKEN,
 )
-from quantum_serverless.core.job import save_result, GatewayJobClient
+from qiskit_serverless.core.job import save_result, GatewayJobClient
 
 
 class TestJob(TestCase):

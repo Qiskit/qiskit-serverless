@@ -8,7 +8,7 @@ circuit.cx(0, 1)
 circuit.measure_all()
 circuit.draw()
 
-from quantum_serverless import ServerlessProvider, QiskitPattern
+from qiskit_serverless import ServerlessProvider, QiskitPattern
 import os
 
 serverless = ServerlessProvider(

@@ -1,8 +1,8 @@
 # Contributing
 
-Regardless if you are part of the core team or an external contributor, welcome and thank you for contributing to Quantum Serverless!
+Regardless if you are part of the core team or an external contributor, welcome and thank you for contributing to Qiskit Serverless!
 
-In Quantum Serverless, we aim at creating an excellent work-space where all of us can feel welcomed, useful, respected and valued. If you are thinking to contribute to this project, you agree to abide by our [code of conduct](CODE_OF_CONDUCT.md) which we strongly recommend you read before continuing.
+In Qiskit Serverless, we aim at creating an excellent work-space where all of us can feel welcomed, useful, respected and valued. If you are thinking to contribute to this project, you agree to abide by our [code of conduct](CODE_OF_CONDUCT.md) which we strongly recommend you read before continuing.
 
 Following these guidelines communicates you value the time and effort of the core contributors and maintainers of this site and so, thank you!
 
@@ -31,7 +31,7 @@ Following these guidelines communicates you value the time and effort of the cor
 
 ## Start contributing
 
-This repository is for developing and maintaining the Quantum Serverless project.
+This repository is for developing and maintaining the Qiskit Serverless project.
 
 There are many ways of contributing: from catching a typo to coming up with a way
 of improving performance or accessibility; you can open an issue, or you can prepare
@@ -41,7 +41,7 @@ submitting pull requests.
 
 ## Before you start
 
-Contributing to Quantum Serverless assumes you have some level
+Contributing to Qiskit Serverless assumes you have some level
 of [Git](https://git-scm.com) knowledge. For external contributors, a basic understanding
 of repositories, remotes, branches and commits is needed. For core contributors, you
 should know about resolving conflicts and rebasing too.
@@ -51,7 +51,7 @@ There are tons of useful resources about Git [out there](https://try.github.io/)
 
 ## Opening issues
 
-You can [open 3 types of issues](https://github.com/Qiskit-Extensions/quantum-serverless/issues/new/choose):
+You can [open 3 types of issues](https://github.com/Qiskit-Extensions/qiskit-serverless/issues/new/choose):
 
 * Bug reports: for reporting a misfunction. Provide steps to reproduce and expected behaviour.
 * Enhancement request: to suggest improvements to the current code.
@@ -70,17 +70,17 @@ Security vulnerabilities must be privately reported by following our [Security P
 
 You'll need to install these tools on your development environment:
 
-1. [python](https://www.python.org/): the language quantum-serverless is written in (Note that we currently support Python >=3.8,<3.11).
+1. [python](https://www.python.org/): the language qiskit-serverless is written in (Note that we currently support Python >=3.8,<3.11).
 1. [git](https://git-scm.com/): for source control
 1. [docker](https://docs.docker.com/engine/install/) or [podman](https://podman.io/): for building dev environment
 1. [kubectl](https://kubectl.docs.kubernetes.io/): for interacting with Kubernetes clusters
-1. [helm](https://helm.sh/): to install quantum-serverless on Kubernetes
+1. [helm](https://helm.sh/): to install qiskit-serverless on Kubernetes
 1. [tox](https://tox.wiki/en): to run tests and build the documentation
 
 Note: Installing the `pip` and `venv` python libraries will also be useful
 
 #### For non-Linux users
-To simplify the steps required to build and deploy quantum-serverless, we recommend the use of virtual machines for runtime containers.
+To simplify the steps required to build and deploy qiskit-serverless, we recommend the use of virtual machines for runtime containers.
 
 If you are on a Windows machine, it is recommended to use [Windows Subsystem for Linux](https://learn.microsoft.com/en-us/windows/wsl/install).
 
@@ -109,10 +109,10 @@ nerdctl images
 ### Deciding what to work on
 
 To give our collaborators an idea of where the team needs help, we use the
-[help wanted](https://github.com/Qiskit-Extensions/quantum-serverless/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
+[help wanted](https://github.com/Qiskit-Extensions/qiskit-serverless/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
 label – this is appropriate for all contributors. In addition, for those who are relatively new to the open-source
 workflow or our codebase, feel free to view issues tagged with the
-[good first issue](https://github.com/Qiskit-Extensions/quantum-serverless/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
+[good first issue](https://github.com/Qiskit-Extensions/qiskit-serverless/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 label.
 
 
@@ -129,9 +129,9 @@ track this repository. A typical Git setup after
 
 ```sh
 # After forking the repository in GitHub
-git clone https://github.com/<your_username>/quantum-serverless.git
-cd quantum-serverless
-git remote add upstream https://github.com/Qiskit-Extensions/quantum-serverless.git
+git clone https://github.com/<your_username>/qiskit-serverless.git
+cd qiskit-serverless
+git remote add upstream https://github.com/Qiskit-Extensions/qiskit-serverless.git
 git remote set-url --push upstream no_push
 git remote update upstream
 git checkout main
@@ -150,7 +150,7 @@ This repository contains several projects with different technologies. Depending
 - `helm dependency build` for helm (Before running this command, make sure to check for helm configuration instructions specific to your selected project charts).
 -  `terraform init` for terraform.
 
-To set up a local development environment for the quantum-serverless components (including the gateway, repository, ray nodes, etc.) using the latest changes you've made, use `docker compose` or `podman-compose`.
+To set up a local development environment for the qiskit-serverless components (including the gateway, repository, ray nodes, etc.) using the latest changes you've made, use `docker compose` or `podman-compose`.
 
 To build the images, run the following command from the root directory:
 
@@ -220,7 +220,7 @@ git rebase main issue-1234-new-feature
 
 Our team upholds the philosophy that a healthy codebase will include the proper amount of testing.
 From the project you are working on, you can run tests with `tox -epy310`.
-Note if you run this command from quantum-serverless top directory, it will build the project documentation.
+Note if you run this command from qiskit-serverless top directory, it will build the project documentation.
 For detailed testing guidelines using tox environments, please refer to [this documentation](./client/tests/README.md).
 
 As a part of the development backlog planning, we have internal discussions to determine which scenarios should be

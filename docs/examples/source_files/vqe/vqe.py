@@ -19,8 +19,8 @@ from qiskit_ibm_runtime import (
     Sampler,
 )
 
-from quantum_serverless import (
-    QuantumServerless,
+from qiskit_serverless import (
+    QiskitServerless,
     distribute_task,
     get_arguments,
     get,

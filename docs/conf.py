@@ -10,14 +10,14 @@ from importlib.metadata import version as metadata_version
 
 sys.path.append(os.path.abspath("../client"))
 
-project = "Quantum serverless"
+project = "Qiskit Serverless"
 copyright = "2022"  # pylint: disable=redefined-builtin
 author = ""
 
 _rootdir = Path(__file__).parent.parent
 
 # The full version, including alpha/beta/rc tags
-release = metadata_version("quantum_serverless")
+release = metadata_version("qiskit_serverless")
 
 # The X.Y.Z version
 version = ".".join(release.split(".")[:3])
@@ -42,7 +42,7 @@ numfig_format = {"table": "Table %s"}
 language = "en"
 pygments_style = "colorful"
 add_module_names = False
-modindex_common_prefix = ["quantum_serverless_project."]
+modindex_common_prefix = ["qiskit_serverless_project."]
 
 # html theme options
 html_theme = "qiskit-ecosystem"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-from quantum_serverless import ServerlessProvider, QiskitPattern
+from qiskit_serverless import ServerlessProvider, QiskitPattern
 
 serverless = ServerlessProvider(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
