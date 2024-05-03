@@ -7,7 +7,7 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v3
       - name: Install Kind
@@ -31,6 +31,11 @@ jobs:
           docker build -t ray:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-ray-node .
           kind load docker-image ray:test
           docker image rm ray:test
+      - name: Build and load proxy
+        run: |
+          docker build -t proxy:test --build-arg TARGETARCH="amd64" -f ./proxy/Dockerfile .
+          kind load docker-image proxy:test
+          docker image rm proxy:test
       - name: Install helm chart
         run: |
           cd charts/quantum-serverless
@@ -44,6 +49,8 @@ jobs:
             --set gateway.image.repository=gateway \
             --set gateway.image.tag=test \
             --set gateway.application.ray.nodeImage=ray:test \
+            --set gateway.application.ray.proxyImage=proxy:test \
+            --set gateway.application.ray.cpu=1 \
             --set gateway.application.limits.keepClusterOnComplete=false \
             .
       - name: setup python
@@ -77,12 +84,14 @@ jobs:
           cd /home/runner/work/quantum-serverless/quantum-serverless/tests/experimental
           for f in *.py; do echo "$f" && python "$f"; done
       - name: Echo gateway logs
-        if: ${{ failure() }}
         run: |
           GATEWAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep gateway)
           kubectl logs $GATEWAY
+      - name: Echo kuberay logs
+        run: |
+          KUBERAY=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep kuberay)
+          kubectl logs $KUBERAY
       - name: Echo scheduler logs
-        if: ${{ failure() }}
         run: |
           SCHEDULER=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" | grep scheduler)
           kubectl logs $SCHEDULER

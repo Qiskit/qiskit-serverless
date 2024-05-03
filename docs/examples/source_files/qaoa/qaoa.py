@@ -11,7 +11,6 @@ from qiskit.quantum_info import SparsePauliOp
 from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options
 
 from quantum_serverless import (
-    QuantumServerless,
     distribute_task,
     get_arguments,
     get,
@@ -66,11 +65,11 @@ if __name__ == "__main__":
         # if we have service we need to open a session and create sampler
         service = arguments.get("service")
         backend = arguments.get("backend", "ibmq_qasm_simulator")
-        with Session(service=service, backend=backend) as session:
-            options = Options()
-            options.optimization_level = 3
+        session = Session(service=service, backend=backend)
+        options = Options()
+        options.optimization_level = 3
 
-            estimator = Estimator(session=session, options=options)
+        estimator = Estimator(session=session, options=options)
     else:
         # if we do not have a service let's use standart local sampler
         estimator = QiskitEstimator()

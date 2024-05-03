@@ -36,7 +36,7 @@ print(job.status())
 print(job.logs())
 
 
-@distribute_task(target={"cpu": 2})
+@distribute_task(target={"cpu": 1})
 def distributed_sample(circuit: QuantumCircuit):
     """Distributed task that returns quasi distribution for given circuit."""
     return Sampler().run(circuit).result().quasi_dists
