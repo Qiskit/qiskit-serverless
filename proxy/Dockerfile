@@ -4,7 +4,7 @@ FROM python:3.10.12-slim-buster
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-RUN apt-get -y update && apt-get install  --no-install-recommends -y iptables=1.8.2-4 sudo=1.8.27-1+deb10u6 &&\
+RUN apt-get -y update && apt-get install  --no-install-recommends -y iptables=1.8.2-4 &&\
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
