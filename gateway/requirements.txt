@@ -1,5 +1,5 @@
 djangorestframework>=3.14.0
-django-allauth>=0.58.2
+django-allauth>=0.61.1
 django-allow-cidr>=0.7.1
 dj-rest-auth>=5.0.2
 django-csp>=3.8
@@ -13,7 +13,7 @@ psycopg2-binary>=2.9.9
 kubernetes>=26.1.0
 opentelemetry-distro>=0.40b0
 opentelemetry-exporter-otlp>=1.19.0
-django-concurrency>=2.4
+django-concurrency>=2.5
 drf-yasg>=1.21.7
 cryptography>=41.0.1
 # Django dependency, but we need a newer version (IBMQ#246)
