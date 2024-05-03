@@ -11,8 +11,7 @@ RUN apt-get -y update && apt-get install  --no-install-recommends -y iptables=1.
 RUN pip install --upgrade pip==24.0 --no-cache-dir
 
 RUN adduser --disabled-password --gecos '' worker &&\
-    adduser worker sudo &&\
-    echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+    adduser worker
 
 USER worker
 WORKDIR /home/worker
