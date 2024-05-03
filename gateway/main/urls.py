@@ -66,6 +66,8 @@ if settings.DEBUG:
             TemplateView.as_view(template_name="DomainVerification.html"),
         ),
     ]
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 else:
     urlpatterns = [
         path("readiness/", probes.views.readiness, name="readiness"),
@@ -78,5 +80,3 @@ else:
             TemplateView.as_view(template_name="DomainVerification.html"),
         ),
     ]
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
