@@ -8,10 +8,8 @@ RUN apt-get -y update && apt-get install  --no-install-recommends -y iptables=1.
     apt-get clean &&\
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install --upgrade pip==24.0 --no-cache-dir
-
-RUN adduser --disabled-password --gecos '' worker &&\
-    adduser worker
+RUN pip install --upgrade pip==24.0 --no-cache-dir &&\
+    adduser --disabled-password --gecos '' worker
 
 USER worker
 WORKDIR /home/worker
