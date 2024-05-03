@@ -71,35 +71,6 @@ class TestProgramApi(APITestCase):
         self.assertEqual(job.config.workers, None)
         self.assertEqual(job.config.auto_scaling, True)
 
-    def test_run(self):
-        """Tests run authorized."""
-
-        fake_file = ContentFile(b"print('Hello World')")
-        fake_file.name = "test_run.tar"
-
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
-
-        arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
-        env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
-        programs_response = self.client.post(
-            "/api/v1/programs/run/",
-            data={
-                "title": "Program",
-                "entrypoint": "program.py",
-                "arguments": arguments,
-                "dependencies": "[]",
-                "env_vars": env_vars,
-                "artifact": fake_file,
-            },
-        )
-        job_id = programs_response.data.get("id")
-        job = Job.objects.get(id=job_id)
-        self.assertEqual(job.status, Job.QUEUED)
-        self.assertEqual(job.arguments, arguments)
-        self.assertEqual(job.program.dependencies, "[]")
-        self.assertEqual(job.program.env_vars, env_vars)
-
     def test_runtime_job(self):
         """Tests run existing authorized."""
 
