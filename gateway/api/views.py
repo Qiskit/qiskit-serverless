@@ -16,6 +16,8 @@ from wsgiref.util import FileWrapper
 
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
+from django.contrib.auth.models import Group, Permission
+from django.db.models import Q
 from django.http import StreamingHttpResponse
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -29,7 +31,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from utils import sanitize_file_path
 
-from .models import Program, Job, RuntimeJob
+from .models import VIEW_PROGRAM_PERMISSION, Program, Job, RuntimeJob
 from .ray import get_job_handler
 from .serializers import (
     JobConfigSerializer,
@@ -56,9 +58,9 @@ if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
 
-class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ancestors
     """
-    Program ViewSet configuration using ModelViewSet.
+    Program ViewSet configuration using GenericViewSet.
     """
 
     BASE_NAME = "programs"
@@ -114,16 +116,57 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
     def get_serializer_class(self):
         return self.serializer_class
 
+    def get_object(self):
+        logger.warning("ProgramViewSet.get_object not implemented")
+
     def get_queryset(self):
-        # Allow unauthenticated users to read the swagger documentation
-        if self.request.user is None or not self.request.user.is_authenticated:
-            return Program.objects.none()
-        return (
-            Program.objects.all().filter(author=self.request.user).order_by("-created")
+        author = self.request.user
+
+        logger.info("ProgramViewSet get view_program permission")
+        view_program_permission = Permission.objects.get(
+            codename=VIEW_PROGRAM_PERMISSION
         )
 
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        # Groups logic
+        user_criteria = Q(user=author)
+        view_permission_criteria = Q(permissions=view_program_permission)
+        author_groups_with_view_permissions = Group.objects.filter(
+            user_criteria & view_permission_criteria
+        )
+        author_groups_with_view_permissions_count = (
+            author_groups_with_view_permissions.count()
+        )
+        logger.info(
+            "ProgramViewSet get author[%s] groups [%s]",
+            author.id,
+            author_groups_with_view_permissions_count,
+        )
+
+        # Programs logic
+        author_criteria = Q(author=author)
+        author_groups_with_view_permissions_criteria = Q(
+            instances__in=author_groups_with_view_permissions
+        )
+        author_programs = Program.objects.filter(
+            author_criteria | author_groups_with_view_permissions_criteria
+        ).distinct()
+        author_programs_count = author_programs.count()
+        logger.info(
+            "ProgramViewSet get author[%s] programs[%s]",
+            author.id,
+            author_programs_count,
+        )
+
+        return author_programs
+
+    def list(self, request):
+        """List programs:"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.program.list", context=ctx):
+            serializer = self.get_serializer(self.get_queryset(), many=True)
+
+        return Response(serializer.data)
 
     @action(methods=["POST"], detail=False)
     def upload(self, request):

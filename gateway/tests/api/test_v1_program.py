@@ -32,27 +32,11 @@ class TestProgramApi(APITestCase):
         programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("count"), 1)
+        self.assertEqual(len(programs_response.data), 1)
         self.assertEqual(
-            programs_response.data.get("results")[0].get("title"),
+            programs_response.data[0].get("title"),
             "Program",
         )
-
-    def test_program_detail(self):
-        """Tests program detail authorized."""
-
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
-        programs_response = self.client.get(
-            reverse(
-                "v1:programs-detail",
-                args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"],
-            ),
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("title"), "Program")
-        self.assertEqual(programs_response.data.get("entrypoint"), "program.py")
 
     def test_run_existing(self):
         """Tests run existing authorized."""
