@@ -39,7 +39,8 @@ application:
   proxy:
     enabled: true
     cpu: 1
-    memory: 1    
+    memory: 1
+    initImage: alpine:latest
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4

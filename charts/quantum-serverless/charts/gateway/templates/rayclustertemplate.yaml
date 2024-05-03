@@ -69,6 +69,18 @@ data:
                       fieldRef:
                         fieldPath: status.podIP
 {{- end }}
+{{- if .Values.application.proxy.enabled }}
+              - name: iptables
+                image: {{ .Values.application.proxy.initImage }}
+                command: ["sh", "-c", "/var/iptables/iptables.sh"]
+                volumeMounts:
+                  - mountPath: /var/iptables
+                    name: iptables
+                securityContext:
+                  privileged: true
+                  capabilities:
+                    add: ["NET_ADMIN"]
+{{- end }}
             affinity:
             containers:
             - image: {{`{{ node_image }}`| quote  }}
@@ -145,9 +157,6 @@ data:
             - image: {{ .Values.application.ray.proxyImage }}
               securityContext:
                 runAsGroup: 123
-                privileged: true
-                capabilities:
-                  add: ["NET_ADMIN"]
               imagePullPolicy: IfNotPresent
               name: proxy
               resources:
@@ -248,6 +257,15 @@ data:
             - name: user-storage
               persistentVolumeClaim:
                 claimName: {{ .Values.cos.claimName }}
+{{- if .Values.application.proxy.enabled }}
+            - name: iptables
+              configMap:
+                name: proxy-iptables
+                defaultMode: 0777
+                items:
+                - key: iptables.sh
+                  path: iptables.sh
+{{- end }}
       workerGroupSpecs:
       - groupName: g
         maxReplicas: {{`{{ max_workers }}`}}
@@ -265,7 +283,6 @@ data:
             initContainers:
               # Generate worker's private key and certificate before `ray start`.
 {{- if .Values.useCertManager }}
-            initContainers:
               - name: ray-worker-cert
                 image: {{ .Values.application.ray.kubectlImage }}
                 command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_worker.sh /tmp/tls {{`{{ cluster_name }}`}} $POD_IP"]
@@ -296,6 +313,19 @@ data:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
+{{- end }}
+{{- if .Values.application.proxy.enabled }}
+              - name: iptables
+                image: {{ .Values.application.proxy.initImage }}
+                command: ["sh", "-c", "/var/iptables/iptables.sh"]
+                volumeMounts:
+                  - mountPath: /var/iptables
+                    name: iptables
+                securityContext:
+                  privileged: true
+                  capabilities:
+                    add: ["NET_ADMIN"]
+
 {{- end }}
             affinity:
             containers:
@@ -437,9 +467,6 @@ data:
                   memory: {{ .Values.application.proxy.memory }}Gi
               securityContext:
                 runAsGroup: 123
-                privileged: true
-                capabilities:
-                  add: ["NET_ADMIN"]
 {{- end }}
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
@@ -478,3 +505,12 @@ data:
             - name: user-storage
               persistentVolumeClaim:
                 claimName: {{ .Values.cos.claimName }}
+{{- if .Values.application.proxy.enabled }}
+            - name: iptables
+              configMap:
+                name: proxy-iptables
+                defaultMode: 0777
+                items:
+                - key: iptables.sh
+                  path: iptables.sh
+{{- end }}
