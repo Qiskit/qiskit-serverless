@@ -12,9 +12,7 @@ WORKDIR /home/worker
 ENV PATH="/home/worker/.local/bin:${PATH}"
 
 COPY --chown=worker:worker proxy/requirements.txt .
-# hadolint ignore=DL3013
-RUN pip install --upgrade pip --no-cache-dir &&\
-    pip install -r requirements.txt --no-cache-dir
+RUN pip install -r requirements.txt --no-cache-dir
 
 COPY --chown=worker:worker proxy/proxy .
 RUN chmod +x /home/worker/entrypoint.sh
