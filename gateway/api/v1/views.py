@@ -19,6 +19,7 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     """
 
     serializer_class = v1_serializers.ProgramSerializer
+    lookup_field = "title"
     pagination_class = None
     permission_classes = [permissions.IsAuthenticated]
 
@@ -45,6 +46,13 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     @staticmethod
     def get_model_serializer_run_program(*args, **kwargs):
         return v1_serializers.RunProgramModelSerializer(*args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_description="Get a specific Qiskit Patterns",
+        responses={status.HTTP_200_OK: v1_serializers.ProgramSerializer(many=False)},
+    )
+    def retrieve(self, request, title=None):
+        return super().retrieve(request, title)
 
     @swagger_auto_schema(
         operation_description="List author Qiskit Patterns",

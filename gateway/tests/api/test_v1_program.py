@@ -23,6 +23,31 @@ class TestProgramApi(APITestCase):
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_programs_retrieve(self):
+        """Tests program retrieve authorized."""
+
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        program_response = self.client.get(
+            reverse("v1:programs-detail", kwargs={"title": "Program"}), format="json"
+        )
+
+        self.assertEqual(program_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(program_response.data.get("title"), "Program")
+
+    def test_programs_retrieve_404_error(self):
+        """Tests program retrieve authorized."""
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        program_response = self.client.get(
+            reverse("v1:programs-detail", kwargs={"title": "Program"}), format="json"
+        )
+
+        self.assertEqual(program_response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_programs_list(self):
         """Tests programs list authorized."""
 

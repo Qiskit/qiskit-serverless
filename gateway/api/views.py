@@ -117,12 +117,10 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         return self.serializer_class
 
     def get_object(self):
-        logger.warning("ProgramViewSet.get_object not implemented")
-
-    def get_queryset(self):
         author = self.request.user
+        title = self.kwargs["title"]
 
-        logger.info("ProgramViewSet get view_program permission")
+        logger.info("ProgramViewSet.get_object get view_program permission")
         view_program_permission = Permission.objects.get(
             codename=VIEW_PROGRAM_PERMISSION
         )
@@ -137,7 +135,46 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
             author_groups_with_view_permissions.count()
         )
         logger.info(
-            "ProgramViewSet get author[%s] groups [%s]",
+            "ProgramViewSet.get_object get author[%s] groups [%s]",
+            author.id,
+            author_groups_with_view_permissions_count,
+        )
+
+        # Programs logic
+        author_criteria = Q(author=author)
+        title_criteria = Q(title=title)
+        author_groups_with_view_permissions_criteria = Q(
+            instances__in=author_groups_with_view_permissions
+        )
+        author_program = Program.objects.get(
+            title_criteria
+            & (author_criteria | author_groups_with_view_permissions_criteria)
+        )
+        logger.info(
+            "ProgramViewSet.get_object get author[%s] program [%s]", author.id, title
+        )
+
+        return author_program
+
+    def get_queryset(self):
+        author = self.request.user
+
+        logger.info("ProgramViewSet.get_queryset get view_program permission")
+        view_program_permission = Permission.objects.get(
+            codename=VIEW_PROGRAM_PERMISSION
+        )
+
+        # Groups logic
+        user_criteria = Q(user=author)
+        view_permission_criteria = Q(permissions=view_program_permission)
+        author_groups_with_view_permissions = Group.objects.filter(
+            user_criteria & view_permission_criteria
+        )
+        author_groups_with_view_permissions_count = (
+            author_groups_with_view_permissions.count()
+        )
+        logger.info(
+            "ProgramViewSet.get_queryset get author[%s] groups [%s]",
             author.id,
             author_groups_with_view_permissions_count,
         )
@@ -152,12 +189,35 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         ).distinct()
         author_programs_count = author_programs.count()
         logger.info(
-            "ProgramViewSet get author[%s] programs[%s]",
+            "ProgramViewSet.get_queryset get author[%s] programs[%s]",
             author.id,
             author_programs_count,
         )
 
         return author_programs
+
+    def retrieve(self, request, title=None):
+        """Retrieve a program:"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.program.retrieve", context=ctx):
+            author = self.request.user
+            program = None
+            try:
+                program = self.get_object()
+            except Program.DoesNotExist:
+                logger.warning(
+                    "Program not found [%s] for author [%s]",
+                    title,
+                    author.id,
+                )
+                return Response(
+                    {"message": f"Qiskit Function [{title}] not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            serializer = self.get_serializer(program, many=False)
+
+            return Response(serializer.data)
 
     def list(self, request):
         """List programs:"""
@@ -166,7 +226,7 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         with tracer.start_as_current_span("gateway.program.list", context=ctx):
             serializer = self.get_serializer(self.get_queryset(), many=True)
 
-        return Response(serializer.data)
+            return Response(serializer.data)
 
     @action(methods=["POST"], detail=False)
     def upload(self, request):
@@ -221,9 +281,9 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
             title = serializer.data.get("title")
             program = serializer.retrieve_one_by_title(title=title, author=author)
             if program is None:
-                logger.error("Qiskit Pattern [%s] was not found.", title)
+                logger.error("Program [%s] was not found.", title)
                 return Response(
-                    {"message": f"Qiskit Pattern [{title}] was not found."},
+                    {"message": f"Qiskit Function [{title}] not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
@@ -264,7 +324,7 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
             )
             logger.info("Returning Job [%s] created.", job.id)
 
-        return Response(job_serializer.data)
+            return Response(job_serializer.data)
 
     @action(methods=["POST"], detail=False)
     def run(self, request):
@@ -343,7 +403,7 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
             )
             logger.info("Returning Job [%s] created.", job.id)
 
-        return Response(job_serializer.data)
+            return Response(job_serializer.data)
 
 
 class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
