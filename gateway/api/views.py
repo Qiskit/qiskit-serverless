@@ -282,15 +282,16 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             author = request.user
-            title = serializer.data.get("title")
-            program = serializer.retrieve_one_by_title(title=title, author=author)
-            if program is None:
+            title = serializer.validated_data.get("title")
+            try:
+                self.kwargs["title"] = title
+                program = self.get_object()
+            except Program.DoesNotExist:
                 logger.error("Program [%s] was not found.", title)
                 return Response(
                     {"message": f"Qiskit Function [{title}] not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-
             jobconfig = None
             config_json = serializer.data.get("config")
             if config_json:
@@ -346,7 +347,11 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
 
             title = serializer.validated_data.get("title")
             author = request.user
-            program = serializer.retrieve_one_by_title(title=title, author=author)
+            try:
+                self.kwargs["title"] = title
+                program = self.get_object()
+            except Program.DoesNotExist:
+                program = None
             # We need to add request artifact to maintain the reference that the serializer lost
             program_data = serializer.data
             program_data["artifact"] = request.data.get("artifact")

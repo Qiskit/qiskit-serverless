@@ -111,16 +111,6 @@ class RunExistingProgramSerializer(serializers.Serializer):
     arguments = serializers.CharField()
     config = serializers.JSONField()
 
-    def retrieve_one_by_title(self, title, author):
-        """
-        This method returns a Program entry if it finds an entry searching by the title, if not None
-        """
-        return (
-            Program.objects.filter(title=title, author=author)
-            .order_by("-created")
-            .first()
-        )
-
     def update(self, instance, validated_data):
         pass
 
@@ -199,16 +189,6 @@ class RunProgramSerializer(serializers.Serializer):
         representation = super().to_representation(instance)
         representation["config"] = json.loads(representation["config"])
         return representation
-
-    def retrieve_one_by_title(self, title, author):
-        """
-        This method returns a Program entry if it finds an entry searching by the title, if not None
-        """
-        return (
-            Program.objects.filter(title=title, author=author)
-            .order_by("-created")
-            .first()
-        )
 
     def create(self, validated_data):
         pass
