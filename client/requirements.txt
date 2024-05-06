@@ -6,7 +6,7 @@ qiskit-ibm-runtime>=0.21.1
 qiskit-ibm-provider>=0.10.0
 # TODO: make sure ray node and notebook node have the same version of cloudpickle
 cloudpickle==2.2.1
-tqdm>=4.65.0
+tqdm>=4.66.3
 # opentelemetry
 opentelemetry-api>=1.18.0
 opentelemetry-sdk>=1.18.0
