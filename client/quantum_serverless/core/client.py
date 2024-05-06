@@ -354,10 +354,10 @@ class BaseClient(JsonSerializable):
         )
         return self.list(**kwargs)
 
-    def list(self, **kwargs) -> List[QiskitFunction]:
+    def list(self) -> List[QiskitFunction]:
         """Returns list of available programs."""
         raise NotImplementedError
-    
+
     def get(self, title) -> QiskitFunction:
         """Returns a specific program by title."""
         raise NotImplementedError
@@ -487,7 +487,7 @@ class ServerlessClient(BaseClient):
     def list(self) -> List[QiskitFunction]:
         """Returns list of available programs."""
         return self._job_client.get_programs()
-    
+
     def get(self, title) -> QiskitFunction:
         """Returns a specific program by title."""
         return self._job_client.get_program(title)

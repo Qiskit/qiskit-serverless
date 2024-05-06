@@ -146,8 +146,12 @@ class BaseJobClient:
         """Return results."""
         raise NotImplementedError
 
-    def get_programs(self, **kwargs):
+    def get_programs(self):
         """Returns list of programs."""
+        raise NotImplementedError
+
+    def get_program(self, title):
+        """Returns a specific program by title."""
         raise NotImplementedError
 
 
@@ -363,7 +367,7 @@ class LocalJobClient(BaseJobClient):
         self._jobs[job.job_id] = entry
         return job
 
-    def get_programs(self, **kwargs):
+    def get_programs(self):
         """Returns list of programs."""
         return self._patterns
 
@@ -673,7 +677,7 @@ class GatewayJobClient(BaseJobClient):
             QiskitFunction(program.get("title"), raw_data=program, job_client=self)
             for program in response_data
         ]
-    
+
     def get_program(self, title):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("program.get"):
@@ -684,7 +688,9 @@ class GatewayJobClient(BaseJobClient):
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-        return QiskitFunction(response_data.get("title"), raw_data=response_data, job_client=self)
+        return QiskitFunction(
+            response_data.get("title"), raw_data=response_data, job_client=self
+        )
 
 
 class Job:
