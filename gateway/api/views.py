@@ -156,6 +156,20 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
 
         return author_program
 
+    def get_owned_object(self):
+        """This method only retrieves programs where the author is the owner"""
+        author = self.request.user
+        title = self.kwargs["title"]
+
+        program = Program.objects.get(title=title, author=author)
+        logger.info(
+            "ProgramViewSet.get_owned_object get author[%s] program [%s]",
+            author.id,
+            title,
+        )
+
+        return program
+
     def get_queryset(self):
         author = self.request.user
 
@@ -246,8 +260,9 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
             author = request.user
             try:
                 self.kwargs["title"] = title
-                program = self.get_object()
+                program = self.get_owned_object()
             except Program.DoesNotExist:
+                logger.info("Program not found. [%s] is going to be created", title)
                 program = None
             if program is not None:
                 logger.info("Program found. [%s] is going to be updated", title)

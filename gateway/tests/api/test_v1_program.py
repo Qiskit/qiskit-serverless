@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job
+from api.models import Job, Program
 
 
 class TestProgramApi(APITestCase):
@@ -29,12 +29,12 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
 
-        program_response = self.client.get(
+        programs_response = self.client.get(
             reverse("v1:programs-detail", kwargs={"title": "Program"}), format="json"
         )
 
-        self.assertEqual(program_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(program_response.data.get("title"), "Program")
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.data.get("title"), "Program")
 
     def test_programs_retrieve_404_error(self):
         """Tests program retrieve authorized."""
@@ -42,11 +42,11 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
 
-        program_response = self.client.get(
+        programs_response = self.client.get(
             reverse("v1:programs-detail", kwargs={"title": "Program"}), format="json"
         )
 
-        self.assertEqual(program_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_programs_list(self):
         """Tests programs list authorized."""
@@ -62,6 +62,46 @@ class TestProgramApi(APITestCase):
             programs_response.data[0].get("title"),
             "Program",
         )
+
+    def test_upload(self):
+        """Tests upload end-point authorized."""
+
+        program_title = "Program"
+
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        self.assertRaises(
+            Program.DoesNotExist, Program.objects.get, title=program_title, author=user
+        )
+
+        arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
+        env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "Program",
+                "entrypoint": "test_user_2_program.py",
+                "arguments": arguments,
+                "dependencies": "[]",
+                "env_vars": env_vars,
+                "artifact": fake_file,
+            },
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+
+        programs_response = self.client.get(
+            reverse("v1:programs-detail", kwargs={"title": "Program"}), format="json"
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+
+        # We verify that a user doesn't modify other user programs with the same title
+        user = models.User.objects.get(username="test_user")
+        program = Program.objects.get(title=program_title, author=user)
+        self.assertEqual(program.entrypoint, "program.py")
 
     def test_run_existing(self):
         """Tests run existing authorized."""
