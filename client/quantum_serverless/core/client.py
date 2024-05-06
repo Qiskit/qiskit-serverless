@@ -357,6 +357,10 @@ class BaseClient(JsonSerializable):
     def list(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
         raise NotImplementedError
+    
+    def get(self, title) -> QiskitFunction:
+        """Returns a specific program by title."""
+        raise NotImplementedError
 
 
 class BaseProvider(BaseClient):
@@ -480,9 +484,13 @@ class ServerlessClient(BaseClient):
     def file_upload(self, file: str):
         return self._files_client.upload(file)
 
-    def list(self, **kwargs) -> List[QiskitFunction]:
+    def list(self) -> List[QiskitFunction]:
         """Returns list of available programs."""
-        return self._job_client.get_programs(**kwargs)
+        return self._job_client.get_programs()
+    
+    def get(self, title) -> QiskitFunction:
+        """Returns a specific program by title."""
+        return self._job_client.get_program(title)
 
     def _verify_token(self, token: str):
         """Verify token."""
