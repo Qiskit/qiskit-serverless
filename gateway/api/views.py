@@ -244,7 +244,11 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
 
             title = serializer.validated_data.get("title")
             author = request.user
-            program = serializer.retrieve_one_by_title(title=title, author=author)
+            try:
+                self.kwargs["title"] = title
+                program = self.get_object()
+            except Program.DoesNotExist:
+                program = None
             if program is not None:
                 logger.info("Program found. [%s] is going to be updated", title)
                 serializer = self.get_serializer_upload_program(

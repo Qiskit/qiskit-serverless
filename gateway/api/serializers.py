@@ -25,16 +25,6 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     class Meta:
         model = Program
 
-    def retrieve_one_by_title(self, title, author):
-        """
-        This method returns a Program entry if it finds an entry searching by the title, if not None
-        """
-        return (
-            Program.objects.filter(title=title, author=author)
-            .order_by("-created")
-            .first()
-        )
-
     def create(self, validated_data):
         title = validated_data.get("title")
         logger.info("Creating program [%s] with UploadProgramSerializer", title)
