@@ -13,3 +13,4 @@ compute resources.
    local
    cloud
    client_configuration
+   deploying_custom_image_function
