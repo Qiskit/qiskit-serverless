@@ -1,4 +1,4 @@
-from qiskit_serverless import distribute_task, get
+from quantum_serverless import distribute_task, get
 
 
 @distribute_task()
