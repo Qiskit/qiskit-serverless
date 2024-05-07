@@ -86,7 +86,7 @@ class SerializerTest(APITestCase):
         serializer = UploadProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
-        self.assertListEqual(["title", "entrypoint", "artifact"], list(errors.keys()))
+        self.assertListEqual(["title"], list(errors.keys()))
 
     def test_upload_program_serializer_fails_at_validation(self):
         path_to_resource_artifact = os.path.join(
@@ -116,6 +116,25 @@ class SerializerTest(APITestCase):
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
         self.assertListEqual(["dependencies"], list(errors.keys()))
+
+    def test_upload_program_with_custom_iamge(self):
+        """Tests image upload serializer."""
+        title = "Hello world"
+        entrypoint = "main.py"
+        arguments = {}
+        dependencies = "[]"
+        image = "docker.io/awesome/awesome-image:latest"
+
+        data = {}
+        data["title"] = title
+        data["entrypoint"] = entrypoint
+        data["arguments"] = arguments
+        data["dependencies"] = dependencies
+        data["image"] = image
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        self.assertTrue("image" in list(serializer.validated_data.keys()))
 
     def test_run_existing_program_serializer_check_emtpy_data(self):
         data = {}
@@ -312,7 +331,7 @@ class SerializerTest(APITestCase):
         serializer = RunProgramModelSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
-        self.assertListEqual(["title", "entrypoint", "artifact"], list(errors.keys()))
+        self.assertListEqual(["title"], list(errors.keys()))
 
     def test_run_program_model_serializer_fails_at_validation(self):
         path_to_resource_artifact = os.path.join(
@@ -340,3 +359,16 @@ class SerializerTest(APITestCase):
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
         self.assertListEqual(["dependencies"], list(errors.keys()))
+
+    def test_upload_program_serializer_with_only_title(self):
+        """Tests upload serializer with only title."""
+        data = {"title": "awesome"}
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        errors = serializer.errors
+        self.assertListEqual(["non_field_errors"], list(errors.keys()))
+        self.assertListEqual(
+            ["At least one of attributes (entrypoint, image) is required."],
+            [value[0] for value in errors.values()],
+        )

@@ -1,4 +1,5 @@
 """Tests authentication."""
+
 from unittest.mock import MagicMock, patch
 
 import responses

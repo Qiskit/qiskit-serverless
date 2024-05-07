@@ -455,54 +455,22 @@ class GatewayJobClient(BaseJobClient):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
             span.set_attribute("program", program.title)
-
             url = f"{self.host}/api/{self.version}/programs/upload/"
-            artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
 
-            # check if entrypoint exists
-            if not os.path.exists(
-                os.path.join(program.working_dir, program.entrypoint)
-            ):
+            if program.image is not None:
+                # upload function with custom image
+                program_title = _upload_with_docker_image(
+                    program=program, url=url, token=self._token, span=span
+                )
+            elif program.entrypoint is not None:
+                # upload funciton with artifact
+                program_title = _upload_with_artifact(
+                    program=program, url=url, token=self._token, span=span
+                )
+            else:
                 raise QuantumServerlessException(
-                    f"Entrypoint file [{program.entrypoint}] does not exist "
-                    f"in [{program.working_dir}] working directory."
+                    "Function must either have `entryoint` or `image` specified."
                 )
-
-            with tarfile.open(artifact_file_path, "w") as tar:
-                for filename in os.listdir(program.working_dir):
-                    fpath = os.path.join(program.working_dir, filename)
-                    tar.add(fpath, arcname=filename)
-
-            # check file size
-            size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
-            if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
-                raise QuantumServerlessException(
-                    f"{artifact_file_path} is {int(size_in_mb)} Mb, "
-                    f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
-                    f"Try to reduce size of `working_dir`."
-                )
-
-            with open(artifact_file_path, "rb") as file:
-                response_data = safe_json_request(
-                    request=lambda: requests.post(
-                        url=url,
-                        data={
-                            "title": program.title,
-                            "entrypoint": program.entrypoint,
-                            "arguments": json.dumps({}),
-                            "dependencies": json.dumps(program.dependencies or []),
-                            "env_vars": json.dumps(program.env_vars or {}),
-                        },
-                        files={"artifact": file},
-                        headers={"Authorization": f"Bearer {self._token}"},
-                        timeout=REQUESTS_TIMEOUT,
-                    )
-                )
-                program_title = response_data.get("title", "na")
-                span.set_attribute("program.title", program_title)
-
-            if os.path.exists(artifact_file_path):
-                os.remove(artifact_file_path)
 
         return program_title
 
@@ -835,3 +803,101 @@ def _map_status_to_serverless(status: str) -> str:
         return status_map[status]
     except KeyError:
         return status
+
+
+def _upload_with_docker_image(
+    program: QiskitFunction, url: str, token: str, span: Any
+) -> str:
+    """Uploads function with custom docker image.
+
+    Args:
+        program (QiskitFunction): function instance
+        url (str): upload gateway url
+        token (str): auth token
+        span (Any): tracing span
+
+    Returns:
+        str: uploaded function name
+    """
+    response_data = safe_json_request(
+        request=lambda: requests.post(
+            url=url,
+            data={
+                "title": program.title,
+                "image": program.image,
+                "arguments": json.dumps({}),
+                "dependencies": json.dumps(program.dependencies or []),
+                "env_vars": json.dumps(program.env_vars or {}),
+            },
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=REQUESTS_TIMEOUT,
+        )
+    )
+    program_title = response_data.get("title", "na")
+    span.set_attribute("program.title", program_title)
+    return program_title
+
+
+def _upload_with_artifact(
+    program: QiskitFunction, url: str, token: str, span: Any
+) -> str:
+    """Uploads function with artifact.
+
+    Args:
+        program (QiskitFunction): function instance
+        url (str): endpoint for gateway upload
+        token (str): auth token
+        span (Any): tracing span
+
+    Raises:
+        QuantumServerlessException: if no entrypoint or size of artifact is too large.
+
+    Returns:
+        str: uploaded function name
+    """
+    artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
+
+    # check if entrypoint exists
+    if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
+        raise QuantumServerlessException(
+            f"Entrypoint file [{program.entrypoint}] does not exist "
+            f"in [{program.working_dir}] working directory."
+        )
+
+    with tarfile.open(artifact_file_path, "w") as tar:
+        for filename in os.listdir(program.working_dir):
+            fpath = os.path.join(program.working_dir, filename)
+            tar.add(fpath, arcname=filename)
+
+    # check file size
+    size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
+    if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
+        raise QuantumServerlessException(
+            f"{artifact_file_path} is {int(size_in_mb)} Mb, "
+            f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
+            f"Try to reduce size of `working_dir`."
+        )
+
+    with open(artifact_file_path, "rb") as file:
+        response_data = safe_json_request(
+            request=lambda: requests.post(
+                url=url,
+                data={
+                    "title": program.title,
+                    "entrypoint": program.entrypoint,
+                    "arguments": json.dumps({}),
+                    "dependencies": json.dumps(program.dependencies or []),
+                    "env_vars": json.dumps(program.env_vars or {}),
+                },
+                files={"artifact": file},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        program_title = response_data.get("title", "na")
+        span.set_attribute("program.title", program_title)
+
+    if os.path.exists(artifact_file_path):
+        os.remove(artifact_file_path)
+
+    return program_title
