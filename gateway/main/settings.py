@@ -307,7 +307,7 @@ LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 
 # ray cluster management
-RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "quantum-serverless")
+RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE = {
     "local": int(os.environ.get("RAY_CLUSTER_MODE_LOCAL", 0)),
     "ray_local_host": os.environ.get(
@@ -315,7 +315,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.10.1-py310"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless-ray-node:0.10.1-py310"
 )
 RAY_NODE_IMAGES_MAP = {
     "default": RAY_NODE_IMAGE,

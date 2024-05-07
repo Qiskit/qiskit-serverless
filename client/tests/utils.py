@@ -1,8 +1,8 @@
 """Test utils."""
 import time
 
-from quantum_serverless import BaseClient
-from quantum_serverless.core.job import Job
+from qiskit_serverless import BaseClient
+from qiskit_serverless.core.job import Job
 
 
 def wait_for_job_client(serverless: BaseClient, timeout: int = 60):

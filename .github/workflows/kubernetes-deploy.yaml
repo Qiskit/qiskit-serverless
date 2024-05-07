@@ -38,7 +38,7 @@ jobs:
           docker image rm proxy:test
       - name: Install helm chart
         run: |
-          cd charts/quantum-serverless
+          cd charts/qiskit-serverless
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo add kuberay https://ray-project.github.io/kuberay-helm
           helm dependency build

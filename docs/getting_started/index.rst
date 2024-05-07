@@ -4,7 +4,7 @@
 Getting started
 ===============
 
-This section includes guides for using the basic features of Quantum Serverless to run a program remotely.
+This section includes guides for using the basic features of Qiskit Serverless to run a program remotely.
 
 **Basic Usage**
 

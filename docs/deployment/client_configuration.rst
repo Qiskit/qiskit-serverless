@@ -2,7 +2,7 @@
 Client configuration
 ====================
 
-Quantum Serverless has a client-server architecture,
+Qiskit Serverless has a client-server architecture,
 which means that in order to interact with computational
 resources, you need to have the client library
 installed on your machine and configured to communicate with the provider.
@@ -11,7 +11,7 @@ To install the client library, run:
 
 .. code-block::
 
-        pip install quantum_serverless
+        pip install qiskit_serverless
 
 
 Next, we need to configure the client to communicate with the provider.
@@ -33,7 +33,7 @@ you can start configuring the client:
 
 .. code-block::
 
-		from quantum_serverless import QuantumServerless, ServerlessProvider
+		from qiskit_serverless import QiskitServerless, ServerlessProvider
 
 		provider = ServerlessProvider(
 			username="<USERNAME>",
@@ -41,7 +41,7 @@ you can start configuring the client:
 			host="<HOST>",
 		)
 
-		client = QuantumServerless(provider)
+		client = QiskitServerless(provider)
 
 With this configuration in place, you can run your programs
 against the provider.

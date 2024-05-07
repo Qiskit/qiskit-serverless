@@ -23,7 +23,7 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
-    resource = Resource(attributes={SERVICE_NAME: f"QuantumServerless-Gateway"})
+    resource = Resource(attributes={SERVICE_NAME: f"QiskitServerless-Gateway"})
     provider = TracerProvider(resource=resource)
     otel_exporter = BatchSpanProcessor(
         OTLPSpanExporter(

@@ -10,9 +10,9 @@ else
 	arch="amd64"
 endif
 
-rayNodeImageName=$(repository)/quantum-serverless-ray-node
-gatewayImageName=$(repository)/quantum-serverless-gateway
-proxyImageName=$(repository)/quantum-serverless-proxy
+rayNodeImageName=$(repository)/qiskit-serverless-ray-node
+gatewayImageName=$(repository)/qiskit-serverless-gateway
+proxyImageName=$(repository)/qiskit-serverless-proxy
 
 # =============
 # Docker images

@@ -1,4 +1,4 @@
-Quantum serverless gateway
+Qiskit Serverless gateway
 ==========================
 
 Gateway is a set of apis that are used as a backend for providers.
@@ -6,7 +6,7 @@ Gateway is a set of apis that are used as a backend for providers.
 ### Build image
 
 ```shell
-docker build -t qiskit/quantum-serverless-gateway:<VERSION> .
+docker build -t qiskit/qiskit-serverless-gateway:<VERSION> .
 ```
 
 ### Env variables for container

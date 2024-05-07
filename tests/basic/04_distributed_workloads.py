@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from quantum_serverless import ServerlessProvider
+from qiskit_serverless import ServerlessProvider
 import os
 
 serverless = ServerlessProvider(
@@ -17,7 +17,7 @@ circuits = [random_circuit(2, 2) for _ in range(3)]
 print(circuits)
 
 
-from quantum_serverless import QiskitPattern
+from qiskit_serverless import QiskitPattern
 
 pattern = QiskitPattern(
     title="pattern-with-parallel-workflow",

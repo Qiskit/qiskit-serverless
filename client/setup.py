@@ -1,4 +1,4 @@
-"""Setup file for Quantum Serverless client."""
+"""Setup file for Qiskit Serverless client."""
 import os
 import setuptools
 
@@ -9,18 +9,18 @@ with open("requirements.txt") as f:
     install_requires = f.read().splitlines()
 
 version_path = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "quantum_serverless", "VERSION.txt")
+    os.path.join(os.path.dirname(__file__), "qiskit_serverless", "VERSION.txt")
 )
 
 with open(version_path, "r") as fd:
     version = fd.read().rstrip()
 
 setuptools.setup(
-    name="quantum_serverless",
+    name="qiskit_serverless",
     description="",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    keywords="quantum serverless qiskit",
+    keywords="qiskit serverless quantum computing",
     packages=setuptools.find_packages(),
     install_requires=install_requires,
     python_requires=">=3.8",

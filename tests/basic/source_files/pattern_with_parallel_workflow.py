@@ -1,6 +1,6 @@
 # source_files/program_with_parallel_workflow.py
 
-from quantum_serverless import get_arguments, save_result, distribute_task, get
+from qiskit_serverless import get_arguments, save_result, distribute_task, get
 
 from qiskit import QuantumCircuit
 from qiskit.primitives import Sampler

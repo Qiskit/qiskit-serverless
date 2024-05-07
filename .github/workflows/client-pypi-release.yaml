@@ -26,9 +26,9 @@ jobs:
         shell: bash
       - uses: actions/upload-artifact@v3
         with:
-          path: ./client/dist/quantum_serverless*
+          path: ./client/dist/qiskit_serverless*
       - name: Publish to PyPi
         env:
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        run: twine upload client/dist/quantum_serverless*
+        run: twine upload client/dist/qiskit_serverless*

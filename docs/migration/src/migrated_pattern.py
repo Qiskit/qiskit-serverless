@@ -6,7 +6,7 @@ from qiskit import transpile
 from qiskit.circuit.random import random_circuit
 from qiskit.primitives import Sampler
 
-from quantum_serverless import get_arguments, save_result
+from qiskit_serverless import get_arguments, save_result
 
 
 def prepare_circuits():

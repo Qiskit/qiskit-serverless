@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from quantum_serverless import ServerlessProvider
+from qiskit_serverless import ServerlessProvider
 import os
 
 serverless = ServerlessProvider(
@@ -9,7 +9,7 @@ serverless = ServerlessProvider(
 )
 print(serverless)
 
-from quantum_serverless import QiskitPattern
+from qiskit_serverless import QiskitPattern
 
 pattern = QiskitPattern(
     title="pattern-to-fetch-results", entrypoint="pattern.py", working_dir="./source_files/"

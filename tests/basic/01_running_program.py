@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from quantum_serverless import ServerlessProvider, QiskitPattern
+from qiskit_serverless import ServerlessProvider, QiskitPattern
 import os
 
 
