@@ -46,7 +46,7 @@ class TestProgramApi(APITestCase):
 
         arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
         programs_response = self.client.post(
-            "/api/v1/programs/run_existing/",
+            "/api/v1/programs/run/",
             data={
                 "title": "Program",
                 "entrypoint": "program.py",
