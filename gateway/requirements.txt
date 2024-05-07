@@ -18,4 +18,5 @@ drf-yasg>=1.21.7
 cryptography>=41.0.1
 # Django dependency, but we need a newer version (IBMQ#246)
 sqlparse>=0.5.0
-
+qiskit_ibm_runtime
+quantum_serverless
