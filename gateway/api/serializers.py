@@ -118,7 +118,7 @@ class JobSerializer(serializers.ModelSerializer):
         model = Job
 
 
-class RunExistingProgramSerializer(serializers.Serializer):
+class RunProgramSerializer(serializers.Serializer):
     """
     Program serializer for the /run_existing end-point
     """

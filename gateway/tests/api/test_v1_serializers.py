@@ -10,7 +10,7 @@ from rest_framework.test import APITestCase
 from api.v1.serializers import (
     JobConfigSerializer,
     UploadProgramSerializer,
-    RunExistingProgramSerializer,
+    RunProgramSerializer,
     RunJobSerializer,
 )
 from api.models import JobConfig, Program
@@ -137,7 +137,7 @@ class SerializerTest(APITestCase):
     def test_run_existing_program_serializer_check_emtpy_data(self):
         data = {}
 
-        serializer = RunExistingProgramSerializer(data=data)
+        serializer = RunProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
         self.assertListEqual(["title", "arguments", "config"], list(errors.keys()))
@@ -149,7 +149,7 @@ class SerializerTest(APITestCase):
             "config": {},
         }
 
-        serializer = RunExistingProgramSerializer(data=data)
+        serializer = RunProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
         self.assertListEqual(["arguments"], list(errors.keys()))
@@ -167,7 +167,7 @@ class SerializerTest(APITestCase):
             "config": assert_json,
         }
 
-        serializer = RunExistingProgramSerializer(data=data)
+        serializer = RunProgramSerializer(data=data)
         self.assertTrue(serializer.is_valid())
 
         config = serializer.data.get("config")

@@ -51,7 +51,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         ]
 
 
-class RunExistingProgramSerializer(serializers.RunExistingProgramSerializer):
+class RunProgramSerializer(serializers.RunProgramSerializer):
     """
     RunExistingProgramSerializer is used by the /upload end-point
     """
