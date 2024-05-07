@@ -12,7 +12,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
-from .models import Program, Job, JobConfig, RuntimeJob
+from .models import Program, Job, JobConfig, RuntimeJob, DEFAULT_PROGRAM_ENTRYPOINT
 
 logger = logging.getLogger("gateway.serializers")
 
@@ -21,6 +21,9 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     """
     Program serializer for the /upload end-point
     """
+
+    entrypoint = serializers.CharField(required=False)
+    image = serializers.CharField(required=False)
 
     class Meta:
         model = Program
@@ -48,11 +51,14 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         logger.info(
             "Updating program [%s] with UploadProgramSerializer", instance.title
         )
-        instance.entrypoint = validated_data.get("entrypoint")
+        instance.entrypoint = validated_data.get(
+            "entrypoint", DEFAULT_PROGRAM_ENTRYPOINT
+        )
         instance.dependencies = validated_data.get("dependencies", "[]")
         instance.env_vars = validated_data.get("env_vars", {})
         instance.artifact = validated_data.get("artifact")
         instance.author = validated_data.get("author")
+        instance.image = validated_data.get("image")
         instance.save()
         return instance
 
@@ -254,5 +260,6 @@ class RunProgramModelSerializer(serializers.ModelSerializer):
         instance.env_vars = validated_data.get("env_vars", {})
         instance.artifact = validated_data.get("artifact")
         instance.author = validated_data.get("author")
+        instance.image = validated_data.get("image")
         instance.save()
         return instance

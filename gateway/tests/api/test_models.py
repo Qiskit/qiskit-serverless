@@ -1,6 +1,5 @@
 """Tests for models."""
 
-
 from rest_framework.test import APITestCase
 
 from api.models import Job
