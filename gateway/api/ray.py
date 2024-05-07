@@ -127,13 +127,16 @@ class JobHandler:
             except KeyError:
                 pass
 
-            # submit job
+            env = decrypt_env_vars(env_w_span)
+            env[
+                "QISKIT_IBM_RUNTIME_CUSTOM_CLIENT_APP_HEADER"
+            ] = "middleware_job_id/" + str(job.id)
             ray_job_id = retry_function(
                 callback=lambda: self.client.submit_job(
                     entrypoint=entrypoint,
                     runtime_env={
                         "working_dir": working_directory_for_upload,
-                        "env_vars": decrypt_env_vars(env_w_span),
+                        "env_vars": env,
                         "pip": dependencies or [],
                     },
                 ),

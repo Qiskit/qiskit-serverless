@@ -69,6 +69,18 @@ data:
                       fieldRef:
                         fieldPath: status.podIP
 {{- end }}
+{{- if .Values.application.proxy.enabled }}
+              - name: iptables
+                image: {{ .Values.application.proxy.initImage }}
+                command: ["sh", "-c", "/var/iptables/iptables.sh"]
+                volumeMounts:
+                  - mountPath: /var/iptables
+                    name: iptables
+                securityContext:
+                  privileged: true
+                  capabilities:
+                    add: ["NET_ADMIN"]
+{{- end }}
             affinity:
             containers:
             - image: {{`{{ node_image }}`| quote  }}
@@ -141,21 +153,70 @@ data:
                 - name: OT_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
 {{- end }}
-            - image: fluent/fluent-bit:1.9.10
-              name: ray-head-logs
+{{- if .Values.application.proxy.enabled }}
+            - image: {{ .Values.application.ray.proxyImage }}
+              securityContext:
+                runAsGroup: 123
+              imagePullPolicy: IfNotPresent
+              name: proxy
               resources:
                 limits:
-                  cpu: 100m
-                  memory: 128Mi
-                requests:
-                  cpu: 100m
-                  memory: 128Mi
+                  cpu: {{ .Values.application.proxy.cpu }}
+                  memory: {{ .Values.application.proxy.memory }}Gi
               volumeMounts:
               - mountPath: /tmp/ray
                 name: log-volume
-              - mountPath: /fluent-bit/etc/fluent-bit.conf
-                name: fluentbit-config
-                subPath: fluent-bit.conf
+              - mountPath: /etc/ca/tls
+                name: ca-tls
+                readOnly: true
+              - mountPath: /etc/ray/tls
+                name: ray-tls
+{{- if .Values.useCertManager }}
+              - mountPath: /tmp/tls
+                name: cert-tls
+{{- end }}
+              - mountPath: /data
+                name: user-storage
+                subPath: {{`{{ user_id }}`}}
+              env:
+                # Environment variables for Ray TLS authentication.
+                # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
+                - name: DST_PROTOCOL
+                  value: "https"
+                - name: GATEWAY_URL
+                  value: "gateway:8000"
+                - name: RAY_USE_TLS
+                  value: "1"
+{{- if .Values.useCertManager }}
+                - name: RAY_TLS_SERVER_CERT
+                  value: "/tmp/tls/tls.crt"
+                - name: RAY_TLS_SERVER_KEY
+                  value: "/tmp/tls/tls.key"
+                - name: RAY_TLS_CA_CERT
+                  value: "/tmp/tls/ca.crt"
+{{- else }}
+                - name: RAY_TLS_SERVER_CERT
+                  value: "/etc/ray/tls/tls.crt"
+                - name: RAY_TLS_SERVER_KEY
+                  value: "/etc/ray/tls/tls.key"
+                - name: RAY_TLS_CA_CERT
+                  value: "/etc/ca/tls/ca.crt"
+{{- end }}
+{{- if .Values.application.ray.openTelemetry }}
+                - name: OT_RAY_TRACER
+                  value: "1"
+{{- end }}
+{{- if .Values.application.ray.openTelemetryCollector.local }}
+                - name: OT_JAEGER_HOST_KEY
+                  value: {{ .Values.application.ray.openTelemetryCollector.host }}
+                - name: OT_JAEGER_PORT_KEY
+                  value: {{ .Values.application.ray.openTelemetryCollector.port | quote }}
+                - name: OT_INSECURE
+                  value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
+                - name: OT_ENABLED
+                  value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
+{{- end }}
+{{- end }}
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
             serviceAccountName: ray-cluster-sa
@@ -163,6 +224,8 @@ data:
 {{- end }}
             nodeSelector:
             tolerations: []
+            securityContext:
+              fsGroup: 123
             volumes:
             - emptyDir:
               name: log-volume
@@ -194,6 +257,15 @@ data:
             - name: user-storage
               persistentVolumeClaim:
                 claimName: {{ .Values.cos.claimName }}
+{{- if .Values.application.proxy.enabled }}
+            - name: iptables
+              configMap:
+                name: proxy-iptables
+                defaultMode: 0777
+                items:
+                - key: iptables.sh
+                  path: iptables.sh
+{{- end }}
       workerGroupSpecs:
       - groupName: g
         maxReplicas: {{`{{ max_workers }}`}}
@@ -211,7 +283,6 @@ data:
             initContainers:
               # Generate worker's private key and certificate before `ray start`.
 {{- if .Values.useCertManager }}
-            initContainers:
               - name: ray-worker-cert
                 image: {{ .Values.application.ray.kubectlImage }}
                 command: ["/bin/sh", "-c", "/etc/gen/tls/gencert_cert_worker.sh /tmp/tls {{`{{ cluster_name }}`}} $POD_IP"]
@@ -242,6 +313,19 @@ data:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
+{{- end }}
+{{- if .Values.application.proxy.enabled }}
+              - name: iptables
+                image: {{ .Values.application.proxy.initImage }}
+                command: ["sh", "-c", "/var/iptables/iptables.sh"]
+                volumeMounts:
+                  - mountPath: /var/iptables
+                    name: iptables
+                securityContext:
+                  privileged: true
+                  capabilities:
+                    add: ["NET_ADMIN"]
+
 {{- end }}
             affinity:
             containers:
@@ -313,6 +397,77 @@ data:
                   cpu: {{ .Values.application.ray.cpu }}
                   memory: {{ .Values.application.ray.memory }}Gi
               securityContext:
+{{- if .Values.application.proxy.enabled }}
+            - resources:
+                limits:
+                  cpu: 1
+                  memory: 2G
+                requests:
+                  cpu: 1
+                  memory: 2G
+              volumeMounts:
+              - mountPath: /tmp/ray
+                name: log-volume
+              - mountPath: /etc/ca/tls
+                name: ca-tls
+                readOnly: true
+              - mountPath: /etc/ray/tls
+                name: ray-tls
+              - mountPath: /data
+                name: user-storage
+                subPath: {{`{{ user_id }}`}}
+{{- if .Values.useCertManager }}
+              - mountPath: /tmp/tls
+                name: cert-tls
+{{- end }}
+              env:
+                # Environment variables for Ray TLS authentication.
+                # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
+                - name: DST_PROTOCOL
+                  value: "https"
+                - name: GATEWAY_URL
+                  value: "gateway:8000"
+                - name: RAY_USE_TLS
+                  value: "1"
+{{- if .Values.useCertManager }}
+                - name: RAY_TLS_SERVER_CERT
+                  value: "/tmp/tls/tls.crt"
+                - name: RAY_TLS_SERVER_KEY
+                  value: "/tmp/tls/tls.key"
+                - name: RAY_TLS_CA_CERT
+                  value: "/tmp/tls/ca.crt"
+{{- else }}
+                - name: RAY_TLS_SERVER_CERT
+                  value: "/etc/ray/tls/tls.crt"
+                - name: RAY_TLS_SERVER_KEY
+                  value: "/etc/ray/tls/tls.key"
+                - name: RAY_TLS_CA_CERT
+                  value: "/etc/ca/tls/ca.crt"
+{{- end }}
+{{- if .Values.application.ray.openTelemetry }}
+                - name: OT_RAY_TRACER
+                  value: "1"
+{{- end }}
+{{- if .Values.application.ray.openTelemetryCollector.local }}
+                - name: OT_JAEGER_HOST_KEY
+                  value: {{ .Values.application.ray.openTelemetryCollector.host }}
+                - name: OT_JAEGER_PORT_KEY
+                  value: {{ .Values.application.ray.openTelemetryCollector.port | quote }}
+                - name: OT_INSECURE
+                  value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
+                - name: OT_ENABLED
+                  value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
+{{- end }}
+              image: {{ .Values.application.ray.proxyImage }}
+              imagePullPolicy: IfNotPresent
+              name: proxy
+              resources:
+                limits:
+                  cpu: {{ .Values.application.proxy.cpu }}
+                  memory: {{ .Values.application.proxy.memory }}Gi
+              securityContext:
+                runAsGroup: 123
+{{- end }}
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
             serviceAccountName: ray-cluster-sa
@@ -320,6 +475,8 @@ data:
 {{- end }}
             nodeSelector:
             tolerations: []
+            securityContext:
+              fsGroup: 123
             volumes:
             - emptyDir:
               name: log-volume
@@ -348,3 +505,12 @@ data:
             - name: user-storage
               persistentVolumeClaim:
                 claimName: {{ .Values.cos.claimName }}
+{{- if .Values.application.proxy.enabled }}
+            - name: iptables
+              configMap:
+                name: proxy-iptables
+                defaultMode: 0777
+                items:
+                - key: iptables.sh
+                  path: iptables.sh
+{{- end }}
