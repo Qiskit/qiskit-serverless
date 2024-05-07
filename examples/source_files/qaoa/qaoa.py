@@ -10,7 +10,7 @@ from qiskit.quantum_info import SparsePauliOp
 
 from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options
 
-from quantum_serverless import (
+from qiskit_serverless import (
     distribute_task,
     get_arguments,
     get,

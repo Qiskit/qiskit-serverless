@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.QiskitServerlessException
+============================================
+
+.. currentmodule:: qiskit_serverless
+
+.. autoexception:: QiskitServerlessException

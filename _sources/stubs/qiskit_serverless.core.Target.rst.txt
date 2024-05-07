@@ -1,0 +1,36 @@
+﻿qiskit\_serverless.core.Target
+==============================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autoclass:: Target
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Target.__init__
+      ~Target.from_dict
+      ~Target.to_dict
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Target.cpu
+      ~Target.env_vars
+      ~Target.gpu
+      ~Target.mem
+      ~Target.pip
+      ~Target.qpu
+      ~Target.resources
+   
+   

@@ -1,0 +1,33 @@
+﻿qiskit\_serverless.core.RayJobClient
+====================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autoclass:: RayJobClient
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~RayJobClient.__init__
+      ~RayJobClient.filtered_logs
+      ~RayJobClient.get
+      ~RayJobClient.get_programs
+      ~RayJobClient.list
+      ~RayJobClient.logs
+      ~RayJobClient.result
+      ~RayJobClient.run
+      ~RayJobClient.run_existing
+      ~RayJobClient.status
+      ~RayJobClient.stop
+      ~RayJobClient.upload
+   
+   
+
+   
+   
+   

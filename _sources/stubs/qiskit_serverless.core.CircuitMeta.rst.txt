@@ -1,0 +1,30 @@
+﻿qiskit\_serverless.core.CircuitMeta
+===================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autoclass:: CircuitMeta
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~CircuitMeta.__init__
+      ~CircuitMeta.to_seq
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~CircuitMeta.num_qubits
+      ~CircuitMeta.depth
+   
+   

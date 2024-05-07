@@ -1,0 +1,41 @@
+﻿qiskit\_serverless.core.RayClient
+=================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autoclass:: RayClient
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~RayClient.__init__
+      ~RayClient.context
+      ~RayClient.create_compute_resource
+      ~RayClient.delete_compute_resource
+      ~RayClient.download
+      ~RayClient.file_delete
+      ~RayClient.file_download
+      ~RayClient.file_upload
+      ~RayClient.files
+      ~RayClient.from_dict
+      ~RayClient.get_compute_resources
+      ~RayClient.get_job_by_id
+      ~RayClient.get_jobs
+      ~RayClient.get_programs
+      ~RayClient.job_client
+      ~RayClient.list
+      ~RayClient.run
+      ~RayClient.to_dict
+      ~RayClient.upload
+      ~RayClient.widget
+   
+   
+
+   
+   
+   

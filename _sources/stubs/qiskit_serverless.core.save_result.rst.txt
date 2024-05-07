@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.core.save\_result
+====================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autofunction:: save_result

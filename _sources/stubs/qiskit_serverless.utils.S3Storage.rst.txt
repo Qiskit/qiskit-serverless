@@ -1,0 +1,24 @@
+﻿qiskit\_serverless.utils.S3Storage
+==================================
+
+.. currentmodule:: qiskit_serverless.utils
+
+.. autoclass:: S3Storage
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~S3Storage.__init__
+      ~S3Storage.load
+      ~S3Storage.save
+   
+   
+
+   
+   
+   

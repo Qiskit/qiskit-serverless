@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.core.get
+===========================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autofunction:: get

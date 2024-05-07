@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.core.distribute\_program
+===========================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autofunction:: distribute_program

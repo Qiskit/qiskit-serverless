@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.core.fetch\_execution\_meta
+==============================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autofunction:: fetch_execution_meta

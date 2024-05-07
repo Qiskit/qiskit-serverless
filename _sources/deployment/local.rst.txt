@@ -6,7 +6,7 @@ Local infrastructure setup
 
 Step 1: Create a Python environment and clone the repository
 
-The ``quantum-serverless`` repository contains some Dockerfiles which make spinning up a test cluster
+The ``qiskit-serverless`` repository contains some Dockerfiles which make spinning up a test cluster
 on your local machine straightforward. The first thing we will do is clone the repository.
 
 .. code-block::
@@ -26,21 +26,21 @@ on your local machine straightforward. The first thing we will do is clone the r
       c:\path\to\virtual\environment\Scripts\Activate.ps1
 
 .. code-block::
-   :caption: Clone the Quantum Serverless repository.
+   :caption: Clone the Qiskit Serverless repository.
 
       cd /path/to/workspace/
-      git clone git@github.com:Qiskit-Extensions/quantum-serverless.git
+      git clone git@github.com:Qiskit-Extensions/qiskit-serverless.git
 
 Step 2: Set up Docker
 
-To set up Quantum Serverless on your local machine, you will need to use `docker compose`_.
+To set up Qiskit Serverless on your local machine, you will need to use `docker compose`_.
 
 .. _docker compose: https://docs.docker.com/compose/
 
 Step 3: Initiate the test cluster
 
 Once you have Docker and docker compose installed, you can run the following command from the root of the
-``quantum-serverless`` repository to set up the infrastructure:
+``qiskit-serverless`` repository to set up the infrastructure:
 
 .. code-block::
 

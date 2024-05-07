@@ -1,0 +1,30 @@
+﻿qiskit\_serverless.utils.ErrorCodes
+===================================
+
+.. currentmodule:: qiskit_serverless.utils
+
+.. autoclass:: ErrorCodes
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ErrorCodes.__init__
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ErrorCodes.AUTH1001
+      ~ErrorCodes.HTTP_STD_ERROR
+      ~ErrorCodes.JSON1001
+   
+   

@@ -1,0 +1,1237 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
+
+    <!-- Generated with Sphinx 7.1.2 and Furo 2024.01.29 -->
+        <title>qiskit_serverless.core.job - Qiskit Serverless 0.10.1</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=82a976d7" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/qiskit-sphinx-theme.css?v=fe84956c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/qiskit-ecosystem.css?v=745c5aa7" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=36a5483c" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #ffffff;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+<script src="../../../_static/js/web-components/top-nav-bar.js"></script></head>
+  <body>
+    
+    <script>document.body.dataset.theme = "light";</script>
+    
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg id="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+      <defs><style>.cls-1{fill:none;}</style></defs>
+      <path d="M28,4H4A2,2,0,0,0,2,6V26a2,2,0,0,0,2,2H28a2,2,0,0,0,2-2V6A2,2,0,0,0,28,4ZM4,6H20V26H4ZM28,26H22V6h6Z"/>
+      <rect id="_Transparent_Rectangle_" data-name="&lt;Transparent Rectangle&gt;" class="cls-1" width="32" height="32"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg id="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+      <defs><style>.cls-1{fill:none;}</style></defs>
+      <rect x="4" y="6" width="24" height="2"/>
+      <rect x="4" y="24" width="24" height="2"/>
+      <rect x="4" y="12" width="24" height="2"/>
+      <rect x="4" y="18" width="24" height="2"/>
+      <rect id="_Transparent_Rectangle_" data-name="&lt;Transparent Rectangle&gt;" class="cls-1" width="32" height="32"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg version="1.1" id="icon" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"
+         viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve"><polygon points="22,16 12,26 10.6,24.6 19.2,16 10.6,7.4 12,6 " stroke="currentColor"/>
+      <rect id="_x3C_Transparent_Rectangle_x3E_" fill="none" width="32" height="32"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-new-tab" viewBox="0 0 32 32">
+    <svg id="icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+      <defs>
+        <style>
+          .cls-1 {
+            fill: none;
+          }
+        </style>
+      </defs>
+      <path fill="#6929C4" d="M26,28H6a2.0027,2.0027,0,0,1-2-2V6A2.0027,2.0027,0,0,1,6,4H16V6H6V26H26V16h2V26A2.0027,2.0027,0,0,1,26,28Z"/>
+      <polygon fill="#6929C4" points="20 2 20 4 26.586 4 18 12.586 19.414 14 28 5.414 28 12 30 12 30 2 20 2"/>
+      <rect id="_Transparent_Rectangle_" data-name="&lt;Transparent Rectangle&gt;" class="cls-1" width="32" height="32"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../../index.html"><div class="brand">Qiskit Serverless 0.10.1</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><div class="sidebar-brand">
+  <a href="https://www.qiskit.org/ecosystem">
+    <div class="sidebar-logo-container">
+      <img class="sidebar-logo" src="../../../_static/images/ecosystem-logo.svg" alt="Qiskit Ecosystem logo"/>
+    </div>
+  </a>
+  
+  <span class="sidebar-brand-text">Qiskit Serverless 0.10.1</span>
+</div><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">About Qiskit Serverless</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation/index.html">Installation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../getting_started/index.html">Getting started</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/basic/01_running_program.html">Running a QiskitPattern as a function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/experimental/file_download.html">File download (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../getting_started/experimental/running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/01_vqe.html">Example: VQE as QiskitPattern</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../examples/02_qaoa.html">Example: QAOA as QiskitPattern</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../migration/index.html">Migration guides</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Migration guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../migration/migration_from_qiskit_runtime_programs.html">Converting from Qiskit Runtime Programs</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../deployment/index.html">Deployment</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of Deployment</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../deployment/local.html">Local infrastructure setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../deployment/cloud.html">Cloud infrastructure setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../deployment/client_configuration.html">Client configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../deployment/deploying_custom_image_function.html">Building custom image for function</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../apidocs/index.html">API References</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of API References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../stubs/qiskit_serverless.QiskitServerlessException.html">qiskit_serverless.QiskitServerlessException</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.core</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (qiskit_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.ServerlessClient.html">qiskit_serverless.core.ServerlessClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.IBMServerlessClient.html">qiskit_serverless.core.IBMServerlessClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.BaseClient.html">qiskit_serverless.core.BaseClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.RayClient.html">qiskit_serverless.core.RayClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.LocalClient.html">qiskit_serverless.core.LocalClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.ComputeResource.html">qiskit_serverless.core.ComputeResource</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.Job.html">qiskit_serverless.core.Job</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.GatewayJobClient.html">qiskit_serverless.core.GatewayJobClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.BaseJobClient.html">qiskit_serverless.core.BaseJobClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.RayJobClient.html">qiskit_serverless.core.RayJobClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.QiskitPattern.html">qiskit_serverless.core.QiskitPattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.Target.html">qiskit_serverless.core.Target</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.CircuitMeta.html">qiskit_serverless.core.CircuitMeta</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.fetch_execution_meta.html">qiskit_serverless.core.fetch_execution_meta</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.distribute_task.html">qiskit_serverless.core.distribute_task</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.distribute_program.html">qiskit_serverless.core.distribute_program</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.distribute_qiskit_pattern.html">qiskit_serverless.core.distribute_qiskit_pattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.get.html">qiskit_serverless.core.get</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.get_refs_by_status.html">qiskit_serverless.core.get_refs_by_status</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (qiskit_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.register_all_serializers.html">qiskit_serverless.serializers.register_all_serializers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.circuit_serializer.html">qiskit_serverless.serializers.circuit_serializer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.circuit_deserializer.html">qiskit_serverless.serializers.circuit_deserializer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.service_serializer.html">qiskit_serverless.serializers.service_serializer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.service_deserializer.html">qiskit_serverless.serializers.service_deserializer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.serializers.get_arguments.html">qiskit_serverless.serializers.get_arguments</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Utilities (qiskit_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.utils.BaseStorage.html">qiskit_serverless.utils.BaseStorage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.utils.S3Storage.html">qiskit_serverless.utils.S3Storage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.utils.ErrorCodes.html">qiskit_serverless.utils.ErrorCodes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.utils.JsonSerializable.html">qiskit_serverless.utils.JsonSerializable</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div></div>
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <h1>Source code for qiskit_serverless.core.job</h1><div class="highlight"><pre>
+<span></span><span class="c1"># This code is a Qiskit project.</span>
+<span class="c1">#</span>
+<span class="c1"># (C) Copyright IBM 2022.</span>
+<span class="c1">#</span>
+<span class="c1"># This code is licensed under the Apache License, Version 2.0. You may</span>
+<span class="c1"># obtain a copy of this license in the LICENSE.txt file in the root directory</span>
+<span class="c1"># of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.</span>
+<span class="c1">#</span>
+<span class="c1"># Any modifications or derivative works of this code must retain this</span>
+<span class="c1"># copyright notice, and modified files need to carry a notice indicating</span>
+<span class="c1"># that they have been altered from the originals.</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">=============================================</span>
+<span class="sd">Provider (:mod:`qiskit_serverless.core.job`)</span>
+<span class="sd">=============================================</span>
+
+<span class="sd">.. currentmodule:: qiskit_serverless.core.job</span>
+
+<span class="sd">Qiskit Serverless job</span>
+<span class="sd">======================</span>
+
+<span class="sd">.. autosummary::</span>
+<span class="sd">    :toctree: ../stubs/</span>
+
+<span class="sd">    RuntimeEnv</span>
+<span class="sd">    Job</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># pylint: disable=duplicate-code</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">tarfile</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">uuid4</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">asdict</span><span class="p">,</span> <span class="n">dataclass</span>
+
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="kn">import</span> <span class="n">Popen</span>
+
+<span class="kn">import</span> <span class="nn">ray.runtime_env</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">from</span> <span class="nn">ray.dashboard.modules.job.sdk</span> <span class="kn">import</span> <span class="n">JobSubmissionClient</span>
+
+<span class="kn">from</span> <span class="nn">opentelemetry</span> <span class="kn">import</span> <span class="n">trace</span>
+
+<span class="kn">from</span> <span class="nn">qiskit_serverless.core.constants</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">OT_PROGRAM_NAME</span><span class="p">,</span>
+    <span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+    <span class="n">ENV_JOB_GATEWAY_TOKEN</span><span class="p">,</span>
+    <span class="n">ENV_JOB_GATEWAY_HOST</span><span class="p">,</span>
+    <span class="n">ENV_JOB_ID_GATEWAY</span><span class="p">,</span>
+    <span class="n">ENV_GATEWAY_PROVIDER_VERSION</span><span class="p">,</span>
+    <span class="n">GATEWAY_PROVIDER_VERSION_DEFAULT</span><span class="p">,</span>
+    <span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="p">,</span>
+    <span class="n">ENV_JOB_ARGUMENTS</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">qiskit_serverless.core.function</span> <span class="kn">import</span> <span class="n">QiskitFunction</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless.exception</span> <span class="kn">import</span> <span class="n">QiskitServerlessException</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless.serializers.program_serializers</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">QiskitObjectsEncoder</span><span class="p">,</span>
+    <span class="n">QiskitObjectsDecoder</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless.utils.json</span> <span class="kn">import</span> <span class="n">is_jsonable</span><span class="p">,</span> <span class="n">safe_json_request</span>
+
+<span class="n">RuntimeEnv</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">runtime_env</span><span class="o">.</span><span class="n">RuntimeEnv</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">Configuration</span><span class="p">:</span>  <span class="c1"># pylint: disable=too-many-instance-attributes</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Program Configuration.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        workers: number of worker pod when auto scaling is NOT enabled</span>
+<span class="sd">        auto_scaling: set True to enable auto scating of the workers</span>
+<span class="sd">        min_workers: minimum number of workers when auto scaling is enabled</span>
+<span class="sd">        max_workers: maxmum number of workers when auto scaling is enabled</span>
+<span class="sd">        python_version: python version string of program execution worker node</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">workers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">min_workers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">max_workers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">auto_scaling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">python_version</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">PYTHON_V3_9</span> <span class="o">=</span> <span class="s2">&quot;py39&quot;</span>
+    <span class="n">PYTHON_V3_10</span> <span class="o">=</span> <span class="s2">&quot;py310&quot;</span>
+
+
+<div class="viewcode-block" id="BaseJobClient"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.BaseJobClient.html#qiskit_serverless.core.BaseJobClient">[docs]</a><span class="k">class</span> <span class="nc">BaseJobClient</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for Job clients.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Job&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Runs program.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Uploads program.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">run_existing</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">],</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Executes existing program.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;Job&quot;</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns job by job id&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;Job&quot;</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of jobs.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check status.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stops job/program.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return logs.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">filtered_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return filtered logs.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return results.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">get_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of programs.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+
+<div class="viewcode-block" id="RayJobClient"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.RayJobClient.html#qiskit_serverless.core.RayJobClient">[docs]</a><span class="k">class</span> <span class="nc">RayJobClient</span><span class="p">(</span><span class="n">BaseJobClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;RayJobClient.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="RayJobClient.__init__"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.RayJobClient.html#qiskit_serverless.core.RayJobClient.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">:</span> <span class="n">JobSubmissionClient</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Ray job client.</span>
+<span class="sd">        Wrapper around JobSubmissionClient</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            client: JobSubmissionClient</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span> <span class="o">=</span> <span class="n">client</span></div>
+
+    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">get_job_status</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">stop_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">get_job_logs</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">filtered_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">logs</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;Job&quot;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">Job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">get_job_info</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;Job&quot;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">Job</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">list_jobs</span><span class="p">()</span>
+        <span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">entrypoint</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;python </span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="c1"># set program name so OT can use it as parent span name</span>
+        <span class="n">env_vars</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="o">**</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{}),</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">OT_PROGRAM_NAME</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">},</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">ENV_JOB_ARGUMENTS</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">arguments</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">)},</span>
+        <span class="p">}</span>
+
+        <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">submit_job</span><span class="p">(</span>
+            <span class="n">entrypoint</span><span class="o">=</span><span class="n">entrypoint</span><span class="p">,</span>
+            <span class="n">submission_id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;qs_</span><span class="si">{</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">runtime_env</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;working_dir&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span>
+                <span class="s2">&quot;pip&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">dependencies</span><span class="p">,</span>
+                <span class="s2">&quot;env_vars&quot;</span><span class="p">:</span> <span class="n">env_vars</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">Job</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Upload is not available for RayJobClient.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">run_existing</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">],</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Run existing is not available for RayJobClient.&quot;</span><span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">LocalJobClient</span><span class="p">(</span><span class="n">BaseJobClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;LocalJobClient.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Local job client.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_patterns</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">job_id</span><span class="p">][</span><span class="s2">&quot;status&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stops job/program.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;job:</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> has already stopped&quot;</span>
+
+    <span class="k">def</span> <span class="nf">logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">job_id</span><span class="p">][</span><span class="s2">&quot;logs&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">job_id</span><span class="p">][</span><span class="s2">&quot;result&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;Job&quot;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">job_id</span><span class="p">][</span><span class="s2">&quot;job&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;Job&quot;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">job</span><span class="p">[</span><span class="s2">&quot;job&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="o">.</span><span class="n">values</span><span class="p">())]</span>
+
+    <span class="k">def</span> <span class="nf">filtered_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return filtered logs.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">dependencies</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">dependency</span> <span class="ow">in</span> <span class="n">program</span><span class="o">.</span><span class="n">dependencies</span><span class="p">:</span>
+                <span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;pip&quot;</span><span class="p">,</span> <span class="s2">&quot;install&quot;</span><span class="p">,</span> <span class="n">dependency</span><span class="p">]</span>
+                <span class="p">)</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">env_vars</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="o">**</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{}),</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">OT_PROGRAM_NAME</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">},</span>
+            <span class="o">**</span><span class="p">{</span><span class="s2">&quot;PATH&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;PATH&quot;</span><span class="p">]},</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">ENV_JOB_ARGUMENTS</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">arguments</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">)},</span>
+        <span class="p">}</span>
+
+        <span class="k">with</span> <span class="n">Popen</span><span class="p">(</span>
+            <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">working_dir</span> <span class="o">+</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">],</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+            <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+            <span class="n">universal_newlines</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">env</span><span class="o">=</span><span class="n">env_vars</span><span class="p">,</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">pipe</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;SUCCEEDED&quot;</span>
+            <span class="k">if</span> <span class="n">pipe</span><span class="o">.</span><span class="n">wait</span><span class="p">():</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;FAILED&quot;</span>
+            <span class="n">output</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Saved Result:(.+?):End Saved Result</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">results</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">()),</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">entry</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span> <span class="s2">&quot;logs&quot;</span><span class="p">:</span> <span class="n">output</span><span class="p">,</span> <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="n">result</span><span class="p">,</span> <span class="s2">&quot;job&quot;</span><span class="p">:</span> <span class="n">job</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">entry</span>
+        <span class="k">return</span> <span class="n">job</span>
+
+    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
+        <span class="c1"># check if entrypoint exists</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Entrypoint file [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">] does not exist &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;in [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="si">}</span><span class="s2">] working directory.&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_patterns</span><span class="p">[</span><span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+            <span class="s2">&quot;entrypoint&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">,</span>
+            <span class="s2">&quot;working_dir&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span>
+            <span class="s2">&quot;env_vars&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">env_vars</span><span class="p">,</span>
+            <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({}),</span>
+            <span class="s2">&quot;dependencies&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">dependencies</span> <span class="ow">or</span> <span class="p">[]),</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span>
+
+    <span class="k">def</span> <span class="nf">run_existing</span><span class="p">(</span>  <span class="c1"># pylint: disable=too-many-locals</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">],</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">):</span>
+            <span class="n">title</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">title</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+
+        <span class="n">saved_program</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patterns</span><span class="p">[</span><span class="n">title</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;dependencies&quot;</span><span class="p">]:</span>
+            <span class="n">dept</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;dependencies&quot;</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">dependency</span> <span class="ow">in</span> <span class="n">dept</span><span class="p">:</span>
+                <span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;pip&quot;</span><span class="p">,</span> <span class="s2">&quot;install&quot;</span><span class="p">,</span> <span class="n">dependency</span><span class="p">]</span>
+                <span class="p">)</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">env_vars</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="o">**</span><span class="p">(</span><span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;env_vars&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="p">{}),</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">OT_PROGRAM_NAME</span><span class="p">:</span> <span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]},</span>
+            <span class="o">**</span><span class="p">{</span><span class="s2">&quot;PATH&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;PATH&quot;</span><span class="p">]},</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">ENV_JOB_ARGUMENTS</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">arguments</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">)},</span>
+        <span class="p">}</span>
+
+        <span class="k">with</span> <span class="n">Popen</span><span class="p">(</span>
+            <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;working_dir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;entrypoint&quot;</span><span class="p">]],</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+            <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
+            <span class="n">universal_newlines</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">env</span><span class="o">=</span><span class="n">env_vars</span><span class="p">,</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">pipe</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;SUCCEEDED&quot;</span>
+            <span class="k">if</span> <span class="n">pipe</span><span class="o">.</span><span class="n">wait</span><span class="p">():</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;FAILED&quot;</span>
+            <span class="n">output</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Saved Result:(.+?):End Saved Result</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">results</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">()),</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">entry</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span> <span class="s2">&quot;logs&quot;</span><span class="p">:</span> <span class="n">output</span><span class="p">,</span> <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="n">result</span><span class="p">,</span> <span class="s2">&quot;job&quot;</span><span class="p">:</span> <span class="n">job</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">entry</span>
+        <span class="k">return</span> <span class="n">job</span>
+
+    <span class="k">def</span> <span class="nf">get_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of programs.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patterns</span>
+
+
+<div class="viewcode-block" id="GatewayJobClient"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.GatewayJobClient.html#qiskit_serverless.core.GatewayJobClient">[docs]</a><span class="k">class</span> <span class="nc">GatewayJobClient</span><span class="p">(</span><span class="n">BaseJobClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;GatewayJobClient.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="GatewayJobClient.__init__"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.GatewayJobClient.html#qiskit_serverless.core.GatewayJobClient.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Job client for Gateway service.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            host: gateway host</span>
+<span class="sd">            version: gateway version</span>
+<span class="sd">            token: authorization token</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">version</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_token</span> <span class="o">=</span> <span class="n">token</span></div>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span>  <span class="c1"># pylint: disable=too-many-locals</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Job&quot;</span><span class="p">:</span>
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.run&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">span</span><span class="p">:</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program&quot;</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;arguments&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">arguments</span><span class="p">))</span>
+
+            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs/run/&quot;</span>
+            <span class="n">artifact_file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="s2">&quot;artifact.tar&quot;</span><span class="p">)</span>
+
+            <span class="c1"># check if entrypoint exists</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">)</span>
+            <span class="p">):</span>
+                <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Entrypoint file [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">] does not exist &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;in [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="si">}</span><span class="s2">] working directory.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="k">with</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tar</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">):</span>
+                    <span class="n">fpath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                    <span class="n">tar</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="n">arcname</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span>
+
+            <span class="c1"># check file size</span>
+            <span class="n">size_in_mb</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">2</span>
+            <span class="k">if</span> <span class="n">size_in_mb</span> <span class="o">&gt;</span> <span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">artifact_file_path</span><span class="si">}</span><span class="s2"> is </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">size_in_mb</span><span class="p">)</span><span class="si">}</span><span class="s2"> Mb, &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;which is greater than </span><span class="si">{</span><span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="si">}</span><span class="s2"> allowed. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Try to reduce size of `working_dir`.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+                    <span class="s2">&quot;entrypoint&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">,</span>
+                    <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">arguments</span> <span class="ow">or</span> <span class="p">{},</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">),</span>
+                    <span class="s2">&quot;dependencies&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">dependencies</span> <span class="ow">or</span> <span class="p">[]),</span>
+                    <span class="s2">&quot;env_vars&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{}),</span>
+                <span class="p">}</span>
+                <span class="k">if</span> <span class="n">config</span><span class="p">:</span>
+                    <span class="n">data</span><span class="p">[</span><span class="s2">&quot;config&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">asdict</span><span class="p">(</span><span class="n">config</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">data</span><span class="p">[</span><span class="s2">&quot;config&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span>
+
+                <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+                    <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+                        <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+                        <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+                        <span class="n">files</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;artifact&quot;</span><span class="p">:</span> <span class="n">file</span><span class="p">},</span>
+                        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                        <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                    <span class="p">),</span>
+                    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">job_id</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+                <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;job.id&quot;</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.run&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">span</span><span class="p">:</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program&quot;</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs/upload/&quot;</span>
+
+            <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># upload function with custom image</span>
+                <span class="n">program_title</span> <span class="o">=</span> <span class="n">_upload_with_docker_image</span><span class="p">(</span>
+                    <span class="n">program</span><span class="o">=</span><span class="n">program</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="p">,</span> <span class="n">span</span><span class="o">=</span><span class="n">span</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># upload funciton with artifact</span>
+                <span class="n">program_title</span> <span class="o">=</span> <span class="n">_upload_with_artifact</span><span class="p">(</span>
+                    <span class="n">program</span><span class="o">=</span><span class="n">program</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="p">,</span> <span class="n">span</span><span class="o">=</span><span class="n">span</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                    <span class="s2">&quot;Function must either have `entryoint` or `image` specified.&quot;</span>
+                <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">program_title</span>
+
+    <span class="k">def</span> <span class="nf">run_existing</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">program</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">],</span>
+        <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">):</span>
+            <span class="n">title</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">title</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.run_existing&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">span</span><span class="p">:</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program&quot;</span><span class="p">,</span> <span class="n">title</span><span class="p">)</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;arguments&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">arguments</span><span class="p">))</span>
+
+            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs/run_existing/&quot;</span>
+
+            <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">title</span><span class="p">,</span>
+                <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">arguments</span> <span class="ow">or</span> <span class="p">{},</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">),</span>
+            <span class="p">}</span>  <span class="c1"># type: Dict[str, Any]</span>
+            <span class="k">if</span> <span class="n">config</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;config&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">asdict</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;config&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+                    <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+                    <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;job.id&quot;</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.status&quot;</span><span class="p">):</span>
+            <span class="n">default_status</span> <span class="o">=</span> <span class="s2">&quot;Unknown&quot;</span>
+            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">,</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="n">default_status</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.stop&quot;</span><span class="p">):</span>
+            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/stop/&quot;</span><span class="p">,</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.logs&quot;</span><span class="p">):</span>
+            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/logs/&quot;</span><span class="p">,</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;logs&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">filtered_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">all_logs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">logs</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="n">included</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">include</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;include&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">include</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">all_logs</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">include</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">included</span> <span class="o">=</span> <span class="n">included</span> <span class="o">+</span> <span class="n">line</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">included</span> <span class="o">=</span> <span class="n">all_logs</span>
+
+        <span class="n">excluded</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">exclude</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;exclude&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">exclude</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">included</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">line</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span> <span class="ow">and</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">exclude</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">excluded</span> <span class="o">=</span> <span class="n">excluded</span> <span class="o">+</span> <span class="n">line</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">excluded</span> <span class="o">=</span> <span class="n">included</span>
+        <span class="k">return</span> <span class="n">excluded</span>
+
+    <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.result&quot;</span><span class="p">):</span>
+            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">,</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
+            <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;result&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsDecoder</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="s2">&quot;Job&quot;</span><span class="p">]:</span>
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.get&quot;</span><span class="p">):</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span>
+            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="n">url</span><span class="p">,</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="n">job</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">job_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span>
+                    <span class="n">job_id</span><span class="o">=</span><span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span>
+                    <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">job</span>
+
+    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="s2">&quot;Job&quot;</span><span class="p">]:</span>
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.list&quot;</span><span class="p">):</span>
+            <span class="n">limit</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/?limit=</span><span class="si">{</span><span class="n">limit</span><span class="si">}</span><span class="s2">&amp;offset=</span><span class="si">{</span><span class="n">offset</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">Job</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">=</span><span class="n">job</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">get_programs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;program.list&quot;</span><span class="p">):</span>
+            <span class="n">limit</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs/?limit=</span><span class="si">{</span><span class="n">limit</span><span class="si">}</span><span class="s2">&amp;offset=</span><span class="si">{</span><span class="n">offset</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">QiskitFunction</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">),</span> <span class="n">raw_data</span><span class="o">=</span><span class="n">program</span><span class="p">,</span> <span class="n">job_client</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">program</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Job"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job">[docs]</a><span class="k">class</span> <span class="nc">Job</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Job.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Job.__init__"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">job_client</span><span class="p">:</span> <span class="n">BaseJobClient</span><span class="p">,</span>
+        <span class="n">raw_data</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Job class for async script execution.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_id: if of the job</span>
+<span class="sd">            job_client: job client</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span> <span class="o">=</span> <span class="n">job_client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">raw_data</span> <span class="o">=</span> <span class="n">raw_data</span> <span class="ow">or</span> <span class="p">{}</span></div>
+
+    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns status of the job.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_map_status_to_serverless</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stops the job from running.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">logs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns logs of the job.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">logs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">filtered_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns logs of the job.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            include: rex expression finds match in the log line to be included</span>
+<span class="sd">            exclude: rex expression finds match in the log line to be excluded</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">filtered_logs</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cadence</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return results of the job.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            wait: flag denoting whether to wait for the</span>
+<span class="sd">                job result to be populated before returning</span>
+<span class="sd">            cadence: time to wait between checking if job has</span>
+<span class="sd">                been terminated</span>
+<span class="sd">            verbose: flag denoting whether to log a heartbeat</span>
+<span class="sd">                while waiting for job result to populate</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">wait</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for job result.&quot;</span><span class="p">)</span>
+            <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_terminal_state</span><span class="p">():</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">cadence</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Retrieve the results. If they&#39;re string format, try to decode to a dictionary.</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsDecoder</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span> <span class="k">as</span> <span class="n">exception</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Error during results decoding. Details: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exception</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">results</span>
+
+    <span class="k">def</span> <span class="nf">in_terminal_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Checks if job is in terminal state&quot;&quot;&quot;</span>
+        <span class="n">terminal_states</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CANCELED&quot;</span><span class="p">,</span> <span class="s2">&quot;DONE&quot;</span><span class="p">,</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">()</span> <span class="ow">in</span> <span class="n">terminal_states</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;Job | </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&gt;&quot;</span></div>
+
+
+<div class="viewcode-block" id="save_result"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.save_result.html#qiskit_serverless.core.save_result">[docs]</a><span class="k">def</span> <span class="nf">save_result</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Saves job results.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        data passed to save_result function</span>
+<span class="sd">        must be json serializable (use dictionaries).</span>
+<span class="sd">        Default serializer is compatible with</span>
+<span class="sd">        IBM QiskitRuntime provider serializer.</span>
+<span class="sd">        List of supported types</span>
+<span class="sd">        [ndarray, QuantumCircuit, Parameter, ParameterExpression,</span>
+<span class="sd">        NoiseModel, Instruction]. See full list via link.</span>
+
+<span class="sd">    Links:</span>
+<span class="sd">        Source of serializer:</span>
+<span class="sd">        https://github.com/Qiskit/qiskit-ibm-runtime/blob/0.13.0/qiskit_ibm_runtime/utils/json.py#L197</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; # save dictionary</span>
+<span class="sd">        &gt;&gt;&gt; save_result({&quot;key&quot;: &quot;value&quot;})</span>
+<span class="sd">        &gt;&gt;&gt; # save circuit</span>
+<span class="sd">        &gt;&gt;&gt; circuit: QuantumCircuit = ...</span>
+<span class="sd">        &gt;&gt;&gt; save_result({&quot;circuit&quot;: circuit})</span>
+<span class="sd">        &gt;&gt;&gt; # save primitives data</span>
+<span class="sd">        &gt;&gt;&gt; quasi_dists = Sampler.run(circuit).result().quasi_dists</span>
+<span class="sd">        &gt;&gt;&gt; # {&quot;1x0&quot;: 0.1, ...}</span>
+<span class="sd">        &gt;&gt;&gt; save_result(quasi_dists)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        result: data that will be accessible from job handler `.result()` method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">version</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_GATEWAY_PROVIDER_VERSION</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">GATEWAY_PROVIDER_VERSION_DEFAULT</span>
+
+    <span class="n">token</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_GATEWAY_TOKEN</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">token</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;Results will be saved as logs since&quot;</span>
+            <span class="s2">&quot;there is no information about the&quot;</span>
+            <span class="s2">&quot;authorization token in the environment.&quot;</span>
+        <span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Result: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+        <span class="n">result_record</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">result</span> <span class="ow">or</span> <span class="p">{},</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Saved Result:</span><span class="si">{</span><span class="n">result_record</span><span class="si">}</span><span class="s2">:End Saved Result</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_jsonable</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Object passed is not json serializable.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="n">url</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_GATEWAY_HOST</span><span class="p">)</span><span class="si">}</span><span class="s2">/&quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;api/</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_ID_GATEWAY</span><span class="p">)</span><span class="si">}</span><span class="s2">/result/&quot;</span>
+    <span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+        <span class="n">url</span><span class="p">,</span>
+        <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">result</span> <span class="ow">or</span> <span class="p">{},</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">)},</span>
+        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+        <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Something went wrong: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span></div>
+
+
+<span class="k">def</span> <span class="nf">_map_status_to_serverless</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map a status string from job client to the Qiskit terminology.&quot;&quot;&quot;</span>
+    <span class="n">status_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;PENDING&quot;</span><span class="p">:</span> <span class="s2">&quot;INITIALIZING&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;RUNNING&quot;</span><span class="p">:</span> <span class="s2">&quot;RUNNING&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;STOPPED&quot;</span><span class="p">:</span> <span class="s2">&quot;CANCELED&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;SUCCEEDED&quot;</span><span class="p">:</span> <span class="s2">&quot;DONE&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;FAILED&quot;</span><span class="p">:</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;QUEUED&quot;</span><span class="p">:</span> <span class="s2">&quot;QUEUED&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">status_map</span><span class="p">[</span><span class="n">status</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">status</span>
+
+
+<span class="k">def</span> <span class="nf">_upload_with_docker_image</span><span class="p">(</span>
+    <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">span</span><span class="p">:</span> <span class="n">Any</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Uploads function with custom docker image.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        program (QiskitFunction): function instance</span>
+<span class="sd">        url (str): upload gateway url</span>
+<span class="sd">        token (str): auth token</span>
+<span class="sd">        span (Any): tracing span</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: uploaded function name</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+        <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+            <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+                <span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">image</span><span class="p">,</span>
+                <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({}),</span>
+                <span class="s2">&quot;dependencies&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">dependencies</span> <span class="ow">or</span> <span class="p">[]),</span>
+                <span class="s2">&quot;env_vars&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{}),</span>
+            <span class="p">},</span>
+            <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">program_title</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;na&quot;</span><span class="p">)</span>
+    <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program.title&quot;</span><span class="p">,</span> <span class="n">program_title</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">program_title</span>
+
+
+<span class="k">def</span> <span class="nf">_upload_with_artifact</span><span class="p">(</span>
+    <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">span</span><span class="p">:</span> <span class="n">Any</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Uploads function with artifact.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        program (QiskitFunction): function instance</span>
+<span class="sd">        url (str): endpoint for gateway upload</span>
+<span class="sd">        token (str): auth token</span>
+<span class="sd">        span (Any): tracing span</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        QiskitServerlessException: if no entrypoint or size of artifact is too large.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: uploaded function name</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">artifact_file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="s2">&quot;artifact.tar&quot;</span><span class="p">)</span>
+
+    <span class="c1"># check if entrypoint exists</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Entrypoint file [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">] does not exist &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;in [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="si">}</span><span class="s2">] working directory.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tar</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">):</span>
+            <span class="n">fpath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+            <span class="n">tar</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="n">arcname</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span>
+
+    <span class="c1"># check file size</span>
+    <span class="n">size_in_mb</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">)</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">2</span>
+    <span class="k">if</span> <span class="n">size_in_mb</span> <span class="o">&gt;</span> <span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">artifact_file_path</span><span class="si">}</span><span class="s2"> is </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">size_in_mb</span><span class="p">)</span><span class="si">}</span><span class="s2"> Mb, &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;which is greater than </span><span class="si">{</span><span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="si">}</span><span class="s2"> allowed. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Try to reduce size of `working_dir`.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+                <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+                <span class="n">data</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+                    <span class="s2">&quot;entrypoint&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">,</span>
+                    <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({}),</span>
+                    <span class="s2">&quot;dependencies&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">dependencies</span> <span class="ow">or</span> <span class="p">[]),</span>
+                    <span class="s2">&quot;env_vars&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{}),</span>
+                <span class="p">},</span>
+                <span class="n">files</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;artifact&quot;</span><span class="p">:</span> <span class="n">file</span><span class="p">},</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">program_title</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;na&quot;</span><span class="p">)</span>
+        <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program.title&quot;</span><span class="p">,</span> <span class="n">program_title</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">artifact_file_path</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">program_title</span>
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../../../_static/jquery.js?v=5d32c60e"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js?v=5e3b122e"></script>
+    <script src="../../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=4825356b"></script>
+    <script src="../../../_static/thebelab-helper.js"></script>
+    <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../../_static/scripts/qiskit-sphinx-theme.js?v=4d77b8ca"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    </body>
+</html>

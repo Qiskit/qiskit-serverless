@@ -197,7 +197,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "from quantum_serverless import ServerlessClient\n",
+    "from qiskit_serverless import ServerlessClient\n",
     "import os"
    ]
   },
@@ -242,7 +242,7 @@
     }
    ],
    "source": [
-    "from quantum_serverless import QiskitFunction\n",
+    "from qiskit_serverless import QiskitFunction\n",
     "\n",
     "function = QiskitFunction(\n",
     "    title=\"qaoa\", entrypoint=\"qaoa.py\", working_dir=\"./source_files/qaoa/\"\n",

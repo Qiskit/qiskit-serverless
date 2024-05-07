@@ -1,6 +1,0 @@
-﻿quantum\_serverless.serializers.get\_arguments
-==============================================
-
-.. currentmodule:: quantum_serverless.serializers
-
-.. autofunction:: get_arguments

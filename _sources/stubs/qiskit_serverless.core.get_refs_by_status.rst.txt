@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.core.get\_refs\_by\_status
+=============================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autofunction:: get_refs_by_status

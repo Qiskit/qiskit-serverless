@@ -1,0 +1,41 @@
+﻿qiskit\_serverless.core.ServerlessClient
+========================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autoclass:: ServerlessClient
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ServerlessClient.__init__
+      ~ServerlessClient.context
+      ~ServerlessClient.create_compute_resource
+      ~ServerlessClient.delete_compute_resource
+      ~ServerlessClient.download
+      ~ServerlessClient.file_delete
+      ~ServerlessClient.file_download
+      ~ServerlessClient.file_upload
+      ~ServerlessClient.files
+      ~ServerlessClient.from_dict
+      ~ServerlessClient.get_compute_resources
+      ~ServerlessClient.get_job_by_id
+      ~ServerlessClient.get_jobs
+      ~ServerlessClient.get_programs
+      ~ServerlessClient.job_client
+      ~ServerlessClient.list
+      ~ServerlessClient.run
+      ~ServerlessClient.to_dict
+      ~ServerlessClient.upload
+      ~ServerlessClient.widget
+   
+   
+
+   
+   
+   

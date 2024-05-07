@@ -1,0 +1,28 @@
+﻿qiskit\_serverless.core.Job
+===========================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autoclass:: Job
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Job.__init__
+      ~Job.filtered_logs
+      ~Job.in_terminal_state
+      ~Job.logs
+      ~Job.result
+      ~Job.status
+      ~Job.stop
+   
+   
+
+   
+   
+   

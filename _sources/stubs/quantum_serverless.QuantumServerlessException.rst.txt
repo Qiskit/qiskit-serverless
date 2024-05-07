@@ -1,6 +1,0 @@
-﻿quantum\_serverless.QuantumServerlessException
-==============================================
-
-.. currentmodule:: quantum_serverless
-
-.. autoexception:: QuantumServerlessException

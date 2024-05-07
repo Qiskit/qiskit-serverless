@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.serializers.circuit\_deserializer
+====================================================
+
+.. currentmodule:: qiskit_serverless.serializers
+
+.. autofunction:: circuit_deserializer

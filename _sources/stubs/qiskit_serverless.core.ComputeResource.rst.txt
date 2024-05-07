@@ -1,0 +1,36 @@
+﻿qiskit\_serverless.core.ComputeResource
+=======================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autoclass:: ComputeResource
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ComputeResource.__init__
+      ~ComputeResource.connection_string_interactive_mode
+      ~ComputeResource.context
+      ~ComputeResource.from_dict
+      ~ComputeResource.job_client
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ComputeResource.host
+      ~ComputeResource.port_interactive
+      ~ComputeResource.port_job_server
+      ~ComputeResource.resources
+      ~ComputeResource.name
+   
+   

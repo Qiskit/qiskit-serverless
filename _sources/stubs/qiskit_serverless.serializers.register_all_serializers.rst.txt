@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.serializers.register\_all\_serializers
+=========================================================
+
+.. currentmodule:: qiskit_serverless.serializers
+
+.. autofunction:: register_all_serializers

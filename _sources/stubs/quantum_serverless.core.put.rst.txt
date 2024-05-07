@@ -1,6 +1,0 @@
-﻿quantum\_serverless.core.put
-============================
-
-.. currentmodule:: quantum_serverless.core
-
-.. autofunction:: put

@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.serializers.get\_arguments
+=============================================
+
+.. currentmodule:: qiskit_serverless.serializers
+
+.. autofunction:: get_arguments

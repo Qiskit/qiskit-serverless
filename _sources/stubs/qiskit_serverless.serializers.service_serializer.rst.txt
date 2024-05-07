@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.serializers.service\_serializer
+==================================================
+
+.. currentmodule:: qiskit_serverless.serializers
+
+.. autofunction:: service_serializer

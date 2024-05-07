@@ -1,6 +1,0 @@
-﻿quantum\_serverless.core.get\_refs\_by\_status
-==============================================
-
-.. currentmodule:: quantum_serverless.core
-
-.. autofunction:: get_refs_by_status
