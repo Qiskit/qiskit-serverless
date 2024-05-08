@@ -641,7 +641,7 @@ class GatewayJobClient(BaseJobClient):
             )
         return [
             QiskitFunction(program.get("title"), raw_data=program, job_client=self)
-            for program in response_data.get("results", [])
+            for program in response_data
         ]
 
 
