@@ -9,10 +9,10 @@ pattern = QiskitFunction(
     dependencies=["qiskit-experiments==0.6.0"],
 )
 
-from qiskit_serverless import ServerlessProvider
+from qiskit_serverless import ServerlessClient
 import os
 
-serverless = ServerlessProvider(
+serverless = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )

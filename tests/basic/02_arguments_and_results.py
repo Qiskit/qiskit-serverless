@@ -8,10 +8,10 @@ circuit.cx(0, 1)
 circuit.measure_all()
 circuit.draw()
 
-from qiskit_serverless import ServerlessProvider, QiskitFunction
+from qiskit_serverless import ServerlessClient, QiskitFunction
 import os
 
-serverless = ServerlessProvider(
+serverless = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )
