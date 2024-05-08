@@ -92,12 +92,10 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
                     f"Function validation failed. Validation errors:\n {error_string}",
                 )
 
-        if self._is_local_function():
-            return self.job_client.run(program=self, arguments=kwargs)
-        return self.job_client.run_existing(program=self.title, arguments=kwargs)
-
-    def _is_local_function(self) -> bool:
-        return self.entrypoint is not None and self.working_dir is not None
+        config = kwargs.pop("config", None)
+        return self.job_client.run_existing(
+            program=self.title, arguments=kwargs, config=config
+        )
 
     def _validate_funciton(self) -> Tuple[bool, List[str]]:
         """Validate function arguments using schema provided.
