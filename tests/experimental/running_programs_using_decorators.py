@@ -5,10 +5,10 @@ from source_files.circuit_utils import create_hello_world_circuit
 from qiskit import QuantumCircuit
 from qiskit.primitives import Sampler
 from qiskit.circuit.random import random_circuit
-from qiskit_serverless import ServerlessClient, distribute_qiskit_function, distribute_task, get
+from qiskit_serverless import ServerlessProvider, distribute_qiskit_function, distribute_task, get
 
 
-provider = ServerlessClient(
+provider = ServerlessProvider(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )

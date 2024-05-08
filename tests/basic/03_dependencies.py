@@ -9,10 +9,10 @@ function = QiskitFunction(
     dependencies=["qiskit-experiments==0.6.0"],
 )
 
-from qiskit_serverless import ServerlessClient
+from qiskit_serverless import ServerlessProvider
 import os
 
-serverless = ServerlessClient(
+serverless = ServerlessProvider(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )

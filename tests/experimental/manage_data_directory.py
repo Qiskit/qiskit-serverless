@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import os
-from qiskit_serverless import ServerlessClient, QiskitFunction
+from qiskit_serverless import ServerlessProvider, QiskitFunction
 
-serverless = ServerlessClient(
+serverless = ServerlessProvider(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )
