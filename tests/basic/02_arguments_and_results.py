@@ -17,13 +17,18 @@ serverless = ServerlessClient(
 )
 print(serverless)
 
-pattern = QiskitFunction(
+function = QiskitFunction(
     title="pattern-with-arguments",
     entrypoint="pattern_with_arguments.py",
     working_dir="./source_files/",
 )
-serverless.upload(pattern)
-job = serverless.run("pattern-with-arguments", arguments={"circuit": circuit})
+serverless.upload(function)
+
+functions = {f.title: f for f in serverless.list()}
+my_pattern_function = functions.get("pattern-with-arguments")
+my_pattern_function
+
+job = my_pattern_function.run(circuit=circuit)
 print(job)
 
 print(job.result())

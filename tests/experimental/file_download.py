@@ -9,10 +9,10 @@ serverless = ServerlessClient(
 )
 print(serverless)
 
-pattern = QiskitFunction(
+function = QiskitFunction(
     title="file-producer", entrypoint="produce_files.py", working_dir="./source_files/"
 )
-serverless.upload(pattern)
+serverless.upload(function)
 
 job = serverless.run("file-producer")
 print(job)

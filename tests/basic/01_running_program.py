@@ -10,14 +10,18 @@ serverless = ServerlessClient(
 )
 print(serverless)
 
-pattern = QiskitFunction(
+function = QiskitFunction(
     title="my-first-pattern",
     entrypoint="pattern.py",
     working_dir="./source_files/",
 )
-serverless.upload(pattern)
-job = serverless.run("my-first-pattern")
-print(job)
+serverless.upload(function)
+
+functions = {f.title: f for f in serverless.list()}
+my_pattern_function = functions.get("my-first-pattern")
+my_pattern_function
+
+job = my_pattern_function.run()
 
 print(job.result())
 print(job.status())

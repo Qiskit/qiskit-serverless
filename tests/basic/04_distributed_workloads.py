@@ -19,13 +19,18 @@ print(circuits)
 
 from qiskit_serverless import QiskitFunction
 
-pattern = QiskitFunction(
+function = QiskitFunction(
     title="pattern-with-parallel-workflow",
     entrypoint="pattern_with_parallel_workflow.py",
     working_dir="./source_files/",
 )
+serverless.upload(function)
 
-serverless.upload(pattern)
+functions = {f.title: f for f in serverless.list()}
+my_pattern_function = functions.get("pattern-with-parallel-workflow")
+my_pattern_function
+
+job = my_pattern_function.run(circuits=circuits)
 
 job = serverless.run("pattern-with-parallel-workflow", arguments={"circuits": circuits})
 print(job)

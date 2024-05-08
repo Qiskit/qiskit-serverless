@@ -2,7 +2,7 @@
 
 from qiskit_serverless import QiskitFunction
 
-pattern = QiskitFunction(
+function = QiskitFunction(
     title="pattern-with-dependencies",
     entrypoint="pattern_with_dependencies.py",
     working_dir="./source_files/",
@@ -22,10 +22,13 @@ from qiskit.circuit.random import random_circuit
 
 circuit = random_circuit(2, 2)
 
+serverless.upload(function)
 
-serverless.upload(pattern)
+functions = {f.title: f for f in serverless.list()}
+my_pattern_function = functions.get("pattern-with-dependencies")
+my_pattern_function
 
-job = serverless.run("pattern-with-dependencies", arguments={"circuit": circuit})
+job = my_pattern_function.run(circuit=circuit)
 print(job)
 
 print(job.result())

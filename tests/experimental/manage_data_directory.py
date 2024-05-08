@@ -18,11 +18,11 @@ file.close()
 
 serverless.file_upload(filename)
 
-pattern = QiskitFunction(
+function = QiskitFunction(
     title="file-producer", entrypoint="produce_files.py", working_dir="./source_files/"
 )
 
-serverless.upload(pattern)
+serverless.upload(function)
 job = serverless.run("file-producer")
 print(job)
 print(job.result())
@@ -32,11 +32,11 @@ print(job.logs())
 
 print(serverless.files())
 
-pattern = QiskitFunction(
+function = QiskitFunction(
     title="file-consumer", entrypoint="consume_files.py", working_dir="./source_files/"
 )
 
-serverless.upload(pattern)
+serverless.upload(function)
 job = serverless.run("file-consumer")
 print(job)
 print(job.result())

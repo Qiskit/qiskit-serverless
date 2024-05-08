@@ -11,13 +11,17 @@ print(serverless)
 
 from qiskit_serverless import QiskitFunction
 
-pattern = QiskitFunction(
+function = QiskitFunction(
     title="pattern-to-fetch-results", entrypoint="pattern.py", working_dir="./source_files/"
 )
-serverless.upload(pattern)
+serverless.upload(function)
 
-job1 = serverless.run("pattern-to-fetch-results")
-job2 = serverless.run("pattern-to-fetch-results")
+functions = {f.title: f for f in serverless.list()}
+my_pattern_function = functions.get("pattern-to-fetch-results")
+my_pattern_function
+
+job1 = my_pattern_function.run("pattern-to-fetch-results")
+job2 = my_pattern_function.run("pattern-to-fetch-results")
 print(job1)
 print(job2)
 
