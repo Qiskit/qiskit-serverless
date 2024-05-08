@@ -5,6 +5,7 @@ from qiskit_serverless import ServerlessClient, distribute_qiskit_pattern, distr
 from qiskit.primitives import Sampler
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
+from source_files.circuit_utils import create_hello_world_circuit
 
 client = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
