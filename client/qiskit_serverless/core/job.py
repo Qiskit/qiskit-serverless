@@ -558,18 +558,16 @@ class GatewayJobClient(BaseJobClient):
     def get_programs(self, **kwargs):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("program.list"):
-            limit = kwargs.get("limit", 10)
-            offset = kwargs.get("offset", 0)
             response_data = safe_json_request(
                 request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/programs/?limit={limit}&offset={offset}",
+                    f"{self.host}/api/{self.version}/programs",
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
         return [
             QiskitFunction(program.get("title"), raw_data=program, job_client=self)
-            for program in response_data.get("results", [])
+            for program in response_data
         ]
 
 

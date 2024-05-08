@@ -85,7 +85,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             raise ValueError("No clients specified for a function.")
 
         if self.validate:
-            is_valid, validation_errors = self._validate_funciton()
+            is_valid, validation_errors = self._validate_function()
             if not is_valid:
                 error_string = "\n".join(validation_errors)
                 raise ValueError(
@@ -97,7 +97,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             program=self.title, arguments=kwargs, config=config
         )
 
-    def _validate_funciton(self) -> Tuple[bool, List[str]]:
+    def _validate_function(self) -> Tuple[bool, List[str]]:
         """Validate function arguments using schema provided.
 
         Returns:
