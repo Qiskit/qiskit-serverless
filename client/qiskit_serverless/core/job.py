@@ -279,7 +279,7 @@ class LocalJobClient(BaseJobClient):
             title = str(program)
 
         for pattern in self._patterns:
-            if pattern.title == title:
+            if pattern["title"] == title:
                 saved_program = pattern
         if saved_program["dependencies"]:
             dept = json.loads(saved_program["dependencies"])
