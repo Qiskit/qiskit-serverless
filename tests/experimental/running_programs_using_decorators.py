@@ -10,7 +10,7 @@ client = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )
-print(provider)
+print(client)
 
 
 @distribute_qiskit_pattern(client)
