@@ -351,7 +351,10 @@ class LocalJobClient(BaseJobClient):
 
     def get_programs(self, **kwargs):
         """Returns list of programs."""
-        return self._patterns
+        return [
+            QiskitFunction(program.get("title"), raw_data=program, job_client=self)
+            for program in self._patterns
+        ]
 
 
 class GatewayJobClient(BaseJobClient):
