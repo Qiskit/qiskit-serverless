@@ -1,17 +1,17 @@
 """Tests jobs."""
-import os
+# import os
 
-from testcontainers.compose import DockerCompose
+# from testcontainers.compose import DockerCompose
 
-from qiskit_serverless import BaseClient
-from qiskit_serverless.core import ComputeResource
-from qiskit_serverless.core.job import Job
-from qiskit_serverless.core.function import QiskitFunction
-from tests.utils import wait_for_job_client, wait_for_job_completion
+# from qiskit_serverless import BaseClient
+# from qiskit_serverless.core import ComputeResource
+# from qiskit_serverless.core.job import Job
+# from qiskit_serverless.core.function import QiskitFunction
+# from tests.utils import wait_for_job_client, wait_for_job_completion
 
-resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../resources"
-)
+# resources_path = os.path.join(
+#     os.path.dirname(os.path.abspath(__file__)), "../resources"
+# )
 
 
 # def test_program():
