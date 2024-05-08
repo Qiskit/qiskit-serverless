@@ -724,6 +724,9 @@ class LocalClient(BaseClient):
             return None
         raise NotImplementedError("files method is not implemented in LocalProvider.")
 
+    def list(self, **kwargs):
+        return self.client.get_programs(**kwargs)
+
 
 class LocalProvider(LocalClient):
     """

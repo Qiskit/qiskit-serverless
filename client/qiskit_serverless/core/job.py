@@ -242,7 +242,7 @@ class LocalJobClient(BaseJobClient):
         Args:
         """
         self._jobs = {}
-        self._patterns = {}
+        self._patterns = []
 
     def status(self, job_id: str):
         return self._jobs[job_id]["status"]
@@ -278,7 +278,9 @@ class LocalJobClient(BaseJobClient):
         else:
             title = str(program)
 
-        saved_program = self._patterns[title]
+        for pattern in self._patterns:
+            if pattern.title == title:
+                saved_program = pattern
         if saved_program["dependencies"]:
             dept = json.loads(saved_program["dependencies"])
             for dependency in dept:
@@ -321,14 +323,16 @@ class LocalJobClient(BaseJobClient):
                 f"Entrypoint file [{program.entrypoint}] does not exist "
                 f"in [{program.working_dir}] working directory."
             )
-        self._patterns[program.title] = {
-            "title": program.title,
-            "entrypoint": program.entrypoint,
-            "working_dir": program.working_dir,
-            "env_vars": program.env_vars,
-            "arguments": json.dumps({}),
-            "dependencies": json.dumps(program.dependencies or []),
-        }
+        self._patterns.append(
+            {
+                "title": program.title,
+                "entrypoint": program.entrypoint,
+                "working_dir": program.working_dir,
+                "env_vars": program.env_vars,
+                "arguments": json.dumps({}),
+                "dependencies": json.dumps(program.dependencies or []),
+            }
+        )
         return program.title
 
     def run_existing(
