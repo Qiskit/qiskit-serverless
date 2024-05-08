@@ -254,7 +254,7 @@ class SerializerTest(APITestCase):
         self.assertFalse(serializer.is_valid())
         errors = serializer.errors
         self.assertListEqual(
-            ["dependencies", "arguments", "env_vars", "config"], list(errors.keys())
+            ["dependencies", "arguments", "env_vars"], list(errors.keys())
         )
 
     def test_run_program_serializer_config_json(self):
@@ -282,7 +282,7 @@ class SerializerTest(APITestCase):
             "dependencies": "[]",
             "arguments": "{}",
             "env_vars": "{}",
-            "config": json.dumps(assert_json),
+            "config": assert_json,
         }
         data["artifact"] = upload_file
 

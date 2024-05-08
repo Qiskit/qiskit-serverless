@@ -206,15 +206,7 @@ class RunProgramSerializer(serializers.Serializer):
     dependencies = serializers.CharField(allow_blank=False)
     arguments = serializers.CharField(allow_blank=False)
     env_vars = serializers.CharField(allow_blank=False)
-    config = serializers.CharField(allow_blank=False)
-
-    def to_representation(self, instance):
-        """
-        Transforms string `config` to JSON
-        """
-        representation = super().to_representation(instance)
-        representation["config"] = json.loads(representation["config"])
-        return representation
+    config = serializers.DictField()
 
     def retrieve_one_by_title(self, title, author):
         """
@@ -239,7 +231,7 @@ class RunProgramModelSerializer(serializers.ModelSerializer):
     """
 
     arguments = serializers.CharField(read_only=True)
-    config = serializers.CharField(read_only=True)
+    config = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Program
