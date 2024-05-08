@@ -3,6 +3,8 @@ name: Test QS on Kubernetes
 on:
   pull_request:
     branches: [ main ]
+  push:
+    branches: [ updatetests ]
 
 jobs:
   tests:
