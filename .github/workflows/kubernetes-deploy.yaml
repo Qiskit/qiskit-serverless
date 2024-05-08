@@ -80,10 +80,10 @@ jobs:
           export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
           echo $GATEWAY_HOST
           # basic tests
-          cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/basic
+          cd /home/runner/work/akihikokuroda/qiskit-serverless/tests/basic
           for f in *.py; do echo "$f" && python "$f"; done
           # experimental tests
-          cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/experimental
+          cd /home/runner/work/akihikokuroda/qiskit-serverless/tests/experimental
           for f in *.py; do echo "$f" && python "$f"; done
       - name: Echo gateway logs
         run: |
