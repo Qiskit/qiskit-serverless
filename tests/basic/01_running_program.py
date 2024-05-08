@@ -1,22 +1,27 @@
 #!/usr/bin/env python
 
-from qiskit_serverless import ServerlessProvider, QiskitPattern
+from qiskit_serverless import ServerlessClient, QiskitFunction
 import os
 
 
-serverless = ServerlessProvider(
+serverless = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )
 print(serverless)
 
-pattern = QiskitPattern(
+function = QiskitFunction(
     title="my-first-pattern",
     entrypoint="pattern.py",
     working_dir="./source_files/",
 )
-serverless.upload(pattern)
-job = serverless.run("my-first-pattern")
+serverless.upload(function)
+
+functions = {f.title: f for f in serverless.list()}
+my_pattern_function = functions.get("my-first-pattern")
+my_pattern_function
+
+job = my_pattern_function.run()
 print(job)
 
 print(job.result())

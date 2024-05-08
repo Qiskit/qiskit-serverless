@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from qiskit_serverless import ServerlessProvider
+from qiskit_serverless import ServerlessClient
 import os
 
-serverless = ServerlessProvider(
+serverless = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )
@@ -17,15 +17,15 @@ circuits = [random_circuit(2, 2) for _ in range(3)]
 print(circuits)
 
 
-from qiskit_serverless import QiskitPattern
+from qiskit_serverless import QiskitFunction
 
-pattern = QiskitPattern(
+function = QiskitFunction(
     title="pattern-with-parallel-workflow",
     entrypoint="pattern_with_parallel_workflow.py",
     working_dir="./source_files/",
 )
 
-serverless.upload(pattern)
+serverless.upload(function)
 
 job = serverless.run("pattern-with-parallel-workflow", arguments={"circuits": circuits})
 print(job)

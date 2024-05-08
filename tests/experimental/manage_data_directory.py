@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import os
-from qiskit_serverless import ServerlessProvider, QiskitPattern
+from qiskit_serverless import ServerlessClient, QiskitFunction
 
-serverless = ServerlessProvider(
+serverless = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )
@@ -18,11 +18,11 @@ file.close()
 
 serverless.file_upload(filename)
 
-pattern = QiskitPattern(
+function = QiskitFunction(
     title="file-producer", entrypoint="produce_files.py", working_dir="./source_files/"
 )
 
-serverless.upload(pattern)
+serverless.upload(function)
 job = serverless.run("file-producer")
 print(job)
 print(job.result())
@@ -32,11 +32,11 @@ print(job.logs())
 
 print(serverless.files())
 
-pattern = QiskitPattern(
+function = QiskitFunction(
     title="file-consumer", entrypoint="consume_files.py", working_dir="./source_files/"
 )
 
-serverless.upload(pattern)
+serverless.upload(function)
 job = serverless.run("file-consumer")
 print(job)
 print(job.result())

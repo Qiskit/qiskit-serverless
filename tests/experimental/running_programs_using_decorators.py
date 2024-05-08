@@ -1,21 +1,19 @@
 #!/usr/bin/env python
 
 import os
-from source_files.circuit_utils import create_hello_world_circuit
-from qiskit import QuantumCircuit
+from qiskit_serverless import ServerlessClient, distribute_qiskit_pattern, distribute_task, get, save_result, get_arguments
 from qiskit.primitives import Sampler
+from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
-from qiskit_serverless import ServerlessProvider, distribute_qiskit_pattern, distribute_task, get
 
-
-provider = ServerlessProvider(
+client = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )
 print(provider)
 
 
-@distribute_qiskit_pattern(provider)
+@distribute_qiskit_pattern(client)
 def hello_qiskit():
     circuit = QuantumCircuit(2)
     circuit.h(0)
@@ -42,7 +40,7 @@ def distributed_sample(circuit: QuantumCircuit):
     return Sampler().run(circuit).result().quasi_dists
 
 
-@distribute_qiskit_pattern(provider)
+@distribute_qiskit_pattern(client)
 def pattern_with_distributed_tasks(circuits):
     sample_task_references = [distributed_sample(circuit) for circuit in circuits]
     results = get(sample_task_references)
@@ -62,7 +60,7 @@ print(job.status())
 print(job.logs())
 
 
-@distribute_qiskit_pattern(provider, working_dir="./")
+@distribute_qiskit_pattern(client, working_dir="./")
 def my_pattern_with_modules():
     quasi_dists = Sampler().run(create_hello_world_circuit()).result().quasi_dists
     return {"quasi_dists": quasi_dists}

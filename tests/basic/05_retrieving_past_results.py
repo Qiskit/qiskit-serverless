@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 
-from qiskit_serverless import ServerlessProvider
+from qiskit_serverless import ServerlessClient
 import os
 
-serverless = ServerlessProvider(
+serverless = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )
 print(serverless)
 
-from qiskit_serverless import QiskitPattern
+from qiskit_serverless import QiskitFunction
 
-pattern = QiskitPattern(
+function = QiskitFunction(
     title="pattern-to-fetch-results", entrypoint="pattern.py", working_dir="./source_files/"
 )
-serverless.upload(pattern)
+serverless.upload(function)
 
 job1 = serverless.run("pattern-to-fetch-results")
 job2 = serverless.run("pattern-to-fetch-results")
