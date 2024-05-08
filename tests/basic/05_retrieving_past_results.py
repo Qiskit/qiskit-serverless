@@ -20,8 +20,8 @@ functions = {f.title: f for f in serverless.list()}
 my_pattern_function = functions.get("pattern-to-fetch-results")
 my_pattern_function
 
-job1 = my_pattern_function.run("pattern-to-fetch-results")
-job2 = my_pattern_function.run("pattern-to-fetch-results")
+job1 = my_pattern_function.run()
+job2 = my_pattern_function.run()
 print(job1)
 print(job2)
 
