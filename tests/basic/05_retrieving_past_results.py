@@ -9,9 +9,9 @@ serverless = ServerlessProvider(
 )
 print(serverless)
 
-from qiskit_serverless import QiskitPattern
+from qiskit_serverless import QiskitFunction
 
-pattern = QiskitPattern(
+pattern = QiskitFunction(
     title="pattern-to-fetch-results", entrypoint="pattern.py", working_dir="./source_files/"
 )
 serverless.upload(pattern)

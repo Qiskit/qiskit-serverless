@@ -8,7 +8,7 @@ circuit.cx(0, 1)
 circuit.measure_all()
 circuit.draw()
 
-from qiskit_serverless import ServerlessProvider, QiskitPattern
+from qiskit_serverless import ServerlessProvider, QiskitFunction
 import os
 
 serverless = ServerlessProvider(
@@ -17,7 +17,7 @@ serverless = ServerlessProvider(
 )
 print(serverless)
 
-pattern = QiskitPattern(
+pattern = QiskitFunction(
     title="pattern-with-arguments",
     entrypoint="pattern_with_arguments.py",
     working_dir="./source_files/",

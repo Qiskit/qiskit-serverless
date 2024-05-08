@@ -333,15 +333,15 @@ with open("./{file_name}", "rb") as file:
 """
 
 
-def distribute_qiskit_pattern(
+def distribute_qiskit_function(
     provider: Optional[Any] = None,
     dependencies: Optional[List[str]] = None,
     working_dir: Optional[str] = None,
 ):
-    """[Experimental] QiskitPattern decorator to turn function into remotely executable program.
+    """[Experimental] QiskitFunction decorator to turn function into remotely executable program.
 
     Example:
-        >>> @distribute_qiskit_pattern(provider=ServerlessProvider(...), dependencies=[...])
+        >>> @distribute_qiskit_function(provider=ServerlessProvider(...), dependencies=[...])
         >>> def my_program():
         >>>     print("Hola!")
         >>>
@@ -357,7 +357,7 @@ def distribute_qiskit_pattern(
     """
     # pylint: disable=import-outside-toplevel,cyclic-import
     from qiskit_serverless import QiskitServerlessException
-    from qiskit_serverless.core.function import QiskitPattern
+    from qiskit_serverless.core.function import QiskitFunction
     from qiskit_serverless.core.client import ServerlessProvider
 
     # create provider
@@ -412,13 +412,15 @@ def distribute_qiskit_pattern(
                 file.write(ENTRYPOINT_CONTENT.format(file_name=pickle_file_name))
 
             # create program
-            wrapped_program = QiskitPattern(
+            wrapped_program = QiskitFunction(
                 title=function.__name__,
                 entrypoint=entrypoint_file_name,
                 working_dir=working_directory,
                 dependencies=dependencies,
-                description="QiskitPattern execution using @distribute_program decorator.",
+                description="QiskitFunction execution using @distribute_program decorator.",
             )
+
+            provider.upload(wrapped_program)
 
             # run program
             job = provider.run(wrapped_program, arguments=kwargs)
@@ -446,6 +448,6 @@ def distribute_program(
     warnings.warn(
         "`distribute_program` has been deprecated "
         "and will be removed in future releases. "
-        "Please, use `distribute_qiskit_pattern` instead."
+        "Please, use `distribute_qiskit_function` instead."
     )
-    return distribute_qiskit_pattern(provider, dependencies, working_dir)
+    return distribute_qiskit_function(provider, dependencies, working_dir)

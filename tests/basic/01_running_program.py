@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from qiskit_serverless import ServerlessProvider, QiskitPattern
+from qiskit_serverless import ServerlessProvider, QiskitFunction
 import os
 
 
@@ -10,7 +10,7 @@ serverless = ServerlessProvider(
 )
 print(serverless)
 
-pattern = QiskitPattern(
+pattern = QiskitFunction(
     title="my-first-pattern",
     entrypoint="pattern.py",
     working_dir="./source_files/",

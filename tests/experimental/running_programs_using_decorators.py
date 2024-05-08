@@ -5,7 +5,7 @@ from source_files.circuit_utils import create_hello_world_circuit
 from qiskit import QuantumCircuit
 from qiskit.primitives import Sampler
 from qiskit.circuit.random import random_circuit
-from qiskit_serverless import ServerlessProvider, distribute_qiskit_pattern, distribute_task, get
+from qiskit_serverless import ServerlessProvider, distribute_qiskit_function, distribute_task, get
 
 
 provider = ServerlessProvider(
@@ -15,7 +15,7 @@ provider = ServerlessProvider(
 print(provider)
 
 
-@distribute_qiskit_pattern(provider)
+@distribute_qiskit_function(provider)
 def hello_qiskit():
     circuit = QuantumCircuit(2)
     circuit.h(0)
@@ -42,7 +42,7 @@ def distributed_sample(circuit: QuantumCircuit):
     return Sampler().run(circuit).result().quasi_dists
 
 
-@distribute_qiskit_pattern(provider)
+@distribute_qiskit_function(provider)
 def pattern_with_distributed_tasks(circuits):
     sample_task_references = [distributed_sample(circuit) for circuit in circuits]
     results = get(sample_task_references)
@@ -62,7 +62,7 @@ print(job.status())
 print(job.logs())
 
 
-@distribute_qiskit_pattern(provider, working_dir="./")
+@distribute_qiskit_function(provider, working_dir="./")
 def my_pattern_with_modules():
     quasi_dists = Sampler().run(create_hello_world_circuit()).result().quasi_dists
     return {"quasi_dists": quasi_dists}

@@ -17,9 +17,9 @@ circuits = [random_circuit(2, 2) for _ in range(3)]
 print(circuits)
 
 
-from qiskit_serverless import QiskitPattern
+from qiskit_serverless import QiskitFunction
 
-pattern = QiskitPattern(
+pattern = QiskitFunction(
     title="pattern-with-parallel-workflow",
     entrypoint="pattern_with_parallel_workflow.py",
     working_dir="./source_files/",

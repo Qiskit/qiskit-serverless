@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from qiskit_serverless import QiskitPattern
+from qiskit_serverless import QiskitFunction
 
-pattern = QiskitPattern(
+pattern = QiskitFunction(
     title="pattern-with-dependencies",
     entrypoint="pattern_with_dependencies.py",
     working_dir="./source_files/",
