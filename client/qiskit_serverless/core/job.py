@@ -142,6 +142,10 @@ class BaseJobClient:
         """Returns list of programs."""
         raise NotImplementedError
 
+    def get_program(self, title: str):
+        """Returns a Qiskit Function."""
+        raise NotImplementedError
+
 
 class RayJobClient(BaseJobClient):
     """RayJobClient."""
@@ -324,6 +328,16 @@ class LocalJobClient(BaseJobClient):
             QiskitFunction(program.get("title"), raw_data=program, job_client=self)
             for program in self._patterns
         ]
+
+    def get_program(self, title):
+        """Returns a Qiskit Function."""
+        function = None
+        for program in self._patterns:
+            if title == program.get("title"):
+                function = QiskitFunction(
+                    program.get("title"), raw_data=program, job_client=self
+                )
+        return function
 
 
 class GatewayJobClient(BaseJobClient):
@@ -531,6 +545,24 @@ class GatewayJobClient(BaseJobClient):
             QiskitFunction(program.get("title"), raw_data=program, job_client=self)
             for program in response_data
         ]
+
+    def get_program(self, title):
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("program.get"):
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/programs",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            function = None
+            for program in response_data:
+                if title == program.get("title"):
+                    function = QiskitFunction(
+                        program.get("title"), raw_data=program, job_client=self
+                    )
+            return function
 
 
 class Job:

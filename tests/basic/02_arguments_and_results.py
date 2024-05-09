@@ -24,8 +24,7 @@ function = QiskitFunction(
 )
 serverless.upload(function)
 
-functions = {f.title: f for f in serverless.list()}
-my_pattern_function = functions.get("pattern-with-arguments")
+my_pattern_function = serverless.get("pattern-with-arguments")
 my_pattern_function
 
 job = my_pattern_function.run(circuit=circuit)

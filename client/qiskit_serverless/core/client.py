@@ -358,6 +358,10 @@ class BaseClient(JsonSerializable):
         """Returns list of available programs."""
         raise NotImplementedError
 
+    def get(self, title: str) -> QiskitFunction:
+        """Returns a QiskitFunction."""
+        raise NotImplementedError
+
 
 class BaseProvider(BaseClient):
     """
@@ -489,6 +493,10 @@ class ServerlessClient(BaseClient):
     def list(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
         return self._job_client.get_programs(**kwargs)
+
+    def get(self, title: str) -> QiskitFunction:
+        """Returns a Qiskit Function."""
+        return self._job_client.get_program(title)
 
     def _verify_token(self, token: str):
         """Verify token."""
@@ -695,6 +703,10 @@ class LocalClient(BaseClient):
     def get_programs(self, **kwargs) -> List[QiskitFunction]:
         return self.client.get_programs(**kwargs)
 
+    def get_program(self, title) -> QiskitFunction:
+        """Returns a Qiskit Function."""
+        return self.client.get_program(title)
+
     def files(self) -> List[str]:
         if self.in_test:
             logging.warning("files method is not implemented in LocalProvider.")
@@ -726,6 +738,9 @@ class LocalClient(BaseClient):
 
     def list(self, **kwargs):
         return self.client.get_programs(**kwargs)
+
+    def get(self, title):
+        return self.client.get_program(title)
 
 
 class LocalProvider(LocalClient):
