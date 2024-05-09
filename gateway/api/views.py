@@ -30,10 +30,7 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
-from quantum_serverless.serializers.program_serializers import (
-    QiskitObjectsDecoder,
-)
-from qiskit_ibm_runtime import RuntimeInvalidStateError
+from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService 
 from utils import sanitize_file_path
 
 from .models import VIEW_PROGRAM_PERMISSION, Program, Job, RuntimeJob
@@ -438,9 +435,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
             runtime_jobs = self.get_runtime_job(job)
             if runtime_jobs and len(runtime_jobs) != 0:
                 if request.data.get("service"):
-                    service = json.loads(
-                        request.data.get("service"), cls=QiskitObjectsDecoder
-                    )
+                    service = QiskitRuntimeService(**json.loads(request.data.get("service"), cls=json.JSONDecoder)["__value__"])
                     for runtime_job_entry in runtime_jobs:
                         jobinstance = service.job(runtime_job_entry.runtime_job)
                         if jobinstance:
