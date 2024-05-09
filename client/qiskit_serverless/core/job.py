@@ -110,15 +110,6 @@ class BaseJobClient:
         """Uploads program."""
         raise NotImplementedError
 
-    def run_existing(
-        self,
-        program: Union[str, QiskitFunction],
-        arguments: Optional[Dict[str, Any]] = None,
-        config: Optional[Configuration] = None,
-    ):
-        """Executes existing program."""
-        raise NotImplementedError
-
     def get(self, job_id) -> Optional["Job"]:
         """Returns job by job id"""
         raise NotImplementedError
@@ -224,14 +215,6 @@ class RayJobClient(BaseJobClient):
     def upload(self, program: QiskitFunction):
         raise NotImplementedError("Upload is not available for RayJobClient.")
 
-    def run_existing(
-        self,
-        program: Union[str, QiskitFunction],
-        arguments: Optional[Dict[str, Any]] = None,
-        config: Optional[Configuration] = None,
-    ):
-        raise NotImplementedError("Run existing is not available for RayJobClient.")
-
 
 class LocalJobClient(BaseJobClient):
     """LocalJobClient."""
@@ -335,20 +318,6 @@ class LocalJobClient(BaseJobClient):
         )
         return program.title
 
-    def run_existing(
-        self,
-        program: Union[str, QiskitFunction],
-        arguments: Optional[Dict[str, Any]] = None,
-        config: Optional[Configuration] = None,
-    ):
-        warnings.warn(
-            "`run_existing` method has been deprecated. "
-            "And will be removed in future releases. "
-            "Please, use `run` instead.",
-            DeprecationWarning,
-        )
-        return self.run(program=program, arguments=arguments, config=config)
-
     def get_programs(self, **kwargs):
         """Returns list of programs."""
         return [
@@ -434,20 +403,6 @@ class GatewayJobClient(BaseJobClient):
                 )
 
         return program_title
-
-    def run_existing(
-        self,
-        program: Union[str, QiskitFunction],
-        arguments: Optional[Dict[str, Any]] = None,
-        config: Optional[Configuration] = None,
-    ):
-        warnings.warn(
-            "`run_existing` method has been deprecated. "
-            "And will be removed in future releases. "
-            "Please, use `run` instead.",
-            DeprecationWarning,
-        )
-        return self.run(program=program, arguments=arguments, config=config)
 
     def status(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")
