@@ -38,7 +38,7 @@ class TestProgramApi(APITestCase):
             "Program",
         )
 
-    def test_run_existing(self):
+    def test_run(self):
         """Tests run existing authorized."""
 
         user = models.User.objects.get(username="test_user")

@@ -120,7 +120,7 @@ class JobSerializer(serializers.ModelSerializer):
 
 class RunProgramSerializer(serializers.Serializer):
     """
-    Program serializer for the /run_existing end-point
+    Program serializer for the /run end-point
     """
 
     title = serializers.CharField(max_length=255)
@@ -146,7 +146,7 @@ class RunProgramSerializer(serializers.Serializer):
 
 class RunJobSerializer(serializers.ModelSerializer):
     """
-    Job serializer for the /run and /run_existing end-point
+    Job serializer for the /run and /run end-point
     """
 
     class Meta:

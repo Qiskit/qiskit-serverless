@@ -134,7 +134,7 @@ class SerializerTest(APITestCase):
         self.assertTrue(serializer.is_valid())
         self.assertTrue("image" in list(serializer.validated_data.keys()))
 
-    def test_run_existing_program_serializer_check_emtpy_data(self):
+    def test_run_program_serializer_check_emtpy_data(self):
         data = {}
 
         serializer = RunProgramSerializer(data=data)
@@ -142,7 +142,7 @@ class SerializerTest(APITestCase):
         errors = serializer.errors
         self.assertListEqual(["title", "arguments", "config"], list(errors.keys()))
 
-    def test_run_existing_program_serializer_fails_at_validation(self):
+    def test_run_program_serializer_fails_at_validation(self):
         data = {
             "title": "Program",
             "arguments": {},
@@ -154,7 +154,7 @@ class SerializerTest(APITestCase):
         errors = serializer.errors
         self.assertListEqual(["arguments"], list(errors.keys()))
 
-    def test_run_existing_program_serializer_config_json(self):
+    def test_run_program_serializer_config_json(self):
         assert_json = {
             "workers": None,
             "min_workers": 1,

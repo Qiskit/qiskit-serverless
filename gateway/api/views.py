@@ -82,7 +82,7 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
     @staticmethod
     def get_serializer_run_program(*args, **kwargs):
         """
-        This method returns the program serializer for the run_existing end-point
+        This method returns the program serializer for the run end-point
         """
 
         return RunProgramSerializer(*args, **kwargs)
@@ -90,7 +90,7 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
     @staticmethod
     def get_serializer_run_job(*args, **kwargs):
         """
-        This method returns the job serializer for the run_existing end-point
+        This method returns the job serializer for the run end-point
         """
 
         return RunJobSerializer(*args, **kwargs)
@@ -190,7 +190,7 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         """Enqueues existing program."""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.program.run_existing", context=ctx):
+        with tracer.start_as_current_span("gateway.program.run", context=ctx):
             serializer = self.get_serializer_run_program(data=request.data)
             if not serializer.is_valid():
                 logger.error(

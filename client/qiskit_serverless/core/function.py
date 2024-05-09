@@ -93,9 +93,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
                 )
 
         config = kwargs.pop("config", None)
-        return self.job_client.run_existing(
-            program=self.title, arguments=kwargs, config=config
-        )
+        return self.job_client.run(program=self.title, arguments=kwargs, config=config)
 
     def _validate_function(self) -> Tuple[bool, List[str]]:
         """Validate function arguments using schema provided.
