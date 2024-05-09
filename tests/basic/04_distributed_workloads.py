@@ -26,10 +26,7 @@ function = QiskitFunction(
 )
 serverless.upload(function)
 
-functions = {f.title: f for f in serverless.list()}
-my_pattern_function = functions.get("pattern-with-parallel-workflow")
-my_pattern_function
-
+my_pattern_function = serverless.get("pattern-with-parallel-workflow")
 job = my_pattern_function.run(circuits=circuits)
 print(job)
 

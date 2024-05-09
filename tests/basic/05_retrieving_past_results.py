@@ -16,8 +16,7 @@ function = QiskitFunction(
 )
 serverless.upload(function)
 
-functions = {f.title: f for f in serverless.list()}
-my_pattern_function = functions.get("pattern-to-fetch-results")
+my_pattern_function = serverless.get("pattern-to-fetch-results")
 my_pattern_function
 
 job1 = my_pattern_function.run()
