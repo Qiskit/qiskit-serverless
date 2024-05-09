@@ -435,7 +435,11 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
             runtime_jobs = self.get_runtime_job(job)
             if runtime_jobs and len(runtime_jobs) != 0:
                 if request.data.get("service"):
-                    service = QiskitRuntimeService(**json.loads(request.data.get("service"), cls=json.JSONDecoder)["__value__"])
+                    service = QiskitRuntimeService(
+                        **json.loads(request.data.get("service"), cls=json.JSONDecoder)[
+                            "__value__"
+                        ]
+                    )
                     for runtime_job_entry in runtime_jobs:
                         jobinstance = service.job(runtime_job_entry.runtime_job)
                         if jobinstance:
