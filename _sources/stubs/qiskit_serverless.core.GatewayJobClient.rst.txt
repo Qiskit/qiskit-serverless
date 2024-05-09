@@ -21,7 +21,6 @@
       ~GatewayJobClient.logs
       ~GatewayJobClient.result
       ~GatewayJobClient.run
-      ~GatewayJobClient.run_existing
       ~GatewayJobClient.status
       ~GatewayJobClient.stop
       ~GatewayJobClient.upload

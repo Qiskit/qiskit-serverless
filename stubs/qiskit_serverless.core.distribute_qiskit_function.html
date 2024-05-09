@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="qiskit_serverless.core.get" href="qiskit_serverless.core.get.html" /><link rel="prev" title="qiskit_serverless.core.distribute_program" href="qiskit_serverless.core.distribute_program.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.01.29 -->
-        <title>qiskit_serverless.core.distribute_qiskit_pattern - Qiskit Serverless 0.10.1</title>
+        <title>qiskit_serverless.core.distribute_qiskit_function - Qiskit Serverless 0.10.1</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=135e06be" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=fe84956c" />
@@ -231,7 +231,7 @@
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.fetch_execution_meta.html">qiskit_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.distribute_task.html">qiskit_serverless.core.distribute_task</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.distribute_program.html">qiskit_serverless.core.distribute_program</a></li>
-<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">qiskit_serverless.core.distribute_qiskit_pattern</a></li>
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">qiskit_serverless.core.distribute_qiskit_function</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.get.html">qiskit_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.get_refs_by_status.html">qiskit_serverless.core.get_refs_by_status</a></li>
@@ -287,14 +287,14 @@
           </label>
         </div>
         <article role="main">
-          <section id="qiskit-serverless-core-distribute-qiskit-pattern">
-<h1>qiskit_serverless.core.distribute_qiskit_pattern<a class="headerlink" href="#qiskit-serverless-core-distribute-qiskit-pattern" title="Permalink to this heading">#</a></h1>
+          <section id="qiskit-serverless-core-distribute-qiskit-function">
+<h1>qiskit_serverless.core.distribute_qiskit_function<a class="headerlink" href="#qiskit-serverless-core-distribute-qiskit-function" title="Permalink to this heading">#</a></h1>
 <dl class="py function">
-<dt class="sig sig-object py" id="qiskit_serverless.core.distribute_qiskit_pattern">
-<span class="sig-name descname"><span class="pre">distribute_qiskit_pattern</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">provider</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dependencies</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qiskit_serverless/core/decorators.html#distribute_qiskit_pattern"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qiskit_serverless.core.distribute_qiskit_pattern" title="Permalink to this definition">#</a></dt>
-<dd><p>[Experimental] QiskitPattern decorator to turn function into remotely executable program.</p>
+<dt class="sig sig-object py" id="qiskit_serverless.core.distribute_qiskit_function">
+<span class="sig-name descname"><span class="pre">distribute_qiskit_function</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">provider</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dependencies</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qiskit_serverless/core/decorators.html#distribute_qiskit_function"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qiskit_serverless.core.distribute_qiskit_function" title="Permalink to this definition">#</a></dt>
+<dd><p>[Experimental] QiskitFunction decorator to turn function into remotely executable program.</p>
 <p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nd">@distribute_qiskit_pattern</span><span class="p">(</span><span class="n">provider</span><span class="o">=</span><span class="n">ServerlessProvider</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">])</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nd">@distribute_qiskit_function</span><span class="p">(</span><span class="n">provider</span><span class="o">=</span><span class="n">ServerlessProvider</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">])</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">my_program</span><span class="p">():</span>
 <span class="gp">&gt;&gt;&gt; </span>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hola!&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt;</span>
@@ -371,8 +371,8 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">qiskit_serverless.core.distribute_qiskit_pattern</a><ul>
-<li><a class="reference internal" href="#qiskit_serverless.core.distribute_qiskit_pattern"><code class="docutils literal notranslate"><span class="pre">distribute_qiskit_pattern()</span></code></a></li>
+<li><a class="reference internal" href="#">qiskit_serverless.core.distribute_qiskit_function</a><ul>
+<li><a class="reference internal" href="#qiskit_serverless.core.distribute_qiskit_function"><code class="docutils literal notranslate"><span class="pre">distribute_qiskit_function()</span></code></a></li>
 </ul>
 </li>
 </ul>

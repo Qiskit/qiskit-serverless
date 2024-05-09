@@ -21,7 +21,6 @@
       ~RayJobClient.logs
       ~RayJobClient.result
       ~RayJobClient.run
-      ~RayJobClient.run_existing
       ~RayJobClient.status
       ~RayJobClient.stop
       ~RayJobClient.upload

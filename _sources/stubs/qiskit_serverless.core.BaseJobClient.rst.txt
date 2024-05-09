@@ -21,7 +21,6 @@
       ~BaseJobClient.logs
       ~BaseJobClient.result
       ~BaseJobClient.run
-      ~BaseJobClient.run_existing
       ~BaseJobClient.status
       ~BaseJobClient.stop
       ~BaseJobClient.upload

@@ -231,7 +231,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.fetch_execution_meta.html">qiskit_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.distribute_task.html">qiskit_serverless.core.distribute_task</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.distribute_program.html">qiskit_serverless.core.distribute_program</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.distribute_qiskit_pattern.html">qiskit_serverless.core.distribute_qiskit_pattern</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.distribute_qiskit_function.html">qiskit_serverless.core.distribute_qiskit_function</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.get.html">qiskit_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.get_refs_by_status.html">qiskit_serverless.core.get_refs_by_status</a></li>
@@ -737,10 +737,16 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
         <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;Provider.run&quot;</span><span class="p">):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;`run` method has been deprecated. &quot;</span>
+                <span class="s2">&quot;And will be removed in future releases. &quot;</span>
+                <span class="s2">&quot;Please, use `function.run` instead.&quot;</span><span class="p">,</span>
+                <span class="ne">DeprecationWarning</span><span class="p">,</span>
+            <span class="p">)</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="ow">and</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+                <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">run_existing</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+                <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">job</span>
 
     <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
@@ -950,10 +956,16 @@
         <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;`client.run` method has been deprecated. &quot;</span>
+            <span class="s2">&quot;And will be removed in future releases. &quot;</span>
+            <span class="s2">&quot;Please, use `function.run` instead.&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="ow">and</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">run_existing</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">job</span>
 
     <span class="k">def</span> <span class="nf">get_job_by_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
@@ -999,7 +1011,10 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_test</span><span class="p">:</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;file_delete method is not implemented in LocalProvider.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;files method is not implemented in LocalProvider.&quot;</span><span class="p">)</span></div>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;files method is not implemented in LocalProvider.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get_programs</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 
 <span class="k">class</span> <span class="nc">LocalProvider</span><span class="p">(</span><span class="n">LocalClient</span><span class="p">):</span>
