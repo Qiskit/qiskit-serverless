@@ -448,10 +448,16 @@ class ServerlessClient(BaseClient):
     ) -> Job:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("Provider.run"):
+            warnings.warn(
+                "`run` method has been deprecated. "
+                "And will be removed in future releases. "
+                "Please, use `function.run` instead.",
+                DeprecationWarning,
+            )
             if isinstance(program, QiskitFunction) and program.entrypoint is not None:
-                job = self._job_client.run(program, arguments, config)
+                job = self._job_client.run(program.title, arguments, config)
             else:
-                job = self._job_client.run_existing(program, arguments, config)
+                job = self._job_client.run(program, arguments, config)
         return job
 
     def upload(self, program: QiskitFunction):
@@ -661,10 +667,16 @@ class LocalClient(BaseClient):
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> Job:
+        warnings.warn(
+            "`client.run` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `function.run` instead.",
+            DeprecationWarning,
+        )
         if isinstance(program, QiskitFunction) and program.entrypoint is not None:
-            job = self.client.run(program, arguments)
+            job = self.client.run(program.title, arguments, config)
         else:
-            job = self.client.run_existing(program, arguments)
+            job = self.client.run(program, arguments, config)
         return job
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
@@ -711,6 +723,9 @@ class LocalClient(BaseClient):
             logging.warning("file_delete method is not implemented in LocalProvider.")
             return None
         raise NotImplementedError("files method is not implemented in LocalProvider.")
+
+    def list(self, **kwargs):
+        return self.client.get_programs(**kwargs)
 
 
 class LocalProvider(LocalClient):

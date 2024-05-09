@@ -69,4 +69,3 @@ jobs:
         if: ${{ failure() }}
         run: |
           docker compose logs gateway
-          docker compose logs jupyter

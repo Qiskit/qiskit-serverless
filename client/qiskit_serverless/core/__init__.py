@@ -44,7 +44,7 @@ Core abstractions
     fetch_execution_meta
     distribute_task
     distribute_program
-    distribute_qiskit_pattern
+    distribute_qiskit_function
     get
     put
     get_refs_by_status
@@ -82,7 +82,7 @@ from .decorators import (
     get_refs_by_status,
     fetch_execution_meta,
     distribute_task,
-    distribute_qiskit_pattern,
+    distribute_qiskit_function,
     distribute_program,
     Target,
     CircuitMeta,

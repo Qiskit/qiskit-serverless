@@ -1,4 +1,4 @@
-name: Notebook LocalProvider tests
+name: Notebook LocalClient tests
 
 on:
   pull_request:
@@ -16,8 +16,8 @@ jobs:
       - name: patch notebooks
         shell: bash
         run: |
-          for f in tests/basic/*.py; do sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" "$f"; done
-          for f in tests/experimental/*.py; do sed -i "s/import ServerlessProvider/import LocalProvider/;s/= ServerlessProvider(/= LocalProvider(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" "$f"; done
+          for f in tests/basic/*.py; do sed -i "s/import ServerlessClient/import LocalClient/;s/= ServerlessClient(/= LocalClient(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" "$f"; done
+          for f in tests/experimental/*.py; do sed -i "s/import ServerlessClient/import LocalClient/;s/= ServerlessClient(/= LocalClient(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" "$f"; done
       - name: install dependencies
         shell: bash
         run: pip install client/

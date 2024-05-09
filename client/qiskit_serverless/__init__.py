@@ -25,7 +25,7 @@ from .core import (
     BaseProvider,
     BaseClient,
     distribute_task,
-    distribute_qiskit_pattern,
+    distribute_qiskit_function,
     get,
     put,
     get_refs_by_status,

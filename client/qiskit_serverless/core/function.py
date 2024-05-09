@@ -85,21 +85,17 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             raise ValueError("No clients specified for a function.")
 
         if self.validate:
-            is_valid, validation_errors = self._validate_funciton()
+            is_valid, validation_errors = self._validate_function()
             if not is_valid:
                 error_string = "\n".join(validation_errors)
                 raise ValueError(
                     f"Function validation failed. Validation errors:\n {error_string}",
                 )
 
-        if self._is_local_function():
-            return self.job_client.run(program=self, arguments=kwargs)
-        return self.job_client.run_existing(program=self.title, arguments=kwargs)
+        config = kwargs.pop("config", None)
+        return self.job_client.run(program=self.title, arguments=kwargs, config=config)
 
-    def _is_local_function(self) -> bool:
-        return self.entrypoint is not None and self.working_dir is not None
-
-    def _validate_funciton(self) -> Tuple[bool, List[str]]:
+    def _validate_function(self) -> Tuple[bool, List[str]]:
         """Validate function arguments using schema provided.
 
         Returns:

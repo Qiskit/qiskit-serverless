@@ -35,6 +35,7 @@ import re
 import tarfile
 import time
 import sys
+import warnings
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 from uuid import uuid4
@@ -98,7 +99,7 @@ class BaseJobClient:
 
     def run(
         self,
-        program: QiskitFunction,
+        program: Union[str, QiskitFunction],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> "Job":
@@ -107,15 +108,6 @@ class BaseJobClient:
 
     def upload(self, program: QiskitFunction):
         """Uploads program."""
-        raise NotImplementedError
-
-    def run_existing(
-        self,
-        program: Union[str, QiskitFunction],
-        arguments: Optional[Dict[str, Any]] = None,
-        config: Optional[Configuration] = None,
-    ):
-        """Executes existing program."""
         raise NotImplementedError
 
     def get(self, job_id) -> Optional["Job"]:
@@ -188,10 +180,17 @@ class RayJobClient(BaseJobClient):
 
     def run(
         self,
-        program: QiskitFunction,
+        program: Union[str, QiskitFunction],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
+        if not isinstance(program, QiskitFunction):
+            warnings.warn(
+                "`run` doesn't support program str yet. "
+                "Send a QiskitFunction instead. "
+            )
+            return NotImplementedError
+
         arguments = arguments or {}
         entrypoint = f"python {program.entrypoint}"
 
@@ -216,14 +215,6 @@ class RayJobClient(BaseJobClient):
     def upload(self, program: QiskitFunction):
         raise NotImplementedError("Upload is not available for RayJobClient.")
 
-    def run_existing(
-        self,
-        program: Union[str, QiskitFunction],
-        arguments: Optional[Dict[str, Any]] = None,
-        config: Optional[Configuration] = None,
-    ):
-        raise NotImplementedError("Run existing is not available for RayJobClient.")
-
 
 class LocalJobClient(BaseJobClient):
     """LocalJobClient."""
@@ -234,7 +225,7 @@ class LocalJobClient(BaseJobClient):
         Args:
         """
         self._jobs = {}
-        self._patterns = {}
+        self._patterns = []
 
     def status(self, job_id: str):
         return self._jobs[job_id]["status"]
@@ -259,64 +250,7 @@ class LocalJobClient(BaseJobClient):
         """Return filtered logs."""
         raise NotImplementedError
 
-    def run(
-        self,
-        program: QiskitFunction,
-        arguments: Optional[Dict[str, Any]] = None,
-        config: Optional[Configuration] = None,
-    ):
-        if program.dependencies:
-            for dependency in program.dependencies:
-                subprocess.check_call(
-                    [sys.executable, "-m", "pip", "install", dependency]
-                )
-        arguments = arguments or {}
-        env_vars = {
-            **(program.env_vars or {}),
-            **{OT_PROGRAM_NAME: program.title},
-            **{"PATH": os.environ["PATH"]},
-            **{ENV_JOB_ARGUMENTS: json.dumps(arguments, cls=QiskitObjectsEncoder)},
-        }
-
-        with Popen(
-            ["python", program.working_dir + program.entrypoint],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            env=env_vars,
-        ) as pipe:
-            status = "SUCCEEDED"
-            if pipe.wait():
-                status = "FAILED"
-            output, _ = pipe.communicate()
-        results = re.search("\nSaved Result:(.+?):End Saved Result\n", output)
-        result = ""
-        if results:
-            result = results.group(1)
-
-        job = Job(job_id=str(uuid4()), job_client=self)
-        entry = {"status": status, "logs": output, "result": result, "job": job}
-        self._jobs[job.job_id] = entry
-        return job
-
-    def upload(self, program: QiskitFunction):
-        # check if entrypoint exists
-        if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
-            raise QiskitServerlessException(
-                f"Entrypoint file [{program.entrypoint}] does not exist "
-                f"in [{program.working_dir}] working directory."
-            )
-        self._patterns[program.title] = {
-            "title": program.title,
-            "entrypoint": program.entrypoint,
-            "working_dir": program.working_dir,
-            "env_vars": program.env_vars,
-            "arguments": json.dumps({}),
-            "dependencies": json.dumps(program.dependencies or []),
-        }
-        return program.title
-
-    def run_existing(  # pylint: disable=too-many-locals
+    def run(  # pylint: disable=too-many-locals
         self,
         program: Union[str, QiskitFunction],
         arguments: Optional[Dict[str, Any]] = None,
@@ -327,7 +261,9 @@ class LocalJobClient(BaseJobClient):
         else:
             title = str(program)
 
-        saved_program = self._patterns[title]
+        for pattern in self._patterns:
+            if pattern["title"] == title:
+                saved_program = pattern
         if saved_program["dependencies"]:
             dept = json.loads(saved_program["dependencies"])
             for dependency in dept:
@@ -363,9 +299,31 @@ class LocalJobClient(BaseJobClient):
         self._jobs[job.job_id] = entry
         return job
 
+    def upload(self, program: QiskitFunction):
+        # check if entrypoint exists
+        if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
+            raise QiskitServerlessException(
+                f"Entrypoint file [{program.entrypoint}] does not exist "
+                f"in [{program.working_dir}] working directory."
+            )
+        self._patterns.append(
+            {
+                "title": program.title,
+                "entrypoint": program.entrypoint,
+                "working_dir": program.working_dir,
+                "env_vars": program.env_vars,
+                "arguments": json.dumps({}),
+                "dependencies": json.dumps(program.dependencies or []),
+            }
+        )
+        return program.title
+
     def get_programs(self, **kwargs):
         """Returns list of programs."""
-        return self._patterns
+        return [
+            QiskitFunction(program.get("title"), raw_data=program, job_client=self)
+            for program in self._patterns
+        ]
 
 
 class GatewayJobClient(BaseJobClient):
@@ -385,69 +343,41 @@ class GatewayJobClient(BaseJobClient):
 
     def run(  # pylint: disable=too-many-locals
         self,
-        program: QiskitFunction,
+        program: Union[str, QiskitFunction],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> "Job":
+        if isinstance(program, QiskitFunction):
+            title = program.title
+        else:
+            title = str(program)
+
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
-            span.set_attribute("program", program.title)
+            span.set_attribute("program", title)
             span.set_attribute("arguments", str(arguments))
 
             url = f"{self.host}/api/{self.version}/programs/run/"
-            artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
 
-            # check if entrypoint exists
-            if not os.path.exists(
-                os.path.join(program.working_dir, program.entrypoint)
-            ):
-                raise QiskitServerlessException(
-                    f"Entrypoint file [{program.entrypoint}] does not exist "
-                    f"in [{program.working_dir}] working directory."
+            data = {
+                "title": title,
+                "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
+            }  # type: Dict[str, Any]
+            if config:
+                data["config"] = asdict(config)
+            else:
+                data["config"] = asdict(Configuration())
+
+            response_data = safe_json_request(
+                request=lambda: requests.post(
+                    url=url,
+                    json=data,
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
                 )
-
-            with tarfile.open(artifact_file_path, "w") as tar:
-                for filename in os.listdir(program.working_dir):
-                    fpath = os.path.join(program.working_dir, filename)
-                    tar.add(fpath, arcname=filename)
-
-            # check file size
-            size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
-            if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
-                raise QiskitServerlessException(
-                    f"{artifact_file_path} is {int(size_in_mb)} Mb, "
-                    f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
-                    f"Try to reduce size of `working_dir`."
-                )
-
-            with open(artifact_file_path, "rb") as file:
-                data = {
-                    "title": program.title,
-                    "entrypoint": program.entrypoint,
-                    "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
-                    "dependencies": json.dumps(program.dependencies or []),
-                    "env_vars": json.dumps(program.env_vars or {}),
-                }  # type: Dict[str, Any]
-                if config:
-                    data["config"] = asdict(config)
-                else:
-                    data["config"] = asdict(Configuration())
-
-                response_data = safe_json_request(
-                    request=lambda: requests.post(
-                        url=url,
-                        data=data,
-                        files={"artifact": file},
-                        headers={"Authorization": f"Bearer {self._token}"},
-                        timeout=REQUESTS_TIMEOUT,
-                    ),
-                    verbose=True,
-                )
-                job_id = response_data.get("id")
-                span.set_attribute("job.id", job_id)
-
-            if os.path.exists(artifact_file_path):
-                os.remove(artifact_file_path)
+            )
+            job_id = response_data.get("id")
+            span.set_attribute("job.id", job_id)
 
         return Job(job_id, job_client=self)
 
@@ -473,46 +403,6 @@ class GatewayJobClient(BaseJobClient):
                 )
 
         return program_title
-
-    def run_existing(
-        self,
-        program: Union[str, QiskitFunction],
-        arguments: Optional[Dict[str, Any]] = None,
-        config: Optional[Configuration] = None,
-    ):
-        if isinstance(program, QiskitFunction):
-            title = program.title
-        else:
-            title = str(program)
-
-        tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("job.run_existing") as span:
-            span.set_attribute("program", title)
-            span.set_attribute("arguments", str(arguments))
-
-            url = f"{self.host}/api/{self.version}/programs/run_existing/"
-
-            data = {
-                "title": title,
-                "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
-            }  # type: Dict[str, Any]
-            if config:
-                data["config"] = asdict(config)
-            else:
-                data["config"] = asdict(Configuration())
-
-            response_data = safe_json_request(
-                request=lambda: requests.post(
-                    url=url,
-                    json=data,
-                    headers={"Authorization": f"Bearer {self._token}"},
-                    timeout=REQUESTS_TIMEOUT,
-                )
-            )
-            job_id = response_data.get("id")
-            span.set_attribute("job.id", job_id)
-
-        return Job(job_id, job_client=self)
 
     def status(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")
@@ -630,18 +520,16 @@ class GatewayJobClient(BaseJobClient):
     def get_programs(self, **kwargs):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("program.list"):
-            limit = kwargs.get("limit", 10)
-            offset = kwargs.get("offset", 0)
             response_data = safe_json_request(
                 request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/programs/?limit={limit}&offset={offset}",
+                    f"{self.host}/api/{self.version}/programs",
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
         return [
             QiskitFunction(program.get("title"), raw_data=program, job_client=self)
-            for program in response_data.get("results", [])
+            for program in response_data
         ]
 
 
