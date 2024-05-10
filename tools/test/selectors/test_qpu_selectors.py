@@ -7,7 +7,7 @@ from qiskit import QuantumCircuit
 from qiskit.providers.fake_provider import FakeHanoi
 from qiskit_ibm_runtime import Session
 
-from quantum_serverless_tools.selectors import IBMLeastBusyQPUSelector, IBMLeastNoisyQPUSelector
+from qiskit_serverless_tools.selectors import IBMLeastBusyQPUSelector, IBMLeastNoisyQPUSelector
 
 
 def _get_mock_backend(backend_name):

@@ -1,4 +1,4 @@
-FROM icr.io/quantum-public/quantum-serverless-ray-node:0.10.1-py310
+FROM icr.io/quantum-public/qiskit-serverless-ray-node:0.11.0-py310
 
 WORKDIR /
 COPY --chown=$RAY_UID:$RAY_UID ./tools ./qs_tools

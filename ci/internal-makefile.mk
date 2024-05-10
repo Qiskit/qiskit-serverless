@@ -16,15 +16,15 @@ DOCKER_REGISTRY           			:= icr.io
 DOCKER_REGISTRY_NAMESPACE 			:= quantum-public
 DOCKER_PRIVATE_REGISTRY_NAMESPACE 	:= quantum-experimental
 
-TARGET_SERVICE			  ?= quantum-serverless
+TARGET_SERVICE			  ?= qiskit-serverless
 ENVIRONMENT               ?= development
 PROJECT_VERSION			  ?= latest
 
-DOCKER_IMAGE_GATEWAY      := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-serverless-gateway
-DOCKER_IMAGE_NOTEBOOK     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-serverless-notebook
-DOCKER_IMAGE_RAY_NODE     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/quantum-serverless-ray-node
-DOCKER_IMAGE_SELECTOR 	  := $(DOCKER_REGISTRY)/$(DOCKER_PRIVATE_REGISTRY_NAMESPACE)/quantum-serverless-selector
-DOCKER_IMAGE_SELECTOR_TAG := 0.10.1
+DOCKER_IMAGE_GATEWAY      := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/qiskit-serverless-gateway
+DOCKER_IMAGE_NOTEBOOK     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/qiskit-serverless-notebook
+DOCKER_IMAGE_RAY_NODE     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/qiskit-serverless-ray-node
+DOCKER_IMAGE_SELECTOR 	  := $(DOCKER_REGISTRY)/$(DOCKER_PRIVATE_REGISTRY_NAMESPACE)/qiskit-serverless-selector
+DOCKER_IMAGE_SELECTOR_TAG := 0.11.0
 
 # =========
 # CI Commands

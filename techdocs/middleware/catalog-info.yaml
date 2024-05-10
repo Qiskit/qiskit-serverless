@@ -5,7 +5,7 @@ metadata:
   title: VT Middleware
   description: Middleware Vertical
   annotations:
-    github.com/project-slug: IBM-Q-Software/quantum-serverless
+    github.com/project-slug: IBM-Q-Software/qiskit-serverless
     # backstage.io/techdocs-ref: dir:.
 spec:
   owner: vt-middleware

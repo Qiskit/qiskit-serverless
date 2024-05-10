@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "quantum_serverless_tools"
+name = "qiskit_serverless_tools"
 version = "0.0.0"
 description = "A package for automatically selecting qubits."
 readme = "README.md"
@@ -41,10 +41,10 @@ basetest = [
     "pytest-randomly>=1.2.0",
 ]
 test = [
-    "quantum_serverless_tools[basetest]",
+    "qiskit_serverless_tools[basetest]",
 ]
 nbtest = [
-    "quantum_serverless_tools[basetest]",
+    "qiskit_serverless_tools[basetest]",
     "nbmake>=1.3.4"
 ]
 style = [
@@ -54,15 +54,15 @@ style = [
     "nbqa>=1.6.0",
 ]
 lint = [
-    "quantum_serverless_tools[style]",
+    "qiskit_serverless_tools[style]",
     "pydocstyle==6.3.0",
     "mypy==1.5.1",
     # pydocstyle prefers to parse our pyproject.toml, hence the following line
     "toml",
 ]
 notebook-dependencies = [
-    "quantum_serverless_tools",
-    "quantum-serverless",
+    "qiskit_serverless_tools",
+    "qiskit-serverless",
     "matplotlib",
     "ipywidgets",
     "pylatexenc",
@@ -70,7 +70,7 @@ notebook-dependencies = [
 
 [tool.hatch.build.targets.wheel]
 only-include = [
-    "quantum_serverless_tools",
+    "qiskit_serverless_tools",
 ]
 
 [tool.autoflake]
@@ -78,7 +78,7 @@ remove-unused-variables = true
 remove-all-unused-imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["./quantum_serverless_tools/", "./test/"]
+testpaths = ["./qiskit_serverless_tools/", "./test/"]
 addopts = "--doctest-modules -rs --durations=10"
 
 [tool.ruff]

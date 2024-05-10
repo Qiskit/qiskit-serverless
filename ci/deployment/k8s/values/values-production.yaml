@@ -1,11 +1,11 @@
 # ===================
-# Quantum Serverless Info
+# Qiskit Serverless Info
 # ===================
 global:
-  version: 0.10.1
+  version: 0.11.0
 
 # ===================
-# Quantum Serverless configs
+# Qiskit Serverless configs
 # ===================
 platform: ibm
 
@@ -45,9 +45,9 @@ gateway:
   useCertManager: false
 
   image:
-    repository: "icr.io/quantum-public/quantum-serverless-gateway"
+    repository: "icr.io/quantum-public/qiskit-serverless-gateway"
     pullPolicy: IfNotPresent
-    tag: "0.10.1"
+    tag: "0.11.0"
   resources:
     requests:
       memory: 2Gi
@@ -70,7 +70,7 @@ gateway:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-experimental/quantum-serverless-selector:0.10.1"
+      nodeImage: "icr.io/quantum-experimental/qiskit-serverless-selector:0.11.0"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
       kubectlImage: alpine/k8s:1.28.9@sha256:4f97e78a640d569731ac71dccc27d7783b03488b383f15ca75ea975d31c3fe57
       cpu: 4
