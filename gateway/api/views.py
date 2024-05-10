@@ -29,6 +29,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
+
+from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
 from utils import sanitize_file_path
 
 from .models import VIEW_PROGRAM_PERMISSION, Program, Job, RuntimeJob
@@ -318,6 +320,10 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
             logs = job.logs
         return Response({"logs": logs})
 
+    def get_runtime_job(self, job):
+        """get runtime job for job"""
+        return RuntimeJob.objects.filter(job=job)
+
     @action(methods=["POST"], detail=True)
     def stop(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Stops job"""
@@ -329,6 +335,25 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                 job.status = Job.STOPPED
                 job.save(update_fields=["status"])
             message = "Job has been stopped."
+            runtime_jobs = self.get_runtime_job(job)
+            if runtime_jobs and len(runtime_jobs) != 0:
+                if request.data.get("service"):
+                    service = QiskitRuntimeService(
+                        **json.loads(request.data.get("service"), cls=json.JSONDecoder)[
+                            "__value__"
+                        ]
+                    )
+                    for runtime_job_entry in runtime_jobs:
+                        jobinstance = service.job(runtime_job_entry.runtime_job)
+                        if jobinstance:
+                            try:
+                                logger.info(
+                                    "canceling [%s]", runtime_job_entry.runtime_job
+                                )
+                                jobinstance.cancel()
+                            except RuntimeInvalidStateError:
+                                logger.warning("cancel failed")
+
             if job.compute_resource:
                 if job.compute_resource.active:
                     job_handler = get_job_handler(job.compute_resource.host)

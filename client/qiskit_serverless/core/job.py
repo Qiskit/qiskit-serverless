@@ -49,6 +49,7 @@ import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
 from opentelemetry import trace
+from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_serverless.core.constants import (
     OT_PROGRAM_NAME,
@@ -122,7 +123,7 @@ class BaseJobClient:
         """Check status."""
         raise NotImplementedError
 
-    def stop(self, job_id: str):
+    def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
         """Stops job/program."""
         raise NotImplementedError
 
@@ -158,7 +159,7 @@ class RayJobClient(BaseJobClient):
     def status(self, job_id: str):
         return self._job_client.get_job_status(job_id).value
 
-    def stop(self, job_id: str):
+    def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
         return self._job_client.stop_job(job_id)
 
     def logs(self, job_id: str):
@@ -230,7 +231,7 @@ class LocalJobClient(BaseJobClient):
     def status(self, job_id: str):
         return self._jobs[job_id]["status"]
 
-    def stop(self, job_id: str):
+    def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
         """Stops job/program."""
         return f"job:{job_id} has already stopped"
 
@@ -418,14 +419,23 @@ class GatewayJobClient(BaseJobClient):
 
         return response_data.get("status", default_status)
 
-    def stop(self, job_id: str):
+    def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.stop"):
+            if service:
+                data = {
+                    "service": json.dumps(service, cls=QiskitObjectsEncoder),
+                }
+            else:
+                data = {
+                    "service": None,
+                }
             response_data = safe_json_request(
                 request=lambda: requests.post(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
+                    json=data,
                 )
             )
 
@@ -556,9 +566,9 @@ class Job:
         """Returns status of the job."""
         return _map_status_to_serverless(self._job_client.status(self.job_id))
 
-    def stop(self):
+    def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
-        return self._job_client.stop(self.job_id)
+        return self._job_client.stop(self.job_id, service=service)
 
     def logs(self) -> str:
         """Returns logs of the job."""
