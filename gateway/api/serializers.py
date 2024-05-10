@@ -12,7 +12,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
-from .models import Program, Job, JobConfig, RuntimeJob
+from .models import Program, Job, JobConfig, RuntimeJob, DEFAULT_PROGRAM_ENTRYPOINT
 
 logger = logging.getLogger("gateway.serializers")
 
@@ -21,6 +21,9 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     """
     Program serializer for the /upload end-point
     """
+
+    entrypoint = serializers.CharField(required=False)
+    image = serializers.CharField(required=False)
 
     class Meta:
         model = Program
@@ -48,11 +51,14 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         logger.info(
             "Updating program [%s] with UploadProgramSerializer", instance.title
         )
-        instance.entrypoint = validated_data.get("entrypoint")
+        instance.entrypoint = validated_data.get(
+            "entrypoint", DEFAULT_PROGRAM_ENTRYPOINT
+        )
         instance.dependencies = validated_data.get("dependencies", "[]")
         instance.env_vars = validated_data.get("env_vars", {})
         instance.artifact = validated_data.get("artifact")
         instance.author = validated_data.get("author")
+        instance.image = validated_data.get("image")
         instance.save()
         return instance
 
@@ -112,9 +118,9 @@ class JobSerializer(serializers.ModelSerializer):
         model = Job
 
 
-class RunExistingProgramSerializer(serializers.Serializer):
+class RunProgramSerializer(serializers.Serializer):
     """
-    Program serializer for the /run_existing end-point
+    Program serializer for the /run end-point
     """
 
     title = serializers.CharField(max_length=255)
@@ -140,7 +146,7 @@ class RunExistingProgramSerializer(serializers.Serializer):
 
 class RunJobSerializer(serializers.ModelSerializer):
     """
-    Job serializer for the /run and /run_existing end-point
+    Job serializer for the /run and /run end-point
     """
 
     class Meta:
@@ -187,72 +193,3 @@ class RuntimeJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RuntimeJob
-
-
-class RunProgramSerializer(serializers.Serializer):
-    """
-    Program serializer for the /run end-point
-    """
-
-    title = serializers.CharField(max_length=255, allow_blank=False)
-    entrypoint = serializers.CharField(max_length=255)
-    artifact = serializers.FileField(allow_empty_file=False, use_url=False)
-    dependencies = serializers.CharField(allow_blank=False)
-    arguments = serializers.CharField(allow_blank=False)
-    env_vars = serializers.CharField(allow_blank=False)
-    config = serializers.CharField(allow_blank=False)
-
-    def to_representation(self, instance):
-        """
-        Transforms string `config` to JSON
-        """
-        representation = super().to_representation(instance)
-        representation["config"] = json.loads(representation["config"])
-        return representation
-
-    def retrieve_one_by_title(self, title, author):
-        """
-        This method returns a Program entry if it finds an entry searching by the title, if not None
-        """
-        return (
-            Program.objects.filter(title=title, author=author)
-            .order_by("-created")
-            .first()
-        )
-
-    def create(self, validated_data):
-        pass
-
-    def update(self, instance, validated_data):
-        pass
-
-
-class RunProgramModelSerializer(serializers.ModelSerializer):
-    """
-    Program model serializer for the /run end-point
-    """
-
-    arguments = serializers.CharField(read_only=True)
-    config = serializers.CharField(read_only=True)
-
-    class Meta:
-        model = Program
-
-    def create(self, validated_data):
-        title = validated_data.get("title")
-        logger.info("Creating program [%s] with RunProgramSerializer", title)
-        env_vars = validated_data.get("env_vars")
-        if env_vars:
-            encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
-            validated_data["env_vars"] = json.dumps(encrypted_env_vars)
-        return Program.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        logger.info("Updating program [%s] with RunProgramSerializer", instance.title)
-        instance.entrypoint = validated_data.get("entrypoint")
-        instance.dependencies = validated_data.get("dependencies", "[]")
-        instance.env_vars = validated_data.get("env_vars", {})
-        instance.artifact = validated_data.get("artifact")
-        instance.author = validated_data.get("author")
-        instance.save()
-        return instance

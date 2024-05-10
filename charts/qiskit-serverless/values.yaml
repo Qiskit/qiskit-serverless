@@ -1,0 +1,142 @@
+# ===================
+# Qiskit Serverless Info
+# ===================
+global:
+  version: 0.11.0
+
+# ===================
+# Qiskit Serverless configs
+# ===================
+platform: default
+
+# ===================
+# Ingress Nginx controller configs
+# ===================
+
+# Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
+nginxIngressControllerEnable: false
+nginx-ingress-controller:
+  nameOverride: "nginx-ingress-controller"
+  fullnameOverride: "nginx-ingress-controller"
+ingress:
+  className: "nginx"
+  annotations:
+    # For IBM Cloud the valid ingress class values are: public-iks-k8s-nginx and private-iks-k8s-nginx
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "512k"
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
+  tls: []
+#  tls:
+#    - hosts:
+#      - "qiskit-serverless-url.cloud"
+#      secretName: "tls-secret-name"
+  hosts: []
+#  hosts:
+#    - host: "qiskit-serverless-url.cloud"
+
+# ===================
+# Gateway configs
+# ===================
+
+gatewayEnable: true
+gateway:
+  nameOverride: "gateway"
+  fullnameOverride: "gateway"
+  useCertManager: false
+
+  image:
+    repository: "icr.io/quantum-public/qiskit-serverless-gateway"
+    pullPolicy: IfNotPresent
+    tag: "0.11.0"
+  application:
+    siteHost: "http://gateway:8000"
+    rayHost: "http://kuberay-head-svc:8265"
+    auth:
+      mechanism: mock_token
+    superuser:
+      enable: true
+    service:
+      type: ClusterIP
+      port: 8000
+    ray:
+      nodeImage: "icr.io/quantum-public/qiskit-serverless-ray-node:0.11.0-py310"
+      opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
+      kubectlImage: alpine/k8s:1.29.2@sha256:a51aa37f0a34ff827c7f2f9cb7f6fbb8f0e290fa625341be14c2fcc4b1880f60
+    limits:
+      maxJobsPerUser: 2
+      maxComputeResources: 4
+  
+  cos:
+    claimName: gateway-claim
+
+  secrets:
+    secretKey:
+      create: true
+      name: gateway-secret-key
+      key: django-secret-key
+      value: CHANGE_ME
+    servicePsql:
+      create: true
+      name: service-psql-binding
+      key:
+        adminPassword: admin-password
+        databaseName: database-name
+        databasePassword: database-password
+        host: database-host
+        port: database-port
+        userName: user-name
+      value:
+        databaseName: serverlessdb
+        databasePassword: serverlesspassword
+        host: "postgresql"
+        port: 5432
+        userName: serverlessuser
+    superuser:
+      create: true
+      name: gateway-superuser
+      key:
+        name: name
+        password: password
+        email: email
+      value:
+        name: admin
+        password: passw0rd
+        email: admin@examplemail.io
+
+# ===================
+# Kuberay Operator
+# ===================
+
+kuberayOperatorEnable: true
+kuberay-operator:
+  image:
+    repository: kuberay/operator
+    tag: v1.0.0
+    pullPolicy: IfNotPresent
+
+# ===================
+# PostgreSQL
+# ===================
+
+postgresqlEnable: true
+postgresql:
+  nameOverride: "postgresql"
+  fullnameOverride: "postgresql"
+  auth:
+    enablePostgresUser: false
+    database: serverlessdb
+    username: serverlessuser
+    password: serverlesspassword
+
+# ===================
+# PVC
+# ===================
+
+createPvc: true
+storageClassName: manual
+claimName: gateway-claim
+cos:
+  bucket: BUCKETNAME-CHANGEME
+  endpoint: ENDPOINT-CHANGEME
+  secretName: SECRETNAME-CHANGEME
+  storageSize: 10Gi

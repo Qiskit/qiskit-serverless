@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 
 
 from api import views
-from api.models import Program, Job, RuntimeJob
+from api.models import Job, RuntimeJob
 from api.permissions import IsOwner
 from . import serializers as v1_serializers
 
@@ -18,8 +18,8 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
     Quantum function view set first version. Use ProgramSerializer V1.
     """
 
-    queryset = Program.objects.all()
     serializer_class = v1_serializers.ProgramSerializer
+    pagination_class = None
     permission_classes = [permissions.IsAuthenticated]
 
     @staticmethod
@@ -31,23 +31,19 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
         return v1_serializers.UploadProgramSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_run_existing_program(*args, **kwargs):
-        return v1_serializers.RunExistingProgramSerializer(*args, **kwargs)
+    def get_serializer_run_program(*args, **kwargs):
+        return v1_serializers.RunProgramSerializer(*args, **kwargs)
 
     @staticmethod
     def get_serializer_run_job(*args, **kwargs):
         return v1_serializers.RunJobSerializer(*args, **kwargs)
 
-    @staticmethod
-    def get_serializer_run_program(*args, **kwargs):
-        return v1_serializers.RunProgramSerializer(*args, **kwargs)
-
-    @staticmethod
-    def get_model_serializer_run_program(*args, **kwargs):
-        return v1_serializers.RunProgramModelSerializer(*args, **kwargs)
-
-    def get_serializer_class(self):
-        return v1_serializers.ProgramSerializer
+    @swagger_auto_schema(
+        operation_description="List author Qiskit Patterns",
+        responses={status.HTTP_200_OK: v1_serializers.ProgramSerializer(many=True)},
+    )
+    def list(self, request):
+        return super().list(request)
 
     @swagger_auto_schema(
         operation_description="Upload a Qiskit Pattern",
@@ -60,15 +56,6 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
 
     @swagger_auto_schema(
         operation_description="Run an existing Qiskit Pattern",
-        request_body=v1_serializers.RunExistingProgramSerializer,
-        responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
-    )
-    @action(methods=["POST"], detail=False)
-    def run_existing(self, request):
-        return super().run_existing(request)
-
-    @swagger_auto_schema(
-        operation_description="Run and upload a Qiskit Pattern",
         request_body=v1_serializers.RunProgramSerializer,
         responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
     )

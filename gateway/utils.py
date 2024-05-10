@@ -12,12 +12,12 @@
 
 """
 ===========================================================
-Utilities (:mod:`quantum_serverless.utils.utils`)
+Utilities (:mod:`qiskit_serverless.utils.utils`)
 ===========================================================
 
-.. currentmodule:: quantum_serverless.utils.utils
+.. currentmodule:: qiskit_serverless.utils.utils
 
-Quantum serverless utilities
+Qiskit Serverless utilities
 ====================================
 
 .. autosummary::

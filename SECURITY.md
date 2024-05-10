@@ -5,7 +5,7 @@
 To report vulnerabilities, you can privately report a potential security issue
 via the Github security vulnerabilities feature. This can be done here:
 
-https://github.com/Qiskit-Extensions/quantum-serverless/security/advisories
+https://github.com/Qiskit-Extensions/qiskit-serverless/security/advisories
 
 Please do **not** open a public issue about a potential security vulnerability.
 

@@ -15,17 +15,21 @@ jobs:
     strategy:
       matrix:
         include:
-          - imagename: quantum-serverless-ray-node
+          - imagename: qiskit-serverless-ray-node
             pythonversion: py39
             dockerfile: Dockerfile-ray-node
             platforms: linux/amd64,linux/arm64
-          - imagename: quantum-serverless-ray-node
+          - imagename: qiskit-serverless-ray-node
             pythonversion: py310
             dockerfile: Dockerfile-ray-node
             platforms: linux/amd64
-          - imagename: quantum-serverless-gateway
+          - imagename: qiskit-serverless-gateway
             pythonversion: ''
             dockerfile: ./gateway/Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - imagename: qiskit-serverless-proxy
+            pythonversion: ''
+            dockerfile: ./proxy/Dockerfile
             platforms: linux/amd64,linux/arm64
     steps:
       - name: Checkout

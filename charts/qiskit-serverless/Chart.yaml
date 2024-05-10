@@ -1,0 +1,31 @@
+apiVersion: v2
+name: qiskit-serverless
+description: Qiskit-Serverless helm chart that contains different dependencies.
+
+type: application
+
+version: 0.11.0
+appVersion: "0.11.0"
+
+dependencies:
+  - name: gateway
+    condition: gatewayEnable
+    version: 0.11.0
+  - name: nginx-ingress-controller
+    condition: nginxIngressControllerEnable
+    version: 9.11.0
+    repository: https://charts.bitnami.com/bitnami
+  - name: postgresql
+    condition: postgresqlEnable
+    version: 13.4.4
+    repository: https://charts.bitnami.com/bitnami
+  - name: kuberay-operator
+    condition: kuberayOperatorEnable
+    version: 1.0.0
+    repository: https://ray-project.github.io/kuberay-helm
+
+maintainers:
+  - name: akihikokuroda
+  - name: IceKhan13
+  - name: psschwei
+  - name: Tansito

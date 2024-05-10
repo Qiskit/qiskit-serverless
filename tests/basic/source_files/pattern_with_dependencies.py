@@ -1,6 +1,6 @@
 # source_files/program_4.py
 
-from quantum_serverless import get_arguments, save_result
+from qiskit_serverless import get_arguments, save_result
 
 from qiskit.primitives import Sampler
 from qiskit_experiments.library import StandardRB

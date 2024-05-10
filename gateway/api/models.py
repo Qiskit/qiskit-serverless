@@ -1,4 +1,5 @@
 """Models."""
+
 import uuid
 
 from concurrency.fields import IntegerVersionField
@@ -9,9 +10,16 @@ from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
 
+VIEW_PROGRAM_PERMISSION = "view_program"
+RUN_PROGRAM_PERMISSION = "run_program"
+
+
 def get_upload_path(instance, filename):
     """Returns save path for artifacts."""
     return f"{instance.author.username}/{instance.id}/{filename}"
+
+
+DEFAULT_PROGRAM_ENTRYPOINT = "main.py"
 
 
 class JobConfig(models.Model):
@@ -57,11 +65,11 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
 
     title = models.CharField(max_length=255, db_index=True)
-    entrypoint = models.CharField(max_length=255)
+    entrypoint = models.CharField(max_length=255, default=DEFAULT_PROGRAM_ENTRYPOINT)
     artifact = models.FileField(
         upload_to=get_upload_path,
-        null=False,
-        blank=False,
+        null=True,
+        blank=True,
         validators=[FileExtensionValidator(allowed_extensions=["tar"])],
     )
 
@@ -73,9 +81,10 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
+    image = models.CharField(max_length=511, null=True, blank=True)
 
     class Meta:
-        permissions = (("run_program", "Can run function"),)
+        permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
 
     def __str__(self):
         return f"{self.title}"

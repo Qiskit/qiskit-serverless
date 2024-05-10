@@ -16,6 +16,8 @@ from wsgiref.util import FileWrapper
 
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
+from django.contrib.auth.models import Group, Permission
+from django.db.models import Q
 from django.http import StreamingHttpResponse
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -27,21 +29,21 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
+
+from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
 from utils import sanitize_file_path
 
-from .models import Program, Job, RuntimeJob
+from .models import VIEW_PROGRAM_PERMISSION, Program, Job, RuntimeJob
 from .ray import get_job_handler
 from .serializers import (
     JobConfigSerializer,
     RunJobSerializer,
-    RunExistingProgramSerializer,
-    RunProgramModelSerializer,
     RunProgramSerializer,
     UploadProgramSerializer,
 )
 
 logger = logging.getLogger("gateway")
-resource = Resource(attributes={SERVICE_NAME: "QuantumServerless-Gateway"})
+resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)
 otel_exporter = BatchSpanProcessor(
     OTLPSpanExporter(
@@ -56,9 +58,9 @@ if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
 
-class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ancestors
     """
-    Program ViewSet configuration using ModelViewSet.
+    Program ViewSet configuration using GenericViewSet.
     """
 
     BASE_NAME = "programs"
@@ -80,22 +82,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return UploadProgramSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_serializer_run_existing_program(*args, **kwargs):
-        """
-        This method returns the program serializer for the run_existing end-point
-        """
-
-        return RunExistingProgramSerializer(*args, **kwargs)
-
-    @staticmethod
-    def get_serializer_run_job(*args, **kwargs):
-        """
-        This method returns the job serializer for the run_existing end-point
-        """
-
-        return RunJobSerializer(*args, **kwargs)
-
-    @staticmethod
     def get_serializer_run_program(*args, **kwargs):
         """
         This method returns the program serializer for the run end-point
@@ -104,26 +90,67 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
         return RunProgramSerializer(*args, **kwargs)
 
     @staticmethod
-    def get_model_serializer_run_program(*args, **kwargs):
+    def get_serializer_run_job(*args, **kwargs):
         """
-        This method returns the program model serializer for the run end-point
+        This method returns the job serializer for the run end-point
         """
 
-        return RunProgramModelSerializer(*args, **kwargs)
+        return RunJobSerializer(*args, **kwargs)
 
     def get_serializer_class(self):
         return self.serializer_class
 
+    def get_object(self):
+        logger.warning("ProgramViewSet.get_object not implemented")
+
     def get_queryset(self):
-        # Allow unauthenticated users to read the swagger documentation
-        if self.request.user is None or not self.request.user.is_authenticated:
-            return Program.objects.none()
-        return (
-            Program.objects.all().filter(author=self.request.user).order_by("-created")
+        author = self.request.user
+
+        logger.info("ProgramViewSet get view_program permission")
+        view_program_permission = Permission.objects.get(
+            codename=VIEW_PROGRAM_PERMISSION
         )
 
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        # Groups logic
+        user_criteria = Q(user=author)
+        view_permission_criteria = Q(permissions=view_program_permission)
+        author_groups_with_view_permissions = Group.objects.filter(
+            user_criteria & view_permission_criteria
+        )
+        author_groups_with_view_permissions_count = (
+            author_groups_with_view_permissions.count()
+        )
+        logger.info(
+            "ProgramViewSet get author[%s] groups [%s]",
+            author.id,
+            author_groups_with_view_permissions_count,
+        )
+
+        # Programs logic
+        author_criteria = Q(author=author)
+        author_groups_with_view_permissions_criteria = Q(
+            instances__in=author_groups_with_view_permissions
+        )
+        author_programs = Program.objects.filter(
+            author_criteria | author_groups_with_view_permissions_criteria
+        ).distinct()
+        author_programs_count = author_programs.count()
+        logger.info(
+            "ProgramViewSet get author[%s] programs[%s]",
+            author.id,
+            author_programs_count,
+        )
+
+        return author_programs
+
+    def list(self, request):
+        """List programs:"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.program.list", context=ctx):
+            serializer = self.get_serializer(self.get_queryset(), many=True)
+
+        return Response(serializer.data)
 
     @action(methods=["POST"], detail=False)
     def upload(self, request):
@@ -161,12 +188,12 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
             return Response(serializer.data)
 
     @action(methods=["POST"], detail=False)
-    def run_existing(self, request):
+    def run(self, request):
         """Enqueues existing program."""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.program.run_existing", context=ctx):
-            serializer = self.get_serializer_run_existing_program(data=request.data)
+        with tracer.start_as_current_span("gateway.program.run", context=ctx):
+            serializer = self.get_serializer_run_program(data=request.data)
             if not serializer.is_valid():
                 logger.error(
                     "RunExistingProgramSerializer validation failed:\n %s",
@@ -183,85 +210,6 @@ class ProgramViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancesto
                     {"message": f"Qiskit Pattern [{title}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-
-            jobconfig = None
-            config_json = serializer.data.get("config")
-            if config_json:
-                logger.info("Configuration for [%s] was found.", title)
-                job_config_serializer = self.get_serializer_job_config(data=config_json)
-                if not job_config_serializer.is_valid():
-                    logger.error(
-                        "JobConfigSerializer validation failed:\n %s",
-                        serializer.errors,
-                    )
-                    return Response(
-                        job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                    )
-                jobconfig = job_config_serializer.save()
-                logger.info("JobConfig [%s] created.", jobconfig.id)
-
-            carrier = {}
-            TraceContextTextMapPropagator().inject(carrier)
-            arguments = serializer.data.get("arguments")
-            token = ""
-            if request.auth:
-                token = request.auth.token.decode()
-            job_data = {"arguments": arguments, "program": program.id}
-            job_serializer = self.get_serializer_run_job(data=job_data)
-            if not job_serializer.is_valid():
-                logger.error(
-                    "RunJobSerializer validation failed:\n %s",
-                    serializer.errors,
-                )
-                return Response(
-                    job_serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                )
-            job = job_serializer.save(
-                author=author, carrier=carrier, token=token, config=jobconfig
-            )
-            logger.info("Returning Job [%s] created.", job.id)
-
-        return Response(job_serializer.data)
-
-    @action(methods=["POST"], detail=False)
-    def run(self, request):
-        """Enqueues program for execution."""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.program.run", context=ctx):
-            serializer = self.get_serializer_run_program(data=request.data)
-            if not serializer.is_valid():
-                logger.error(
-                    "RunProgramSerializer validation failed:\n %s",
-                    serializer.errors,
-                )
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            title = serializer.validated_data.get("title")
-            author = request.user
-            program = serializer.retrieve_one_by_title(title=title, author=author)
-            # We need to add request artifact to maintain the reference that the serializer lost
-            program_data = serializer.data
-            program_data["artifact"] = request.data.get("artifact")
-            if program is None:
-                logger.info("Program not found. [%s] is going to be created", title)
-                program_serializer = self.get_model_serializer_run_program(
-                    data=program_data
-                )
-            else:
-                logger.info("Program found. [%s] is going to be updated", title)
-                program_serializer = self.get_model_serializer_run_program(
-                    program, data=program_data
-                )
-            if not program_serializer.is_valid():
-                logger.error(
-                    "RunProgramModelSerializer validation failed with program instance:\n %s",
-                    program_serializer.errors,
-                )
-                return Response(
-                    program_serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                )
-            program = program_serializer.save(author=author)
 
             jobconfig = None
             config_json = serializer.data.get("config")
@@ -372,6 +320,10 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
             logs = job.logs
         return Response({"logs": logs})
 
+    def get_runtime_job(self, job):
+        """get runtime job for job"""
+        return RuntimeJob.objects.filter(job=job)
+
     @action(methods=["POST"], detail=True)
     def stop(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Stops job"""
@@ -383,6 +335,25 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                 job.status = Job.STOPPED
                 job.save(update_fields=["status"])
             message = "Job has been stopped."
+            runtime_jobs = self.get_runtime_job(job)
+            if runtime_jobs and len(runtime_jobs) != 0:
+                if request.data.get("service"):
+                    service = QiskitRuntimeService(
+                        **json.loads(request.data.get("service"), cls=json.JSONDecoder)[
+                            "__value__"
+                        ]
+                    )
+                    for runtime_job_entry in runtime_jobs:
+                        jobinstance = service.job(runtime_job_entry.runtime_job)
+                        if jobinstance:
+                            try:
+                                logger.info(
+                                    "canceling [%s]", runtime_job_entry.runtime_job
+                                )
+                                jobinstance.cancel()
+                            except RuntimeInvalidStateError:
+                                logger.warning("cancel failed")
+
             if job.compute_resource:
                 if job.compute_resource.active:
                     job_handler = get_job_handler(job.compute_resource.host)

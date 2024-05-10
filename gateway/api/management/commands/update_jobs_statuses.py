@@ -1,4 +1,5 @@
 """Cleanup resources command."""
+
 import logging
 
 from concurrency.exceptions import RecordModifiedError
