@@ -273,10 +273,10 @@ def create_ray_cluster(
     raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
     if response.metadata.name != cluster_name:
-        raise RuntimeError(
-            f"Something went wrong during cluster creation"
+        logger.warning(
+            "Something went wrong during cluster creation: %s", response.text
         )
-        logger.warning(f"Something went wrong during cluster creation: {response.text}")
+        raise RuntimeError("Something went wrong during cluster creation")
 
     # wait for cluster to be up and running
     host, cluster_is_ready = wait_for_cluster_ready(cluster_name)
