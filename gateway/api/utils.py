@@ -73,8 +73,8 @@ def retry_function(
         try:
             result = callback()
             success = True
-        except Exception as error:  # pylint: disable=broad-exception-caught
-            logger.debug("%s Retrying...:\nDetails: %s", error_message, error)
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.debug("%s Retrying...", error_message)
 
         time.sleep(interval)
     return result
@@ -165,10 +165,8 @@ def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
         if "token" in key.lower():
             try:
                 env_vars[key] = decrypt_string(value)
-            except (
-                Exception  # pylint: disable=broad-exception-caught
-            ) as decryption_error:
-                logger.error("Cannot decrypt %s. %s", key, decryption_error)
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.error("Cannot decrypt %s.", key)
     return env_vars
 
 

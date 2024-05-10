@@ -273,9 +273,10 @@ def create_ray_cluster(
     raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
     if response.metadata.name != cluster_name:
-        raise RuntimeError(
-            f"Something went wrong during cluster creation: {response.text}"
+        logger.warning(
+            "Something went wrong during cluster creation: %s", response.text
         )
+        raise RuntimeError("Something went wrong during cluster creation")
 
     # wait for cluster to be up and running
     host, cluster_is_ready = wait_for_cluster_ready(cluster_name)
@@ -334,9 +335,10 @@ def kill_ray_cluster(cluster_name: str) -> bool:
             name=cluster_name, namespace=namespace
         )
     except NotFoundError as resource_not_found:
+        sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
         logger.error(
             "Something went wrong during ray cluster deletion request: %s",
-            resource_not_found,
+            sanitized,
         )
         return success
 
