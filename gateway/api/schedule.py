@@ -58,12 +58,10 @@ def execute_job(job: Job) -> Job:
                 logger.error(
                     "Exception was caught during scheduling job on user [%s] resource.\n"
                     "Resource [%s] was in DB records, but address is not reachable.\n"
-                    "Cleaning up db record and setting job [%s] to failed.\n"
-                    "Error trace: %s",
+                    "Cleaning up db record and setting job [%s] to failed",
                     job.author,
                     authors_resource.title,
                     job.id,
-                    missing_resource_exception,
                 )
                 kill_ray_cluster(authors_resource.title)
                 authors_resource.delete()

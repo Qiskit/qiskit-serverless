@@ -572,7 +572,7 @@ class Job:
         """
         return self._job_client.filtered_logs(job_id=self.job_id, **kwargs)
 
-    def result(self, wait=True, cadence=5, verbose=False):
+    def result(self, wait=True, cadence=5, verbose=False, maxwait=0):
         """Return results of the job.
         Args:
             wait: flag denoting whether to wait for the
@@ -585,18 +585,20 @@ class Job:
         if wait:
             if verbose:
                 logging.info("Waiting for job result.")
-            while not self.in_terminal_state():
+            count = 0
+            while not self.in_terminal_state() and (maxwait == 0 or count < maxwait):
+                count += 1
                 time.sleep(cadence)
                 if verbose:
-                    logging.info(".")
+                    logging.info(count)
 
         # Retrieve the results. If they're string format, try to decode to a dictionary.
         results = self._job_client.result(self.job_id)
         if isinstance(results, str):
             try:
                 results = json.loads(results, cls=QiskitObjectsDecoder)
-            except json.JSONDecodeError as exception:
-                logging.warning("Error during results decoding. Details: %s", exception)
+            except json.JSONDecodeError:
+                logging.warning("Error during results decoding.")
 
         return results
 
@@ -671,7 +673,8 @@ def save_result(result: Dict[str, Any]):
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:
-        logging.warning("Something went wrong: %s", response.text)
+        sanitized = response.text.replace("\n", "").replace("\r", "")
+        logging.warning("Something went wrong: %s", sanitized)
 
     return response.ok
 
