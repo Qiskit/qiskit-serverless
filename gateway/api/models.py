@@ -67,7 +67,7 @@ class Namespace(models.Model):
 
     name = models.CharField(max_length=255, db_index=True, unique=True)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
-    admin = models.ForeignKey(
+    admin_group = models.ForeignKey(
         to=Group,
         on_delete=models.SET_NULL,
         default=None,

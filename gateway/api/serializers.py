@@ -56,7 +56,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         logger.error(
             "User [%s] has no access to namespace [%s].", author.id, namespace_name
         )
-        return namespace.admin in author.groups.all()
+        return namespace.admin_group in author.groups.all()
 
     def retrieve_private_function(self, title, author):
         """
