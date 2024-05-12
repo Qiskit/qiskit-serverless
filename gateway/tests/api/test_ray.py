@@ -130,6 +130,8 @@ class TestJobHandler(APITestCase):
     def test_job_submit(self):
         """Tests job submission."""
         job = Job.objects.first()
-        job.env_vars = json.dumps({"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")})
+        job.env_vars = json.dumps(
+            {"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")}
+        )
         job_id = self.handler.submit(job)
         self.assertEqual(job_id, "AwesomeJobId")
