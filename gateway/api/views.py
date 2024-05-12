@@ -167,8 +167,33 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             title = serializer.validated_data.get("title")
+            namespace_name = serializer.validated_data.get("namespace", None)
             author = request.user
-            program = serializer.retrieve_one_by_title(title=title, author=author)
+            if namespace_name is None:
+                # Check if title contains the namespace: <namespace>/<title>
+                logger.debug("Namespace is None, check if it is in the title.")
+                namespace_name, title = serializer.separate_namespace_from_title(
+                    title=title
+                )
+
+            if namespace_name:
+                user_has_access = serializer.check_namespace_access(
+                    namespace_name=namespace_name, author=author
+                )
+                if not user_has_access:
+                    # For security we just return a 404 not a 401
+                    return Response(
+                        {"message": f"Namespace [{namespace_name}] was not found."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                program = serializer.retrieve_namespace_function(
+                    title=title, namespace_name=namespace_name
+                )
+            else:
+                program = serializer.retrieve_private_function(
+                    title=title, author=author
+                )
+
             if program is not None:
                 logger.info("Program found. [%s] is going to be updated", title)
                 serializer = self.get_serializer_upload_program(
@@ -182,7 +207,7 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
                     return Response(
                         serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
-            serializer.save(author=author)
+            serializer.save(author=author, title=title, namespace=namespace_name)
 
             logger.info("Return response with Program [%s]", title)
             return Response(serializer.data)

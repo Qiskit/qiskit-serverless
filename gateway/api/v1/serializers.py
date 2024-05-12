@@ -38,6 +38,15 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             raise ValidationError(
                 "At least one of attributes (entrypoint, image) is required."
             )
+        title = attrs.get("title")
+        namespace = attrs.get("namespace")
+        if namespace and "/" in title:
+            raise ValidationError("Namespace defined in title and in namespace fields.")
+        title_split = title.split("/")
+        if len(title_split) > 2:
+            raise ValidationError(
+                "Qiskit Function title is malformed. It can only contain one slash."
+            )
         return super().validate(attrs)
 
     class Meta(serializers.UploadProgramSerializer.Meta):
@@ -48,6 +57,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "dependencies",
             "env_vars",
             "image",
+            "namespace",
         ]
 
 

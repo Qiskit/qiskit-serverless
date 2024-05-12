@@ -12,7 +12,14 @@ from django.conf import settings
 from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
-from .models import Program, Job, JobConfig, RuntimeJob, DEFAULT_PROGRAM_ENTRYPOINT
+from .models import (
+    Namespace,
+    Program,
+    Job,
+    JobConfig,
+    RuntimeJob,
+    DEFAULT_PROGRAM_ENTRYPOINT,
+)
 
 logger = logging.getLogger("gateway.serializers")
 
@@ -24,23 +31,56 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     entrypoint = serializers.CharField(required=False)
     image = serializers.CharField(required=False)
+    namespace = serializers.CharField(required=False)
 
     class Meta:
         model = Program
 
-    def retrieve_one_by_title(self, title, author):
+    def separate_namespace_from_title(self, title):
         """
-        This method returns a Program entry if it finds an entry searching by the title, if not None
+        This method returns namespace and title from a title with /
         """
-        return (
-            Program.objects.filter(title=title, author=author)
-            .order_by("-created")
-            .first()
+        title_split = title.split("/")
+        if len(title_split) == 1:
+            return None, title_split[0]
+        return title_split[0], title_split[1]
+
+    def check_namespace_access(self, namespace_name, author):
+        """
+        This method check if the author has access to the namespace
+        """
+        namespace = Namespace.objects.filter(name=namespace_name).first()
+        if namespace is None:
+            logger.error("Namespace [%s] does not exist.", namespace_name)
+            return False
+        logger.error(
+            "User [%s] has no access to namespace [%s].", author.id, namespace_name
         )
+        return namespace.admin in author.groups.all()
+
+    def retrieve_private_function(self, title, author):
+        """
+        This method returns a Program entry searching by the title and author, if not None
+        """
+        return Program.objects.filter(title=title, author=author).first()
+
+    def retrieve_namespace_function(self, title, namespace_name):
+        """
+        This method returns a Program entry searching by the title and namespace, if not None
+        """
+        namespace = Namespace.objects.filter(name=namespace_name).first()
+        return Program.objects.filter(title=title, namespace=namespace).first()
 
     def create(self, validated_data):
         title = validated_data.get("title")
         logger.info("Creating program [%s] with UploadProgramSerializer", title)
+
+        namespace_name = validated_data.get("namespace", None)
+        if namespace_name:
+            validated_data["namespace"] = Namespace.objects.filter(
+                name=namespace_name
+            ).first()
+
         env_vars = validated_data.get("env_vars")
         if env_vars:
             encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
