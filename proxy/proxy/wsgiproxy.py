@@ -75,21 +75,29 @@ def do_post(path):  # pylint: disable=unused-argument
     data = request.get_data()
     job_request = request.path.find("/runtime/jobs") != -1
     middleware_job_id = None
+    token = "awesome_token"
     if job_request:
         if "X-Qx-Client-Application" in request.headers:
+            qiskit_header = request.headers["X-Qx-Client-Application"]
             logging.debug(
                 "X-Qx-Client-Application: %s",
-                request.headers["X-Qx-Client-Application"],
+                qiskit_header,
             )
-            pos = request.headers["X-Qx-Client-Application"].find("middleware_job_id")
+            pos = qiskit_header.find("middleware_job_id")
             if pos != -1:
-                middleware_job_id = request.headers["X-Qx-Client-Application"][
+                middleware_job_id = qiskit_header[
                     pos
                     + len("middleware_job_id/") : pos
                     + len("middleware_job_id/")
                     + MIDDLEWARE_JOB_ID_LENGTH
                 ]
                 logging.debug("Middleware Job ID: %s", middleware_job_id)
+                token_begin = (
+                    pos + len("middleware_job_id/") + MIDDLEWARE_JOB_ID_LENGTH + 1
+                )
+                token_end = qiskit_header.find("/", token_begin)
+                token = qiskit_header[token_begin:token_end]
+                logging.debug("gateway token: %s", token)
 
     resp = None
     retry = 5
@@ -107,7 +115,6 @@ def do_post(path):  # pylint: disable=unused-argument
         jsondata = json.loads(resp.content.decode("utf-8"))
         logging.debug("job id: %s", jsondata["id"])
 
-        token = "awesome_token"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {token}",
@@ -119,5 +126,5 @@ def do_post(path):  # pylint: disable=unused-argument
             timeout=TIMEOUT,
         )
         logging.debug("Gateway API Response: %s", gateway_resp)
-    logging.debug("response from backend: %s", gateway_resp.status_code)
+    logging.debug("response from backend: %s", resp.status_code)
     return handle_response(resp)
