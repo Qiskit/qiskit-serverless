@@ -299,7 +299,7 @@ class BaseClient(JsonSerializable):
             )
             return None
 
-        return job_client.run(program, arguments, config)
+        return job_client.run(program, None, arguments, config)
 
     def upload(self, program: QiskitFunction):
         """Uploads program."""
@@ -455,9 +455,9 @@ class ServerlessClient(BaseClient):
                 DeprecationWarning,
             )
             if isinstance(program, QiskitFunction) and program.entrypoint is not None:
-                job = self._job_client.run(program.title, arguments, config)
+                job = self._job_client.run(program.title, None, arguments, config)
             else:
-                job = self._job_client.run(program, arguments, config)
+                job = self._job_client.run(program, None, arguments, config)
         return job
 
     def upload(self, program: QiskitFunction):
@@ -628,7 +628,7 @@ class RayClient(BaseClient):
         if isinstance(program, str):
             raise NotImplementedError("Ray client only supports full Programs.")
 
-        return self.client.run(program, arguments, config)
+        return self.client.run(program, None, arguments, config)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self.client.get(job_id)
@@ -674,9 +674,9 @@ class LocalClient(BaseClient):
             DeprecationWarning,
         )
         if isinstance(program, QiskitFunction) and program.entrypoint is not None:
-            job = self.client.run(program.title, arguments, config)
+            job = self.client.run(program.title, None, arguments, config)
         else:
-            job = self.client.run(program, arguments, config)
+            job = self.client.run(program, None, arguments, config)
         return job
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
