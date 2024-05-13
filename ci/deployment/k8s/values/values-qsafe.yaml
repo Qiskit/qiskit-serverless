@@ -1,4 +1,10 @@
 # ===================
+# Qiskit Serverless Info
+# ===================
+global:
+  version: 0.11.0
+
+# ===================
 # Quantum Serverless configs
 # ===================
 platform: ibm
@@ -9,22 +15,6 @@ platform: ibm
 
 # Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
 nginxIngressControllerEnable: false
-ingress:
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
-    nginx.ingress.kubernetes.io/proxy-buffer-size: "512k"
-    nginx.ingress.kubernetes.io/proxy-body-size: 50m
-  tls:
-    - hosts:
-        - "gateway.qsafe-218f1d46487946bbe52597968f4638d3-0002.us-east.containers.appdomain.cloud"
-      secretName: "qsafe-218f1d46487946bbe52597968f4638d3-0002"
-  hosts:
-    - host: "gateway.qsafe-218f1d46487946bbe52597968f4638d3-0002.us-east.containers.appdomain.cloud"
-      paths:
-      - path: /
-        pathType: Prefix
-        serviceName: "gateway"
-        servicePort: 8000
 
 # ===================
 # Gateway configs
@@ -39,7 +29,7 @@ gateway:
   image:
     repository: "icr.io/quantum-public/quantum-serverless-gateway"
     pullPolicy: IfNotPresent
-    tag: "0.8.2"
+    tag: "0.11.0"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
@@ -55,9 +45,9 @@ gateway:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.8.2-py39"
-      opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-7
-      kubectlImage: alpine/k8s:1.28.1@sha256:c37a54b738e4d26f88d4a4d28680bb74dfea1d0e756f039dad900306abc837a8
+      nodeImage: "icr.io/quantum-public/quantum-serverless-ray-node:0.11.0-py310"
+      opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
+      kubectlImage:  alpine/k8s:1.28.9@sha256:4f97e78a640d569731ac71dccc27d7783b03488b383f15ca75ea975d31c3fe57
       cpu: 1
       memory: 1
       replicas: 1
@@ -66,6 +56,8 @@ gateway:
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 5
+    proxy:
+      enabled: false
 
   cos:
     claimName: qsafe-program
@@ -76,22 +68,23 @@ gateway:
       name: gateway-secret-key
       key: GATEWAY_SECRET_KEY
     servicePsql:
-      create: false
-      name: binding-qsafe-gateway-staging-psql
+      create: true
+      name: service-psql-binding
       key:
-        databaseName: connection.postgres.database
-        databasePassword: connection.postgres.authentication.password
-        host: connection.postgres.hosts.0.hostname
-        port: connection.postgres.hosts.0.port
-        userName: connection.postgres.authentication.username
+        adminPassword: admin-password
+        databaseName: database-name
+        databasePassword: database-password
+        host: database-host
+        port: database-port
+        userName: user-name
+      value:
+        databaseName: serverlessdb
+        databasePassword: serverlesspassword
+        host: "postgresql"
+        port: 5432
+        userName: serverlessuser
     superuser:
       create: false
-
-# ===================
-# Jupyter configs
-# ===================
-
-jupyterEnable: false
 
 # ===================
 # Kuberay Operator
@@ -101,26 +94,22 @@ kuberayOperatorEnable: true
 kuberay-operator:
   image:
     repository: kuberay/operator
-    tag: v0.6.0
+    tag: v1.0.0
     pullPolicy: IfNotPresent
 
 # ===================
 # PostgreSQL
 # ===================
 
-postgresqlEnable: false
-
-# ===================
-# Keycloak
-# ===================
-
-keycloakEnable: false
-
-# ===================
-# Quantum Repository
-# ===================
-
-repositoryEnable: false
+postgresqlEnable: true
+postgresql:
+  nameOverride: "postgresql"
+  fullnameOverride: "postgresql"
+  auth:
+    enablePostgresUser: false
+    database: serverlessdb
+    username: serverlessuser
+    password: serverlesspassword
 
 # ===================
 # COS
