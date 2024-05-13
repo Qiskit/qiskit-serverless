@@ -1,8 +1,8 @@
-site_name: 'Quantum Serverless'
-site_description: 'Quantum Serverless'
+site_name: 'Qiskit Serverless'
+site_description: 'Qiskit Serverless'
 
-repo_url: https://github.ibm.com/IBM-Q-Software/quantum-serverless/
-edit_uri: edit/master/techdocs/quantum-serverless/docs/
+repo_url: https://github.ibm.com/IBM-Q-Software/qiskit-serverless/
+edit_uri: edit/master/techdocs/qiskit-serverless/docs/
 
 nav:
   - index.md

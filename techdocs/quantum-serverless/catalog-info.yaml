@@ -1,12 +1,12 @@
 apiVersion: backstage.io/v1alpha1
 kind: System
 metadata:
-  name: quantum-serverless
-  title: Quantum Serverless
-  description: Quantum Serverless is a set of tools that enable you to easily run complex quantum computing tasks.
+  name: qiskit-serverless
+  title: Qiskit Serverless
+  description: Qiskit Serverless is a set of tools that enable you to easily run complex quantum computing tasks.
   annotations:
-    github.com/project-slug: IBM-Q-Software/quantum-serverless
-    # backstage.io/techdocs-ref: dir:techdocs/quantum-serverless
+    github.com/project-slug: IBM-Q-Software/qiskit-serverless
+    # backstage.io/techdocs-ref: dir:techdocs/qiskit-serverless
 spec:
   owner: vt-middleware
   domain: vt-middleware
@@ -19,7 +19,7 @@ spec:
   type: postgresql
   lifecycle: experimental
   owner: vt-middleware
-  system: quantum-serverless
+  system: qiskit-serverless
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -28,7 +28,7 @@ metadata:
 spec:
   type: postgresql
   owner: vt-middleware
-  system: quantum-serverless
+  system: qiskit-serverless
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -38,7 +38,7 @@ spec:
   type: cos-bucket
   lifecycle: experimental
   owner: vt-middleware
-  system: quantum-serverless
+  system: qiskit-serverless
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -47,7 +47,7 @@ metadata:
 spec:
   type: cos-bucket
   owner: vt-middleware
-  system: quantum-serverless
+  system: qiskit-serverless
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -57,7 +57,7 @@ spec:
   type: kubernetes-cluster
   lifecycle: experimental
   owner: vt-middleware
-  system: quantum-serverless
+  system: qiskit-serverless
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -66,24 +66,24 @@ metadata:
 spec:
   type: kubernetes-cluster
   owner: vt-middleware
-  system: quantum-serverless
+  system: qiskit-serverless
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: quantum-serverless
+  name: qiskit-serverless
   annotations:
-    github.com/project-slug: IBM-Q-Software/quantum-serverless
+    github.com/project-slug: IBM-Q-Software/qiskit-serverless
   links:
     - url: https://middleware-dev.quantum-computing.ibm.com/api/v1
-      title: Quantum Serverless Gateway API for development
+      title: Qiskit Serverless Gateway API for development
     - url: https://middleware.quantum-computing.ibm.com/api/v1
-      title: Quantum Serverless Gateway API for production
+      title: Qiskit Serverless Gateway API for production
 spec:
   type: service
   lifecycle: experimental
   owner: vt-middleware
-  system: quantum-serverless
+  system: qiskit-serverless
   dependsOn:
     - resource:default/gateway-production-psql
     - resource:default/gateway-staging-psql
@@ -97,14 +97,14 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: quantum-serverless-client
+  name: qiskit-serverless-client
   annotations:
-    github.com/project-slug: IBM-Q-Software/quantum-serverless
+    github.com/project-slug: IBM-Q-Software/qiskit-serverless
   links:
-    - url: https://pypi.org/project/quantum-serverless/
+    - url: https://pypi.org/project/qiskit-serverless/
       title: PyPI reference
 spec:
   type: library
   lifecycle: experimental
   owner: vt-middleware
-  system: quantum-serverless
+  system: qiskit-serverless

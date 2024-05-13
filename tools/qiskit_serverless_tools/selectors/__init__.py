@@ -1,9 +1,9 @@
 """
 =============================================================
-Selectors package (:mod:`quantum_serverless_tools.selectors`)
+Selectors package (:mod:`qiskit_serverless_tools.selectors`)
 =============================================================
 
-.. currentmodule:: quantum_serverless_tools.selectors
+.. currentmodule:: qiskit_serverless_tools.selectors
 
 This package contains functionality for automatically
 selecting hardware, given some criteria.

@@ -1,7 +1,7 @@
 site_name: 'VT Middleware'
 site_description: 'VT Middleware'
 
-repo_url: https://github.ibm.com/IBM-Q-Software/quantum-serverless/
+repo_url: https://github.ibm.com/IBM-Q-Software/qiskit-serverless/
 edit_uri: edit/master/techdocs/middleware/docs/
 
 nav:
