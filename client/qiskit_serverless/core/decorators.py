@@ -423,7 +423,7 @@ def distribute_qiskit_function(
             provider.upload(wrapped_program)
 
             # run program
-            job = provider.run(wrapped_program, None, arguments=kwargs)
+            job = provider.run(wrapped_program, arguments=kwargs)
 
             # remove artifact files
             if os.path.exists(pickle_file_path):
