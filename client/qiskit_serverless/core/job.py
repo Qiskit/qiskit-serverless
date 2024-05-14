@@ -265,7 +265,7 @@ class LocalJobClient(BaseJobClient):
         for pattern in self._patterns:
             if pattern["title"] == title:
                 saved_program = pattern
-        if saved_program["dependencies"]:
+        if saved_program["dependencies"]:  # pylint: disable=possibly-used-before-assignment
             dept = json.loads(saved_program["dependencies"])
             for dependency in dept:
                 subprocess.check_call(
