@@ -1,6 +1,6 @@
 cryptography>=42.0.5
 djangorestframework>=3.14.0
-django-allauth=0.61.1
+django-allauth==0.61.1
 django-allow-cidr>=0.7.1
 dj-rest-auth>=5.0.2
 django-csp>=3.8
