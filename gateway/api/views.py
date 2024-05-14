@@ -162,6 +162,14 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         author_groups_with_run_permissions = Group.objects.filter(
             user_criteria & run_permission_criteria
         )
+        author_groups_with_run_permissions_count = (
+            author_groups_with_run_permissions.count()
+        )
+        logger.info(
+            "ProgramViewSet get author[%s] groups [%s]",
+            author.id,
+            author_groups_with_run_permissions_count,
+        )
 
         # Programs logic
         author_criteria = Q(author=author)
@@ -241,8 +249,8 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
             author_program = self.get_run_queryset()
             author = request.user
             title = serializer.data.get("title")
-            program = serializer.retrieve_one_by_title(title=title, author=author)
-            if program is None or not author_program.contains(program):
+            program = author_program.filter(title=title).first()
+            if program is None:
                 logger.error("Qiskit Pattern [%s] was not found.", title)
                 return Response(
                     {"message": f"Qiskit Pattern [{title}] was not found."},
