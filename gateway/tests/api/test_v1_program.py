@@ -41,7 +41,7 @@ class TestProgramApi(APITestCase):
     def test_run(self):
         """Tests run existing authorized."""
 
-        user = models.User.objects.get(username="test_user")
+        user = models.User.objects.get(username="test_user_3")
         self.client.force_authenticate(user=user)
 
         arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
