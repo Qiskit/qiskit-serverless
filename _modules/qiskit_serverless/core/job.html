@@ -554,7 +554,9 @@
         <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patterns</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">pattern</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">title</span><span class="p">:</span>
                 <span class="n">saved_program</span> <span class="o">=</span> <span class="n">pattern</span>
-        <span class="k">if</span> <span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;dependencies&quot;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">saved_program</span><span class="p">[</span>  <span class="c1"># pylint: disable=possibly-used-before-assignment</span>
+            <span class="s2">&quot;dependencies&quot;</span>
+        <span class="p">]:</span>
             <span class="n">dept</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;dependencies&quot;</span><span class="p">])</span>
             <span class="k">for</span> <span class="n">dependency</span> <span class="ow">in</span> <span class="n">dept</span><span class="p">:</span>
                 <span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span>
