@@ -1,16 +1,10 @@
-FROM python:3.10.12-slim-buster
+FROM registry.access.redhat.com/ubi9/python-311
 
 WORKDIR /usr/src/app
 
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-
-# install psycopg2 dependencies
-RUN apt-get -y update &&\
-    apt-get install --no-install-recommends -y gcc=4:8.3.0-1 python3-dev=3.7.3-1 vim=2:8.1.0875-5+deb10u6 &&\
-    apt-get clean &&\
-    rm -rf /var/lib/apt/lists/*
 
 USER 0
 COPY gateway/requirements.txt .
