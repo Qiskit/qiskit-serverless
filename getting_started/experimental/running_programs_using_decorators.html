@@ -291,10 +291,10 @@
           <section id="Running-QiskitPattern-using-decorators-(Experimental)">
 <h1>Running QiskitPattern using decorators (Experimental)<a class="headerlink" href="#Running-QiskitPattern-using-decorators-(Experimental)" title="Permalink to this heading">#</a></h1>
 <p>In this tutorial we will describe alternative way (interface) of running your patterns.</p>
-<p>This new interface provides a way to define pattern as python function and run it in a single file, using <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_pattern</span></code> decorator. All you need to do is annotate function with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_pattern</span></code> decorator and call it. As a result of the call of the function you will get <code class="docutils literal notranslate"><span class="pre">Job</span></code> handle to check it’s progress like we did in previous tutorials.</p>
+<p>This new interface provides a way to define pattern as python function and run it in a single file, using <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_function</span></code> decorator. All you need to do is annotate function with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_function</span></code> decorator and call it. As a result of the call of the function you will get <code class="docutils literal notranslate"><span class="pre">Job</span></code> handle to check it’s progress like we did in previous tutorials.</p>
 <p>Limitations of this interface:</p>
 <ul class="simple">
-<li><p>Functions decorated with distribute_qiskit_pattern, can only accept named arguments for now. E.g do not use <code class="docutils literal notranslate"><span class="pre">my_pattern(argument1)</span></code>, instead specify name of the argument <code class="docutils literal notranslate"><span class="pre">my_pattern(argument1=argument1)</span></code></p></li>
+<li><p>Functions decorated with distribute_qiskit_function, can only accept named arguments for now. E.g do not use <code class="docutils literal notranslate"><span class="pre">my_pattern(argument1)</span></code>, instead specify name of the argument <code class="docutils literal notranslate"><span class="pre">my_pattern(argument1=argument1)</span></code></p></li>
 <li><p>Function return will run <code class="docutils literal notranslate"><span class="pre">qiskit_serverless.save_result</span></code> function under the hood, which means return values must be json serializable values in form of dictionary (with values as all Python native types, like strings, lists, dicts, <code class="docutils literal notranslate"><span class="pre">numpy</span></code> arrays, <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code>, <code class="docutils literal notranslate"><span class="pre">Operator</span></code>, etc.)</p></li>
 <li><p>When using local folder/modules user must specify <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> as <code class="docutils literal notranslate"><span class="pre">./</span></code> (current folder), which will be archiving and sending content of entire folder for remote execution. Make sure that folder does not have large files.</p></li>
 </ul>
@@ -309,11 +309,11 @@
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">ServerlessClient</span>
 
-<span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+<span class="n">provider</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
     <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
 <span class="p">)</span>
-<span class="n">client</span>
+<span class="n">provider</span>
 </pre></div>
 </div>
 </div>
@@ -328,8 +328,8 @@
 </div>
 <section id="Hello,-Qiskit!">
 <h2>Hello, Qiskit!<a class="headerlink" href="#Hello,-Qiskit!" title="Permalink to this heading">#</a></h2>
-<p>Let’s create simpliest pattern by writing a funtion <code class="docutils literal notranslate"><span class="pre">hello_qiskit</span></code> and annotating it with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_pattern</span></code> decorator. The <code class="docutils literal notranslate"><span class="pre">distribute_qiskit_pattern</span></code> decorator accepts a <a class="reference external" href="https://qiskit-extensions.github.io/qiskit-serverless/stubs/qiskit_serverless.core.BaseProvider.html">BaseProvider</a> instance for the <code class="docutils literal notranslate"><span class="pre">provider</span></code> argument. Other arguments are <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> to specify extra packages to install during execution and <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> to specify working directory that will be
-shiped for remote execution if needed.</p>
+<p>Let’s create simpliest pattern by writing a funtion <code class="docutils literal notranslate"><span class="pre">hello_qiskit</span></code> and annotating it with <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_function</span></code> decorator. The <code class="docutils literal notranslate"><span class="pre">distribute_qiskit_function</span></code> decorator accepts a <a class="reference external" href="https://qiskit-extensions.github.io/qiskit-serverless/stubs/qiskit_serverless.core.BaseProvider.html">BaseProvider</a> instance for the <code class="docutils literal notranslate"><span class="pre">provider</span></code> argument. Other arguments are <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> to specify extra packages to install during execution and <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> to specify working directory that will
+be shiped for remote execution if needed.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
@@ -337,10 +337,10 @@ shiped for remote execution if needed.</p>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
 <span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
 
-<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">distribute_qiskit_pattern</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">save_result</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">distribute_qiskit_function</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span>
 
 
-<span class="nd">@distribute_qiskit_pattern</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+<span class="nd">@distribute_qiskit_function</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">hello_qiskit</span><span class="p">():</span>
     <span class="n">circuit</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
     <span class="n">circuit</span><span class="o">.</span><span class="n">h</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
@@ -405,7 +405,7 @@ shiped for remote execution if needed.</p>
     <span class="k">return</span> <span class="n">Sampler</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
 
 
-<span class="nd">@distribute_qiskit_pattern</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
+<span class="nd">@distribute_qiskit_function</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">pattern_with_distributed_tasks</span><span class="p">(</span><span class="n">circuits</span><span class="p">):</span>
     <span class="n">sample_task_references</span> <span class="o">=</span> <span class="p">[</span><span class="n">distributed_sample</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span> <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">]</span>
     <span class="n">results</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">sample_task_references</span><span class="p">)</span>
@@ -460,26 +460,26 @@ OpenBLAS WARNING - could not determine the L2 cache size on this system, assumin
 </section>
 <section id="QiskitPattern-with-local-modules/folders">
 <h2>QiskitPattern with local modules/folders<a class="headerlink" href="#QiskitPattern-with-local-modules/folders" title="Permalink to this heading">#</a></h2>
-<p>Situation with local folders is a little bit trickier. In order to make local imports work in remote execution of a pattern we need to specify <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> argument for <code class="docutils literal notranslate"><span class="pre">distribute_qiskit_pattern</span></code> decorator. It will tell qiskit serverless to ship all content of current folder to remote cluster, which will make local folders discoverable by Python interpreter during remote execution.</p>
+<p>Situation with local folders is a little bit trickier. In order to make local imports work in remote execution of a pattern we need to specify <code class="docutils literal notranslate"><span class="pre">working_dir</span></code> argument for <code class="docutils literal notranslate"><span class="pre">distribute_qiskit_function</span></code> decorator. It will tell qiskit serverless to ship all content of current folder to remote cluster, which will make local folders discoverable by Python interpreter during remote execution.</p>
 <p>In this example we will use local folder <code class="docutils literal notranslate"><span class="pre">source_files</span></code> with <code class="docutils literal notranslate"><span class="pre">circuit_utils.py</span></code> file, which has implementation of <code class="docutils literal notranslate"><span class="pre">create_hello_world_circuit</span></code> function.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">distribute_qiskit_pattern</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">save_result</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">distribute_qiskit_function</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span><span class="p">,</span> <span class="n">save_result</span>
 <span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
 
 <span class="kn">from</span> <span class="nn">source_files.circuit_utils</span> <span class="kn">import</span> <span class="n">create_hello_world_circuit</span>
 
 
-<span class="nd">@distribute_qiskit_pattern</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">my_pattern_with_modules</span><span class="p">():</span>
+<span class="nd">@distribute_qiskit_function</span><span class="p">(</span><span class="n">provider</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">my_function_with_modules</span><span class="p">():</span>
     <span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">create_hello_world_circuit</span><span class="p">())</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
     <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;quasi_dists&quot;</span><span class="p">:</span> <span class="n">quasi_dists</span><span class="p">}</span>
 
 
-<span class="n">job</span> <span class="o">=</span> <span class="n">my_pattern_with_modules</span><span class="p">()</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">my_function_with_modules</span><span class="p">()</span>
 <span class="n">job</span>
 </pre></div>
 </div>
