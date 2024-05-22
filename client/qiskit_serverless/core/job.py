@@ -101,7 +101,7 @@ class BaseJobClient:
     def run(
         self,
         program: Union[str, QiskitFunction],
-        namespace: Optional[str] = None,
+        provider: Optional[str] = None,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> "Job":
@@ -183,7 +183,7 @@ class RayJobClient(BaseJobClient):
     def run(
         self,
         program: Union[str, QiskitFunction],
-        namespace: Optional[str] = None,
+        provider: Optional[str] = None,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
@@ -256,7 +256,7 @@ class LocalJobClient(BaseJobClient):
     def run(  # pylint: disable=too-many-locals
         self,
         program: Union[str, QiskitFunction],
-        namespace: Optional[str] = None,
+        provider: Optional[str] = None,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
@@ -315,7 +315,7 @@ class LocalJobClient(BaseJobClient):
         self._patterns.append(
             {
                 "title": program.title,
-                "namespace": program.namespace,
+                "provider": program.provider,
                 "entrypoint": program.entrypoint,
                 "working_dir": program.working_dir,
                 "env_vars": program.env_vars,
@@ -330,7 +330,7 @@ class LocalJobClient(BaseJobClient):
         return [
             QiskitFunction(
                 program.get("title"),
-                namespace=program.get("namespace", None),
+                provider=program.get("provider", None),
                 raw_data=program,
                 job_client=self,
             )
@@ -356,7 +356,7 @@ class GatewayJobClient(BaseJobClient):
     def run(  # pylint: disable=too-many-locals
         self,
         program: Union[str, QiskitFunction],
-        namespace: Optional[str] = None,
+        provider: Optional[str] = None,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> "Job":
@@ -368,14 +368,14 @@ class GatewayJobClient(BaseJobClient):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
             span.set_attribute("program", title)
-            span.set_attribute("namespace", namespace)
+            span.set_attribute("provider", provider)
             span.set_attribute("arguments", str(arguments))
 
             url = f"{self.host}/api/{self.version}/programs/run/"
 
             data = {
                 "title": title,
-                "namespace": namespace,
+                "provider": provider,
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
             }  # type: Dict[str, Any]
             if config:
@@ -554,7 +554,7 @@ class GatewayJobClient(BaseJobClient):
         return [
             QiskitFunction(
                 program.get("title"),
-                namespace=program.get("namespace", None),
+                provider=program.get("provider", None),
                 raw_data=program,
                 job_client=self,
             )
@@ -744,7 +744,7 @@ def _upload_with_docker_image(
             url=url,
             data={
                 "title": program.title,
-                "namespace": program.namespace,
+                "provider": program.provider,
                 "image": program.image,
                 "arguments": json.dumps({}),
                 "dependencies": json.dumps(program.dependencies or []),
@@ -755,9 +755,9 @@ def _upload_with_docker_image(
         )
     )
     program_title = response_data.get("title", "na")
-    program_namespace = response_data.get("namespace", "na")
+    program_provider = response_data.get("provider", "na")
     span.set_attribute("program.title", program_title)
-    span.set_attribute("program.namespace", program_namespace)
+    span.set_attribute("program.provider", program_provider)
     return program_title
 
 
@@ -807,7 +807,7 @@ def _upload_with_artifact(
                 url=url,
                 data={
                     "title": program.title,
-                    "namespace": program.namespace,
+                    "provider": program.provider,
                     "entrypoint": program.entrypoint,
                     "arguments": json.dumps({}),
                     "dependencies": json.dumps(program.dependencies or []),
@@ -819,9 +819,9 @@ def _upload_with_artifact(
             )
         )
         program_title = response_data.get("title", "na")
-        program_namespace = response_data.get("namespace", "na")
+        program_provider = response_data.get("provider", "na")
         span.set_attribute("program.title", program_title)
-        span.set_attribute("program.namespace", program_namespace)
+        span.set_attribute("program.provider", program_provider)
 
     if os.path.exists(artifact_file_path):
         os.remove(artifact_file_path)

@@ -37,7 +37,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
 
     Args:
         title: program name
-        namespace: namespace where Qiskit Function is published
+        provider: Qiskit Function provider reference
         entrypoint: is a script that will be executed as a job
             ex: job.py
         env_vars: env vars
@@ -48,7 +48,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     """
 
     title: str
-    namespace: Optional[str] = None
+    provider: Optional[str] = None
     entrypoint: Optional[str] = None
     working_dir: Optional[str] = "./"
     env_vars: Optional[Dict[str, str]] = None
@@ -63,17 +63,17 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     schema: Optional[str] = None
 
     def __post_init__(self):
-        title_has_namespace = "/" in self.title
-        if title_has_namespace:
+        title_has_provider = "/" in self.title
+        if title_has_provider:
             title_split = self.title.split("/")
             if len(title_split) > 2:
                 raise ValueError("Invalid title: it can only contain one slash.")
-            if self.namespace != title_split[0]:
+            if self.provider != title_split[0]:
                 raise ValueError(
-                    "Invalid namespace: you provided two different "
-                    + f"namespaces [{self.namespace}] and [{title_split[0]}]."
+                    "Invalid provider: you provided two different "
+                    + f"providers [{self.provider}] and [{title_split[0]}]."
                 )
-            self.namespace = title_split[0]
+            self.provider = title_split[0]
             self.title = title_split[1]
 
     @classmethod
@@ -83,8 +83,8 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         return QiskitFunction(**{k: v for k, v in data.items() if k in field_names})
 
     def __str__(self):
-        if self.namespace is not None:
-            return f"QiskitFunction({self.namespace}/{self.title})"
+        if self.provider is not None:
+            return f"QiskitFunction({self.provider}/{self.title})"
         return f"QiskitFunction({self.title})"
 
     def __repr__(self):
@@ -113,7 +113,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         config = kwargs.pop("config", None)
         return self.job_client.run(
             program=self.title,
-            namespace=self.namespace,
+            provider=self.provider,
             arguments=kwargs,
             config=config,
         )

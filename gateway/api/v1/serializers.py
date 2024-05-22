@@ -39,9 +39,9 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 "At least one of attributes (entrypoint, image) is required."
             )
         title = attrs.get("title")
-        namespace = attrs.get("namespace")
-        if namespace and "/" in title:
-            raise ValidationError("Namespace defined in title and in namespace fields.")
+        provider = attrs.get("provider")
+        if provider and "/" in title:
+            raise ValidationError("Provider defined in title and in provider fields.")
         title_split = title.split("/")
         if len(title_split) > 2:
             raise ValidationError(
@@ -57,7 +57,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "dependencies",
             "env_vars",
             "image",
-            "namespace",
+            "provider",
         ]
 
 

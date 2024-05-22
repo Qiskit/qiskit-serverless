@@ -58,8 +58,8 @@ class JobConfig(models.Model):
         return f"{self.id}"
 
 
-class Namespace(models.Model):
-    """Namespace model."""
+class Provider(models.Model):
+    """Provider model."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -103,8 +103,8 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
-    namespace = models.ForeignKey(
-        to=Namespace,
+    provider = models.ForeignKey(
+        to=Provider,
         on_delete=models.SET_NULL,
         default=None,
         null=True,
@@ -115,8 +115,8 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
 
     def __str__(self):
-        if self.namespace:
-            return f"{self.namespace.name}/{self.title}"
+        if self.provider:
+            return f"{self.provider.name}/{self.title}"
         return f"{self.title}"
 
 

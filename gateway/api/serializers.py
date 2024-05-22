@@ -13,7 +13,7 @@ from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
 from .models import (
-    Namespace,
+    Provider,
     Program,
     Job,
     JobConfig,
@@ -31,32 +31,32 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     entrypoint = serializers.CharField(required=False)
     image = serializers.CharField(required=False)
-    namespace = serializers.CharField(required=False)
+    provider = serializers.CharField(required=False)
 
     class Meta:
         model = Program
 
-    def separate_namespace_from_title(self, title):
+    def separate_provider_from_title(self, title):
         """
-        This method returns namespace and title from a title with /
+        This method returns provider and title from a title with /
         """
         title_split = title.split("/")
         if len(title_split) == 1:
             return None, title_split[0]
         return title_split[0], title_split[1]
 
-    def check_namespace_access(self, namespace_name, author):
+    def check_provider_access(self, provider_name, author):
         """
-        This method check if the author has access to the namespace
+        This method check if the author has access to the provider
         """
-        namespace = Namespace.objects.filter(name=namespace_name).first()
-        if namespace is None:
-            logger.error("Namespace [%s] does not exist.", namespace_name)
+        provider = Provider.objects.filter(name=provider_name).first()
+        if provider is None:
+            logger.error("Provider [%s] does not exist.", provider_name)
             return False
         logger.error(
-            "User [%s] has no access to namespace [%s].", author.id, namespace_name
+            "User [%s] has no access to provider [%s].", author.id, provider_name
         )
-        return namespace.admin_group in author.groups.all()
+        return provider.admin_group in author.groups.all()
 
     def retrieve_private_function(self, title, author):
         """
@@ -64,21 +64,21 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         """
         return Program.objects.filter(title=title, author=author).first()
 
-    def retrieve_namespace_function(self, title, namespace_name):
+    def retrieve_provider_function(self, title, provider_name):
         """
-        This method returns a Program entry searching by the title and namespace, if not None
+        This method returns a Program entry searching by the title and provider, if not None
         """
-        namespace = Namespace.objects.filter(name=namespace_name).first()
-        return Program.objects.filter(title=title, namespace=namespace).first()
+        provider = Provider.objects.filter(name=provider_name).first()
+        return Program.objects.filter(title=title, provider=provider).first()
 
     def create(self, validated_data):
         title = validated_data.get("title")
         logger.info("Creating program [%s] with UploadProgramSerializer", title)
 
-        namespace_name = validated_data.get("namespace", None)
-        if namespace_name:
-            validated_data["namespace"] = Namespace.objects.filter(
-                name=namespace_name
+        provider_name = validated_data.get("provider", None)
+        if provider_name:
+            validated_data["provider"] = Provider.objects.filter(
+                name=provider_name
             ).first()
 
         env_vars = validated_data.get("env_vars")

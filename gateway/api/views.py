@@ -212,27 +212,27 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             title = serializer.validated_data.get("title")
-            namespace_name = serializer.validated_data.get("namespace", None)
+            provider_name = serializer.validated_data.get("provider", None)
             author = request.user
-            if namespace_name is None:
-                # Check if title contains the namespace: <namespace>/<title>
-                logger.debug("Namespace is None, check if it is in the title.")
-                namespace_name, title = serializer.separate_namespace_from_title(
+            if provider_name is None:
+                # Check if title contains the provider: <provider>/<title>
+                logger.debug("Provider is None, check if it is in the title.")
+                provider_name, title = serializer.separate_provider_from_title(
                     title=title
                 )
 
-            if namespace_name:
-                user_has_access = serializer.check_namespace_access(
-                    namespace_name=namespace_name, author=author
+            if provider_name:
+                user_has_access = serializer.check_provider_access(
+                    provider_name=provider_name, author=author
                 )
                 if not user_has_access:
                     # For security we just return a 404 not a 401
                     return Response(
-                        {"message": f"Namespace [{namespace_name}] was not found."},
+                        {"message": f"Provider [{provider_name}] was not found."},
                         status=status.HTTP_404_NOT_FOUND,
                     )
-                program = serializer.retrieve_namespace_function(
-                    title=title, namespace_name=namespace_name
+                program = serializer.retrieve_provider_function(
+                    title=title, provider_name=provider_name
                 )
             else:
                 program = serializer.retrieve_private_function(
@@ -252,7 +252,7 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
                     return Response(
                         serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
-            serializer.save(author=author, title=title, namespace=namespace_name)
+            serializer.save(author=author, title=title, provider=provider_name)
 
             logger.info("Return response with Program [%s]", title)
             return Response(serializer.data)

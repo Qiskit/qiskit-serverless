@@ -92,9 +92,9 @@ class TestProgramApi(APITestCase):
             },
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("namespace"), None)
+        self.assertEqual(programs_response.data.get("provider"), None)
 
-    def test_upload_namespace_function(self):
+    def test_upload_provider_function(self):
         """Tests upload end-point authorized."""
 
         fake_file = ContentFile(b"print('Hello World')")
@@ -107,18 +107,18 @@ class TestProgramApi(APITestCase):
         programs_response = self.client.post(
             "/api/v1/programs/upload/",
             data={
-                "title": "Namespace Function",
+                "title": "Provider Function",
                 "entrypoint": "test_user_2_program.py",
                 "dependencies": "[]",
                 "env_vars": env_vars,
                 "artifact": fake_file,
-                "namespace": "default",
+                "provider": "default",
             },
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("namespace"), "default")
+        self.assertEqual(programs_response.data.get("provider"), "default")
 
-    def test_upload_namespace_function_with_title(self):
+    def test_upload_provider_function_with_title(self):
         """Tests upload end-point authorized."""
 
         fake_file = ContentFile(b"print('Hello World')")
@@ -131,7 +131,7 @@ class TestProgramApi(APITestCase):
         programs_response = self.client.post(
             "/api/v1/programs/upload/",
             data={
-                "title": "default/Namespace Function",
+                "title": "default/Provider Function",
                 "entrypoint": "test_user_3_program.py",
                 "dependencies": "[]",
                 "env_vars": env_vars,
@@ -139,14 +139,14 @@ class TestProgramApi(APITestCase):
             },
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("namespace"), "default")
+        self.assertEqual(programs_response.data.get("provider"), "default")
         self.assertEqual(
             programs_response.data.get("entrypoint"), "test_user_3_program.py"
         )
         self.assertRaises(
             Program.DoesNotExist,
             Program.objects.get,
-            title="default/Namespace Function",
+            title="default/Provider Function",
         )
 
     def test_upload_authorization_error(self):
@@ -162,12 +162,12 @@ class TestProgramApi(APITestCase):
         programs_response = self.client.post(
             "/api/v1/programs/upload/",
             data={
-                "title": "Namespace Function",
+                "title": "Provider Function",
                 "entrypoint": "test_user_2_program.py",
                 "dependencies": "[]",
                 "env_vars": env_vars,
                 "artifact": fake_file,
-                "namespace": "default",
+                "provider": "default",
             },
         )
         self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
