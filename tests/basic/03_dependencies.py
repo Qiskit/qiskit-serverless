@@ -6,7 +6,8 @@ function = QiskitFunction(
     title="pattern-with-dependencies",
     entrypoint="pattern_with_dependencies.py",
     working_dir="./source_files/",
-    dependencies=["qiskit-experiments==0.6.0"],
+    #dependencies=["qiskit-experiments==0.6.0"],
+    dependencies=["pendulum"],
 )
 
 from qiskit_serverless import ServerlessClient
