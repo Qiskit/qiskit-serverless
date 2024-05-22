@@ -33,7 +33,13 @@ from rest_framework.response import Response
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
 from utils import sanitize_file_path
 
-from .models import VIEW_PROGRAM_PERMISSION, Program, Job, RuntimeJob
+from .models import (
+    VIEW_PROGRAM_PERMISSION,
+    RUN_PROGRAM_PERMISSION,
+    Program,
+    Job,
+    RuntimeJob,
+)
 from .ray import get_job_handler
 from .serializers import (
     JobConfigSerializer,
@@ -143,6 +149,45 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
 
         return author_programs
 
+    def get_run_queryset(self):
+        """get run queryset"""
+        author = self.request.user
+
+        logger.info("ProgramViewSet get run_program permission")
+        run_program_permission = Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
+
+        # Groups logic
+        user_criteria = Q(user=author)
+        run_permission_criteria = Q(permissions=run_program_permission)
+        author_groups_with_run_permissions = Group.objects.filter(
+            user_criteria & run_permission_criteria
+        )
+        author_groups_with_run_permissions_count = (
+            author_groups_with_run_permissions.count()
+        )
+        logger.info(
+            "ProgramViewSet get author[%s] groups [%s]",
+            author.id,
+            author_groups_with_run_permissions_count,
+        )
+
+        # Programs logic
+        author_criteria = Q(author=author)
+        author_groups_with_run_permissions_criteria = Q(
+            instances__in=author_groups_with_run_permissions
+        )
+        author_programs = Program.objects.filter(
+            author_criteria | author_groups_with_run_permissions_criteria
+        ).distinct()
+        author_programs_count = author_programs.count()
+        logger.info(
+            "ProgramViewSet get author[%s] programs[%s]",
+            author.id,
+            author_programs_count,
+        )
+
+        return author_programs
+
     def list(self, request):
         """List programs:"""
         tracer = trace.get_tracer("gateway.tracer")
@@ -226,9 +271,10 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+            author_program = self.get_run_queryset()
             author = request.user
             title = serializer.data.get("title")
-            program = serializer.retrieve_one_by_title(title=title, author=author)
+            program = author_program.filter(title=title).first()
             if program is None:
                 logger.error("Qiskit Pattern [%s] was not found.", title)
                 return Response(

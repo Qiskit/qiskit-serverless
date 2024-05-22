@@ -1,4 +1,3 @@
-headerparser==0.5.1
 certifi==2024.2.2
 requests==2.31.0
 gunicorn==22.0.0

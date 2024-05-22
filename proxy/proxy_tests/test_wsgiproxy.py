@@ -1,40 +1,19 @@
-"""Tests HTTPServer"""
+"""Tests wsgiproxy"""
+import time
+from proxy.wsgiproxy import app
 import threading
 from http.server import HTTPServer
-import http, http.client, urllib.parse
 import unittest
 import operator
-from proxy.httpserver import ProxyRequestHandler
-from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+import urllib
+from http.server import BaseHTTPRequestHandler
 
 
-class TestServerThread(threading.Thread):
-    """TestServerThread"""
-
-    def __init__(self, test_object, request_handler):
-        """init"""
-        threading.Thread.__init__(self)
-        self.request_handler = request_handler
-        self.test_object = test_object
-
-    def run(self):
-        """run"""
-        self.server = HTTPServer(("localhost", 0), self.request_handler)
-        self.test_object.HOST, self.test_object.PORT = self.server.socket.getsockname()
-        self.test_object.server_started.set()
-        self.test_object = None
-        try:
-            self.server.serve_forever(0.05)
-        finally:
-            self.server.server_close()
-
-    def stop(self):
-        """stop"""
-        self.server.shutdown()
-        self.join()
+def client(app):
+    return app.test_client()
 
 
-class TestMockServerThread(threading.Thread):
+class MockServerThread(threading.Thread):
     """TestMockserverThread"""
 
     def __init__(self, test_object, request_handler):
@@ -91,25 +70,14 @@ class BaseTestCase(unittest.TestCase):
 
     def setUp(self, mock):
         """setUp"""
-        self.server_started = threading.Event()
-        self.thread = TestServerThread(self, self.request_handler)
-        self.thread.start()
-        mock.thread = TestMockServerThread(self, mock.mock_handler)
+        mock.thread = MockServerThread(self, mock.mock_handler)
         mock.thread.start()
-        self.server_started.wait()
+        time.sleep(3)
 
     def tearDown(self, mock):
         """tearDown"""
-        self.thread.stop()
-        self.thread = None
         mock.thread.stop()
         mock.thread = None
-
-    def request(self, uri, method="GET", body=None, headers={}):
-        """request"""
-        self.connection = http.client.HTTPConnection(self.HOST, self.PORT)
-        self.connection.request(method, uri, body, headers)
-        return self.connection.getresponse()
 
 
 class TestHTTPServer(unittest.TestCase):
@@ -121,50 +89,48 @@ class TestHTTPServer(unittest.TestCase):
         """setUp"""
         self.mock = MockServer()
         BaseTestCase.setUp(self, self.mock)
-        self.con = http.client.HTTPConnection(self.HOST, self.PORT)
-        self.con.connect()
-
-    class request_handler(ProxyRequestHandler):
-        """request handler"""
-
-        None
+        print("setup")
 
     def test_none_post(self):
         """test none post"""
-        self.con.request("GET", "/", headers={"HOST": "127.0.0.1:60000"})
-        res = self.con.getresponse()
-        self.assertEqual(res.getcode(), 200)
+        res = client(app).get("/api", headers={"HOST": "127.0.0.1:60000"})
+        print(res)
+        self.assertEqual(res.status, "200 OK")
 
     def test_post(self):
         """test post"""
-        params = urllib.parse.urlencode(
+        data = urllib.parse.urlencode(
             {"@number": 12524, "@type": "issue", "@action": "show"}
         )
-        self.con.request("POST", "/", params, headers={"HOST": "127.0.0.1:60000"})
-        res = self.con.getresponse()
-        self.assertEqual(res.getcode(), 200)
+        res = client(app).post("/api", headers={"HOST": "127.0.0.1:60000"}, data=data)
+        self.assertEqual(res.status, "200 OK")
 
     def test_job_request(self):
         """test job request"""
-        params = urllib.parse.urlencode(
+        data = urllib.parse.urlencode(
             {"@number": 12524, "@type": "issue", "@action": "show"}
         )
-        self.con.request(
-            "POST",
+        res = client(app).post(
             "/runtime/jobs",
-            params,
             headers={
                 "HOST": "127.0.0.1:60000",
                 "X-Qx-Client-Application": "other:middleware_job_id/0123456789012345678901234567890123456789",
             },
+            data=data,
         )
-        res = self.con.getresponse()
-        self.assertEqual(res.getcode(), 200)
+        self.assertEqual(res.status, "200 OK")
 
     def tearDown(self):
         """tearDown"""
+        print("tearDown")
         BaseTestCase.tearDown(self, self.mock)
 
 
 if __name__ == "__main__":
+    app = app
+    app.config.update(
+        {
+            "TESTING": True,
+        }
+    )
     unittest.main()

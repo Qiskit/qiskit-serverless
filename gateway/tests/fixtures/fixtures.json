@@ -13,7 +13,10 @@
       "email": "test_user@email.com",
       "username": "test_user",
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
-      "is_active": true
+      "is_active": true,
+      "groups": [
+        100
+      ]
     }
   },
   {
@@ -39,6 +42,19 @@
     }
   },
   {
+    "model": "auth.user",
+    "pk": 3,
+    "fields": {
+      "email": "test_user_3@email.com",
+      "username": "test_user_3",
+      "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
+      "is_active": true,
+      "groups": [
+        100
+      ]
+    }
+  },
+  {
     "model": "api.program",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
     "fields": {
@@ -47,7 +63,11 @@
       "entrypoint": "program.py",
       "artifact": "path",
       "author": 1,
-      "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}"
+      "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
+      "instances": [
+        100,
+        101
+      ]
     }
   },
   {
@@ -113,6 +133,22 @@
     "fields": {
       "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84",
       "runtime_job": "runtime_job_5"
+    }
+  },
+  {
+    "model": "auth.group",
+      "pk": 100,
+      "fields": {
+        "name": "runner",
+	"permissions": [61]
+      }
+  },
+  {
+    "model": "auth.group",
+    "pk": 101,
+    "fields": {
+      "name": "viewer",
+      "permissions": [60]
     }
   }
 ]
