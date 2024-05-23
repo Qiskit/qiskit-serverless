@@ -8,6 +8,7 @@ Version serializers inherit from the different serializers.
 
 import json
 import logging
+from typing import Tuple, Union
 from django.conf import settings
 from rest_framework import serializers
 
@@ -36,13 +37,22 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     class Meta:
         model = Program
 
-    def separate_provider_from_title(self, title):
+    def get_provider_name_and_title(
+        self, request_provider, title
+    ) -> Tuple[Union[str, None], str]:
         """
-        This method returns provider and title from a title with /
+        This method returns provider_name and title from a title with / if it contains it
         """
+        if request_provider:
+            return request_provider, title
+
+        # Check if title contains the provider: <provider>/<title>
+        logger.debug("Provider is None, check if it is in the title.")
+
         title_split = title.split("/")
         if len(title_split) == 1:
             return None, title_split[0]
+
         return title_split[0], title_split[1]
 
     def check_provider_access(self, provider_name, author):

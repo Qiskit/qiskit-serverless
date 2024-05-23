@@ -212,14 +212,11 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             title = serializer.validated_data.get("title")
-            provider_name = serializer.validated_data.get("provider", None)
+            request_provider = serializer.validated_data.get("provider", None)
             author = request.user
-            if provider_name is None:
-                # Check if title contains the provider: <provider>/<title>
-                logger.debug("Provider is None, check if it is in the title.")
-                provider_name, title = serializer.separate_provider_from_title(
-                    title=title
-                )
+            provider_name, title = serializer.get_provider_name_and_title(
+                request_provider, title
+            )
 
             if provider_name:
                 user_has_access = serializer.check_provider_access(
