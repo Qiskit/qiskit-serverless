@@ -84,6 +84,7 @@ Let define `QiskitFunction` with image we just build, give it a name and upload 
     function_with_custom_image = QiskitFunction(
         title="custom-image-function",
         image="icr.io/quantum-public/my-custom-function-image:1.0.0"
+        provider="mockprovider"
     )
     function_with_custom_image
 

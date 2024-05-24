@@ -135,7 +135,7 @@ class SerializerTest(APITestCase):
         serializer = UploadProgramSerializer(data=data)
         self.assertTrue(serializer.is_valid())
         self.assertTrue("image" in list(serializer.validated_data.keys()))
-    
+
     def test_upload_program_with_custom_image_and_title_provider(self):
         """Tests image upload serializer."""
         title = "ibm/Hello world"
