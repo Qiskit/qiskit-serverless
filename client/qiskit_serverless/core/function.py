@@ -37,6 +37,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
 
     Args:
         title: program name
+        provider: Qiskit Function provider reference
         entrypoint: is a script that will be executed as a job
             ex: job.py
         env_vars: env vars
@@ -47,6 +48,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     """
 
     title: str
+    provider: Optional[str] = None
     entrypoint: Optional[str] = None
     working_dir: Optional[str] = "./"
     env_vars: Optional[Dict[str, str]] = None
@@ -60,6 +62,20 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     validate: bool = True
     schema: Optional[str] = None
 
+    def __post_init__(self):
+        title_has_provider = "/" in self.title
+        if title_has_provider:
+            title_split = self.title.split("/")
+            if len(title_split) > 2:
+                raise ValueError("Invalid title: it can only contain one slash.")
+            if self.provider != title_split[0]:
+                raise ValueError(
+                    "Invalid provider: you provided two different "
+                    + f"providers [{self.provider}] and [{title_split[0]}]."
+                )
+            self.provider = title_split[0]
+            self.title = title_split[1]
+
     @classmethod
     def from_json(cls, data: Dict[str, Any]):
         """Reconstructs QiskitPattern from dictionary."""
@@ -67,6 +83,8 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         return QiskitFunction(**{k: v for k, v in data.items() if k in field_names})
 
     def __str__(self):
+        if self.provider is not None:
+            return f"QiskitFunction({self.provider}/{self.title})"
         return f"QiskitFunction({self.title})"
 
     def __repr__(self):
@@ -93,7 +111,12 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
                 )
 
         config = kwargs.pop("config", None)
-        return self.job_client.run(program=self.title, arguments=kwargs, config=config)
+        return self.job_client.run(
+            program=self.title,
+            provider=self.provider,
+            arguments=kwargs,
+            config=config,
+        )
 
     def _validate_function(self) -> Tuple[bool, List[str]]:
         """Validate function arguments using schema provided.

@@ -8,11 +8,19 @@ Version serializers inherit from the different serializers.
 
 import json
 import logging
+from typing import Tuple, Union
 from django.conf import settings
 from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
-from .models import Program, Job, JobConfig, RuntimeJob, DEFAULT_PROGRAM_ENTRYPOINT
+from .models import (
+    Provider,
+    Program,
+    Job,
+    JobConfig,
+    RuntimeJob,
+    DEFAULT_PROGRAM_ENTRYPOINT,
+)
 
 logger = logging.getLogger("gateway.serializers")
 
@@ -24,23 +32,66 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     entrypoint = serializers.CharField(required=False)
     image = serializers.CharField(required=False)
+    provider = serializers.CharField(required=False)
 
     class Meta:
         model = Program
 
-    def retrieve_one_by_title(self, title, author):
+    def get_provider_name_and_title(
+        self, request_provider, title
+    ) -> Tuple[Union[str, None], str]:
         """
-        This method returns a Program entry if it finds an entry searching by the title, if not None
+        This method returns provider_name and title from a title with / if it contains it
         """
-        return (
-            Program.objects.filter(title=title, author=author)
-            .order_by("-created")
-            .first()
-        )
+        if request_provider:
+            return request_provider, title
+
+        # Check if title contains the provider: <provider>/<title>
+        logger.debug("Provider is None, check if it is in the title.")
+
+        title_split = title.split("/")
+        if len(title_split) == 1:
+            return None, title_split[0]
+
+        return title_split[0], title_split[1]
+
+    def check_provider_access(self, provider_name, author):
+        """
+        This method check if the author has access to the provider
+        """
+        provider = Provider.objects.filter(name=provider_name).first()
+        if provider is None:
+            logger.error("Provider [%s] does not exist.", provider_name)
+            return False
+        has_access = provider.admin_group in author.groups.all()
+        if not has_access:
+            logger.error(
+                "User [%s] has no access to provider [%s].", author.id, provider_name
+            )
+        return has_access
+
+    def retrieve_private_function(self, title, author):
+        """
+        This method returns a Program entry searching by the title and author, if not None
+        """
+        return Program.objects.filter(title=title, author=author).first()
+
+    def retrieve_provider_function(self, title, provider_name):
+        """
+        This method returns a Program entry searching by the title and provider, if not None
+        """
+        return Program.objects.filter(title=title, provider__name=provider_name).first()
 
     def create(self, validated_data):
         title = validated_data.get("title")
         logger.info("Creating program [%s] with UploadProgramSerializer", title)
+
+        provider_name = validated_data.get("provider", None)
+        if provider_name:
+            validated_data["provider"] = Provider.objects.filter(
+                name=provider_name
+            ).first()
+
         env_vars = validated_data.get("env_vars")
         if env_vars:
             encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
