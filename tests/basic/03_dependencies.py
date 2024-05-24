@@ -6,7 +6,7 @@ function = QiskitFunction(
     title="pattern-with-dependencies",
     entrypoint="pattern_with_dependencies.py",
     working_dir="./source_files/",
-    dependencies=["qiskit-experiments==0.6.0"],
+    dependencies=["pendulum"],
 )
 
 from qiskit_serverless import ServerlessClient
@@ -18,17 +18,13 @@ serverless = ServerlessClient(
 )
 print(serverless)
 
-from qiskit.circuit.random import random_circuit
-
-circuit = random_circuit(2, 2)
-
 serverless.upload(function)
 
 functions = {f.title: f for f in serverless.list()}
 my_pattern_function = functions.get("pattern-with-dependencies")
 my_pattern_function
 
-job = my_pattern_function.run(circuit=circuit)
+job = my_pattern_function.run()
 print(job)
 
 print(job.result())

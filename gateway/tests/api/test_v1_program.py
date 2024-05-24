@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job
+from api.models import Job, Program
 
 
 class TestProgramApi(APITestCase):
@@ -70,6 +70,107 @@ class TestProgramApi(APITestCase):
         self.assertEqual(job.config.max_workers, 5)
         self.assertEqual(job.config.workers, None)
         self.assertEqual(job.config.auto_scaling, True)
+
+    def test_upload_private_function(self):
+        """Tests upload end-point authorized."""
+
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "Private function",
+                "entrypoint": "test_user_2_program.py",
+                "dependencies": "[]",
+                "env_vars": env_vars,
+                "artifact": fake_file,
+            },
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.data.get("provider"), None)
+
+    def test_upload_provider_function(self):
+        """Tests upload end-point authorized."""
+
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "Provider Function",
+                "entrypoint": "test_user_2_program.py",
+                "dependencies": "[]",
+                "env_vars": env_vars,
+                "artifact": fake_file,
+                "provider": "default",
+            },
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.data.get("provider"), "default")
+
+    def test_upload_provider_function_with_title(self):
+        """Tests upload end-point authorized."""
+
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "default/Provider Function",
+                "entrypoint": "test_user_3_program.py",
+                "dependencies": "[]",
+                "env_vars": env_vars,
+                "artifact": fake_file,
+            },
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.data.get("provider"), "default")
+        self.assertEqual(
+            programs_response.data.get("entrypoint"), "test_user_3_program.py"
+        )
+        self.assertRaises(
+            Program.DoesNotExist,
+            Program.objects.get,
+            title="default/Provider Function",
+        )
+
+    def test_upload_authorization_error(self):
+        """Tests upload end-point authorized."""
+
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
+
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "Provider Function",
+                "entrypoint": "test_user_2_program.py",
+                "dependencies": "[]",
+                "env_vars": env_vars,
+                "artifact": fake_file,
+                "provider": "default",
+            },
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_runtime_job(self):
         """Tests run existing authorized."""

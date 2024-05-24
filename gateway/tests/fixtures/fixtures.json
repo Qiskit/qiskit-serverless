@@ -19,7 +19,11 @@
       "email": "test_user_2@email.com",
       "username": "test_user_2",
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
-      "is_active": true
+      "is_active": true,
+      "groups": [
+        100,
+        105
+      ]
     }
   },
   {
@@ -121,7 +125,7 @@
       "pk": 100,
       "fields": {
         "name": "runner",
-	"permissions": [61]
+	      "permissions": [61]
       }
   },
   {
@@ -130,6 +134,22 @@
     "fields": {
       "name": "viewer",
       "permissions": [60]
+    }
+  },
+  {
+    "model": "auth.group",
+    "pk": 105,
+    "fields": {
+        "name": "default-group"
+    }
+  },
+  {
+    "model": "api.provider",
+    "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
+    "fields": {
+      "name": "default",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "admin_group": 105
     }
   }
 ]
