@@ -115,9 +115,30 @@ class SerializerTest(APITestCase):
         errors = serializer.errors
         self.assertListEqual(["dependencies"], list(errors.keys()))
 
-    def test_upload_program_with_custom_iamge(self):
+    def test_upload_program_with_custom_image_and_provider(self):
         """Tests image upload serializer."""
         title = "Hello world"
+        entrypoint = "main.py"
+        arguments = {}
+        dependencies = "[]"
+        image = "docker.io/awesome/awesome-image:latest"
+        provider = "ibm"
+
+        data = {}
+        data["title"] = title
+        data["entrypoint"] = entrypoint
+        data["arguments"] = arguments
+        data["dependencies"] = dependencies
+        data["image"] = image
+        data["provider"] = provider
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        self.assertTrue("image" in list(serializer.validated_data.keys()))
+    
+    def test_upload_program_with_custom_image_and_title_provider(self):
+        """Tests image upload serializer."""
+        title = "ibm/Hello world"
         entrypoint = "main.py"
         arguments = {}
         dependencies = "[]"
@@ -133,6 +154,24 @@ class SerializerTest(APITestCase):
         serializer = UploadProgramSerializer(data=data)
         self.assertTrue(serializer.is_valid())
         self.assertTrue("image" in list(serializer.validated_data.keys()))
+
+    def test_custom_image_without_provider(self):
+        """Tests image upload serializer."""
+        title = "Hello world"
+        entrypoint = "main.py"
+        arguments = {}
+        dependencies = "[]"
+        image = "docker.io/awesome/awesome-image:latest"
+
+        data = {}
+        data["title"] = title
+        data["entrypoint"] = entrypoint
+        data["arguments"] = arguments
+        data["dependencies"] = dependencies
+        data["image"] = image
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
 
     def test_run_program_serializer_check_emtpy_data(self):
         data = {}
