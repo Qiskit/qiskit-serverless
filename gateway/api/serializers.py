@@ -80,8 +80,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         """
         This method returns a Program entry searching by the title and provider, if not None
         """
-        provider = Provider.objects.filter(name=provider_name).first()
-        return Program.objects.filter(title=title, provider=provider).first()
+        return Program.objects.filter(title=title, provider__name=provider_name).first()
 
     def create(self, validated_data):
         title = validated_data.get("title")
