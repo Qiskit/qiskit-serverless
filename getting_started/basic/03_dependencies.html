@@ -292,42 +292,28 @@
 <h1>Using python packages with your QiskitPattern<a class="headerlink" href="#Using-python-packages-with-your-QiskitPattern" title="Permalink to this heading">#</a></h1>
 <p>In this document, we will learn how to install custom dependencies to your pattern.</p>
 <p>Let’s create another file with our new pattern <a class="reference external" href="./source_files/pattern_with_dependencies.py">./source_files/pattern_with_dependencies.py</a>.</p>
-<p>For the sake of this example, let’s use the <code class="docutils literal notranslate"><span class="pre">qiskit-experiments</span></code> package as our custom dependency. We will use randomized benchmarking (RB) circuits from <code class="docutils literal notranslate"><span class="pre">qiskit-experiments</span></code>, composed with the circuit from the input arguments for measurement.</p>
+<p>For the sake of this example, let’s use the <code class="docutils literal notranslate"><span class="pre">pendulum</span></code> package as our custom dependency. We are going to calculate the difference in ours between Toronto and Vancouver timezones.</p>
 <p>Here’s what the file would look like:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/pattern_with_dependencies.py</span>
 
-<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span>
+<span class="c1"># source_files/program_4.py</span>
 
-<span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
-<span class="kn">from</span> <span class="nn">qiskit_experiments.library</span> <span class="kn">import</span> <span class="n">StandardRB</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">save_result</span>
 
+<span class="kn">import</span> <span class="nn">pendulum</span>
 
-<span class="n">arguments</span> <span class="o">=</span> <span class="n">get_arguments</span><span class="p">()</span>
+<span class="n">dt_toronto</span> <span class="o">=</span> <span class="n">pendulum</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="s1">&#39;America/Toronto&#39;</span><span class="p">)</span>
+<span class="n">dt_vancouver</span> <span class="o">=</span> <span class="n">pendulum</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="s1">&#39;America/Vancouver&#39;</span><span class="p">)</span>
 
-<span class="n">circuit</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;circuit&quot;</span><span class="p">)</span>
+<span class="n">diff</span> <span class="o">=</span> <span class="n">dt_vancouver</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">dt_toronto</span><span class="p">)</span><span class="o">.</span><span class="n">in_hours</span><span class="p">()</span>
 
-<span class="n">rb</span> <span class="o">=</span> <span class="n">StandardRB</span><span class="p">(</span>
-    <span class="n">physical_qubits</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,),</span>
-    <span class="n">lengths</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">300</span><span class="p">,</span> <span class="mi">30</span><span class="p">)),</span>
-    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span>
-<span class="p">)</span>
-<span class="n">composed</span> <span class="o">=</span> <span class="n">circuit</span><span class="o">.</span><span class="n">compose</span><span class="p">(</span><span class="n">rb</span><span class="o">.</span><span class="n">circuits</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
-
-<span class="n">sampler</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">()</span>
-
-<span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">composed</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Quasi distribution: </span><span class="si">{</span><span class="n">quasi_dists</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-<span class="c1"># saving results of a pattern</span>
-<span class="n">save_result</span><span class="p">({</span>
-    <span class="s2">&quot;quasi_dists&quot;</span><span class="p">:</span> <span class="n">quasi_dists</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-<span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">diff</span><span class="p">)</span>
+<span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;hours&quot;</span><span class="p">:</span> <span class="n">diff</span><span class="p">})</span>
 </pre></div>
 </div>
-<p>As you can see, we’ve imported our custom dependency, <code class="docutils literal notranslate"><span class="pre">qiskit-experiments</span></code>, and used its <code class="docutils literal notranslate"><span class="pre">StandardRB</span></code> module to generate an RB circuit, which we’ve composed with the circuit provided in the input arguments.</p>
+<p>As you can see, we’ve imported our custom dependency, <code class="docutils literal notranslate"><span class="pre">pendulum</span></code>, and used its <code class="docutils literal notranslate"><span class="pre">datetime</span></code> method to calculate their date times.</p>
 <p>Now, let’s create and configure our client</p>
-<p>To install a custom dependency that our pattern might use we need to pass it as the <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> argument to the <code class="docutils literal notranslate"><span class="pre">QiskitPattern</span></code> class constructor. You can pass multiple dependencies and specify versions.</p>
+<p>To install a custom dependency that our pattern might use we need to pass it as the <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> argument to the <code class="docutils literal notranslate"><span class="pre">QiskitFunctions</span></code> class constructor. You can pass multiple dependencies and specify versions.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
@@ -338,7 +324,7 @@
     <span class="n">title</span><span class="o">=</span><span class="s2">&quot;pattern-with-dependencies&quot;</span><span class="p">,</span>
     <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;pattern_with_dependencies.py&quot;</span><span class="p">,</span>
     <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
-    <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;qiskit-experiments==0.6.0&quot;</span><span class="p">],</span>
+    <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pendulum==3.0.0&quot;</span><span class="p">],</span>
 <span class="p">)</span>
 </pre></div>
 </div>
@@ -370,21 +356,13 @@
 &lt;ServerlessProvider: gateway-provider&gt;
 </pre></div></div>
 </div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
-
-<span class="n">circuit</span> <span class="o">=</span> <span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
+<span class="n">functions</span> <span class="o">=</span> <span class="p">{</span><span class="n">f</span><span class="o">.</span><span class="n">title</span><span class="p">:</span> <span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">serverless</span><span class="o">.</span><span class="n">list</span><span class="p">()}</span>
+<span class="n">my_pattern_function</span> <span class="o">=</span> <span class="n">functions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;pattern-with-dependencies&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -401,7 +379,7 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;pattern-with-dependencies&quot;</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;circuit&quot;</span><span class="p">:</span> <span class="n">circuit</span><span class="p">})</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">my_pattern_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>

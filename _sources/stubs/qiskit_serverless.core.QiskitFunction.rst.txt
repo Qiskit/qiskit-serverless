@@ -31,6 +31,7 @@
       ~QiskitFunction.env_vars
       ~QiskitFunction.image
       ~QiskitFunction.job_client
+      ~QiskitFunction.provider
       ~QiskitFunction.raw_data
       ~QiskitFunction.schema
       ~QiskitFunction.tags

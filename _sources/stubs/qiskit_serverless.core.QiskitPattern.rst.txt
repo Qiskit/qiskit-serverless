@@ -31,6 +31,7 @@
       ~QiskitPattern.env_vars
       ~QiskitPattern.image
       ~QiskitPattern.job_client
+      ~QiskitPattern.provider
       ~QiskitPattern.raw_data
       ~QiskitPattern.schema
       ~QiskitPattern.tags
