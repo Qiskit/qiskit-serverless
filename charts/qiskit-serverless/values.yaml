@@ -109,8 +109,8 @@ gateway:
 kuberayOperatorEnable: true
 kuberay-operator:
   image:
-    repository: kuberay/operator
-    tag: v1.0.0
+    repository: quay.io/kuberay/operator
+    tag: v1.1.1
     pullPolicy: IfNotPresent
 
 # ===================
