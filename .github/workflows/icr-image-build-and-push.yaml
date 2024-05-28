@@ -18,11 +18,11 @@ jobs:
           - imagename: qiskit-serverless-ray-node
             pythonversion: py39
             dockerfile: Dockerfile-ray-node
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
           - imagename: qiskit-serverless-ray-node
             pythonversion: py310
             dockerfile: Dockerfile-ray-node
-            platforms: linux/amd64
+            platforms: linux/amd64,linux/arm64
           - imagename: qiskit-serverless-gateway
             pythonversion: ''
             dockerfile: ./gateway/Dockerfile
