@@ -1,22 +1,25 @@
-import logging
-from typing import Optional
-
+# General imports
 import numpy as np
-from scipy.optimize import minimize
 
+# Pre-defined ansatz circuit, operator class and visualization tools
 from qiskit import QuantumCircuit
-from qiskit.primitives import BaseEstimator, Estimator as QiskitEstimator
+from qiskit.circuit.library import QAOAAnsatz
 from qiskit.quantum_info import SparsePauliOp
 
-from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session, Options
+from qiskit.primitives import BaseEstimator
+from qiskit_ibm_runtime import QiskitRuntimeService, Session
+from qiskit_ibm_runtime import EstimatorV2 as Estimator
+from qiskit_ibm_runtime import SamplerV2 as Sampler
+
+# SciPy minimizer routine
+from scipy.optimize import minimize
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
 from qiskit_serverless import (
-    distribute_task,
     get_arguments,
     get,
     save_result,
 )
-
 
 def cost_func(params, ansatz, hamiltonian, estimator):
     """Return estimate of energy from estimator
@@ -25,14 +28,15 @@ def cost_func(params, ansatz, hamiltonian, estimator):
         params (ndarray): Array of ansatz parameters
         ansatz (QuantumCircuit): Parameterized ansatz circuit
         hamiltonian (SparsePauliOp): Operator representation of Hamiltonian
-        estimator (Estimator): Estimator primitive instance
+        estimator (EstimatorV2): Estimator primitive instance
 
     Returns:
         float: Energy estimate
     """
-    cost = (
-        estimator.run(ansatz, hamiltonian, parameter_values=params).result().values[0]
-    )
+    pub = (ansatz, [hamiltonian], [params])
+    result = estimator.run(pubs=[pub]).result()
+    cost = result[0].data.evs[0]
+
     return cost
 
 
@@ -49,31 +53,47 @@ def run_qaoa(
 
 
 if __name__ == "__main__":
+
     arguments = get_arguments()
 
     service = arguments.get("service")
-
-    operator = arguments.get("operator")
+    hamiltonian = arguments.get("operator")
     ansatz = arguments.get("ansatz")
     initial_point = arguments.get("initial_point")
     method = arguments.get("method", "COBYLA")
+    backend = arguments.get("backend")
 
-    if initial_point is None:
-        initial_point = 2 * np.pi * np.random.rand(ansatz.num_parameters)
+    if not backend:
+        backend = service.least_busy(operational=True, simulator=False, min_num_qubits=127)
+    session = Session(backend=backend)
+    target = backend.target
 
-    if service is not None:
-        # if we have service we need to open a session and create sampler
-        service = arguments.get("service")
-        backend = arguments.get("backend", "ibmq_qasm_simulator")
-        session = Session(service=service, backend=backend)
-        options = Options()
-        options.optimization_level = 3
+    pm = generate_preset_pass_manager(target=target, optimization_level=3)
+    ansatz_isa = pm.run(ansatz)
+    operator = hamiltonian.apply_layout(ansatz_isa.layout)
 
-        estimator = Estimator(session=session, options=options)
-    else:
-        # if we do not have a service let's use standart local sampler
-        estimator = QiskitEstimator()
+    # Configure estimator
+    estimator = Estimator(session=session)
+    estimator.options.default_shots = 10_000
+    estimator.options.dynamical_decoupling.enable = True
 
-    result = run_qaoa(ansatz, estimator, operator, initial_point, method)
+    # Configure sampler
+    sampler = Sampler(session=session)
+    sampler.options.default_shots = 10_000
+    sampler.options.dynamical_decoupling.enable = True
 
-    save_result({"optimal_point": result.x.tolist(), "optimal_value": result.fun})
+    initial_point = 2 * np.pi * np.random.rand(ansatz_isa.num_parameters)
+
+    res = run_qaoa(ansatz_isa, estimator, operator, initial_point, method)
+
+    # Assign solution parameters to ansatz
+    qc = ansatz.assign_parameters(res.x)
+    # Add measurements to our circuit
+    qc.measure_all()
+    qc_isa = pm.run(qc)
+
+    result = sampler.run([qc_isa]).result()
+    samp_dist = result[0].data.meas.get_counts()
+    session.close()
+
+    save_result({"optimal_point": res.x.tolist(), "optimal_value": res.fun, "probabilitie":samp_dist})
