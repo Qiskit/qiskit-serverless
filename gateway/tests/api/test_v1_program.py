@@ -128,7 +128,7 @@ class TestProgramApi(APITestCase):
                 "dependencies": "[]",
                 "env_vars": env_vars,
                 "image": "icr.io/awesome-namespace/awesome-title",
-                "provider": "default"
+                "provider": "default",
             },
         )
         self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
@@ -194,9 +194,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(
             programs_response.data.get("entrypoint"), "test_user_3_program.py"
         )
-        self.assertEqual(
-            programs_response.data.get("title"), "Provider Function"
-        )
+        self.assertEqual(programs_response.data.get("title"), "Provider Function")
         self.assertRaises(
             Program.DoesNotExist,
             Program.objects.get,
