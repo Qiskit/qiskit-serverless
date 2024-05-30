@@ -38,6 +38,25 @@ class TestProgramApi(APITestCase):
             "Program",
         )
 
+    def test_provider_programs_list(self):
+        """Tests programs list authorized."""
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        programs_response = self.client.get(reverse("v1:programs-list"), format="json")
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(programs_response.data), 1)
+        self.assertEqual(
+            programs_response.data[0].get("provider"),
+            "default",
+        )
+        self.assertEqual(
+            programs_response.data[0].get("title"),
+            "Docker Image Program",
+        )
+
     def test_run(self):
         """Tests run existing authorized."""
 

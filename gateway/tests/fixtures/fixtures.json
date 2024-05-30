@@ -56,6 +56,18 @@
     }
   },
   {
+    "model": "api.program",
+    "pk": "6160a2ff-e482-443d-af23-15110b646ae2",
+    "fields": {
+      "created": "2023-02-01T15:30:43.281796Z",
+      "title": "Docker Image Program",
+      "image": "icr.io/awesome-namespace/awesome-title",
+      "author": 2,
+      "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
+      "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea"
+    }
+  },
+  {
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
     "fields": {

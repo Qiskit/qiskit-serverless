@@ -156,6 +156,8 @@ class ProgramSerializer(serializers.ModelSerializer):
     Serializer for the Program model.
     """
 
+    provider = serializers.CharField(source="provider.name", read_only=True)
+
     class Meta:
         model = Program
 

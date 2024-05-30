@@ -12,12 +12,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
     """
 
     class Meta(serializers.ProgramSerializer.Meta):
-        fields = [
-            "title",
-            "entrypoint",
-            "artifact",
-            "dependencies",
-        ]
+        fields = ["title", "entrypoint", "artifact", "dependencies", "provider"]
 
 
 class UploadProgramSerializer(serializers.UploadProgramSerializer):
