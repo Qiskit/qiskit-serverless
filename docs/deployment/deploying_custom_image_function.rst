@@ -55,7 +55,13 @@ In our simple case it will look something like this
     # install all necessary dependencies for your custom image
 
     # copy our function implementation in `/runner.py` of the docker image
-    COPY ./runner.py ./runner.py
+    USER 0
+
+    WORKDIR /runner
+    COPY ./runner.py /runner
+    WORKDIR /
+
+    USER $RAY_UID
 
 and then we need to build it
 
