@@ -91,7 +91,7 @@ def cost_func(params, ansatz, hamiltonian, estimator):
         float: Energy estimate
     """
     energy = (
-        estimator.run([(ansatz, hamiltonian, params)]).result()[0]
+        estimator.run([(ansatz, hamiltonian, params)]).result()[0].data.evs
     )
     return energy
 
@@ -148,7 +148,7 @@ if __name__ == "__main__":
 
     with Session(service=service, backend=backend) as session:
         sampler = Sampler(session=session)
-        samp_dist = sampler.run([qc_isa], shots=int(1e4)).result().quasi_dists[0]
+        samp_dist = sampler.run([qc_isa], shots=int(1e4)).result()[0].data.meas.get_counts()
 
     save_result(
         {
