@@ -124,7 +124,6 @@ class TestProgramApi(APITestCase):
             "/api/v1/programs/upload/",
             data={
                 "title": "Private function",
-                "entrypoint": "test_user_2_program.py",
                 "dependencies": "[]",
                 "env_vars": env_vars,
                 "image": "icr.io/awesome-namespace/awesome-title",
@@ -143,7 +142,6 @@ class TestProgramApi(APITestCase):
             "/api/v1/programs/upload/",
             data={
                 "title": "Private function",
-                "entrypoint": "test_user_2_program.py",
                 "dependencies": "[]",
                 "env_vars": env_vars,
                 "image": "icr.io/awesome-namespace/awesome-title",
@@ -156,7 +154,6 @@ class TestProgramApi(APITestCase):
             "/api/v1/programs/upload/",
             data={
                 "title": "default/Private function",
-                "entrypoint": "test_user_2_program.py",
                 "dependencies": "[]",
                 "env_vars": env_vars,
                 "image": "icr.io/awesome-namespace/awesome-title",
