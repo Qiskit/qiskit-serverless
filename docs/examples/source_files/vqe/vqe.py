@@ -1,3 +1,4 @@
+from qiskit_aer import AerSimulator
 import logging
 from typing import Optional
 import time
@@ -124,16 +125,28 @@ if __name__ == "__main__":
     operator = arguments.get("operator")
     method = arguments.get("method", "COBYLA")
     initial_parameters = arguments.get("initial_parameters")
-    backend = service.least_busy(operational=True, simulator=False)
+    if service:
+        backend = service.least_busy(operational=True, simulator=False)
+    else:
+        backend = AerSimulator()
     if initial_parameters is None:
         initial_parameters = 2 * np.pi * np.random.rand(ansatz.num_parameters)
     pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
     ansatz_isa = pm.run(ansatz)
     operator_isa = operator.apply_layout(ansatz_isa.layout)
 
-    with Session(service=service, backend=backend) as session:
-        estimator = Estimator(session=session)
-
+    if service:
+        with Session(service=service, backend=backend) as session:
+            estimator = Estimator(session=session)
+            vqe_result, callback_dict = run_vqe(
+                initial_parameters=initial_parameters,
+                ansatz=ansatz_isa,
+                operator=operator_isa,
+                estimator=estimator,
+                method=method,
+            )
+    else:
+        estimator = Estimator(backend=backend)
         vqe_result, callback_dict = run_vqe(
             initial_parameters=initial_parameters,
             ansatz=ansatz_isa,
@@ -142,12 +155,17 @@ if __name__ == "__main__":
             method=method,
         )
 
+
     qc = ansatz.assign_parameters(vqe_result.x)
     qc.measure_all()
     qc_isa = pm.run(qc)
 
-    with Session(service=service, backend=backend) as session:
-        sampler = Sampler(session=session)
+    if service:
+        with Session(service=service, backend=backend) as session:
+            sampler = Sampler(session=session)
+            samp_dist = sampler.run([qc_isa], shots=int(1e4)).result()[0].data.meas.get_counts()
+    else:
+        sampler = Sampler(backend=backend)
         samp_dist = sampler.run([qc_isa], shots=int(1e4)).result()[0].data.meas.get_counts()
 
     save_result(
