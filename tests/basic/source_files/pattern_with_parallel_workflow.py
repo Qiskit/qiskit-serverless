@@ -3,7 +3,7 @@
 from qiskit_serverless import get_arguments, save_result, distribute_task, get
 
 from qiskit import QuantumCircuit
-from qiskit.primitives import Sampler
+from qiskit.primitives import StatevectorSampler as Sampler
 from qiskit.circuit.random import random_circuit
 
 
@@ -18,7 +18,7 @@ circuits = arguments.get("circuits")
 
 # run distributed tasks as async function
 # we get task references as a return type
-sample_task_references = [distributed_sample(circuit) for circuit in circuits]
+sample_task_references = [distributed_sample([(circuit)]) for circuit in circuits]
 
 # now we need to collect results from task references
 results = get(sample_task_references)
