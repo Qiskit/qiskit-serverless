@@ -55,7 +55,13 @@ In our simple case it will look something like this
     # install all necessary dependencies for your custom image
 
     # copy our function implementation in `/runner.py` of the docker image
-    COPY ./runner.py ./runner.py
+    USER 0
+
+    WORKDIR /runner
+    COPY ./runner.py /runner
+    WORKDIR /
+
+    USER $RAY_UID
 
 and then we need to build it
 
@@ -84,6 +90,7 @@ Let define `QiskitFunction` with image we just build, give it a name and upload 
     function_with_custom_image = QiskitFunction(
         title="custom-image-function",
         image="icr.io/quantum-public/my-custom-function-image:1.0.0"
+        provider="mockprovider"
     )
     function_with_custom_image
 
