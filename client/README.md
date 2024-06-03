@@ -6,7 +6,7 @@
 [![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A5%200.39.0-6133BD)](https://github.com/Qiskit/qiskit)
 
 # IMPORTANT: THIS PACKAGE WAS DEPRECATED IN FAVOR OF QISKIT-SERVERLESS PACKAGE
-
+https://github.com/Qiskit/qiskit-serverless
 # Quantum Serverless client
 
 ![diagram](https://raw.githubusercontent.com/Qiskit-Extensions/quantum-serverless/main/docs/images/qs_diagram.png)
