@@ -1,3 +1,4 @@
+from qiskit_aer import AerSimulator
 # General imports
 import numpy as np
 
@@ -63,22 +64,27 @@ if __name__ == "__main__":
     method = arguments.get("method", "COBYLA")
     backend = arguments.get("backend")
 
-    if not backend:
+    if service:
         backend = service.least_busy(operational=True, simulator=False, min_num_qubits=127)
-    session = Session(backend=backend)
+        session = Session(backend=backend)
+    else:
+        backend = AerSimulator()
+    
     target = backend.target
-
     pm = generate_preset_pass_manager(target=target, optimization_level=3)
     ansatz_isa = pm.run(ansatz)
     operator = hamiltonian.apply_layout(ansatz_isa.layout)
 
-    # Configure estimator
-    estimator = Estimator(session=session)
+    
+    if service:
+        estimator = Estimator(session=session)
+        sampler = Sampler(session=session)
+    else:
+        estimator = Estimator(backend=backend)
+        sampler = Sampler(backend=backend)
+
     estimator.options.default_shots = 10_000
     estimator.options.dynamical_decoupling.enable = True
-
-    # Configure sampler
-    sampler = Sampler(session=session)
     sampler.options.default_shots = 10_000
     sampler.options.dynamical_decoupling.enable = True
 
@@ -94,6 +100,8 @@ if __name__ == "__main__":
 
     result = sampler.run([qc_isa]).result()
     samp_dist = result[0].data.meas.get_counts()
-    session.close()
+    
+    if service:
+        session.close()
 
     save_result({"optimal_point": res.x.tolist(), "optimal_value": res.fun, "probabilitie":samp_dist})
