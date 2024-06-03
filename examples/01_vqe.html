@@ -445,8 +445,12 @@
 
 <span class="n">service</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="k">if</span> <span class="n">USE_RUNTIME_SERVICE</span><span class="p">:</span>
-    <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">()</span>
-    <span class="n">backend</span> <span class="o">=</span> <span class="s2">&quot;ibmq_qasm_simulator&quot;</span>
+    <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
+        <span class="n">channel</span><span class="o">=</span><span class="s1">&#39;ibm_quantum&#39;</span><span class="p">,</span>
+        <span class="n">instance</span><span class="o">=</span><span class="s1">&#39;ibm-q/open/main&#39;</span><span class="p">,</span>
+        <span class="n">token</span><span class="o">=</span><span class="s1">&#39;&lt;Your Token&gt;&#39;</span><span class="p">,</span>
+        <span class="n">verify</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
 
 <span class="n">operator</span> <span class="o">=</span> <span class="n">SparsePauliOp</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span>
     <span class="p">[(</span><span class="s2">&quot;YZ&quot;</span><span class="p">,</span> <span class="mf">0.3980</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;ZI&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.3980</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;ZZ&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.0113</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;XX&quot;</span><span class="p">,</span> <span class="mf">0.1810</span><span class="p">)]</span>
@@ -514,7 +518,10 @@
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">QiskitFunction</span>
 
-<span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;vqe&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;vqe.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/vqe/&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">USE_RUNTIME_SERVICE</span><span class="p">:</span>
+    <span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;vqe&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;vqe.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/vqe/&quot;</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;vqe&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;vqe.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/vqe/&quot;</span><span class="p">,</span>  <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;qiskit_aer&quot;</span><span class="p">])</span>
 
 <span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
 </pre></div>
