@@ -38,6 +38,25 @@ class TestProgramApi(APITestCase):
             "Program",
         )
 
+    def test_provider_programs_list(self):
+        """Tests programs list authorized."""
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        programs_response = self.client.get(reverse("v1:programs-list"), format="json")
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(programs_response.data), 1)
+        self.assertEqual(
+            programs_response.data[0].get("provider"),
+            "default",
+        )
+        self.assertEqual(
+            programs_response.data[0].get("title"),
+            "Docker Image Program",
+        )
+
     def test_run(self):
         """Tests run existing authorized."""
 
@@ -94,6 +113,54 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.data.get("provider"), None)
 
+    def test_upload_custom_image_without_provider(self):
+        """Tests upload end-point authorized."""
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "Private function",
+                "dependencies": "[]",
+                "env_vars": env_vars,
+                "image": "icr.io/awesome-namespace/awesome-title",
+            },
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_upload_custom_image_without_access_to_the_provider(self):
+        """Tests upload end-point authorized."""
+
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "Private function",
+                "dependencies": "[]",
+                "env_vars": env_vars,
+                "image": "icr.io/awesome-namespace/awesome-title",
+                "provider": "default",
+            },
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
+
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "default/Private function",
+                "dependencies": "[]",
+                "env_vars": env_vars,
+                "image": "icr.io/awesome-namespace/awesome-title",
+            },
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_upload_provider_function(self):
         """Tests upload end-point authorized."""
 
@@ -143,6 +210,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(
             programs_response.data.get("entrypoint"), "test_user_3_program.py"
         )
+        self.assertEqual(programs_response.data.get("title"), "Provider Function")
         self.assertRaises(
             Program.DoesNotExist,
             Program.objects.get,

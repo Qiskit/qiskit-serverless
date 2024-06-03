@@ -12,12 +12,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
     """
 
     class Meta(serializers.ProgramSerializer.Meta):
-        fields = [
-            "title",
-            "entrypoint",
-            "artifact",
-            "dependencies",
-        ]
+        fields = ["title", "entrypoint", "artifact", "dependencies", "provider"]
 
 
 class UploadProgramSerializer(serializers.UploadProgramSerializer):
@@ -39,7 +34,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 "At least one of attributes (entrypoint, image) is required."
             )
         title = attrs.get("title")
-        provider = attrs.get("provider")
+        provider = attrs.get("provider", None)
         if provider and "/" in title:
             raise ValidationError("Provider defined in title and in provider fields.")
         title_split = title.split("/")
@@ -47,6 +42,11 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             raise ValidationError(
                 "Qiskit Function title is malformed. It can only contain one slash."
             )
+        if image is not None:
+            if provider is None and len(title_split) != 2:
+                raise ValidationError(
+                    "Custom images are only available if you are a provider."
+                )
         return super().validate(attrs)
 
     class Meta(serializers.UploadProgramSerializer.Meta):
