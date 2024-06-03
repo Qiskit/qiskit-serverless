@@ -439,12 +439,16 @@ q_4: ┤ U3(π/2,0,π) ├──────────────────
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">backend</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
-    <span class="n">channel</span><span class="o">=</span><span class="s1">&#39;ibm_quantum&#39;</span><span class="p">,</span>
-    <span class="n">instance</span><span class="o">=</span><span class="s1">&#39;ibm-q/open/main&#39;</span><span class="p">,</span>
-    <span class="n">token</span><span class="o">=</span><span class="s1">&#39;&lt;insert your token&gt;&#39;</span>
-<span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">USE_RUNTIME_SERVICE</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="n">service</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="k">if</span> <span class="n">USE_RUNTIME_SERVICE</span><span class="p">:</span>
+    <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
+        <span class="n">channel</span><span class="o">=</span><span class="s1">&#39;ibm_quantum&#39;</span><span class="p">,</span>
+        <span class="n">instance</span><span class="o">=</span><span class="s1">&#39;ibm-q/open/main&#39;</span><span class="p">,</span>
+        <span class="n">token</span><span class="o">=</span><span class="s1">&#39;&lt;insert your token&gt;&#39;</span>
+    <span class="p">)</span>
+<span class="n">backend</span> <span class="o">=</span> <span class="kc">None</span>
 
 <span class="n">input_arguments</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s2">&quot;initial_point&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
@@ -508,7 +512,7 @@ q_4: ┤ U3(π/2,0,π) ├──────────────────
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">QiskitFunction</span>
 
 <span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;qaoa&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;qaoa.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/qaoa/&quot;</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;qaoa&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;qaoa.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/qaoa/&quot;</span><span class="p">,</span> <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;qiskit_aer&quot;</span><span class="p">]</span>
 <span class="p">)</span>
 
 <span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
