@@ -27,7 +27,7 @@ warnings.warn(
     "Please, use `qiskit_serverless` instead."
 )
 
-# pylint: disable=W0404
+# pylint: disable=C0413
 from importlib_metadata import version as metadata_version, PackageNotFoundError
 
 from .core import (
