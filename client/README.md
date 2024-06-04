@@ -73,8 +73,8 @@ from qiskit_serverless import ServerlessClient, QiskitFunction
 from qiskit.circuit.random import random_circuit
 
 client = ServerlessClient(
-    token="awesome_token", 
-    host="http://localhost:59994",
+    token="<TOKEN>", 
+    host="<GATEWAY_ADDRESS>",
 )
 
 # create function
