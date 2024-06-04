@@ -23,6 +23,7 @@
       ~RayClient.file_upload
       ~RayClient.files
       ~RayClient.from_dict
+      ~RayClient.get
       ~RayClient.get_compute_resources
       ~RayClient.get_job_by_id
       ~RayClient.get_jobs

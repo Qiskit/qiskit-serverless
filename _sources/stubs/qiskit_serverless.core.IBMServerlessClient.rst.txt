@@ -23,6 +23,7 @@
       ~IBMServerlessClient.file_upload
       ~IBMServerlessClient.files
       ~IBMServerlessClient.from_dict
+      ~IBMServerlessClient.get
       ~IBMServerlessClient.get_compute_resources
       ~IBMServerlessClient.get_job_by_id
       ~IBMServerlessClient.get_jobs

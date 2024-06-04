@@ -23,6 +23,7 @@
       ~ServerlessClient.file_upload
       ~ServerlessClient.files
       ~ServerlessClient.from_dict
+      ~ServerlessClient.get
       ~ServerlessClient.get_compute_resources
       ~ServerlessClient.get_job_by_id
       ~ServerlessClient.get_jobs

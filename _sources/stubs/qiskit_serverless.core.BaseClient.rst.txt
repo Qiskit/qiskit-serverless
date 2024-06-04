@@ -23,6 +23,7 @@
       ~BaseClient.file_upload
       ~BaseClient.files
       ~BaseClient.from_dict
+      ~BaseClient.get
       ~BaseClient.get_compute_resources
       ~BaseClient.get_job_by_id
       ~BaseClient.get_jobs

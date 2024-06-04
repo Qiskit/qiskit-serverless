@@ -23,6 +23,7 @@
       ~LocalClient.file_upload
       ~LocalClient.files
       ~LocalClient.from_dict
+      ~LocalClient.get
       ~LocalClient.get_compute_resources
       ~LocalClient.get_job_by_id
       ~LocalClient.get_jobs
