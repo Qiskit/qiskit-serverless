@@ -548,6 +548,7 @@ class GatewayJobClient(BaseJobClient):
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/programs",
                     headers={"Authorization": f"Bearer {self._token}"},
+                    params=kwargs,
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
