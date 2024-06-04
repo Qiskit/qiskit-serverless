@@ -57,6 +57,28 @@ class TestProgramApi(APITestCase):
             "Docker Image Program",
         )
 
+    def test_program_list_with_title_query_parameter(self):
+        """Tests program list filtered with title."""
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        programs_response = self.client.get(
+            reverse("v1:programs-list"), {"title": "Program"}, format="json"
+        )
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(programs_response.data), 1)
+        self.assertEqual(
+            programs_response.data[0].get("title"),
+            "Program",
+        )
+
+        empty_programs_response = self.client.get(
+            reverse("v1:programs-list"), {"title": "Non existing name"}, format="json"
+        )
+        self.assertEqual(empty_programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(empty_programs_response.data), 0)
+
     def test_run(self):
         """Tests run existing authorized."""
 
