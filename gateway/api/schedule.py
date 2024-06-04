@@ -146,7 +146,7 @@ def check_job_timeout(job: Job, job_status):
     if job.updated:
         endtime = job.updated + timedelta(days=timeout)
         now = datetime.now(tz=endtime.tzinfo)
-    if job.updated and endtime < now:
+    if job.updated and endtime < now:  # pylint: disable=possibly-used-before-assignment
         job_status = Job.STOPPED
         job.logs += f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
         logger.warning(

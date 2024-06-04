@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "rest_framework_simplejwt",
     "allauth",
+    "allauth.socialaccount",
     "api",
     "psycopg2",
     "drf_yasg",

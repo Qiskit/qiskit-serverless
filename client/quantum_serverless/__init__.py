@@ -20,7 +20,14 @@
     QuantumServerlessException
     get_auto_discovered_provider
 """
-# pylint: disable=W0404
+import warnings
+
+warnings.warn(
+    "`quantum_serverless` package has been deprecated. "
+    "Please, use `qiskit_serverless` instead."
+)
+
+# pylint: disable=C0413
 from importlib_metadata import version as metadata_version, PackageNotFoundError
 
 from .core import (
