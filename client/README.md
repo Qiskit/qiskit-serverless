@@ -93,8 +93,7 @@ for _ in range(3):
     circuits.append(circuit)
 
 # run program
-functions = {f.title: f for f in client.list()}
-my_function = functions.get("Quickstart")
+my_function = client.get("Quickstart")
 job = my_function.run(circuits=circuits)
 ```
 
