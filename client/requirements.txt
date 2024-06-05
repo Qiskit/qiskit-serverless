@@ -1,5 +1,5 @@
 ray[default,data]>=2.9.3, <3
-requests>=2.31.0
+requests>=2.32.2
 importlib-metadata>=5.2.0
 qiskit>=1.0.2
 qiskit-ibm-runtime>=0.21.1

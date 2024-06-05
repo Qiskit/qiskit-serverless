@@ -3,14 +3,14 @@
 from qiskit_serverless import get_arguments, save_result, distribute_task, get
 
 from qiskit import QuantumCircuit
-from qiskit.primitives import Sampler
+from qiskit.primitives import StatevectorSampler as Sampler
 from qiskit.circuit.random import random_circuit
 
 
 @distribute_task()
 def distributed_sample(circuit: QuantumCircuit):
     """Distributed task that returns quasi distribution for given circuit."""
-    return Sampler().run(circuit).result().quasi_dists[0]
+    return Sampler().run([(circuit)]).result()[0].data.meas.get_counts()
 
 
 arguments = get_arguments()

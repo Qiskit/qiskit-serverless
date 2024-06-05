@@ -13,10 +13,10 @@ data:
       labels:
         nodelete: "true"
 {{- end }}
-      annotations: 
+      annotations:
         user: {{`{{ user }}`}}
     spec:
-{{- if .Values.application.ray.scrapeWithPrometheus }}      
+{{- if .Values.application.ray.scrapeWithPrometheus }}
       headServiceAnnotations:
         prometheus.io/scrape: "true"
 {{- end }}
@@ -29,11 +29,11 @@ data:
 {{- end }}
         serviceType: ClusterIP
         template:
-{{- if .Values.application.ray.scrapeWithPrometheus }}                
+{{- if .Values.application.ray.scrapeWithPrometheus }}
           metadata:
             annotations:
               prometheus.io/scrape: "true"
-{{- end }}              
+{{- end }}
           spec:
             initContainers:
               # Generate head's private key and certificate before `ray start`.
@@ -122,8 +122,10 @@ data:
               env:
                 # Environment variables for Ray TLS authentication.
                 # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
+{{- if .Values.application.ray.useTLS }}
                 - name: RAY_USE_TLS
                   value: "1"
+{{- end }}
 {{- if .Values.useCertManager }}
                 - name: RAY_TLS_SERVER_CERT
                   value: "/tmp/tls/tls.crt"
@@ -185,8 +187,10 @@ data:
                   value: "https"
                 - name: GATEWAY_URL
                   value: "gateway:8000"
+{{- if .Values.application.ray.useTLS }}
                 - name: RAY_USE_TLS
                   value: "1"
+{{- end }}
 {{- if .Values.useCertManager }}
                 - name: RAY_TLS_SERVER_CERT
                   value: "/tmp/tls/tls.crt"
@@ -274,11 +278,11 @@ data:
           block: 'true'
         replicas: {{`{{ workers }}`}}
         template:
-{{- if .Values.application.ray.scrapeWithPrometheus }}      
+{{- if .Values.application.ray.scrapeWithPrometheus }}
           metadata:
             annotations:
               prometheus.io/scrape: "true"
-{{- end }}              
+{{- end }}
           spec:
             initContainers:
               # Generate worker's private key and certificate before `ray start`.
@@ -355,8 +359,10 @@ data:
               env:
                 # Environment variables for Ray TLS authentication.
                 # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
+{{- if .Values.application.ray.useTLS }}
                 - name: RAY_USE_TLS
                   value: "1"
+{{- end }}
 {{- if .Values.useCertManager }}
                 - name: RAY_TLS_SERVER_CERT
                   value: "/tmp/tls/tls.crt"
@@ -427,8 +433,10 @@ data:
                   value: "https"
                 - name: GATEWAY_URL
                   value: "gateway:8000"
+{{- if .Values.application.ray.useTLS }}
                 - name: RAY_USE_TLS
                   value: "1"
+{{- end }}
 {{- if .Values.useCertManager }}
                 - name: RAY_TLS_SERVER_CERT
                   value: "/tmp/tls/tls.crt"

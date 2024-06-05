@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "rest_framework_simplejwt",
     "allauth",
+    "allauth.socialaccount",
     "api",
     "psycopg2",
     "drf_yasg",
@@ -315,7 +316,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless-ray-node:0.11.0-py310"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless-ray-node:0.12.0-py310"
 )
 RAY_NODE_IMAGES_MAP = {
     "default": RAY_NODE_IMAGE,

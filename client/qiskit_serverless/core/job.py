@@ -101,6 +101,7 @@ class BaseJobClient:
     def run(
         self,
         program: Union[str, QiskitFunction],
+        provider: Optional[str] = None,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> "Job":
@@ -182,6 +183,7 @@ class RayJobClient(BaseJobClient):
     def run(
         self,
         program: Union[str, QiskitFunction],
+        provider: Optional[str] = None,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
@@ -254,6 +256,7 @@ class LocalJobClient(BaseJobClient):
     def run(  # pylint: disable=too-many-locals
         self,
         program: Union[str, QiskitFunction],
+        provider: Optional[str] = None,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ):
@@ -265,7 +268,9 @@ class LocalJobClient(BaseJobClient):
         for pattern in self._patterns:
             if pattern["title"] == title:
                 saved_program = pattern
-        if saved_program["dependencies"]:
+        if saved_program[  # pylint: disable=possibly-used-before-assignment
+            "dependencies"
+        ]:
             dept = json.loads(saved_program["dependencies"])
             for dependency in dept:
                 subprocess.check_call(
@@ -310,6 +315,7 @@ class LocalJobClient(BaseJobClient):
         self._patterns.append(
             {
                 "title": program.title,
+                "provider": program.provider,
                 "entrypoint": program.entrypoint,
                 "working_dir": program.working_dir,
                 "env_vars": program.env_vars,
@@ -322,7 +328,12 @@ class LocalJobClient(BaseJobClient):
     def get_programs(self, **kwargs):
         """Returns list of programs."""
         return [
-            QiskitFunction(program.get("title"), raw_data=program, job_client=self)
+            QiskitFunction(
+                program.get("title"),
+                provider=program.get("provider", None),
+                raw_data=program,
+                job_client=self,
+            )
             for program in self._patterns
         ]
 
@@ -345,6 +356,7 @@ class GatewayJobClient(BaseJobClient):
     def run(  # pylint: disable=too-many-locals
         self,
         program: Union[str, QiskitFunction],
+        provider: Optional[str] = None,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> "Job":
@@ -356,12 +368,14 @@ class GatewayJobClient(BaseJobClient):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
             span.set_attribute("program", title)
+            span.set_attribute("provider", provider)
             span.set_attribute("arguments", str(arguments))
 
             url = f"{self.host}/api/{self.version}/programs/run/"
 
             data = {
                 "title": title,
+                "provider": provider,
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
             }  # type: Dict[str, Any]
             if config:
@@ -534,11 +548,17 @@ class GatewayJobClient(BaseJobClient):
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/programs",
                     headers={"Authorization": f"Bearer {self._token}"},
+                    params=kwargs,
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
         return [
-            QiskitFunction(program.get("title"), raw_data=program, job_client=self)
+            QiskitFunction(
+                program.get("title"),
+                provider=program.get("provider", None),
+                raw_data=program,
+                job_client=self,
+            )
             for program in response_data
         ]
 
@@ -725,6 +745,7 @@ def _upload_with_docker_image(
             url=url,
             data={
                 "title": program.title,
+                "provider": program.provider,
                 "image": program.image,
                 "arguments": json.dumps({}),
                 "dependencies": json.dumps(program.dependencies or []),
@@ -735,7 +756,9 @@ def _upload_with_docker_image(
         )
     )
     program_title = response_data.get("title", "na")
+    program_provider = response_data.get("provider", "na")
     span.set_attribute("program.title", program_title)
+    span.set_attribute("program.provider", program_provider)
     return program_title
 
 
@@ -785,6 +808,7 @@ def _upload_with_artifact(
                 url=url,
                 data={
                     "title": program.title,
+                    "provider": program.provider,
                     "entrypoint": program.entrypoint,
                     "arguments": json.dumps({}),
                     "dependencies": json.dumps(program.dependencies or []),
@@ -796,7 +820,9 @@ def _upload_with_artifact(
             )
         )
         program_title = response_data.get("title", "na")
+        program_provider = response_data.get("provider", "na")
         span.set_attribute("program.title", program_title)
+        span.set_attribute("program.provider", program_provider)
 
     if os.path.exists(artifact_file_path):
         os.remove(artifact_file_path)

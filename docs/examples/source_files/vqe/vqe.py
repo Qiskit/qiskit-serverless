@@ -1,3 +1,4 @@
+from qiskit_aer import AerSimulator
 import logging
 from typing import Optional
 import time
@@ -5,28 +6,19 @@ import numpy as np
 from scipy.optimize import minimize
 
 from qiskit import QuantumCircuit
-from qiskit.primitives import (
-    BaseEstimator,
-    Estimator as QiskitEstimator,
-    Sampler as QiskitSampler,
-)
-
 from qiskit_ibm_runtime import (
+    EstimatorV2 as Estimator,
+    SamplerV2 as Sampler,
     QiskitRuntimeService,
-    Estimator,
     Session,
-    Options,
-    Sampler,
 )
-
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_serverless import (
-    QiskitServerless,
     distribute_task,
     get_arguments,
     get,
     save_result,
 )
-
 
 def build_callback(ansatz, hamiltonian, estimator, callback_dict):
     """Return callback function that uses Estimator instance,
@@ -59,9 +51,8 @@ def build_callback(ansatz, hamiltonian, estimator, callback_dict):
         callback_dict["prev_vector"] = current_vector
         # Compute the value of the cost function at the current vector
         callback_dict["cost_history"].append(
-            estimator.run(ansatz, hamiltonian, parameter_values=current_vector)
-            .result()
-            .values[0]
+            estimator.run([(ansatz, hamiltonian, current_vector)])
+            .result()[0]
         )
         # Grab the current time
         current_time = time.perf_counter()
@@ -101,7 +92,7 @@ def cost_func(params, ansatz, hamiltonian, estimator):
         float: Energy estimate
     """
     energy = (
-        estimator.run(ansatz, hamiltonian, parameter_values=params).result().values[0]
+        estimator.run([(ansatz, hamiltonian, params)]).result()[0].data.evs
     )
     return energy
 
@@ -134,53 +125,54 @@ if __name__ == "__main__":
     operator = arguments.get("operator")
     method = arguments.get("method", "COBYLA")
     initial_parameters = arguments.get("initial_parameters")
+    if service:
+        backend = service.least_busy(operational=True, simulator=False)
+    else:
+        backend = AerSimulator()
     if initial_parameters is None:
         initial_parameters = 2 * np.pi * np.random.rand(ansatz.num_parameters)
+    pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+    ansatz_isa = pm.run(ansatz)
+    operator_isa = operator.apply_layout(ansatz_isa.layout)
 
-    if service is not None:
-        # if we have service we need to open a session and create estimator
-        service = arguments.get("service")
-        backend = arguments.get("backend", "ibmq_qasm_simulator")
+    if service:
         with Session(service=service, backend=backend) as session:
-            options = Options()
-            options.optimization_level = 3
-
-            estimator = Estimator(options=options)
+            estimator = Estimator(session=session)
+            vqe_result, callback_dict = run_vqe(
+                initial_parameters=initial_parameters,
+                ansatz=ansatz_isa,
+                operator=operator_isa,
+                estimator=estimator,
+                method=method,
+            )
     else:
-        # if we do not have a service let's use standart local estimator
-        estimator = QiskitEstimator()
+        estimator = Estimator(backend=backend)
+        vqe_result, callback_dict = run_vqe(
+            initial_parameters=initial_parameters,
+            ansatz=ansatz_isa,
+            operator=operator_isa,
+            estimator=estimator,
+            method=method,
+        )
 
-    vqe_result, callback_dict = run_vqe(
-        initial_parameters=initial_parameters,
-        ansatz=ansatz,
-        operator=operator,
-        estimator=estimator,
-        method=method,
-    )
 
     qc = ansatz.assign_parameters(vqe_result.x)
     qc.measure_all()
+    qc_isa = pm.run(qc)
 
-    if service is not None:
-        # if we have service we need to open a session and create estimator
-        service = arguments.get("service")
-        backend = arguments.get("backend", "ibmq_qasm_simulator")
+    if service:
         with Session(service=service, backend=backend) as session:
-            options = Options()
-            options.optimization_level = 3
-
-            sampler = Sampler(session=session, options=options)
+            sampler = Sampler(session=session)
+            samp_dist = sampler.run([qc_isa], shots=int(1e4)).result()[0].data.meas.get_counts()
     else:
-        sampler = QiskitSampler()
-    samp_dist = sampler.run(qc, shots=int(1e4)).result().quasi_dists[0]
+        sampler = Sampler(backend=backend)
+        samp_dist = sampler.run([qc_isa], shots=int(1e4)).result()[0].data.meas.get_counts()
 
     save_result(
         {
             "result": samp_dist,
             "optimal_point": vqe_result.x.tolist(),
             "optimal_value": vqe_result.fun,
-            # "optimizer_evals": vqe_result.nfev,
-            # "optimizer_history": callback_dict.get("cost_history", []),
             "optimizer_time": callback_dict.get("_total_time", 0),
         }
     )

@@ -299,7 +299,7 @@ class BaseClient(JsonSerializable):
             )
             return None
 
-        return job_client.run(program, arguments, config)
+        return job_client.run(program, None, arguments, config)
 
     def upload(self, program: QiskitFunction):
         """Uploads program."""
@@ -356,6 +356,10 @@ class BaseClient(JsonSerializable):
 
     def list(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
+        raise NotImplementedError
+
+    def get(self, title: str) -> Optional[QiskitFunction]:
+        """Returns qiskit function based on title provided."""
         raise NotImplementedError
 
 
@@ -455,9 +459,9 @@ class ServerlessClient(BaseClient):
                 DeprecationWarning,
             )
             if isinstance(program, QiskitFunction) and program.entrypoint is not None:
-                job = self._job_client.run(program.title, arguments, config)
+                job = self._job_client.run(program.title, None, arguments, config)
             else:
-                job = self._job_client.run(program, arguments, config)
+                job = self._job_client.run(program, None, arguments, config)
         return job
 
     def upload(self, program: QiskitFunction):
@@ -489,6 +493,19 @@ class ServerlessClient(BaseClient):
     def list(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
         return self._job_client.get_programs(**kwargs)
+
+    def get(self, title: str) -> Optional[QiskitFunction]:
+        results = self._job_client.get_programs(title=title)
+        if len(results) > 1:
+            warnings.warn(
+                f"There are more than 1 program with title {title}"
+                "available. Returning most recent one. "
+                "If you want to get list of all functions "
+                "please, use `list` method."
+            )
+
+        functions = {function.title: function for function in results}
+        return functions.get(title)
 
     def _verify_token(self, token: str):
         """Verify token."""
@@ -628,7 +645,7 @@ class RayClient(BaseClient):
         if isinstance(program, str):
             raise NotImplementedError("Ray client only supports full Programs.")
 
-        return self.client.run(program, arguments, config)
+        return self.client.run(program, None, arguments, config)
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
         return self.client.get(job_id)
@@ -674,9 +691,9 @@ class LocalClient(BaseClient):
             DeprecationWarning,
         )
         if isinstance(program, QiskitFunction) and program.entrypoint is not None:
-            job = self.client.run(program.title, arguments, config)
+            job = self.client.run(program.title, None, arguments, config)
         else:
-            job = self.client.run(program, arguments, config)
+            job = self.client.run(program, None, arguments, config)
         return job
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
@@ -726,6 +743,12 @@ class LocalClient(BaseClient):
 
     def list(self, **kwargs):
         return self.client.get_programs(**kwargs)
+
+    def get(self, title: str) -> Optional[QiskitFunction]:
+        functions = {
+            function.title: function for function in self.client.get_programs()
+        }
+        return functions.get(title)
 
 
 class LocalProvider(LocalClient):
