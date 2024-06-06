@@ -155,7 +155,7 @@ resources:
 scheduler:
   resources:
     limits:
-      cpu: "500m"
+      cpu: "1500m"
       memory: "270Mi"
     requests:
       cpu: "100m"
