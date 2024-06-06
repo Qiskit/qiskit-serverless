@@ -1,9 +1,35 @@
+# This code is a Qiskit project.
+#
+# (C) Copyright IBM 2024.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
+
+"""
+======================================================================
+Json utilities (:mod:`qiskit_serverless.utils.runtime_service_client`)
+======================================================================
+
+.. currentmodule:: qiskit_serverless.utils.runtime_service_client
+
+Qiskit Serverless runtime client wrapper
+========================================
+
+.. autosummary::
+    :toctree: ../stubs/
+
+    ServerlessRuntimeService
+"""
 import os
 import logging
-import json
-import requests
-
 from typing import Callable, Dict, Sequence, Type, Union, Optional
+
+import requests
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.runtime_job import RuntimeJob
 from qiskit_ibm_runtime.runtime_job_v2 import RuntimeJobV2
