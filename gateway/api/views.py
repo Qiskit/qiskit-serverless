@@ -430,7 +430,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                                 logger.warning("cancel failed")
 
                             if jobinstance.session_id:
-                                service._api_client.cancel_session(
+                                service._api_client.cancel_session(  # pylint: disable=protected-access
                                     jobinstance.session_id
                                 )
 
