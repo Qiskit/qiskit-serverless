@@ -53,6 +53,7 @@ jobs:
             --set gateway.application.ray.cpu=1 \
             --set gateway.application.limits.keepClusterOnComplete=false \
             .
+          sleep 120
       - name: setup python
         uses: actions/setup-python@v4
         with:
