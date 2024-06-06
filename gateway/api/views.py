@@ -429,6 +429,11 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                             except RuntimeInvalidStateError:
                                 logger.warning("cancel failed")
 
+                            if jobinstance.session_id:
+                                service._api_client.cancel_session(
+                                    jobinstance.session_id
+                                )
+
             if job.compute_resource:
                 if job.compute_resource.active:
                     job_handler = get_job_handler(job.compute_resource.host)
@@ -462,6 +467,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
             runtimejob = RuntimeJob(
                 job=job,
                 runtime_job=request.data.get("runtime_job"),
+                session_id=request.data.get("session_id"),
             )
             runtimejob.save()
             message = "RuntimeJob is added."
