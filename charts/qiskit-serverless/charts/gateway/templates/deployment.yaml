@@ -1,0 +1,334 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gateway.fullname" . }}
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "gateway.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "gateway.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "gateway.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: waitpostresql
+          image: actions/pg_isready
+          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d {DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
+          volumeMounts:
+          - name: gateway-pv-storage
+            mountPath: /usr/src/app/media/
+          env:
+            - name: DATABASE_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.host }}
+            - name: DATABASE_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.port }}
+            - name: DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.userName }}
+      volumes:
+        - name: gateway-pv-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.cos.claimName }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: [ "gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:{{ .Values.service.port }}", "--workers=4" ]
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          volumeMounts:
+            - mountPath: "/usr/src/app/media/"
+              name: gateway-pv-storage
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: VERSION
+              value: {{ .Values.global.version | quote }}
+            - name: DEBUG
+              value: {{ .Values.application.debug | quote }}
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.secretKey.name }}
+                  key: {{ .Values.secrets.secretKey.key }}
+            - name: SITE_HOST
+              value: {{ .Values.application.siteHost | quote }}
+            - name: RAY_HOST
+              value: {{ .Values.application.rayHost | quote }}
+            - name: SETTINGS_AUTH_MECHANISM
+              value: {{ .Values.application.auth.mechanism | quote }}
+            - name: SETTINGS_AUTH_MOCK_TOKEN
+              value: {{ .Values.application.auth.token.mock | quote }}
+            - name: SETTINGS_TOKEN_AUTH_URL
+              value: {{ .Values.application.auth.token.url | quote }}
+            - name: SETTINGS_TOKEN_AUTH_VERIFICATION_URL
+              value: {{ .Values.application.auth.token.verificationUrl | quote }}
+            - name: SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD
+              value: {{ .Values.application.auth.token.verificationField | quote }}
+            - name: RAY_CLUSTER_WORKER_REPLICAS
+              value: {{ .Values.application.ray.replicas | quote }}
+            - name: RAY_CLUSTER_WORKER_MIN_REPLICAS
+              value: {{ .Values.application.ray.minReplicas | quote }}
+            - name: RAY_CLUSTER_WORKER_MAX_REPLICAS
+              value: {{ .Values.application.ray.maxReplicas | quote }}
+{{- if .Values.application.superuser.enable }}
+            - name: DJANGO_SUPERUSER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.superuser.name }}
+                  key: {{ .Values.secrets.superuser.key.name }}
+            - name: DJANGO_SUPERUSER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.superuser.name }}
+                  key: {{ .Values.secrets.superuser.key.password }}
+            - name: DJANGO_SUPERUSER_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.superuser.name }}
+                  key: {{ .Values.secrets.superuser.key.email }}
+{{- end }}
+            - name: OTEL_ENABLED
+              value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: "Gateway"
+            - name: OTEL_TRACES_EXPORTER
+              value: console,otlp
+            - name: OTEL_METRICS_EXPORTER
+              value: console
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: {{ .Values.application.ray.openTelemetryCollector.host }}:{{ .Values.application.ray.openTelemetryCollector.port }}
+            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
+              value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
+            - name: QISKIT_IBM_CHANNEL
+              value: {{ .Values.application.qiskitRuntime.channel }}
+            - name: QISKIT_IBM_URL
+              value: {{ .Values.application.qiskitRuntime.url }}
+            - name: IQP_QCON_API_BASE_URL
+              value: {{ .Values.application.iqpQcon.url }}
+            - name: DATABASE_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.host }}
+            - name: DATABASE_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.port }}
+            - name: DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.userName }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databasePassword }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler
+  labels:
+    {{- include "scheduler.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "scheduler.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "scheduler.selectorLabels" . | nindent 8 }}
+    spec:
+      volumes:
+        - name: gateway-pv-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.cos.claimName }}
+        - name: ray-cluster-template
+          configMap:
+            name: rayclustertemplate
+      serviceAccountName: {{ include "gateway.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: waitpostresql
+          image: actions/pg_isready
+          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
+          env:
+            - name: DATABASE_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.host }}
+            - name: DATABASE_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.port }}
+            - name: DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.userName }}
+      containers:
+        - name: gateway-scheduler
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["./scripts/scheduler.sh"]
+          volumeMounts:
+            - mountPath: "/usr/src/app/media/"
+              name: gateway-pv-storage
+            - mountPath: "/tmp/templates/"
+              name: ray-cluster-template
+          resources:
+            {{- toYaml .Values.scheduler.resources | nindent 12 }}
+          env:
+            - name: DEBUG
+              value: {{ .Values.application.debug | quote }}
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.secretKey.name }}
+                  key: {{ .Values.secrets.secretKey.key }}
+            - name: DATABASE_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.host }}
+            - name: DATABASE_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.port }}
+            - name: DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databaseName }}
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.userName }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.servicePsql.name }}
+                  key: {{ .Values.secrets.servicePsql.key.databasePassword }}
+            - name: RAY_KUBERAY_NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: RAY_NODE_IMAGE
+              value: {{ .Values.application.ray.nodeImage | quote }}
+            - name: RAY_NODE_IMAGE_PY39
+              value: {{ .Values.application.ray.nodeImage_py39 | quote }}
+            - name: RAY_NODE_IMAGE_PY310
+              value: {{ .Values.application.ray.nodeImage_py310 | quote }}
+            - name: LIMITS_JOBS_PER_USER
+              value: {{ .Values.application.limits.maxJobsPerUser | quote }}
+            - name: LIMITS_MAX_CLUSTERS
+              value: {{ .Values.application.limits.maxComputeResources | quote }}
+{{- if .Values.application.limits.keepClusterOnComplete }}
+            - name: RAY_CLUSTER_NO_DELETE_ON_COMPLETE
+              value: "True"
+{{- end }}
+            - name: OTEL_ENABLED
+              value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: "Gateway"
+            - name: OTEL_TRACES_EXPORTER
+              value: console,otlp
+            - name: OTEL_METRICS_EXPORTER
+              value: console
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: {{ .Values.application.ray.openTelemetryCollector.host }}:{{ .Values.application.ray.openTelemetryCollector.port }}
+            - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
+              value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
+            - name: PROGRAM_TIMEOUT
+              value: {{ .Values.application.limits.programTimeoutDays | quote }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

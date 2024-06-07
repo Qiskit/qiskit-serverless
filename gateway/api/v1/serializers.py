@@ -2,6 +2,7 @@
 Serializers api for V1.
 """
 
+from rest_framework.serializers import ValidationError
 from api import serializers
 
 
@@ -11,18 +12,42 @@ class ProgramSerializer(serializers.ProgramSerializer):
     """
 
     class Meta(serializers.ProgramSerializer.Meta):
-        fields = [
-            "title",
-            "entrypoint",
-            "artifact",
-            "dependencies",
-        ]
+        fields = ["title", "entrypoint", "artifact", "dependencies", "provider"]
 
 
 class UploadProgramSerializer(serializers.UploadProgramSerializer):
     """
     UploadProgramSerializer is used by the /upload end-point
     """
+
+    def validate_image(self, value):
+        """Validaes image."""
+        # place to add image validation
+        return value
+
+    def validate(self, attrs):
+        """Validates serializer data."""
+        entrypoint = attrs.get("entrypoint", None)
+        image = attrs.get("image", None)
+        if entrypoint is None and image is None:
+            raise ValidationError(
+                "At least one of attributes (entrypoint, image) is required."
+            )
+        title = attrs.get("title")
+        provider = attrs.get("provider", None)
+        if provider and "/" in title:
+            raise ValidationError("Provider defined in title and in provider fields.")
+        title_split = title.split("/")
+        if len(title_split) > 2:
+            raise ValidationError(
+                "Qiskit Function title is malformed. It can only contain one slash."
+            )
+        if image is not None:
+            if provider is None and len(title_split) != 2:
+                raise ValidationError(
+                    "Custom images are only available if you are a provider."
+                )
+        return super().validate(attrs)
 
     class Meta(serializers.UploadProgramSerializer.Meta):
         fields = [
@@ -31,10 +56,12 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "artifact",
             "dependencies",
             "env_vars",
+            "image",
+            "provider",
         ]
 
 
-class RunExistingProgramSerializer(serializers.RunExistingProgramSerializer):
+class RunProgramSerializer(serializers.RunProgramSerializer):
     """
     RunExistingProgramSerializer is used by the /upload end-point
     """
@@ -57,7 +84,7 @@ class JobConfigSerializer(serializers.JobConfigSerializer):
 
 class RunJobSerializer(serializers.RunJobSerializer):
     """
-    RunJobSerializer is used by the /run and /run_existing end-points
+    RunJobSerializer is used by the /run end-point
     """
 
     class Meta(serializers.RunJobSerializer.Meta):
@@ -84,24 +111,3 @@ class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
 
     class Meta(serializers.RuntimeJobSerializer.Meta):
         fields = ["job", "runtime_job"]
-
-
-class RunProgramSerializer(serializers.RunProgramSerializer):
-    """
-    RunProgram serializer is used in /run end-point
-    """
-
-
-class RunProgramModelSerializer(serializers.RunProgramModelSerializer):
-    """
-    RunProgram model serializer is used in /run end-point
-    """
-
-    class Meta(serializers.RunProgramModelSerializer.Meta):
-        fields = [
-            "title",
-            "entrypoint",
-            "artifact",
-            "dependencies",
-            "env_vars",
-        ]

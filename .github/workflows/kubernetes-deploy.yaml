@@ -38,7 +38,7 @@ jobs:
           docker image rm proxy:test
       - name: Install helm chart
         run: |
-          cd charts/quantum-serverless
+          cd charts/qiskit-serverless
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo add kuberay https://ray-project.github.io/kuberay-helm
           helm dependency build
@@ -53,6 +53,8 @@ jobs:
             --set gateway.application.ray.cpu=1 \
             --set gateway.application.limits.keepClusterOnComplete=false \
             .
+          GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
+          kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m 
       - name: setup python
         uses: actions/setup-python@v4
         with:
@@ -78,10 +80,10 @@ jobs:
           export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
           echo $GATEWAY_HOST
           # basic tests
-          cd /home/runner/work/quantum-serverless/quantum-serverless/tests/basic
+          cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/basic
           for f in *.py; do echo "$f" && python "$f"; done
           # experimental tests
-          cd /home/runner/work/quantum-serverless/quantum-serverless/tests/experimental
+          cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/experimental
           for f in *.py; do echo "$f" && python "$f"; done
       - name: Echo gateway logs
         run: |

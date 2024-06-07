@@ -1,3 +1,3 @@
 # Helm Charts
 
-Helm charts for deploying Quantum Serverless onto a Kubernetes environment.
+Helm charts for deploying Qiskit Serverless onto a Kubernetes environment.

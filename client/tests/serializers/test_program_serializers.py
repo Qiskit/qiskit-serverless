@@ -19,8 +19,8 @@ import numpy as np
 from qiskit.circuit.random import random_circuit
 from qiskit_ibm_runtime import QiskitRuntimeService
 
-from quantum_serverless.core.constants import ENV_JOB_ARGUMENTS
-from quantum_serverless.serializers.program_serializers import (
+from qiskit_serverless.core.constants import ENV_JOB_ARGUMENTS
+from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsDecoder,
     QiskitObjectsEncoder,
     get_arguments,

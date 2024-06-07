@@ -1,4 +1,5 @@
 """Cleanup resources command."""
+
 import json
 import logging
 import time

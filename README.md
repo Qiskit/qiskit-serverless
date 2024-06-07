@@ -1,15 +1,15 @@
-[![Stability](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/Qiskit-Extensions/quantum-serverless/releases)
+[![Stability](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/Qiskit-Extensions/qiskit-serverless/releases)
 [![License](https://img.shields.io/github/license/qiskit-community/quantum-prototype-template?label=License)](https://github.com/qiskit-community/quantum-prototype-template/blob/main/LICENSE.txt)
 [![Code style: Black](https://img.shields.io/badge/Code%20style-Black-000.svg)](https://github.com/psf/black)
 [![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.10-informational)](https://www.python.org/)
 [![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A5%201.0.0-6133BD)](https://github.com/Qiskit/qiskit)
 
-# Quantum serverless
+# Qiskit Serverless
 
-Quantum Serverless is a user-friendly tool that enables you to easily run complex quantum computing tasks.
+Qiskit Serverless is a user-friendly tool that enables you to easily run complex quantum computing tasks.
 With this software, you can execute Qiskit programs as long running jobs and distribute them across multiple CPUs, GPUs, and QPUs.
 This means you can take on more complex quantum-classical programs and run them with ease.
-You don't have to worry about configuration or scaling up computational resources, as Quantum Serverless takes care of everything for you.
+You don't have to worry about configuration or scaling up computational resources, as Qiskit Serverless takes care of everything for you.
 
 ![diagram](./docs/images/qs_diagram.png)
 
@@ -29,41 +29,41 @@ You don't have to worry about configuration or scaling up computational resource
 ----------------------------------------------------------------------------------------------------
 
 ### Quickstart
-This Quickstart section guides users to easily deploy QuantumServerless infrastructure and run a simple example.
+This Quickstart section guides users to easily deploy QiskitServerless infrastructure and run a simple example.
 For user convenience, this section assumes that users will deploy the infrastructure in a local environment using Docker and test examples within the deployed Jupyter notebook.
 
-1. Prepare local QuantumServerless infrastructure
+1. Prepare local QiskitServerless infrastructure
    1. Install Docker
       If Docker is not installed on your system, follow the directions on the [Docker website](https://docs.docker.com/engine/install/) to install Docker on your system.
-   1. Install quantum-serverless on your local system (we recommend using a [virtual environment](https://docs.python.org/3/library/venv.html)).
+   1. Install qiskit-serverless on your local system (we recommend using a [virtual environment](https://docs.python.org/3/library/venv.html)).
       ```shell
-      pip install quantum-serverless
+      pip install qiskit-serverless
       ```
       Optional: install [Jupyter Lab](https://jupyter.org/)
       ```shell
       pip install jupyterlab
       ```
-   1. Clone the Quantum Serverless repository
+   1. Clone the Qiskit Serverless repository
       ```shell
-      git clone https://github.com/Qiskit-Extensions/quantum-serverless.git
+      git clone https://github.com/Qiskit-Extensions/qiskit-serverless.git
       ```
-   1. Run QuantumServerless infrastructure
+   1. Run QiskitServerless infrastructure
       Execute Docker Compose using the following commands.
       ```shell
-      cd quantum-serverless/
+      cd qiskit-serverless/
       sudo docker compose up
       ```
 
       The output should resemble the following.
       ```
-      ~/quantum-serverless$ sudo docker compose --profile jupyter up
+      ~/qiskit-serverless$ sudo docker compose --profile jupyter up
       [+] Running 5/0
-       ✔ Network public-quantum-serverless_safe-tier     Created                                           0.0s
+       ✔ Network public-qiskit-serverless_safe-tier     Created                                           0.0s
        ✔ Container ray-head                              Created                                           0.0s
-       ✔ Container public-quantum-serverless-postgres-1  Created                                           0.0s
+       ✔ Container public-qiskit-serverless-postgres-1  Created                                           0.0s
        ✔ Container gateway                               Created                                           0.0s
        ✔ Container scheduler                             Created                                           0.0s
-      Attaching to gateway, public-quantum-serverless-postgres-1, qs-jupyter, ray-head, scheduler
+      Attaching to gateway, public-qiskit-serverless-postgres-1, qs-jupyter, ray-head, scheduler
       ```
 
 
@@ -75,10 +75,10 @@ For user convenience, this section assumes that users will deploy the infrastruc
    This will open the Jupyter Lab environment in your web browser.
 1. Write your first example Qiskit Pattern.
    In the JupyterLab, create a new file, `pattern.py`, in the `work` directory. You can include any arbitrary Python code in your program, or you can use the
-   [example Python file in this tutorial](https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/docs/getting_started/basic/01_running_program.ipynb).
+   [example Python file in this tutorial](https://github.com/Qiskit-Extensions/qiskit-serverless/blob/main/docs/getting_started/basic/01_running_program.ipynb).
 
 1. Run the program
-   In the JupyterLab, create a new notebook in the same directory as your program, and execute [the tutorial code](https://github.com/Qiskit-Extensions/quantum-serverless/blob/main/docs/getting_started/basic/01_running_program.ipynb).
+   In the JupyterLab, create a new notebook in the same directory as your program, and execute [the tutorial code](https://github.com/Qiskit-Extensions/qiskit-serverless/blob/main/docs/getting_started/basic/01_running_program.ipynb).
 
    You can check the job status and get the result.
 
@@ -96,19 +96,19 @@ For user convenience, this section assumes that users will deploy the infrastruc
 
    That's all!
 
-For more detailed examples and explanations refer to the [Guide](https://qiskit-extensions.github.io/quantum-serverless/index.html):
+For more detailed examples and explanations refer to the [Guide](https://qiskit-extensions.github.io/qiskit-serverless/index.html):
 
-1. [Getting Started](https://qiskit-extensions.github.io/quantum-serverless/getting_started/index.html#)
-1. [Example Qiskit Patterns](https://qiskit-extensions.github.io/quantum-serverless/examples/index.html)
-1. [Infrastructure](https://qiskit-extensions.github.io/quantum-serverless/deployment/index.html)
-1. [Migrating from Qiskit Runtime programs](https://qiskit-extensions.github.io/quantum-serverless/migration/index.html)
+1. [Getting Started](https://qiskit-extensions.github.io/qiskit-serverless/getting_started/index.html#)
+1. [Example Qiskit Patterns](https://qiskit-extensions.github.io/qiskit-serverless/examples/index.html)
+1. [Infrastructure](https://qiskit-extensions.github.io/qiskit-serverless/deployment/index.html)
+1. [Migrating from Qiskit Runtime programs](https://qiskit-extensions.github.io/qiskit-serverless/migration/index.html)
 
 ----------------------------------------------------------------------------------------------------
 
 ### How to Give Feedback
 
 We encourage your feedback! You can share your thoughts with us by:
-- Opening an [issue](https://github.com/Qiskit-Extensions/quantum-serverless/issues) in the repository
+- Opening an [issue](https://github.com/Qiskit-Extensions/qiskit-serverless/issues) in the repository
 
 
 ----------------------------------------------------------------------------------------------------

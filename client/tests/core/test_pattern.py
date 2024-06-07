@@ -3,10 +3,10 @@ import os
 
 from testcontainers.compose import DockerCompose
 
-from quantum_serverless import BaseClient
-from quantum_serverless.core import ComputeResource
-from quantum_serverless.core.job import Job
-from quantum_serverless.core.function import QiskitFunction
+from qiskit_serverless import BaseClient
+from qiskit_serverless.core import ComputeResource
+from qiskit_serverless.core.job import Job
+from qiskit_serverless.core.function import QiskitFunction
 from tests.utils import wait_for_job_client, wait_for_job_completion
 
 resources_path = os.path.join(

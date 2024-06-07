@@ -6,8 +6,10 @@ from dataclasses import dataclass
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group, Permission
 from rest_framework import authentication
 
+from api.models import VIEW_PROGRAM_PERMISSION, RUN_PROGRAM_PERMISSION, Provider
 from api.models_proxies import QuantumUserProxy
 from api.utils import safe_request
 
@@ -119,5 +121,18 @@ class MockAuthBackend(authentication.BaseAuthentication):
                     user, created = User.objects.get_or_create(username="mockuser")
                     if created:
                         logger.info("New user created")
+                        view_program = Permission.objects.get(
+                            codename=VIEW_PROGRAM_PERMISSION
+                        )
+                        run_program = Permission.objects.get(
+                            codename=RUN_PROGRAM_PERMISSION
+                        )
+                        group, created = Group.objects.get_or_create(name="mockgroup")
+                        group.permissions.add(view_program)
+                        group.permissions.add(run_program)
+                        group.user_set.add(user)
+                        logger.info("New group created")
+                        Provider.objects.create(name="mockprovider", admin_group=group)
+                        logger.info("New provider created")
 
         return user, CustomToken(token.encode()) if token else None

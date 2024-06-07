@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "rest_framework_simplejwt",
     "allauth",
+    "allauth.socialaccount",
     "api",
     "psycopg2",
     "drf_yasg",
@@ -307,7 +308,7 @@ LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 
 # ray cluster management
-RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "quantum-serverless")
+RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE = {
     "local": int(os.environ.get("RAY_CLUSTER_MODE_LOCAL", 0)),
     "ray_local_host": os.environ.get(
@@ -315,7 +316,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/quantum-serverless-ray-node:0.10.1-py310"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless-ray-node:0.12.0-py310"
 )
 RAY_NODE_IMAGES_MAP = {
     "default": RAY_NODE_IMAGE,
@@ -372,3 +373,9 @@ CSP_STYLE_SRC_ELEM = ("'self'", "'unsafe-inline'")
 CSP_SCRIPT_SRC_ELEM = "'self'"
 CSP_CONNECT_SRC = "'self'"
 CSP_WORKER_SRC = ("'self'", "blob:")
+
+# Custom image for programs settings
+CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "runner")
+CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner")
+SECURE_BROWSER_XSS_FILTER = True
+SESSION_COOKIE_AGE = 3600

@@ -1,4 +1,5 @@
 """Models."""
+
 import uuid
 
 from concurrency.fields import IntegerVersionField
@@ -16,6 +17,9 @@ RUN_PROGRAM_PERMISSION = "run_program"
 def get_upload_path(instance, filename):
     """Returns save path for artifacts."""
     return f"{instance.author.username}/{instance.id}/{filename}"
+
+
+DEFAULT_PROGRAM_ENTRYPOINT = "main.py"
 
 
 class JobConfig(models.Model):
@@ -54,6 +58,27 @@ class JobConfig(models.Model):
         return f"{self.id}"
 
 
+class Provider(models.Model):
+    """Provider model."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    name = models.CharField(max_length=255, db_index=True, unique=True)
+    registry = models.CharField(max_length=255, null=True, blank=True, default=None)
+    admin_group = models.ForeignKey(
+        to=Group,
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+    )
+
+    def __str__(self):
+        return f"{self.name}"
+
+
 class Program(ExportModelOperationsMixin("program"), models.Model):
     """Program model."""
 
@@ -61,13 +86,14 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
 
     title = models.CharField(max_length=255, db_index=True)
-    entrypoint = models.CharField(max_length=255)
+    entrypoint = models.CharField(max_length=255, default=DEFAULT_PROGRAM_ENTRYPOINT)
     artifact = models.FileField(
         upload_to=get_upload_path,
-        null=False,
-        blank=False,
+        null=True,
+        blank=True,
         validators=[FileExtensionValidator(allowed_extensions=["tar"])],
     )
+    image = models.CharField(max_length=511, null=True, blank=True)
 
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
@@ -77,11 +103,20 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
+    provider = models.ForeignKey(
+        to=Provider,
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
 
     def __str__(self):
+        if self.provider:
+            return f"{self.provider.name}/{self.title}"
         return f"{self.title}"
 
 

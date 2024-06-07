@@ -1,4 +1,5 @@
 """Scheduling related functions."""
+
 import logging
 import random
 from typing import List
@@ -51,27 +52,21 @@ def execute_job(job: Job) -> Job:
                 job.compute_resource = authors_resource
                 job = submit_job(job)
                 job.status = Job.PENDING
-            except (
-                Exception  # pylint: disable=broad-exception-caught
-            ) as missing_resource_exception:
+            except Exception:  # pylint: disable=broad-exception-caught:
                 logger.error(
                     "Exception was caught during scheduling job on user [%s] resource.\n"
                     "Resource [%s] was in DB records, but address is not reachable.\n"
-                    "Cleaning up db record and setting job [%s] to failed.\n"
-                    "Error trace: %s",
+                    "Cleaning up db record and setting job [%s] to failed",
                     job.author,
                     authors_resource.title,
                     job.id,
-                    missing_resource_exception,
                 )
                 kill_ray_cluster(authors_resource.title)
                 authors_resource.delete()
                 job.status = Job.FAILED
                 job.logs += "\nCompute resource was not found."
         else:
-            compute_resource = create_ray_cluster(
-                job.author, cluster_name=cluster_name, job_config=job.config
-            )
+            compute_resource = create_ray_cluster(job, cluster_name=cluster_name)
             if compute_resource:
                 # if compute resource was created in time with no problems
                 job.compute_resource = compute_resource
@@ -146,7 +141,7 @@ def check_job_timeout(job: Job, job_status):
     if job.updated:
         endtime = job.updated + timedelta(days=timeout)
         now = datetime.now(tz=endtime.tzinfo)
-    if job.updated and endtime < now:
+    if job.updated and endtime < now:  # pylint: disable=possibly-used-before-assignment
         job_status = Job.STOPPED
         job.logs += f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
         logger.warning(

@@ -1,4 +1,5 @@
 """Tests for commands."""
+
 from allauth.socialaccount.models import SocialApp
 from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus

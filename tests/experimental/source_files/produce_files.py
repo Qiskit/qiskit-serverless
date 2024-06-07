@@ -1,6 +1,6 @@
 import os
 import tarfile
-from quantum_serverless import save_result
+from qiskit_serverless import save_result
 
 with open("./my_file.txt", "w") as f:
     f.write("Hello!")

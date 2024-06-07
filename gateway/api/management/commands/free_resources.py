@@ -1,4 +1,5 @@
 """Cleanup resources command."""
+
 import logging
 
 from django.conf import settings

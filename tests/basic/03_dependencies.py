@@ -1,31 +1,30 @@
 #!/usr/bin/env python
 
-from quantum_serverless import QiskitPattern
+from qiskit_serverless import QiskitFunction
 
-pattern = QiskitPattern(
+function = QiskitFunction(
     title="pattern-with-dependencies",
     entrypoint="pattern_with_dependencies.py",
     working_dir="./source_files/",
-    dependencies=["qiskit-experiments==0.6.0"],
+    dependencies=["pendulum"],
 )
 
-from quantum_serverless import ServerlessProvider
+from qiskit_serverless import ServerlessClient
 import os
 
-serverless = ServerlessProvider(
+serverless = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
 )
 print(serverless)
 
-from qiskit.circuit.random import random_circuit
+serverless.upload(function)
 
-circuit = random_circuit(2, 2)
+functions = {f.title: f for f in serverless.list()}
+my_pattern_function = functions.get("pattern-with-dependencies")
+my_pattern_function
 
-
-serverless.upload(pattern)
-
-job = serverless.run("pattern-with-dependencies", arguments={"circuit": circuit})
+job = my_pattern_function.run()
 print(job)
 
 print(job.result())
