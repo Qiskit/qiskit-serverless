@@ -53,6 +53,8 @@ jobs:
             --set gateway.application.ray.cpu=1 \
             --set gateway.application.limits.keepClusterOnComplete=false \
             .
+          GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
+          kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m 
       - name: setup python
         uses: actions/setup-python@v4
         with:
