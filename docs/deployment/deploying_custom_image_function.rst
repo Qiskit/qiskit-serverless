@@ -79,11 +79,11 @@ Let define `QiskitFunction` with image we just build, give it a name and upload 
    :caption: Uploading and using function with custom image.
 
     import os
-    from quantum_serverless import QiskitFunction, ServerlessClient
+    from qiskit_serverless import QiskitFunction, ServerlessClient
 
     serverless = ServerlessClient(
         token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
-        host=os.environ.get("GATEWAY_HOST", "http://localhost:8010"),
+        host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
     )
     serverless
 
