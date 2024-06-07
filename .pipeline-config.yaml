@@ -1,0 +1,28 @@
+# SPS configuration
+
+version: '1'
+
+# Set up your build and test environment to prepare the rest of the pipeline stages
+setup:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  script: |
+    #!/usr/bin/env bash
+    echo "Running custom setup script"
+
+detect-secrets:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  script: |
+    #!/usr/bin/env bash
+    echo "Running custom detect-secrets script"
+
+code-unit-tests:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  script: |
+    #!/usr/bin/env bash
+    echo "Running custom code-unit-tests script"
+
+compliance-checks:
+  skip: true
+
+finish:
+  skip: true
