@@ -112,6 +112,10 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
     def get_queryset(self):
         author = self.request.user
         title = self.request.query_params.get("title")
+        provider = self.request.query_params.get("provider")
+
+        serializer = self.get_serializer_upload_program(data=self.request.data)
+        provider, title = serializer.get_provider_name_and_title(provider, title)
 
         logger.info("ProgramViewSet get view_program permission")
         view_program_permission = Permission.objects.get(
@@ -139,9 +143,12 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
             instances__in=author_groups_with_view_permissions
         )
         if title:
+            title_criteria = Q(title=title)
+            if provider:
+                title_criteria = Q(title=title, provider__name=provider)
             author_programs = Program.objects.filter(
                 (author_criteria | author_groups_with_view_permissions_criteria)
-                & Q(title=title)
+                & title_criteria
             ).distinct()
         else:
             author_programs = Program.objects.filter(

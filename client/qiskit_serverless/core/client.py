@@ -358,7 +358,9 @@ class BaseClient(JsonSerializable):
         """Returns list of available programs."""
         raise NotImplementedError
 
-    def get(self, title: str) -> Optional[QiskitFunction]:
+    def get(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
         """Returns qiskit function based on title provided."""
         raise NotImplementedError
 
@@ -494,8 +496,10 @@ class ServerlessClient(BaseClient):
         """Returns list of available programs."""
         return self._job_client.get_programs(**kwargs)
 
-    def get(self, title: str) -> Optional[QiskitFunction]:
-        results = self._job_client.get_programs(title=title)
+    def get(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
+        results = self._job_client.get_programs(title=title, provider=provider)
         if len(results) > 1:
             warnings.warn(
                 f"There are more than 1 program with title {title}"
@@ -744,7 +748,9 @@ class LocalClient(BaseClient):
     def list(self, **kwargs):
         return self.client.get_programs(**kwargs)
 
-    def get(self, title: str) -> Optional[QiskitFunction]:
+    def get(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
         functions = {
             function.title: function for function in self.client.get_programs()
         }
