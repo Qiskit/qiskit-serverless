@@ -114,11 +114,6 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         title = self.request.query_params.get("title")
         provider_name = self.request.query_params.get("provider")
 
-        serializer = self.get_serializer_upload_program(data=self.request.data)
-        provider_name, title = serializer.get_provider_name_and_title(
-            provider_name, title
-        )
-
         logger.info("ProgramViewSet get view_program permission")
         view_program_permission = Permission.objects.get(
             codename=VIEW_PROGRAM_PERMISSION
@@ -145,6 +140,10 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
             instances__in=author_groups_with_view_permissions
         )
         if title:
+            serializer = self.get_serializer_upload_program(data=self.request.data)
+            provider_name, title = serializer.get_provider_name_and_title(
+                provider_name, title
+            )
             title_criteria = Q(title=title)
             if provider_name:
                 title_criteria = Q(title=title, provider__name=provider_name)
