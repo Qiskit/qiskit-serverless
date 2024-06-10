@@ -292,7 +292,7 @@
 <h1>Passing input arguments to your QiskitPattern<a class="headerlink" href="#Passing-input-arguments-to-your-QiskitPattern" title="Permalink to this heading">#</a></h1>
 <p>In this document, we will learn how to pass arguments to our pattern.</p>
 <p>Let’s create another file with our pattern <a class="reference external" href="./source_files/pattern_with_arguments.py">./source_files/pattern_with_arguments.py</a>.</p>
-<p>Instead of having the circuit defined inside the pattern (like we did in first example), we will pass it as an argument. We will also save the results, so we can access them later by calling <a class="reference external" href="https://qiskit-extensions.github.io/qiskit-serverless/stubs/qiskit_serverless.core.save_result.html#qiskit_serverless.core.save_result">save_result</a>.</p>
+<p>Instead of having the circuit defined inside the pattern (like we did in first example), we will pass it as an argument. We will also save the results, so we can access them later by calling <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.save_result.html#qiskit_serverless.core.save_result">save_result</a>.</p>
 <p>Here is the pattern:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/pattern_with_arguments.py</span>
 
@@ -318,7 +318,7 @@
 <span class="p">})</span>
 </pre></div>
 </div>
-<p>As you can see, the circuit construction is not inside the pattern anymore. Instead, we parse the arguments by calling the <a class="reference external" href="https://qiskit-extensions.github.io/qiskit-serverless/stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments">get_arguments</a> function.</p>
+<p>As you can see, the circuit construction is not inside the pattern anymore. Instead, we parse the arguments by calling the <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments">get_arguments</a> function.</p>
 <p>First, we will create circuit that we want to pass as an argument to the pattern.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
@@ -349,7 +349,7 @@ meas: 2/══════════════╩══╩═
 </div>
 <p>Now let’s create and configure our client</p>
 <blockquote>
-<div><p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit-extensions.github.io/qiskit-serverless/deployment/local.html">local infrastructure setup</a>.</p>
+<div><p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/deployment/local.html">local infrastructure setup</a>.</p>
 </div></blockquote>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:

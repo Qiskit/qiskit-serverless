@@ -363,7 +363,7 @@ customizable on a local or cloud <strong>k8s cluster</strong>.</p>
 and run the next commands:</p>
 <div class="literal-block-wrapper docutils container" id="id4">
 <div class="code-block-caption"><span class="caption-text">run this commands with the release version like 0.12.0 in x.y.z (2 places)</span><a class="headerlink" href="#id4" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ helm -n &lt;INSERT_YOUR_NAMESPACE&gt; install qiskit-serverless --create-namespace https://github.com/Qiskit-Extensions/qiskit-serverless/releases/download/vx.y.z/qiskit-serverless-x.y.z.tgz
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ helm -n &lt;INSERT_YOUR_NAMESPACE&gt; install qiskit-serverless --create-namespace https://github.com/Qiskit/qiskit-serverless/releases/download/vx.y.z/qiskit-serverless-x.y.z.tgz
 </pre></div>
 </div>
 </div>
@@ -388,7 +388,7 @@ approach is to use the <code class="docutils literal notranslate"><span class="p
 </div>
 <p>Now you may access your cluster services from localhost.</p>
 <p>For development this is more than enough, but if you are considering deploying it remotely you will need to
-configure the various <code class="docutils literal notranslate"><span class="pre">ingress</span></code> properties in <a class="reference external" href="https://github.com/Qiskit-Extensions/qiskit-serverless/blob/main/charts/qiskit-serverless/values.yaml">values.yaml</a>
+configure the various <code class="docutils literal notranslate"><span class="pre">ingress</span></code> properties in <a class="reference external" href="https://github.com/Qiskit/qiskit-serverless/blob/main/charts/qiskit-serverless/values.yaml">values.yaml</a>
 with the configuration of your domain and provider.</p>
 <ul class="simple">
 <li><p><strong>Important</strong>: <code class="docutils literal notranslate"><span class="pre">nginx-ingress-controller</span></code> is disabled by default because third party providers should provide its own Ingress controller. To use it locally you need to activate it too.</p></li>
@@ -396,7 +396,7 @@ with the configuration of your domain and provider.</p>
 <p>Optionally, you can install an observability package to handle logging and monitoring on your cluster by running the following command:</p>
 <div class="literal-block-wrapper docutils container" id="id7">
 <div class="code-block-caption"><span class="caption-text">run this commands with the release version like 0.12.0 in x.y.z (2 places) using the same namespace as in the previous helm command</span><a class="headerlink" href="#id7" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ helm -n &lt;INSERT_YOUR_NAMESPACE&gt; install qs-observability  https://github.com/Qiskit-Extensions/qiskit-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>     $ helm -n &lt;INSERT_YOUR_NAMESPACE&gt; install qs-observability  https://github.com/Qiskit/qiskit-serverless/releases/download/vx.y.z/qs-observability-x.y.z.tgz
 </pre></div>
 </div>
 </div>
