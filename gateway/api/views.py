@@ -333,6 +333,59 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
 
         return Response(job_serializer.data)
 
+    @action(methods=["GET"], detail=False, url_path="get_by_title/(?P<title>[^/.]+)")
+    def get_by_title(self, request, title):
+        """Returns programs by title."""
+        author = self.request.user
+        provider_name = self.request.query_params.get("provider")
+        logger.info("ProgramViewSet get view_program permission")
+        view_program_permission = Permission.objects.get(
+            codename=VIEW_PROGRAM_PERMISSION
+        )
+
+        # Groups logic
+        user_criteria = Q(user=author)
+        view_permission_criteria = Q(permissions=view_program_permission)
+        author_groups_with_view_permissions = Group.objects.filter(
+            user_criteria & view_permission_criteria
+        )
+        author_groups_with_view_permissions_count = (
+            author_groups_with_view_permissions.count()
+        )
+        logger.info(
+            "ProgramViewSet get author[%s] groups [%s]",
+            author.id,
+            author_groups_with_view_permissions_count,
+        )
+
+        # Programs logic
+        author_criteria = Q(author=author)
+        author_groups_with_view_permissions_criteria = Q(
+            instances__in=author_groups_with_view_permissions
+        )
+        if title:
+            serializer = self.get_serializer_upload_program(data=self.request.data)
+            # this should never kick in. Leaving it here just for consistency.
+            provider_name, title = serializer.get_provider_name_and_title(
+                provider_name, title
+            )
+            title_criteria = Q(title=title)
+            if provider_name:
+                title_criteria = Q(title=title, provider__name=provider_name)
+            result_program = Program.objects.filter(
+                (author_criteria | author_groups_with_view_permissions_criteria)
+                & title_criteria
+            ).first()
+        else:
+            result_program = Program.objects.filter(
+                author_criteria | author_groups_with_view_permissions_criteria
+            ).first()
+
+        if result_program:
+            return Response(self.get_serializer(result_program).data)
+
+        return Response(status=404)
+
 
 class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
     """

@@ -144,6 +144,12 @@ class BaseJobClient:
         """Returns list of programs."""
         raise NotImplementedError
 
+    def get_program(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
+        """Returns program based on parameters."""
+        raise NotImplementedError
+
 
 class RayJobClient(BaseJobClient):
     """RayJobClient."""
@@ -336,6 +342,21 @@ class LocalJobClient(BaseJobClient):
             )
             for program in self._patterns
         ]
+
+    def get_program(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
+        """Returns program based on parameters."""
+        all_programs = {
+            program.get("title"): QiskitFunction(
+                program.get("title"),
+                provider=program.get("provider", None),
+                raw_data=program,
+                job_client=self,
+            )
+            for program in self._patterns
+        }
+        return all_programs.get("title")
 
 
 class GatewayJobClient(BaseJobClient):
@@ -561,6 +582,27 @@ class GatewayJobClient(BaseJobClient):
             )
             for program in response_data
         ]
+
+    def get_program(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
+        """Returns program based on parameters."""
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("program.get_by_title"):
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    params={"provider": provider},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            return QiskitFunction(
+                response_data.get("title"),
+                provider=response_data.get("provider", None),
+                raw_data=response_data,
+                job_client=self,
+            )
 
 
 class Job:

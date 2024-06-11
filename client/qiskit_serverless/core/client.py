@@ -499,17 +499,7 @@ class ServerlessClient(BaseClient):
     def get(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
-        results = self._job_client.get_programs(title=title, provider=provider)
-        if len(results) > 1:
-            warnings.warn(
-                f"There are more than 1 program with title {title}"
-                "available. Returning most recent one. "
-                "If you want to get list of all functions "
-                "please, use `list` method."
-            )
-
-        functions = {function.title: function for function in results}
-        return functions.get(title)
+        return self._job_client.get_program(title=title, provider=provider)
 
     def _verify_token(self, token: str):
         """Verify token."""
