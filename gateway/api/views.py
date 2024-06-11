@@ -467,7 +467,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
             runtimejob = RuntimeJob(
                 job=job,
                 runtime_job=request.data.get("runtime_job"),
-                session_id=request.data.get("session_id"),
+                runtime_session=request.data.get("runtime_session"),
             )
             runtimejob.save()
             message = "RuntimeJob is added."

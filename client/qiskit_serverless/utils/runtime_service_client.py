@@ -73,13 +73,12 @@ def associate_runtime_job_with_serverless_job(
     )
     response = requests.post(
         url,
-        data={"runtime_job": runtime_job_id, "session_id": session_id},
+        data={"runtime_job": runtime_job_id, "runtime_session": session_id},
         headers={"Authorization": f"Bearer {token}"},
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:
-        sanitized = response.text.replace("\n", "").replace("\r", "")
-        logging.warning("Something went wrong: %s", sanitized)
+        logging.warning("Something went wrong: %s", response.text)
 
     return response.ok
 
