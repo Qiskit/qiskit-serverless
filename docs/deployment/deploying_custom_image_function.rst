@@ -205,6 +205,7 @@ Upload and register function
 For the User
 
 List all available functions
+
 .. code-block::
    :caption: list.py
 
