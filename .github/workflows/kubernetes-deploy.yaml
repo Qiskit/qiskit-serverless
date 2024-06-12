@@ -118,9 +118,7 @@ jobs:
           pip install nbmake pytest
       - name: Run tests
         run: |
-          kubectl patch svc gateway -p '{"spec": {"type": "LoadBalancer"}}'
-          export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
-          echo $GATEWAY_HOST
+          export GATEWAY_HOST="http://localhost"
           # basic tests
           cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/basic
           for f in *.py; do echo "$f" && python "$f"; done
