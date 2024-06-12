@@ -17,10 +17,52 @@ jobs:
           sudo mv kind /usr/local/bin
           which kind
       - name: Create Kind cluster
-        uses: chainguard-dev/actions/setup-kind@main
-        with:
-          k8s-version: 1.27.x
-          kind-worker-count: 0
+        run: |
+          set -ex
+          K8S_VERSION="1.28.7"
+          cat <<EOF | kind create cluster --config=-
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+            image: kindest/node:v${K8S_VERSION}
+            kubeadmConfigPatches:
+            - |
+              kind: InitConfiguration
+              nodeRegistration:
+                kubeletExtraArgs:
+                  node-labels: "ingress-ready=true"
+            extraPortMappings:
+            - containerPort: 80
+              hostPort: 80
+              protocol: TCP
+            - containerPort: 443
+              hostPort: 443
+              protocol: TCP
+          EOF
+          curl https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml -k | \
+          sed '0,/args:/s//args:\n        - --webhook-mode=disabled/' | \
+          sed '/apiVersion: admissionregistration/,$d' | \
+          kubectl apply -f -
+          # Add Layer 2 config
+          network=$(docker network inspect kind -f "{{(index .IPAM.Config 0).Subnet}}" | cut -d '.' -f1,2)
+          cat <<EOF | kubectl apply -f -
+          apiVersion: metallb.io/v1beta1
+          kind: IPAddressPool
+          metadata:
+            name: first-pool
+            namespace: metallb-system
+          spec:
+            addresses:
+            - $network.255.1-$network.255.250
+          ---
+          apiVersion: metallb.io/v1beta1
+          kind: L2Advertisement
+          metadata:
+            name: example
+            namespace: metallb-system
+          EOF
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
       - name: Build and load gateway
         run: |
           docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
@@ -54,7 +96,27 @@ jobs:
             --set gateway.application.limits.keepClusterOnComplete=false \
             .
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
-          kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m 
+          kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
+          NGINX_CONTROLLER=$(kubectl get po -n ingress-nginx -o name | grep controller)
+          kubectl wait -n ingress-nginx --for=condition=Ready "$NGINX_CONTROLLER" --timeout 5m
+          cat <<EOF | kubectl apply -f -
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: ray-service
+          spec:
+            ingressClassName: nginx
+            rules:
+            - http:
+                paths:
+                - pathType: Prefix
+                  path: /
+                  backend:
+                    service:
+                      name: gateway
+                      port:
+                        number: 8000
+          EOF
       - name: setup python
         uses: actions/setup-python@v4
         with:
@@ -76,9 +138,7 @@ jobs:
           pip install nbmake pytest
       - name: Run tests
         run: |
-          kubectl patch svc gateway -p '{"spec": {"type": "LoadBalancer"}}'
-          export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
-          echo $GATEWAY_HOST
+          export GATEWAY_HOST="http://localhost"
           # basic tests
           cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/basic
           for f in *.py; do echo "$f" && python "$f"; done
@@ -102,5 +162,5 @@ jobs:
         if: ${{ failure() }}
         with:
           cluster-resources: nodes,namespaces,crds
-          namespace-resources: configmaps,pods,svc,pvc
+          namespace-resources: configmaps,pods,svc,pvc,ingress
           artifact-name: logs-${{ github.run_id }}
