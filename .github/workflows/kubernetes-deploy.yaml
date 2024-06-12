@@ -97,6 +97,26 @@ jobs:
             .
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
           kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
+          NGINX_CONTROLLER=$(kubectl get po -n ingress-nginx -o name | grep controller)
+          kubectl wait -n ingress-nginx --for=condition=Ready "$NGINX_CONTROLLER" --timeout 5m
+          cat <<EOF | kubectl apply -f -
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: ray-service
+          spec:
+            ingressClassName: nginx
+            rules:
+            - http:
+                paths:
+                - pathType: Prefix
+                  path: /
+                  backend:
+                    service:
+                      name: gateway
+                      port:
+                        number: 8000
+          EOF
       - name: setup python
         uses: actions/setup-python@v4
         with:
@@ -142,5 +162,5 @@ jobs:
         if: ${{ failure() }}
         with:
           cluster-resources: nodes,namespaces,crds
-          namespace-resources: configmaps,pods,svc,pvc
+          namespace-resources: configmaps,pods,svc,pvc,ingress
           artifact-name: logs-${{ github.run_id }}
