@@ -38,7 +38,7 @@ jobs:
 
       - name: Install tox
         run: |
-          pip install tox
+          pip install tox filelock==3.14.0
 
       - name: Run styles check
         run: tox -elint
@@ -46,4 +46,3 @@ jobs:
       - name: Test using tox environment
         run: |
           tox ${{ env.TOX_ENV }}
-
