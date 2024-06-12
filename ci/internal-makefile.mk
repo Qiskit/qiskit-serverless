@@ -20,10 +20,10 @@ TARGET_SERVICE			  ?= qiskit-serverless
 ENVIRONMENT               ?= development
 PROJECT_VERSION			  ?= latest
 
-DOCKER_IMAGE_GATEWAY      := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/qiskit-serverless-gateway
-DOCKER_IMAGE_NOTEBOOK     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/qiskit-serverless-notebook
-DOCKER_IMAGE_RAY_NODE     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/qiskit-serverless-ray-node
-DOCKER_IMAGE_SELECTOR 	  := $(DOCKER_REGISTRY)/$(DOCKER_PRIVATE_REGISTRY_NAMESPACE)/qiskit-serverless-selector
+DOCKER_IMAGE_GATEWAY      := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/qiskit-serverless/gateway
+DOCKER_IMAGE_NOTEBOOK     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/qiskit-serverless/notebook
+DOCKER_IMAGE_RAY_NODE     := $(DOCKER_REGISTRY)/$(DOCKER_REGISTRY_NAMESPACE)/qiskit-serverless/ray-node
+DOCKER_IMAGE_SELECTOR 	  := $(DOCKER_REGISTRY)/$(DOCKER_PRIVATE_REGISTRY_NAMESPACE)/qiskit-serverless/selector
 DOCKER_IMAGE_SELECTOR_TAG := 0.12.0
 
 # =========
@@ -31,27 +31,27 @@ DOCKER_IMAGE_SELECTOR_TAG := 0.12.0
 # =========
 
 .PHONY: docker/lint-gateway
-docker/lint-gateway: DOCKER_FILE 			:= $(DOCKER_FILE_GATEWAY) 
+docker/lint-gateway: DOCKER_FILE 			:= $(DOCKER_FILE_GATEWAY)
 docker/lint-gateway: docker/lint
 
 .PHONY: docker/lint-ray
-docker/lint-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE) 
+docker/lint-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE)
 docker/lint-ray: docker/lint
 
 # .PHONY: docker/lint-selector
-# docker/lint-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR) 
+# docker/lint-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR)
 # docker/lint-selector: docker/lint
 
 .PHONY: docker/sast-gateway
-docker/sast-gateway: DOCKER_FILE 			:= $(DOCKER_FILE_GATEWAY) 
+docker/sast-gateway: DOCKER_FILE 			:= $(DOCKER_FILE_GATEWAY)
 docker/sast-gateway: docker/sast
 
 .PHONY: docker/sast-ray
-docker/sast-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE) 
+docker/sast-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE)
 docker/sast-ray: docker/sast
 
 # .PHONY: docker/sast-selector
-# docker/sast-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR) 
+# docker/sast-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR)
 # docker/sast-selector: docker/sast
 
 .PHONY: docker/vscan-gateway
