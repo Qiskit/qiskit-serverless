@@ -70,6 +70,7 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsDecoder,
 )
 from qiskit_serverless.utils.json import is_jsonable, safe_json_request
+from qiskit_serverless.utils.formatting import format_provider_name_and_title
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
@@ -587,6 +588,10 @@ class GatewayJobClient(BaseJobClient):
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
         """Returns program based on parameters."""
+        provider, title = format_provider_name_and_title(
+            request_provider=provider, title=title
+        )
+
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("program.get_by_title"):
             response_data = safe_json_request(

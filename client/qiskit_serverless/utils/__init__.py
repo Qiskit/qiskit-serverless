@@ -27,8 +27,10 @@ Qiskit Serverless utilities
     S3Storage
     ErrorCodes
     JsonSerializable
+    format_provider_name_and_title
 """
 
 from .json import JsonSerializable
 from .errors import ErrorCodes
 from .storage import S3Storage, BaseStorage
+from .formatting import format_provider_name_and_title
