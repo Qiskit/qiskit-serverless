@@ -12,6 +12,7 @@ import logging
 import mimetypes
 import os
 import time
+from typing import Optional
 from wsgiref.util import FileWrapper
 
 from concurrency.exceptions import RecordModifiedError
@@ -114,47 +115,10 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         title = self.request.query_params.get("title")
         provider_name = self.request.query_params.get("provider")
 
-        logger.info("ProgramViewSet get view_program permission")
-        view_program_permission = Permission.objects.get(
-            codename=VIEW_PROGRAM_PERMISSION
-        )
+        author_programs = self._get_program_queryset_for_title_and_provider(
+            author=author, title=title, provider_name=provider_name
+        ).distinct()
 
-        # Groups logic
-        user_criteria = Q(user=author)
-        view_permission_criteria = Q(permissions=view_program_permission)
-        author_groups_with_view_permissions = Group.objects.filter(
-            user_criteria & view_permission_criteria
-        )
-        author_groups_with_view_permissions_count = (
-            author_groups_with_view_permissions.count()
-        )
-        logger.info(
-            "ProgramViewSet get author[%s] groups [%s]",
-            author.id,
-            author_groups_with_view_permissions_count,
-        )
-
-        # Programs logic
-        author_criteria = Q(author=author)
-        author_groups_with_view_permissions_criteria = Q(
-            instances__in=author_groups_with_view_permissions
-        )
-        if title:
-            serializer = self.get_serializer_upload_program(data=self.request.data)
-            provider_name, title = serializer.get_provider_name_and_title(
-                provider_name, title
-            )
-            title_criteria = Q(title=title)
-            if provider_name:
-                title_criteria = Q(title=title, provider__name=provider_name)
-            author_programs = Program.objects.filter(
-                (author_criteria | author_groups_with_view_permissions_criteria)
-                & title_criteria
-            ).distinct()
-        else:
-            author_programs = Program.objects.filter(
-                author_criteria | author_groups_with_view_permissions_criteria
-            ).distinct()
         author_programs_count = author_programs.count()
         logger.info(
             "ProgramViewSet get author[%s] programs[%s]",
@@ -338,7 +302,20 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         """Returns programs by title."""
         author = self.request.user
         provider_name = self.request.query_params.get("provider")
-        logger.info("ProgramViewSet get view_program permission")
+
+        result_program = self._get_program_queryset_for_title_and_provider(
+            author=author, title=title, provider_name=provider_name
+        ).first()
+
+        if result_program:
+            return Response(self.get_serializer(result_program).data)
+
+        return Response(status=404)
+
+    def _get_program_queryset_for_title_and_provider(
+        self, author, title: str, provider_name: Optional[str]
+    ):
+        """Returns queryset for program for gived request, title and provider."""
         view_program_permission = Permission.objects.get(
             codename=VIEW_PROGRAM_PERMISSION
         )
@@ -365,26 +342,22 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         )
         if title:
             serializer = self.get_serializer_upload_program(data=self.request.data)
-            # this should never kick in. Leaving it here just for consistency.
             provider_name, title = serializer.get_provider_name_and_title(
                 provider_name, title
             )
             title_criteria = Q(title=title)
             if provider_name:
                 title_criteria = Q(title=title, provider__name=provider_name)
-            result_program = Program.objects.filter(
+            result_queryset = Program.objects.filter(
                 (author_criteria | author_groups_with_view_permissions_criteria)
                 & title_criteria
-            ).first()
+            )
         else:
-            result_program = Program.objects.filter(
+            result_queryset = Program.objects.filter(
                 author_criteria | author_groups_with_view_permissions_criteria
-            ).first()
+            )
 
-        if result_program:
-            return Response(self.get_serializer(result_program).data)
-
-        return Response(status=404)
+        return result_queryset
 
 
 class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
