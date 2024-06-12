@@ -17,10 +17,52 @@ jobs:
           sudo mv kind /usr/local/bin
           which kind
       - name: Create Kind cluster
-        uses: chainguard-dev/actions/setup-kind@main
-        with:
-          k8s-version: 1.28.x
-          kind-worker-count: 0
+        run: |
+          set -ex
+          K8S_VERSION="1.28.7"
+          cat <<EOF | kind create cluster --config=-
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+            image: kindest/node:v${K8S_VERSION}
+            kubeadmConfigPatches:
+            - |
+              kind: InitConfiguration
+              nodeRegistration:
+                kubeletExtraArgs:
+                  node-labels: "ingress-ready=true"
+            extraPortMappings:
+            - containerPort: 80
+              hostPort: 80
+              protocol: TCP
+            - containerPort: 443
+              hostPort: 443
+              protocol: TCP
+          EOF
+          curl https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml -k | \
+          sed '0,/args:/s//args:\n        - --webhook-mode=disabled/' | \
+          sed '/apiVersion: admissionregistration/,$d' | \
+          kubectl apply -f -
+          # Add Layer 2 config
+          network=$(docker network inspect kind -f "{{(index .IPAM.Config 0).Subnet}}" | cut -d '.' -f1,2)
+          cat <<EOF | kubectl apply -f -
+          apiVersion: metallb.io/v1beta1
+          kind: IPAddressPool
+          metadata:
+            name: first-pool
+            namespace: metallb-system
+          spec:
+            addresses:
+            - $network.255.1-$network.255.250
+          ---
+          apiVersion: metallb.io/v1beta1
+          kind: L2Advertisement
+          metadata:
+            name: example
+            namespace: metallb-system
+          EOF
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
       - name: Build and load gateway
         run: |
           docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
