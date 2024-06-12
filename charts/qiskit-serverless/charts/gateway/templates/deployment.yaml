@@ -78,6 +78,8 @@ spec:
             httpGet:
               path: /readiness
               port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
@@ -253,6 +255,8 @@ spec:
               name: gateway-pv-storage
             - mountPath: "/tmp/templates/"
               name: ray-cluster-template
+          resources:
+            {{- toYaml .Values.scheduler.resources | nindent 12 }}
           env:
             - name: DEBUG
               value: {{ .Values.application.debug | quote }}

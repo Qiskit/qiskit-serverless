@@ -38,7 +38,7 @@ system and receive the results when they are ready.
 
 ------------
 
-The source code to the project is available `on GitHub <https://github.com/Qiskit-Extensions/qiskit-serverless>`_.
+The source code to the project is available `on GitHub <https://github.com/Qiskit/qiskit-serverless>`_.
 
 .. Hiding - Indices and tables
    :ref:`genindex`
