@@ -826,8 +826,8 @@ def _upload_with_artifact(
             span.set_attribute("program.provider", program_provider)
     except Exception as error:  # pylint: disable=broad-exception-caught
         raise QiskitServerlessException from error
-
-    if os.path.exists(artifact_file_path):
-        os.remove(artifact_file_path)
+    finally:
+        if os.path.exists(artifact_file_path):
+            os.remove(artifact_file_path)
 
     return program_title
