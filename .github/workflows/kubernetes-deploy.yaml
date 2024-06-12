@@ -19,7 +19,7 @@ jobs:
       - name: Create Kind cluster
         uses: chainguard-dev/actions/setup-kind@main
         with:
-          k8s-version: 1.27.x
+          k8s-version: 1.28.x
           kind-worker-count: 0
       - name: Build and load gateway
         run: |
@@ -54,7 +54,7 @@ jobs:
             --set gateway.application.limits.keepClusterOnComplete=false \
             .
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
-          kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m 
+          kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
       - name: setup python
         uses: actions/setup-python@v4
         with:
