@@ -73,7 +73,7 @@ def associate_runtime_job_with_serverless_job(
     )
     response = requests.post(
         url,
-        data={"runtime_job": runtime_job_id, "runtime_session": session_id},
+        json={"runtime_job": runtime_job_id, "runtime_session": session_id},
         headers={"Authorization": f"Bearer {token}"},
         timeout=REQUESTS_TIMEOUT,
     )
