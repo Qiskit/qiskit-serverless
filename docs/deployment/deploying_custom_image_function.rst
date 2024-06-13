@@ -183,16 +183,47 @@ Upload and register function
         token=os.environ.get("GATEWAY_TOKEN", "<TOKEN>"),
         host=os.environ.get("GATEWAY_HOST", "<GATEWAY ADDRESS>"),
     )
+    
+    help = """
+    title: custom-image-function
+    description: sample function implemented in a custom image
+    arguments:
+        service: service created with the accunt information
+        circuit: circuit
+        observable: observable 
+    """
 
     function_with_custom_image = QiskitFunction(
         title="custom-image-function",
         image="<image retistory/image name:image tag>",
-        provider="<provider id>"
-    )
+        provider="<provider id>",
+        description=help
+   )
     serverless.upload(function_with_custom_image)
 
 
-Function usage example
+For the User
+
+List all available functions
+
+.. code-block::
+   :caption: list.py
+
+    import os
+    from qiskit_serverless import ServerlessClient
+
+    serverless = ServerlessClient(
+        token=os.environ.get("GATEWAY_TOKEN", "<TOKEN>"),
+        host=os.environ.get("GATEWAY_HOST", "<GATEWAY ADDRESS>"),
+    )
+
+    my_functions = serverless.list()
+    for function in my_functions:
+        print("Name: " + function.title)
+        print(function.description)
+        print()
+
+Execute Function
     
 .. code-block::
    :caption: usage.py
