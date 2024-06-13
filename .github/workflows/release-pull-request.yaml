@@ -11,22 +11,22 @@ jobs:
       matrix:
         image:
           [
-            "qiskit-serverless-gateway:latest",
-            "qiskit-serverless-ray-node:latest-py39",
-            "qiskit-serverless-ray-node:latest-py310",
-            "qiskit-serverless-proxy:latest"
+            "qiskit-serverless/gateway:latest",
+            "qiskit-serverless/ray-node:latest-py39",
+            "qiskit-serverless/ray-node:latest-py310",
+            "qiskit-serverless/proxy:latest"
           ]
         include:
-          - image: "qiskit-serverless-gateway:latest"
+          - image: "qiskit-serverless/gateway:latest"
             dockerfile: "./gateway/Dockerfile"
             pyversion: "3.10"
-          - image: "qiskit-serverless-ray-node:latest-py39"
+          - image: "qiskit-serverless/ray-node:latest-py39"
             dockerfile: "Dockerfile-ray-node"
             pyversion: "py39"
-          - image: "qiskit-serverless-ray-node:latest-py310"
+          - image: "qiskit-serverless/ray-node:latest-py310"
             dockerfile: "Dockerfile-ray-node"
             pyversion: "py310"
-          - image: "qiskit-serverless-proxy:latest-py310"
+          - image: "qiskit-serverless/proxy:latest-py310"
             dockerfile: "./proxy/Dockerfile"
             pyversion: "py310"
     runs-on: ubuntu-latest
