@@ -21,9 +21,6 @@ jobs:
         with:
           k8s-version: 1.28.x
           kind-worker-count: 0
-      - name: Install Ingress
-        run: |
-          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
       - name: Build and load gateway
         run: |
           docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
@@ -58,26 +55,6 @@ jobs:
             .
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
           kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
-          NGINX_CONTROLLER=$(kubectl get po -n ingress-nginx -o name | grep controller)
-          kubectl wait -n ingress-nginx --for=condition=Ready "$NGINX_CONTROLLER" --timeout 5m
-          cat <<EOF | kubectl apply -f -
-          apiVersion: networking.k8s.io/v1
-          kind: Ingress
-          metadata:
-            name: ray-service
-          spec:
-            ingressClassName: nginx
-            rules:
-            - http:
-                paths:
-                - pathType: Prefix
-                  path: /
-                  backend:
-                    service:
-                      name: gateway
-                      port:
-                        number: 8000
-          EOF
       - name: setup python
         uses: actions/setup-python@v4
         with:
@@ -99,7 +76,9 @@ jobs:
           pip install nbmake pytest
       - name: Run tests
         run: |
-          export GATEWAY_HOST="http://localhost"
+          kubectl patch svc gateway -p '{"spec": {"type": "LoadBalancer"}}'
+          export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
+          echo $GATEWAY_HOST
           # basic tests
           cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/basic
           for f in *.py; do echo "TEST: $f" && python "$f"; done
