@@ -558,6 +558,7 @@ class GatewayJobClient(BaseJobClient):
                 provider=program.get("provider", None),
                 raw_data=program,
                 job_client=self,
+                description=program.get("description"),
             )
             for program in response_data
         ]
@@ -750,6 +751,7 @@ def _upload_with_docker_image(
                 "arguments": json.dumps({}),
                 "dependencies": json.dumps(program.dependencies or []),
                 "env_vars": json.dumps(program.env_vars or {}),
+                "description": program.description,
             },
             headers={"Authorization": f"Bearer {token}"},
             timeout=REQUESTS_TIMEOUT,
@@ -814,6 +816,7 @@ def _upload_with_artifact(
                         "arguments": json.dumps({}),
                         "dependencies": json.dumps(program.dependencies or []),
                         "env_vars": json.dumps(program.env_vars or {}),
+                        "description": program.description,
                     },
                     files={"artifact": file},
                     headers={"Authorization": f"Bearer {token}"},

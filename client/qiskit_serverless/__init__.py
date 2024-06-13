@@ -43,6 +43,7 @@ from .core import (
 from .exception import QiskitServerlessException
 from .core.function import QiskitPattern, QiskitFunction
 from .serializers import get_arguments
+from .utils import ServerlessRuntimeService
 
 try:
     __version__ = metadata_version("qiskit_serverless")
