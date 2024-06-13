@@ -790,44 +790,47 @@ def _upload_with_artifact(
             f"in [{program.working_dir}] working directory."
         )
 
-    with tarfile.open(artifact_file_path, "w") as tar:
-        for filename in os.listdir(program.working_dir):
-            fpath = os.path.join(program.working_dir, filename)
-            tar.add(fpath, arcname=filename)
+    try:
+        with tarfile.open(artifact_file_path, "w") as tar:
+            for filename in os.listdir(program.working_dir):
+                fpath = os.path.join(program.working_dir, filename)
+                tar.add(fpath, arcname=filename)
 
-    # check file size
-    size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
-    if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
-        raise QiskitServerlessException(
-            f"{artifact_file_path} is {int(size_in_mb)} Mb, "
-            f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
-            f"Try to reduce size of `working_dir`."
-        )
-
-    with open(artifact_file_path, "rb") as file:
-        response_data = safe_json_request(
-            request=lambda: requests.post(
-                url=url,
-                data={
-                    "title": program.title,
-                    "provider": program.provider,
-                    "entrypoint": program.entrypoint,
-                    "arguments": json.dumps({}),
-                    "dependencies": json.dumps(program.dependencies or []),
-                    "env_vars": json.dumps(program.env_vars or {}),
-                    "description": program.description,
-                },
-                files={"artifact": file},
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=REQUESTS_TIMEOUT,
+        # check file size
+        size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
+        if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
+            raise QiskitServerlessException(
+                f"{artifact_file_path} is {int(size_in_mb)} Mb, "
+                f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
+                f"Try to reduce size of `working_dir`."
             )
-        )
-        program_title = response_data.get("title", "na")
-        program_provider = response_data.get("provider", "na")
-        span.set_attribute("program.title", program_title)
-        span.set_attribute("program.provider", program_provider)
 
-    if os.path.exists(artifact_file_path):
-        os.remove(artifact_file_path)
+        with open(artifact_file_path, "rb") as file:
+            response_data = safe_json_request(
+                request=lambda: requests.post(
+                    url=url,
+                    data={
+                        "title": program.title,
+                        "provider": program.provider,
+                        "entrypoint": program.entrypoint,
+                        "arguments": json.dumps({}),
+                        "dependencies": json.dumps(program.dependencies or []),
+                        "env_vars": json.dumps(program.env_vars or {}),
+                        "description": program.description,
+                    },
+                    files={"artifact": file},
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            program_title = response_data.get("title", "na")
+            program_provider = response_data.get("provider", "na")
+            span.set_attribute("program.title", program_title)
+            span.set_attribute("program.provider", program_provider)
+    except Exception as error:  # pylint: disable=broad-exception-caught
+        raise QiskitServerlessException from error
+    finally:
+        if os.path.exists(artifact_file_path):
+            os.remove(artifact_file_path)
 
     return program_title
