@@ -262,6 +262,46 @@ class TestProgramApi(APITestCase):
         )
         self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_upload_provider_function_with_description(self):
+        """Tests upload end-point authorized."""
+
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
+        description = "sample function implemented in a custom image"
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "Provider Function",
+                "entrypoint": "test_user_2_program.py",
+                "dependencies": "[]",
+                "env_vars": env_vars,
+                "artifact": fake_file,
+                "provider": "default",
+                "description": description,
+            },
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.data.get("provider"), "default")
+
+        programs_response = self.client.get(reverse("v1:programs-list"), format="json")
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(programs_response.data), 2)
+        found = False
+        for resp_data in programs_response.data:
+            if resp_data.get("title") == "Provider Function":
+                self.assertEqual(
+                    resp_data.get("description"),
+                    description,
+                )
+                found = True
+        self.assertTrue(found)
+
     def test_runtime_job(self):
         """Tests run existing authorized."""
 
