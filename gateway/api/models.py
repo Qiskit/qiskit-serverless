@@ -219,3 +219,6 @@ class RuntimeJob(models.Model):
     runtime_job = models.CharField(
         primary_key=True, max_length=100, blank=False, null=False
     )
+    runtime_session = models.CharField(
+        max_length=100, blank=True, null=True, default=None
+    )
