@@ -8,14 +8,12 @@ version: '1'
 setup:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 # Run detect secrets scan on the application code
 detect-secrets:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 # Run static scan code on the application code.
@@ -23,14 +21,12 @@ compliance-checks:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 finish:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 # -- The following runs for pull request only
@@ -40,7 +36,6 @@ unit-tests:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 # -- The following run for CI only
@@ -50,7 +45,6 @@ test:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 # Run static scan code on the application code.
@@ -58,7 +52,6 @@ static-scan:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 # Build the artifacts
@@ -66,9 +59,6 @@ containerize:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    env
-    |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 # Sign the built artifacts
@@ -76,7 +66,6 @@ sign-artifact:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 # Deploy the built artifacts to the dev environment
@@ -84,7 +73,6 @@ deploy:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 # Run dynamic scan on the application
@@ -92,26 +80,22 @@ dynamic-scan:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 acceptance-test:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 scan-artifact:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
 
 release:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
-    cd ${APP_REPO_FOLDER}
     scripts/${STAGE}.sh
