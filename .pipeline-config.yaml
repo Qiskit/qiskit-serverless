@@ -49,10 +49,10 @@ test:
 
 # Run static scan code on the application code.
 # static-scan:
-  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-  abort_on_failure: false
-  script: |
-    scripts/${STAGE}.sh
+#   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+#   abort_on_failure: false
+#   script: |
+#     scripts/${STAGE}.sh
 
 # Build the artifacts
 containerize:
@@ -62,11 +62,11 @@ containerize:
     scripts/${STAGE}.sh
 
 # Sign the built artifacts
-sign-artifact:
-  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-  abort_on_failure: false
-  script: |
-    scripts/${STAGE}.sh
+# sign-artifact:
+#   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+#   abort_on_failure: false
+#   script: |
+#     scripts/${STAGE}.sh
 
 # Deploy the built artifacts to the dev environment
 deploy:
