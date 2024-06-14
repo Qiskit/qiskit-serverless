@@ -8,9 +8,8 @@ version: '1'
 setup:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   script: |
-    export
-    #cd ${APP_REPO_FOLDER}
-    #scripts/${STAGE}.sh
+    cd ${APP_REPO_FOLDER}
+    scripts/${STAGE}.sh
 
 # Run detect secrets scan on the application code
 detect-secrets:
