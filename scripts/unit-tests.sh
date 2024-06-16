@@ -19,3 +19,4 @@ docker build -t $(gatewayImageName):$(version) -f ./gateway/Dockerfile .
 docker build -t $(proxyImageName):$(version) -f ./proxy/Dockerfile .
 
 docker images
+echo "end"
