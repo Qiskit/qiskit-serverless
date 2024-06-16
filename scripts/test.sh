@@ -2,6 +2,7 @@
 
 SCRIPT_NAME=$(basename $0)
 echo "Running ${SCRIPT_NAME}"
+echo "###"
 
 version=latest
 repository=icr.io/quantum-public
