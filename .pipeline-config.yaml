@@ -17,11 +17,11 @@ setup:
 #     scripts/${STAGE}.sh
 
 # Run static scan code on the application code.
-# compliance-checks:
-#   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-#   abort_on_failure: false
-#   script: |
-#     scripts/${STAGE}.sh
+compliance-checks:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  abort_on_failure: false
+  script: |
+    scripts/${STAGE}.sh
 
 # finish:
 #   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
