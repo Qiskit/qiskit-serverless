@@ -17,3 +17,5 @@ docker build -t $(rayNodeImageName):$(version)-py310 --build-arg TARGETARCH=$(ar
 docker build -t $(rayNodeImageName):$(version)-py39  --build-arg TARGETARCH=$(arch) --build-arg IMAGE_PY_VERSION=py39  -f Dockerfile-ray-node .
 docker build -t $(gatewayImageName):$(version) -f ./gateway/Dockerfile .
 docker build -t $(proxyImageName):$(version) -f ./proxy/Dockerfile .
+
+docker images
