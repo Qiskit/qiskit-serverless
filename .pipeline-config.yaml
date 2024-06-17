@@ -34,6 +34,7 @@ detect-secrets:
 # Run unit tests and application tests on application code.
 unit-tests:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  dind: true
   abort_on_failure: false
   script: |
     scripts/${STAGE}.sh
@@ -44,6 +45,7 @@ unit-tests:
 test:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
+  dind: true
   script: |
     scripts/${STAGE}.sh
 
