@@ -5,9 +5,9 @@ echo "Running ${SCRIPT_NAME}"
 
 cd gateway
 
-yum install -y python3.11
+yum install -y python3.10
 yum install -y python3-pip
-ln -s /usr/bin/python3.11 /usr/bin/python
+ln -s /usr/bin/python3.10 /usr/bin/python
 pip3 install --upgrade pip
 ln /usr/bin/pip3 /usr/bin/pip
 pip install tox
