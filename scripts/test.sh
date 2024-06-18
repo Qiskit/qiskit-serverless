@@ -30,10 +30,12 @@ pip3 install flask
 pip3 install prometheus_client
 pip3 install flasgger
 pip3 install ibmcloudenv
+pip3 install tox
 echo ""
 
 # set -x
 echo "Executing unit-tests..."
+cd gatewy
 python3 -W ignore::ResourceWarning -m unittest discover -s tests -v -p "*.py" > "$WORKSPACE/unit-tests.log" 2>&1
 
 exit_code=$?
