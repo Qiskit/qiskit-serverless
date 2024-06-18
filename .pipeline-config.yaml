@@ -24,7 +24,7 @@ compliance-checks:
   script: |
     #!/bin/sh
     cra-bom-generate=0
-    /opt/commons/compliance-checks/run.sh
+    . /opt/commons/compliance-checks/run.sh
 
 # finish:
 #   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
