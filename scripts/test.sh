@@ -35,7 +35,7 @@ echo ""
 
 # set -x
 echo "Executing unit-tests..."
-cd gatewy
+cd gateway
 python3 -W ignore::ResourceWarning -m unittest discover -s tests -v -p "*.py" > "$WORKSPACE/unit-tests.log" 2>&1
 
 exit_code=$?

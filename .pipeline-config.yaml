@@ -23,7 +23,6 @@ compliance-checks:
   abort_on_failure: false
   script: |
     #!/bin/sh
-    export cra_bom_generate=0
     . /opt/commons/compliance-checks/run.sh
     cat /opt/commons/compliance-checks/run.sh
 
