@@ -23,8 +23,8 @@ compliance-checks:
   abort_on_failure: false
   script: |
     #!/bin/sh
-    cra-bom-generate=0
-    . /opt/commons/compliance-checks/run.sh
+    export cra-bom-generate=0
+    /opt/commons/compliance-checks/run.sh
 
 # finish:
 #   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
