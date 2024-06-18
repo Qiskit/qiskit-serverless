@@ -17,7 +17,8 @@ detect-secrets:
     scripts/${STAGE}.sh
 
 # Run static scan code on the application code.
-# compliance-checks:
+compliance-checks:
+  cra-bom-generate: 0
 #   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
 #   abort_on_failure: false
 #   script: |
