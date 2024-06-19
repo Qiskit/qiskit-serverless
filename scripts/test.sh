@@ -9,6 +9,8 @@ yum install -y python3.11
 yum install -y python3.11-pip
 
 pip3 install tox
+
+cd gateway
 tox -elint
 #tox -epy311
 
