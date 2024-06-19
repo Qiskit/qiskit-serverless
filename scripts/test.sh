@@ -36,7 +36,11 @@ echo ""
 # set -x
 echo "Executing unit-tests..."
 cd gateway
-python3 -W ignore::ResourceWarning -m unittest discover -s tests -v -p "*.py" > "$WORKSPACE/unit-tests.log" 2>&1
+#python3 -W ignore::ResourceWarning -m unittest discover -s tests -v -p "*.py" > "$WORKSPACE/unit-tests.log" 2>&1
+echo "lint"
+tox -elit
+echo "py39"
+tox -epy39
 
 exit_code=$?
 status="success"
