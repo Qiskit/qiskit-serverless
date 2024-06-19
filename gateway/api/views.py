@@ -63,7 +63,7 @@ if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
 
-class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ancestors
+class ProgramViewSet(viewsets.GenericViewSet):
     """
     Program ViewSet configuration using GenericViewSet.
     """
@@ -325,7 +325,7 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         return Response(job_serializer.data)
 
 
-class JobViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ancestors
+class JobViewSet(viewsets.GenericViewSet):
     """
     Job ViewSet configuration using GenericViewSet.
     """
