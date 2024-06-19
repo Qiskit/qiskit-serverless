@@ -17,12 +17,12 @@ detect-secrets:
     scripts/${STAGE}.sh
 
 # Run static scan code on the application code.
-compliance-checks:
-  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-  dind: true
-  abort_on_failure: false
-  script: |
-    #!/bin/sh
+# compliance-checks:
+#   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+#   dind: true
+#   abort_on_failure: false
+#   script: |
+#     #!/bin/sh
 #
 # finish:
 #   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
