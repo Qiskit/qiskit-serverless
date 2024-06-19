@@ -37,12 +37,12 @@ echo ""
 echo "Executing unit-tests..."
 cd gateway
 echo "install dependencies"
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+pip3 install -r requirements.txt
+pip3 install -r requirements-dev.txt
 echo "lint"
 pylint --load-plugins pylint_django --load-plugins pylint_django.checkers.migrations --django-settings-module=main.settings --ignore api.migrations -rn api main
 echo "test"
-python manage.py test
+python3 manage.py test
 
 
 #python3 -W ignore::ResourceWarning -m unittest discover -s tests -v -p "*.py" > "$WORKSPACE/unit-tests.log" 2>&1
