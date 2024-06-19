@@ -8,6 +8,7 @@ yum remove -y python3
 yum install -y python3.11
 yum install -y python3.11-pip
 
+pip3 install tox
 tox -elint
 #tox -epy311
 
