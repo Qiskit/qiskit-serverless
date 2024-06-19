@@ -3,47 +3,13 @@
 SCRIPT_NAME=$(basename $0)
 echo "Running ${SCRIPT_NAME}"
 
-#!/usr/bin/env bash
+yum update -y
+yum remove -y python3
+yum install -y python3.11
+yum install -y python3.11-pip
 
-# shellcheck disable=SC2230
-if ! which python3; then
-  echo "Installing Python 3..."
-  yum update -yq && yum install -yq python3-pip
-fi
-
-echo ""
-python3 --version
-echo ""
-
-# shellcheck disable=SC2230
-if ! which pip3; then
-  echo "Installing pip3..."
-  yum update -yq && yum install -yq python3-pip
-fi
-
-echo ""
-pip3 -V
-echo ""
-
-echo "Installing required modules..."
-pip3 install flask
-pip3 install prometheus_client
-pip3 install flasgger
-pip3 install ibmcloudenv
-pip3 install tox
-echo ""
-
-# set -x
-echo "Executing unit-tests..."
-cd gateway
-echo "install dependencies"
-pip3 install -r requirements.txt
-pip3 install -r requirements-dev.txt
-echo "lint"
-pylint --load-plugins pylint_django --load-plugins pylint_django.checkers.migrations --django-settings-module=main.settings --ignore api.migrations -rn api main
-echo "test"
-python3 manage.py test
-
+tox -elint
+#tox -epy311
 
 #python3 -W ignore::ResourceWarning -m unittest discover -s tests -v -p "*.py" > "$WORKSPACE/unit-tests.log" 2>&1
 
