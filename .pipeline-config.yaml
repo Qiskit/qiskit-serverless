@@ -21,7 +21,7 @@ compliance-checks:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   dind: true
   abort_on_failure: false
-  script:
+  script: |
     #!/bin/sh
 #
 # finish:
