@@ -302,40 +302,6 @@ class TestProgramApi(APITestCase):
                 found = True
         self.assertTrue(found)
 
-    def test_runtime_job(self):
-        """Tests run existing authorized."""
-
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
-        programs_response = self.client.get(
-            "/api/v1/runtime_jobs/",
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.json().get("count"), 3)
-
-        programs_response = self.client.delete(
-            "/api/v1/runtime_jobs/runtime_job_1/",
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_204_NO_CONTENT)
-
-        programs_response = self.client.get(
-            "/api/v1/runtime_jobs/",
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.json().get("count"), 2)
-
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
-        programs_response = self.client.get(
-            "/api/v1/runtime_jobs/",
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.json().get("count"), 1)
-
     def test_add_runtimejob(self):
         """Tests run existing authorized."""
 
@@ -349,16 +315,6 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-
-        programs_response = self.client.get(
-            "/api/v1/runtime_jobs/runtime_job_4/",
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            programs_response.json()["job"]["id"],
-            "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
-        )
 
     def test_list_runtimejob(self):
         user = models.User.objects.get(username="test_user")

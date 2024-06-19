@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 
 
 from api import views
-from api.models import Job, RuntimeJob
+from api.models import Job
 from api.permissions import IsOwner
 from . import serializers as v1_serializers
 
@@ -83,21 +83,3 @@ class FilesViewSet(views.FilesViewSet):
     """
 
     permission_classes = [permissions.IsAuthenticated, IsOwner]
-
-
-class RuntimeJobViewSet(views.RuntimeJobViewSet):  # pylint: disable=too-many-ancestors
-    """
-    RuntimeJob view set first version. Use RuntomeJobSerializer V1.
-    """
-
-    serializer_class = v1_serializers.RuntimeJobSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
-
-    def get_serializer_class(self):
-        return v1_serializers.RuntimeJobSerializer
-
-    def get_queryset(self):
-        # Allow unauthenticated users to read the swagger documentation
-        if self.request.user is None or not self.request.user.is_authenticated:
-            return RuntimeJob.objects.none()
-        return RuntimeJob.objects.all().filter(job__author=self.request.user)
