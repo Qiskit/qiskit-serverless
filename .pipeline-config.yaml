@@ -23,8 +23,10 @@ compliance-checks:
   abort_on_failure: false
   script: |
     #!/bin/sh
-    . /opt/commons/compliance-checks/run.sh
+    echo "cat run.sh"
     cat /opt/commons/compliance-checks/run.sh
+    echo "end of run.sh"
+    /opt/commons/compliance-checks/run.sh
 
 # finish:
 #   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
