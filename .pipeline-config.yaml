@@ -63,9 +63,9 @@ containerize:
   script: |
     #!/usr/bin/env bash
     
-    scripts/${STAGE}.sh
     source scripts/build_setup.sh
     source scripts/build.sh
+    scripts/${STAGE}.sh
 
 # Sign the built artifacts
 # sign-artifact:

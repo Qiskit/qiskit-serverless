@@ -103,4 +103,5 @@ fi
 
 # shellcheck disable=SC2034 # next sourced script is using it where this script is also sourced
 DOCKER_BUILD_ARGS="-t $IMAGE"
-
+echo "end of build_setup"
+echo $IMAGE
