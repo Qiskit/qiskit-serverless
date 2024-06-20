@@ -77,7 +77,8 @@ if [[ -f "/config/break_glass" ]]; then
   IMAGE="$ARTIFACTORY_REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
   jq -j --arg instance_id "$ARTIFACTORY_INTEGRATION_ID" '.services[] | select(.instance_id == $instance_id) | .parameters.token' /toolchain/toolchain.json | docker login -u "$(jq -r '.parameters.user_id' /config/artifactory)" --password-stdin "$(jq -r '.parameters.repository_url' /config/artifactory)"
 else
-  ICR_REGISTRY_NAMESPACE="$(cat /config/registry-namespace)"
+  # ICR_REGISTRY_NAMESPACE="$(cat /config/registry-namespace)"
+  ICR_REGISTRY_NAMESPACE="quantum-public"
   ICR_REGISTRY_DOMAIN="$(get_env registry-domain "")"
   if [ -z "$ICR_REGISTRY_DOMAIN" ]; then
     # Default to icr domain from registry-region
