@@ -9,37 +9,37 @@ fi
 
 get-icr-region() {
   case "$1" in
-    ibm:yp:us-south)
+    ibm:sps-quantum:us-south)
       echo us
       ;;
-    ibm:yp:us-east)
+    ibm:sps-quantum:us-east)
       echo us
       ;;
-    ibm:yp:eu-de)
+    ibm:sps-quantum:eu-de)
       echo de
       ;;
-    ibm:yp:eu-gb)
+    ibm:sps-quantum:eu-gb)
       echo uk
       ;;
-    ibm:yp:eu-es)
+    ibm:sps-quantum:eu-es)
       echo es
       ;;
-    ibm:yp:jp-tok)
+    ibm:sps-quantum:jp-tok)
       echo jp
       ;;
-    ibm:yp:jp-osa)
+    ibm:sps-quantum:jp-osa)
       echo jp2
       ;;
-    ibm:yp:au-syd)
+    ibm:sps-quantum:au-syd)
       echo au
       ;;
-    ibm:yp:br-sao)
+    ibm:sps-quantum:br-sao)
       echo br
       ;;
-    ibm:yp:eu-fr2)
+    ibm:sps-quantum:eu-fr2)
       echo fr2
       ;;
-    ibm:yp:ca-tor)
+    ibm:sps-quantum:ca-tor)
       echo ca
       ;;
     stg)
