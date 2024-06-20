@@ -10,12 +10,7 @@ docker push "${GATEWAY_IMAGE}"
 docker push "${PROXY_IMAGE}"
 docker push "${RAY_NODE_IMAGE}"
 
-DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}" | awk -F@ '{print $2}')"
-
-#
-# Save the artifact to the pipeline, 
-# so it can be scanned and signed later
-#
+DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "${GATEWAY_IMAGE}" | awk -F@ '{print $2}')"
 save_artifact gateway-image \
     type=image \
     "name=${GATEWAY_IMAGE}" \
@@ -28,6 +23,8 @@ sha="$(load_repo app-repo commit)"
 save_artifact gateway-image \
 "source=${url}.git#${sha}"
 
+
+DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "${PROXY_IMAGE}" | awk -F@ '{print $2}')"
 save_artifact proxy-image \
     type=image \
     "name=${PROXY_IMAGE}" \
@@ -40,6 +37,8 @@ sha="$(load_repo app-repo commit)"
 save_artifact proxy-image \
 "source=${url}.git#${sha}"
 
+
+DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "${RAY_NODE_IMAGE}" | awk -F@ '{print $2}')"
 save_artifact ray-node-image \
     type=image \
     "name=${RAY_NODE_IMAGE}" \
