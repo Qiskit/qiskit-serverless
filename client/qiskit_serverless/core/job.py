@@ -414,7 +414,7 @@ class GatewayJobClient(BaseJobClient):
                 )
             else:
                 raise QiskitServerlessException(
-                    "Function must either have `entryoint` or `image` specified."
+                    "Function must either have `entrypoint` or `image` specified."
                 )
 
         return program_title
