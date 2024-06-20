@@ -3,9 +3,9 @@
 set -euo pipefail
 
 # shellcheck disable=SC2086
-docker build $GATEWAY_DOCKER_BUILD_ARGS .
-docker build $PROXY_DOCKER_BUILD_ARGS .
-docker build $RAY_NODE_DOCKER_BUILD_ARGS .
+docker build $GATEWAY_DOCKER_BUILD_ARGS -f ./gateway/Dockerfile .
+docker build $PROXY_DOCKER_BUILD_ARGS -f ./proxy/Dockerfile .
+docker build $RAY_NODE_DOCKER_BUILD_ARGS -f Dockerfile-ray-node .
 docker push "${GATEWAY_IMAGE}"
 docker push "${PROXY_IMAGE}"
 docker push "${RAY_NODE_IMAGE}"
