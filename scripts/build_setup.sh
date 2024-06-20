@@ -56,6 +56,8 @@ get-icr-region() {
 # add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 # apt-get update && apt-get install docker-ce-cli
 
+find /config
+
 IBMCLOUD_API=$(get_env ibmcloud-api "https://cloud.ibm.com")
 
 if [[ -s "/config/repository" ]]; then
