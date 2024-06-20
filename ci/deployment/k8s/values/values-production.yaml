@@ -61,6 +61,7 @@ gateway:
       replicas: 1
       minReplicas: 1
       maxReplicas: 2
+      useTLS: false
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 20
@@ -97,6 +98,9 @@ kuberay-operator:
     repository: kuberay/operator
     tag: v1.0.0
     pullPolicy: IfNotPresent
+  env:
+    - name: ENABLE_INIT_CONTAINER_INJECTION
+      value: "false"
 
 # ===================
 # PostgreSQL
