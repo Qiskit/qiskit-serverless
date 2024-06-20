@@ -56,8 +56,6 @@ get-icr-region() {
 # add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 # apt-get update && apt-get install docker-ce-cli
 
-find /config
-
 IBMCLOUD_API=$(get_env ibmcloud-api "https://cloud.ibm.com")
 
 if [[ -s "/config/repository" ]]; then
@@ -69,7 +67,7 @@ fi
 #IMAGE_NAME="$(get_env image-name "$(basename "$REPOSITORY" .git)")"
 GATEWAY_IMAGE_NAME="$(get_env image-name "$(basename "$REPOSITORY" .git)")-gateway"
 PROXY_IMAGE_NAME="$(get_env image-name "$(basename "$REPOSITORY" .git)")-proxy"
-RAY_NODE__IMAGE_NAME="$(get_env image-name "$(basename "$REPOSITORY" .git)")-ray_node"
+RAY_NODE_IMAGE_NAME="$(get_env image-name "$(basename "$REPOSITORY" .git)")-ray_node"
 IMAGE_TAG="$(date +%Y%m%d%H%M%S)-$(cat /config/git-branch | tr -c '[:alnum:]_.-' '_')-$(cat /config/git-commit)"
 IMAGE_TAG=${IMAGE_TAG////_}
 
@@ -81,9 +79,9 @@ if [ -z "$ICR_REGISTRY_DOMAIN" ]; then
   ICR_REGISTRY_REGION="$(get-icr-region "$(cat /config/registry-region)")"
   ICR_REGISTRY_DOMAIN="$ICR_REGISTRY_REGION.icr.io"
 fi
-GATEWY_IMAGE="$ICR_REGISTRY_DOMAIN/$ICR_REGISTRY_NAMESPACE/$GATEWAY_IMAGE_NAME:$IMAGE_TAG"
+GATEWAY_IMAGE="$ICR_REGISTRY_DOMAIN/$ICR_REGISTRY_NAMESPACE/$GATEWAY_IMAGE_NAME:$IMAGE_TAG"
 PROXY_IMAGE="$ICR_REGISTRY_DOMAIN/$ICR_REGISTRY_NAMESPACE/$PROXY_IMAGE_NAME:$IMAGE_TAG"
-RAY_NODE_IMAGE="$ICR_REGISTRY_DOMAIN/$ICR_REGISTRY_NAMESPACE/$RAY_NODEIMAGE_NAME:$IMAGE_TAG"
+RAY_NODE_IMAGE="$ICR_REGISTRY_DOMAIN/$ICR_REGISTRY_NAMESPACE/$RAY_NODE_IMAGE_NAME:$IMAGE_TAG"
 docker login -u iamapikey --password-stdin "$ICR_REGISTRY_DOMAIN" < /config/api-key
 
 # Create the namespace if needed to ensure the push will be can be successfull
