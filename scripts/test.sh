@@ -11,7 +11,7 @@ yum install -y python3.11-pip
 pip3 install tox
 
 cd gateway
-tox -elint
+tox -elint > "$WORKSPACE/unit-tests.log" 2>&1 
 #tox -epy311
 
 #python3 -W ignore::ResourceWarning -m unittest discover -s tests -v -p "*.py" > "$WORKSPACE/unit-tests.log" 2>&1
