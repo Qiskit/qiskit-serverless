@@ -48,7 +48,7 @@ save_artifact ray-node-image \
 url="$(load_repo app-repo url)"
 sha="$(load_repo app-repo commit)"
 
-save_artifact ray_node-image \
+save_artifact ray-node-image \
 "source=${url}.git#${sha}"
 
 # optional tags
