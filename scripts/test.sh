@@ -3,6 +3,9 @@
 SCRIPT_NAME=$(basename $0)
 echo "Running ${SCRIPT_NAME}"
 
+python -V
+pip3 install tox
+
 cd gateway
 tox -elint > "$WORKSPACE/unit-tests.log" 2>&1 
 #tox -epy311
