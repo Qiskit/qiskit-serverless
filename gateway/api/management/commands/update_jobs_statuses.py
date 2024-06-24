@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 
 from api.models import Job
 from api.ray import get_job_handler
-from api.schedule import check_job_timeout, handle_job_status_not_available
+from api.schedule import check_job_timeout, handle_job_status_not_available, fail_job_insufficient_resources
 from api.utils import ray_job_status_to_model_job_status, check_logs
 
 logger = logging.getLogger("commands")
@@ -57,6 +57,14 @@ class Command(BaseCommand):
                 if job_handler:
                     logs = job_handler.logs(job.ray_job_id)
                     job.logs = check_logs(logs, job)
+                    # check if job is resource constrained
+                    no_resources_log = "No available node types can fulfill resource request"
+                    if no_resources_log in logs:
+                        job_status = fail_job_insufficient_resources(job)
+                        job.status = job_status
+                        # cleanup env vars
+                        if job.in_terminal_state():
+                            job.env_vars = "{}"
 
                 try:
                     job.save()
