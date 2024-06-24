@@ -45,7 +45,8 @@ unit-tests:
 
 # Run unit tests and application tests on application code.
 test:
-  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  image: icr.io/sps-quantum/sps-qiskit-serverless:5ab6772e45e48c5bb8cd9f23b27db2d9951c0dc6
+  #image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   abort_on_failure: false
   script: |
     scripts/${STAGE}.sh
