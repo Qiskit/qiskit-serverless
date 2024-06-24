@@ -61,16 +61,15 @@ class Command(BaseCommand):
                 if job_handler:
                     logs = job_handler.logs(job.ray_job_id)
                     job.logs = check_logs(logs, job)
-                    # check if job is resource constrained
-                    no_resources_log = (
-                        "No available node types can fulfill resource request"
-                    )
-                    if no_resources_log in logs:
-                        job_status = fail_job_insufficient_resources(job)
-                        job.status = job_status
-                        # cleanup env vars
-                        if job.in_terminal_state():
-                            job.env_vars = "{}"
+                # check if job is resource constrained
+                no_resources_log = (
+                    "No available node types can fulfill resource request"
+                )
+                if no_resources_log in logs:
+                    job_status = fail_job_insufficient_resources(job)
+                    job.status = job_status
+                    # cleanup env vars
+                    job.env_vars = "{}"
 
                 try:
                     job.save()
