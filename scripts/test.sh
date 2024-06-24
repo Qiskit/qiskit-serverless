@@ -3,6 +3,13 @@
 SCRIPT_NAME=$(basename $0)
 echo "Running ${SCRIPT_NAME}"
 
+yum update -y
+yum remove -y python3
+yum install -y python3.11
+yum install -y python3.11-pip
+
+pip3 install tox
+
 cd gateway
 tox -elint > "$WORKSPACE/unit-tests.log" 2>&1 
 #tox -epy311
