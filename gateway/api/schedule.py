@@ -184,4 +184,5 @@ def fail_job_insufficient_resources(job: Job):
         job.compute_resource = None
 
     job_status = Job.FAILED
+    job.logs = "Insufficient resources available to the run job in this configuration."
     return job_status
