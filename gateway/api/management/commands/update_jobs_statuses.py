@@ -10,7 +10,7 @@ from api.ray import get_job_handler
 from api.schedule import (
     check_job_timeout,
     handle_job_status_not_available,
-    fail_job_insufficient_resources
+    fail_job_insufficient_resources,
 )
 from api.utils import ray_job_status_to_model_job_status, check_logs
 
