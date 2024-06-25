@@ -74,6 +74,8 @@ spec:
             httpGet:
               path: /liveness
               port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /readiness
