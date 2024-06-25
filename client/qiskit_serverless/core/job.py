@@ -784,7 +784,10 @@ def _upload_with_artifact(
     artifact_file_path = os.path.join(program.working_dir, "artifact.tar")
 
     # check if entrypoint exists
-    if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
+    if (
+        not os.path.exists(os.path.join(program.working_dir, program.entrypoint))
+        or program.entrypoint[0] == "/"
+    ):
         raise QiskitServerlessException(
             f"Entrypoint file [{program.entrypoint}] does not exist "
             f"in [{program.working_dir}] working directory."
