@@ -24,6 +24,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # update job statuses
+        #pylint: disable=too-many-branches
         updated_jobs_counter = 0
         jobs = Job.objects.filter(status__in=Job.RUNNING_STATES)
         for job in jobs:
