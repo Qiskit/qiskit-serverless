@@ -6,7 +6,7 @@ dj-rest-auth>=5.0.2
 django-csp>=3.8
 djangorestframework-simplejwt>=5.3.1
 django_prometheus>=2.3.1
-ray[default]>=2.20.0, <3
+ray[default]>=2.30.0, <3
 Django>=4.2.11
 gunicorn>=22.0.0
 requests>=2.32.2
@@ -20,4 +20,3 @@ cryptography>=41.0.7
 # Django dependency, but we need a newer version (IBMQ#246)
 sqlparse>=0.5.0
 qiskit_ibm_runtime>=0.22.0
-
