@@ -77,7 +77,7 @@ def do_post(path):  # pylint: disable=unused-argument disable=too-many-locals
     data = request.get_data()
     job_request = request.path.find("/runtime/jobs") != -1
     middleware_job_id = None
-    token = "awesome_token"
+    token = ""
     if job_request:
         if "X-Qx-Client-Application" in request.headers:
             qiskit_header = request.headers["X-Qx-Client-Application"]
@@ -99,8 +99,7 @@ def do_post(path):  # pylint: disable=unused-argument disable=too-many-locals
                 )
                 token_end = qiskit_header.find("/", token_begin)
                 token = qiskit_header[token_begin:token_end]
-                sanitized = token.replace("\n", "").replace("\r", "")
-                logging.debug("gateway token: %s", sanitized)
+                logging.debug("gateway token found")
 
     resp = None
     retry = 5
