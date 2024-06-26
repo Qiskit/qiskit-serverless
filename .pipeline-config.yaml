@@ -11,11 +11,11 @@ setup:
     scripts/${STAGE}.sh
 
 # Run detect secrets scan on the application code
-# detect-secrets:
-#  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-#  script: |
-#    scripts/${STAGE}.sh
-#
+detect-secrets:
+ image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+ script: |
+   scripts/${STAGE}.sh
+
 # Run static scan code on the application code.
 # compliance-checks:
 #    image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
