@@ -17,12 +17,15 @@ detect-secrets:
    scripts/${STAGE}.sh
 
 # Run static scan code on the application code.
-# compliance-checks:
-#    image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-#    dind: true
-#    abort_on_failure: false
-#    script: |
-#      #!/bin/sh
+compliance-checks:
+  #image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  image: us.icr.io/sps-quantum/sps-qiskit-serverless:5ab6772e45e48c5bb8cd9f23b27db2d9951c0dc6
+  dind: true
+  abort_on_failure: false
+  script: |
+    #!/bin/sh
+    "/opt/commons/compliance-checks/run.sh"
+
 #
 # finish:
 #   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
