@@ -346,7 +346,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     if delete_response.status == "Success":
         success = True
     else:
-        sanitized = delete_response.text.replace('\n', '').replace('\r', '')
+        sanitized = delete_response.text.replace("\n", "").replace("\r", "")
         logger.error(
             "Something went wrong during ray cluster deletion request: %s",
             sanitized,

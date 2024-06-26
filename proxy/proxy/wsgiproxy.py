@@ -37,8 +37,8 @@ def handle_response(resp):
     status = resp.status_code
     if resp.content and len(resp.content) != 0:
         response = resp.content
-        sanitized = response.replace('\n', '').replace('\r', '') 
-        logging.debug("Recieved response content: %s", sanitized.decode("utf-8"))
+        sanitized = response.decode("utf-8").replace("\n", "").replace("\r", "")
+        logging.debug("Recieved response content: %s", sanitized)
         if (
             "content-encoding" in resp.headers
             and resp.headers["content-encoding"] == "gzip"
@@ -50,7 +50,7 @@ def handle_response(resp):
             logging.debug("header: %s, %s", header, resp.headers[header])
             headers.add(header, resp.headers[header])
     if response and len(response) != 0:
-        sanitized = response.replace('\n', '').replace('\r', '') 
+        sanitized = response.decode("utf-8").replace("\n", "").replace("\r", "")
         logging.debug("Sending response content: %s", sanitized)
     return Response(
         response=response, headers=headers, status=status, direct_passthrough=True
@@ -69,7 +69,7 @@ def do_get(path):  # pylint: disable=unused-argument
 
 
 @app.route("/<path:path>", methods=["POST"])
-def do_post(path):  # pylint: disable=unused-argument
+def do_post(path):  # pylint: disable=unused-argument disable=too-many-locals
     """do_post"""
     logging.debug("POST")
     url = request.url
@@ -99,7 +99,7 @@ def do_post(path):  # pylint: disable=unused-argument
                 )
                 token_end = qiskit_header.find("/", token_begin)
                 token = qiskit_header[token_begin:token_end]
-                sanitized = token.replace('\n', '').replace('\r', '')
+                sanitized = token.replace("\n", "").replace("\r", "")
                 logging.debug("gateway token: %s", sanitized)
 
     resp = None
@@ -116,8 +116,8 @@ def do_post(path):  # pylint: disable=unused-argument
 
     if job_request and middleware_job_id:
         jsondata = json.loads(resp.content.decode("utf-8"))
-        sanitized = jsondata.replace('\n', '').replace('\r', '')
-        logging.debug("job id: %s", sanitized["id"])
+        sanitized = jsondata["id"].replace("\n", "").replace("\r", "")
+        logging.debug("job id: %s", sanitized)
 
         headers = {
             "Content-Type": "application/json",
@@ -129,7 +129,6 @@ def do_post(path):  # pylint: disable=unused-argument
             json={"runtime_job": jsondata["id"]},
             timeout=TIMEOUT,
         )
-        sanitized = gateway_resp.replace('\n', '').replace('\r', '')
-        logging.debug("Gateway API Response: %s", sanitized)
+        logging.debug("response from gateway api: %s", gateway_resp.status_code)
     logging.debug("response from backend: %s", resp.status_code)
     return handle_response(resp)
