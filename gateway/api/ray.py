@@ -8,6 +8,7 @@ import tarfile
 import time
 import uuid
 from typing import Optional
+from time import sleep
 
 import requests
 import yaml
@@ -199,6 +200,62 @@ def submit_job(job: Job) -> Job:
     job.status = Job.PENDING
 
     return job
+
+
+def create_ray_job(
+    job: Job,
+    cluster_name: Optional[str] = None,
+    cluster_data: Optional[str] = None,
+) -> Optional[str]:
+    """Create ray job.
+
+    This is still WIP and only runs a sample job.
+    """
+
+    namespace = settings.RAY_KUBERAY_NAMESPACE
+    jobtemplate = get_template("rayjobtemplate.yaml")
+    manifest = jobtemplate.render()
+    cluster_data = yaml.safe_load(manifest)
+
+    config.load_incluster_config()
+    k8s_client = kubernetes_client.api_client.ApiClient()
+    dyn_client = DynamicClient(k8s_client)
+    raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayJob")
+    response = raycluster_client.create(body=cluster_data, namespace=namespace)
+    ray_job_name = response.metadata.name
+
+    logger.debug(f"Ray Job name is {ray_job_name}")
+
+    # Get cluster name
+    api_instance = kubernetes_client.CustomObjectsApi(k8s_client)
+    group = "ray.io"
+    version = "v1"
+    namespace = "default"
+    plural = "rayjobs"
+
+    status = False
+    while not status:
+        try:
+            print("getting status of rayjob")
+            api_response = api_instance.get_namespaced_custom_object_status(
+                group, version, namespace, plural, ray_job_name
+            )
+            if "status" in api_response.keys():
+                status = True
+                cluster_name = api_response["status"]["rayClusterName"]
+                job.status = api_response["status"]["jobStatus"]
+            else:
+                sleep(1)
+        except ApiException as e:
+            print("Exception when getting RayJob status: %s\n" % e)
+
+    resource = None
+    if status and cluster_name:
+        resource = ComputeResource()
+        resource.owner = job.author
+        resource.title = cluster_name
+        resource.save()
+    return resource
 
 
 def create_ray_cluster(

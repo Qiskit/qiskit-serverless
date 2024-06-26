@@ -6,9 +6,9 @@ from concurrency.exceptions import RecordModifiedError
 from django.core.management.base import BaseCommand
 
 from api.models import Job
-from api.ray import get_job_handler
-from api.schedule import check_job_timeout, handle_job_status_not_available
-from api.utils import ray_job_status_to_model_job_status, check_logs
+from kubernetes import client as kubernetes_client, config
+from kubernetes.client.exceptions import ApiException
+
 
 logger = logging.getLogger("commands")
 
@@ -23,22 +23,31 @@ class Command(BaseCommand):
         updated_jobs_counter = 0
         jobs = Job.objects.filter(status__in=Job.RUNNING_STATES)
         for job in jobs:
+            job_status = Job.PENDING
             if job.compute_resource:
-                job_status = Job.PENDING
-                success = True
-                job_handler = get_job_handler(job.compute_resource.host)
-                if job_handler:
-                    ray_job_status = job_handler.status(job.ray_job_id)
-                    if ray_job_status:
-                        job_status = ray_job_status_to_model_job_status(ray_job_status)
-                    else:
-                        success = False
-                else:
-                    success = False
+                # get rayjob status
+                # TODO make util function
+                config.load_incluster_config()
+                k8s_client = kubernetes_client.api_client.ApiClient()
+                ray_job_name = "rayjob-sample"  # TODO don't hardcode
 
-                job_status = check_job_timeout(job, job_status)
-                if not success:
-                    job_status = handle_job_status_not_available(job, job_status)
+                # Get cluster name
+                api_instance = kubernetes_client.CustomObjectsApi(k8s_client)
+                group = "ray.io"
+                version = "v1"
+                namespace = "default"
+                plural = "rayjobs"
+
+                try:
+                    api_response = api_instance.get_namespaced_custom_object_status(
+                        group, version, namespace, plural, ray_job_name
+                    )
+                    logger.debug(
+                        f"new job status is {api_response["status"]["jobStatus"]}"
+                    )
+                    job_status = api_response["status"]["jobStatus"]
+                except ApiException as e:
+                    print("Exception when getting RayJob status: %s\n" % e)
 
                 if job_status != job.status:
                     logger.info(
@@ -54,9 +63,7 @@ class Command(BaseCommand):
                     if job.in_terminal_state():
                         job.env_vars = "{}"
 
-                if job_handler:
-                    logs = job_handler.logs(job.ray_job_id)
-                    job.logs = check_logs(logs, job)
+                # TODO update logs on errors?
 
                 try:
                     job.save()
