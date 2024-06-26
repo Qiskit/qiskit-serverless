@@ -37,7 +37,8 @@ def handle_response(resp):
     status = resp.status_code
     if resp.content and len(resp.content) != 0:
         response = resp.content
-        logging.debug("Recieved response content: %s", response.decode("utf-8"))
+        sanitized = response.replace('\n', '').replace('\r', '') 
+        logging.debug("Recieved response content: %s", sanitized.decode("utf-8"))
         if (
             "content-encoding" in resp.headers
             and resp.headers["content-encoding"] == "gzip"
@@ -49,7 +50,8 @@ def handle_response(resp):
             logging.debug("header: %s, %s", header, resp.headers[header])
             headers.add(header, resp.headers[header])
     if response and len(response) != 0:
-        logging.debug("Sending response content: %s", response)
+        sanitized = response.replace('\n', '').replace('\r', '') 
+        logging.debug("Sending response content: %s", sanitized)
     return Response(
         response=response, headers=headers, status=status, direct_passthrough=True
     )
@@ -97,7 +99,8 @@ def do_post(path):  # pylint: disable=unused-argument
                 )
                 token_end = qiskit_header.find("/", token_begin)
                 token = qiskit_header[token_begin:token_end]
-                logging.debug("gateway token: %s", token)
+                sanitized = token.replace('\n', '').replace('\r', '')
+                logging.debug("gateway token: %s", sanitized)
 
     resp = None
     retry = 5
@@ -113,7 +116,8 @@ def do_post(path):  # pylint: disable=unused-argument
 
     if job_request and middleware_job_id:
         jsondata = json.loads(resp.content.decode("utf-8"))
-        logging.debug("job id: %s", jsondata["id"])
+        sanitized = jsondata.replace('\n', '').replace('\r', '')
+        logging.debug("job id: %s", sanitized["id"])
 
         headers = {
             "Content-Type": "application/json",
@@ -125,6 +129,7 @@ def do_post(path):  # pylint: disable=unused-argument
             json={"runtime_job": jsondata["id"]},
             timeout=TIMEOUT,
         )
-        logging.debug("Gateway API Response: %s", gateway_resp)
+        sanitized = gateway_resp.replace('\n', '').replace('\r', '')
+        logging.debug("Gateway API Response: %s", sanitized)
     logging.debug("response from backend: %s", resp.status_code)
     return handle_response(resp)

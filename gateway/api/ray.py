@@ -346,9 +346,10 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     if delete_response.status == "Success":
         success = True
     else:
+        sanitized = delete_response.text.replace('\n', '').replace('\r', '')
         logger.error(
             "Something went wrong during ray cluster deletion request: %s",
-            delete_response.text,
+            sanitized,
         )
     try:
         cert_client = dyn_client.resources.get(api_version="v1", kind="Certificate")

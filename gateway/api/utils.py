@@ -205,14 +205,14 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
     response = None
     try:
         response = request()
-    except Exception as request_exception:  # pylint: disable=broad-exception-caught
-        logger.error(request_exception)
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.error("Exception sending request in safe_request")
 
     if response is not None and response.ok:
         try:
             result = json.loads(response.text)
-        except Exception as json_exception:  # pylint: disable=broad-exception-caught
-            logger.error(json_exception)
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.error("Response is not valid json in safe_request")
     if response is not None and not response.ok:
         logger.error("%d : %s", response.status_code, response.text)
 
