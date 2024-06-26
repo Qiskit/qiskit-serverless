@@ -68,7 +68,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             title_split = self.title.split("/")
             if len(title_split) > 2:
                 raise ValueError("Invalid title: it can only contain one slash.")
-            if self.provider != title_split[0]:
+            if self.provider != title_split[0] and self.provider is not None:
                 raise ValueError(
                     "Invalid provider: you provided two different "
                     + f"providers [{self.provider}] and [{title_split[0]}]."
