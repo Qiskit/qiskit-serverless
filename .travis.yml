@@ -18,10 +18,6 @@ stages:
     if: type IN (push,api) AND branch = staging
   - name: deploy production
     if: type IN (push,api) AND branch = production
-  - name: ASoC static security scan
-    if: type IN (cron,api)
-  - name: ASoC dynamic security scan
-    if: type IN (cron,api)
 
 jobs:
   include:
@@ -116,19 +112,3 @@ jobs:
         - ENVIRONMENT: production
       script:
         - make helm/deploy
-
-    - stage: ASoC static security scan
-      name: security/asoc-static
-      language: minimal
-      install: skip
-      services: docker
-      script:
-        - make docker/asoc-static-scan
-
-    - stage: ASoC dynamic security scan
-      name: security/asoc-dynamic
-      language: minimal
-      install: skip
-      services: docker
-      script:
-        - make docker/asoc-dynamic-scan
