@@ -17,7 +17,6 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include, re_path
-from django.views.generic import TemplateView
 from rest_framework import routers, permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -61,10 +60,6 @@ if settings.DEBUG:
         re_path(
             r"^redoc/$", schema.with_ui("redoc", cache_timeout=0), name="schema-redoc"
         ),
-        path(
-            "DomainVerification.html",
-            TemplateView.as_view(template_name="DomainVerification.html"),
-        ),
     ]
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
@@ -75,8 +70,4 @@ else:
         path("version/", version.views.version, name="version"),
         path("", include("django_prometheus.urls")),
         re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
-        path(
-            "DomainVerification.html",
-            TemplateView.as_view(template_name="DomainVerification.html"),
-        ),
     ]

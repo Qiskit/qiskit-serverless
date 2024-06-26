@@ -110,6 +110,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         instance.artifact = validated_data.get("artifact")
         instance.author = validated_data.get("author")
         instance.image = validated_data.get("image")
+        instance.description = validated_data.get("description")
         instance.save()
         return instance
 

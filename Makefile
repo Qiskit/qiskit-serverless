@@ -14,9 +14,9 @@ else
 	arch="amd64"
 endif
 
-rayNodeImageName=$(repository)/qiskit-serverless-ray-node
-gatewayImageName=$(repository)/qiskit-serverless-gateway
-proxyImageName=$(repository)/qiskit-serverless-proxy
+rayNodeImageName=$(repository)/qiskit-serverless/ray-node
+gatewayImageName=$(repository)/qiskit-serverless/gateway
+proxyImageName=$(repository)/qiskit-serverless/proxy
 
 # =============
 # Docker images
