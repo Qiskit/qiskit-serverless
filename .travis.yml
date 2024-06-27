@@ -14,8 +14,8 @@ stages:
     if: type IN (pull_request)
   - name: docker release
     if: type IN (push, api) AND (branch = staging OR branch = production)
-  - name: deploy staging
-    if: type IN (push,api) AND branch = staging
+  # - name: deploy staging
+  #   if: type IN (push,api) AND branch = staging
   - name: deploy production
     if: type IN (push,api) AND branch = production
 
@@ -93,15 +93,15 @@ jobs:
       script:
         - make docker/release-selector
 
-    - stage: deploy staging
-      name: deploy/staging
-      language: minimal
-      install: skip
-      services: docker
-      env:
-        - ENVIRONMENT: staging
-      script:
-        - make helm/deploy
+    # - stage: deploy staging
+    #   name: deploy/staging
+    #   language: minimal
+    #   install: skip
+    #   services: docker
+    #   env:
+    #     - ENVIRONMENT: staging
+    #   script:
+    #     - make helm/deploy
 
     - stage: deploy production
       name: deploy/production
