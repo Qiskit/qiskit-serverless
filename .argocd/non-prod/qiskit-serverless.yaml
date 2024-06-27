@@ -11,7 +11,7 @@ spec:
           # Source
           repo: https://github.ibm.com/IBM-Q-Software/qiskit-serverless/
           path: charts/qiskit-serverless
-          revision: 0.12.0
+          revision: staging
           valuesFile: ci/deployment/k8s/values/values-staging.yaml
           # Destination
           cluster: qiskit-serverless-staging
