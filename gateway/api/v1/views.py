@@ -5,15 +5,15 @@ Views api for V1.
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
 from rest_framework.decorators import action
+from rest_framework.pagination import LimitOffsetPagination
 
 
 from api import views
-from api.models import Job, RuntimeJob
 from api.permissions import IsOwner
 from . import serializers as v1_serializers
 
 
-class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestors
+class ProgramViewSet(views.ProgramViewSet):
     """
     Quantum function view set first version. Use ProgramSerializer V1.
     """
@@ -39,14 +39,14 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
         return v1_serializers.RunJobSerializer(*args, **kwargs)
 
     @swagger_auto_schema(
-        operation_description="List author Qiskit Patterns",
+        operation_description="List author Qiskit Functions",
         responses={status.HTTP_200_OK: v1_serializers.ProgramSerializer(many=True)},
     )
     def list(self, request):
         return super().list(request)
 
     @swagger_auto_schema(
-        operation_description="Upload a Qiskit Pattern",
+        operation_description="Upload a Qiskit Function",
         request_body=v1_serializers.UploadProgramSerializer,
         responses={status.HTTP_200_OK: v1_serializers.UploadProgramSerializer},
     )
@@ -55,7 +55,7 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
         return super().upload(request)
 
     @swagger_auto_schema(
-        operation_description="Run an existing Qiskit Pattern",
+        operation_description="Run an existing Qiskit Function",
         request_body=v1_serializers.RunProgramSerializer,
         responses={status.HTTP_200_OK: v1_serializers.RunJobSerializer},
     )
@@ -64,17 +64,41 @@ class ProgramViewSet(views.ProgramViewSet):  # pylint: disable=too-many-ancestor
         return super().run(request)
 
 
-class JobViewSet(views.JobViewSet):  # pylint: disable=too-many-ancestors
+class JobViewSet(views.JobViewSet):
     """
     Job view set first version. Use JobSerializer V1.
     """
 
-    queryset = Job.objects.all()
     serializer_class = v1_serializers.JobSerializer
+    pagination_class = LimitOffsetPagination
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
     def get_serializer_class(self):
         return v1_serializers.JobSerializer
+
+    @swagger_auto_schema(
+        operation_description="Get author Job",
+        responses={status.HTTP_200_OK: v1_serializers.JobSerializer(many=False)},
+    )
+    def retrieve(self, request, pk=None):
+        return super().retrieve(request, pk)
+
+    @swagger_auto_schema(
+        operation_description="List author Jobs",
+        responses={status.HTTP_200_OK: v1_serializers.JobSerializer(many=True)},
+    )
+    def list(self, request):
+        return super().list(request)
+
+    @swagger_auto_schema(
+        operation_description="Save the result of a job",
+        responses={status.HTTP_200_OK: v1_serializers.JobSerializer(many=False)},
+    )
+    @action(methods=["POST"], detail=True)
+    def result(self, request, pk=None):
+        return super().result(request, pk)
+
+    ### We are not returning serializers in the rest of the end-points
 
 
 class FilesViewSet(views.FilesViewSet):
@@ -83,21 +107,3 @@ class FilesViewSet(views.FilesViewSet):
     """
 
     permission_classes = [permissions.IsAuthenticated, IsOwner]
-
-
-class RuntimeJobViewSet(views.RuntimeJobViewSet):  # pylint: disable=too-many-ancestors
-    """
-    RuntimeJob view set first version. Use RuntomeJobSerializer V1.
-    """
-
-    serializer_class = v1_serializers.RuntimeJobSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
-
-    def get_serializer_class(self):
-        return v1_serializers.RuntimeJobSerializer
-
-    def get_queryset(self):
-        # Allow unauthenticated users to read the swagger documentation
-        if self.request.user is None or not self.request.user.is_authenticated:
-            return RuntimeJob.objects.none()
-        return RuntimeJob.objects.all().filter(job__author=self.request.user)

@@ -32,3 +32,4 @@ Qiskit Serverless utilities
 from .json import JsonSerializable
 from .errors import ErrorCodes
 from .storage import S3Storage, BaseStorage
+from .runtime_service_client import ServerlessRuntimeService

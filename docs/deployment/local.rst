@@ -29,7 +29,7 @@ on your local machine straightforward. The first thing we will do is clone the r
    :caption: Clone the Qiskit Serverless repository.
 
       cd /path/to/workspace/
-      git clone git@github.com:Qiskit-Extensions/qiskit-serverless.git
+      git clone git@github.com:Qiskit/qiskit-serverless.git
 
 Step 2: Set up Docker
 

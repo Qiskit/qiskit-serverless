@@ -91,30 +91,6 @@ docker/release: docker/build ## Builds and release over the Docker registry the 
 	@echo "Pushing: $(DOCKER_IMAGE):$(IMAGE_TAG)"
 	@docker image push $(DOCKER_IMAGE):$(IMAGE_TAG)
 
-.PHONY: docker/asoc-static-scan
-docker/asoc-static-scan: 
-	@docker run \
-		-e KeyId=${ASOC_KEY_ID} \
-		-e KeySecret=${ASOC_KEY_SECRET} \
-		-e GitToken=${ASOC_GIT_TOKEN} \
-		-v $(PWD)/ci/asoc/AsocStaticConfig:/asoc/AsocConfig \
-		-v $(PWD):/asoc/StaticScan \
-		-w /asoc \
-		icr.io/quantum-public/asoc-automation:latest \
-		/asoc/appscanBash.sh
-
-.PHONY: docker/asoc-dynamic-scan
-docker/asoc-dynamic-scan: 
-	@docker run \
-		-e KeyId=${ASOC_KEY_ID} \
-		-e KeySecret=${ASOC_KEY_SECRET} \
-		-e GitToken=${ASOC_GIT_TOKEN} \
-		-v $(PWD)/ci/asoc/AsocDynamicConfig:/asoc/AsocConfig \
-		-v $(PWD)/ci/asoc/DAST_CurlCommands.sh:/asoc/DAST_CurlCommands.sh \
-		-w /asoc \
-		icr.io/quantum-public/asoc-automation:latest \
-		/asoc/appscanBash.sh
-
 .PHONY: helm/check
 helm/check: SHELL := $(DTB_SHELL)
 helm/check: docker/login ## Helm check (template)
