@@ -21,6 +21,15 @@ jobs:
         with:
           k8s-version: 1.28.x
           kind-worker-count: 0
+      - name: setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install dependencies
+        run: |
+          cd client
+          pip install . --no-cache-dir
+          pip install nbmake pytest
       - name: Build and load gateway
         run: |
           docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
@@ -55,15 +64,6 @@ jobs:
             .
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
           kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
-      - name: setup python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.11
-      - name: Install dependencies
-        run: |
-          cd client
-          pip install . --no-cache-dir
-          pip install nbmake pytest
       - name: Run tests
         run: |
           kubectl patch svc gateway -p '{"spec": {"type": "LoadBalancer"}}'
