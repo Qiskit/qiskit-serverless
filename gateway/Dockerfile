@@ -1,5 +1,5 @@
 FROM registry.access.redhat.com/ubi9-minimal:9.4-1134
-RUN microdnf install -y python3.11-3.11.7-1.el9_4.1 python3.11-pip-22.3.1-5.el9
+RUN microdnf install -y python3.11-3.11.7-1.el9_4.1 python3.11-pip-22.3.1-5.el9 python3.11-devel-3.11.7-1.el9_4.1
 RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3
 RUN ln -s /usr/bin/python3.11 /usr/local/bin/python
 RUN ln -s /usr/bin/pip3.11 /usr/local/bin/pip3
@@ -14,6 +14,7 @@ ENV PYTHONUNBUFFERED 1
 USER 0
 COPY gateway/requirements.txt .
 RUN pip install -r requirements.txt --no-cache-dir
+RUN ln -s /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages/symengine
 COPY gateway .
 RUN chown -R 1000:100 /usr/src/app &&\
     mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
@@ -22,6 +23,7 @@ USER 1000:100
 RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh &&\
     chmod +x /usr/src/app/entrypoint.sh
 
+USER 0
 EXPOSE 8000
 # run entrypoint.sh
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
