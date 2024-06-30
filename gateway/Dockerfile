@@ -14,7 +14,8 @@ ENV PYTHONUNBUFFERED 1
 USER 0
 COPY gateway/requirements.txt .
 RUN pip install -r requirements.txt --no-cache-dir
-RUN ln -s /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages/symengine
+RUN cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages
+RUN cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages
 COPY gateway .
 RUN chown -R 1000:100 /usr/src/app &&\
     mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
