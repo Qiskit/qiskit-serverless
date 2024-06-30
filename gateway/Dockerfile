@@ -24,7 +24,6 @@ USER 1000:100
 RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh &&\
     chmod +x /usr/src/app/entrypoint.sh
 
-USER 0
 EXPOSE 8000
 # run entrypoint.sh
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
