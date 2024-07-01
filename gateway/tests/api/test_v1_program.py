@@ -54,7 +54,7 @@ class TestProgramApi(APITestCase):
         )
         self.assertEqual(
             programs_response.data[0].get("title"),
-            "Docker Image Program",
+            "Docker-Image-Program",
         )
 
     def test_program_list_with_title_query_parameter(self):
@@ -78,6 +78,56 @@ class TestProgramApi(APITestCase):
         )
         self.assertEqual(empty_programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(empty_programs_response.data), 0)
+
+    def test_program_list_with_title_query_title_and_provider(self):
+        """Tests program list filtered with title."""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        programs_response = self.client.get(
+            reverse("v1:programs-list"),
+            {"title": "Docker-Image-Program"},
+            format="json",
+        )
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(programs_response.data), 1)
+        self.assertEqual(programs_response.data[0].get("provider"), "default")
+
+        programs_response_with_provider = self.client.get(
+            reverse("v1:programs-list"),
+            {"title": "default/Docker-Image-Program"},
+            format="json",
+        )
+        self.assertEqual(
+            programs_response_with_provider.status_code, status.HTTP_200_OK
+        )
+        self.assertEqual(len(programs_response_with_provider.data), 1)
+        self.assertEqual(
+            programs_response_with_provider.data[0].get("provider"), "default"
+        )
+
+        programs_response_with_provider_as_parameter = self.client.get(
+            reverse("v1:programs-list"),
+            {"title": "Docker-Image-Program", "provider": "default"},
+            format="json",
+        )
+        self.assertEqual(
+            programs_response_with_provider_as_parameter.status_code, status.HTTP_200_OK
+        )
+        self.assertEqual(len(programs_response_with_provider_as_parameter.data), 1)
+        self.assertEqual(
+            programs_response_with_provider_as_parameter.data[0].get("provider"),
+            "default",
+        )
+
+        programs_response_empty = self.client.get(
+            reverse("v1:programs-list"),
+            {"title": "Docker-Image-Program", "provider": "non-existing-provider"},
+            format="json",
+        )
+        self.assertEqual(programs_response_empty.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(programs_response_empty.data), 0)
 
     def test_run(self):
         """Tests run existing authorized."""
@@ -330,3 +380,37 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(programs_response.json(), '["runtime_job_3"]')
+
+    def test_get_by_title(self):
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+        programs_response = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            format="json",
+        )
+        self.assertEqual(programs_response.data.get("provider"), "default")
+        self.assertIsNotNone(programs_response.data.get("title"))
+
+        programs_response_with_provider = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            {"provider": "default"},
+            format="json",
+        )
+        self.assertEqual(
+            programs_response_with_provider.data.get("provider"), "default"
+        )
+        self.assertIsNotNone(programs_response_with_provider.data.get("title"))
+
+        programs_response_non_existing_provider = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            {"provider": "non-existing"},
+            format="json",
+        )
+        self.assertEqual(programs_response_non_existing_provider.status_code, 404)
+
+        programs_response_do_not_have_access = self.client.get(
+            "/api/v1/programs/get_by_title/Program/",
+            {"provider": "non-existing"},
+            format="json",
+        )
+        self.assertEqual(programs_response_do_not_have_access.status_code, 404)
