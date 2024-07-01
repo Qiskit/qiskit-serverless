@@ -252,6 +252,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.utils.S3Storage.html">qiskit_serverless.utils.S3Storage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.utils.ErrorCodes.html">qiskit_serverless.utils.ErrorCodes</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.utils.JsonSerializable.html">qiskit_serverless.utils.JsonSerializable</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.utils.format_provider_name_and_title.html">qiskit_serverless.utils.format_provider_name_and_title</a></li>
 </ul>
 </li>
 </ul>
@@ -648,7 +649,9 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of available programs.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
-    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns qiskit function based on title provided.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
@@ -784,18 +787,10 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of available programs.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">get_programs</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">]:</span>
-        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">get_programs</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;There are more than 1 program with title </span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="s2">&quot;available. Returning most recent one. &quot;</span>
-                <span class="s2">&quot;If you want to get list of all functions &quot;</span>
-                <span class="s2">&quot;please, use `list` method.&quot;</span>
-            <span class="p">)</span>
-
-        <span class="n">functions</span> <span class="o">=</span> <span class="p">{</span><span class="n">function</span><span class="o">.</span><span class="n">title</span><span class="p">:</span> <span class="n">function</span> <span class="k">for</span> <span class="n">function</span> <span class="ow">in</span> <span class="n">results</span><span class="p">}</span>
-        <span class="k">return</span> <span class="n">functions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_client</span><span class="o">.</span><span class="n">get_program</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="n">provider</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_verify_token</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Verify token.&quot;&quot;&quot;</span>
@@ -1034,7 +1029,9 @@
     <span class="k">def</span> <span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get_programs</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">]:</span>
         <span class="n">functions</span> <span class="o">=</span> <span class="p">{</span>
             <span class="n">function</span><span class="o">.</span><span class="n">title</span><span class="p">:</span> <span class="n">function</span> <span class="k">for</span> <span class="n">function</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">get_programs</span><span class="p">()</span>
         <span class="p">}</span>

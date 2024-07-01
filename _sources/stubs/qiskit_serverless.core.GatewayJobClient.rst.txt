@@ -16,6 +16,7 @@
       ~GatewayJobClient.__init__
       ~GatewayJobClient.filtered_logs
       ~GatewayJobClient.get
+      ~GatewayJobClient.get_program
       ~GatewayJobClient.get_programs
       ~GatewayJobClient.list
       ~GatewayJobClient.logs

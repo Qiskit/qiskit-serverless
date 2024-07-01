@@ -16,6 +16,7 @@
       ~RayJobClient.__init__
       ~RayJobClient.filtered_logs
       ~RayJobClient.get
+      ~RayJobClient.get_program
       ~RayJobClient.get_programs
       ~RayJobClient.list
       ~RayJobClient.logs

@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.utils.format\_provider\_name\_and\_title
+===========================================================
+
+.. currentmodule:: qiskit_serverless.utils
+
+.. autofunction:: format_provider_name_and_title

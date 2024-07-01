@@ -16,6 +16,7 @@
       ~BaseJobClient.__init__
       ~BaseJobClient.filtered_logs
       ~BaseJobClient.get
+      ~BaseJobClient.get_program
       ~BaseJobClient.get_programs
       ~BaseJobClient.list
       ~BaseJobClient.logs
