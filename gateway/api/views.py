@@ -28,7 +28,6 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
@@ -65,7 +64,7 @@ if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
 
-class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ancestors
+class ProgramViewSet(viewsets.GenericViewSet):
     """
     Program ViewSet configuration using GenericViewSet.
     """
@@ -360,9 +359,9 @@ class ProgramViewSet(viewsets.GenericViewSet):  # pylint: disable=too-many-ances
         return result_queryset
 
 
-class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
+class JobViewSet(viewsets.GenericViewSet):
     """
-    Job ViewSet configuration using ModelViewSet.
+    Job ViewSet configuration using GenericViewSet.
     """
 
     BASE_NAME = "jobs"
@@ -371,18 +370,30 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
         return self.serializer_class
 
     def get_queryset(self):
-        # Allow unauthenticated users to read the swagger documentation
-        if self.request.user is None or not self.request.user.is_authenticated:
-            return Job.objects.none()
-        return (Job.objects.all()).filter(author=self.request.user).order_by("-created")
+        return Job.objects.filter(author=self.request.user).order_by("-created")
 
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+    def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
+        """Get job:"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.retrieve", context=ctx):
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
-    def retrieve(self, request, pk=None):  # pylint: disable=arguments-differ
-        queryset = Job.objects.all()
-        job: Job = get_object_or_404(queryset, pk=pk)
-        serializer = self.get_serializer(job)
+    def list(self, request):
+        """List jobs:"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.job.list", context=ctx):
+            queryset = self.filter_queryset(self.get_queryset())
+
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+
+            serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     @action(methods=["POST"], detail=True)
@@ -463,6 +474,11 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
                             except RuntimeInvalidStateError:
                                 logger.warning("cancel failed")
 
+                            if jobinstance.session_id:
+                                service._api_client.cancel_session(  # pylint: disable=protected-access
+                                    jobinstance.session_id
+                                )
+
             if job.compute_resource:
                 if job.compute_resource.active:
                     job_handler = get_job_handler(job.compute_resource.host)
@@ -496,6 +512,7 @@ class JobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
             runtimejob = RuntimeJob(
                 job=job,
                 runtime_job=request.data.get("runtime_job"),
+                runtime_session=request.data.get("runtime_session"),
             )
             runtimejob.save()
             message = "RuntimeJob is added."
@@ -637,17 +654,3 @@ class FilesViewSet(viewsets.ViewSet):
                     destination.write(chunk)
             return Response({"message": file_path})
         return Response("server error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class RuntimeJobViewSet(viewsets.ModelViewSet):  # pylint: disable=too-many-ancestors
-    """
-    RuntimeJob ViewSet configuration using ModelViewSet.
-    """
-
-    BASE_NAME = "runtime_jobs"
-
-    def get_serializer_class(self):
-        return self.serializer_class
-
-    def get_queryset(self):
-        return RuntimeJob.objects.all().filter(job__author=self.request.user)

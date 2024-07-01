@@ -1,6 +1,6 @@
-ARG IMAGE_PY_VERSION=py310
+ARG IMAGE_PY_VERSION=py311
 
-FROM rayproject/ray:2.9.3-$IMAGE_PY_VERSION AS ray-node-amd64
+FROM rayproject/ray:2.30.0-$IMAGE_PY_VERSION AS ray-node-amd64
 
 WORKDIR /
 USER 0
@@ -18,7 +18,7 @@ RUN pip install . --no-cache-dir &&\
 WORKDIR /
 RUN rm -r ./qs
 
-FROM rayproject/ray:2.9.3-$IMAGE_PY_VERSION-aarch64 AS ray-node-arm64
+FROM rayproject/ray:2.30.0-$IMAGE_PY_VERSION-aarch64 AS ray-node-arm64
 
 WORKDIR /
 USER 0

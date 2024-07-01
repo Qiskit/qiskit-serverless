@@ -51,7 +51,7 @@ There are tons of useful resources about Git [out there](https://try.github.io/)
 
 ## Opening issues
 
-You can [open 3 types of issues](https://github.com/Qiskit-Extensions/qiskit-serverless/issues/new/choose):
+You can [open 3 types of issues](https://github.com/Qiskit/qiskit-serverless/issues/new/choose):
 
 * Bug reports: for reporting a misfunction. Provide steps to reproduce and expected behaviour.
 * Enhancement request: to suggest improvements to the current code.
@@ -109,10 +109,10 @@ nerdctl images
 ### Deciding what to work on
 
 To give our collaborators an idea of where the team needs help, we use the
-[help wanted](https://github.com/Qiskit-Extensions/qiskit-serverless/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
+[help wanted](https://github.com/Qiskit/qiskit-serverless/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
 label – this is appropriate for all contributors. In addition, for those who are relatively new to the open-source
 workflow or our codebase, feel free to view issues tagged with the
-[good first issue](https://github.com/Qiskit-Extensions/qiskit-serverless/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
+[good first issue](https://github.com/Qiskit/qiskit-serverless/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 label.
 
 
@@ -131,7 +131,7 @@ track this repository. A typical Git setup after
 # After forking the repository in GitHub
 git clone https://github.com/<your_username>/qiskit-serverless.git
 cd qiskit-serverless
-git remote add upstream https://github.com/Qiskit-Extensions/qiskit-serverless.git
+git remote add upstream https://github.com/Qiskit/qiskit-serverless.git
 git remote set-url --push upstream no_push
 git remote update upstream
 git checkout main

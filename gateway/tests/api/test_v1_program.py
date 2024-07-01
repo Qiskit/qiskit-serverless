@@ -312,39 +312,45 @@ class TestProgramApi(APITestCase):
         )
         self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_runtime_job(self):
-        """Tests run existing authorized."""
+    def test_upload_provider_function_with_description(self):
+        """Tests upload end-point authorized."""
 
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
-        programs_response = self.client.get(
-            "/api/v1/runtime_jobs/",
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.json().get("count"), 3)
-
-        programs_response = self.client.delete(
-            "/api/v1/runtime_jobs/runtime_job_1/",
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_204_NO_CONTENT)
-
-        programs_response = self.client.get(
-            "/api/v1/runtime_jobs/",
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.json().get("count"), 2)
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
 
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
-        programs_response = self.client.get(
-            "/api/v1/runtime_jobs/",
-            format="json",
+
+        env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
+        description = "sample function implemented in a custom image"
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "Provider Function",
+                "entrypoint": "test_user_2_program.py",
+                "dependencies": "[]",
+                "env_vars": env_vars,
+                "artifact": fake_file,
+                "provider": "default",
+                "description": description,
+            },
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.json().get("count"), 1)
+        self.assertEqual(programs_response.data.get("provider"), "default")
+
+        programs_response = self.client.get(reverse("v1:programs-list"), format="json")
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(programs_response.data), 2)
+        found = False
+        for resp_data in programs_response.data:
+            if resp_data.get("title") == "Provider Function":
+                self.assertEqual(
+                    resp_data.get("description"),
+                    description,
+                )
+                found = True
+        self.assertTrue(found)
 
     def test_add_runtimejob(self):
         """Tests run existing authorized."""
@@ -359,16 +365,6 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-
-        programs_response = self.client.get(
-            "/api/v1/runtime_jobs/runtime_job_4/",
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            programs_response.json()["job"]["id"],
-            "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
-        )
 
     def test_list_runtimejob(self):
         user = models.User.objects.get(username="test_user")

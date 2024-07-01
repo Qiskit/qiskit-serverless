@@ -41,38 +41,16 @@ def execute_job(job: Job) -> Job:
 
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-        authors_resource = ComputeResource.objects.filter(
+        compute_resource = ComputeResource.objects.filter(
             owner=job.author, active=True
         ).first()
 
-        cluster_name = generate_cluster_name(job.author.username)
-        span.set_attribute("job.clustername", cluster_name)
-        if authors_resource:
+        if not compute_resource:
+            cluster_name = generate_cluster_name(job.author.username)
+            span.set_attribute("job.clustername", cluster_name)
             try:
-                job.compute_resource = authors_resource
-                job = submit_job(job)
-                job.status = Job.PENDING
-            except Exception:  # pylint: disable=broad-exception-caught:
-                logger.error(
-                    "Exception was caught during scheduling job on user [%s] resource.\n"
-                    "Resource [%s] was in DB records, but address is not reachable.\n"
-                    "Cleaning up db record and setting job [%s] to failed",
-                    job.author,
-                    authors_resource.title,
-                    job.id,
-                )
-                kill_ray_cluster(authors_resource.title)
-                authors_resource.delete()
-                job.status = Job.FAILED
-                job.logs += "\nCompute resource was not found."
-        else:
-            compute_resource = create_ray_cluster(job, cluster_name=cluster_name)
-            if compute_resource:
-                # if compute resource was created in time with no problems
-                job.compute_resource = compute_resource
-                job = submit_job(job)
-                job.status = Job.PENDING
-            else:
+                compute_resource = create_ray_cluster(job, cluster_name=cluster_name)
+            except Exception:  # pylint: disable=broad-exception-caught
                 # if something went wrong
                 #   try to kill resource if it was allocated
                 logger.warning(
@@ -84,6 +62,26 @@ def execute_job(job: Job) -> Job:
                 kill_ray_cluster(cluster_name)
                 job.status = Job.FAILED
                 job.logs += "\nCompute resource was not created properly."
+
+        if compute_resource:
+            try:
+                job.compute_resource = compute_resource
+                job = submit_job(job)
+                job.status = Job.PENDING
+            except Exception:  # pylint: disable=broad-exception-caught:
+                logger.error(
+                    "Exception was caught during scheduling job on user [%s] resource.\n"
+                    "Resource [%s] was in DB records, but address is not reachable.\n"
+                    "Cleaning up db record and setting job [%s] to failed",
+                    job.author,
+                    compute_resource.title,
+                    job.id,
+                )
+                kill_ray_cluster(compute_resource.title)
+                compute_resource.delete()
+                job.status = Job.FAILED
+                job.logs += "\nCompute resource was not found."
+
         span.set_attribute("job.status", job.status)
     return job
 

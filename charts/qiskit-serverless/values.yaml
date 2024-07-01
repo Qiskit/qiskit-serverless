@@ -45,7 +45,7 @@ gateway:
   useCertManager: false
 
   image:
-    repository: "icr.io/quantum-public/qiskit-serverless-gateway"
+    repository: "icr.io/quantum-public/qiskit-serverless/gateway"
     pullPolicy: IfNotPresent
     tag: "0.12.0"
   application:
@@ -59,7 +59,7 @@ gateway:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/qiskit-serverless-ray-node:0.12.0-py310"
+      nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.12.0-py310"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
       kubectlImage: alpine/k8s:1.29.2@sha256:a51aa37f0a34ff827c7f2f9cb7f6fbb8f0e290fa625341be14c2fcc4b1880f60
     limits:
@@ -109,8 +109,8 @@ gateway:
 kuberayOperatorEnable: true
 kuberay-operator:
   image:
-    repository: kuberay/operator
-    tag: v1.0.0
+    repository: quay.io/kuberay/operator
+    tag: v1.1.1
     pullPolicy: IfNotPresent
 
 # ===================

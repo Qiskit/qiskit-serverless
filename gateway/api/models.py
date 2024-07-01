@@ -86,6 +86,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
 
     title = models.CharField(max_length=255, db_index=True)
+    description = models.TextField(null=True, blank=True)
     entrypoint = models.CharField(max_length=255, default=DEFAULT_PROGRAM_ENTRYPOINT)
     artifact = models.FileField(
         upload_to=get_upload_path,
@@ -217,4 +218,7 @@ class RuntimeJob(models.Model):
     )
     runtime_job = models.CharField(
         primary_key=True, max_length=100, blank=False, null=False
+    )
+    runtime_session = models.CharField(
+        max_length=100, blank=True, null=True, default=None
     )

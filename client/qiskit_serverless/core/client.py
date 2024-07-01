@@ -38,7 +38,7 @@ import ray
 import requests
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
-from qiskit_ibm_provider import IBMProvider
+from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_serverless.core.constants import (
     REQUESTS_TIMEOUT,
@@ -571,7 +571,7 @@ class IBMServerlessClient(ServerlessClient):
             token: IBM quantum token
             name: Name of the account to load
         """
-        token = token or IBMProvider(name=name).active_account().get("token")
+        token = token or QiskitRuntimeService(name=name).active_account().get("token")
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
 
     @staticmethod
@@ -588,7 +588,7 @@ class IBMServerlessClient(ServerlessClient):
             name: Name of the account to save
             overwrite: ``True`` if the existing account is to be overwritten
         """
-        IBMProvider.save_account(token=token, name=name, overwrite=overwrite)
+        QiskitRuntimeService.save_account(token=token, name=name, overwrite=overwrite)
 
     def get_compute_resources(self) -> List[ComputeResource]:
         raise NotImplementedError(
