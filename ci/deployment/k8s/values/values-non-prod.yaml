@@ -117,5 +117,5 @@ createPvc: false
 
 istioEnable: true
 istio:
-  host: middleware-dev.quantum-computing.ibm.com
-  secretName: qc-ibm-com
+  host: qiskit-serverless-dev.quantum.ibm.com
+  secretName: quantum-ibm-com
