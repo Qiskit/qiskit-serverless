@@ -1,0 +1,121 @@
+# ===================
+# Qiskit Serverless Info
+# ===================
+global:
+  version: 0.12.0
+
+# ===================
+# Qiskit Serverless configs
+# ===================
+platform: ibm
+
+# ===================
+# Ingress Nginx controller configs
+# ===================
+
+# Ingress Nginx controller is disabled by default to not affect cloud providers' controller configuration
+nginxIngressControllerEnable: false
+
+# ===================
+# Gateway configs
+# ===================
+
+gatewayEnable: true
+gateway:
+  nameOverride: "gateway"
+  fullnameOverride: "gateway"
+  useCertManager: false
+
+  image:
+    repository: "icr.io/quantum-public/qiskit-serverless-gateway"
+    pullPolicy: IfNotPresent
+    tag: "0.12.0"
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: 200m
+    limits:
+      memory: 4Gi
+      cpu: 2000m
+  application:
+    siteHost: "http://gateway:8000"
+    rayHost: "http://kuberay-head-svc:8265"
+    auth:
+      mechanism: "custom_token"
+      token:
+        url: "https://auth-dev.quantum-computing.ibm.com/api/users/loginWithToken"
+        verificationUrl: "https://auth-dev.quantum-computing.ibm.com/api/users/me"
+        verificationField: "ibmQNetwork;urls,services,serverless"
+    superuser:
+      enable: false
+    service:
+      type: ClusterIP
+      port: 8000
+    ray:
+      nodeImage: "icr.io/quantum-public/qiskit-serverless-ray-node:0.12.0-py310"
+      opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
+      kubectlImage: alpine/k8s:1.28.9@sha256:4f97e78a640d569731ac71dccc27d7783b03488b383f15ca75ea975d31c3fe57
+      proxyImage: "icr.io/quantum-public/qiskit-serverless-proxy:0.12.0"
+      cpu: 4
+      memory: 8
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 2
+      useTLS: false
+    limits:
+      maxJobsPerUser: 2
+      maxComputeResources: 5
+    proxy:
+      enabled: false
+
+  cos:
+    claimName: qiskit-serverless-programs
+
+  secrets:
+    secretKey:
+      create: false
+      name: gateway-staging-secret-key
+      key: payload
+    servicePsql:
+      create: false
+      name: binding-qiskit-serverless-gateway-staging-psql
+      key:
+        databaseName: connection.postgres.database
+        databasePassword: connection.postgres.authentication.password
+        host: connection.postgres.hosts.0.hostname
+        port: connection.postgres.hosts.0.port
+        userName: connection.postgres.authentication.username
+    superuser:
+      create: false
+
+# ===================
+# Kuberay Operator
+# ===================
+
+kuberayOperatorEnable: true
+kuberay-operator:
+  image:
+    repository: kuberay/operator
+    tag: v1.0.0
+    pullPolicy: IfNotPresent
+
+# ===================
+# PostgreSQL
+# ===================
+
+postgresqlEnable: false
+
+# ===================
+# PVC
+# ===================
+
+createPvc: false
+
+# ===================
+# Istio
+# ===================
+
+istioEnable: true
+istio:
+  host: qiskit-serverless-dev.quantum.ibm.com
+  secretName: quantum-ibm-com
