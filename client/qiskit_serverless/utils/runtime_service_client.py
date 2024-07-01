@@ -78,7 +78,8 @@ def associate_runtime_job_with_serverless_job(
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:
-        logging.warning("Something went wrong: %s", response.text)
+        sanitized = response.text.replace('\n', '').replace('\r', '')
+        logging.warning("Something went wrong: %s", sanitized)
 
     return response.ok
 
