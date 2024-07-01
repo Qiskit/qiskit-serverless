@@ -1,9 +1,9 @@
 FROM registry.access.redhat.com/ubi9-minimal:9.4-1134
 RUN microdnf install -y python3.11-3.11.7-1.el9_4.1 python3.11-pip-22.3.1-5.el9 python3.11-devel-3.11.7-1.el9_4.1
-RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3
-RUN ln -s /usr/bin/python3.11 /usr/local/bin/python
-RUN ln -s /usr/bin/pip3.11 /usr/local/bin/pip3
-RUN ln -s /usr/bin/pip3.11 /usr/local/bin/pip
+RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
+    ln -s /usr/bin/python3.11 /usr/local/bin/python &&\
+    ln -s /usr/bin/pip3.11 /usr/local/bin/pip3 &&\
+    ln -s /usr/bin/pip3.11 /usr/local/bin/pip
 
 WORKDIR /usr/src/app
 
