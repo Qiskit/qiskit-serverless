@@ -70,6 +70,7 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsDecoder,
 )
 from qiskit_serverless.utils.json import is_jsonable, safe_json_request
+from qiskit_serverless.utils.formatting import format_provider_name_and_title
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
@@ -142,6 +143,12 @@ class BaseJobClient:
 
     def get_programs(self, **kwargs):
         """Returns list of programs."""
+        raise NotImplementedError
+
+    def get_program(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
+        """Returns program based on parameters."""
         raise NotImplementedError
 
 
@@ -336,6 +343,21 @@ class LocalJobClient(BaseJobClient):
             )
             for program in self._patterns
         ]
+
+    def get_program(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
+        """Returns program based on parameters."""
+        all_programs = {
+            program.get("title"): QiskitFunction(
+                program.get("title"),
+                provider=program.get("provider", None),
+                raw_data=program,
+                job_client=self,
+            )
+            for program in self._patterns
+        }
+        return all_programs.get("title")
 
 
 class GatewayJobClient(BaseJobClient):
@@ -562,6 +584,31 @@ class GatewayJobClient(BaseJobClient):
             )
             for program in response_data
         ]
+
+    def get_program(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
+        """Returns program based on parameters."""
+        provider, title = format_provider_name_and_title(
+            request_provider=provider, title=title
+        )
+
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("program.get_by_title"):
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    params={"provider": provider},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            return QiskitFunction(
+                response_data.get("title"),
+                provider=response_data.get("provider", None),
+                raw_data=response_data,
+                job_client=self,
+            )
 
 
 class Job:
