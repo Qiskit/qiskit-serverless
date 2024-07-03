@@ -155,6 +155,7 @@ Dockerfile
 	    
 .. code-block::
    :caption: Dockerfile
+
    FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.12.0-py310
 
    # install all necessary dependencies for your custom image
