@@ -392,51 +392,61 @@
 <p>Function example (runner.py)</p>
 <div class="literal-block-wrapper docutils container" id="id6">
 <div class="code-block-caption"><span class="caption-text">runner.py</span><a class="headerlink" href="#id6" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> <span class="kn">from</span> <span class="nn">qiskit_aer</span> <span class="kn">import</span> <span class="n">AerSimulator</span>
- <span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span>
- <span class="kn">from</span> <span class="nn">qiskit.transpiler.preset_passmanagers</span> <span class="kn">import</span> <span class="n">generate_preset_pass_manager</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_aer</span> <span class="kn">import</span> <span class="n">AerSimulator</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span>
+<span class="kn">from</span> <span class="nn">qiskit.transpiler.preset_passmanagers</span> <span class="kn">import</span> <span class="n">generate_preset_pass_manager</span>
+<span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">Session</span>
 
- <span class="k">def</span> <span class="nf">custom_function</span><span class="p">(</span><span class="n">arguments</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">custom_function</span><span class="p">(</span><span class="n">arguments</span><span class="p">):</span>
      <span class="n">service</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">)</span>
      <span class="n">circuit</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;circuit&quot;</span><span class="p">)</span>
      <span class="n">observable</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;observable&quot;</span><span class="p">)</span>
-     <span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">least_busy</span><span class="p">(</span><span class="n">operational</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">simulator</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">min_num_qubits</span><span class="o">=</span><span class="mi">127</span><span class="p">)</span>
-     <span class="n">session</span> <span class="o">=</span> <span class="n">Session</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)</span>
 
-     <span class="n">target</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">target</span>
-     <span class="n">pm</span> <span class="o">=</span> <span class="n">generate_preset_pass_manager</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">optimization_level</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+     <span class="k">if</span> <span class="n">service</span><span class="p">:</span>
+         <span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">least_busy</span><span class="p">(</span><span class="n">operational</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">simulator</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">min_num_qubits</span><span class="o">=</span><span class="mi">127</span><span class="p">)</span>
+         <span class="n">session</span> <span class="o">=</span> <span class="n">Session</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)</span>
+     <span class="k">else</span><span class="p">:</span>
+         <span class="n">backend</span> <span class="o">=</span> <span class="n">AerSimulator</span><span class="p">()</span>
 
-     <span class="n">target_circuit</span> <span class="o">=</span> <span class="n">pm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
-     <span class="n">target_observable</span> <span class="o">=</span> <span class="n">observable</span><span class="o">.</span><span class="n">apply_layout</span><span class="p">(</span><span class="n">target_circuit</span><span class="o">.</span><span class="n">layout</span><span class="p">)</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">target</span>
+    <span class="n">pm</span> <span class="o">=</span> <span class="n">generate_preset_pass_manager</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">optimization_level</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 
-     <span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">EstimatorV2</span> <span class="k">as</span> <span class="n">Estimator</span>
-     <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">)</span>
-     <span class="n">job</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">run</span><span class="p">([(</span><span class="n">target_circuit</span><span class="p">,</span> <span class="n">target_observable</span><span class="p">)])</span>
+    <span class="n">target_circuit</span> <span class="o">=</span> <span class="n">pm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
+    <span class="n">target_observable</span> <span class="o">=</span> <span class="n">observable</span><span class="o">.</span><span class="n">apply_layout</span><span class="p">(</span><span class="n">target_circuit</span><span class="o">.</span><span class="n">layout</span><span class="p">)</span>
 
-     <span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-     <span class="k">return</span> <span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">evs</span>
+    <span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">EstimatorV2</span> <span class="k">as</span> <span class="n">Estimator</span>
+    <span class="k">if</span> <span class="n">service</span><span class="p">:</span>
+        <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)</span>
+    <span class="n">job</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">run</span><span class="p">([(</span><span class="n">target_circuit</span><span class="p">,</span> <span class="n">target_observable</span><span class="p">)])</span>
 
- <span class="k">class</span> <span class="nc">Runner</span><span class="p">:</span>
-     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-         <span class="k">return</span> <span class="n">custom_function</span><span class="p">(</span><span class="n">arguments</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">service</span><span class="p">:</span>
+        <span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">evs</span>
+
+<span class="k">class</span> <span class="nc">Runner</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">custom_function</span><span class="p">(</span><span class="n">arguments</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <p>Dockerfile</p>
 <div class="literal-block-wrapper docutils container" id="id7">
 <div class="code-block-caption"><span class="caption-text">Dockerfile</span><a class="headerlink" href="#id7" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> FROM icr.io/quantum-public/qiskit-serverless-ray-node:0.12.0-py310
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.12.0-py310
 
- # install all necessary dependencies for your custom image
+# install all necessary dependencies for your custom image
 
- # copy our function implementation in `/runner.py` of the docker image
- USER 0
+# copy our function implementation in `/runner.py` of the docker image
+USER 0
+RUN  pip install qiskit_aer
 
- WORKDIR /runner
- COPY ./runner.py /runner
- WORKDIR /
+WORKDIR /runner
+COPY ./runner.py /runner
+WORKDIR /
 
- USER $RAY_UID
+USER $RAY_UID
 </pre></div>
 </div>
 </div>
@@ -451,32 +461,35 @@
 </div>
 <p>The build container image need to be tagged and uploaded to the image registory that can be accessible from the gateway</p>
 <p>Upload and register function</p>
+<p>Set GATEWAY_TOKEN, GATEWAY_HOST, PROVIDER_ID and YOUR_TOKEN (YOUR_TOKEN is necessary when use_session=True only) environment variables.</p>
 <div class="literal-block-wrapper docutils container" id="id9">
 <div class="code-block-caption"><span class="caption-text">upload.py</span><a class="headerlink" href="#id9" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> <span class="kn">import</span> <span class="nn">os</span>
- <span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">ServerlessClient</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">ServerlessClient</span>
 
- <span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
-     <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">),</span>
-     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;GATEWAY ADDRESS&gt;&quot;</span><span class="p">),</span>
- <span class="p">)</span>
-
- <span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
-<span class="s2"> title: custom-image-function</span>
-<span class="s2"> description: sample function implemented in a custom image</span>
-<span class="s2"> arguments:</span>
-<span class="s2">     service: service created with the accunt information</span>
-<span class="s2">     circuit: circuit</span>
-<span class="s2">     observable: observable</span>
-<span class="s2"> &quot;&quot;&quot;</span>
-
- <span class="n">function_with_custom_image</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-     <span class="n">title</span><span class="o">=</span><span class="s2">&quot;custom-image-function&quot;</span><span class="p">,</span>
-     <span class="n">image</span><span class="o">=</span><span class="s2">&quot;&lt;image retistory/image name:image tag&gt;&quot;</span><span class="p">,</span>
-     <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;&lt;provider id&gt;&quot;</span><span class="p">,</span>
-     <span class="n">description</span><span class="o">=</span><span class="n">help</span>
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
 <span class="p">)</span>
- <span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function_with_custom_image</span><span class="p">)</span>
+
+<span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+
+<span class="s2">title: custom-image-function</span>
+
+<span class="s2">description: sample function implemented in a custom image</span>
+<span class="s2">arguments:</span>
+<span class="s2">    service: service created with the accunt information</span>
+<span class="s2">    circuit: circuit</span>
+<span class="s2">    observable: observabl</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">function_with_custom_image</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;custom-image-function&quot;</span><span class="p">,</span>
+    <span class="n">image</span><span class="o">=</span><span class="s2">&quot;&lt;image retistory/image name:image tag&gt;&quot;</span><span class="p">,</span>
+    <span class="n">provider</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PROVIDER_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;mockprovider&quot;</span><span class="p">),</span>
+    <span class="n">description</span><span class="o">=</span><span class="n">help</span>
+<span class="p">)</span>
+<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function_with_custom_image</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -484,46 +497,56 @@
 <p>List all available functions</p>
 <div class="literal-block-wrapper docutils container" id="id10">
 <div class="code-block-caption"><span class="caption-text">list.py</span><a class="headerlink" href="#id10" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> <span class="kn">import</span> <span class="nn">os</span>
- <span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">ServerlessClient</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">ServerlessClient</span>
 
- <span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
-     <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">),</span>
-     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;GATEWAY ADDRESS&gt;&quot;</span><span class="p">),</span>
- <span class="p">)</span>
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+<span class="p">)</span>
 
- <span class="n">my_functions</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
- <span class="k">for</span> <span class="n">function</span> <span class="ow">in</span> <span class="n">my_functions</span><span class="p">:</span>
-     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Name: &quot;</span> <span class="o">+</span> <span class="n">function</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
-     <span class="nb">print</span><span class="p">(</span><span class="n">function</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
-     <span class="nb">print</span><span class="p">()</span>
+<span class="n">my_functions</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">function</span> <span class="ow">in</span> <span class="n">my_functions</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Name: &quot;</span> <span class="o">+</span> <span class="n">function</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">function</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
 <p>Execute Function</p>
 <div class="literal-block-wrapper docutils container" id="id11">
 <div class="code-block-caption"><span class="caption-text">usage.py</span><a class="headerlink" href="#id11" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> <span class="kn">import</span> <span class="nn">os</span>
- <span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">ServerlessClient</span>
- <span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
- <span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
- <span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
- <span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">ServerlessClient</span>
+<span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
+<span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
+<span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
+<span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
 
- <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="s2">&quot;YOUR_TOKEN&quot;</span><span class="p">)</span>
- <span class="n">circuit</span> <span class="o">=</span> <span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1234</span><span class="p">)</span>
- <span class="n">observable</span> <span class="o">=</span> <span class="n">SparsePauliOp</span><span class="p">(</span><span class="s2">&quot;IY&quot;</span><span class="p">)</span>
+<span class="c1"># set this True for the real Quantum system use</span>
+<span class="n">use_service</span><span class="o">=</span><span class="kc">False</span>
 
- <span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
-     <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">),</span>
-     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;GATEWAY ADDRESS&gt;&quot;</span><span class="p">),</span>
- <span class="p">)</span>
+<span class="n">service</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="k">if</span> <span class="n">use_service</span><span class="p">:</span>
+    <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
+        <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;YOUR_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">channel</span><span class="o">=</span><span class="s1">&#39;ibm_quantum&#39;</span><span class="p">,</span>
+        <span class="n">instance</span><span class="o">=</span><span class="s1">&#39;ibm-q/open/main&#39;</span><span class="p">,</span>
+        <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
 
- <span class="n">my_function</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;custom-image-function&quot;</span><span class="p">)</span>
- <span class="n">job</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">service</span><span class="o">=</span><span class="n">service</span><span class="p">,</span> <span class="n">circuit</span><span class="o">=</span><span class="n">circuit</span><span class="p">,</span> <span class="n">observable</span><span class="o">=</span><span class="n">observable</span><span class="p">)</span>
+<span class="n">circuit</span> <span class="o">=</span> <span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1234</span><span class="p">)</span>
+<span class="n">observable</span> <span class="o">=</span> <span class="n">SparsePauliOp</span><span class="p">(</span><span class="s2">&quot;IY&quot;</span><span class="p">)</span>
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+<span class="p">)</span>
 
- <span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">())</span>
- <span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>
+<span class="n">my_function</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;custom-image-function&quot;</span><span class="p">)</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">service</span><span class="o">=</span><span class="n">service</span><span class="p">,</span> <span class="n">circuit</span><span class="o">=</span><span class="n">circuit</span><span class="p">,</span> <span class="n">observable</span><span class="o">=</span><span class="n">observable</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>
 </pre></div>
 </div>
 </div>
