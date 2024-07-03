@@ -209,7 +209,7 @@ Set GATEWAY_TOKEN, GATEWAY_HOST, PROVIDER_ID and YOUR_TOKEN (YOUR_TOKEN is neces
 
    function_with_custom_image = QiskitFunction(
        title="custom-image-function",
-       image="icr.io/quantum-public/qiskit-serverless/poc-function:latest",
+       image="<image retistory/image name:image tag>",
        provider=os.environ.get("PROVIDER_ID", "mockprovider"),
        description=help
    )
