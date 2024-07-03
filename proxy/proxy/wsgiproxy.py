@@ -49,9 +49,6 @@ def handle_response(resp):
         if header != "Transfer-Encoding":  # chunked encoding is not supported
             logging.debug("header: %s, %s", header, resp.headers[header])
             headers.add(header, resp.headers[header])
-    if response and len(response) != 0:
-        sanitized = response.decode("utf-8").replace("\n", "").replace("\r", "")
-        logging.debug("Sending response content: %s", sanitized)
     return Response(
         response=response, headers=headers, status=status, direct_passthrough=True
     )
