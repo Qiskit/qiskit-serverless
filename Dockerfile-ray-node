@@ -9,11 +9,11 @@ USER $RAY_UID
 COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 
 WORKDIR /qs
-# TODO: certifi version pinned to 2023.7.22. More info in #870
+# TODO: certifi version pinned to 2024.7.4. More info in #870
 # TODO: pyarrow version pinned to 14.0.1
 RUN pip install . --no-cache-dir &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
-    pip install --no-cache-dir certifi==2023.7.22
+    pip install --no-cache-dir certifi==2024.7.4
 
 WORKDIR /
 RUN rm -r ./qs
@@ -31,12 +31,12 @@ RUN apt-get -y update &&\
 COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 
 WORKDIR /qs
-# TODO: certifi version pinned to 2023.7.22. More info in #870
+# TODO: certifi version pinned to 2024.7.4. More info in #870
 # TODO: pyarrow version pinned to 14.0.1
 RUN pip install . --no-cache-dir &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
     if [ "$TARGETARCH" = "arm64" ] ; \
-        then pip install --no-cache-dir certifi==2023.7.22 ; \
+        then pip install --no-cache-dir certifi==2024.7.4 ; \
     fi
 
 WORKDIR /
