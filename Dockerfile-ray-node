@@ -9,7 +9,7 @@ USER $RAY_UID
 COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 
 WORKDIR /qs
-# TODO: certifi version pinned to 2024.7.4. More info in #870
+# TODO: certifi version pinned to 2024.7.4. More info in #421
 # TODO: pyarrow version pinned to 14.0.1
 RUN pip install . --no-cache-dir &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
@@ -31,7 +31,7 @@ RUN apt-get -y update &&\
 COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
 
 WORKDIR /qs
-# TODO: certifi version pinned to 2024.7.4. More info in #870
+# TODO: certifi version pinned to 2024.7.4. More info in #421
 # TODO: pyarrow version pinned to 14.0.1
 RUN pip install . --no-cache-dir &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
