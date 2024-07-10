@@ -436,9 +436,15 @@ class JobViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.logs", context=ctx):
-            job = self.get_object()
+            job = Job.objects.filter(pk=pk).first()
             logs = job.logs
-        return Response({"logs": logs})
+            author = self.request.user
+            if author != job.author:
+                if job.program and job.program.provider:
+                    if job.program.provider.admin_group in author.groups.all():
+                        return Response({"logs": logs})
+                    return Response({"logs": "No available logs"})
+            return Response({"logs": logs})
 
     def get_runtime_job(self, job):
         """get runtime job for job"""
