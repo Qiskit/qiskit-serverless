@@ -439,12 +439,13 @@ class JobViewSet(viewsets.GenericViewSet):
             job = Job.objects.filter(pk=pk).first()
             logs = job.logs
             author = self.request.user
-            if author != job.author:
-                if job.program and job.program.provider:
-                    if job.program.provider.admin_group in author.groups.all():
-                        return Response({"logs": logs})
-                    return Response({"logs": "No available logs"})
-            return Response({"logs": logs})
+            if job.program and job.program.provider:
+                if job.program.provider.admin_group in author.groups.all():
+                    return Response({"logs": logs})
+                return Response({"logs": "No available logs"})
+            if author == job.author:
+                return Response({"logs": logs})
+            return Response({"logs": "No available logs"})
 
     def get_runtime_job(self, job):
         """get runtime job for job"""

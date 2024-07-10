@@ -91,7 +91,18 @@ class TestJobApi(APITestCase):
         self.assertEqual(job.status, Job.STOPPED)
         self.assertEqual(job_stop_response.data.get("message"), "Job has been stopped.")
 
-    def test_job_logs_by_author(self):
+    def test_job_logs_by_author_for_function_without_provider(self):
+        """Tests job log by job author."""
+        self._authorize()
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
+            format="json",
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), "log entry 2")
+
+    def test_job_logs_by_author_for_function_with_provider(self):
         """Tests job log by job author."""
         self._authorize()
 
@@ -100,7 +111,7 @@ class TestJobApi(APITestCase):
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
+        self.assertEqual(jobs_response.data.get("logs"), "No available logs")
 
     def test_job_logs_by_function_provider(self):
         """Tests job log by fuction provider."""
