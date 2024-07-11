@@ -358,6 +358,19 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         return result_queryset
 
+    @action(methods=["GET"], detail=True)
+    def get_jobs(
+        self, request, pk=None
+    ):  # pylint: disable=invalid-name,unused-argument
+        """Returns jobs of the program."""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.program.get_jobs", context=ctx):
+            program = Program.objects.filter(id=pk).first()
+            jobs = Job.objects.filter(program=program)
+            job_ids = [str(job.id) for job in jobs]
+        return Response(job_ids)
+
 
 class JobViewSet(viewsets.GenericViewSet):
     """
