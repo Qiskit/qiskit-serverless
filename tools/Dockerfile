@@ -1,4 +1,4 @@
-FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.12.0-py310
+FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.13.0-py310
 
 WORKDIR /
 USER 0
