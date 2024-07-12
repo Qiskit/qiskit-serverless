@@ -18,7 +18,14 @@ def assign_run_permission():
     This method assigns the run permission to a group and
     assigns that group to a specific program.
     """
-    functions_permissions = json.loads(settings.FUNCTIONS_PERMISSIONS)
+    try:
+        functions_permissions = json.loads(settings.FUNCTIONS_PERMISSIONS)
+    except json.JSONDecodeError as e:
+        logger.error("Assign run permission JSON malformed: %s", e)
+        return
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error("Assign run permission unexpected error: %s", e)
+        return
 
     for function_title, function_info in functions_permissions.items():
         provider_name = function_info["provider"]

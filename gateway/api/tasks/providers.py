@@ -18,7 +18,14 @@ def assign_admin_group():
     This method will assign a group to a provider.
     If the provider does not exist it will be created.
     """
-    providers_configuration = json.loads(settings.PROVIDERS_CONFIGURATION)
+    try:
+        providers_configuration = json.loads(settings.PROVIDERS_CONFIGURATION)
+    except json.JSONDecodeError as e:
+        logger.error("Assign admin group JSON malformed: %s", e)
+        return
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error("Assign admin group unexpected error: %s", e)
+        return
 
     for provider_name, admin_group_name in providers_configuration.items():
         group = Group.objects.filter(name=admin_group_name).first()
