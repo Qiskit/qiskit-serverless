@@ -50,7 +50,7 @@ In our simple case it will look something like this
 .. code-block::
    :caption: Dockerfile for custom image function.
 
-    FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.12.0-py310
+    FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.13.0-py310
 
     # install all necessary dependencies for your custom image
 
@@ -156,7 +156,7 @@ Dockerfile
 .. code-block::
    :caption: Dockerfile
 
-   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.12.0-py310
+   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.13.0-py310
 
    # install all necessary dependencies for your custom image
 
