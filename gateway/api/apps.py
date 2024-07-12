@@ -11,8 +11,12 @@ class ApiConfig(AppConfig):
     name = "api"
 
     def ready(self):
-        def on_migrations_applied(sender, **kwargs):
-            from api.tasks import programs, providers
+        def on_migrations_applied(**kwargs):
+            # This import may be here for the correct initialization of the App
+            from api.tasks import (  # pylint: disable=import-outside-toplevel
+                programs,
+                providers,
+            )
 
             providers.assign_admin_group()
             programs.assign_run_permission()

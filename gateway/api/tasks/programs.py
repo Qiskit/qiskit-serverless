@@ -1,3 +1,7 @@
+"""
+This file contains the main tasks to manage programs
+"""
+
 import json
 import logging
 from django.conf import settings
@@ -10,6 +14,10 @@ logger = logging.getLogger("gateway")
 
 
 def assign_run_permission():
+    """
+    This method assigns the run permission to a group and
+    assigns that group to a specific program.
+    """
     functions_permissions = json.loads(settings.FUNCTIONS_PERMISSIONS)
 
     for function_title, function_info in functions_permissions.items():
