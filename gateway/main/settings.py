@@ -380,12 +380,10 @@ SECURE_BROWSER_XSS_FILTER = True
 SESSION_COOKIE_AGE = 3600
 
 # Providers setup
-PROVIDERS_CONFIGURATION = os.environ.get(
-    "PROVIDERS_CONFIGURATION", '{"provider1": "group1", "provider2": "group2"}'
-)
+PROVIDERS_CONFIGURATION = os.environ.get("PROVIDERS_CONFIGURATION", "{}")
 
 # Function permissions
 FUNCTIONS_PERMISSIONS = os.environ.get(
     "FUNCTIONS_PERMISSIONS",
-    '{"function1": {"provider": "provider1", "instances": ["group1"]}, "function2": {"provider": "provider2", "instances": ["group2"]}}',
+    "{}",
 )
