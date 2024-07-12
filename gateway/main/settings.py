@@ -315,7 +315,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless-ray-node:0.12.0-py310"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.13.0-py310"
 )
 RAY_NODE_IMAGES_MAP = {
     "default": RAY_NODE_IMAGE,
@@ -378,3 +378,12 @@ CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "runner"
 CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner")
 SECURE_BROWSER_XSS_FILTER = True
 SESSION_COOKIE_AGE = 3600
+
+# Providers setup
+PROVIDERS_CONFIGURATION = os.environ.get("PROVIDERS_CONFIGURATION", "{}")
+
+# Function permissions
+FUNCTIONS_PERMISSIONS = os.environ.get(
+    "FUNCTIONS_PERMISSIONS",
+    "{}",
+)

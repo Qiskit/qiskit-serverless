@@ -7,7 +7,7 @@ In this tutorial we will describe how to build custom docker image for function.
 
 In this tutorial we will be following 3 steps to deploy our function with custom docker image:
 
-* implement function template 
+* implement function template
 * define dockerfile, build it and push to registry
 * upload
 
@@ -20,7 +20,7 @@ All of our custom image files will be located in a folder `custom_function`, whi
      /runner.py
      /Dockerfile
 
-First we will implement function entrypoint by following template. All functions with custom docker images must follow same template structure. 
+First we will implement function entrypoint by following template. All functions with custom docker images must follow same template structure.
 
 We need to create class `Runner` and implement `run` method that will be called during invocation of the function and results of the run method will be returned as result of the function.
 
@@ -43,14 +43,14 @@ Let's create `runner.py` file with following content
 
 As a next step let's define and build our custom docker image.
 
-Dockerfile will be extending base serverless node image and adding required packages and structure to it. 
+Dockerfile will be extending base serverless node image and adding required packages and structure to it.
 
 In our simple case it will look something like this
 
 .. code-block::
    :caption: Dockerfile for custom image function.
 
-    FROM icr.io/quantum-public/qiskit-serverless-ray-node:0.12.0-py310
+    FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.13.0-py310
 
     # install all necessary dependencies for your custom image
 
@@ -152,11 +152,11 @@ Function example (runner.py)
            return custom_function(arguments)
 
 Dockerfile
-	    
+
 .. code-block::
    :caption: Dockerfile
 
-   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.12.0-py310
+   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.13.0-py310
 
    # install all necessary dependencies for your custom image
 
@@ -171,7 +171,7 @@ Dockerfile
    USER $RAY_UID
 
 Build container image
-    
+
 .. code-block::
    :caption: Docker build
 
@@ -237,7 +237,7 @@ List all available functions
        print()
 
 Execute Function
-    
+
 .. code-block::
    :caption: usage.py
 
@@ -248,7 +248,7 @@ Execute Function
    from qiskit.quantum_info import SparsePauliOp
    from qiskit_ibm_runtime import QiskitRuntimeService
 
-   # set this True for the real Quantum system use                                                                                                                                                             
+   # set this True for the real Quantum system use
    use_service=False
 
    service = None
@@ -272,11 +272,3 @@ Execute Function
 
    print(job.result())
    print(job.logs())
-
-
-
-
-
-
-
-
