@@ -378,3 +378,14 @@ CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "runner"
 CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner")
 SECURE_BROWSER_XSS_FILTER = True
 SESSION_COOKIE_AGE = 3600
+
+# Providers setup
+PROVIDERS_CONFIGURATION = os.environ.get(
+    "PROVIDERS_CONFIGURATION", '{"provider1": "group1", "provider2": "group2"}'
+)
+
+# Function permissions
+FUNCTIONS_PERMISSIONS = os.environ.get(
+    "FUNCTIONS_PERMISSIONS",
+    '{"function1": {"provider": "provider1", "instances": ["group1"]}, "function2": {"provider": "provider2", "instances": ["group2"]}}',
+)
