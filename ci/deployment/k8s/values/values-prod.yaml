@@ -71,6 +71,10 @@ gateway:
   cos:
     claimName: qiskit-serverless-programs
 
+  tasks:
+    providersConfiguration: '{"q-ctrl":"project-based/internal/functions","qunasys":"project-based/internal/functions","qedma":"project-based/internal/functions","algorithmiq":"project-based/internal/functions","multiverse":"project-based/internal/functions"}'
+    functionsPermissions: '{}'
+
   secrets:
     secretKey:
       create: false
