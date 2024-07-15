@@ -48,6 +48,7 @@ ALLOWED_CIDR_NETS = ["10.0.0.0/8"]
 # Application definition
 
 INSTALLED_APPS = [
+    "django.contrib.admin", # for admin_panel
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -61,6 +62,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.socialaccount",
     "api",
+    "admin_panel", # for admin_panel
     "psycopg2",
     "drf_yasg",
 ]
@@ -71,6 +73,7 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware", # for admin_panel, must be after session
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

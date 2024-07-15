@@ -16,6 +16,7 @@ Including another URLconf
 
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
 from django.urls import path, include, re_path
 from rest_framework import routers, permissions
 from drf_yasg.views import get_schema_view
@@ -45,6 +46,7 @@ if settings.DEBUG:
         path("readiness/", probes.views.readiness, name="readiness"),
         path("liveness/", probes.views.liveness, name="liveness"),
         path("version/", version.views.version, name="version"),
+        path('admin/', admin.site.urls),
         path("", include("django_prometheus.urls")),
         re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
         re_path(
@@ -68,6 +70,7 @@ else:
         path("readiness/", probes.views.readiness, name="readiness"),
         path("liveness/", probes.views.liveness, name="liveness"),
         path("version/", version.views.version, name="version"),
+        path('admin/', admin.site.urls),
         path("", include("django_prometheus.urls")),
         re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
     ]
