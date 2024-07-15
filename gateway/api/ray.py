@@ -201,7 +201,7 @@ def submit_job(job: Job) -> Job:
     return job
 
 
-def create_ray_cluster(
+def create_ray_cluster(  # pylint: disable=too-many-branches
     job: Job,
     cluster_name: Optional[str] = None,
     cluster_data: Optional[str] = None,
@@ -250,7 +250,7 @@ def create_ray_cluster(
             node_image = settings.RAY_NODE_IMAGE
 
         # if user specified image use specified image
-        function_data = user.username            
+        function_data = user.username
         if job.program.image is not None:
             node_image = job.program.image
             if job.program.provider.name:
