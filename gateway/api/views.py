@@ -437,6 +437,8 @@ class JobViewSet(viewsets.GenericViewSet):
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.logs", context=ctx):
             job = Job.objects.filter(pk=pk).first()
+            if job is None:
+                return Response(status=404)
             logs = job.logs
             author = self.request.user
             if job.program and job.program.provider:
