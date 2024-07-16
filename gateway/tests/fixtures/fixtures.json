@@ -174,7 +174,18 @@
     "fields": {
       "name": "default",
       "created": "2023-02-01T15:30:43.281796Z",
-      "admin_group": 105
+      "admin_group": 105,
+      "registry": "docker.io/awesome"
+    }
+  },
+  {
+    "model": "api.provider",
+    "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbeb",
+    "fields": {
+      "name": "ibm",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "admin_group": 101,
+      "registry": "docker.io/awesome"
     }
   }
 ]
