@@ -20,11 +20,13 @@ def assign_run_permission():
     """
     try:
         functions_permissions = json.loads(settings.FUNCTIONS_PERMISSIONS)
-    except json.JSONDecodeError as e:
-        logger.error("Assign run permission JSON malformed: %s", e)
+    except json.JSONDecodeError:
+        logger.error(
+            "Assign run permission JSON malformed in settings.FUNCTIONS_PERMISSIONS"
+        )
         return
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.error("Assign run permission unexpected error: %s", e)
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.error("Assign run permission unexpected error")
         return
 
     for function_title, function_info in functions_permissions.items():
