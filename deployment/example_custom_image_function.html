@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Cloud infrastructure setup" href="cloud.html" /><link rel="prev" title="Deployment" href="index.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Qiskit Serverless API References" href="../apidocs/index.html" /><link rel="prev" title="Building custom image for function" href="deploying_custom_image_function.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.01.29 -->
-        <title>Local infrastructure setup - Qiskit Serverless 0.13.0</title>
+        <title>Example custom image function - Qiskit Serverless 0.13.0</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=135e06be" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=fe84956c" />
@@ -202,11 +202,11 @@
 </ul>
 </li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Deployment</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of Deployment</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Local infrastructure setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="local.html">Local infrastructure setup</a></li>
 <li class="toctree-l2"><a class="reference internal" href="cloud.html">Cloud infrastructure setup</a></li>
 <li class="toctree-l2"><a class="reference internal" href="client_configuration.html">Client configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="deploying_custom_image_function.html">Building custom image for function</a></li>
-<li class="toctree-l2"><a class="reference internal" href="example_custom_image_function.html">Example custom image function</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Example custom image function</a></li>
 </ul>
 </li>
 </ul>
@@ -289,75 +289,205 @@
           </label>
         </div>
         <article role="main">
-          <section id="local-infrastructure-setup">
-<span id="local-infrastructure"></span><h1>Local infrastructure setup<a class="headerlink" href="#local-infrastructure-setup" title="Permalink to this heading">#</a></h1>
-<p>Step 1: Create a Python environment and clone the repository</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> repository contains some Dockerfiles which make spinning up a test cluster
-on your local machine straightforward. The first thing we will do is clone the repository.</p>
+          <section id="example-custom-image-function">
+<h1>Example custom image function<a class="headerlink" href="#example-custom-image-function" title="Permalink to this heading">#</a></h1>
+<p>Function example (runner.py)</p>
 <div class="literal-block-wrapper docutils container" id="id1">
-<div class="code-block-caption"><span class="caption-text">Create a minimal environment with only Python installed in it. We recommend using <a class="reference external" href="https://docs.python.org/3.10/tutorial/venv.html">Python virtual environments</a>.</span><a class="headerlink" href="#id1" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">virtual</span><span class="o">/</span><span class="n">environment</span>
+<div class="code-block-caption"><span class="caption-text">runner.py</span><a class="headerlink" href="#id1" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_aer</span> <span class="kn">import</span> <span class="n">AerSimulator</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span>
+<span class="kn">from</span> <span class="nn">qiskit.transpiler.preset_passmanagers</span> <span class="kn">import</span> <span class="n">generate_preset_pass_manager</span>
+<span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">Session</span>
+
+<span class="k">def</span> <span class="nf">custom_function</span><span class="p">(</span><span class="n">arguments</span><span class="p">):</span>
+     <span class="n">service</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">)</span>
+     <span class="n">circuit</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;circuit&quot;</span><span class="p">)</span>
+     <span class="n">observable</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;observable&quot;</span><span class="p">)</span>
+
+     <span class="k">if</span> <span class="n">service</span><span class="p">:</span>
+         <span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">least_busy</span><span class="p">(</span><span class="n">operational</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">simulator</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">min_num_qubits</span><span class="o">=</span><span class="mi">127</span><span class="p">)</span>
+         <span class="n">session</span> <span class="o">=</span> <span class="n">Session</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)</span>
+     <span class="k">else</span><span class="p">:</span>
+         <span class="n">backend</span> <span class="o">=</span> <span class="n">AerSimulator</span><span class="p">()</span>
+
+    <span class="n">target</span> <span class="o">=</span> <span class="n">backend</span><span class="o">.</span><span class="n">target</span>
+    <span class="n">pm</span> <span class="o">=</span> <span class="n">generate_preset_pass_manager</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="n">optimization_level</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+    <span class="n">target_circuit</span> <span class="o">=</span> <span class="n">pm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
+    <span class="n">target_observable</span> <span class="o">=</span> <span class="n">observable</span><span class="o">.</span><span class="n">apply_layout</span><span class="p">(</span><span class="n">target_circuit</span><span class="o">.</span><span class="n">layout</span><span class="p">)</span>
+
+    <span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">EstimatorV2</span> <span class="k">as</span> <span class="n">Estimator</span>
+    <span class="k">if</span> <span class="n">service</span><span class="p">:</span>
+        <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)</span>
+    <span class="n">job</span> <span class="o">=</span> <span class="n">estimator</span><span class="o">.</span><span class="n">run</span><span class="p">([(</span><span class="n">target_circuit</span><span class="p">,</span> <span class="n">target_observable</span><span class="p">)])</span>
+
+    <span class="k">if</span> <span class="n">service</span><span class="p">:</span>
+        <span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">evs</span>
+
+<span class="k">class</span> <span class="nc">Runner</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">custom_function</span><span class="p">(</span><span class="n">arguments</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
+<p>Dockerfile</p>
 <div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-text">Activate your new environment.</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">source</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">virtual</span><span class="o">/</span><span class="n">environment</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">activate</span>
+<div class="code-block-caption"><span class="caption-text">Dockerfile</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.13.0-py310
+
+# install all necessary dependencies for your custom image
+
+# copy our function implementation in `/runner/runner.py` of the docker image
+USER 0
+RUN  pip install qiskit_aer
+
+WORKDIR /runner
+COPY ./runner.py /runner
+WORKDIR /
+
+USER $RAY_UID
 </pre></div>
 </div>
 </div>
+<p>Build container image</p>
 <div class="literal-block-wrapper docutils container" id="id3">
-<div class="code-block-caption"><span class="caption-text">Note: If you are using Windows, use the following commands in PowerShell.</span><a class="headerlink" href="#id3" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python3</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="n">c</span><span class="p">:</span>\<span class="n">path</span>\<span class="n">to</span>\<span class="n">virtual</span>\<span class="n">environment</span>
-   <span class="n">c</span><span class="p">:</span>\<span class="n">path</span>\<span class="n">to</span>\<span class="n">virtual</span>\<span class="n">environment</span>\<span class="n">Scripts</span>\<span class="n">Activate</span><span class="o">.</span><span class="n">ps1</span>
+<div class="code-block-caption"><span class="caption-text">Docker build</span><a class="headerlink" href="#id3" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> <span class="n">docker</span> <span class="n">build</span> <span class="o">-</span><span class="n">t</span> <span class="n">local</span><span class="o">-</span><span class="n">provider</span><span class="o">-</span><span class="n">function</span> <span class="o">.</span>
 </pre></div>
 </div>
 </div>
+<p>Prepare your local environment</p>
 <div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-text">Clone the Qiskit Serverless repository.</span><a class="headerlink" href="#id4" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">cd</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">workspace</span><span class="o">/</span>
-   <span class="n">git</span> <span class="n">clone</span> <span class="n">git</span><span class="nd">@github</span><span class="o">.</span><span class="n">com</span><span class="p">:</span><span class="n">Qiskit</span><span class="o">/</span><span class="n">qiskit</span><span class="o">-</span><span class="n">serverless</span><span class="o">.</span><span class="n">git</span>
+<div class="code-block-caption"><span class="caption-text">Modify docker compose definition</span><a class="headerlink" href="#id4" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> <span class="n">services</span><span class="p">:</span>
+     <span class="n">ray</span><span class="o">-</span><span class="n">head</span><span class="p">:</span>
+         <span class="n">container_name</span><span class="p">:</span> <span class="n">ray</span><span class="o">-</span><span class="n">head</span>
+         <span class="n">image</span><span class="p">:</span> <span class="n">local</span><span class="o">-</span><span class="n">provider</span><span class="o">-</span><span class="n">function</span><span class="p">:</span><span class="n">latest</span>
 </pre></div>
 </div>
 </div>
-<p>Step 2: Set up Docker</p>
-<p>To set up Qiskit Serverless on your local machine, you will need to use <a class="reference external" href="https://docs.docker.com/compose/">docker compose</a>.</p>
-<p>Step 3: Initiate the test cluster</p>
-<p>Once you have Docker and docker compose installed, you can run the following command from the root of the
-<code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> repository to set up the infrastructure:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker compose [--profile &lt;PROFILE&gt;] up
+<p>Run it</p>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">Run docker compose</span><a class="headerlink" href="#id5" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> <span class="n">docker</span><span class="o">-</span><span class="n">compose</span> <span class="n">up</span>
 </pre></div>
 </div>
-<p>Additionally, you can include the profile <cite>full</cite>.
-With the full profile installs all core services, including logging and
-monitorying systems.</p>
-<p>Step 4: Run a program in the test environment</p>
-<p>Once the containers are running, you can simulate a remote cluster with the resources on your
-local machine. To create and run programs in this simulated cluster, we recommend using <a class="reference external" href="https://jupyter.org/install">Jupyter Lab</a>. Refer to the <a class="reference internal" href="../getting_started/index.html#getting-started"><span class="std std-ref">Getting started</span></a> guides
-for details about running your program remotely.</p>
+</div>
+<p>Run serverless</p>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text">upload.py</span><a class="headerlink" href="#id6" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">ServerlessClient</span>
+
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="n">help</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+
+<span class="s2">title: custom-image-function</span>
+
+<span class="s2">description: sample function implemented in a custom image</span>
+<span class="s2">arguments:</span>
+<span class="s2">    service: service created with the accunt information</span>
+<span class="s2">    circuit: circuit</span>
+<span class="s2">    observable: observable</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">function_with_custom_image</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;custom-image-function&quot;</span><span class="p">,</span>
+    <span class="n">image</span><span class="o">=</span><span class="n">local</span><span class="o">-</span><span class="n">provider</span><span class="o">-</span><span class="n">function</span><span class="p">:</span><span class="n">latest</span><span class="p">,</span>
+    <span class="n">provider</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PROVIDER_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;mockprovider&quot;</span><span class="p">),</span>
+    <span class="n">description</span><span class="o">=</span><span class="n">help</span>
+<span class="p">)</span>
+<span class="n">serverless</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function_with_custom_image</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>For the User</p>
+<p>List all available functions</p>
+<div class="literal-block-wrapper docutils container" id="id7">
+<div class="code-block-caption"><span class="caption-text">list.py</span><a class="headerlink" href="#id7" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">ServerlessClient</span>
+
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="n">my_functions</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">function</span> <span class="ow">in</span> <span class="n">my_functions</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Name: &quot;</span> <span class="o">+</span> <span class="n">function</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">function</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<p>Execute Function</p>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-text">usage.py</span><a class="headerlink" href="#id8" title="Permalink to this code">#</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">ServerlessClient</span>
+<span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
+<span class="kn">from</span> <span class="nn">qiskit.circuit.random</span> <span class="kn">import</span> <span class="n">random_circuit</span>
+<span class="kn">from</span> <span class="nn">qiskit.quantum_info</span> <span class="kn">import</span> <span class="n">SparsePauliOp</span>
+<span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
+
+<span class="c1"># set this True for the real Quantum system use</span>
+<span class="n">use_service</span><span class="o">=</span><span class="kc">False</span>
+
+<span class="n">service</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="k">if</span> <span class="n">use_service</span><span class="p">:</span>
+    <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
+        <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;YOUR_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">channel</span><span class="o">=</span><span class="s1">&#39;ibm_quantum&#39;</span><span class="p">,</span>
+        <span class="n">instance</span><span class="o">=</span><span class="s1">&#39;ibm-q/open/main&#39;</span><span class="p">,</span>
+        <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+<span class="n">circuit</span> <span class="o">=</span> <span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1234</span><span class="p">)</span>
+<span class="n">observable</span> <span class="o">=</span> <span class="n">SparsePauliOp</span><span class="p">(</span><span class="s2">&quot;IY&quot;</span><span class="p">)</span>
+<span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+    <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="n">my_function</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;custom-image-function&quot;</span><span class="p">)</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">service</span><span class="o">=</span><span class="n">service</span><span class="p">,</span> <span class="n">circuit</span><span class="o">=</span><span class="n">circuit</span><span class="p">,</span> <span class="n">observable</span><span class="o">=</span><span class="n">observable</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
 </section>
 
         </article>
       </div>
       <footer>
         <div class="related-pages">
-          <a class="next-page" href="cloud.html">
+          <a class="next-page" href="../apidocs/index.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Cloud infrastructure setup</div>
+                <div class="title">Qiskit Serverless API References</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="index.html">
+          <a class="prev-page" href="deploying_custom_image_function.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Deployment</div>
+                <div class="title">Building custom image for function</div>
                 
               </div>
             </a>
