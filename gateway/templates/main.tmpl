@@ -1,5 +1,6 @@
 """Default entrypoint."""
 
+import logging
 import os
 import sys
 
@@ -8,6 +9,22 @@ from qiskit_serverless import get_arguments, save_result
 sys.path.append("{{mount_path}}")
 
 from {{package_name}} import Runner
+
+user_logger = logging.getLogger("user")
+function_logger = logging.getLogger("function")
+
+user_logger.setLevel(logging.INFO)
+function_logger.setLevel(logging.INFO)
+
+file_handler = logging.FileHandler("/data/user.log")
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+user_logger.addHandler(file_handler)
+
+file_handler = logging.FileHandler("/function_data/function.log")
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+function_logger.addHandler(file_handler)
 
 arguments = get_arguments()
 
