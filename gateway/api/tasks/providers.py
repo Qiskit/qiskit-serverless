@@ -43,7 +43,7 @@ def assign_admin_group():
 
             if created:
                 logger.info(  #  pylint: disable=logging-too-many-args
-                    "Provider [%s] created for admin [%s]",
+                    "Provider [%s] created for admin [%s] with registrt [%s]",
                     provider.name,
                     admin_group_name,
                     registry,
