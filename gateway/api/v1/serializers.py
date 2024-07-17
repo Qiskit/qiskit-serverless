@@ -4,6 +4,7 @@ Serializers api for V1.
 
 from rest_framework.serializers import ValidationError
 from api import serializers
+from api.models import Provider
 
 
 class ProgramSerializer(serializers.ProgramSerializer):
@@ -53,6 +54,19 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             if provider is None and len(title_split) != 2:
                 raise ValidationError(
                     "Custom images are only available if you are a provider."
+                )
+            if not provider:
+                provider = title_split[0]
+            provider_instance = Provider.objects.filter(name=provider).first()
+            if provider_instance is None:
+                raise ValidationError(
+                    "Custom images are only available a valid provider."
+                )
+            if not provider_instance.registry or not image.startswith(
+                provider_instance.registry
+            ):
+                raise ValidationError(
+                    f"Custom images must be in {provider_instance.registry}."
                 )
         return super().validate(attrs)
 

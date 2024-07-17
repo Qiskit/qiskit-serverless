@@ -20,25 +20,31 @@ def assign_admin_group():
     """
     try:
         providers_configuration = json.loads(settings.PROVIDERS_CONFIGURATION)
-    except json.JSONDecodeError as e:
-        logger.error("Assign admin group JSON malformed: %s", e)
+    except json.JSONDecodeError:
+        logger.error(
+            "Assign admin group JSON malformed in settings.PROVIDERS_CONFIGURATION"
+        )
         return
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.error("Assign admin group unexpected error: %s", e)
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.error("Assign admin group unexpected error")
         return
 
-    for provider_name, admin_group_name in providers_configuration.items():
+    for provider_name, provider_attributes in providers_configuration.items():
+        admin_group_name = provider_attributes["admin_group"]
+        registry = provider_attributes["registry"]
         group = Group.objects.filter(name=admin_group_name).first()
         if group is None:
             logger.warning("Group [%s] does not exist", admin_group_name)
         else:
             provider, created = Provider.objects.update_or_create(
-                name=provider_name, defaults={"admin_group": group}
+                name=provider_name,
+                defaults={"admin_group": group, "registry": registry},
             )
 
             if created:
-                logger.info(
-                    "Provider [%s] created for admin [%s]",
+                logger.info(  #  pylint: disable=logging-too-many-args
+                    "Provider [%s] created for admin [%s] with registrt [%s]",
                     provider.name,
                     admin_group_name,
+                    registry,
                 )
