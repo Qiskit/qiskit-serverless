@@ -122,7 +122,7 @@ class SerializerTest(APITestCase):
         arguments = {}
         dependencies = "[]"
         image = "docker.io/awesome/awesome-image:latest"
-        provider = "ibm"
+        provider = "default"
 
         data = {}
         data["title"] = title
@@ -138,7 +138,7 @@ class SerializerTest(APITestCase):
 
     def test_upload_program_with_custom_image_and_title_provider(self):
         """Tests image upload serializer."""
-        title = "ibm/Hello world"
+        title = "default/Hello world"
         entrypoint = "main.py"
         arguments = {}
         dependencies = "[]"

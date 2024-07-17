@@ -216,8 +216,8 @@ class TestProgramApi(APITestCase):
                 "title": "Private function",
                 "dependencies": "[]",
                 "env_vars": env_vars,
-                "image": "icr.io/awesome-namespace/awesome-title",
-                "provider": "default",
+                "image": "docker.io/awesome-namespace/awesome-title",
+                "provider": "ibm",
             },
         )
         self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
@@ -225,10 +225,10 @@ class TestProgramApi(APITestCase):
         programs_response = self.client.post(
             "/api/v1/programs/upload/",
             data={
-                "title": "default/Private function",
+                "title": "ibm/Private function",
                 "dependencies": "[]",
                 "env_vars": env_vars,
-                "image": "icr.io/awesome-namespace/awesome-title",
+                "image": "docker.io/awesome-namespace/awesome-title",
             },
         )
         self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)

@@ -11,7 +11,9 @@ class TestProgramApi(APITestCase):
 
     fixtures = ["tests/fixtures/tasks_fixtures.json"]
 
-    @override_settings(PROVIDERS_CONFIGURATION='{"test_provider": "runner"}')
+    @override_settings(
+        PROVIDERS_CONFIGURATION='{"test_provider": {"admin_group": "runner", "registry": "docker.io/"}}'
+    )
     def test_assign_admin_group(self):
         """This test will check assign admin group task"""
 
@@ -20,7 +22,9 @@ class TestProgramApi(APITestCase):
         provider = Provider.objects.get(name="test_provider")
         self.assertEqual(provider.admin_group.name, "runner")
 
-    @override_settings(PROVIDERS_CONFIGURATION='{"test_provider": "runner"}')
+    @override_settings(
+        PROVIDERS_CONFIGURATION='{"test_provider": {"admin_group": "runner", "registry": "docker.io/"}}'
+    )
     @override_settings(
         FUNCTIONS_PERMISSIONS='{"function_provider": {"provider": "test_provider", "instances": ["runner"]}}'
     )
@@ -36,7 +40,7 @@ class TestProgramApi(APITestCase):
                 "title": "function_provider",
                 "dependencies": "[]",
                 "env_vars": "{}",
-                "image": "icr.io/awesome-namespace/awesome-title",
+                "image": "docker.io/awesome-namespace/awesome-title",
                 "provider": "test_provider",
             },
         )
