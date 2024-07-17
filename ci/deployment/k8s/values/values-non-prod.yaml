@@ -67,6 +67,8 @@ gateway:
       maxComputeResources: 5
     proxy:
       enabled: false
+    iqpQcon:
+      url: "https://api-qcon-dev.quantum.ibm.com/api"
 
   cos:
     claimName: qiskit-serverless-programs
