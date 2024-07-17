@@ -703,7 +703,7 @@ def save_result(result: Dict[str, Any]):
 
     Links:
         Source of serializer:
-        https://github.com/Qiskit/qiskit-ibm-runtime/blob/0.13.0/qiskit_ibm_runtime/utils/json.py#L197
+        https://github.com/Qiskit/qiskit-ibm-runtime/blob/0.14.0/qiskit_ibm_runtime/utils/json.py#L197
 
     Example:
         >>> # save dictionary
