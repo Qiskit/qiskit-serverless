@@ -109,8 +109,19 @@
       "created": "2023-02-01T15:30:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "QUEUED",
-      "author": 1,
+      "author": 2,
       "logs": "log entry 1"
+    }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec86",
+    "fields": {
+      "program": "6160a2ff-e482-443d-af23-15110b646ae2",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "QUEUED",
+      "author": 1
     }
   },
   {

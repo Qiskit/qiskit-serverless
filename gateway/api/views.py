@@ -367,9 +367,20 @@ class ProgramViewSet(viewsets.GenericViewSet):
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.program.get_jobs", context=ctx):
             program = Program.objects.filter(id=pk).first()
-            jobs = Job.objects.filter(program=program)
-            job_ids = [str(job.id) for job in jobs]
-        return Response(job_ids)
+            if (
+                program.provider
+                and program.provider.admin_group in request.user.groups.all()
+            ):
+                jobs = Job.objects.filter(program=program)
+            else:
+                jobs = Job.objects.filter(program=program, author=request.user)
+            return Response(
+                list(
+                    jobs.values(
+                        "status", "result", "id", "created", "version", "arguments"
+                    )
+                )
+            )
 
 
 class JobViewSet(viewsets.GenericViewSet):
