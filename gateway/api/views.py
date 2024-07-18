@@ -438,13 +438,19 @@ class JobViewSet(viewsets.GenericViewSet):
         with tracer.start_as_current_span("gateway.job.logs", context=ctx):
             job = Job.objects.filter(pk=pk).first()
             if job is None:
+                logger.warning("Job [%s] not found", pk)
                 return Response(status=404)
+
             logs = job.logs
             author = self.request.user
             if job.program and job.program.provider:
-                if job.program.provider.admin_group in author.groups.all():
+                provider_groups = job.program.provider.admin_groups
+                author_groups = author.groups.all()
+                has_access = any(group in provider_groups for group in author_groups)
+                if has_access:
                     return Response({"logs": logs})
                 return Response({"logs": "No available logs"})
+
             if author == job.author:
                 return Response({"logs": logs})
             return Response({"logs": "No available logs"})
