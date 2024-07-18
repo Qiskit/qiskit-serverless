@@ -53,7 +53,11 @@ class GatewayFilesClient:
         self._token = token
 
     def download(
-            self, file: str, download_location: str, target_name: Optional[str] = None, provider: Optional[str] = None
+        self,
+        file: str,
+        download_location: str,
+        target_name: Optional[str] = None,
+        provider: Optional[str] = None,
     ) -> Optional[str]:
         """Downloads file."""
         tracer = trace.get_tracer("client.tracer")

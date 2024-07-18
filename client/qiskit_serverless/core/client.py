@@ -485,7 +485,9 @@ class ServerlessClient(BaseClient):
         download_location: str = "./",
         provider: Optional[str] = None,
     ):
-        return self._files_client.download(file, download_location, target_name, provider)
+        return self._files_client.download(
+            file, download_location, target_name, provider
+        )
 
     def file_delete(self, file: str, provider: Optional[str] = None):
         return self._files_client.delete(file, provider)
