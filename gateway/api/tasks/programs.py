@@ -61,7 +61,7 @@ def assign_run_permission():
                     groups.append(group)
 
             logger.info(
-                "Program [%s] is going to be updated with [%s] groups",
+                "Program [%s] is going to be updated with [%s] group(s)",
                 program.title,
                 len(groups),
             )

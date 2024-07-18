@@ -14,7 +14,7 @@ def on_migrations_applied(sender, **kwargs):  # pylint: disable=unused-argument
         providers,
     )
 
-    providers.assign_admin_group()
+    providers.assign_admin_groups()
     programs.assign_run_permission()
 
 
