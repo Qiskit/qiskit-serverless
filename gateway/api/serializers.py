@@ -63,11 +63,14 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         if provider is None:
             logger.error("Provider [%s] does not exist.", provider_name)
             return False
-        has_access = provider.admin_group in author.groups.all()
+
+        author_groups = author.groups.all()
+        has_access = any(group in provider.admin_groups for group in author_groups)
         if not has_access:
             logger.error(
                 "User [%s] has no access to provider [%s].", author.id, provider_name
             )
+
         return has_access
 
     def retrieve_private_function(self, title, author):
