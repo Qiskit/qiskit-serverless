@@ -20,8 +20,9 @@ class TestProgramApi(APITestCase):
         providers.assign_admin_groups()
 
         provider = Provider.objects.get(name="test_provider")
-        self.assertEqual(len(provider.admin_groups.name), 1)
-        self.assertEqual(provider.admin_groups.name[0], "runner")
+        admin_groups = provider.admin_groups.all()
+        self.assertEqual(len(admin_groups), 1)
+        self.assertEqual(admin_groups[0].name, "runner")
         self.assertEqual(provider.registry, "docker.io")
 
     @override_settings(
@@ -46,7 +47,6 @@ class TestProgramApi(APITestCase):
                 "provider": "test_provider",
             },
         )
-        print(programs_response.content)
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
 
         programs.assign_run_permission()

@@ -65,7 +65,8 @@ class UploadProgramSerializer(serializers.ModelSerializer):
             return False
 
         author_groups = author.groups.all()
-        has_access = any(group in provider.admin_groups for group in author_groups)
+        admin_groups = provider.admin_groups.all()
+        has_access = any(group in admin_groups for group in author_groups)
         if not has_access:
             logger.error(
                 "User [%s] has no access to provider [%s].", author.id, provider_name

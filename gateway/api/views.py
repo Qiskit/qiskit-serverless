@@ -444,7 +444,7 @@ class JobViewSet(viewsets.GenericViewSet):
             logs = job.logs
             author = self.request.user
             if job.program and job.program.provider:
-                provider_groups = job.program.provider.admin_groups
+                provider_groups = job.program.provider.admin_groups.all()
                 author_groups = author.groups.all()
                 has_access = any(group in provider_groups for group in author_groups)
                 if has_access:
