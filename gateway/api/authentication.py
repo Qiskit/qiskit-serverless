@@ -132,7 +132,9 @@ class MockAuthBackend(authentication.BaseAuthentication):
                         group.permissions.add(run_program)
                         group.user_set.add(user)
                         logger.info("New group created")
-                        provider = Provider.objects.create(name="mockprovider")
+                        provider = Provider.objects.create(
+                            name="mockprovider", registry="icr.io"
+                        )
                         provider.admin_groups.add(group)
                         logger.info("New provider created")
 
