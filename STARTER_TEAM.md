@@ -1,44 +1,61 @@
 ## (UPDATE WITH YOUR TEAM'S INFO)
 
 # Starter Team contact info
-Project Starter: [Jenna Ritten](https://developer.ibm.com/profiles/jritten/)
+Project Starter: [First Last](https://developer.ibm.com/profiles/****/)
 
-Role: Chief Developer Advocate & Lead Architect
+Role:
 
-Slack: @jritten
+Slack: 
 
-Email: jritten@ibm.com
+Email: 
 
-## Include the following contact info for at least one Starter
-Project Starter: [<FIRST_NAME> <LAST_NAME](<YOUR_W3_DEVELOPER_PROFILE_URL)
+## Contact info for Starter
+Project Starter: [David-Garcia-Valinas](https://github.ibm.com/David-Garcia-Valinas)
 
-Role: <YOUR_INNERSOURCE_PROJECT_ROLE>
+Role: Maintainer
 
-Slack: <YOUR_SLACK_HANDLE>
+Slack: @david
 
-Email: <YOUR_IBM_EMAIL>
+Email: davidgv@ibm.com
 
-## (Optional roles to include)
+
+Project Starter: [Iskandar Sitdikov](https://github.ibm.com/Iskandar-Sitdikov)
+
+Role: Maintainer
+
+Slack: @Iskandar
+
+Email: iskandar.sitdikov@ibm.com
+
+
+Project Starter: [Paul Schweigert](https://github.ibm.com/paulschw)
+
+Role: Maintainer
+
+Slack: @paulschw
+
+Email: paulschw@us.ibm.com
+
+
+Project Starter: [Akihiko Kuroda](https://github.ibm.com/akuroda)
+
+Role: Maintainer
+
+Slack: @akuroda
+
+Email: akuroda@us.ibm.com
+
 # InnerSource@IBM Starter Team
-Program Lead: [Micaela Eller](https://innersource.slack.com/archives/DHNM9103Y) [@meller](https://github.ibm.com/meller)
-
+Program Lead: 
 Product Owner:
-
-Lead Architect: [Jenna Ritten](https://innersource.slack.com/archives/D9V6BV5T4) [@jritten](https://github.ibm.com/jritten)
-
+Lead Architect:
 Dev Lead:
-
-Design Lead: [Chris Eisbach](https://innersource.slack.com/archives/D02UWKCSLRL) [@chrisbac](https://github.ibm.com/chrisbac)
-
+Design Lead:
 Design Researcher:
-
 Iteration Manager:
-
 Project Manager:
-
-Frontend Developer: [Juan Antonio Olvera Cruz](https://innersource.slack.com/archives/D056YDTV40G) [@Antonio-olvera](https://github.ibm.com/Antonio-olvera)
-
-Backend Developer: [Richard Wilson](https://innersource.slack.com/archives/D04US0LMT1U) [@rwilson](https://github.ibm.com/rwilson)
+Frontend Developer:
+Backend Developer:
 
 # Trusted Committers
-Senior Software Engineer: [Montrez Whitsett](https://innersource.slack.com/archives/DA2KG4G5U) [@Montrez-Whitsett](https://github.ibm.com/Montrez-Whitsett)
+Senior Software Engineer:
