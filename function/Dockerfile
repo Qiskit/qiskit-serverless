@@ -7,7 +7,7 @@
  RUN  pip install qiskit_aer
 
  WORKDIR /runner
- COPY runner.py .
+ COPY function/runner.py .
  WORKDIR /
 
  USER $RAY_UID
