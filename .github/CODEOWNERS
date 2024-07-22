@@ -1,0 +1,6 @@
+# CODEOWNERS
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# @jritten will be requested for
+# review when someone opens a pull request.
+*       @jritten
