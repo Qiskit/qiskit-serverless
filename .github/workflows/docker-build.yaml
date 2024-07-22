@@ -10,6 +10,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Build the function
+        run: docker build -e test_function:latest ./tests/basic/source_files .
       - name: Build the containers
         run: docker compose -f docker-compose-dev.yaml build
       - name: Run the jupyter profile
