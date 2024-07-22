@@ -36,6 +36,7 @@ jobs:
           docker build -t proxy:test --build-arg TARGETARCH="amd64" -f ./proxy/Dockerfile .
           kind load docker-image proxy:test
           docker image rm proxy:test
+	  docker images
       - name: Build and load function
         run: |
           docker build -t test_function:latest --build-arg TARGETARCH="amd64" -f ./function/Dockerfile .
