@@ -4,8 +4,6 @@ FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.12.0-py310
 
 # copy our function implementation in `/runner.py` of the docker image
 USER 0
-RUN  pip install qiskit_aer
-
 RUN mkdir /runner
 WORKDIR /runner
 COPY function/runner.py .
