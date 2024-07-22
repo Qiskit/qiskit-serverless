@@ -8,7 +8,7 @@ RUN mkdir /runner
 WORKDIR /runner
 #COPY function/runner.py .
 COPY tests/basic/function/runner.py .
-COPY /runner.py .
+#COPY /runner.py .
 WORKDIR /
 
 USER $RAY_UID
