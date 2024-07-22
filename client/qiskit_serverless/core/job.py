@@ -632,7 +632,7 @@ class GatewayJobClient(BaseJobClient):
             )
             program_id = response_data.get("id", None)
             if not program_id:
-                return None 
+                return None
             response_data = safe_json_request(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/programs/{program_id}/get_jobs/",
