@@ -10,6 +10,15 @@ Slack:
 Email: 
 
 ## Contact info for Starter
+Project Starter: [Akihiko Kuroda](https://github.ibm.com/akuroda)
+
+Role: Maintainer
+
+Slack: @akuroda
+
+Email: akuroda@us.ibm.com
+
+
 Project Starter: [David-Garcia-Valinas](https://github.ibm.com/David-Garcia-Valinas)
 
 Role: Maintainer
@@ -36,14 +45,6 @@ Slack: @paulschw
 
 Email: paulschw@us.ibm.com
 
-
-Project Starter: [Akihiko Kuroda](https://github.ibm.com/akuroda)
-
-Role: Maintainer
-
-Slack: @akuroda
-
-Email: akuroda@us.ibm.com
 
 # InnerSource@IBM Starter Team
 Program Lead: 
