@@ -1,25 +1,20 @@
 ## This is where we save links to external resources that are displayed on your project's profile in the InnerSource Portal.
 ---
-## (Optional) Artifactory path of project
-## artifactoryPath: "<YOUR_ARTIFACTORY_PATH_URL>"
-
 ## Link to documentation
-documentationLink: "https://pages.github.ibm.com/innersource/playbook/2-portal_onboarding/starter/quick-start/"
-## documentationLink: "<YOUR_DOCUMENTATION_URL>"
+documentationLink: "https://qiskit.github.io/qiskit-serverless/"
 
 ## Link to project slack channel
-slackChannel: "https://innersource.slack.com/archives/C029D4C808M"
-## slackChannel: "<YOUR_SLACK_CHANNEL_URL>"
+slackChannel: "https://innersource.slack.com/archives/C04M5CZCJTH"
 
 ## Links to starter contact info
-starterName: "[Jenna Ritten](https://developer.ibm.com/profiles/jritten/)"
+starterName: 
 ## starterName: "[<FIRST_NAME> <LAST_NAME](<W3_DEVELOPER_PROFILE>)"
 
-starterRole: "Lead Architect"
+starterRole: 
 ## starterRole: "<YOUR_PROJECT_ROLE>"
 
-starterSlack: "@jritten"
+starterSlack: 
 ## starterSlack: "<YOUR_SLACK_CHANNEL_URL>"
 
-starterEmail: "jritten@ibm.com"
+starterEmail: 
 ## starterEmail: "<YOUR_IBM_EMAIL>"
