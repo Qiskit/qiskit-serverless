@@ -6,9 +6,7 @@ FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.14.0-py310
 USER 0
 RUN mkdir /runner
 WORKDIR /runner
-#COPY function/runner.py .
-COPY tests/basic/function/runner.py .
-#COPY /runner.py .
+COPY function/runner.py .
 WORKDIR /
 
 USER $RAY_UID

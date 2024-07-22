@@ -39,7 +39,7 @@ jobs:
           docker images
       - name: Build and load function
         run: |
-          docker build -t test_function:latest --build-arg TARGETARCH="amd64" -f ./tests/basic/function/Sample-Docker .
+          docker build -t test_function:latest --build-arg TARGETARCH="amd64" -f ./tests/basic/function/Sample-Docker ./tests/basic
           kind load docker-image test_function:latest
           docker image rm test_function:latest
       - name: Install helm chart
