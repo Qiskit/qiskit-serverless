@@ -367,6 +367,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.program.get_jobs", context=ctx):
             program = Program.objects.filter(id=pk).first()
+            if not program:
+                return Response(
+                    {"message": f"program [{pk}] was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
             if (
                 program.provider
                 and program.provider.admin_group in request.user.groups.all()

@@ -39,7 +39,8 @@ services:
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
       - SITE_HOST=http://gateway:8000
       - SETTINGS_AUTH_MECHANISM=mock_token
-      - DATABASE_HOST=postgres
+      - SETTINGS_AUTH_MOCKPROVIDER_REGISTRY=test
+©      - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_NAME=serverlessdb
       - DATABASE_USER=serverlessuser
