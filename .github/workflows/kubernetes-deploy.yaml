@@ -38,7 +38,7 @@ jobs:
           docker image rm proxy:test
       - name: Build and load function
         run: |
-          docker build -t test_function:latest --build-arg TARGETARCH="amd64" -f ./tests/basic/source_files/Dockerfile .
+          docker build -t test_function:latest --build-arg TARGETARCH="amd64" ./tests/basic/source_files .
           kind load docker-image test_function:latest
           docker image rm test_function:latest
       - name: Install helm chart
