@@ -31,27 +31,6 @@ jobs:
           docker build -t ray:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-ray-node .
           kind load docker-image ray:test
           docker image rm ray:test
-      - name: Build and load function
-        run: |
-          docker build -t test_function:latest --build-arg TARGETARCH="amd64" -f ./tests/basic/function/Sample-Docker ./tests/basic
-          docker images
-          docker rmi moby/buildkit:latest
-          docker rmi ubuntu:22.04
-          docker rmi ubuntu:20.04
-          docker rmi alpine:3.16
-          docker rmi alpine:3.17
-          docker rmi alpine:3.18
-          docker rmi alpine:3.19
-          docker rmi node:20
-          docker rmi node:18
-          docker rmi node:16
-          docker rmi node:20-alpine
-          docker rmi node:18-alpine
-          docker rmi node:16-alpine
-          docker rmi debian:10
-          docker rmi debian:11
-          #kind load docker-image test_function:latest
-          docker image rm test_function:latest
       - name: Install helm chart
         run: |
           cd charts/qiskit-serverless
