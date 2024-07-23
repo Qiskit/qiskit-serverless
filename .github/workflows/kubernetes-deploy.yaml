@@ -37,6 +37,9 @@ jobs:
           kind load docker-image proxy:test
           docker image rm proxy:test
           docker images
+          docker rmi node:20
+          docker rmi node:18
+          docker rmi node:16
       - name: Build and load function
         run: |
           docker build -t test_function:latest --build-arg TARGETARCH="amd64" -f ./tests/basic/function/Sample-Docker ./tests/basic
