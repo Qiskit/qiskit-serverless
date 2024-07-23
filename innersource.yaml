@@ -7,14 +7,5 @@ documentationLink: "https://qiskit.github.io/qiskit-serverless/"
 slackChannel: "https://app.slack.com/client/E27SFGS2W/C02J3DQ02"
 
 ## Links to starter contact info
-starterName: 
-## starterName: "[<FIRST_NAME> <LAST_NAME](<W3_DEVELOPER_PROFILE>)"
 
-starterRole: 
-## starterRole: "<YOUR_PROJECT_ROLE>"
-
-starterSlack: 
-## starterSlack: "<YOUR_SLACK_CHANNEL_URL>"
-
-starterEmail: 
-## starterEmail: "<YOUR_IBM_EMAIL>"
+Contacts: https://github.ibm.com/IBM-Q-Software/qiskit-serverless/blob/innersource/STARTER_TEAM.md
