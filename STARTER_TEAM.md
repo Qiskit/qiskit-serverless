@@ -1,13 +1,7 @@
 ## (UPDATE WITH YOUR TEAM'S INFO)
 
 # Starter Team contact info
-Project Starter: [First Last](https://developer.ibm.com/profiles/****/)
-
-Role:
-
-Slack: 
-
-Email: 
+Slack: "https://app.slack.com/client/E27SFGS2W/C02J3DQ02" 
 
 ## Contact info for Starter
 Project Starter: [Akihiko Kuroda](https://github.ibm.com/akuroda)
