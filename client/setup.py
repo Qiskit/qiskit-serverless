@@ -23,7 +23,7 @@ setuptools.setup(
     keywords="qiskit serverless quantum computing",
     packages=setuptools.find_packages(),
     install_requires=install_requires,
-    python_requires="3.11",
+    python_requires=">=3.11",
     version=version,
     classifiers=[
         "Development Status :: 3 - Alpha",
