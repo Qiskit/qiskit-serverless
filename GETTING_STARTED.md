@@ -1,30 +1,25 @@
 # Getting Started
-Your project repository should contain a GETTING_STARTED.md that outlines how an IBM team can complete thee required setup and install in order to adopt your product/service/asset and any information and resources to get the support they need from your team.
+Please refer to the [README](https://github.ibm.com/IBM-Q-Software/qiskit-serverless/blob/innersource/README.md#quickstart) for quick install and try and refer to the [CONTRIBUTING](https://github.ibm.com/IBM-Q-Software/qiskit-serverless/blob/innersource/CONTRIBUTING.md) for contributing and development information
 
-## How to Improve Your Product with this Project
-What problem would an IBM team be looking to solve with your project? What makes your project a better solution? How would their team/product benefit from adopting your project?
+# How to Improve Your Product with this Project
+Qiskit Serverless is a user-friendly tool that enables you to easily run complex quantum computing tasks. With this software, you can execute Qiskit programs as long running jobs and distribute them across multiple CPUs, GPUs, and QPUs. This means you can take on more complex quantum-classical programs and run them with ease. You don't have to worry about configuration or scaling up computational resources, as Qiskit Serverless takes care of everything for you.
 
 ## Requirements
-list all project requirements, versions, link to downloads/resources
 
-- [ ] download/install dev env requirements/dependencies w links
-- [ ] IBM global slack channel for project comms and support
-- [ ] minimum one project starter to manage all project code, comms and community support
-- [ ] zenhub board in repo to manage onboarding and issues
-- [ ] github pages with project requirements, setup, documentation, etc.
-- [ ] CODE_OF_CONDUCT.md, README.md, GETTING_STARTED.md, CONTRIBUTING.md, and innersource.yaml files in /root of repo
+[download/install dev env requirements/dependencies](https://github.ibm.com/IBM-Q-Software/qiskit-serverless/blob/main/CONTRIBUTING.md#contributing-code)
+[IBM global slack channel for project comms and support](https://app.slack.com/client/E27SFGS2W/C02J3DQ02)
+[project starter](https://github.ibm.com/IBM-Q-Software/qiskit-serverless/blob/innersource/STARTER_TEAM.md)
+[github repository](https://github.ibm.com/IBM-Q-Software/qiskit-serverless)
 
 Note: link to github pages documentation
 
 ## Project Set-Up
 
-Note: link to github pages documentation
-- [ ] change "master" branch to "main"
-
-Recommended IDE: https://w3.ibm.com/#/tools/essential
+[Github repository](https://github.ibm.com/IBM-Q-Software/qiskit-serverless)
+[Upstream github repository](https://github.com/Qiskit/qiskit-serverless)
+[Contributing and development setup](https://github.ibm.com/IBM-Q-Software/qiskit-serverless/blob/main/CONTRIBUTING.md)
 
 ## Quickstart Guide
-
-Note: link to github pages documentation
+[Qiskit Serverless Documentation](https://qiskit.github.io/qiskit-serverless/)
 
 ## GitHub Pages Documentation
