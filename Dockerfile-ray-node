@@ -19,7 +19,8 @@ USER 0
 COPY client ./qs
 WORKDIR /qs
 
-RUN pip install . --no-cache-dir &&\
+RUN pip install -r requirements.txt &&\
+    pip install . --no-cache-dir &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
     pip install --no-cache-dir certifi==2024.7.4 &&\
     cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages &&\
