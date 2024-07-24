@@ -460,8 +460,19 @@ class JobViewSet(viewsets.GenericViewSet):
             serializer = self.get_serializer(job)
         return Response(serializer.data)
 
+    def read_log(self, path):
+        """read log file"""
+        if os.path.exists(path):
+            with open(path, "r", encoding="UTF-8") as log_file:
+                log = log_file.read()
+        else:
+            log = "no log yet"
+        return log
+
     @action(methods=["GET"], detail=True)
-    def logs(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
+    def logs(  # pylint: disable=invalid-name,unused-argument,too-many-return-statements
+        self, request, pk=None
+    ):
         """Returns logs from job."""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
@@ -470,6 +481,38 @@ class JobViewSet(viewsets.GenericViewSet):
             if job is None:
                 return Response(status=404)
             logs = job.logs
+            author = self.request.user
+            log_type = request.query_params.get("log_type")
+            if log_type:
+                if log_type == "function" and job.program and job.program.provider:
+                    if job.program.provider.admin_group in author.groups.all():
+                        return Response(
+                            {
+                                "logs": self.read_log(
+                                    f"{settings.MEDIA_ROOT}/{job.program.provider.name}/{job.id}/function.log"  # pylint: disable=line-too-long
+                                )
+                            }
+                        )
+                    return Response({"logs": "No available logs"})
+                if log_type == "user":
+                    if author == job.author:
+                        return Response(
+                            {
+                                "logs": self.read_log(
+                                    f"{settings.MEDIA_ROOT}/{author.username}/{job.id}/user.log"
+                                )
+                            }
+                        )
+                    if job.program and job.program.provider:
+                        if job.program.provider.admin_group in author.groups.all():
+                            return Response(
+                                {
+                                    "logs": self.read_log(
+                                        f"{settings.MEDIA_ROOT}/{author.username}/{job.id}/user.log"
+                                    )
+                                }
+                            )
+                    return Response({"logs": "No available logs"})
             author = self.request.user
             if job.program and job.program.provider:
                 if job.program.provider.admin_group in author.groups.all():

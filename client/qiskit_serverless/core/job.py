@@ -129,11 +129,11 @@ class BaseJobClient:
         """Stops job/program."""
         raise NotImplementedError
 
-    def logs(self, job_id: str):
+    def logs(self, job_id: str, type: Optional[str] = None):
         """Return logs."""
         raise NotImplementedError
 
-    def filtered_logs(self, job_id: str, **kwargs):
+    def filtered_logs(self, job_id: str, type: Optional[str] = None, **kwargs):
         """Return filtered logs."""
         raise NotImplementedError
 
@@ -174,10 +174,10 @@ class RayJobClient(BaseJobClient):
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
         return self._job_client.stop_job(job_id)
 
-    def logs(self, job_id: str):
+    def logs(self, job_id: str, type: Optional[str] = None):
         return self._job_client.get_job_logs(job_id)
 
-    def filtered_logs(self, job_id: str, **kwargs):
+    def filtered_logs(self, job_id: str, type: Optional[str] = None, **kwargs):
         raise NotImplementedError
 
     def result(self, job_id: str):
@@ -248,7 +248,7 @@ class LocalJobClient(BaseJobClient):
         """Stops job/program."""
         return f"job:{job_id} has already stopped"
 
-    def logs(self, job_id: str):
+    def logs(self, job_id: str, type: Optional[str] = None):
         return self._jobs[job_id]["logs"]
 
     def result(self, job_id: str):
@@ -260,7 +260,7 @@ class LocalJobClient(BaseJobClient):
     def list(self, **kwargs) -> List["Job"]:
         return [job["job"] for job in list(self._jobs.values())]
 
-    def filtered_logs(self, job_id: str, **kwargs):
+    def filtered_logs(self, job_id: str, type: Optional[str] = None, **kwargs):
         """Return filtered logs."""
         raise NotImplementedError
 
@@ -481,20 +481,21 @@ class GatewayJobClient(BaseJobClient):
 
         return response_data.get("message")
 
-    def logs(self, job_id: str):
+    def logs(self, job_id: str, type: Optional[str] = None):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.logs"):
             response_data = safe_json_request(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
                     headers={"Authorization": f"Bearer {self._token}"},
+                    params={"log_type":type},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
         return response_data.get("logs")
 
-    def filtered_logs(self, job_id: str, **kwargs):
-        all_logs = self.logs(job_id=job_id)
+    def filtered_logs(self, job_id: str, type: Optional[str] = None, **kwargs):
+        all_logs = self.logs(job_id=job_id, type=type)
         included = ""
         include = kwargs.get("include")
         if include is not None:
@@ -670,11 +671,11 @@ class Job:
         """Stops the job from running."""
         return self._job_client.stop(self.job_id, service=service)
 
-    def logs(self) -> str:
+    def logs(self, type: Optional[str] = None) -> str:
         """Returns logs of the job."""
-        return self._job_client.logs(self.job_id)
+        return self._job_client.logs(self.job_id, type)
 
-    def filtered_logs(self, **kwargs) -> str:
+    def filtered_logs(self, type: Optional[str] = None, **kwargs) -> str:
         """Returns logs of the job.
         Args:
             include: rex expression finds match in the log line to be included
