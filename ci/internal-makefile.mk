@@ -14,7 +14,7 @@ DOCKER_FILE_SELECTOR  	  ?= ./tools/Dockerfile
 
 DOCKER_REGISTRY           			:= icr.io
 DOCKER_REGISTRY_NAMESPACE 			:= quantum-public
-DOCKER_PRIVATE_REGISTRY_NAMESPACE 	:= quantum-experimental
+DOCKER_PRIVATE_REGISTRY_NAMESPACE 	:= qc-middleware-prod
 
 TARGET_SERVICE			  ?= qiskit-serverless
 ENVIRONMENT               ?= development
