@@ -681,7 +681,9 @@ class Job:
             include: rex expression finds match in the log line to be included
             exclude: rex expression finds match in the log line to be excluded
         """
-        return self._job_client.filtered_logs(job_id=self.job_id, log_type=log_type,  **kwargs)
+        return self._job_client.filtered_logs(
+            job_id=self.job_id, log_type=log_type,  **kwargs
+        )
 
     def result(self, wait=True, cadence=5, verbose=False, maxwait=0):
         """Return results of the job.
