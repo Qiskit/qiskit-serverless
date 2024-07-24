@@ -320,13 +320,8 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.1-py310"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.1"
 )
-RAY_NODE_IMAGES_MAP = {
-    "default": RAY_NODE_IMAGE,
-    "py39": os.environ.get("RAY_NODE_IMAGE_PY39", RAY_NODE_IMAGE),
-    "py310": os.environ.get("RAY_NODE_IMAGE_PY310", RAY_NODE_IMAGE),
-}
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
     os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5")

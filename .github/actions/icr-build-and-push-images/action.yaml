@@ -25,19 +25,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Build and push image with Python Version
-      if: ${{inputs.pythonversion}} != ''
-      uses: docker/build-push-action@v5
-      with:
-        platforms: ${{inputs.platforms}}
-        context: .
-        file: ${{inputs.dockerfile}}
-        push: true
-        tags: ${{inputs.repository}}/${{inputs.name}}:${{inputs.tag}}-${{inputs.pythonversion}},${{inputs.repository}}/${{inputs.name}}:latest-${{inputs.pythonversion}}
-        build-args:
-          IMAGE_PY_VERSION=${{inputs.pythonversion}}
     - name: Build and push image
-      if: ${{inputs.pythonversion}} == ''
       uses: docker/build-push-action@v5
       with:
         platforms: ${{inputs.platforms}}
