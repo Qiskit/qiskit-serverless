@@ -111,6 +111,8 @@ spec:
               value: {{ .Values.application.auth.token.verificationUrl | quote }}
             - name: SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD
               value: {{ .Values.application.auth.token.verificationField | quote }}
+            - name: SETTINGS_AUTH_MOCKPROVIDER_REGISTRY
+              value: {{ .Values.application.authMockproviderRegistry }}
             - name: RAY_CLUSTER_WORKER_REPLICAS
               value: {{ .Values.application.ray.replicas | quote }}
             - name: RAY_CLUSTER_WORKER_MIN_REPLICAS

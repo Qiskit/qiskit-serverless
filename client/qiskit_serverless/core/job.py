@@ -151,6 +151,10 @@ class BaseJobClient:
         """Returns program based on parameters."""
         raise NotImplementedError
 
+    def get_jobs(self, title: str, provider: Optional[str] = None):
+        """Returns job ids of executed program based on parameters."""
+        raise NotImplementedError
+
 
 class RayJobClient(BaseJobClient):
     """RayJobClient."""
@@ -609,6 +613,34 @@ class GatewayJobClient(BaseJobClient):
                 raw_data=response_data,
                 job_client=self,
             )
+
+    def get_jobs(self, title: str, provider: Optional[str] = None):
+        """Returns job ids executed the program based on parameters."""
+        provider, title = format_provider_name_and_title(
+            request_provider=provider, title=title
+        )
+
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("program.get_by_title"):
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    params={"provider": provider},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            program_id = response_data.get("id", None)
+            if not program_id:
+                return None
+            response_data = safe_json_request(
+                request=lambda: requests.get(
+                    f"{self.host}/api/{self.version}/programs/{program_id}/get_jobs/",
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+            return response_data
 
 
 class Job:
