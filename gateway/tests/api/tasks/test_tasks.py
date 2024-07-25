@@ -26,7 +26,7 @@ class TestProgramApi(APITestCase):
         PROVIDERS_CONFIGURATION='{"test_provider": {"admin_group": "runner", "registry": "docker.io/"}}'
     )
     @override_settings(
-        FUNCTIONS_PERMISSIONS='{"function_provider": {"provider": "test_provider", "instances": ["runner"]}}'
+        FUNCTIONS_PERMISSIONS='{"function_provider": {"provider": "test_provider", "instances": ["runner", "manager"]}}'
     )
     def test_assign_run_permission(self):
         providers.assign_admin_group()
@@ -44,17 +44,20 @@ class TestProgramApi(APITestCase):
                 "provider": "test_provider",
             },
         )
-        print(programs_response.content)
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
 
         programs.assign_run_permission()
 
         program = Program.objects.get(title="function_provider")
-        self.assertEqual(len(program.instances.all()), 1)
+        self.assertEqual(len(program.instances.all()), 2)
         self.assertEqual(program.instances.all()[0].name, "runner")
-
-        group = program.instances.all()[0]
-        self.assertEqual(len(group.permissions.all()), 2)
+        self.assertEqual(program.instances.all()[1].name, "manager")
 
         run_permission = models.Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
-        self.assertTrue(group.permissions.filter(id=run_permission.pk).exists())
+        runner_group = program.instances.all()[0]
+        self.assertEqual(len(runner_group.permissions.all()), 2)
+        self.assertTrue(runner_group.permissions.filter(id=run_permission.pk).exists())
+
+        manager_group = program.instances.all()[1]
+        self.assertEqual(len(manager_group.permissions.all()), 2)
+        self.assertTrue(manager_group.permissions.filter(id=run_permission.pk).exists())
