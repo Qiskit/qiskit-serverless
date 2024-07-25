@@ -7,5 +7,11 @@ documentationLink: "https://qiskit.github.io/qiskit-serverless/"
 slackChannel: "https://app.slack.com/client/E27SFGS2W/C02J3DQ02"
 
 ## Links to starter contact info
+starterName: "[David-Garcia-Valinas](https://github.ibm.com/David-Garcia-Valinas)"
 
-Contacts: https://github.ibm.com/IBM-Q-Software/qiskit-serverless/blob/main/STARTER_TEAM.md
+starterRole: "Maintainer"
+
+starterSlack: "@david"
+
+starterEmail: "davidgv@ibm.com"
+
