@@ -671,7 +671,7 @@ class Job:
         """Stops the job from running."""
         return self._job_client.stop(self.job_id, service=service)
 
-    def logs(self, log_type: Optional[str] = None) -> str:
+    def logs(self, log_type: Optional[str] = None) -> str:  # pylint: disable=unused-argument
         """Returns logs of the job."""
         return self._job_client.logs(self.job_id, type)
 
