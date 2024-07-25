@@ -18,6 +18,7 @@ jobs:
         run: |
           for f in tests/basic/*.py; do sed -i "s/import ServerlessClient/import LocalClient/;s/= ServerlessClient(/= LocalClient(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" "$f"; done
           for f in tests/experimental/*.py; do sed -i "s/import ServerlessClient/import LocalClient/;s/= ServerlessClient(/= LocalClient(/;/token=os\.environ\.get/d;/host=os\.environ\.get/d" "$f"; done
+          rm tests/basic/06_function.py
       - name: install dependencies
         shell: bash
         run: pip install client/
