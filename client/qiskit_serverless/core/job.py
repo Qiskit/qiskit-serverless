@@ -488,7 +488,7 @@ class GatewayJobClient(BaseJobClient):
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
                     headers={"Authorization": f"Bearer {self._token}"},
-                    params={"log_type": type},
+                    params={"log_type": log_type},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -675,7 +675,7 @@ class Job:
         self, log_type: Optional[str] = None
     ) -> str:
         """Returns logs of the job."""
-        return self._job_client.logs(self.job_id, type)
+        return self._job_client.logs(self.job_id, log_type)
 
     def filtered_logs(self, log_type: Optional[str] = None, **kwargs) -> str:
         """Returns logs of the job.
