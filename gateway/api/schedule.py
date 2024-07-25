@@ -166,3 +166,27 @@ def handle_job_status_not_available(job: Job, job_status):
         job_status = Job.FAILED
         job.logs += f"{job.logs}\nSomething went wrong during updating job status."
     return job_status
+
+
+def fail_job_insufficient_resources(job: Job):
+    """Fail job if insufficient resources are available."""
+    if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
+        logger.debug(
+            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
+            + "so cluster [%s] will not be removed",
+            job.compute_resource.title,
+        )
+    else:
+        kill_ray_cluster(job.compute_resource.title)
+        job.compute_resource.delete()
+        job.compute_resource = None
+
+    job_status = Job.FAILED
+    job.logs = (
+        "Insufficient resources available to the run job in this "
+        "configuration.\nMax resources allowed are "
+        f"{settings.LIMITS_CPU_PER_TASK} CPUs and "
+        f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
+    )
+
+    return job_status

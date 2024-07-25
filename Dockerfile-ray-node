@@ -1,48 +1,28 @@
-ARG IMAGE_PY_VERSION=py311
+FROM registry.access.redhat.com/ubi9-minimal:9.4-1134
+RUN microdnf install -y python3.11 python3.11-pip python3.11-devel vim-enhanced wget &&\
+    microdnf clean all
+RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
+    ln -s /usr/bin/python3.11 /usr/local/bin/python &&\
+    ln -s /usr/bin/pip3.11 /usr/local/bin/pip3 &&\
+    ln -s /usr/bin/pip3.11 /usr/local/bin/pip
 
-FROM rayproject/ray:2.30.0-$IMAGE_PY_VERSION AS ray-node-amd64
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /
 USER 0
-RUN mkdir /data && chown "$RAY_UID":"$RAY_UID" /data
-USER $RAY_UID
-COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
-
+RUN mkdir /data && chown 1000:1000 /data
+USER 0
+COPY client ./qs
 WORKDIR /qs
-# TODO: certifi version pinned to 2024.7.4. More info in #421
-# TODO: pyarrow version pinned to 14.0.1
-RUN pip install . --no-cache-dir &&\
+
+RUN pip install -r requirements.txt &&\
+    pip install . --no-cache-dir &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
-    pip install --no-cache-dir certifi==2024.7.4
+    pip install --no-cache-dir certifi==2024.7.4 &&\
+    cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages &&\
+    cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages
 
 WORKDIR /
 RUN rm -r ./qs
-
-FROM rayproject/ray:2.30.0-$IMAGE_PY_VERSION-aarch64 AS ray-node-arm64
-
-WORKDIR /
-USER 0
-RUN mkdir /data && chown "$RAY_UID":"$RAY_UID" /data
-USER $RAY_UID
-RUN apt-get -y update &&\
-    apt-get install --no-install-recommends -y \
-    gcc=4:9.3.0-1ubuntu2 \
-    build-essential=12.8ubuntu1
-COPY --chown=$RAY_UID:$RAY_UID ./client ./qs
-
-WORKDIR /qs
-# TODO: certifi version pinned to 2024.7.4. More info in #421
-# TODO: pyarrow version pinned to 14.0.1
-RUN pip install . --no-cache-dir &&\
-    pip install --no-cache-dir pyarrow==14.0.1 &&\
-    if [ "$TARGETARCH" = "arm64" ] ; \
-        then pip install --no-cache-dir certifi==2024.7.4 ; \
-    fi
-
-WORKDIR /
-USER 0
-RUN rm -r ./qs
-USER $RAY_UID
-
-# hadolint ignore=DL3006
-FROM ray-node-${TARGETARCH} AS final

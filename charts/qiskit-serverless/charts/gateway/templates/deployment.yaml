@@ -74,6 +74,8 @@ spec:
             httpGet:
               path: /liveness
               port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /readiness
@@ -115,6 +117,10 @@ spec:
               value: {{ .Values.application.ray.minReplicas | quote }}
             - name: RAY_CLUSTER_WORKER_MAX_REPLICAS
               value: {{ .Values.application.ray.maxReplicas | quote }}
+            - name: LIMITS_CPU_PER_TASK
+              value: {{ .Values.application.ray.cpu | quote }}
+            - name: LIMITS_MEMORY_PER_TASK
+              value: {{ .Values.application.ray.memory | quote }}
 {{- if .Values.application.superuser.enable }}
             - name: DJANGO_SUPERUSER_USERNAME
               valueFrom:

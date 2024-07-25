@@ -14,6 +14,7 @@ jobs:
         python-version:
           - '3.9'
           - '3.10'
+          - '3.11'
 
     defaults:
       run:
@@ -45,4 +46,3 @@ jobs:
       - name: Test using tox environment
         run: |
           tox ${{ env.TOX_ENV }}
-
