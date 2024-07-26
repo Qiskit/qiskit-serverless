@@ -19,6 +19,14 @@
           "name": "runner",
             "permissions": [60]
         }
+    },
+    {
+      "model": "auth.group",
+        "pk": 101,
+        "fields": {
+          "name": "manager",
+            "permissions": [60]
+        }
     }
   ]
   

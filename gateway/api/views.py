@@ -358,6 +358,35 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         return result_queryset
 
+    @action(methods=["GET"], detail=True)
+    def get_jobs(
+        self, request, pk=None
+    ):  # pylint: disable=invalid-name,unused-argument
+        """Returns jobs of the program."""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.program.get_jobs", context=ctx):
+            program = Program.objects.filter(id=pk).first()
+            if not program:
+                return Response(
+                    {"message": f"program [{pk}] was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if (
+                program.provider
+                and program.provider.admin_group in request.user.groups.all()
+            ):
+                jobs = Job.objects.filter(program=program)
+            else:
+                jobs = Job.objects.filter(program=program, author=request.user)
+            return Response(
+                list(
+                    jobs.values(
+                        "status", "result", "id", "created", "version", "arguments"
+                    )
+                )
+            )
+
 
 class JobViewSet(viewsets.GenericViewSet):
     """

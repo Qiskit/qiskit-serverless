@@ -23,6 +23,10 @@ jobs:
             pythonversion: py310
             dockerfile: Dockerfile-ray-node
             platforms: linux/amd64,linux/arm64
+          - imagename: qiskit-serverless/ray-node
+            pythonversion: py311
+            dockerfile: Dockerfile-ray-node
+            platforms: linux/amd64,linux/arm64
           - imagename: qiskit-serverless/gateway
             pythonversion: ''
             dockerfile: ./gateway/Dockerfile
