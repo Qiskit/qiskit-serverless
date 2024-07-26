@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9-minimal:9.4-1134
+FROM registry.access.redhat.com/ubi9-minimal:9.4
 RUN microdnf install -y python3.11-3.11.7 python3.11-pip-22.3.1 python3.11-devel-3.11.7 vim-enhanced-8.2.2637 &&\
     microdnf clean all
 RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
