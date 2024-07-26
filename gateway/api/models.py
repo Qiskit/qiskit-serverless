@@ -39,23 +39,6 @@ class JobConfig(models.Model):
         null=True,
     )
 
-    PYTHON_V3_8 = "py38"
-    PYTHON_V3_9 = "py39"
-    PYTHON_V3_10 = "py310"
-    PYTHON_V3_11 = "py311"
-    PYTHON_VERSIONS = [
-        (PYTHON_V3_8, "Version 3.8"),
-        (PYTHON_V3_9, "Version 3.9"),
-        (PYTHON_V3_10, "Version 3.10"),
-        (PYTHON_V3_11, "Version 3.11"),
-    ]
-    python_version = models.CharField(
-        max_length=6,
-        choices=PYTHON_VERSIONS,
-        null=True,
-        blank=True,
-    )
-
     def __str__(self):
         return f"{self.id}"
 
