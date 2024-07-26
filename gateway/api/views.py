@@ -373,10 +373,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     {"message": f"program [{pk}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            if (
-                program.provider
-                and program.provider.admin_group in request.user.groups.all()
-            ):
+
+            user_is_provider = False
+            if program.provider:
+                admin_groups = program.provider.admin_groups.all()
+                user_groups = request.user.groups.all()
+                user_is_provider = any(group in admin_groups for group in user_groups)
+
+            if user_is_provider:
                 jobs = Job.objects.filter(program=program)
             else:
                 jobs = Job.objects.filter(program=program, author=request.user)
@@ -592,7 +596,10 @@ class FilesViewSet(viewsets.ViewSet):
         provider_list = []
         providers = Provider.objects.all()
         for instance in providers:
-            if instance.admin_group in user.groups.all():
+            user_groups = user.groups.all()
+            admin_groups = instance.admin_groups.all()
+            provider_found = any(group in admin_groups for group in user_groups)
+            if provider_found:
                 provider_list.append(instance.name)
         return provider_list
 
