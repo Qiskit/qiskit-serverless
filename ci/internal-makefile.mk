@@ -38,9 +38,9 @@ docker/lint-gateway: docker/lint
 docker/lint-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE)
 docker/lint-ray: docker/lint
 
-# .PHONY: docker/lint-selector
-# docker/lint-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR)
-# docker/lint-selector: docker/lint
+.PHONY: docker/lint-selector
+docker/lint-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR)
+docker/lint-selector: docker/lint
 
 .PHONY: docker/sast-gateway
 docker/sast-gateway: DOCKER_FILE 			:= $(DOCKER_FILE_GATEWAY)
