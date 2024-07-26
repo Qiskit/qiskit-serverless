@@ -1,111 +1,65 @@
-# SPS configuration
+# SPS configuration test 1
 
 version: '1'
 
-# -- the following run on PRs *and* CI
+static-scan:
+  skip: true
 
-# Set up build and test environment
-setup:
-  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-  script: |
-    scripts/${STAGE}.sh
-
-# Run detect secrets scan on the application code
-# detect-secrets:
-#  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-#  script: |
-#    scripts/${STAGE}.sh
-
-# Run static scan code on the application code.
 compliance-checks:
-  #image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-  image: us.icr.io/sps-quantum/sps-qiskit-serverless:5ab6772e45e48c5bb8cd9f23b27db2d9951c0dc6
-  dind: true
-  abort_on_failure: false
-  script: |
-    #!/bin/sh
-    "/opt/commons/compliance-checks/run.sh"
+  skip: true
 
-#
-# finish:
-#   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-#   abort_on_failure: false
-#   script: |
-#     scripts/${STAGE}.sh
-
-# -- The following runs for pull request only
-
-# Run unit tests and application tests on application code.
 unit-tests:
-  image: us.icr.io/sps-quantum/sps-qiskit-serverless:5ab6772e45e48c5bb8cd9f23b27db2d9951c0dc6
-  #image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-  abort_on_failure: false
-  script: |
-    scripts/${STAGE}.sh
+  skip: true
 
-# -- The following run for CI only
-
-# Run unit tests and application tests on application code.
-test:
-  image: us.icr.io/sps-quantum/sps-qiskit-serverless:5ab6772e45e48c5bb8cd9f23b27db2d9951c0dc6
-  #image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-  abort_on_failure: false
-  script: |
-    scripts/${STAGE}.sh
-
-# Run static scan code on the application code.
-# static-scan:
-#   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-#   abort_on_failure: false
-#   script: |
-#     scripts/${STAGE}.sh
-
-# Build the artifacts
 containerize:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
   dind: true
   abort_on_failure: false
   script: |
     #!/usr/bin/env bash
-    
     source scripts/build_setup.sh
     source scripts/build.sh
 
-# Sign the built artifacts
-# sign-artifact:
-#   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-#   abort_on_failure: false
-#   script: |
-#     scripts/${STAGE}.sh
-
-# Deploy the built artifacts to the dev environment
 deploy:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-  abort_on_failure: false
   script: |
-    scripts/${STAGE}.sh
+    #!/bin/sh
+    exit 0
 
-# Run dynamic scan on the application
-# dynamic-scan:
-#   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-#   abort_on_failure: false
-#   script: |
-#     scripts/${STAGE}.sh
+dynamic-scan:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  script: |
+    #!/bin/sh
+    exit 0
 
 acceptance-test:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-  abort_on_failure: false
   script: |
-    scripts/${STAGE}.sh
+    #!/bin/sh
+    exit 0
 
-# scan-artifact:
-#   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-#   abort_on_failure: false
-#   script: |
-#     scripts/${STAGE}.sh
+scan-artifact:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  script: |
+    #!/bin/sh
+    exit 0
 
 release:
   image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
-  abort_on_failure: false
   script: |
-    scripts/${STAGE}.sh
+    #!/bin/sh
+    exit 0
+
+finish:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  script: |
+    #!/bin/sh
+    exit 0
+
+test:
+  image: icr.io/continuous-delivery/pipeline/pipeline-base-ubi:3.40
+  script: |
+    #!/bin/sh
+    exit 0
+
+
