@@ -201,7 +201,7 @@ def submit_job(job: Job) -> Job:
     return job
 
 
-def create_ray_cluster(
+def create_ray_cluster(  # pylint: disable=too-many-branches
     job: Job,
     cluster_name: Optional[str] = None,
     cluster_data: Optional[str] = None,
@@ -289,6 +289,8 @@ def create_ray_cluster(
         resource.title = cluster_name
         resource.host = host
         resource.save()
+    else:
+        raise RuntimeError("Something went wrong during cluster creation")
     return resource
 
 
