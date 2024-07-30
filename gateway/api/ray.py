@@ -293,6 +293,8 @@ def create_ray_cluster(  # pylint: disable=too-many-branches
         resource.title = cluster_name
         resource.host = host
         resource.save()
+    else:
+        raise RuntimeError("Something went wrong during cluster creation")
     return resource
 
 
