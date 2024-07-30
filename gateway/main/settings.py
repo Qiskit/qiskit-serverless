@@ -320,7 +320,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.0-py310"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.1-py310"
 )
 RAY_NODE_IMAGES_MAP = {
     "default": RAY_NODE_IMAGE,
