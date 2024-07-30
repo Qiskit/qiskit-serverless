@@ -231,6 +231,9 @@ DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
 )
 # mock token value
 SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
+SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get(
+    "SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", "icr.io"
+)
 # =============
 
 REST_FRAMEWORK = {
@@ -305,6 +308,8 @@ SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get(
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
+LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
+LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
@@ -315,7 +320,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless-ray-node:0.12.0-py310"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.1-py310"
 )
 RAY_NODE_IMAGES_MAP = {
     "default": RAY_NODE_IMAGE,
@@ -378,3 +383,12 @@ CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "runner"
 CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner")
 SECURE_BROWSER_XSS_FILTER = True
 SESSION_COOKIE_AGE = 3600
+
+# Providers setup
+PROVIDERS_CONFIGURATION = os.environ.get("PROVIDERS_CONFIGURATION", "{}")
+
+# Function permissions
+FUNCTIONS_PERMISSIONS = os.environ.get(
+    "FUNCTIONS_PERMISSIONS",
+    "{}",
+)

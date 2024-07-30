@@ -75,7 +75,8 @@
       "created": "2023-02-01T15:30:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "SUCCEEDED",
-      "author": 1
+      "author": 1,
+      "logs": "log entry 2"
     }
   },
   {
@@ -98,6 +99,29 @@
       "result": "{\"somekey\":1}",
       "status": "QUEUED",
       "author": 2
+    }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec85",
+    "fields": {
+      "program": "6160a2ff-e482-443d-af23-15110b646ae2",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "QUEUED",
+      "author": 2,
+      "logs": "log entry 1"
+    }
+  },
+  {
+    "model": "api.job",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec86",
+    "fields": {
+      "program": "6160a2ff-e482-443d-af23-15110b646ae2",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "QUEUED",
+      "author": 1
     }
   },
   {
@@ -161,7 +185,18 @@
     "fields": {
       "name": "default",
       "created": "2023-02-01T15:30:43.281796Z",
-      "admin_group": 105
+      "admin_group": 105,
+      "registry": "docker.io/awesome"
+    }
+  },
+  {
+    "model": "api.provider",
+    "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbeb",
+    "fields": {
+      "name": "ibm",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "admin_group": 101,
+      "registry": "docker.io/awesome"
     }
   }
 ]

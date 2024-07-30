@@ -1,7 +1,7 @@
 services:
   testrayhead:
     container_name: testrayhead
-    image: icr.io/quantum-public/qiskit-serverless-ray-node:latest-py310
+    image: icr.io/quantum-public/qiskit-serverless/ray-node:latest-py310
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"

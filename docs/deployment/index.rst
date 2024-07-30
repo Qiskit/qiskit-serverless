@@ -14,3 +14,4 @@ compute resources.
    cloud
    client_configuration
    deploying_custom_image_function
+   example_custom_image_function

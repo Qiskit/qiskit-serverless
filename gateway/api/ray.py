@@ -201,7 +201,7 @@ def submit_job(job: Job) -> Job:
     return job
 
 
-def create_ray_cluster(
+def create_ray_cluster(  # pylint: disable=too-many-branches
     job: Job,
     cluster_name: Optional[str] = None,
     cluster_data: Optional[str] = None,
@@ -250,14 +250,18 @@ def create_ray_cluster(
             node_image = settings.RAY_NODE_IMAGE
 
         # if user specified image use specified image
+        function_data = user.username
         if job.program.image is not None:
             node_image = job.program.image
+            if job.program.provider.name:
+                function_data = job.program.provider.name
 
         cluster = get_template("rayclustertemplate.yaml")
         manifest = cluster.render(
             {
                 "cluster_name": cluster_name,
                 "user_id": user.username,
+                "function_data": function_data,
                 "node_image": node_image,
                 "workers": job_config.workers,
                 "min_workers": job_config.min_workers,
@@ -289,6 +293,8 @@ def create_ray_cluster(
         resource.title = cluster_name
         resource.host = host
         resource.save()
+    else:
+        raise RuntimeError("Something went wrong during cluster creation")
     return resource
 
 
