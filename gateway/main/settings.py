@@ -231,6 +231,9 @@ DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
 )
 # mock token value
 SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
+SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get(
+    "SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", "icr.io"
+)
 # =============
 
 REST_FRAMEWORK = {
@@ -317,7 +320,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.0-py310"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.1-py310"
 )
 RAY_NODE_IMAGES_MAP = {
     "default": RAY_NODE_IMAGE,

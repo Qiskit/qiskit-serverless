@@ -475,22 +475,25 @@ class ServerlessClient(BaseClient):
     def get_jobs(self, **kwargs) -> List[Job]:
         return self._job_client.list(**kwargs)
 
-    def files(self) -> List[str]:
-        return self._files_client.list()
+    def files(self, provider: Optional[str] = None) -> List[str]:
+        return self._files_client.list(provider)
 
     def file_download(
         self,
         file: str,
         target_name: Optional[str] = None,
         download_location: str = "./",
+        provider: Optional[str] = None,
     ):
-        return self._files_client.download(file, download_location, target_name)
+        return self._files_client.download(
+            file, download_location, target_name, provider
+        )
 
-    def file_delete(self, file: str):
-        return self._files_client.delete(file)
+    def file_delete(self, file: str, provider: Optional[str] = None):
+        return self._files_client.delete(file, provider)
 
-    def file_upload(self, file: str):
-        return self._files_client.upload(file)
+    def file_upload(self, file: str, provider: Optional[str] = None):
+        return self._files_client.upload(file, provider)
 
     def list(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""

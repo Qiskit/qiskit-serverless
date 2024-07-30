@@ -51,15 +51,15 @@ def assign_run_permission():
         else:
             run_permission = Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
 
+            groups = []
             for instance_title in instances_titles:
-                groups = []
                 group = Group.objects.filter(name=instance_title).first()
                 if group is None:
                     logger.warning("Group [%s] does not exist", instance_title)
                 else:
                     logger.info("Group [%s] does not exist", instance_title)
                     group.permissions.add(run_permission)
-                groups.append(group)
+                    groups.append(group)
 
             logger.info(
                 "Program [%s] is going to be updated with [%s] groups",

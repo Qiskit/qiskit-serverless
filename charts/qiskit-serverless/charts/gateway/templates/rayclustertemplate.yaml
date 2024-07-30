@@ -119,6 +119,9 @@ data:
               - mountPath: /data
                 name: user-storage
                 subPath: {{`{{ user_id }}`}}
+              - mountPath: /function_data
+                name: user-storage
+                subPath: {{`{{ function_data }}`}}
               env:
                 # Environment variables for Ray TLS authentication.
                 # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
@@ -352,6 +355,9 @@ data:
               - mountPath: /data
                 name: user-storage
                 subPath: {{`{{ user_id }}`}}
+              - mountPath: /function_data
+                name: user-storage
+                subPath: {{`{{ function_data }}`}}
 {{- if .Values.useCertManager }}
               - mountPath: /tmp/tls
                 name: cert-tls

@@ -14,6 +14,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
 
     class Meta(serializers.ProgramSerializer.Meta):
         fields = [
+            "id",
             "title",
             "entrypoint",
             "artifact",

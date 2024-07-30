@@ -53,14 +53,18 @@ class GatewayFilesClient:
         self._token = token
 
     def download(
-        self, file: str, download_location: str, target_name: Optional[str] = None
+        self,
+        file: str,
+        download_location: str,
+        target_name: Optional[str] = None,
+        provider: Optional[str] = None,
     ) -> Optional[str]:
         """Downloads file."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.download"):
             with requests.get(
                 f"{self.host}/api/{self.version}/files/download/",
-                params={"file": file},
+                params={"file": file, "provider": provider},
                 stream=True,
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_TIMEOUT,
@@ -80,7 +84,7 @@ class GatewayFilesClient:
                 progress_bar.close()
                 return file_name
 
-    def upload(self, file: str) -> Optional[str]:
+    def upload(self, file: str, provider: Optional[str] = None) -> Optional[str]:
         """Uploads file."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.upload"):
@@ -88,6 +92,7 @@ class GatewayFilesClient:
                 with requests.post(
                     f"{self.host}/api/{self.version}/files/upload/",
                     files={"file": f},
+                    data={"provider": provider},
                     stream=True,
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
@@ -97,27 +102,28 @@ class GatewayFilesClient:
                     return "Upload failed"
             return "Can not open file"
 
-    def list(self) -> List[str]:
+    def list(self, provider: Optional[str] = None) -> List[str]:
         """Returns list of available files to download produced by programs,"""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.list"):
             response_data = safe_json_request(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/files/",
+                    params={"provider": provider},
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
         return response_data.get("results", [])
 
-    def delete(self, file: str) -> Optional[str]:
+    def delete(self, file: str, provider: Optional[str] = None) -> Optional[str]:
         """Deletes file uploaded or produced by the programs,"""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.delete"):
             response_data = safe_json_request(
                 request=lambda: requests.delete(
                     f"{self.host}/api/{self.version}/files/delete/",
-                    data={"file": file},
+                    data={"file": file, "provider": provider},
                     headers={
                         "Authorization": f"Bearer {self._token}",
                         "format": "json",

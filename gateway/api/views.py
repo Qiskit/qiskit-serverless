@@ -39,6 +39,7 @@ from .models import (
     Program,
     Job,
     RuntimeJob,
+    Provider,
 )
 from .ray import get_job_handler
 from .serializers import (
@@ -358,6 +359,35 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         return result_queryset
 
+    @action(methods=["GET"], detail=True)
+    def get_jobs(
+        self, request, pk=None
+    ):  # pylint: disable=invalid-name,unused-argument
+        """Returns jobs of the program."""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.program.get_jobs", context=ctx):
+            program = Program.objects.filter(id=pk).first()
+            if not program:
+                return Response(
+                    {"message": f"program [{pk}] was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if (
+                program.provider
+                and program.provider.admin_group in request.user.groups.all()
+            ):
+                jobs = Job.objects.filter(program=program)
+            else:
+                jobs = Job.objects.filter(program=program, author=request.user)
+            return Response(
+                list(
+                    jobs.values(
+                        "status", "result", "id", "created", "version", "arguments"
+                    )
+                )
+            )
+
 
 class JobViewSet(viewsets.GenericViewSet):
     """
@@ -551,15 +581,39 @@ class FilesViewSet(viewsets.ViewSet):
 
     BASE_NAME = "files"
 
+    def list_user_providers(self, user):
+        """list provider names that the user in"""
+        provider_list = []
+        providers = Provider.objects.all()
+        for instance in providers:
+            if instance.admin_group in user.groups.all():
+                provider_list.append(instance.name)
+        return provider_list
+
+    def check_user_has_provider(self, user, provider_name):
+        """check if user has the provider"""
+        return provider_name in self.list_user_providers(user)
+
     def list(self, request):
         """List of available for user files."""
+        response = Response(
+            {"message": "Requested file was not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
         files = []
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.list", context=ctx):
+            user_dir = request.user.username
+            provider_name = request.query_params.get("provider")
+            if provider_name is not None:
+                if self.check_user_has_provider(request.user, provider_name):
+                    user_dir = provider_name
+                else:
+                    return response
             user_dir = os.path.join(
                 sanitize_file_path(settings.MEDIA_ROOT),
-                sanitize_file_path(request.user.username),
+                sanitize_file_path(user_dir),
             )
             if os.path.exists(user_dir):
                 files = [
@@ -586,17 +640,23 @@ class FilesViewSet(viewsets.ViewSet):
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.download", context=ctx):
             requested_file_name = request.query_params.get("file")
+            provider_name = request.query_params.get("provider")
             if requested_file_name is not None:
+                user_dir = request.user.username
+                if provider_name is not None:
+                    if self.check_user_has_provider(request.user, provider_name):
+                        user_dir = provider_name
+                    else:
+                        return response
                 # look for file in user's folder
                 filename = os.path.basename(requested_file_name)
                 user_dir = os.path.join(
                     sanitize_file_path(settings.MEDIA_ROOT),
-                    sanitize_file_path(request.user.username),
+                    sanitize_file_path(user_dir),
                 )
                 file_path = os.path.join(
                     sanitize_file_path(user_dir), sanitize_file_path(filename)
                 )
-
                 if os.path.exists(user_dir) and os.path.exists(file_path) and filename:
                     chunk_size = 8192
                     # note: we do not use with statements as Streaming response closing file itself.
@@ -627,14 +687,20 @@ class FilesViewSet(viewsets.ViewSet):
             if request.data and "file" in request.data:
                 # look for file in user's folder
                 filename = os.path.basename(request.data["file"])
+                provider_name = request.data.get("provider")
+                user_dir = request.user.username
+                if provider_name is not None:
+                    if self.check_user_has_provider(request.user, provider_name):
+                        user_dir = provider_name
+                    else:
+                        return response
                 user_dir = os.path.join(
                     sanitize_file_path(settings.MEDIA_ROOT),
-                    sanitize_file_path(request.user.username),
+                    sanitize_file_path(user_dir),
                 )
                 file_path = os.path.join(
                     sanitize_file_path(user_dir), sanitize_file_path(filename)
                 )
-
                 if os.path.exists(user_dir) and os.path.exists(file_path) and filename:
                     os.remove(file_path)
                     response = Response(
@@ -646,14 +712,26 @@ class FilesViewSet(viewsets.ViewSet):
     @action(methods=["POST"], detail=False)
     def upload(self, request):  # pylint: disable=invalid-name
         """Upload selected file."""
+        response = Response(
+            {"message": "Requested file was not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.download", context=ctx):
             upload_file = request.FILES["file"]
             filename = os.path.basename(upload_file.name)
+            user_dir = request.user.username
+            if request.data and "provider" in request.data:
+                provider_name = request.data["provider"]
+                if provider_name is not None:
+                    if self.check_user_has_provider(request.user, provider_name):
+                        user_dir = provider_name
+                    else:
+                        return response
             user_dir = os.path.join(
                 sanitize_file_path(settings.MEDIA_ROOT),
-                sanitize_file_path(request.user.username),
+                sanitize_file_path(user_dir),
             )
             file_path = os.path.join(
                 sanitize_file_path(user_dir), sanitize_file_path(filename)
@@ -661,5 +739,5 @@ class FilesViewSet(viewsets.ViewSet):
             with open(file_path, "wb+") as destination:
                 for chunk in upload_file.chunks():
                     destination.write(chunk)
-            return Response({"message": file_path})
+                    return Response({"message": file_path})
         return Response("server error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)

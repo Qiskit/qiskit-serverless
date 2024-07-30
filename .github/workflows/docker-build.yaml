@@ -10,6 +10,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Build the function
+        run: docker build -t test_function:latest --build-arg TARGETARCH="amd64" -f ./tests/basic/function/Sample-Docker ./tests/basic
       - name: Build the containers
         run: docker compose -f docker-compose-dev.yaml build
       - name: Run the jupyter profile

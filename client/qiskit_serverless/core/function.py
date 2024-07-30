@@ -118,6 +118,31 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             config=config,
         )
 
+    def get_jobs(self):
+        """Run function
+
+        Raises:
+            QiskitServerlessException: validation exception
+
+        Returns:
+            Job ids : job executed this function
+        """
+        if self.job_client is None:
+            raise ValueError("No clients specified for a function.")
+
+        if self.validate:
+            is_valid, validation_errors = self._validate_function()
+            if not is_valid:
+                error_string = "\n".join(validation_errors)
+                raise ValueError(
+                    f"Function validation failed. Validation errors:\n {error_string}",
+                )
+
+        return self.job_client.get_jobs(
+            title=self.title,
+            provider=self.provider,
+        )
+
     def _validate_function(self) -> Tuple[bool, List[str]]:
         """Validate function arguments using schema provided.
 

@@ -414,3 +414,36 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(programs_response_do_not_have_access.status_code, 404)
+
+    def test_get_jobs(self):
+        """Tests run existing authorized."""
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        # program w/o provider
+        response = self.client.get(
+            "/api/v1/programs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/get_jobs/",
+            format="json",
+        )
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # program w/ provider by not author
+        response = self.client.get(
+            "/api/v1/programs/6160a2ff-e482-443d-af23-15110b646ae2/get_jobs/",
+            format="json",
+        )
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # program w/ provider by author
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        response = self.client.get(
+            "/api/v1/programs/6160a2ff-e482-443d-af23-15110b646ae2/get_jobs/",
+            format="json",
+        )
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

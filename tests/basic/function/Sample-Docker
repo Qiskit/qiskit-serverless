@@ -4,9 +4,12 @@ FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.14.1-py310
 
 # copy our function implementation in `/runner.py` of the docker image
 USER 0
-
+RUN mkdir /runner
 WORKDIR /runner
-COPY ./runner.py /runner
+COPY function/runner.py .
 WORKDIR /
 
 USER $RAY_UID
+ 
+
+
