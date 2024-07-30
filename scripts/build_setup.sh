@@ -44,7 +44,7 @@ get-icr-region() {
       ;;
     stg)
       echo stg
-      ;;  
+      ;;
     *)
       echo "Unknown region: $1" >&2
       exit 1
@@ -67,7 +67,7 @@ fi
 #IMAGE_NAME="$(get_env image-name "$(basename "$REPOSITORY" .git)")"
 GATEWAY_IMAGE_NAME="$(get_env image-name "$(basename "$REPOSITORY" .git)")-gateway"
 PROXY_IMAGE_NAME="$(get_env image-name "$(basename "$REPOSITORY" .git)")-proxy"
-RAY_NODE_IMAGE_NAME="$(get_env image-name "$(basename "$REPOSITORY" .git)")-ray_node"
+RAY_NODE_IMAGE_NAME="$(get_env image-name "$(basename "$REPOSITORY" .git)")-ray-node"
 IMAGE_TAG="$(date +%Y%m%d%H%M%S)-$(cat /config/git-branch | tr -c '[:alnum:]_.-' '_')-$(cat /config/git-commit)"
 IMAGE_TAG=${IMAGE_TAG////_}
 
