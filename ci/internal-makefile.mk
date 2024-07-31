@@ -14,7 +14,7 @@ DOCKER_FILE_SELECTOR  	  ?= ./tools/Dockerfile
 
 DOCKER_REGISTRY           			:= icr.io
 DOCKER_REGISTRY_NAMESPACE 			:= quantum-public
-DOCKER_PRIVATE_REGISTRY_NAMESPACE 	:= quantum-experimental
+DOCKER_PRIVATE_REGISTRY_NAMESPACE 	:= qc-middleware-prod
 
 TARGET_SERVICE			  ?= qiskit-serverless
 ENVIRONMENT               ?= development
@@ -38,9 +38,9 @@ docker/lint-gateway: docker/lint
 docker/lint-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE)
 docker/lint-ray: docker/lint
 
-# .PHONY: docker/lint-selector
-# docker/lint-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR)
-# docker/lint-selector: docker/lint
+.PHONY: docker/lint-selector
+docker/lint-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR)
+docker/lint-selector: docker/lint
 
 .PHONY: docker/sast-gateway
 docker/sast-gateway: DOCKER_FILE 			:= $(DOCKER_FILE_GATEWAY)
@@ -50,9 +50,9 @@ docker/sast-gateway: docker/sast
 docker/sast-ray: DOCKER_FILE 				:= $(DOCKER_FILE_RAY_NODE)
 docker/sast-ray: docker/sast
 
-# .PHONY: docker/sast-selector
-# docker/sast-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR)
-# docker/sast-selector: docker/sast
+.PHONY: docker/sast-selector
+docker/sast-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR)
+docker/sast-selector: docker/sast
 
 .PHONY: docker/vscan-gateway
 docker/vscan-gateway: DOCKER_FILE 			:= $(DOCKER_FILE_GATEWAY)
@@ -75,12 +75,12 @@ docker/vscan-ray-py310: IMAGE_TAG 			:= $(PROJECT_VERSION)-py310
 docker/vscan-ray-py310: PY_VERSION 			:= "py310"
 docker/vscan-ray-py310: docker/vscan
 
-# .PHONY: docker/vscan-selector
-# docker/vscan-selector: DOCKER_FILE 			:= $(DOCKER_FILE_SELECTOR)
-# docker/vscan-selector: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_SELECTOR)
-# docker/vscan-selector: IMAGE_TAG 			:= $(PROJECT_VERSION)
-# docker/vscan-selector: PY_VERSION 			:= "3.10"
-# docker/vscan-selector: docker/vscan
+.PHONY: docker/vscan-selector
+docker/vscan-selector: DOCKER_FILE 			:= $(DOCKER_FILE_SELECTOR)
+docker/vscan-selector: DOCKER_IMAGE 		:= $(DOCKER_IMAGE_SELECTOR)
+docker/vscan-selector: IMAGE_TAG 			:= $(PROJECT_VERSION)
+docker/vscan-selector: PY_VERSION 			:= "3.10"
+docker/vscan-selector: docker/vscan
 
 .PHONY: docker/release-selector
 docker/release-selector: DOCKER_FILE 		:= $(DOCKER_FILE_SELECTOR)
