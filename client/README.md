@@ -2,7 +2,7 @@
 [![Client verify process](https://github.com/Qiskit/qiskit-serverless/actions/workflows/client-verify.yaml/badge.svg)](https://github.com/Qiskit/qiskit-serverless/actions/workflows/client-verify.yaml)
 [![License](https://img.shields.io/github/license/qiskit-community/quantum-prototype-template?label=License)](https://github.com/qiskit-community/quantum-prototype-template/blob/main/LICENSE.txt)
 [![Code style: Black](https://img.shields.io/badge/Code%20style-Black-000.svg)](https://github.com/psf/black)
-[![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11-informational)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11-informational)](https://www.python.org/)
 [![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A5%200.39.0-6133BD)](https://github.com/Qiskit/qiskit)
 
 # Qiskit Serverless client

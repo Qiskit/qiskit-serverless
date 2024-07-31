@@ -12,24 +12,27 @@ class TestProgramApi(APITestCase):
     fixtures = ["tests/fixtures/tasks_fixtures.json"]
 
     @override_settings(
-        PROVIDERS_CONFIGURATION='{"test_provider": {"admin_group": "runner", "registry": "docker.io/"}}'
+        PROVIDERS_CONFIGURATION='{"test_provider": {"admin_groups": ["runner"], "registry": "docker.io"}}'
     )
     def test_assign_admin_group(self):
         """This test will check assign admin group task"""
 
-        providers.assign_admin_group()
+        providers.assign_admin_groups()
 
         provider = Provider.objects.get(name="test_provider")
-        self.assertEqual(provider.admin_group.name, "runner")
+        admin_groups = provider.admin_groups.all()
+        self.assertEqual(len(admin_groups), 1)
+        self.assertEqual(admin_groups[0].name, "runner")
+        self.assertEqual(provider.registry, "docker.io")
 
     @override_settings(
-        PROVIDERS_CONFIGURATION='{"test_provider": {"admin_group": "runner", "registry": "docker.io/"}}'
+        PROVIDERS_CONFIGURATION='{"test_provider": {"admin_groups": ["runner"], "registry": "docker.io"}}'
     )
     @override_settings(
         FUNCTIONS_PERMISSIONS='{"function_provider": {"provider": "test_provider", "instances": ["runner", "manager"]}}'
     )
     def test_assign_run_permission(self):
-        providers.assign_admin_group()
+        providers.assign_admin_groups()
 
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)

@@ -373,10 +373,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     {"message": f"program [{pk}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            if (
-                program.provider
-                and program.provider.admin_group in request.user.groups.all()
-            ):
+
+            user_is_provider = False
+            if program.provider:
+                admin_groups = program.provider.admin_groups.all()
+                user_groups = request.user.groups.all()
+                user_is_provider = any(group in admin_groups for group in user_groups)
+
+            if user_is_provider:
                 jobs = Job.objects.filter(program=program)
             else:
                 jobs = Job.objects.filter(program=program, author=request.user)
@@ -468,13 +472,19 @@ class JobViewSet(viewsets.GenericViewSet):
         with tracer.start_as_current_span("gateway.job.logs", context=ctx):
             job = Job.objects.filter(pk=pk).first()
             if job is None:
+                logger.warning("Job [%s] not found", pk)
                 return Response(status=404)
+
             logs = job.logs
             author = self.request.user
             if job.program and job.program.provider:
-                if job.program.provider.admin_group in author.groups.all():
+                provider_groups = job.program.provider.admin_groups.all()
+                author_groups = author.groups.all()
+                has_access = any(group in provider_groups for group in author_groups)
+                if has_access:
                     return Response({"logs": logs})
                 return Response({"logs": "No available logs"})
+
             if author == job.author:
                 return Response({"logs": logs})
             return Response({"logs": "No available logs"})
@@ -586,7 +596,10 @@ class FilesViewSet(viewsets.ViewSet):
         provider_list = []
         providers = Provider.objects.all()
         for instance in providers:
-            if instance.admin_group in user.groups.all():
+            user_groups = user.groups.all()
+            admin_groups = instance.admin_groups.all()
+            provider_found = any(group in admin_groups for group in user_groups)
+            if provider_found:
                 provider_list.append(instance.name)
         return provider_list
 

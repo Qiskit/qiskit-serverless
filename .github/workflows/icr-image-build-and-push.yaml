@@ -16,23 +16,12 @@ jobs:
       matrix:
         include:
           - imagename: qiskit-serverless/ray-node
-            pythonversion: py39
-            dockerfile: Dockerfile-ray-node
-            platforms: linux/amd64
-          - imagename: qiskit-serverless/ray-node
-            pythonversion: py310
-            dockerfile: Dockerfile-ray-node
-            platforms: linux/amd64,linux/arm64
-          - imagename: qiskit-serverless/ray-node
-            pythonversion: py311
             dockerfile: Dockerfile-ray-node
             platforms: linux/amd64,linux/arm64
           - imagename: qiskit-serverless/gateway
-            pythonversion: ''
             dockerfile: ./gateway/Dockerfile
             platforms: linux/amd64,linux/arm64
           - imagename: qiskit-serverless/proxy
-            pythonversion: ''
             dockerfile: ./proxy/Dockerfile
             platforms: linux/amd64,linux/arm64
     steps:
@@ -58,7 +47,6 @@ jobs:
           name: ${{ matrix.imagename }}
           dockerfile: ${{ matrix.dockerfile }}
           platforms: ${{ matrix.platforms }}
-          pythonversion: ${{ matrix.pythonversion }}
       - name: Set version from tag
         if : github.event_name == 'release' && github.event.action == 'published'
         id: set-version-from-tag
@@ -71,4 +59,3 @@ jobs:
           name: ${{ matrix.imagename }}
           dockerfile: ${{ matrix.dockerfile }}
           platforms: ${{ matrix.platforms }}
-          pythonversion: ${{ matrix.pythonversion }}

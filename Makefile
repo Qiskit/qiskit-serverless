@@ -29,8 +29,6 @@ push-all: push-ray-node push-gateway push-proxy
 
 build-ray-node:
 	docker build -t $(rayNodeImageName):$(version) --build-arg TARGETARCH=$(arch) -f Dockerfile-ray-node .
-	docker build -t $(rayNodeImageName):$(version)-py310 --build-arg TARGETARCH=$(arch) --build-arg IMAGE_PY_VERSION=py310 -f Dockerfile-ray-node .
-	docker build -t $(rayNodeImageName):$(version)-py39  --build-arg TARGETARCH=$(arch) --build-arg IMAGE_PY_VERSION=py39  -f Dockerfile-ray-node .
 
 build-gateway:
 	docker build -t $(gatewayImageName):$(version) -f ./gateway/Dockerfile .
