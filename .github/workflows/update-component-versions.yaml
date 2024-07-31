@@ -37,7 +37,6 @@ jobs:
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/qiskit-serverless/charts/gateway/values.yaml
           sed -i "s/qiskit-serverless\/proxy:${OLDNUM}/qiskit-serverless\/proxy:${NEWNUM}/" charts/qiskit-serverless/charts/gateway/values.yaml
           sed -i "s/tag: \"${OLDNUM}\"/tag: \"${NEWNUM}\"/" charts/qiskit-serverless/values.yaml
-          sed -i "s/tag: \"${OLDNUM}-py39\"/tag: \"${NEWNUM}-py39\"/" charts/qiskit-serverless/values.yaml
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/qiskit-serverless/values.yaml
           sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/qiskit-serverless/values.yaml
           sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" docs/deployment/custom_function/Sample-Dockerfile

@@ -18,15 +18,7 @@ jobs:
           - Dockerfile-ray-node
           - gateway/Dockerfile
         python:
-          - "3.9"
-          - "3.10"
           - "3.11"
-        exclude:
-          # gateway is only built using python 3.10
-          - dockerfile: gateway/Dockerfile
-            python: "3.9"
-          - dockerfile: gateway/Dockerfile
-            python: "3.11"
     steps:
       - name: Checkout
         uses: actions/checkout@v4

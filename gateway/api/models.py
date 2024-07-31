@@ -39,21 +39,6 @@ class JobConfig(models.Model):
         null=True,
     )
 
-    PYTHON_V3_8 = "py38"
-    PYTHON_V3_9 = "py39"
-    PYTHON_V3_10 = "py310"
-    PYTHON_VERSIONS = [
-        (PYTHON_V3_8, "Version 3.8"),
-        (PYTHON_V3_9, "Version 3.9"),
-        (PYTHON_V3_10, "Version 3.10"),
-    ]
-    python_version = models.CharField(
-        max_length=6,
-        choices=PYTHON_VERSIONS,
-        null=True,
-        blank=True,
-    )
-
     def __str__(self):
         return f"{self.id}"
 
@@ -67,13 +52,7 @@ class Provider(models.Model):
 
     name = models.CharField(max_length=255, db_index=True, unique=True)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
-    admin_group = models.ForeignKey(
-        to=Group,
-        on_delete=models.SET_NULL,
-        default=None,
-        null=True,
-        blank=True,
-    )
+    admin_groups = models.ManyToManyField(Group)
 
     def __str__(self):
         return f"{self.name}"
