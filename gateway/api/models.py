@@ -52,13 +52,7 @@ class Provider(models.Model):
 
     name = models.CharField(max_length=255, db_index=True, unique=True)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
-    admin_group = models.ForeignKey(
-        to=Group,
-        on_delete=models.SET_NULL,
-        default=None,
-        null=True,
-        blank=True,
-    )
+    admin_groups = models.ManyToManyField(Group)
 
     def __str__(self):
         return f"{self.name}"

@@ -13,7 +13,7 @@ from api.models import Provider
 logger = logging.getLogger("gateway")
 
 
-def assign_admin_group():
+def assign_admin_groups():
     """
     This method will assign a group to a provider.
     If the provider does not exist it will be created.
@@ -30,21 +30,34 @@ def assign_admin_group():
         return
 
     for provider_name, provider_attributes in providers_configuration.items():
-        admin_group_name = provider_attributes["admin_group"]
+        groups = []
+        admin_groups = provider_attributes["admin_groups"]
         registry = provider_attributes["registry"]
-        group = Group.objects.filter(name=admin_group_name).first()
-        if group is None:
-            logger.warning("Group [%s] does not exist", admin_group_name)
-        else:
-            provider, created = Provider.objects.update_or_create(
-                name=provider_name,
-                defaults={"admin_group": group, "registry": registry},
-            )
 
-            if created:
-                logger.info(  #  pylint: disable=logging-too-many-args
-                    "Provider [%s] created for admin [%s] with registrt [%s]",
-                    provider.name,
-                    admin_group_name,
-                    registry,
-                )
+        for admin_group_name in admin_groups:
+            group = Group.objects.filter(name=admin_group_name).first()
+            if group is None:
+                logger.warning("Group [%s] does not exist", admin_group_name)
+            else:
+                groups.append(group)
+
+        provider, created = Provider.objects.update_or_create(
+            name=provider_name,
+            defaults={"registry": registry},
+        )
+        provider.admin_groups.set(groups)
+
+        if created:
+            logger.info(
+                "Provider [%s] created for [%s] admin(s) with registry [%s]",
+                provider.name,
+                len(admin_groups),
+                registry,
+            )
+        else:
+            logger.info(
+                "Provider [%s] updated for [%s] admin(s) with registry [%s]",
+                provider.name,
+                len(admin_groups),
+                registry,
+            )
