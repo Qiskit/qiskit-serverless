@@ -101,7 +101,6 @@ class JobConfigSerializer(serializers.JobConfigSerializer):
             "min_workers",
             "max_workers",
             "auto_scaling",
-            "python_version",
         ]
 
 
