@@ -41,15 +41,18 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             raise ValidationError(
                 "At least one of attributes (entrypoint, image) is required."
             )
+
         title = attrs.get("title")
         provider = attrs.get("provider", None)
         if provider and "/" in title:
             raise ValidationError("Provider defined in title and in provider fields.")
+
         title_split = title.split("/")
         if len(title_split) > 2:
             raise ValidationError(
                 "Qiskit Function title is malformed. It can only contain one slash."
             )
+
         if image is not None:
             if provider is None and len(title_split) != 2:
                 raise ValidationError(
@@ -59,10 +62,8 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 provider = title_split[0]
             provider_instance = Provider.objects.filter(name=provider).first()
             if provider_instance is None:
-                raise ValidationError(
-                    "Custom images are only available a valid provider."
-                )
-            if not provider_instance.registry or not image.startswith(
+                raise ValidationError(f"{provider} is not valid provider.")
+            if provider_instance.registry and not image.startswith(
                 provider_instance.registry
             ):
                 raise ValidationError(
