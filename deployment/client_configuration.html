@@ -294,36 +294,31 @@
 <p>Qiskit Serverless has a client-server architecture,
 which means that in order to interact with computational
 resources, you need to have the client library
-installed on your machine and configured to communicate with the provider.</p>
+installed on your machine and configured to communicate with the server.</p>
 <p>To install the client library, run:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">qiskit_serverless</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">qiskit</span><span class="o">-</span><span class="n">serverless</span>
 </pre></div>
 </div>
 <p>Next, we need to configure the client to communicate with the provider.
-This can be done through the <cite>BaseProvider</cite> configuration.</p>
-<p>Before we can configure the client and provider,
-we need to know two things: the <cite>username/password</cite>
-(authentication details) and the <cite>host</cite> of our gateway server.</p>
+This can be done through the <cite>ServerlessClient</cite> configuration.</p>
+<p>Before we can configure the client, we need to know two things:
+the <cite>token</cite> (authentication details) and the <cite>host</cite> of our gateway server.</p>
 <p>If you are using the local docker compose setup,
-your username and password would be <cite>user</cite> and <cite>password123</cite>,
-respectively, and the host would be <cite>http://gateway:8000</cite>.</p>
-<p>If you are using a cloud deployment, your cloud administrator
-will provide you with the details of the host and authentication.</p>
+your token would be <cite>awesome_token</cite> and the host would
+be <cite>http://gateway:8000</cite>.</p>
+<p>If you are using <cite>IBMServerlessClient</cite>, you only need to pass the <cite>tokne</cite>.
+What you can get it from <a class="reference external" href="https://quantum.ibm.com">https://quantum.ibm.com</a>.</p>
 <p>Once you have all the necessary information,
 you can start configuring the client:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">QiskitServerless</span><span class="p">,</span> <span class="n">ServerlessProvider</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">ServerlessClient</span>
 
-<span class="n">provider</span> <span class="o">=</span> <span class="n">ServerlessProvider</span><span class="p">(</span>
-        <span class="n">username</span><span class="o">=</span><span class="s2">&quot;&lt;USERNAME&gt;&quot;</span><span class="p">,</span>
-        <span class="n">password</span><span class="o">=</span><span class="s2">&quot;&lt;PASSWORD&gt;&quot;</span><span class="p">,</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
+        <span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span>
         <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;HOST&gt;&quot;</span><span class="p">,</span>
 <span class="p">)</span>
-
-<span class="n">client</span> <span class="o">=</span> <span class="n">QiskitServerless</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>With this configuration in place, you can run your programs
-against the provider.</p>
+<p>With this configuration in place, you can run your Qiskit Functions.</p>
 </section>
 
         </article>
