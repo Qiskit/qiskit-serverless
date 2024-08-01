@@ -17,9 +17,9 @@ application:
   superuser:
     enable: true
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.1-py39"
-    nodeImage_py39: "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.1-py39"
-    nodeImage_py310: "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.1-py310"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.2-py39"
+    nodeImage_py39: "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.2-py39"
+    nodeImage_py310: "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.2-py310"
     cpu: 2
     memory: 2
     replicas: 1
