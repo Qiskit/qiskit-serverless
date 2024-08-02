@@ -64,7 +64,7 @@ gateway:
       useTLS: false
     limits:
       maxJobsPerUser: 1
-      maxComputeResources: 11
+      maxComputeResources: 6
     proxy:
       enabled: false
 

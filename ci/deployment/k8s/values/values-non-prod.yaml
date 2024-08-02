@@ -64,7 +64,7 @@ gateway:
       useTLS: false
     limits:
       maxJobsPerUser: 1
-      maxComputeResources: 4
+      maxComputeResources: 3
     proxy:
       enabled: false
     iqpQcon:
