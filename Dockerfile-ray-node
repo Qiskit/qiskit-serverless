@@ -13,11 +13,10 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /
 USER 0
 RUN mkdir /data && chown 1000:1000 /data
-USER 0
 COPY client ./qs
 WORKDIR /qs
 
-RUN pip install -r requirements.txt &&\
+RUN pip install -r requirements.txt --no-cache-dir &&\
     pip install . --no-cache-dir &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
     pip install --no-cache-dir certifi==2024.7.4 &&\
@@ -26,3 +25,5 @@ RUN pip install -r requirements.txt &&\
 
 WORKDIR /
 RUN rm -r ./qs
+
+USER 1000
