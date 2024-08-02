@@ -60,11 +60,11 @@ gateway:
       memory: 32
       replicas: 1
       minReplicas: 1
-      maxReplicas: 2
+      maxReplicas: 1
       useTLS: false
     limits:
       maxJobsPerUser: 1
-      maxComputeResources: 2
+      maxComputeResources: 11
     proxy:
       enabled: false
 
