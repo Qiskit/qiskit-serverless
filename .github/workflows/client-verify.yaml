@@ -43,5 +43,4 @@ jobs:
 
       - name: Test using tox environment
         run: |
-          alias docker-compose='docker compose'
           tox ${{ env.TOX_ENV }}
