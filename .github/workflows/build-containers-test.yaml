@@ -43,8 +43,6 @@ jobs:
           file: ./${{ matrix.dockerfile }}
           load: true
           tags: image:test
-          build-args:
-            IMAGE_PY_VERSION=${{ env.python_version }}
       - name: Inspect
         run: |
           docker image inspect image:test

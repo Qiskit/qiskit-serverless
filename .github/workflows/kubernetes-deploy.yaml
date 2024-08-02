@@ -23,12 +23,12 @@ jobs:
           kind-worker-count: 0
       - name: Build and load gateway
         run: |
-          docker build -t gateway:test --build-arg TARGETARCH="amd64" -f ./gateway/Dockerfile .
+          docker build -t gateway:test -f ./gateway/Dockerfile .
           kind load docker-image gateway:test
           docker image rm gateway:test
       - name: Build and load ray node
         run: |
-          docker build -t ray:test --build-arg TARGETARCH="amd64" -f ./Dockerfile-ray-node .
+          docker build -t ray:test -f ./Dockerfile-ray-node .
           kind load docker-image ray:test
           docker image rm ray:test
       - name: Install helm chart

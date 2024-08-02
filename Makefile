@@ -4,12 +4,6 @@
 
 version=latest
 repository=icr.io/quantum-public
-ifeq ($(shell uname -p), arm)
-	arch="arm64"
-else
-	arch="amd64"
-endif
-
 rayNodeImageName=$(repository)/qiskit-serverless/ray-node
 gatewayImageName=$(repository)/qiskit-serverless/gateway
 proxyImageName=$(repository)/qiskit-serverless/proxy
@@ -24,7 +18,7 @@ build-all: build-ray-node build-gateway build-proxy
 push-all: push-ray-node push-gateway push-proxy
 
 build-ray-node:
-	docker build -t $(rayNodeImageName):$(version) --build-arg TARGETARCH=$(arch) -f Dockerfile-ray-node .
+	docker build -t $(rayNodeImageName):$(version) -f Dockerfile-ray-node .
 
 build-gateway:
 	docker build -t $(gatewayImageName):$(version) -f ./gateway/Dockerfile .
