@@ -1,9 +1,10 @@
 name: Proxy verify process
 
 on:
-  permissions:
-    contents: read
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   verify-proxy:

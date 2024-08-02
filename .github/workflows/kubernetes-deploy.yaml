@@ -1,10 +1,11 @@
 name: Test QS on Kubernetes
 
 on:
-  permissions:
-    contents: read
   pull_request:
     branches: [ main ]
+
+permissions:
+  contents: read
 
 jobs:
   tests:

@@ -1,12 +1,12 @@
 name: Release to PyPi and upload artifact
 
 on:
-  permissions:
-    contents: read
   workflow_dispatch:
   release:
     types: [published]
 
+permissions:
+  contents: read
 
 jobs:
   release-package:

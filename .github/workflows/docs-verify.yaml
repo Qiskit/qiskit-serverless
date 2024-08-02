@@ -1,9 +1,10 @@
 name: Verify building sphinx docs
 
 on:
-  permissions:
-    contents: read
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   verify_docs_build:

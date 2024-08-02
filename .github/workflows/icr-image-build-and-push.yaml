@@ -1,8 +1,6 @@
 name: ICR | build and push
 
 on:
-  permissions:
-    contents: read
   workflow_dispatch:
     inputs:
       tag:
@@ -10,6 +8,9 @@ on:
         required: true
   release:
     types: [published]
+
+permissions:
+  contents: read
 
 jobs:
   icr_build_and_push:

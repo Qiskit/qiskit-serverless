@@ -1,13 +1,14 @@
 name: Update Component Versions
 
 on:
-  permissions:
-    contents: read
   workflow_dispatch:
     inputs:
       new_version:
         description: 'version to update to ("x.y.z" -- do not include a `v` prefix)'
         required: true
+
+permissions:
+  contents: read
 
 jobs:
   update_component_versions:

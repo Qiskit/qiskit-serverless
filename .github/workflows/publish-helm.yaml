@@ -1,10 +1,11 @@
 name: Helm Package
 
 on:
-  permissions:
-    contents: read
   release:
     types: [published]
+
+permissions:
+  contents: read
 
 jobs:
   package:

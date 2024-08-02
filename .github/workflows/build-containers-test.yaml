@@ -1,9 +1,10 @@
 name: Build the containers
 
 on:
-  permissions:
-    contents: read
   pull_request:
+
+permissions:
+  contents: read
 
 defaults:
   run:

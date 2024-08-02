@@ -1,11 +1,12 @@
 name: Release Drafter
 
 on:
-  permissions:
-    contents: read
   push:
     branches:
       - main
+
+permissions:
+  contents: read
 
 jobs:
   update_release_draft:

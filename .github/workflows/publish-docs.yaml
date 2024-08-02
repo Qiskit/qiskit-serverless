@@ -1,12 +1,13 @@
 name: Build and deploy sphinx docs
 
 on:
-  permissions:
-    contents: read
   workflow_dispatch:
   push:
     branches:
       - main
+
+permissions:
+  contents: read
 
 jobs:
   build_and_deploy_docs:

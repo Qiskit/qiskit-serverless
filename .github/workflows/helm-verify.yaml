@@ -1,14 +1,15 @@
 name: Helm verify process
 
 on:
-  permissions:
-    contents: read
   push:
     paths:
       - "ct.yaml"
       - "charts/**"
       - ".github/actions/helm-lint/action.yaml"
       - ".github/workflows/helm-verify.yaml"
+
+permissions:
+  contents: read
 
 jobs:
   lint:
