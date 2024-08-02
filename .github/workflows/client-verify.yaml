@@ -1,7 +1,8 @@
 name: Client verify process
 
 on:
-  permissions: contents: read
+  permissions:
+    contents: read
   pull_request:
 
 jobs:

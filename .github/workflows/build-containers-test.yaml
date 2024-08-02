@@ -1,7 +1,8 @@
 name: Build the containers
 
 on:
-  permissions: contents: read
+  permissions:
+    contents: read
   pull_request:
 
 defaults:

@@ -1,7 +1,8 @@
 name: Build and deploy sphinx docs
 
 on:
-  permissions: contents: read
+  permissions:
+    contents: read
   workflow_dispatch:
   push:
     branches:

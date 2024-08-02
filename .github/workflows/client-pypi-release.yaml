@@ -1,7 +1,8 @@
 name: Release to PyPi and upload artifact
 
 on:
-  permissions: contents: read
+  permissions:
+    contents: read
   workflow_dispatch:
   release:
     types: [published]
