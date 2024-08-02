@@ -1,6 +1,7 @@
 name: Helm verify process
 
 on:
+  permissions: contents: read
   push:
     paths:
       - "ct.yaml"

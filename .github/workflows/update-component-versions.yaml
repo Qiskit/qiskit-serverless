@@ -1,6 +1,7 @@
 name: Update Component Versions
 
 on:
+  permissions: contents: read
   workflow_dispatch:
     inputs:
       new_version:

@@ -1,6 +1,7 @@
 name: Notebook LocalClient tests
 
 on:
+  permissions: contents: read
   pull_request:
     branches: [ main ]
 

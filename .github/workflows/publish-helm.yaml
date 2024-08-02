@@ -1,6 +1,7 @@
 name: Helm Package
 
 on:
+  permissions: contents: read
   release:
     types: [published]
 

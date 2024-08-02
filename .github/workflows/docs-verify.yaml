@@ -1,6 +1,7 @@
 name: Verify building sphinx docs
 
 on:
+  permissions: contents: read
   pull_request:
 
 jobs:

@@ -1,6 +1,7 @@
 name: ICR | build and push
 
 on:
+  permissions: contents: read
   workflow_dispatch:
     inputs:
       tag:
