@@ -16,7 +16,6 @@ from opentelemetry import trace
 from api.models import Job, ComputeResource
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
 from api.utils import generate_cluster_name
-from django.conf import settings as config
 
 
 User: Model = get_user_model()
@@ -135,7 +134,7 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
 def check_job_timeout(job: Job, job_status):
     """Check job timeout and update job status."""
 
-    timeout = config.PROGRAM_TIMEOUT
+    timeout = settings.PROGRAM_TIMEOUT
     if job.updated:
         endtime = job.updated + timedelta(days=timeout)
         now = datetime.now(tz=endtime.tzinfo)
@@ -153,7 +152,7 @@ def check_job_timeout(job: Job, job_status):
 def handle_job_status_not_available(job: Job, job_status):
     """Process job status not available and update job"""
 
-    if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
+    if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
             "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
             + "so cluster [%s] will not be removed",
@@ -170,7 +169,7 @@ def handle_job_status_not_available(job: Job, job_status):
 
 def fail_job_insufficient_resources(job: Job):
     """Fail job if insufficient resources are available."""
-    if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
+    if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
             "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
             + "so cluster [%s] will not be removed",

@@ -1,8 +1,12 @@
-from .settings_api import *
+"""
+Django settings for admin panel application.
+"""
+
+from .settings_api import *  # pylint: disable=wildcard-import, unused-wildcard-import
 
 # Application definition
 INSTALLED_APPS = [
-    "django.contrib.admin", # for admin_panel
+    "django.contrib.admin",  # for admin_panel
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -16,7 +20,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.socialaccount",
     "api",
-    "admin_panel", # for admin_panel
+    "admin_panel",  # for admin_panel
     "psycopg2",
     "drf_yasg",
 ]
@@ -27,7 +31,8 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware", # for admin_panel, must be after session
+    # AuthenticationMiddleware must be after session
+    "django.contrib.auth.middleware.AuthenticationMiddleware",  # for admin_panel
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

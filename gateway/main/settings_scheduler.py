@@ -1,4 +1,8 @@
-from .settings_api import *
+"""
+Django settings for scheduler application.
+"""
+
+from .settings_api import *  # pylint: disable=wildcard-import, unused-wildcard-import
 
 # Application definition
 INSTALLED_APPS = [
@@ -14,7 +18,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "allauth",
     "allauth.socialaccount",
-    "api", # scheduler is in the api right now
+    "api",  # scheduler is in the api right now
     "psycopg2",
     "drf_yasg",
 ]

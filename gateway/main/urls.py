@@ -41,14 +41,23 @@ schema = get_schema_view(  # pylint: disable=invalid-name
 
 router = routers.DefaultRouter()
 
-if settings.DEBUG:
-    urlpatterns = [
-        path("readiness/", probes.views.readiness, name="readiness"),
-        path("liveness/", probes.views.liveness, name="liveness"),
-        path("version/", version.views.version, name="version"),
-        path('admin/', admin.site.urls),
+urlpatterns = [
+    path("readiness/", probes.views.readiness, name="readiness"),
+    path("liveness/", probes.views.liveness, name="liveness"),
+    path("version/", version.views.version, name="version"),
+]
+
+if settings.APPLICATION_MODE == "admin_panel":
+    urlpatterns += [path("admin/", admin.site.urls)]
+
+if settings.APPLICATION_MODE == "api":
+    urlpatterns += [
         path("", include("django_prometheus.urls")),
         re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
+    ]
+
+if settings.DEBUG:
+    urlpatterns += [
         re_path(
             r"^swagger(?P<format>\.json|\.yaml)$",
             schema.without_ui(cache_timeout=0),
@@ -65,12 +74,3 @@ if settings.DEBUG:
     ]
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-else:
-    urlpatterns = [
-        path("readiness/", probes.views.readiness, name="readiness"),
-        path("liveness/", probes.views.liveness, name="liveness"),
-        path("version/", version.views.version, name="version"),
-        path('admin/', admin.site.urls),
-        path("", include("django_prometheus.urls")),
-        re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
-    ]

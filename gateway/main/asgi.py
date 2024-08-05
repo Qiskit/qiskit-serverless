@@ -13,14 +13,14 @@ from django.core.asgi import get_asgi_application
 
 application_mode = os.environ.get("APPLICATION_MODE", "api")
 if application_mode == "api":
-    django_settings_module = "main.settings_api"
+    DJANGO_SETTINGS_MODULE = "main.settings_api"
 elif application_mode == "scheduler":
-    django_settings_module = "main.settings_scheduler"
+    DJANGO_SETTINGS_MODULE = "main.settings_scheduler"
 elif application_mode == "admin_panel":
-    django_settings_module = "main.settings_admin_panel"
+    DJANGO_SETTINGS_MODULE = "main.settings_admin_panel"
 else:
-    django_settings_module = "main.settings_base"
+    DJANGO_SETTINGS_MODULE = "main.settings_base"
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", django_settings_module)
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", DJANGO_SETTINGS_MODULE)
 
 application = get_asgi_application()

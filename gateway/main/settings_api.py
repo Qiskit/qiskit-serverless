@@ -1,4 +1,8 @@
-from .settings_base import *
+"""
+Django settings for api application.
+"""
+
+from .settings_base import *  # pylint: disable=wildcard-import, unused-wildcard-import
 
 # Application definition
 INSTALLED_APPS = [
@@ -14,7 +18,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "allauth",
     "allauth.socialaccount",
-    "api", # for api
+    "api",  # for api
     "psycopg2",
     "drf_yasg",
 ]
@@ -32,7 +36,7 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
-#JobConfig base configuration
+# JobConfig base configuration
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
     os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5")
 )
