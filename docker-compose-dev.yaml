@@ -1,6 +1,7 @@
 # compose config for running images based on local files
 services:
   ray-head:
+    user: "0"
     container_name: ray-head
     build:
       context: ./
