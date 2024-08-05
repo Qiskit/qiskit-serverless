@@ -3,6 +3,9 @@ name: Gateway verify process
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify-gateway:
     name: lint, test, coverage

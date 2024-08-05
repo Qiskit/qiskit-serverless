@@ -3,6 +3,9 @@ name: Client verify process
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify-client:
     name: lint, test

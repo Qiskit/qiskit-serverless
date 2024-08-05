@@ -3,6 +3,9 @@ name: Verify building sphinx docs
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify_docs_build:
     runs-on: ubuntu-latest

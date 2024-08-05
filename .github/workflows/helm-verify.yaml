@@ -8,6 +8,9 @@ on:
       - ".github/actions/helm-lint/action.yaml"
       - ".github/workflows/helm-verify.yaml"
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest

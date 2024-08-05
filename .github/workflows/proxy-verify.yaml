@@ -3,6 +3,9 @@ name: Proxy verify process
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify-proxy:
     name: lint, test

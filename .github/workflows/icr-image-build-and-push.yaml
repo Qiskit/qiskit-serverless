@@ -9,6 +9,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
 jobs:
   icr_build_and_push:
     runs-on: ubuntu-latest
