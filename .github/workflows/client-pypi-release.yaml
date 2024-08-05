@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install Deps
-        run: pip install -U twine wheel
+        run: pip install -U twine==5.1.1 wheel==0.44.0
       - name: Build Artifacts
         run: |
           cd client
