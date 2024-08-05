@@ -39,7 +39,7 @@ jobs:
 
       - name: Install tox
         run: |
-          pip install tox
+          pip install tox==4.16.0
 
       - name: Run styles check
         run: tox -elint
