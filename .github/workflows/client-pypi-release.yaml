@@ -13,7 +13,7 @@ jobs:
     name: Build and Publish Release Artifacts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
       - uses: actions/setup-python@v4
         name: Install Python
         with:
