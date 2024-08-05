@@ -38,6 +38,7 @@ services:
       - 8000:8000
     environment:
       - DEBUG=1
+      - APPLICATION_MODE=api
       - RAY_HOST=http://ray-head:8265
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
@@ -63,6 +64,7 @@ services:
     entrypoint: "./scripts/scheduler.sh"
     environment:
       - DEBUG=1
+      - APPLICATION_MODE=scheduler
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_NAME=serverlessdb
@@ -71,6 +73,31 @@ services:
       - RAY_CLUSTER_MODE_LOCAL_HOST=http://ray-head:8265
       - RAY_CLUSTER_MODE_LOCAL=1
       - SETTINGS_AUTH_MECHANISM=mock_token
+    networks:
+      - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
+    depends_on:
+      - postgres
+  admin_panel:
+    container_name: admin_panel
+    build:
+      context: ./
+      dockerfile: gateway/Dockerfile
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8001 --workers=4
+    ports:
+      - 8001:8001
+    environment:
+      - DEBUG=1
+      - APPLICATION_MODE=admin_panel
+      - DJANGO_SUPERUSER_USERNAME=admin
+      - DJANGO_SUPERUSER_PASSWORD=123
+      - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=serverlessdb
+      - DATABASE_USER=serverlessuser
+      - DATABASE_PASSWORD=serverlesspassword
     networks:
       - safe-tier
     volumes:

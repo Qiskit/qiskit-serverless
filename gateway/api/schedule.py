@@ -16,7 +16,7 @@ from opentelemetry import trace
 from api.models import Job, ComputeResource
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
 from api.utils import generate_cluster_name
-from main import settings as config
+from django.conf import settings as config
 
 
 User: Model = get_user_model()

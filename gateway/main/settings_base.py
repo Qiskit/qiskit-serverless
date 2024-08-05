@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 import os
-import os.path
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -22,6 +21,7 @@ RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+APPLICATION_MODE = os.environ.get("APPLICATION_MODE", "api")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
@@ -44,42 +44,6 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 # k8s pods are given an IP on the private 10. network, and 10.0.0.0/8
 # includes all 10. IPs.
 ALLOWED_CIDR_NETS = ["10.0.0.0/8"]
-
-# Application definition
-
-INSTALLED_APPS = [
-    "django.contrib.admin", # for admin_panel
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    "django.contrib.sites",
-    "django_prometheus",
-    "rest_framework",
-    "rest_framework.authtoken",
-    "rest_framework_simplejwt",
-    "allauth",
-    "allauth.socialaccount",
-    "api",
-    "admin_panel", # for admin_panel
-    "psycopg2",
-    "drf_yasg",
-]
-
-MIDDLEWARE = [
-    "csp.middleware.CSPMiddleware",
-    "allow_cidr.middleware.AllowCIDRMiddleware",
-    "django_prometheus.middleware.PrometheusBeforeMiddleware",
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware", # for admin_panel, must be after session
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "django_prometheus.middleware.PrometheusAfterMiddleware",
-]
 
 ROOT_URLCONF = "main.urls"
 
@@ -308,63 +272,6 @@ SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get(
     "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None
 )
 
-# resources limitations
-LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
-LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
-LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
-LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
-
-# ray cluster management
-RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
-RAY_CLUSTER_MODE = {
-    "local": int(os.environ.get("RAY_CLUSTER_MODE_LOCAL", 0)),
-    "ray_local_host": os.environ.get(
-        "RAY_CLUSTER_MODE_LOCAL_HOST", "http://localhost:8265"
-    ),
-}
-RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.2"
-)
-RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
-RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
-    os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5")
-)
-RAY_CLUSTER_WORKER_MIN_REPLICAS = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1")
-)
-RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX", "2")
-)
-RAY_CLUSTER_WORKER_MAX_REPLICAS = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4")
-)
-RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX", "10")
-)
-RAY_CLUSTER_WORKER_AUTO_SCALING = bool(
-    os.environ.get("RAY_CLUSTER_WORKER_AUTO_SCALING", False)
-)
-RAY_CLUSTER_MAX_READINESS_TIME = int(
-    os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "120")
-)
-
-RAY_SETUP_MAX_RETRIES = int(os.environ.get("RAY_SETUP_MAX_RETRIES", 30))
-
-RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(
-    os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False)
-)
-
-PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
-
-# qiskit runtime
-QISKIT_IBM_CHANNEL = os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum")
-QISKIT_IBM_URL = os.environ.get(
-    "QISKIT_IBM_URL", "https://auth.quantum-computing.ibm.com/api"
-)
-
-# quantum api
-IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
-
 # Content Security Policy
 CSP_DEFAULT_SRC = "'none'"
 CSP_SCRIPT_SRC = "'none'"
@@ -376,17 +283,8 @@ CSP_SCRIPT_SRC_ELEM = "'self'"
 CSP_CONNECT_SRC = "'self'"
 CSP_WORKER_SRC = ("'self'", "blob:")
 
-# Custom image for programs settings
-CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "runner")
-CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner")
 SECURE_BROWSER_XSS_FILTER = True
+
 SESSION_COOKIE_AGE = 3600
 
-# Providers setup
-PROVIDERS_CONFIGURATION = os.environ.get("PROVIDERS_CONFIGURATION", "{}")
 
-# Function permissions
-FUNCTIONS_PERMISSIONS = os.environ.get(
-    "FUNCTIONS_PERMISSIONS",
-    "{}",
-)
