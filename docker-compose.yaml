@@ -1,6 +1,7 @@
 # compose config on latest release builds
 services:
   ray-head:
+    user: "0"
     container_name: ray-head
     image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.14.2}-py310
     entrypoint: [
