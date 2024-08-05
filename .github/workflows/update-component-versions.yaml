@@ -62,7 +62,7 @@ jobs:
           sed -i "s/${OLDNUM}-py310/${NEWNUM}-py310/g" docs/deployment/deploying_custom_image_function.rst
       - name: Create PR
         id: cpr
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@cd5c7e4b8bff84befe9c12e7cffbecfda02c7ce9 #6.1.0
         with:
           branch: "update-version-${{ github.event.inputs.new_version }}"
           title: "update-version-${{ github.event.inputs.new_version }}"
