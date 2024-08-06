@@ -20,8 +20,8 @@ RUN pip install -r requirements.txt --no-cache-dir &&\
     pip install . --no-cache-dir &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
     pip install --no-cache-dir certifi==2024.7.4 &&\
-    pip install --no-cache-dir setuptools>=72.1.0 &&\
-    pip install --no-cache-dir pip>=24.2 &&\
+    pip install --no-cache-dir --upgrade setuptools>=72.1.0 &&\
+    pip install --no-cache-dir --upgrade pip>=24.2 &&\
     cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages &&\
     cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages
 
