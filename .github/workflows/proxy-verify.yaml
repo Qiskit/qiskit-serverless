@@ -39,7 +39,7 @@ jobs:
 
       - name: Install tox
         run: |
-          pip install tox==4.16.0
+          pip install git+https://github.com/tox-dev/tox.git@2f7c60ec71d47f4099394af11999a840bc97c9a9 #tox==4.17.0
 
       - name: Run styles check
         run: tox -elint
