@@ -5,7 +5,7 @@ runs:
   using: composite
   steps:
     - name: Set up Helm
-      uses: azure/setup-helm@df50d879fa2c7ad2245510549f2c2eb28d0da618 #4.2.0
+      uses: azure/setup-helm@v4.2.0  #4.2.0
       with:
         version: v3.12.1
 
