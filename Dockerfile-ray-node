@@ -1,5 +1,5 @@
 FROM registry.access.redhat.com/ubi9-minimal:9.4@sha256:104cf11d890aeb7dd5728b7d7732e175a0e4018f1bb00d2faebcc8f6bf29bd52
-RUN microdnf install -y python3.11-3.11.7 python3.11-pip-22.3.1 python3.11-devel-3.11.7 vim-enhanced-8.2.2637 wget-1.21.1 &&\
+RUN microdnf install -y python3.11-3.11.7 python3.11-devel-3.11.7 vim-enhanced-8.2.2637 wget-1.21.1 &&\
     microdnf clean all
 RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -s /usr/bin/python3.11 /usr/local/bin/python &&\
@@ -16,12 +16,16 @@ RUN mkdir /data && chown 1000:1000 /data
 COPY client ./qs
 WORKDIR /qs
 
+# Need versions of pip/setuptools more recent than provided by UBI image
+RUN python3.11 -m ensurepip --upgrade
+
+RUN pip install --upgrade --no-cache-dir pip>=24.2 &&\
+    pip install --upgrade --no-cache-dir setuptools>=72.1.0
+
 RUN pip install -r requirements.txt --no-cache-dir &&\
     pip install . --no-cache-dir &&\
     pip install --no-cache-dir pyarrow==14.0.1 &&\
     pip install --no-cache-dir certifi==2024.7.4 &&\
-    pip install --no-cache-dir --upgrade setuptools>=72.1.0 &&\
-    pip install --no-cache-dir --upgrade pip>=24.2 &&\
     cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages &&\
     cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages
 
