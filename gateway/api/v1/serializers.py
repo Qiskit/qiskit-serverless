@@ -2,6 +2,7 @@
 Serializers api for V1.
 """
 
+import json
 from rest_framework.serializers import ValidationError
 from api import serializers
 from api.models import Provider
@@ -42,6 +43,29 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             raise ValidationError(
                 "At least one of attributes (entrypoint, image) is required."
             )
+
+        # validate dependencies
+        # allowlist stored in json config file (eventually via configmap)
+        # sample:
+        # allowlist = { "wheel": ["0.44.0", "0.43.2"] }
+        # where the values for each key are allowed versions of dependency
+        deps = json.loads(attrs.get("dependencies", None))
+        with open("api/v1/allowlist.json") as f:
+            allowlist = json.load(f)
+
+        # If no allowlist specified, all dependencies allowed
+        if len(allowlist.keys()) > 0:
+            for d in deps:
+                dep, ver = d.split("==")
+
+                # Determine if a dependency is allowed
+                if not allowlist[dep]:
+                    raise ValidationError(f"Dependency {dep} is not allowed")
+
+                # Determine if a specific version of a dependency is allowed
+                if ver not in allowlist[dep]:
+                    raise ValidationError(f"Version {ver} of dependency {dep} is not allowed")
+
 
         title = attrs.get("title")
         provider = attrs.get("provider", None)
