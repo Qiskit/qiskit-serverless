@@ -63,7 +63,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                     raise ValidationError(f"Dependency {dep} is not allowed")
 
                 # Determine if a specific version of a dependency is allowed
-                if ver not in allowlist[dep]:
+                if allowlist[dep] and ver not in allowlist[dep]:
                     raise ValidationError(f"Version {ver} of dependency {dep} is not allowed")
 
 
