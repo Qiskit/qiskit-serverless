@@ -50,7 +50,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         # allowlist = { "wheel": ["0.44.0", "0.43.2"] }
         # where the values for each key are allowed versions of dependency
         deps = json.loads(attrs.get("dependencies", None))
-        with open("api/v1/allowlist.json") as f:
+        with open("api/v1/allowlist.json", encoding="utf-8", mode="r") as f:
             allowlist = json.load(f)
 
         # If no allowlist specified, all dependencies allowed
