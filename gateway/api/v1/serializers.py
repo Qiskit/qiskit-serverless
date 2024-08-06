@@ -64,8 +64,9 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
 
                 # Determine if a specific version of a dependency is allowed
                 if allowlist[dep] and ver not in allowlist[dep]:
-                    raise ValidationError(f"Version {ver} of dependency {dep} is not allowed")
-
+                    raise ValidationError(
+                        f"Version {ver} of dependency {dep} is not allowed"
+                    )
 
         title = attrs.get("title")
         provider = attrs.get("provider", None)
