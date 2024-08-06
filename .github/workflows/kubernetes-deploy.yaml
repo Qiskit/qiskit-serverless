@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
       - name: Install Kind
         run: |
           curl -Lo ./kind "https://github.com/kubernetes-sigs/kind/releases/download/v0.20.0/kind-$(uname)-amd64"
@@ -56,7 +56,7 @@ jobs:
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
           kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
       - name: setup python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f #5.1.1
         with:
           python-version: "3.11"
       - name: Install dependencies
