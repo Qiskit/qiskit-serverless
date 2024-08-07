@@ -60,7 +60,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 dep, ver = d.split("==")
 
                 # Determine if a dependency is allowed
-                if not allowlist[dep]:
+                if dep not in allowlist:
                     raise ValidationError(f"Dependency {dep} is not allowed")
 
                 # Determine if a specific version of a dependency is allowed
