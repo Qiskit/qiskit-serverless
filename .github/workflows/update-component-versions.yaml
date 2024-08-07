@@ -60,7 +60,7 @@ jobs:
         shell: bash
         run: |
           sed -i "s/${OLDNUM}/${NEWNUM}/g" docs/deployment/cloud.rst
-          sed -i "s/${OLDNUM}/${NEWNUM}/g" docs/deployment/deploying_custom_image_function.rst
+          sed -i "s/${OLDNUM}-py310/${NEWNUM}/g" docs/deployment/deploying_custom_image_function.rst
       - name: Create PR
         id: cpr
         uses: peter-evans/create-pull-request@cd5c7e4b8bff84befe9c12e7cffbecfda02c7ce9 #6.1.0
