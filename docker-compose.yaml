@@ -3,7 +3,7 @@ services:
   ray-head:
     user: "0"
     container_name: ray-head
-    image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.15.0}-py310
+    image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.15.0}
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"

@@ -1,4 +1,4 @@
-FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.15.0-py310@sha256:e012a6f7159b2660dd87af15bf85029fe62bec22e6bef7d99e54ca0cfa4f3aa6
+FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.15.0
 
 # install all necessary dependencies for your custom image
 
