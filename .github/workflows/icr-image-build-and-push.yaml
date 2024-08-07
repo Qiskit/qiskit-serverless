@@ -9,6 +9,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
 jobs:
   icr_build_and_push:
     runs-on: ubuntu-latest
@@ -26,19 +29,19 @@ jobs:
             platforms: linux/amd64,linux/arm64
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
       - name: Login to IBM Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 #3.3.0
         with:
           registry: icr.io
           username: iamapikey
           password: ${{ secrets.IBMCLOUD_API_KEY }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf #3.2.0
         with:
           platforms: 'arm64,amd64'
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db #3.6.1
       - name: Build and push on dispatch
         if : github.event_name == 'workflow_dispatch'
         uses: ./.github/actions/icr-build-and-push-images

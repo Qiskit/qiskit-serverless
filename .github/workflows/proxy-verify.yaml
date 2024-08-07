@@ -3,6 +3,9 @@ name: Proxy verify process
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify-proxy:
     name: lint, test
@@ -19,10 +22,10 @@ jobs:
         working-directory: ./proxy
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f #5.1.1
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
@@ -36,7 +39,7 @@ jobs:
 
       - name: Install tox
         run: |
-          pip install tox
+          pip install tox==4.16.0
 
       - name: Run styles check
         run: tox -elint

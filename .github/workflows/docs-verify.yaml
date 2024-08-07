@@ -3,18 +3,21 @@ name: Verify building sphinx docs
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify_docs_build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f #5.1.1
         with:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install tox
+          python -m pip install --upgrade pip==24.2
+          pip install tox==4.16.0
           sudo apt-get update
           sudo apt-get install -y pandoc
       - name: Build docs
@@ -22,7 +25,7 @@ jobs:
           tox -edocs
       - name: Upload docs artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@89ef406dd8d7e03cfd12d9e0a4a378f454709029 #4.3.5
         with:
           name: html_docs
           path: ./docs/_build/html/
