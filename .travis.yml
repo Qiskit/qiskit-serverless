@@ -85,6 +85,16 @@ jobs:
         - .travis/bin/install_docker_buildx.sh
       script:
         - make docker/vscan-ray-node
+    
+    - stage: docker image
+      name: docker/vscan-selector
+      language: minimal
+      install: skip
+      services: docker
+      before_script:
+        - .travis/bin/install_docker_buildx.sh
+      script:
+        - make docker/vscan-selector
 
     - stage: docker release
       name: docker/release-selector
