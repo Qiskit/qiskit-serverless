@@ -297,7 +297,6 @@ class SerializerTest(APITestCase):
         self.assertEqual(entrypoint, program.entrypoint)
         self.assertEqual(dependencies, program.dependencies)
 
-
     def test_upload_program_serializer_blocked_dependency(self):
         """Tests dependency allowlist."""
 
@@ -330,7 +329,6 @@ class SerializerTest(APITestCase):
 
         serializer = UploadProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
-
 
     def test_upload_program_serializer_dependency_bad_version(self):
         """Tests dependency allowlist."""
