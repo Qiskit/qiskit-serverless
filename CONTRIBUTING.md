@@ -164,8 +164,6 @@ If you wish to rebuild only a specific component (for example, the `gateway`), y
 
 ```docker compose -f docker-compose-dev.yaml build gateway```
 
-For Apple Silicon system (arm64 / aarch64), set `TARGETARCH=arm64` before running the `docker compose` command.
-
 ### Assigning yourself
 
 The very first step to working on an issue is
@@ -219,7 +217,7 @@ git rebase main issue-1234-new-feature
 ### Adding tests
 
 Our team upholds the philosophy that a healthy codebase will include the proper amount of testing.
-From the project you are working on, you can run tests with `tox -epy310`.
+From the project you are working on, you can run tests with `tox -epy311`.
 Note if you run this command from qiskit-serverless top directory, it will build the project documentation.
 For detailed testing guidelines using tox environments, please refer to [this documentation](./client/tests/README.md).
 

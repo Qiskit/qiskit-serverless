@@ -1,12 +1,11 @@
 # compose config for running images based on local files
 services:
   ray-head:
+    user: "0"
     container_name: ray-head
     build:
       context: ./
       dockerfile: Dockerfile-ray-node
-      args:
-        TARGETARCH: "${TARGETARCH:-amd64}"
     entrypoint: [
       "env", "RAY_LOG_TO_STDERR=1", "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
