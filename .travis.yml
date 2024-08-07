@@ -12,12 +12,9 @@ stages:
     if: type IN (push)
   - name: docker image
     if: type IN (pull_request)
-  # - name: docker release
-  #   if: type IN (push, api) AND (branch = staging OR branch = production)
-  # - name: deploy staging
-  #   if: type IN (push,api) AND branch = staging
-  - name: deploy production
-    if: type IN (push,api) AND branch = production
+  - name: docker release
+    if: type IN (push, api) AND (branch = staging OR branch = production)
+
 
 jobs:
   include:
@@ -38,6 +35,14 @@ jobs:
         - make docker/lint-ray
     
     - stage: checks
+      name: docker/lint-selector
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/lint-selector
+
+    - stage: checks
       name: docker/sast-gateway
       language: minimal
       install: skip
@@ -53,6 +58,14 @@ jobs:
       script:
         - make docker/sast-ray
 
+    - stage: checks
+      name: docker/sast-selector
+      language: minimal
+      install: skip
+      services: docker
+      script:
+        - make docker/sast-selector
+
     - stage: docker image
       name: docker/vscan-gateway
       language: minimal
@@ -62,26 +75,16 @@ jobs:
         - .travis/bin/install_docker_buildx.sh
       script:
         - make docker/vscan-gateway
-
-    - stage: docker image
-      name: docker/vscan-ray-py39
-      language: minimal
-      install: skip
-      services: docker
-      before_script:
-        - .travis/bin/install_docker_buildx.sh
-      script:
-        - make docker/vscan-ray-py39
     
     - stage: docker image
-      name: docker/vscan-ray-py310
+      name: docker/vscan-ray-node
       language: minimal
       install: skip
       services: docker
       before_script:
         - .travis/bin/install_docker_buildx.sh
       script:
-        - make docker/vscan-ray-py310
+        - make docker/vscan-ray-node
 
     - stage: docker release
       name: docker/release-selector
@@ -92,23 +95,3 @@ jobs:
         - .travis/bin/install_docker_buildx.sh
       script:
         - make docker/release-selector
-
-    # - stage: deploy staging
-    #   name: deploy/staging
-    #   language: minimal
-    #   install: skip
-    #   services: docker
-    #   env:
-    #     - ENVIRONMENT: staging
-    #   script:
-    #     - make helm/deploy
-
-    # - stage: deploy production
-    #   name: deploy/production
-    #   language: minimal
-    #   install: skip
-    #   services: docker
-    #   env:
-    #     - ENVIRONMENT: production
-    #   script:
-    #     - make helm/deploy
