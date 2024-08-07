@@ -2,7 +2,7 @@
 # Qiskit Serverless Info
 # ===================
 global:
-  version: 0.14.1
+  version: 0.15.0
 
 # ===================
 # Qiskit Serverless configs
@@ -29,7 +29,7 @@ gateway:
   image:
     repository: "icr.io/quantum-public/qiskit-serverless/gateway"
     pullPolicy: IfNotPresent
-    tag: "0.14.1"
+    tag: "0.15.0"
   resources:
     requests:
       memory: 2Gi
@@ -52,10 +52,10 @@ gateway:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.14.1-py310"
+      nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.15.0"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
       kubectlImage: alpine/k8s:1.28.9@sha256:4f97e78a640d569731ac71dccc27d7783b03488b383f15ca75ea975d31c3fe57
-      proxyImage: "icr.io/quantum-public/qiskit-serverless/proxy:0.14.1"
+      proxyImage: "icr.io/quantum-public/qiskit-serverless/proxy:0.15.0"
       cpu: 4
       memory: 8
       replicas: 1
@@ -74,7 +74,7 @@ gateway:
     claimName: qiskit-serverless-programs
 
   tasks:
-    providersConfiguration: '{\"q-ctrl\":{\"admin_group\":\"quantum-middlewa/quantum-serverle/iqp\",\"registry\":\"icr.io\"},\"qunasys\":{\"admin_group\":\"quantum-middlewa/quantum-serverle/iqp\",\"registry\":\"icr.io\"},\"qedma\":{\"admin_group\":\"quantum-middlewa/quantum-serverle/iqp\",\"registry\":\"icr.io\"},\"algorithmiq\":{\"admin_group\":\"quantum-middlewa/quantum-serverle/iqp\",\"registry\":\"icr.io\"},\"multiverse\":{\"admin_group\":\"quantum-middlewa/quantum-serverle/iqp\",\"registry\":\"icr.io\"}}'
+    providersConfiguration: '{\"q-ctrl\":{\"admin_group\":[\"quantum-middlewa/quantum-serverle/iqp\"],\"registry\":\"icr.io\"},\"qunasys\":{\"admin_group\":[\"quantum-middlewa/quantum-serverle/iqp\"],\"registry\":\"icr.io\"},\"qedma\":{\"admin_group\":[\"quantum-middlewa/quantum-serverle/iqp\"],\"registry\":\"icr.io\"},\"algorithmiq\":{\"admin_group\":[\"quantum-middlewa/quantum-serverle/iqp\"],\"registry\":\"icr.io\"},\"multiverse\":{\"admin_group\":[\"quantum-middlewa/quantum-serverle/iqp\"],\"registry\":\"icr.io\"}}'
     functionsPermissions: '{}'
 
   secrets:
