@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
       - name: Build the function
         run: docker build -t test_function:latest --build-arg TARGETARCH="amd64" -f ./tests/basic/function/Sample-Docker ./tests/basic
       - name: Build the containers
@@ -19,7 +19,7 @@ jobs:
       - name: Give containers time to initialize
         shell: bash
         run: sleep 90
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f #5.1.1
         with:
           python-version: '3.11'
       - name: install dependencies
