@@ -2,9 +2,9 @@ from django.http import HttpResponse
 import json
 import os
 import requests
-import main.settings
+from django.conf import settings
 
 
 def version(request):
-    info = {"version": main.settings.RELEASE_VERSION}
+    info = {"version": settings.RELEASE_VERSION}
     return HttpResponse(json.dumps(info))
