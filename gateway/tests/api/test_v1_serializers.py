@@ -7,7 +7,7 @@ from django.contrib.auth import models
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files import File
 from rest_framework.test import APITestCase
-from api.v1.serializers import (
+from interface.v1.serializers import (
     JobConfigSerializer,
     UploadProgramSerializer,
     RunProgramSerializer,

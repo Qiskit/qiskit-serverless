@@ -13,7 +13,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
-from .models import (
+from api.models import (
     Provider,
     Program,
     Job,

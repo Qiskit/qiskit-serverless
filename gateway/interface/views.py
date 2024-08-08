@@ -33,7 +33,7 @@ from rest_framework.response import Response
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
 from utils import sanitize_file_path
 
-from .models import (
+from api.models import (
     VIEW_PROGRAM_PERMISSION,
     RUN_PROGRAM_PERMISSION,
     Program,
@@ -41,7 +41,7 @@ from .models import (
     RuntimeJob,
     Provider,
 )
-from .ray import get_job_handler
+from api.ray import get_job_handler
 from .serializers import (
     JobConfigSerializer,
     RunJobSerializer,
