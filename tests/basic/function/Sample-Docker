@@ -9,7 +9,7 @@ WORKDIR /runner
 COPY function/runner.py .
 WORKDIR /
 
-USER $RAY_UID
+USER 1000
  
 
 
