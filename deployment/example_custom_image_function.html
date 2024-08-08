@@ -336,19 +336,19 @@
 <p>Dockerfile</p>
 <div class="literal-block-wrapper docutils container" id="id2">
 <div class="code-block-caption"><span class="caption-text">Dockerfile</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.15.0
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">FROM</span> <span class="n">icr</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">quantum</span><span class="o">-</span><span class="n">public</span><span class="o">/</span><span class="n">qiskit</span><span class="o">-</span><span class="n">serverless</span><span class="o">/</span><span class="n">ray</span><span class="o">-</span><span class="n">node</span><span class="p">:</span><span class="mf">0.15.0</span>
 
-# install all necessary dependencies for your custom image
+<span class="c1"># install all necessary dependencies for your custom image</span>
 
-# copy our function implementation in `/runner/runner.py` of the docker image
-USER 0
-RUN  pip install qiskit_aer
+<span class="c1"># copy our function implementation in `/runner/runner.py` of the docker image</span>
+<span class="n">USER</span> <span class="mi">0</span>
+<span class="n">RUN</span>  <span class="n">pip</span> <span class="n">install</span> <span class="n">qiskit_aer</span>
 
-WORKDIR /runner
-COPY ./runner.py /runner
-WORKDIR /
+<span class="n">WORKDIR</span> <span class="o">/</span><span class="n">runner</span>
+<span class="n">COPY</span> <span class="o">./</span><span class="n">runner</span><span class="o">.</span><span class="n">py</span> <span class="o">/</span><span class="n">runner</span>
+<span class="n">WORKDIR</span> <span class="o">/</span>
 
-USER $RAY_UID
+<span class="n">USER</span> <span class="mi">1000</span>
 </pre></div>
 </div>
 </div>
