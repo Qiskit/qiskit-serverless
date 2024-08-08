@@ -56,15 +56,15 @@ gateway:
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
       kubectlImage: alpine/k8s:1.28.9@sha256:4f97e78a640d569731ac71dccc27d7783b03488b383f15ca75ea975d31c3fe57
       proxyImage: "icr.io/quantum-public/qiskit-serverless/proxy:0.15.0"
-      cpu: 4
-      memory: 8
+      cpu: 12
+      memory: 32
       replicas: 1
       minReplicas: 1
-      maxReplicas: 2
+      maxReplicas: 1
       useTLS: false
     limits:
-      maxJobsPerUser: 2
-      maxComputeResources: 20
+      maxJobsPerUser: 1
+      maxComputeResources: 6
     proxy:
       enabled: false
 
