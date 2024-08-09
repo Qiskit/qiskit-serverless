@@ -8,4 +8,4 @@ RUN pip install . --no-cache-dir
 WORKDIR /
 RUN rm -r ./qs_tools
 
-USER $RAY_UID
+USER 1000
