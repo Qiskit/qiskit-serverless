@@ -6,7 +6,7 @@ import json
 from rest_framework.serializers import ValidationError
 from api import serializers
 from api.models import Provider
-from main import settings
+from django.conf import settings
 
 
 class ProgramSerializer(serializers.ProgramSerializer):
@@ -51,8 +51,13 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         # allowlist = { "wheel": ["0.44.0", "0.43.2"] }
         # where the values for each key are allowed versions of dependency
         deps = json.loads(attrs.get("dependencies", None))
-        with open(settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r") as f:
-            allowlist = json.load(f)
+        try:
+            with open(settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r") as f:
+                allowlist = json.load(f)
+        except:
+            raise ValueError("Unable to load dependency allowlist.")
+
+
 
         # If no allowlist specified, all dependencies allowed
         if len(allowlist.keys()) > 0:
