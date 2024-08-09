@@ -1,5 +1,6 @@
 """Tests jobs APIs."""
 
+import os
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -136,3 +137,108 @@ class TestJobApi(APITestCase):
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "No available logs")
+
+    def test_job_logs_type_user_by_author(self):
+        """Tests job log non-authorized."""
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        with self.settings(MEDIA_ROOT=media_root):
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
+                {"log_type": "user"},
+                format="json",
+            )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertTrue("test_user user log line 1" in jobs_response.data.get("logs"))
+
+    def test_job_logs_type_user_by_provider(self):
+        """Tests job log non-authorized."""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        with self.settings(MEDIA_ROOT=media_root):
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                {"log_type": "user"},
+                format="json",
+            )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertTrue("test_user_2 user log line 1" in jobs_response.data.get("logs"))
+
+    def test_job_logs_type_user(self):
+        """Tests job log non-authorized."""
+        user = models.User.objects.get(username="test_user_3")
+        self.client.force_authenticate(user=user)
+
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        with self.settings(MEDIA_ROOT=media_root):
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                {"log_type": "user"},
+                format="json",
+            )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), "No available logs")
+
+    def test_job_logs_type_function_with_provider_by_user(self):
+        """Tests job log non-authorized."""
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        with self.settings(MEDIA_ROOT=media_root):
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                {"log_type": "function"},
+                format="json",
+            )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), "No available logs")
+
+    def test_job_logs_type_function_by_provider(self):
+        """Tests job log non-authorized."""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        with self.settings(MEDIA_ROOT=media_root):
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                {"log_type": "function"},
+                format="json",
+            )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertTrue("Function log line 1" in jobs_response.data.get("logs"))
