@@ -258,3 +258,107 @@ class SerializerTest(APITestCase):
             ["At least one of attributes (entrypoint, image) is required."],
             [value[0] for value in errors.values()],
         )
+
+    def test_upload_program_serializer_allowed_dependencies(self):
+        """Tests dependency allowlist."""
+
+        print("TEST: Program succeeds if all dependencies are allowlisted")
+
+        path_to_resource_artifact = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "artifact.tar",
+        )
+        file_data = File(open(path_to_resource_artifact, "rb"))
+        upload_file = SimpleUploadedFile(
+            "artifact.tar", file_data.read(), content_type="multipart/form-data"
+        )
+
+        user = models.User.objects.get(username="test_user")
+
+        title = "Hello world"
+        entrypoint = "pattern.py"
+        arguments = "{}"
+        dependencies = '["wheel==1.0.0","pendulum==1.2.3"]'
+
+        data = {}
+        data["title"] = title
+        data["entrypoint"] = entrypoint
+        data["arguments"] = arguments
+        data["dependencies"] = dependencies
+        data["artifact"] = upload_file
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+
+        program: Program = serializer.save(author=user)
+        self.assertEqual(title, program.title)
+        self.assertEqual(entrypoint, program.entrypoint)
+        self.assertEqual(dependencies, program.dependencies)
+
+    def test_upload_program_serializer_blocked_dependency(self):
+        """Tests dependency allowlist."""
+
+        print("TEST: Upload fails if dependency isn't allowlisted")
+
+        path_to_resource_artifact = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "artifact.tar",
+        )
+        file_data = File(open(path_to_resource_artifact, "rb"))
+        upload_file = SimpleUploadedFile(
+            "artifact.tar", file_data.read(), content_type="multipart/form-data"
+        )
+
+        user = models.User.objects.get(username="test_user")
+
+        title = "Hello world"
+        entrypoint = "pattern.py"
+        arguments = "{}"
+        dependencies = '["setuptools==0.4.1"]'
+
+        data = {}
+        data["title"] = title
+        data["entrypoint"] = entrypoint
+        data["arguments"] = arguments
+        data["dependencies"] = dependencies
+        data["artifact"] = upload_file
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+
+    def test_upload_program_serializer_dependency_bad_version(self):
+        """Tests dependency allowlist."""
+
+        print("TEST: Upload fails if dependency version isn't allowlisted")
+
+        path_to_resource_artifact = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "artifact.tar",
+        )
+        file_data = File(open(path_to_resource_artifact, "rb"))
+        upload_file = SimpleUploadedFile(
+            "artifact.tar", file_data.read(), content_type="multipart/form-data"
+        )
+
+        user = models.User.objects.get(username="test_user")
+
+        title = "Hello world"
+        entrypoint = "pattern.py"
+        arguments = "{}"
+        dependencies = '["wheel==0.4.1"]'
+
+        data = {}
+        data["title"] = title
+        data["entrypoint"] = entrypoint
+        data["arguments"] = arguments
+        data["dependencies"] = dependencies
+        data["artifact"] = upload_file
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
