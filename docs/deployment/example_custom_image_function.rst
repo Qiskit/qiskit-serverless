@@ -61,7 +61,7 @@ Dockerfile
    COPY ./runner.py /runner
    WORKDIR /
 
-   USER $RAY_UID
+   USER 1000
 
 Build container image
 

@@ -61,7 +61,7 @@ In our simple case it will look something like this:
     COPY ./runner.py /runner
     WORKDIR /
 
-    USER $RAY_UID
+    USER 1000
 
 and after that we need to build it:
 
