@@ -3,10 +3,13 @@ Serializers api for V1.
 """
 
 import json
+import logging
 from rest_framework.serializers import ValidationError
 from api import serializers
 from api.models import Provider
 from django.conf import settings
+
+logger = logging.getLogger("gateway.serializers")
 
 
 class ProgramSerializer(serializers.ProgramSerializer):
@@ -56,8 +59,12 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                     settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r"
             ) as f:
                 allowlist = json.load(f)
-        except:
-            raise ValueError("Unable to load dependency allowlist.")
+        except IOError as e:
+            logger.error(f"Unable to open allowlist config file: {e}")
+            raise ValueError("Unable to open allowlist config file")
+        except ValueError as e:
+            logger.error(f"Unable to decode dependency allowlist: {e}")
+            raise ValueError("Unable to decode dependency allowlist")
 
         # If no allowlist specified, all dependencies allowed
         if len(allowlist.keys()) > 0:
