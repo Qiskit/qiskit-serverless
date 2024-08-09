@@ -52,12 +52,12 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         # where the values for each key are allowed versions of dependency
         deps = json.loads(attrs.get("dependencies", None))
         try:
-            with open(settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r") as f:
+            with open(
+                    settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r"
+            ) as f:
                 allowlist = json.load(f)
         except:
             raise ValueError("Unable to load dependency allowlist.")
-
-
 
         # If no allowlist specified, all dependencies allowed
         if len(allowlist.keys()) > 0:
