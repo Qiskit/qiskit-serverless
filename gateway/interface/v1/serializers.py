@@ -3,7 +3,7 @@ Serializers api for V1.
 """
 
 from rest_framework.serializers import ValidationError
-from api import serializers
+from interface import serializers
 from api.models import Provider
 
 

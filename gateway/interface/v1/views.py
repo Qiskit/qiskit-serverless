@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.pagination import LimitOffsetPagination
 
 
-from api import views
+from interface import views
 from api.permissions import IsOwner
 from . import serializers as v1_serializers
 

@@ -33,7 +33,9 @@ schema = get_schema_view(  # pylint: disable=invalid-name
     permission_classes=[permissions.AllowAny],
     # Patterns to be included in the Swagger documentation
     patterns=[
-        re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
+        re_path(
+            r"^api/v1/", include(("interface.v1.urls", "interface"), namespace="v1")
+        ),
         # Add other included patterns if necessary
     ],
 )
@@ -46,7 +48,9 @@ if settings.DEBUG:
         path("liveness/", probes.views.liveness, name="liveness"),
         path("version/", version.views.version, name="version"),
         path("", include("django_prometheus.urls")),
-        re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
+        re_path(
+            r"^api/v1/", include(("interface.v1.urls", "interface"), namespace="v1")
+        ),
         re_path(
             r"^swagger(?P<format>\.json|\.yaml)$",
             schema.without_ui(cache_timeout=0),
@@ -69,5 +73,7 @@ else:
         path("liveness/", probes.views.liveness, name="liveness"),
         path("version/", version.views.version, name="version"),
         path("", include("django_prometheus.urls")),
-        re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
+        re_path(
+            r"^api/v1/", include(("interface.v1.urls", "interface"), namespace="v1")
+        ),
     ]

@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.socialaccount",
     "api",
+    "interface",
     "psycopg2",
     "drf_yasg",
 ]
