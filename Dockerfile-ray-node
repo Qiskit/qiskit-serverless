@@ -19,6 +19,7 @@ WORKDIR /qs
 # Need versions of pip/setuptools more recent than provided by UBI image
 RUN python3.11 -m ensurepip --upgrade
 
+# hadolint ignore=DL3013
 RUN pip install --upgrade --no-cache-dir pip>=24.2 &&\
     pip install --upgrade --no-cache-dir setuptools>=72.1.0
 
