@@ -10,6 +10,8 @@ import json
 import logging
 from typing import Tuple, Union
 from django.conf import settings
+from django.contrib.auth.models import Group, Permission
+from django.db.models import Q
 from rest_framework import serializers
 
 from api.utils import build_env_variables, encrypt_env_vars
@@ -20,6 +22,7 @@ from .models import (
     JobConfig,
     RuntimeJob,
     DEFAULT_PROGRAM_ENTRYPOINT,
+    RUN_PROGRAM_PERMISSION,
 )
 
 logger = logging.getLogger("gateway.serializers")
@@ -242,3 +245,53 @@ class RuntimeJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RuntimeJob
+
+
+class CatalogProviderSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the Provider model in the Catalog View.
+    """
+
+    class Meta:
+        model = Provider
+        fields = ["name", "iconUrl"]
+
+
+class ListCatalogSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the Catalog View.
+    """
+
+    provider = CatalogProviderSerializer()
+    available = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Program
+
+    def get_available(self, obj):
+        """
+        This method populates available field.
+        If the user has RUN PERMISSION in any of its groups
+        available field will be True. If not, will be False.
+        """
+        author = self.context.get("author", None)
+
+        if author is None:
+            logger.debug(
+                "User not authenticated in ListCatalogSerializer return available to False"
+            )
+            return False
+
+        # This will be refactorize it when we implement repository architecture
+        # pylint: disable=duplicate-code
+        run_program_permission = Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
+
+        user_criteria = Q(user=author)
+        run_permission_criteria = Q(permissions=run_program_permission)
+        author_groups_with_run_permissions = Group.objects.filter(
+            user_criteria & run_permission_criteria
+        )
+
+        return obj.instances.filter(
+            id__in=[group.id for group in author_groups_with_run_permissions]
+        ).exists()

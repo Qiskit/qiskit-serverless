@@ -172,3 +172,12 @@ class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
 
     class Meta(serializers.RuntimeJobSerializer.Meta):
         fields = ["job", "runtime_job"]
+
+
+class ListCatalogSerializer(serializers.ListCatalogSerializer):
+    """
+    Serializer for the Catalog View.
+    """
+
+    class Meta(serializers.ListCatalogSerializer.Meta):
+        fields = ["id", "title", "type", "description", "provider", "available"]

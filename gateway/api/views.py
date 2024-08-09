@@ -754,3 +754,43 @@ class FilesViewSet(viewsets.ViewSet):
                     destination.write(chunk)
                     return Response({"message": file_path})
         return Response("server error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CatalogViewSet(viewsets.GenericViewSet):
+    """ViewSet to handle requests from IQP for the catalog page.
+
+    This ViewSet contains public end-points to retrieve information.
+    """
+
+    BASE_NAME = "catalog"
+    PUBLIC_GROUP_NAME = "public"  # "ibm-q/open/main"
+
+    def get_queryset(self):
+        # try:
+        public_group = Group.objects.get(name=self.PUBLIC_GROUP_NAME)
+        # except:
+        return Program.objects.filter(instances=public_group).distinct()
+
+    def list(self, request):
+        """List programs:"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.iqp_catalog.list", context=ctx):
+            author = None
+            if request.user.is_authenticated:
+                author = request.user
+            serializer = self.get_serializer(
+                self.get_queryset(), context={"author": author}, many=True
+            )
+
+        return Response(serializer.data)
+
+    # def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
+    #     """Get program:"""
+    #     tracer = trace.get_tracer("gateway.tracer")
+    #     ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+    #     with tracer.start_as_current_span("gateway.iqp_catalog.retrieve", context=ctx):
+    #         # make a check to ensure that the model is public
+    #         instance = self.get_object()
+    #         serializer = self.get_serializer(instance)
+    #     return Response(serializer.data)

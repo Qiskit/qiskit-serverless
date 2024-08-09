@@ -107,3 +107,13 @@ class FilesViewSet(views.FilesViewSet):
     """
 
     permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+
+class CatalogViewSet(views.CatalogViewSet):
+    """
+    Quantum function view set first version. Use ProgramSerializer V1.
+    """
+
+    serializer_class = v1_serializers.ListCatalogSerializer
+    pagination_class = None
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]

@@ -51,6 +51,7 @@ class Provider(models.Model):
     updated = models.DateTimeField(auto_now=True, null=True)
 
     name = models.CharField(max_length=255, db_index=True, unique=True)
+    iconUrl = models.TextField(null=True, blank=True, default=None)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
     admin_groups = models.ManyToManyField(Group)
 
@@ -61,11 +62,27 @@ class Provider(models.Model):
 class Program(ExportModelOperationsMixin("program"), models.Model):
     """Program model."""
 
+    GENERIC = "GENERIC"
+    APPLICATION = "APPLICATION"
+    CIRCUIT = "CIRCUIT"
+    PROGRAM_TYPES = [
+        (GENERIC, "Generic"),
+        (APPLICATION, "Application"),
+        (CIRCUIT, "Circuit"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
 
     title = models.CharField(max_length=255, db_index=True)
+    type = models.CharField(
+        max_length=20,
+        choices=PROGRAM_TYPES,
+        default=GENERIC,
+    )
     description = models.TextField(null=True, blank=True)
+    additionalInfo = models.TextField(null=True, blank=True, default="{}")
+
     entrypoint = models.CharField(max_length=255, default=DEFAULT_PROGRAM_ENTRYPOINT)
     artifact = models.FileField(
         upload_to=get_upload_path,
@@ -74,7 +91,6 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         validators=[FileExtensionValidator(allowed_extensions=["tar"])],
     )
     image = models.CharField(max_length=511, null=True, blank=True)
-
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
 
