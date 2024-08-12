@@ -61,10 +61,10 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 allowlist = json.load(f)
         except IOError as e:
             logger.error("Unable to open allowlist config file: %s", e)
-            raise ValueError('Unable to open allowlist config file') from e
+            raise ValueError("Unable to open allowlist config file") from e
         except ValueError as e:
             logger.error("Unable to decode dependency allowlist: %s", e)
-            raise ValueError('Unable to decode dependency allowlist') from e
+            raise ValueError("Unable to decode dependency allowlist") from e
 
         # If no allowlist specified, all dependencies allowed
         if len(allowlist.keys()) > 0:
