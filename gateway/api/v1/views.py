@@ -9,7 +9,6 @@ from rest_framework.pagination import LimitOffsetPagination
 
 
 from api import views
-from api.permissions import IsOwner
 from . import serializers as v1_serializers
 
 
@@ -71,17 +70,10 @@ class JobViewSet(views.JobViewSet):
 
     serializer_class = v1_serializers.JobSerializer
     pagination_class = LimitOffsetPagination
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
         return v1_serializers.JobSerializer
-
-    @swagger_auto_schema(
-        operation_description="Get author Job",
-        responses={status.HTTP_200_OK: v1_serializers.JobSerializer(many=False)},
-    )
-    def retrieve(self, request, pk=None):
-        return super().retrieve(request, pk)
 
     @swagger_auto_schema(
         operation_description="List author Jobs",
@@ -106,4 +98,4 @@ class FilesViewSet(views.FilesViewSet):
     Files view set.
     """
 
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    permission_classes = [permissions.IsAuthenticated]

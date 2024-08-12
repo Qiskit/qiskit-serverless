@@ -406,15 +406,6 @@ class JobViewSet(viewsets.GenericViewSet):
     def get_queryset(self):
         return Job.objects.filter(author=self.request.user).order_by("-created")
 
-    def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
-        """Get job:"""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.job.retrieve", context=ctx):
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-        return Response(serializer.data)
-
     def list(self, request):
         """List jobs:"""
         tracer = trace.get_tracer("gateway.tracer")

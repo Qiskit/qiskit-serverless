@@ -38,28 +38,6 @@ class TestJobApi(APITestCase):
             jobs_response.data.get("results")[0].get("result"), '{"somekey":1}'
         )
 
-    def test_job_detail(self):
-        """Tests job detail authorized."""
-        self._authorize()
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("status"), "SUCCEEDED")
-        self.assertEqual(jobs_response.data.get("result"), '{"somekey":1}')
-
-    def test_not_authorized_job_detail(self):
-        """Tests job detail fails trying to access to other user job."""
-        self._authorize()
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec84"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
-
     def test_job_save_result(self):
         """Tests job results save."""
         self._authorize()
