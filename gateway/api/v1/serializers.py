@@ -56,7 +56,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         deps = json.loads(attrs.get("dependencies", None))
         try:
             with open(
-                    settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r"
+                settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r"
             ) as f:
                 allowlist = json.load(f)
         except IOError as e:
