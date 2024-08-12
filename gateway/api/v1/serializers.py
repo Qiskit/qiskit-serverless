@@ -5,9 +5,9 @@ Serializers api for V1.
 import json
 import logging
 from rest_framework.serializers import ValidationError
+from django.conf import settings
 from api import serializers
 from api.models import Provider
-from django.conf import settings
 
 logger = logging.getLogger("gateway.serializers")
 
@@ -39,7 +39,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         # place to add image validation
         return value
 
-    def validate(self, attrs):
+    def validate(self, attrs):  # pylint: disable=too-many-branches
         """Validates serializer data."""
         entrypoint = attrs.get("entrypoint", None)
         image = attrs.get("image", None)
@@ -60,11 +60,11 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             ) as f:
                 allowlist = json.load(f)
         except IOError as e:
-            logger.error(f"Unable to open allowlist config file: {e}")
-            raise ValueError("Unable to open allowlist config file")
+            logger.error("Unable to open allowlist config file: %s", e)
+            raise ValueError('Unable to open allowlist config file') from e
         except ValueError as e:
-            logger.error(f"Unable to decode dependency allowlist: {e}")
-            raise ValueError("Unable to decode dependency allowlist")
+            logger.error("Unable to decode dependency allowlist: %s", e)
+            raise ValueError('Unable to decode dependency allowlist') from e
 
         # If no allowlist specified, all dependencies allowed
         if len(allowlist.keys()) > 0:
