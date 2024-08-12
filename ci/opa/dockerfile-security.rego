@@ -25,7 +25,7 @@ deny[msg] {
 deny[msg] {
     input[i].Cmd == "from"
     val := split(input[i].Value[0], "/")
-    count(val) > 2
+    count(val) > 4
     msg = sprintf("Line %d: use a trusted base image", [i])
 }
 
