@@ -320,7 +320,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.15.0"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.15.1"
 )
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
@@ -352,6 +352,10 @@ RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(
 )
 
 PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
+
+GATEWAY_ALLOWLIST_CONFIG = str(
+    os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json")
+)
 
 # qiskit runtime
 QISKIT_IBM_CHANNEL = os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum")
