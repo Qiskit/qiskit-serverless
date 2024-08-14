@@ -80,6 +80,7 @@ def execute_job(job: Job) -> Job:
                 kill_ray_cluster(compute_resource.title)
                 compute_resource.delete()
                 job.status = Job.FAILED
+                job.compute_resource = None
                 job.logs += "\nCompute resource was not found."
 
         span.set_attribute("job.status", job.status)
