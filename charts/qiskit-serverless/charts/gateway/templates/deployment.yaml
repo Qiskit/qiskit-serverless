@@ -187,6 +187,8 @@ spec:
               value: "{{ .Values.tasks.providersConfiguration }}"
             - name: FUNCTIONS_PERMISSIONS
               value: "{{ .Values.tasks.functionsPermissions }}"
+            - name: PUBLIC_GROUP_NAME
+              value: {{ .Values.application.publicGroupName }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

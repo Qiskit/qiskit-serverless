@@ -51,6 +51,7 @@ application:
     url: "https://auth.quantum-computing.ibm.com/api"
   iqpQcon:
     url: "https://api-qcon.quantum.ibm.com/api"
+  publicGroupName: "ibm-q/open/main"
 
 cos:
   claimName: gateway-claim
