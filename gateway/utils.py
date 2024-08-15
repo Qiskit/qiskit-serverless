@@ -164,6 +164,7 @@ raw_dependency_grammar = """
     hexdig        = digit | 'a' | 'A' | 'b' | 'B' | 'c' | 'C' | 'd' | 'D' | 'e' | 'E' | 'f' | 'F'
 """
 
+
 def create_dependency_grammar(grammar=raw_dependency_grammar):
 
     if hasattr(sys, "implementation"):
@@ -193,6 +194,7 @@ def create_dependency_grammar(grammar=raw_dependency_grammar):
     dependency_grammar = makeGrammar(grammar, {"lookup": bindings.__getitem__})
     return dependency_grammar
 
+
 def parse_dependency(dep, grammar):
 
     parsed = grammar(dep).specification()
@@ -200,6 +202,7 @@ def parse_dependency(dep, grammar):
     dep_ver = parsed[2]
 
     return dep_name, dep_ver
+
 
 def create_dependency_allowlist():
     """
