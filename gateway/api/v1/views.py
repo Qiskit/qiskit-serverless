@@ -121,3 +121,17 @@ class CatalogViewSet(views.CatalogViewSet):
     serializer_class = v1_serializers.ListCatalogSerializer
     pagination_class = None
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    @swagger_auto_schema(
+        operation_description="List public functions for catalog",
+        responses={status.HTTP_200_OK: v1_serializers.ListCatalogSerializer(many=True)},
+    )
+    def list(self, request):
+        return super().list(request)
+    
+    @swagger_auto_schema(
+        operation_description="Get a specific public function for catalog",
+        responses={status.HTTP_200_OK: v1_serializers.RetrieveCatalogSerializer(many=False)},
+    )
+    def retrieve(self, request, pk=None):
+        return super().retrieve(request, pk)
