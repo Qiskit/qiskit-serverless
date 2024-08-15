@@ -55,6 +55,7 @@ def sanitize_file_path(path: str):
     return re.sub(pattern, "_", path)
 
 # Utilities for parsing python dependency information
+# source: https://peps.python.org/pep-0508/#complete-grammar
 raw_dependency_grammar = """
     wsp           = ' ' | '\t'
     version_cmp   = wsp* <'<=' | '<' | '!=' | '==' | '>=' | '>' | '~=' | '==='>
