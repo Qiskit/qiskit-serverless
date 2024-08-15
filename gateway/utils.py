@@ -54,6 +54,7 @@ def sanitize_file_path(path: str):
     pattern = "[^0-9a-zA-Z-_." + os.sep + "]+"
     return re.sub(pattern, "_", path)
 
+
 # Utilities for parsing python dependency information
 # source: https://peps.python.org/pep-0508/#complete-grammar
 raw_dependency_grammar = """
@@ -163,33 +164,33 @@ raw_dependency_grammar = """
     hexdig        = digit | 'a' | 'A' | 'b' | 'B' | 'c' | 'C' | 'd' | 'D' | 'e' | 'E' | 'f' | 'F'
 """
 
-def create_dependency_grammar(grammar = raw_dependency_grammar):
+def create_dependency_grammar(grammar=raw_dependency_grammar):
 
-    if hasattr(sys, 'implementation'):
-        version = '{0.major}.{0.minor}.{0.micro}'.format(sys.implementation.version)
+    if hasattr(sys, "implementation"):
+        version = "{0.major}.{0.minor}.{0.micro}".format(sys.implementation.version)
         kind = sys.implementation.version.releaselevel
-        if kind != 'final':
+        if kind != "final":
             version += kind[0] + str(sys.implementation.version.serial)
         implementation_version = version
         implementation_name = sys.implementation.name
     else:
-        implementation_version = '0'
-        implementation_name = ''
+        implementation_version = "0"
+        implementation_name = ""
     bindings = {
-        'implementation_name': implementation_name,
-        'implementation_version': implementation_version,
-        'os_name': os.name,
-        'platform_machine': platform.machine(),
-        'platform_python_implementation': platform.python_implementation(),
-        'platform_release': platform.release(),
-        'platform_system': platform.system(),
-        'platform_version': platform.version(),
-        'python_full_version': platform.python_version(),
-        'python_version': '.'.join(platform.python_version_tuple()[:2]),
-        'sys_platform': sys.platform,
+        "implementation_name": implementation_name,
+        "implementation_version": implementation_version,
+        "os_name": os.name,
+        "platform_machine": platform.machine(),
+        "platform_python_implementation": platform.python_implementation(),
+        "platform_release": platform.release(),
+        "platform_system": platform.system(),
+        "platform_version": platform.version(),
+        "python_full_version": platform.python_version(),
+        "python_version": ".".join(platform.python_version_tuple()[:2]),
+        "sys_platform": sys.platform,
     }
 
-    dependency_grammar = makeGrammar(grammar, {'lookup': bindings.__getitem__})
+    dependency_grammar = makeGrammar(grammar, {"lookup": bindings.__getitem__})
     return dependency_grammar
 
 def parse_dependency(dep, grammar):
@@ -209,9 +210,7 @@ def create_dependency_allowlist():
     where the values for each key are allowed versions of dependency.
     """
     try:
-        with open(
-            settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r"
-        ) as f:
+        with open(settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r") as f:
             allowlist = json.load(f)
     except IOError as e:
         logger.error("Unable to open allowlist config file: %s", e)

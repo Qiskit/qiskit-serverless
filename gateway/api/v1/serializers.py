@@ -53,7 +53,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         dependency_grammar = utils.create_dependency_grammar()
         deps = json.loads(attrs.get("dependencies", None))
         allowlist = utils.create_dependency_allowlist()
-        if len(allowlist.keys()) > 0: # If no allowlist, all dependencies allowed
+        if len(allowlist.keys()) > 0:  # If no allowlist, all dependencies allowed
             for d in deps:
                 dep, ver = utils.parse_dependency(d, dependency_grammar)
                 # Determine if a dependency is allowed
