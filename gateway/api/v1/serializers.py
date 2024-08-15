@@ -55,7 +55,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         allowlist = utils.create_dependency_allowlist()
         if len(allowlist.keys()) > 0:  # If no allowlist, all dependencies allowed
             for d in deps:
-                dep, ver = utils.parse_dependency(d, dependency_grammar)
+                dep, _ = utils.parse_dependency(d, dependency_grammar)
                 # Determine if a dependency is allowed
                 if dep not in allowlist:
                     raise ValidationError(f"Dependency {dep} is not allowed")
