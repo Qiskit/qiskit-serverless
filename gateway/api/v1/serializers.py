@@ -5,7 +5,7 @@ Serializers api for V1.
 import json
 import logging
 from rest_framework.serializers import ValidationError
-from django.conf import settings
+import utils
 from api import serializers
 from api.models import Provider
 
@@ -50,37 +50,15 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             )
 
         # validate dependencies
-        # allowlist stored in json config file (eventually via configmap)
-        # sample:
-        # allowlist = { "wheel": ["0.44.0", "0.43.2"] }
-        # where the values for each key are allowed versions of dependency
+        dependency_grammar = utils.create_dependency_grammar()
         deps = json.loads(attrs.get("dependencies", None))
-        try:
-            with open(
-                settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r"
-            ) as f:
-                allowlist = json.load(f)
-        except IOError as e:
-            logger.error("Unable to open allowlist config file: %s", e)
-            raise ValueError("Unable to open allowlist config file") from e
-        except ValueError as e:
-            logger.error("Unable to decode dependency allowlist: %s", e)
-            raise ValueError("Unable to decode dependency allowlist") from e
-
-        # If no allowlist specified, all dependencies allowed
-        if len(allowlist.keys()) > 0:
+        allowlist = utils.create_dependency_allowlist()
+        if len(allowlist.keys()) > 0: # If no allowlist, all dependencies allowed
             for d in deps:
-                dep, ver = d.split("==")
-
+                dep, ver = utils.parse_dependency(d, dependency_grammar)
                 # Determine if a dependency is allowed
                 if dep not in allowlist:
                     raise ValidationError(f"Dependency {dep} is not allowed")
-
-                # Determine if a specific version of a dependency is allowed
-                if allowlist[dep] and ver not in allowlist[dep]:
-                    raise ValidationError(
-                        f"Version {ver} of dependency {dep} is not allowed"
-                    )
 
         title = attrs.get("title")
         provider = attrs.get("provider", None)
