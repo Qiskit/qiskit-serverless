@@ -150,8 +150,8 @@ ingress:
 
 resources:
   limits:
-    cpu: "1500m"
-    memory: "1Gi"
+    cpu: "3000m"
+    memory: "2Gi"
   requests:
     cpu: "500m"
     memory: "700Mi"
