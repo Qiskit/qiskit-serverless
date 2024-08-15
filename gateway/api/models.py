@@ -51,7 +51,7 @@ class Provider(models.Model):
     updated = models.DateTimeField(auto_now=True, null=True)
 
     name = models.CharField(max_length=255, db_index=True, unique=True)
-    iconUrl = models.TextField(null=True, blank=True, default=None)
+    icon_url = models.TextField(null=True, blank=True, default=None)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
     admin_groups = models.ManyToManyField(Group)
 
@@ -81,7 +81,8 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         default=GENERIC,
     )
     description = models.TextField(null=True, blank=True)
-    additionalInfo = models.TextField(null=True, blank=True, default="{}")
+    documentation_url = models.TextField(null=True, blank=True, default=None)
+    additional_info = models.TextField(null=True, blank=True, default="{}")
 
     entrypoint = models.CharField(max_length=255, default=DEFAULT_PROGRAM_ENTRYPOINT)
     artifact = models.FileField(

@@ -47,6 +47,7 @@ from .serializers import (
     RunJobSerializer,
     RunProgramSerializer,
     UploadProgramSerializer,
+    RetrieveCatalogSerializer,
 )
 
 logger = logging.getLogger("gateway")
@@ -765,32 +766,55 @@ class CatalogViewSet(viewsets.GenericViewSet):
     BASE_NAME = "catalog"
     PUBLIC_GROUP_NAME = "public"  # "ibm-q/open/main"
 
+    @staticmethod
+    def get_serializer_retrieve_catalog(*args, **kwargs):
+        """
+        This method returns Retrieve Catalog serializer to be used in Catalog ViewSet.
+        """
+
+        return RetrieveCatalogSerializer(*args, **kwargs)
+
     def get_queryset(self):
         # try:
         public_group = Group.objects.get(name=self.PUBLIC_GROUP_NAME)
         # except:
         return Program.objects.filter(instances=public_group).distinct()
 
+    def get_retrieve_queryset(self, pk):
+        # try:
+        public_group = Group.objects.get(name=self.PUBLIC_GROUP_NAME)
+        # except:
+        return Program.objects.filter(id=pk, instances=public_group).first()
+
     def list(self, request):
         """List programs:"""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.iqp_catalog.list", context=ctx):
+        with tracer.start_as_current_span("gateway.catalog.list", context=ctx):
             author = None
             if request.user.is_authenticated:
                 author = request.user
             serializer = self.get_serializer(
                 self.get_queryset(), context={"author": author}, many=True
             )
-
         return Response(serializer.data)
 
-    # def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
-    #     """Get program:"""
-    #     tracer = trace.get_tracer("gateway.tracer")
-    #     ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-    #     with tracer.start_as_current_span("gateway.iqp_catalog.retrieve", context=ctx):
-    #         # make a check to ensure that the model is public
-    #         instance = self.get_object()
-    #         serializer = self.get_serializer(instance)
-    #     return Response(serializer.data)
+    def retrieve(self, request, pk=None):
+        """Get program:"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.catalog.retrieve", context=ctx):
+            instance = self.get_retrieve_queryset(pk)
+            if instance is None:
+                return Response(
+                    {"message": "Qiskit Function not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            author = None
+            if request.user.is_authenticated:
+                author = request.user
+            serializer = self.get_serializer_retrieve_catalog(
+                instance, context={"author": author}
+            )
+        return Response(serializer.data)

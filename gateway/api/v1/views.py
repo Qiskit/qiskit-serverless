@@ -114,6 +114,10 @@ class CatalogViewSet(views.CatalogViewSet):
     Quantum function view set first version. Use ProgramSerializer V1.
     """
 
+    @staticmethod
+    def get_serializer_retrieve_catalog(*args, **kwargs):
+        return v1_serializers.RetrieveCatalogSerializer(*args, **kwargs)
+
     serializer_class = v1_serializers.ListCatalogSerializer
     pagination_class = None
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]

@@ -254,12 +254,12 @@ class CatalogProviderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Provider
-        fields = ["name", "iconUrl"]
+        fields = ["name", "icon_url"]
 
 
 class ListCatalogSerializer(serializers.ModelSerializer):
     """
-    Serializer for the Catalog View.
+    List Serializer for the Catalog View.
     """
 
     provider = CatalogProviderSerializer()
@@ -267,6 +267,59 @@ class ListCatalogSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
+
+    def get_available(self, obj):
+        """
+        This method populates available field.
+        If the user has RUN PERMISSION in any of its groups
+        available field will be True. If not, will be False.
+        """
+        author = self.context.get("author", None)
+
+        if author is None:
+            logger.debug(
+                "User not authenticated in ListCatalogSerializer return available to False"
+            )
+            return False
+
+        # This will be refactorize it when we implement repository architecture
+        # pylint: disable=duplicate-code
+        run_program_permission = Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
+
+        user_criteria = Q(user=author)
+        run_permission_criteria = Q(permissions=run_program_permission)
+        author_groups_with_run_permissions = Group.objects.filter(
+            user_criteria & run_permission_criteria
+        )
+
+        return obj.instances.filter(
+            id__in=[group.id for group in author_groups_with_run_permissions]
+        ).exists()
+
+
+class RetrieveCatalogSerializer(serializers.ModelSerializer):
+    """
+    Retrieve Serializer for the Catalog View.
+    """
+
+    provider = CatalogProviderSerializer()
+    available = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Program
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+
+        json_additional_info = {}
+        if instance.additional_info is not None:
+            try:
+                json_additional_info = json.loads(instance.additional_info)
+            except json.decoder.JSONDecodeError:
+                logger.error("JSONDecodeError loading instance.additional_info")
+
+        representation["additional_info"] = json_additional_info
+        return representation
 
     def get_available(self, obj):
         """
