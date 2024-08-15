@@ -775,19 +775,31 @@ class CatalogViewSet(viewsets.GenericViewSet):
         return RetrieveCatalogSerializer(*args, **kwargs)
 
     def get_queryset(self):
-        # try:
-        public_group = Group.objects.get(name=self.PUBLIC_GROUP_NAME)
-        # except:
+        """
+        QuerySet to list public programs in the catalog
+        """
+        public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
+
+        if public_group is None:
+            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
+            return []
+
         return Program.objects.filter(instances=public_group).distinct()
 
     def get_retrieve_queryset(self, pk):
-        # try:
-        public_group = Group.objects.get(name=self.PUBLIC_GROUP_NAME)
-        # except:
+        """
+        QuerySet to retrieve a specifc public programs in the catalog
+        """
+        public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
+
+        if public_group is None:
+            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
+            return []
+
         return Program.objects.filter(id=pk, instances=public_group).first()
 
     def list(self, request):
-        """List programs:"""
+        """List public programs in the catalog:"""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.catalog.list", context=ctx):
@@ -800,7 +812,7 @@ class CatalogViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
-        """Get program:"""
+        """Get a specific program in the catalog:"""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.catalog.retrieve", context=ctx):

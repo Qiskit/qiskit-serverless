@@ -86,7 +86,7 @@ class TestCatalogApi(APITestCase):
         """Tests catalog retrieve a non-existent function as authenticated."""
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
-        
+
         url = reverse(
             "v1:catalog-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"]
         )
