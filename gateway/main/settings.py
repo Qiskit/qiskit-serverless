@@ -391,3 +391,6 @@ FUNCTIONS_PERMISSIONS = os.environ.get(
     "FUNCTIONS_PERMISSIONS",
     "{}",
 )
+
+# Public group name
+PUBLIC_GROUP_NAME = os.environ.get("PUBLIC_GROUP_NAME", "ibm-q/open/main") 

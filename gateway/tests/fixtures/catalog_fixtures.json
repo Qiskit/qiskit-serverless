@@ -60,7 +60,7 @@
     "model": "auth.group",
     "pk": 100,
     "fields": {
-      "name": "public",
+      "name": "ibm-q/open/main",
       "permissions": [60]
     }
   },

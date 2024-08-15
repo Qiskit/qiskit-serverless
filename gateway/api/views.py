@@ -764,7 +764,7 @@ class CatalogViewSet(viewsets.GenericViewSet):
     """
 
     BASE_NAME = "catalog"
-    PUBLIC_GROUP_NAME = "public"  # "ibm-q/open/main"
+    PUBLIC_GROUP_NAME = settings.PUBLIC_GROUP_NAME
 
     @staticmethod
     def get_serializer_retrieve_catalog(*args, **kwargs):
