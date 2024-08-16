@@ -275,9 +275,6 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=20),
 }
 
-MEDIA_ROOT = os.path.join(sanitize_file_path(str(BASE_DIR)), "media")
-MEDIA_URL = "/media/"
-
 # custom token auth
 SETTINGS_TOKEN_AUTH_URL = os.environ.get("SETTINGS_TOKEN_AUTH_URL", None)
 SETTINGS_TOKEN_AUTH_USER_FIELD = os.environ.get(
