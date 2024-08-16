@@ -274,9 +274,9 @@ class ListCatalogSerializer(serializers.ModelSerializer):
         If the user has RUN PERMISSION in any of its groups
         available field will be True. If not, will be False.
         """
-        author = self.context.get("author", None)
+        user = self.context.get("user", None)
 
-        if author is None:
+        if user is None:
             logger.debug(
                 "User not authenticated in ListCatalogSerializer return available to False"
             )
@@ -286,14 +286,14 @@ class ListCatalogSerializer(serializers.ModelSerializer):
         # pylint: disable=duplicate-code
         run_program_permission = Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
 
-        user_criteria = Q(user=author)
+        user_criteria = Q(user=user)
         run_permission_criteria = Q(permissions=run_program_permission)
-        author_groups_with_run_permissions = Group.objects.filter(
+        user_groups_with_run_permissions = Group.objects.filter(
             user_criteria & run_permission_criteria
         )
 
         return obj.instances.filter(
-            id__in=[group.id for group in author_groups_with_run_permissions]
+            id__in=[group.id for group in user_groups_with_run_permissions]
         ).exists()
 
 
@@ -327,9 +327,9 @@ class RetrieveCatalogSerializer(serializers.ModelSerializer):
         If the user has RUN PERMISSION in any of its groups
         available field will be True. If not, will be False.
         """
-        author = self.context.get("author", None)
+        user = self.context.get("user", None)
 
-        if author is None:
+        if user is None:
             logger.debug(
                 "User not authenticated in ListCatalogSerializer return available to False"
             )
@@ -339,12 +339,12 @@ class RetrieveCatalogSerializer(serializers.ModelSerializer):
         # pylint: disable=duplicate-code
         run_program_permission = Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
 
-        user_criteria = Q(user=author)
+        user_criteria = Q(user=user)
         run_permission_criteria = Q(permissions=run_program_permission)
-        author_groups_with_run_permissions = Group.objects.filter(
+        user_groups_with_run_permissions = Group.objects.filter(
             user_criteria & run_permission_criteria
         )
 
         return obj.instances.filter(
-            id__in=[group.id for group in author_groups_with_run_permissions]
+            id__in=[group.id for group in user_groups_with_run_permissions]
         ).exists()

@@ -803,11 +803,11 @@ class CatalogViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.catalog.list", context=ctx):
-            author = None
+            user = None
             if request.user.is_authenticated:
-                author = request.user
+                user = request.user
             serializer = self.get_serializer(
-                self.get_queryset(), context={"author": author}, many=True
+                self.get_queryset(), context={"user": user}, many=True
             )
         return Response(serializer.data)
 
@@ -823,10 +823,10 @@ class CatalogViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            author = None
+            user = None
             if request.user.is_authenticated:
-                author = request.user
+                user = request.user
             serializer = self.get_serializer_retrieve_catalog(
-                instance, context={"author": author}
+                instance, context={"user": user}
             )
         return Response(serializer.data)
