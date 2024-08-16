@@ -128,10 +128,12 @@ class CatalogViewSet(views.CatalogViewSet):
     )
     def list(self, request):
         return super().list(request)
-    
+
     @swagger_auto_schema(
         operation_description="Get a specific public function for catalog",
-        responses={status.HTTP_200_OK: v1_serializers.RetrieveCatalogSerializer(many=False)},
+        responses={
+            status.HTTP_200_OK: v1_serializers.RetrieveCatalogSerializer(many=False)
+        },
     )
     def retrieve(self, request, pk=None):
         return super().retrieve(request, pk)
