@@ -60,6 +60,7 @@ class TestCatalogApi(APITestCase):
 
     def test_catalog_retrieve_non_auth_user(self):
         """Tests catalog retrieve non-authenticated."""
+        # Reverse: "v1:catalog-detail" makes reference to retrieve view method
         url = reverse(
             "v1:catalog-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]
         )
@@ -75,6 +76,7 @@ class TestCatalogApi(APITestCase):
 
     def test_catalog_404_retrieve_non_auth_user(self):
         """Tests catalog retrieve a non-existent function as non-authenticated."""
+        # Reverse: "v1:catalog-detail" makes reference to retrieve view method
         url = reverse(
             "v1:catalog-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"]
         )
@@ -87,6 +89,7 @@ class TestCatalogApi(APITestCase):
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
 
+        # Reverse: "v1:catalog-detail" makes reference to retrieve view method
         url = reverse(
             "v1:catalog-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"]
         )
@@ -99,6 +102,7 @@ class TestCatalogApi(APITestCase):
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
 
+        # Reverse: "v1:catalog-detail" makes reference to retrieve view method
         url = reverse(
             "v1:catalog-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]
         )
@@ -117,6 +121,7 @@ class TestCatalogApi(APITestCase):
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
 
+        # Reverse: "v1:catalog-detail" makes reference to retrieve view method
         url = reverse(
             "v1:catalog-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]
         )
