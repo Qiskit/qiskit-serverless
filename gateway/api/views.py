@@ -804,7 +804,7 @@ class CatalogViewSet(viewsets.GenericViewSet):
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.catalog.list", context=ctx):
             user = None
-            if request.user.is_authenticated:
+            if request.user and request.user.is_authenticated:
                 user = request.user
             serializer = self.get_serializer(
                 self.get_queryset(), context={"user": user}, many=True
@@ -824,7 +824,7 @@ class CatalogViewSet(viewsets.GenericViewSet):
                 )
 
             user = None
-            if request.user.is_authenticated:
+            if request.user and request.user.is_authenticated:
                 user = request.user
             serializer = self.get_serializer_retrieve_catalog(
                 instance, context={"user": user}
