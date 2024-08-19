@@ -12,12 +12,14 @@ class JobConfigAdmin(admin.ModelAdmin):
 @admin.register(Provider)
 class ProviderAdmin(admin.ModelAdmin):
     """ProviderAdmin."""
+
     search_fields = ["name"]
 
 
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
+
     search_fields = ["title", "author__username"]
     list_filter = ["provider", "type"]
     exclude = ["env_vars"]
@@ -26,6 +28,7 @@ class ProgramAdmin(admin.ModelAdmin):
 @admin.register(ComputeResource)
 class ComputeResourceAdmin(admin.ModelAdmin):
     """ComputeResourceAdmin."""
+
     search_fields = ["title", "owner__username"]
     list_filter = ["active"]
 
@@ -33,6 +36,7 @@ class ComputeResourceAdmin(admin.ModelAdmin):
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
     """JobAdmin."""
+
     search_fields = ["author__username", "program__title"]
     list_filter = ["status"]
     exclude = ["arguments", "env_vars", "logs"]
@@ -41,4 +45,5 @@ class JobAdmin(admin.ModelAdmin):
 @admin.register(RuntimeJob)
 class RuntimeJobAdmin(admin.ModelAdmin):
     """RuntimeJobAdmin."""
+
     search_fields = ["job__id"]
