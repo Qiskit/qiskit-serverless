@@ -254,7 +254,6 @@ class CatalogProviderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Provider
-        fields = ["name", "icon_url"]
 
 
 class ListCatalogSerializer(serializers.ModelSerializer):

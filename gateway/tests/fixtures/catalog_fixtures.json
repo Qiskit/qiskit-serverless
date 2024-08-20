@@ -77,6 +77,7 @@
     "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
     "fields": {
       "name": "default",
+      "url": "https://example",
       "icon_url": "https://example",
       "created": "2023-02-01T15:30:43.281796Z",
       "admin_groups": [105],
