@@ -17,7 +17,7 @@
         "pk": 100,
         "fields": {
           "name": "runner",
-            "permissions": [60]
+            "permissions": [64]
         }
     },
     {
@@ -25,7 +25,7 @@
         "pk": 101,
         "fields": {
           "name": "manager",
-            "permissions": [60]
+            "permissions": [64]
         }
     }
   ]

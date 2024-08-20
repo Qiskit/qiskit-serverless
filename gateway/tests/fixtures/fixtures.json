@@ -161,7 +161,7 @@
       "pk": 100,
       "fields": {
         "name": "runner",
-	      "permissions": [61]
+	      "permissions": [65]
       }
   },
   {
@@ -169,7 +169,7 @@
     "pk": 101,
     "fields": {
       "name": "viewer",
-      "permissions": [60]
+      "permissions": [64]
     }
   },
   {

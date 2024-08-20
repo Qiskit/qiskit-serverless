@@ -61,7 +61,7 @@
     "pk": 100,
     "fields": {
       "name": "ibm-q/open/main",
-      "permissions": [60]
+      "permissions": [64]
     }
   },
   {
@@ -69,7 +69,7 @@
     "pk": 105,
     "fields": {
         "name": "admin-group",
-        "permissions": [60, 61]
+        "permissions": [64, 65]
     }
   },
   {
