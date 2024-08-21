@@ -46,7 +46,7 @@ urlpatterns = [
     path("liveness/", probes.views.liveness, name="liveness"),
     path("version/", version.views.version, name="version"),
     path("", include("django_prometheus.urls")),
-    path("back-office/", admin.site.urls),
+    path("backoffice/", admin.site.urls),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
 ]
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
