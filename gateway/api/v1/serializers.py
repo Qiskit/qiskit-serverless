@@ -26,6 +26,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "dependencies",
             "provider",
             "description",
+            "documentation_url",
         ]
 
 
@@ -172,3 +173,43 @@ class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
 
     class Meta(serializers.RuntimeJobSerializer.Meta):
         fields = ["job", "runtime_job"]
+
+
+class CatalogProviderSerializer(serializers.CatalogProviderSerializer):
+    """
+    Serializer for the Provider model in the Catalog View.
+    """
+
+    class Meta(serializers.CatalogProviderSerializer.Meta):
+        fields = ["name", "url", "icon_url"]
+
+
+class ListCatalogSerializer(serializers.ListCatalogSerializer):
+    """
+    List Serializer for the Catalog View.
+    """
+
+    provider = CatalogProviderSerializer()
+
+    class Meta(serializers.ListCatalogSerializer.Meta):
+        fields = ["id", "title", "type", "description", "provider", "available"]
+
+
+class RetrieveCatalogSerializer(serializers.RetrieveCatalogSerializer):
+    """
+    Retrieve Serializer for the Catalog View.
+    """
+
+    provider = CatalogProviderSerializer()
+
+    class Meta(serializers.RetrieveCatalogSerializer.Meta):
+        fields = [
+            "id",
+            "title",
+            "type",
+            "description",
+            "documentation_url",
+            "provider",
+            "available",
+            "additional_info",
+        ]

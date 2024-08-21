@@ -19,5 +19,10 @@ router.register(
 router.register(
     r"files", v1_views.FilesViewSet, basename=v1_views.FilesViewSet.BASE_NAME
 )
+router.register(
+    r"catalog",
+    v1_views.CatalogViewSet,
+    basename=v1_views.CatalogViewSet.BASE_NAME,
+)
 
 urlpatterns = router.urls

@@ -47,6 +47,7 @@ from .serializers import (
     RunJobSerializer,
     RunProgramSerializer,
     UploadProgramSerializer,
+    RetrieveCatalogSerializer,
 )
 
 logger = logging.getLogger("gateway")
@@ -754,3 +755,78 @@ class FilesViewSet(viewsets.ViewSet):
                     destination.write(chunk)
                     return Response({"message": file_path})
         return Response("server error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CatalogViewSet(viewsets.GenericViewSet):
+    """ViewSet to handle requests from IQP for the catalog page.
+
+    This ViewSet contains public end-points to retrieve information.
+    """
+
+    BASE_NAME = "catalog"
+    PUBLIC_GROUP_NAME = settings.PUBLIC_GROUP_NAME
+
+    @staticmethod
+    def get_serializer_retrieve_catalog(*args, **kwargs):
+        """
+        This method returns Retrieve Catalog serializer to be used in Catalog ViewSet.
+        """
+
+        return RetrieveCatalogSerializer(*args, **kwargs)
+
+    def get_queryset(self):
+        """
+        QuerySet to list public programs in the catalog
+        """
+        public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
+
+        if public_group is None:
+            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
+            return []
+
+        return Program.objects.filter(instances=public_group).distinct()
+
+    def get_retrieve_queryset(self, pk):
+        """
+        QuerySet to retrieve a specifc public programs in the catalog
+        """
+        public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
+
+        if public_group is None:
+            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
+            return []
+
+        return Program.objects.filter(id=pk, instances=public_group).first()
+
+    def list(self, request):
+        """List public programs in the catalog:"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.catalog.list", context=ctx):
+            user = None
+            if request.user and request.user.is_authenticated:
+                user = request.user
+            serializer = self.get_serializer(
+                self.get_queryset(), context={"user": user}, many=True
+            )
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        """Get a specific program in the catalog:"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.catalog.retrieve", context=ctx):
+            instance = self.get_retrieve_queryset(pk)
+            if instance is None:
+                return Response(
+                    {"message": "Qiskit Function not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            user = None
+            if request.user and request.user.is_authenticated:
+                user = request.user
+            serializer = self.get_serializer_retrieve_catalog(
+                instance, context={"user": user}
+            )
+        return Response(serializer.data)

@@ -261,9 +261,6 @@ class SerializerTest(APITestCase):
 
     def test_upload_program_serializer_allowed_dependencies(self):
         """Tests dependency allowlist."""
-
-        print("TEST: Program succeeds if all dependencies are allowlisted")
-
         path_to_resource_artifact = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "..",
@@ -299,9 +296,6 @@ class SerializerTest(APITestCase):
 
     def test_upload_program_serializer_blocked_dependency(self):
         """Tests dependency allowlist."""
-
-        print("TEST: Upload fails if dependency isn't allowlisted")
-
         path_to_resource_artifact = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "..",
@@ -332,9 +326,6 @@ class SerializerTest(APITestCase):
 
     def test_upload_program_serializer_dependency_bad_version(self):
         """Tests dependency allowlist."""
-
-        print("TEST: Upload fails if dependency version isn't allowlisted")
-
         path_to_resource_artifact = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "..",
