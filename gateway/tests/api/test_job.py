@@ -38,6 +38,39 @@ class TestJobApi(APITestCase):
             jobs_response.data.get("results")[0].get("result"), '{"somekey":1}'
         )
 
+    def test_job_catalog_list(self):
+        """Tests job list authorized."""
+        self._authorize()
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-list"), {"filter": "catalog"}, format="json"
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("count"), 1)
+        self.assertEqual(jobs_response.data.get("results")[0].get("status"), "QUEUED")
+        self.assertEqual(
+            jobs_response.data.get("results")[0].get("result"), '{"somekey":1}'
+        )
+
+    def test_job_serverless_list(self):
+        """Tests job list authorized."""
+        self._authorize()
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-list"), {"filter": "serverless"}, format="json"
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("count"), 2)
+        job_status = jobs_response.data.get("results")[0].get("status")
+        if job_status == "SUCCEEDED":
+            self.assertEqual(
+                jobs_response.data.get("results")[0].get("result"), '{"somekey":1}'
+            )
+        elif job_status == "QUEUED":
+            self.assertEqual(
+                jobs_response.data.get("results")[0].get("result"), '{"somekey":2}'
+            )
+
     def test_job_detail(self):
         """Tests job detail authorized."""
         self._authorize()

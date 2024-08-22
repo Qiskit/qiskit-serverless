@@ -63,7 +63,9 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user_4")
         self.client.force_authenticate(user=user)
 
-        programs_response = self.client.get(reverse("v1:programs-list"), {"filter": "catalog"}, format="json")
+        programs_response = self.client.get(
+            reverse("v1:programs-list"), {"filter": "catalog"}, format="json"
+        )
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 1)
@@ -82,7 +84,9 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user_3")
         self.client.force_authenticate(user=user)
 
-        programs_response = self.client.get(reverse("v1:programs-list"), {"filter": "serverless"},format="json")
+        programs_response = self.client.get(
+            reverse("v1:programs-list"), {"filter": "serverless"}, format="json"
+        )
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 1)
