@@ -56,10 +56,6 @@ application:
 cos:
   claimName: gateway-claim
 
-tasks:
-  providersConfiguration: '{}'
-  functionsPermissions: '{}'
-
 secrets:
   secretKey:
     create: true
