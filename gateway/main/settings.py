@@ -382,14 +382,5 @@ CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner
 SECURE_BROWSER_XSS_FILTER = True
 SESSION_COOKIE_AGE = 3600
 
-# Providers setup
-PROVIDERS_CONFIGURATION = os.environ.get("PROVIDERS_CONFIGURATION", "{}")
-
-# Function permissions
-FUNCTIONS_PERMISSIONS = os.environ.get(
-    "FUNCTIONS_PERMISSIONS",
-    "{}",
-)
-
 # Public group name
 PUBLIC_GROUP_NAME = os.environ.get("PUBLIC_GROUP_NAME", "ibm-q/open/main")
