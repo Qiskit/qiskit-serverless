@@ -48,6 +48,7 @@ ALLOWED_CIDR_NETS = ["10.0.0.0/8"]
 # Application definition
 
 INSTALLED_APPS = [
+    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -71,6 +72,7 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -272,9 +274,6 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=10),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=20),
 }
-
-MEDIA_ROOT = os.path.join(sanitize_file_path(str(BASE_DIR)), "media")
-MEDIA_URL = "/media/"
 
 # custom token auth
 SETTINGS_TOKEN_AUTH_URL = os.environ.get("SETTINGS_TOKEN_AUTH_URL", None)

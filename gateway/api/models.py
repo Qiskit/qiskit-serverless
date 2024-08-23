@@ -96,7 +96,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
 
-    instances = models.ManyToManyField(Group)
+    instances = models.ManyToManyField(Group, blank=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
