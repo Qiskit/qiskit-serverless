@@ -183,10 +183,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.servicePsql.name }}
                   key: {{ .Values.secrets.servicePsql.key.databasePassword }}
-            - name: PROVIDERS_CONFIGURATION
-              value: "{{ .Values.tasks.providersConfiguration }}"
-            - name: FUNCTIONS_PERMISSIONS
-              value: "{{ .Values.tasks.functionsPermissions }}"
             - name: PUBLIC_GROUP_NAME
               value: {{ .Values.application.publicGroupName }}
       {{- with .Values.nodeSelector }}
