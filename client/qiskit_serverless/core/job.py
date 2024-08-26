@@ -550,10 +550,13 @@ class GatewayJobClient(BaseJobClient):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.list"):
             limit = kwargs.get("limit", 10)
+            kwargs["limit"] = limit
             offset = kwargs.get("offset", 0)
+            kwargs["offset"] = offset
             response_data = safe_json_request(
                 request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/jobs/?limit={limit}&offset={offset}",
+                    f"{self.host}/api/{self.version}/jobs",
+                    params=kwargs,
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
