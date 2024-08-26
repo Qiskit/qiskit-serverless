@@ -57,6 +57,44 @@ class TestProgramApi(APITestCase):
             "Docker-Image-Program",
         )
 
+    def test_provider_programs_catalog_list(self):
+        """Tests programs list authorized."""
+
+        user = models.User.objects.get(username="test_user_4")
+        self.client.force_authenticate(user=user)
+
+        programs_response = self.client.get(
+            reverse("v1:programs-list"), {"filter": "catalog"}, format="json"
+        )
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(programs_response.data), 1)
+        self.assertEqual(
+            programs_response.data[0].get("provider"),
+            "ibm",
+        )
+        self.assertEqual(
+            programs_response.data[0].get("title"),
+            "Docker-Image-Program-2",
+        )
+
+    def test_provider_programs_serverless_list(self):
+        """Tests programs list authorized."""
+
+        user = models.User.objects.get(username="test_user_3")
+        self.client.force_authenticate(user=user)
+
+        programs_response = self.client.get(
+            reverse("v1:programs-list"), {"filter": "serverless"}, format="json"
+        )
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(programs_response.data), 1)
+        self.assertEqual(
+            programs_response.data[0].get("title"),
+            "Program",
+        )
+
     def test_program_list_with_title_query_parameter(self):
         """Tests program list filtered with title."""
         user = models.User.objects.get(username="test_user")

@@ -115,9 +115,13 @@ class ProgramViewSet(viewsets.GenericViewSet):
         author = self.request.user
         title = self.request.query_params.get("title")
         provider_name = self.request.query_params.get("provider")
+        type_filter = self.request.query_params.get("filter")
 
         author_programs = self._get_program_queryset_for_title_and_provider(
-            author=author, title=title, provider_name=provider_name
+            author=author,
+            title=title,
+            provider_name=provider_name,
+            type_filter=type_filter,
         ).distinct()
 
         author_programs_count = author_programs.count()
@@ -305,7 +309,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         provider_name = self.request.query_params.get("provider")
 
         result_program = self._get_program_queryset_for_title_and_provider(
-            author=author, title=title, provider_name=provider_name
+            author=author, title=title, provider_name=provider_name, type_filter=None
         ).first()
 
         if result_program:
@@ -314,7 +318,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
         return Response(status=404)
 
     def _get_program_queryset_for_title_and_provider(
-        self, author, title: str, provider_name: Optional[str]
+        self,
+        author,
+        title: str,
+        provider_name: Optional[str],
+        type_filter: Optional[str],
     ):
         """Returns queryset for program for gived request, title and provider."""
         view_program_permission = Permission.objects.get(
@@ -322,6 +330,26 @@ class ProgramViewSet(viewsets.GenericViewSet):
         )
 
         # Groups logic
+        if type_filter:
+            if type_filter == "catalog":
+                view_permission_criteria = Q(permissions=view_program_permission)
+                groups_with_view_permissions = Group.objects.filter(
+                    view_permission_criteria
+                )
+                groups_with_view_permissions_criteria = Q(
+                    instances__in=groups_with_view_permissions
+                )
+                provider_exists_criteria = ~Q(provider=None)
+                result_queryset = Program.objects.filter(
+                    groups_with_view_permissions_criteria & provider_exists_criteria
+                )
+                return result_queryset
+            if type_filter == "serverless":
+                result_queryset = Program.objects.filter(
+                    Q(author=author) & Q(provider=None)
+                )
+                return result_queryset
+
         user_criteria = Q(user=author)
         view_permission_criteria = Q(permissions=view_program_permission)
         author_groups_with_view_permissions = Group.objects.filter(
@@ -357,7 +385,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
             result_queryset = Program.objects.filter(
                 author_criteria | author_groups_with_view_permissions_criteria
             )
-
         return result_queryset
 
     @action(methods=["GET"], detail=True)
@@ -405,6 +432,16 @@ class JobViewSet(viewsets.GenericViewSet):
         return self.serializer_class
 
     def get_queryset(self):
+        type_filter = self.request.query_params.get("filter")
+        if type_filter:
+            if type_filter == "catalog":
+                user_criteria = Q(author=self.request.user)
+                provider_exists_criteria = ~Q(program__provider=None)
+                return Job.objects.filter(user_criteria & provider_exists_criteria)
+            if type_filter == "serverless":
+                user_criteria = Q(author=self.request.user)
+                provider_not_exists_criteria = Q(program__provider=None)
+                return Job.objects.filter(user_criteria & provider_not_exists_criteria)
         return Job.objects.filter(author=self.request.user).order_by("-created")
 
     def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
