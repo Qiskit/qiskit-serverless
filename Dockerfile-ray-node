@@ -13,6 +13,7 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /
 USER 0
 RUN mkdir /data && chown 1000:1000 /data
+RUN mkdir /function_data && chown 1000:1000 /function_data
 COPY client ./qs
 WORKDIR /qs
 
