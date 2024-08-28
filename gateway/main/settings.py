@@ -36,7 +36,7 @@ SECRET_KEY = os.environ.get(
 DEBUG = int(os.environ.get("DEBUG", 1))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "WARNING"
+LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
