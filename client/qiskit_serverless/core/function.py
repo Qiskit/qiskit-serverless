@@ -142,7 +142,10 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             title=self.title,
             provider=self.provider,
         )
-        jobs = [Job(job_id=job.get("id"), job_client=self.job_client, raw_data=job) for job in response]
+        jobs = [
+            Job(job_id=job.get("id"), job_client=self.job_client, raw_data=job)
+            for job in response
+        ]
         return jobs
 
     def _validate_function(self) -> Tuple[bool, List[str]]:
