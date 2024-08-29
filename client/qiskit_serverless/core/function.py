@@ -127,7 +127,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         Returns:
             Job ids : job executed this function
         """
-        from qiskit_serverless.core.job import (   # pylint: disable=import-outside-toplevel
+        from qiskit_serverless.core.job import (  # pylint: disable=import-outside-toplevel
             Job,
         )
 
