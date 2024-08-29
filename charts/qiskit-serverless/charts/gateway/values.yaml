@@ -52,6 +52,8 @@ application:
   iqpQcon:
     url: "https://api-qcon.quantum.ibm.com/api"
   publicGroupName: "ibm-q/open/main"
+  allowedHosts: "*"
+  trustedOrigins: "*"
 
 cos:
   claimName: gateway-claim

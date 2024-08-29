@@ -185,6 +185,10 @@ spec:
                   key: {{ .Values.secrets.servicePsql.key.databasePassword }}
             - name: PUBLIC_GROUP_NAME
               value: {{ .Values.application.publicGroupName }}
+            - name: ALLOWED_HOSTS
+              value: {{ .Values.application.allowedHosts }}
+            - name: CSRF_TRUSTED_ORIGINS
+              value: {{ .Values.application.trustedOrigins }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
