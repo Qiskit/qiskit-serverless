@@ -45,6 +45,7 @@ from .ray import get_job_handler
 from .serializers import (
     JobConfigSerializer,
     RunJobSerializer,
+    JobSerializer,
     RunProgramSerializer,
     UploadProgramSerializer,
     RetrieveCatalogSerializer,
@@ -412,13 +413,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 jobs = Job.objects.filter(program=program)
             else:
                 jobs = Job.objects.filter(program=program, author=request.user)
-            return Response(
-                list(
-                    jobs.values(
-                        "status", "result", "id", "created", "version", "arguments"
-                    )
-                )
-            )
+            serializer = JobSerializer(jobs, many=True)
+            return Response(serializer.data)
 
 
 class JobViewSet(viewsets.GenericViewSet):

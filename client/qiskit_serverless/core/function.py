@@ -30,7 +30,6 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Optional, Dict, List, Any, Tuple
 
-
 @dataclass
 class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     """Serverless QiskitPattern.
@@ -118,7 +117,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             config=config,
         )
 
-    def get_jobs(self):
+    def jobs(self):
         """Run function
 
         Raises:
@@ -127,6 +126,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         Returns:
             Job ids : job executed this function
         """
+        from qiskit_serverless.core.job import Job
         if self.job_client is None:
             raise ValueError("No clients specified for a function.")
 
@@ -138,10 +138,12 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
                     f"Function validation failed. Validation errors:\n {error_string}",
                 )
 
-        return self.job_client.get_jobs(
+        response = self.job_client.get_jobs(
             title=self.title,
             provider=self.provider,
         )
+        jobs = [Job(job_id=job.get("id"), job_client=self.job_client, raw_data=job) for job in response]
+        return jobs
 
     def _validate_function(self) -> Tuple[bool, List[str]]:
         """Validate function arguments using schema provided.
