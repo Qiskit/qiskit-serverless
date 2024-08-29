@@ -30,6 +30,7 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Optional, Dict, List, Any, Tuple
 
+
 @dataclass
 class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     """Serverless QiskitPattern.
@@ -127,6 +128,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             Job ids : job executed this function
         """
         from qiskit_serverless.core.job import Job
+
         if self.job_client is None:
             raise ValueError("No clients specified for a function.")
 
