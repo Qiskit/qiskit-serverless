@@ -35,5 +35,5 @@ job = my_function.run(message="Argument for the custum function")
 print(job.result())
 print(job.logs())
 
-jobs = my_function.get_jobs()
+jobs = my_function.jobs()
 print(jobs)
