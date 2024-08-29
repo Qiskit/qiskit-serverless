@@ -41,10 +41,10 @@ LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
 # It must be a full url without protocol: mydomain.com
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
-# It must be a full url: https://mydomain.com
-CSRF_TRUSTED_ORIGINS = os.environ.get(
-    "CSRF_TRUSTED_ORIGINS", "http://localhost,http://0.0.0.0"
-).split(",")
+# # It must be a full url: https://mydomain.com
+# CSRF_TRUSTED_ORIGINS = os.environ.get(
+#     "CSRF_TRUSTED_ORIGINS", "http://localhost,http://0.0.0.0"
+# ).split(",")
 
 # allow connections from any kubernetes pod within the cluster
 # k8s pods are given an IP on the private 10. network, and 10.0.0.0/8
