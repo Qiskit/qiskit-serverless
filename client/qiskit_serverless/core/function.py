@@ -127,7 +127,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         Returns:
             Job ids : job executed this function
         """
-        from qiskit_serverless.core.job import Job
+        from qiskit_serverless.core.job import Job  # pylint: disable=import-outside-toplevel
 
         if self.job_client is None:
             raise ValueError("No clients specified for a function.")
