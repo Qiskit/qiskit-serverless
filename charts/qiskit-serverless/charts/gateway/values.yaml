@@ -53,7 +53,7 @@ application:
     url: "https://api-qcon.quantum.ibm.com/api"
   publicGroupName: "ibm-q/open/main"
   allowedHosts: "*"
-  trustedOrigins: "*"
+  trustedOrigins: "http://localhost"
 
 cos:
   claimName: gateway-claim

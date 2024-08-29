@@ -186,9 +186,9 @@ spec:
             - name: PUBLIC_GROUP_NAME
               value: {{ .Values.application.publicGroupName }}
             - name: ALLOWED_HOSTS
-              value: {{ .Values.application.allowedHosts }}
+              value: {{ .Values.application.allowedHosts | quote }}
             - name: CSRF_TRUSTED_ORIGINS
-              value: {{ .Values.application.trustedOrigins }}
+              value: {{ .Values.application.trustedOrigins | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
