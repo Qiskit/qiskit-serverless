@@ -42,15 +42,15 @@ LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
 # It must be a full url: https://mydomain.com
-CSRF_TRUSTED_ORIGINS = os.environ.get(
-    "CSRF_TRUSTED_ORIGINS", "http://localhost"
-).split(",")
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(
+    ","
+)
 
-# It must be a full url: https://mydomain.com
+# It must be a regex compatible: ^https://\w+\.example\.com$
 CORS_ALLOWED_ORIGIN_REGEXES = os.environ.get(
     "CORS_ALLOWED_ORIGIN_REGEXES", "http://localhost"
 ).split(",")
-CORS_ALLOWED_ORIGIN_REGEXES = [r"{pattern}" for pattern in CORS_ALLOWED_ORIGIN_REGEXES]
+CORS_ALLOWED_ORIGIN_REGEXES = [rf"{pattern}" for pattern in CORS_ALLOWED_ORIGIN_REGEXES]
 
 # allow connections from any kubernetes pod within the cluster
 # k8s pods are given an IP on the private 10. network, and 10.0.0.0/8
@@ -76,7 +76,7 @@ INSTALLED_APPS = [
     "api",
     "psycopg2",
     "drf_yasg",
-    "corsheaders"
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
