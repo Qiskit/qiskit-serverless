@@ -168,7 +168,7 @@ class JobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = "__all__"
+        fields = ["id", "result", "status", "program", "created"]
 
 
 class RunProgramSerializer(serializers.Serializer):
