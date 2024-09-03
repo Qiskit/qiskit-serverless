@@ -44,3 +44,4 @@ static
 stats
 *.sqlite3
 tests
+gateway/media
