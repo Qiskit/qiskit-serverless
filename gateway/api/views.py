@@ -106,6 +106,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         return RunJobSerializer(*args, **kwargs)
 
+    @staticmethod
+    def get_serializer_job(*args, **kwargs):
+        """
+        This method returns the job serializer
+        """
+
+        return JobSerializer(*args, **kwargs)
+
     def get_serializer_class(self):
         return self.serializer_class
 
@@ -413,7 +421,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 jobs = Job.objects.filter(program=program)
             else:
                 jobs = Job.objects.filter(program=program, author=request.user)
-            serializer = JobSerializer(jobs, many=True)
+            serializer = self.get_serializer_job(jobs, many=True)
             return Response(serializer.data)
 
 
