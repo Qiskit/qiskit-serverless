@@ -47,6 +47,11 @@ modindex_common_prefix = ["qiskit_serverless_project."]
 # html theme options
 html_theme = "qiskit-ecosystem"
 html_title = f"{project} {release}"
+html_theme_options = {
+    "dark_logo": "images/qiskit-dark-logo.svg",
+    "light_logo": "images/qiskit-light-logo.svg",
+}
+html_static_path = ["_static"]
 
 # autodoc/autosummary options
 autosummary_generate = True

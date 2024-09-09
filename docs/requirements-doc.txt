@@ -15,5 +15,5 @@ reno>=3.5.0
 # the ~= specifier for it.
 black[jupyter]~=22.12
 sphinx-copybutton>=0.5.2
-qiskit-sphinx-theme~=1.16.1
+qiskit-sphinx-theme~=2.0.0
 tox>=4.0.0
