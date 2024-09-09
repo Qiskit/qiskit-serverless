@@ -2,7 +2,7 @@ ray[default,data]>=2.30.0, <2.35.0
 requests>=2.32.2, <3
 importlib-metadata>=5.2.0, <9
 qiskit>=1.0.2
-qiskit-ibm-runtime>=0.27.0
+qiskit-ibm-runtime>=0.29.0
 # Make sure ray node and notebook node have the same version of cloudpickle
 cloudpickle==2.2.1
 tqdm>=4.66.3, <5
