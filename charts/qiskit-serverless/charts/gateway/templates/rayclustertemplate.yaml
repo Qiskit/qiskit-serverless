@@ -161,7 +161,7 @@ data:
 {{- if .Values.application.proxy.enabled }}
             - image: {{ .Values.application.ray.proxyImage }}
               securityContext:
-                runAsGroup: 123
+                runAsGroup: 1000
               imagePullPolicy: IfNotPresent
               name: proxy
               resources:
@@ -232,7 +232,7 @@ data:
             nodeSelector:
             tolerations: []
             securityContext:
-              fsGroup: 123
+              fsGroup: 1000
             volumes:
             - emptyDir:
               name: log-volume
