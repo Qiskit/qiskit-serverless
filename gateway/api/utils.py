@@ -236,7 +236,7 @@ def remove_duplicates_from_list(original_list: List[Any]) -> List[Any]:
 
 # Utilities for parsing python dependency information
 # source: https://peps.python.org/pep-0508/#complete-grammar
-raw_dependency_grammar = """
+RAW_DEPENDENCY_GRAMMAR = """
     wsp           = ' ' | '\t'
     version_cmp   = wsp* <'<=' | '<' | '!=' | '==' | '>=' | '>' | '~=' | '==='>
     version       = wsp* <( letterOrDigit | '-' | '_' | '.' | '*' | '+' | '!' )+>
@@ -344,7 +344,8 @@ raw_dependency_grammar = """
 """
 
 
-def create_dependency_grammar(grammar=raw_dependency_grammar):
+def create_dependency_grammar(grammar=RAW_DEPENDENCY_GRAMMAR):
+    """Create dependency grammar."""
 
     if hasattr(sys, "implementation"):
         version = "{0.major}.{0.minor}.{0.micro}".format(sys.implementation.version)
@@ -375,7 +376,7 @@ def create_dependency_grammar(grammar=raw_dependency_grammar):
 
 
 def parse_dependency(dep, grammar):
-
+    """Parse dependency."""
     parsed = grammar(dep).specification()
     dep_name = parsed[0]
     dep_ver = parsed[2]
