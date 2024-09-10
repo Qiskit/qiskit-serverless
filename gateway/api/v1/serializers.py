@@ -5,7 +5,6 @@ Serializers api for V1.
 import json
 import logging
 from rest_framework.serializers import ValidationError
-import utils
 from api import serializers
 from api.models import Provider
 from api.utils import (
