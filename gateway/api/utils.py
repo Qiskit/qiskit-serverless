@@ -348,7 +348,8 @@ def create_dependency_grammar(grammar=RAW_DEPENDENCY_GRAMMAR):
     """Create dependency grammar."""
 
     if hasattr(sys, "implementation"):
-        version = "{0.major}.{0.minor}.{0.micro}".format(sys.implementation.version)
+        sys_version = sys.implementation.version
+        version = f"{sys_version.major}.{sys_version.minor}.{sys_version.micro}"
         kind = sys.implementation.version.releaselevel
         if kind != "final":
             version += kind[0] + str(sys.implementation.version.serial)
