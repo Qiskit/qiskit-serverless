@@ -229,6 +229,7 @@ def remove_duplicates_from_list(original_list: List[Any]) -> List[Any]:
     """
     return list(OrderedDict.fromkeys(original_list))
 
+
 # Utilities for parsing python dependency information
 # source: https://peps.python.org/pep-0508/#complete-grammar
 raw_dependency_grammar = """
