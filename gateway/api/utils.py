@@ -5,6 +5,7 @@ from collections import OrderedDict
 import inspect
 import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -14,7 +15,6 @@ from typing import Any, Optional, Tuple, Union, Callable, Dict, List
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
-from django.conf import settings
 from parsley import makeGrammar
 
 from .models import Job
