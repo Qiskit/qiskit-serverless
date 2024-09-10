@@ -181,7 +181,7 @@ class CatalogProviderSerializer(serializers.CatalogProviderSerializer):
     """
 
     class Meta(serializers.CatalogProviderSerializer.Meta):
-        fields = ["name", "url", "icon_url"]
+        fields = ["name", "readable_name", "url", "icon_url"]
 
 
 class ListCatalogSerializer(serializers.ListCatalogSerializer):
@@ -192,7 +192,15 @@ class ListCatalogSerializer(serializers.ListCatalogSerializer):
     provider = CatalogProviderSerializer()
 
     class Meta(serializers.ListCatalogSerializer.Meta):
-        fields = ["id", "title", "type", "description", "provider", "available"]
+        fields = [
+            "id",
+            "title",
+            "readable_title",
+            "type",
+            "description",
+            "provider",
+            "available",
+        ]
 
 
 class RetrieveCatalogSerializer(serializers.RetrieveCatalogSerializer):
@@ -206,6 +214,7 @@ class RetrieveCatalogSerializer(serializers.RetrieveCatalogSerializer):
         fields = [
             "id",
             "title",
+            "readable_title",
             "type",
             "description",
             "documentation_url",

@@ -31,6 +31,7 @@
     "fields": {
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Public-Function",
+      "readable_title": "Public Function",
       "type": "APPLICATION",
       "image": "icr.io/awesome-namespace/awesome-title",
       "author": 2,
@@ -48,6 +49,7 @@
     "fields": {
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Private-Function",
+      "readable_title": "Private Function",
       "image": "icr.io/awesome-namespace/awesome-title",
       "author": 2,
       "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
@@ -77,6 +79,7 @@
     "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
     "fields": {
       "name": "default",
+      "readable_name": "Default",
       "url": "https://example",
       "icon_url": "https://example",
       "created": "2023-02-01T15:30:43.281796Z",

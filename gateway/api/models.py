@@ -51,6 +51,9 @@ class Provider(models.Model):
     updated = models.DateTimeField(auto_now=True, null=True)
 
     name = models.CharField(max_length=255, db_index=True, unique=True)
+    readable_name = models.CharField(
+        max_length=255, null=True, blank=True, default=None
+    )
     url = models.TextField(null=True, blank=True, default=None)
     icon_url = models.TextField(null=True, blank=True, default=None)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
@@ -76,6 +79,9 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
 
     title = models.CharField(max_length=255, db_index=True)
+    readable_title = models.CharField(
+        max_length=255, null=True, blank=True, default=None
+    )
     type = models.CharField(
         max_length=20,
         choices=PROGRAM_TYPES,
