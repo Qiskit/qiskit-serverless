@@ -8,6 +8,11 @@ from rest_framework.serializers import ValidationError
 import utils
 from api import serializers
 from api.models import Provider
+from api.utils import (
+    create_dependency_allowlist,
+    create_dependency_grammar,
+    parse_dependency,
+)
 
 logger = logging.getLogger("gateway.serializers")
 
@@ -50,12 +55,12 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             )
 
         # validate dependencies
-        dependency_grammar = utils.create_dependency_grammar()
+        dependency_grammar = create_dependency_grammar()
         deps = json.loads(attrs.get("dependencies", None))
-        allowlist = utils.create_dependency_allowlist()
+        allowlist = create_dependency_allowlist()
         if len(allowlist.keys()) > 0:  # If no allowlist, all dependencies allowed
             for d in deps:
-                dep, _ = utils.parse_dependency(d, dependency_grammar)
+                dep, _ = parse_dependency(d, dependency_grammar)
                 # Determine if a dependency is allowed
                 if dep not in allowlist:
                     raise ValidationError(f"Dependency {dep} is not allowed")
