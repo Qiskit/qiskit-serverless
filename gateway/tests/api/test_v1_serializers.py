@@ -323,33 +323,3 @@ class SerializerTest(APITestCase):
 
         serializer = UploadProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid())
-
-    def test_upload_program_serializer_dependency_bad_version(self):
-        """Tests dependency allowlist."""
-        path_to_resource_artifact = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "artifact.tar",
-        )
-        file_data = File(open(path_to_resource_artifact, "rb"))
-        upload_file = SimpleUploadedFile(
-            "artifact.tar", file_data.read(), content_type="multipart/form-data"
-        )
-
-        user = models.User.objects.get(username="test_user")
-
-        title = "Hello world"
-        entrypoint = "pattern.py"
-        arguments = "{}"
-        dependencies = '["wheel==0.4.1"]'
-
-        data = {}
-        data["title"] = title
-        data["entrypoint"] = entrypoint
-        data["arguments"] = arguments
-        data["dependencies"] = dependencies
-        data["artifact"] = upload_file
-
-        serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid())

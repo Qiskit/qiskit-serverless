@@ -49,6 +49,7 @@ jobs:
             --set gateway.application.ray.nodeImage=ray:test \
             --set gateway.application.ray.proxyImage=proxy:test \
             --set gateway.application.ray.cpu=1 \
+            --set gateway.application.debug=1 \
             --set gateway.application.limits.keepClusterOnComplete=false \
             --set gateway.application.authMockproviderRegistry=test \
             --set gateway.application.proxy.enabled=false \
