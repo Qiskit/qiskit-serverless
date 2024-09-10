@@ -26,14 +26,8 @@ Qiskit Serverless utilities
     utility functions
 """
 
-import json
 import os
 import re
-import sys
-import platform
-
-from django.conf import settings
-from parsley import makeGrammar
 
 
 def sanitize_file_path(path: str):
