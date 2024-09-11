@@ -38,6 +38,10 @@ class ProgramViewSet(views.ProgramViewSet):
     def get_serializer_run_job(*args, **kwargs):
         return v1_serializers.RunJobSerializer(*args, **kwargs)
 
+    @staticmethod
+    def get_serializer_job(*args, **kwargs):
+        return v1_serializers.JobSerializer(*args, **kwargs)
+
     @swagger_auto_schema(
         operation_description="List author Qiskit Functions",
         responses={status.HTTP_200_OK: v1_serializers.ProgramSerializer(many=True)},
