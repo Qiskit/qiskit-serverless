@@ -22,9 +22,13 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(len(response.data), 1)
 
         public_function = response.data[0]
+        provider = public_function.get("provider")
         self.assertEqual(public_function.get("available"), False)
         self.assertEqual(public_function.get("title"), "Public-Function")
+        self.assertEqual(public_function.get("readable_title"), "Public Function")
         self.assertEqual(public_function.get("type"), Program.APPLICATION)
+        self.assertEqual(provider.get("name"), "default")
+        self.assertEqual(provider.get("readable_name"), "Default")
 
     def test_catalog_list_with_auth_user_without_run_permission(self):
         """Tests catalog list authenticated without run permission."""
@@ -38,9 +42,13 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(len(response.data), 1)
 
         public_function = response.data[0]
+        provider = public_function.get("provider")
         self.assertEqual(public_function.get("available"), False)
         self.assertEqual(public_function.get("title"), "Public-Function")
+        self.assertEqual(public_function.get("readable_title"), "Public Function")
         self.assertEqual(public_function.get("type"), Program.APPLICATION)
+        self.assertEqual(provider.get("name"), "default")
+        self.assertEqual(provider.get("readable_name"), "Default")
 
     def test_catalog_list_with_auth_user_with_run_permission(self):
         """Tests catalog list authenticated with run permission."""
@@ -54,9 +62,13 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(len(response.data), 1)
 
         public_function = response.data[0]
+        provider = public_function.get("provider")
         self.assertEqual(public_function.get("available"), True)
         self.assertEqual(public_function.get("title"), "Public-Function")
+        self.assertEqual(public_function.get("readable_title"), "Public Function")
         self.assertEqual(public_function.get("type"), Program.APPLICATION)
+        self.assertEqual(provider.get("name"), "default")
+        self.assertEqual(provider.get("readable_name"), "Default")
 
     def test_catalog_retrieve_non_auth_user(self):
         """Tests catalog retrieve non-authenticated."""
@@ -69,10 +81,14 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         public_function = response.data
+        provider = public_function.get("provider")
         self.assertEqual(public_function.get("available"), False)
         self.assertEqual(public_function.get("title"), "Public-Function")
+        self.assertEqual(public_function.get("readable_title"), "Public Function")
         self.assertEqual(public_function.get("type"), Program.APPLICATION)
         self.assertTrue(isinstance(public_function.get("additional_info"), dict))
+        self.assertEqual(provider.get("name"), "default")
+        self.assertEqual(provider.get("readable_name"), "Default")
 
     def test_catalog_404_retrieve_non_auth_user(self):
         """Tests catalog retrieve a non-existent function as non-authenticated."""
@@ -111,10 +127,14 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         public_function = response.data
+        provider = public_function.get("provider")
         self.assertEqual(public_function.get("available"), False)
         self.assertEqual(public_function.get("title"), "Public-Function")
+        self.assertEqual(public_function.get("readable_title"), "Public Function")
         self.assertEqual(public_function.get("type"), Program.APPLICATION)
         self.assertTrue(isinstance(public_function.get("additional_info"), dict))
+        self.assertEqual(provider.get("name"), "default")
+        self.assertEqual(provider.get("readable_name"), "Default")
 
     def test_catalog_retrieve_with_auth_user_with_run_permission(self):
         """Tests catalog retrieve as authenticated with run permission."""
@@ -130,7 +150,11 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         public_function = response.data
+        provider = public_function.get("provider")
         self.assertEqual(public_function.get("available"), True)
         self.assertEqual(public_function.get("title"), "Public-Function")
+        self.assertEqual(public_function.get("readable_title"), "Public Function")
         self.assertEqual(public_function.get("type"), Program.APPLICATION)
         self.assertTrue(isinstance(public_function.get("additional_info"), dict))
+        self.assertEqual(provider.get("name"), "default")
+        self.assertEqual(provider.get("readable_name"), "Default")
