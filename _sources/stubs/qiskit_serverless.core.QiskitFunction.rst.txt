@@ -15,6 +15,7 @@
    
       ~QiskitFunction.__init__
       ~QiskitFunction.from_json
+      ~QiskitFunction.get_jobs
       ~QiskitFunction.jobs
       ~QiskitFunction.run
    
