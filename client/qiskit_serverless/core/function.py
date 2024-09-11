@@ -27,6 +27,7 @@ Qiskit Serverless function
     QiskitFunction
 """
 import dataclasses
+import warnings
 from dataclasses import dataclass
 from typing import Optional, Dict, List, Any, Tuple
 
@@ -118,14 +119,31 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             config=config,
         )
 
-    def jobs(self):
-        """Run function
+    def get_jobs(self):
+        """List of jobs created in this function.
 
         Raises:
             QiskitServerlessException: validation exception
 
         Returns:
-            Job ids : job executed this function
+            [Job] : list of jobs
+        """
+        warnings.warn(
+            "`get_jobs` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `jobs` instead.",
+            DeprecationWarning,
+        )
+        return self.jobs()
+
+    def jobs(self):
+        """List of jobs created in this function.
+
+        Raises:
+            QiskitServerlessException: validation exception
+
+        Returns:
+            [Job] : list of jobs
         """
         from qiskit_serverless.core.job import (  # pylint: disable=import-outside-toplevel
             Job,
