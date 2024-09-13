@@ -441,11 +441,15 @@ class JobViewSet(viewsets.GenericViewSet):
             if type_filter == "catalog":
                 user_criteria = Q(author=self.request.user)
                 provider_exists_criteria = ~Q(program__provider=None)
-                return Job.objects.filter(user_criteria & provider_exists_criteria)
+                return Job.objects.filter(
+                    user_criteria & provider_exists_criteria
+                ).order_by("-created")
             if type_filter == "serverless":
                 user_criteria = Q(author=self.request.user)
                 provider_not_exists_criteria = Q(program__provider=None)
-                return Job.objects.filter(user_criteria & provider_not_exists_criteria)
+                return Job.objects.filter(
+                    user_criteria & provider_not_exists_criteria
+                ).order_by("-created")
         return Job.objects.filter(author=self.request.user).order_by("-created")
 
     def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
