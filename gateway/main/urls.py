@@ -49,7 +49,6 @@ urlpatterns = [
     path("", include("django_prometheus.urls")),
     path("backoffice/", admin.site.urls),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
-    re_path(r"^static/(?P<path>.*)$", serve, {"document_root": settings.STATIC_ROOT}),
 ]
 
 if settings.DEBUG:
