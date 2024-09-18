@@ -443,6 +443,10 @@ class JobViewSet(viewsets.GenericViewSet):
             pk,
             re.IGNORECASE,
         ):
+            logger.warning(
+                "Invalid job id format id[%s].",
+                pk,
+            )
             return None
         type_filter = self.request.query_params.get("filter")
         if type_filter:
