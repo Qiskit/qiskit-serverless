@@ -453,6 +453,18 @@ class JobViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.retrieve", context=ctx):
+            job = Job.objects.filter(pk=pk).first()
+            if job is None:
+                logger.warning("Job [%s] not found", pk)
+                return Response(status=404)
+            author = self.request.user
+            if job.program and job.program.provider:
+                provider_groups = job.program.provider.admin_groups.all()
+                author_groups = author.groups.all()
+                has_access = any(group in provider_groups for group in author_groups)
+                if has_access:
+                    serializer = self.get_serializer(job)
+                    return Response(serializer.data)
             instance = self.get_object()
             serializer = self.get_serializer(instance)
         return Response(serializer.data)
