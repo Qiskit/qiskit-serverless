@@ -667,6 +667,16 @@ class Job:
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
+        warnings.warn(
+            "`stop` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `cancel` instead.",
+            DeprecationWarning,
+        )
+        return self.cancel(service)
+
+    def cancel(self, service: Optional[QiskitRuntimeService] = None):
+        """Cancels the job."""
         return self._job_client.stop(self.job_id, service=service)
 
     def logs(self) -> str:
