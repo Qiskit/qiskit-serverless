@@ -11,6 +11,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import time
 from typing import Optional
 from wsgiref.util import FileWrapper
@@ -436,6 +437,9 @@ class JobViewSet(viewsets.GenericViewSet):
         return self.serializer_class
 
     def get_queryset(self):
+        pk = self.kwargs.get("pk")
+        if pk and not re.match("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", pk, re.IGNORECASE):
+            return None
         type_filter = self.request.query_params.get("filter")
         if type_filter:
             if type_filter == "catalog":
