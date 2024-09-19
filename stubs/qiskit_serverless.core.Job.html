@@ -351,22 +351,25 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="#qiskit_serverless.core.Job.__init__" title="qiskit_serverless.core.Job.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(job_id, job_client[, raw_data])</p></td>
 <td><p>Job class for async script execution.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">filtered_logs</span></code>(**kwargs)</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">cancel</span></code>([service])</p></td>
+<td><p>Cancels the job.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">filtered_logs</span></code>(**kwargs)</p></td>
 <td><p>Returns logs of the job.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">in_terminal_state</span></code>()</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">in_terminal_state</span></code>()</p></td>
 <td><p>Checks if job is in terminal state</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">logs</span></code>()</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">logs</span></code>()</p></td>
 <td><p>Returns logs of the job.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">result</span></code>([wait, cadence, verbose, maxwait])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">result</span></code>([wait, cadence, verbose, maxwait])</p></td>
 <td><p>Return results of the job. :type wait:  :param wait: flag denoting whether to wait for the              job result to be populated before returning :type cadence:  :param cadence: time to wait between checking if job has                 been terminated :type verbose:  :param verbose: flag denoting whether to log a heartbeat                 while waiting for job result to populate.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">status</span></code>()</p></td>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">status</span></code>()</p></td>
 <td><p>Returns status of the job.</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code>([service])</p></td>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code>([service])</p></td>
 <td><p>Stops the job from running.</p></td>
 </tr>
 </tbody>
