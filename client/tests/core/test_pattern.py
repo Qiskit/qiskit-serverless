@@ -54,4 +54,4 @@ def test_program():
         assert "42" in recovered_job.logs()
         assert recovered_job.in_terminal_state()
         assert recovered_job.status() == "DONE"
-        assert isinstance(job.stop(), bool)
+        assert isinstance(job.cancel(), bool)
