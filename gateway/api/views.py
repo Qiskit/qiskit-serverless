@@ -456,7 +456,10 @@ class JobViewSet(viewsets.GenericViewSet):
             job = Job.objects.filter(pk=pk).first()
             if job is None:
                 logger.warning("Job [%s] not found", pk)
-                return Response(status=404)
+                return Response(
+                    {"message": f"Job [{pk}] was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
             author = self.request.user
             if job.program and job.program.provider:
                 provider_groups = job.program.provider.admin_groups.all()
