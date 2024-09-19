@@ -813,7 +813,7 @@ class FilesViewSet(viewsets.ViewSet):
             with open(file_path, "wb+") as destination:
                 for chunk in upload_file.chunks():
                     destination.write(chunk)
-                    return Response({"message": file_path})
+                return Response({"message": file_path})
         return Response("server error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
