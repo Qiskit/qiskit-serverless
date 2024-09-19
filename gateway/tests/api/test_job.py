@@ -83,6 +83,19 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.data.get("status"), "SUCCEEDED")
         self.assertEqual(jobs_response.data.get("result"), '{"somekey":1}')
 
+    def test_job_provider_detail(self):
+        """Tests job detail authorized."""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec86"]),
+            format="json",
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("status"), "QUEUED")
+        self.assertEqual(jobs_response.data.get("result"), '{"somekey":1}')
+
     def test_not_authorized_job_detail(self):
         """Tests job detail fails trying to access to other user job."""
         self._authorize()
