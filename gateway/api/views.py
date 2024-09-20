@@ -858,6 +858,20 @@ class CatalogViewSet(viewsets.GenericViewSet):
 
         return Program.objects.filter(id=pk, instances=public_group).first()
 
+    def get_by_title_queryset(self, title, provider_name):
+        """
+        QuerySet to retrieve a specifc public programs in the catalog
+        """
+        public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
+
+        if public_group is None:
+            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
+            return []
+
+        return Program.objects.filter(
+            title=title, provider__name=provider_name, instances=public_group
+        ).first()
+
     def list(self, request):
         """List public programs in the catalog:"""
         tracer = trace.get_tracer("gateway.tracer")
@@ -877,6 +891,35 @@ class CatalogViewSet(viewsets.GenericViewSet):
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.catalog.retrieve", context=ctx):
             instance = self.get_retrieve_queryset(pk)
+            if instance is None:
+                return Response(
+                    {"message": "Qiskit Function not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            user = None
+            if request.user and request.user.is_authenticated:
+                user = request.user
+            serializer = self.get_serializer_retrieve_catalog(
+                instance, context={"user": user}
+            )
+        return Response(serializer.data)
+
+    @action(methods=["GET"], detail=False)
+    def by_title(self, request):
+        """Get a specific program in the catalog:"""
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.catalog.retrieve", context=ctx):
+            title = self.request.query_params.get("title")
+            provider_name = self.request.query_params.get("provider")
+            if not title or not provider:
+                return Response(
+                    {"message": "Qiskit Function not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            instance = self.get_by_title_queryset(title, provider_name)
             if instance is None:
                 return Response(
                     {"message": "Qiskit Function not found."},
