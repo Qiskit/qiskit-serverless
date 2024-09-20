@@ -167,7 +167,7 @@ class BaseClient(JsonSerializable):
         >>> )
     """
 
-    def __init__(  # pylint:  disable=too-many-positional-arguments
+    def __init__(
         self,
         name: str,
         host: Optional[str] = None,
@@ -386,7 +386,7 @@ class ServerlessClient(BaseClient):
         >>> )
     """
 
-    def __init__(  # pylint:  disable=too-many-positional-arguments
+    def __init__(
         self,
         name: Optional[str] = None,
         host: Optional[str] = None,

@@ -93,7 +93,7 @@ class ServerlessRuntimeService(QiskitRuntimeService):
         QiskitRuntimeService (QiskitRuntimeService): Qiskit runtime service object.
     """
 
-    def run(  # pylint:  disable=too-many-positional-arguments
+    def run(
         self,
         program_id: str,
         inputs: Dict,
