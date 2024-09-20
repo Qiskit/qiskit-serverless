@@ -161,7 +161,7 @@ class TestCatalogApi(APITestCase):
 
     def test_catalog_by_title_non_auth_user(self):
         """Tests catalog retrieve non-authenticated."""
-        url = "/api/v1/catalog/by_title/"
+        url = "/api/v1/catalog/get_by_title/"
         response = self.client.get(
             url, {"title": "Public-Function", "provider": "default"}, format="json"
         )
@@ -180,7 +180,7 @@ class TestCatalogApi(APITestCase):
     def test_catalog_404_by_title_non_auth_user(self):
         """Tests catalog retrieve a non-existent function as non-authenticated."""
 
-        url = "/api/v1/catalog/by_title/"
+        url = "/api/v1/catalog/get_by_title/"
         response = self.client.get(
             url, {"title": "Missing-Function", "provider": "default"}, format="json"
         )
@@ -191,7 +191,7 @@ class TestCatalogApi(APITestCase):
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
 
-        url = "/api/v1/catalog/by_title/"
+        url = "/api/v1/catalog/get_by_title/"
         response = self.client.get(
             url, {"title": "Missing-Function", "provider": "default"}, format="json"
         )
@@ -202,7 +202,7 @@ class TestCatalogApi(APITestCase):
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
 
-        url = "/api/v1/catalog/by_title/"
+        url = "/api/v1/catalog/get_by_title/"
         response = self.client.get(
             url, {"title": "Public-Function", "provider": "default"}, format="json"
         )
@@ -223,7 +223,7 @@ class TestCatalogApi(APITestCase):
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
 
-        url = "/api/v1/catalog/by_title/"
+        url = "/api/v1/catalog/get_by_title/"
         response = self.client.get(
             url, {"title": "Public-Function", "provider": "default"}, format="json"
         )

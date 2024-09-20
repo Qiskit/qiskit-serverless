@@ -906,7 +906,7 @@ class CatalogViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
     @action(methods=["GET"], detail=False)
-    def by_title(self, request):
+    def get_by_title(self, request):
         """Get a specific program in the catalog:"""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
