@@ -21,6 +21,13 @@ COPY gateway .
 RUN chown -R 1000:100 /usr/src/app &&\
     mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
 
+# Need versions of pip/setuptools more recent than provided by UBI image
+RUN python3.11 -m ensurepip --upgrade
+
+# hadolint ignore=DL3013
+RUN pip install --upgrade --no-cache-dir pip>=24.2 &&\
+    pip install --upgrade --no-cache-dir setuptools>=72.1.0
+
 USER 1000:100
 RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh &&\
     chmod +x /usr/src/app/entrypoint.sh
