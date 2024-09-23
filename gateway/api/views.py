@@ -915,8 +915,8 @@ class CatalogViewSet(viewsets.GenericViewSet):
             provider_name = self.request.query_params.get("provider")
             if not title or not provider:
                 return Response(
-                    {"message": "Qiskit Function not found."},
-                    status=status.HTTP_404_NOT_FOUND,
+                    {"message": "Missing title or provider name."},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             instance = self.get_by_title_queryset(title, provider_name)
