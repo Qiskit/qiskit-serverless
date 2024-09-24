@@ -81,8 +81,6 @@ def get_arguments() -> Dict[str, Any]:
     """
     arguments = "{}"
     if os.path.isfile("arguments.serverless"):
-        with open(
-                "arguments.serverless", "r", encoding="utf-8"
-        ) as f:
+        with open("arguments.serverless", "r", encoding="utf-8") as f:
             arguments = f.read()
     return json.loads(arguments, cls=QiskitObjectsDecoder)
