@@ -105,6 +105,7 @@ class ServerlessRuntimeService(QiskitRuntimeService):
         session_id: Optional[str] = None,
         start_session: Optional[bool] = False,
     ) -> Union[RuntimeJob, RuntimeJobV2]:
+        """Run a serverless Runtime service job."""
         runtime_job = super().run(
             program_id,
             inputs,
