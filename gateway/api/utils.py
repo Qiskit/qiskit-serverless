@@ -112,13 +112,12 @@ def decrypt_string(string: str) -> str:
     return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
-def build_env_variables(token, job: Job, arguments: str) -> Dict[str, str]:
+def build_env_variables(token, job: Job) -> Dict[str, str]:
     """Builds env variables for job.
 
     Args:
         token: django request token decoded
         job: job
-        arguments: program arguments
 
     Returns:
         env variables dict

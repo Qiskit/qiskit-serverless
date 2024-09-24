@@ -24,14 +24,13 @@ class TestUtils(APITestCase):
         token = "42"
         job = MagicMock()
         job.id = "42"
-        env_vars = build_env_variables(token=token, job=job, arguments={"answer": 42})
+        env_vars = build_env_variables(token=token, job=job)
         self.assertEqual(
             env_vars,
             {
                 "ENV_JOB_GATEWAY_TOKEN": "42",
                 "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
                 "ENV_JOB_ID_GATEWAY": "42",
-                "ENV_JOB_ARGUMENTS": {"answer": 42},
             },
         )
 
@@ -39,13 +38,12 @@ class TestUtils(APITestCase):
             SETTINGS_AUTH_MECHANISM="custom_token", SECRET_KEY="super-secret"
         ):
             env_vars_with_qiskit_runtime = build_env_variables(
-                token=token, job=job, arguments={"answer": 42}
+                token=token, job=job
             )
             expecting = {
                 "ENV_JOB_GATEWAY_TOKEN": "42",
                 "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
                 "ENV_JOB_ID_GATEWAY": "42",
-                "ENV_JOB_ARGUMENTS": {"answer": 42},
                 "QISKIT_IBM_TOKEN": "42",
                 "QISKIT_IBM_CHANNEL": "ibm_quantum",
                 "QISKIT_IBM_URL": "https://auth.quantum-computing.ibm.com/api",
