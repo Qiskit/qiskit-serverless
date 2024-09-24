@@ -122,7 +122,9 @@ class JobHandler:
             if job.arguments:
                 logger.debug("uploading arguments for job %s", job.id)
                 with open(
-                    working_directory_for_upload + "/arguments.serverless", "w", encoding="utf-8"
+                    working_directory_for_upload + "/arguments.serverless",
+                        "w",
+                        encoding="utf-8",
                 ) as f:
                     f.write(job.arguments)
 
