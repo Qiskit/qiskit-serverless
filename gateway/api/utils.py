@@ -135,7 +135,6 @@ def build_env_variables(token, job: Job, arguments: str) -> Dict[str, str]:
             "ENV_JOB_GATEWAY_TOKEN": str(token),
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
-            "ENV_JOB_ARGUMENTS": arguments,
         },
         **extra,
     }

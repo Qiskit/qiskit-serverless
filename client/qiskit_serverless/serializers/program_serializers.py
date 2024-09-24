@@ -81,4 +81,8 @@ def get_arguments() -> Dict[str, Any]:
     Returns:
         Dictionary of arguments.
     """
-    return json.loads(os.environ.get(ENV_JOB_ARGUMENTS, "{}"), cls=QiskitObjectsDecoder)
+    arguments = "{}"
+    if os.path.isfile("arguments.serverless"):
+        with open("arguments.serverless", "r") as f:
+            arguments = f.read()
+    return json.loads(arguments, cls=QiskitObjectsDecoder)
