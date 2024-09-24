@@ -37,9 +37,7 @@ class TestUtils(APITestCase):
         with self.settings(
             SETTINGS_AUTH_MECHANISM="custom_token", SECRET_KEY="super-secret"
         ):
-            env_vars_with_qiskit_runtime = build_env_variables(
-                token=token, job=job
-            )
+            env_vars_with_qiskit_runtime = build_env_variables(token=token, job=job)
             expecting = {
                 "ENV_JOB_GATEWAY_TOKEN": "42",
                 "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
