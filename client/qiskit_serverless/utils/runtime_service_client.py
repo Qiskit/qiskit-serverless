@@ -93,7 +93,7 @@ class ServerlessRuntimeService(QiskitRuntimeService):
         QiskitRuntimeService (QiskitRuntimeService): Qiskit runtime service object.
     """
 
-    def run(
+    def run(  # pylint:  disable=too-many-positional-arguments
         self,
         program_id: str,
         inputs: Dict,
@@ -105,7 +105,8 @@ class ServerlessRuntimeService(QiskitRuntimeService):
         session_id: Optional[str] = None,
         start_session: Optional[bool] = False,
     ) -> Union[RuntimeJob, RuntimeJobV2]:
-        runtime_job = super().run(
+        """Run a serverless Runtime service job."""
+        runtime_job = super()._run(
             program_id,
             inputs,
             options,
