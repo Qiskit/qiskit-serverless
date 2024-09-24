@@ -26,8 +26,7 @@ logger = logging.getLogger("commands")
 def execute_job(job: Job) -> Job:
     """Executes program.
 
-    1. check if cluster exists
-       1.1 if not: create cluster
+    1. create cluster
     2. connect to cluster
     3. run a job
     4. set status to pending
@@ -41,27 +40,23 @@ def execute_job(job: Job) -> Job:
 
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-        compute_resource = ComputeResource.objects.filter(
-            owner=job.author, active=True
-        ).first()
-
-        if not compute_resource:
-            cluster_name = generate_cluster_name(job.author.username)
-            span.set_attribute("job.clustername", cluster_name)
-            try:
-                compute_resource = create_ray_cluster(job, cluster_name=cluster_name)
-            except Exception:  # pylint: disable=broad-exception-caught
-                # if something went wrong
-                #   try to kill resource if it was allocated
-                logger.warning(
-                    "Compute resource [%s] was not created properly.\n"
-                    "Setting job [%s] status to [FAILED].",
-                    cluster_name,
-                    job,
-                )
-                kill_ray_cluster(cluster_name)
-                job.status = Job.FAILED
-                job.logs += "\nCompute resource was not created properly."
+        compute_resource = None
+        cluster_name = generate_cluster_name(job.author.username)
+        span.set_attribute("job.clustername", cluster_name)
+        try:
+            compute_resource = create_ray_cluster(job, cluster_name=cluster_name)
+        except Exception:  # pylint: disable=broad-exception-caught
+            # if something went wrong
+            #   try to kill resource if it was allocated
+            logger.warning(
+                "Compute resource [%s] was not created properly.\n"
+                "Setting job [%s] status to [FAILED].",
+                cluster_name,
+                job,
+            )
+            kill_ray_cluster(cluster_name)
+            job.status = Job.FAILED
+            job.logs += "\nCompute resource was not created properly."
 
         if compute_resource:
             try:
