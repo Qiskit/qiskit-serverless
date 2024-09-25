@@ -141,3 +141,13 @@ class CatalogViewSet(views.CatalogViewSet):
     )
     def retrieve(self, request, pk=None):
         return super().retrieve(request, pk)
+
+    @swagger_auto_schema(
+        operation_description="Get a specific public function in the catalog by title",
+        responses={
+            status.HTTP_200_OK: v1_serializers.RetrieveCatalogSerializer(many=False)
+        },
+    )
+    @action(methods=["GET"], detail=False)
+    def retrieve(self, request):
+        return super().get_by_title(request)
