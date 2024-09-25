@@ -223,7 +223,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             config=config,
         )
 
-        env = encrypt_env_vars(build_env_variables(token, job))
+        env = encrypt_env_vars(build_env_variables(token, job, arguments))
         try:
             env["traceparent"] = carrier["traceparent"]
         except KeyError:

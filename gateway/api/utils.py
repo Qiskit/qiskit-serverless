@@ -112,7 +112,7 @@ def decrypt_string(string: str) -> str:
     return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
-def build_env_variables(token, job: Job) -> Dict[str, str]:
+def build_env_variables(token, job: Job, args: str = None) -> Dict[str, str]:
     """Builds env variables for job.
 
     Args:
@@ -123,6 +123,11 @@ def build_env_variables(token, job: Job) -> Dict[str, str]:
         env variables dict
     """
     extra = {}
+    arguments = "{}"
+    # only set arguments if size is <1MB
+    if args and sys.getsizeof(args) < 1000000:
+        arguments = args
+
     if settings.SETTINGS_AUTH_MECHANISM != "default":
         extra = {
             "QISKIT_IBM_TOKEN": str(token),
@@ -134,6 +139,7 @@ def build_env_variables(token, job: Job) -> Dict[str, str]:
             "ENV_JOB_GATEWAY_TOKEN": str(token),
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
+            "ENV_JOB_ARGUMENTS": arguments,
         },
         **extra,
     }
