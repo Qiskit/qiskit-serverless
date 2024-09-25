@@ -158,3 +158,83 @@ class TestCatalogApi(APITestCase):
         self.assertTrue(isinstance(public_function.get("additional_info"), dict))
         self.assertEqual(provider.get("name"), "default")
         self.assertEqual(provider.get("readable_name"), "Default")
+
+    def test_catalog_by_title_non_auth_user(self):
+        """Tests catalog get by title non-authenticated."""
+        url = "/api/v1/catalog/get_by_title/"
+        response = self.client.get(
+            url, {"title": "Public-Function", "provider": "default"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        public_function = response.data
+        provider = public_function.get("provider")
+        self.assertEqual(public_function.get("available"), False)
+        self.assertEqual(public_function.get("title"), "Public-Function")
+        self.assertEqual(public_function.get("readable_title"), "Public Function")
+        self.assertEqual(public_function.get("type"), Program.APPLICATION)
+        self.assertTrue(isinstance(public_function.get("additional_info"), dict))
+        self.assertEqual(provider.get("name"), "default")
+        self.assertEqual(provider.get("readable_name"), "Default")
+
+    def test_catalog_404_by_title_non_auth_user(self):
+        """Tests catalog get by title a non-existent function as non-authenticated."""
+
+        url = "/api/v1/catalog/get_by_title/"
+        response = self.client.get(
+            url, {"title": "Missing-Function", "provider": "default"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_catalog_404_by_title_auth_user(self):
+        """Tests catalog get by title a non-existent function as authenticated."""
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        url = "/api/v1/catalog/get_by_title/"
+        response = self.client.get(
+            url, {"title": "Missing-Function", "provider": "default"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_catalog_by_title_with_auth_user_without_run_permission(self):
+        """Tests catalog get by title as authenticated without run permission."""
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        url = "/api/v1/catalog/get_by_title/"
+        response = self.client.get(
+            url, {"title": "Public-Function", "provider": "default"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        public_function = response.data
+        provider = public_function.get("provider")
+        self.assertEqual(public_function.get("available"), False)
+        self.assertEqual(public_function.get("title"), "Public-Function")
+        self.assertEqual(public_function.get("readable_title"), "Public Function")
+        self.assertEqual(public_function.get("type"), Program.APPLICATION)
+        self.assertTrue(isinstance(public_function.get("additional_info"), dict))
+        self.assertEqual(provider.get("name"), "default")
+        self.assertEqual(provider.get("readable_name"), "Default")
+
+    def test_catalog_by_title_with_auth_user_with_run_permission(self):
+        """Tests catalog get by title as authenticated with run permission."""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        url = "/api/v1/catalog/get_by_title/"
+        response = self.client.get(
+            url, {"title": "Public-Function", "provider": "default"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        public_function = response.data
+        provider = public_function.get("provider")
+        self.assertEqual(public_function.get("available"), True)
+        self.assertEqual(public_function.get("title"), "Public-Function")
+        self.assertEqual(public_function.get("readable_title"), "Public Function")
+        self.assertEqual(public_function.get("type"), Program.APPLICATION)
+        self.assertTrue(isinstance(public_function.get("additional_info"), dict))
+        self.assertEqual(provider.get("name"), "default")
+        self.assertEqual(provider.get("readable_name"), "Default")
