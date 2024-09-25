@@ -31,6 +31,7 @@ class TestUtils(APITestCase):
                 "ENV_JOB_GATEWAY_TOKEN": "42",
                 "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
                 "ENV_JOB_ID_GATEWAY": "42",
+                "ENV_JOB_ARGUMENTS": "{}",
             },
         )
 

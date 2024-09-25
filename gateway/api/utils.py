@@ -123,10 +123,13 @@ def build_env_variables(token, job: Job, args: str = None) -> Dict[str, str]:
         env variables dict
     """
     extra = {}
-    arguments = "{}"
     # only set arguments if size is <1MB
-    if args and sys.getsizeof(args) < 1000000:
-        arguments = args
+    arguments = "{}"
+    if args:
+        if sys.getsizeof(args) < 1000000:
+            arguments = args
+        else:
+            logger.warn("arguments for job [%s] are > 1MB and will not be written to env var", job.id)
 
     if settings.SETTINGS_AUTH_MECHANISM != "default":
         extra = {
