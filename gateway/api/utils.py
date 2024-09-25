@@ -131,7 +131,7 @@ def build_env_variables(token, job: Job, args: str = None) -> Dict[str, str]:
         else:
             logger.warn(
                 "arguments for job [%s] are > 1MB and will not be written to env var",
-                job.id
+                job.id,
             )
 
     if settings.SETTINGS_AUTH_MECHANISM != "default":
