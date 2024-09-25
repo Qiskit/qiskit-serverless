@@ -42,6 +42,7 @@ class TestUtils(APITestCase):
                 "ENV_JOB_GATEWAY_TOKEN": "42",
                 "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
                 "ENV_JOB_ID_GATEWAY": "42",
+                "ENV_JOB_ARGUMENTS": "{}",
                 "QISKIT_IBM_TOKEN": "42",
                 "QISKIT_IBM_CHANNEL": "ibm_quantum",
                 "QISKIT_IBM_URL": "https://auth.quantum-computing.ibm.com/api",
