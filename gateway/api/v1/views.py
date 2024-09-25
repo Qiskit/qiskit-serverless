@@ -149,5 +149,5 @@ class CatalogViewSet(views.CatalogViewSet):
         },
     )
     @action(methods=["GET"], detail=False)
-    def retrieve(self, request):
+    def get_by_title(self, request):
         return super().get_by_title(request)
