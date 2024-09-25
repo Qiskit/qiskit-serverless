@@ -160,7 +160,7 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(provider.get("readable_name"), "Default")
 
     def test_catalog_by_title_non_auth_user(self):
-        """Tests catalog retrieve non-authenticated."""
+        """Tests catalog get by title non-authenticated."""
         url = "/api/v1/catalog/get_by_title/"
         response = self.client.get(
             url, {"title": "Public-Function", "provider": "default"}, format="json"
@@ -178,7 +178,7 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(provider.get("readable_name"), "Default")
 
     def test_catalog_404_by_title_non_auth_user(self):
-        """Tests catalog retrieve a non-existent function as non-authenticated."""
+        """Tests catalog get by title a non-existent function as non-authenticated."""
 
         url = "/api/v1/catalog/get_by_title/"
         response = self.client.get(
@@ -187,7 +187,7 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_catalog_404_by_title_auth_user(self):
-        """Tests catalog retrieve a non-existent function as authenticated."""
+        """Tests catalog get by title a non-existent function as authenticated."""
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
 
@@ -198,7 +198,7 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_catalog_by_title_with_auth_user_without_run_permission(self):
-        """Tests catalog retrieve as authenticated without run permission."""
+        """Tests catalog get by title as authenticated without run permission."""
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
 
@@ -219,7 +219,7 @@ class TestCatalogApi(APITestCase):
         self.assertEqual(provider.get("readable_name"), "Default")
 
     def test_catalog_by_title_with_auth_user_with_run_permission(self):
-        """Tests catalog retrieve as authenticated with run permission."""
+        """Tests catalog get by title as authenticated with run permission."""
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
 
