@@ -138,23 +138,5 @@ class MockAuthBackend(authentication.BaseAuthentication):
                         )
                         provider.admin_groups.add(group)
                         logger.info("New provider created")
-                        return user, CustomToken(token.encode())
-
-                if token == settings.SETTINGS_AUTH_MOCK_TOKEN + "1":
-                    user, created = User.objects.get_or_create(username="mockuser1")
-                    if created:
-                        logger.info("New user created")
-                        view_program = Permission.objects.get(
-                            codename=VIEW_PROGRAM_PERMISSION
-                        )
-                        run_program = Permission.objects.get(
-                            codename=RUN_PROGRAM_PERMISSION
-                        )
-                        group, created = Group.objects.get_or_create(name="mockgroup1")
-                        group.permissions.add(view_program)
-                        group.permissions.add(run_program)
-                        group.user_set.add(user)
-                        logger.info("New group created")
-                        return user, CustomToken(token.encode())
 
         return user, CustomToken(token.encode()) if token else None
