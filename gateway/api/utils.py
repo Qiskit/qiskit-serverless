@@ -126,7 +126,7 @@ def build_env_variables(token, job: Job, args: str = None) -> Dict[str, str]:
     extra = {}
     # only set arguments envvar if not too big
     # remove this after sufficient time for users to upgrade client
-    arguments = "ERROR: arguments are too big. upgrade your client"
+    arguments = "{}"
     if args:
         if objsize.get_deep_size(args) < 100000:
             logger.debug("passing arguments as envvar for job %s", job.id)
