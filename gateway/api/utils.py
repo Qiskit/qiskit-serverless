@@ -17,6 +17,7 @@ from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
 from django.conf import settings
 from parsley import makeGrammar
+import objsize
 
 from .models import Job
 
@@ -112,18 +113,30 @@ def decrypt_string(string: str) -> str:
     return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
-def build_env_variables(token, job: Job, arguments: str) -> Dict[str, str]:
+def build_env_variables(token, job: Job, args: str = None) -> Dict[str, str]:
     """Builds env variables for job.
 
     Args:
         token: django request token decoded
         job: job
-        arguments: program arguments
 
     Returns:
         env variables dict
     """
     extra = {}
+    # only set arguments envvar if not too big
+    # remove this after sufficient time for users to upgrade client
+    arguments = "{}"
+    if args:
+        if objsize.get_deep_size(args) < 100000:
+            logger.debug("passing arguments as envvar for job %s", job.id)
+            arguments = args
+        else:
+            logger.warning(
+                "arguments for job %s are too large and will not be written to env var",
+                job.id,
+            )
+
     if settings.SETTINGS_AUTH_MECHANISM != "default":
         extra = {
             "QISKIT_IBM_TOKEN": str(token),

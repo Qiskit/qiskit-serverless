@@ -33,8 +33,6 @@ from qiskit.primitives import SamplerResult, EstimatorResult
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.utils.json import RuntimeDecoder, RuntimeEncoder
 
-from qiskit_serverless.core.constants import ENV_JOB_ARGUMENTS
-
 
 class QiskitObjectsEncoder(RuntimeEncoder):
     """Json encoder for Qiskit objects."""
@@ -81,4 +79,8 @@ def get_arguments() -> Dict[str, Any]:
     Returns:
         Dictionary of arguments.
     """
-    return json.loads(os.environ.get(ENV_JOB_ARGUMENTS, "{}"), cls=QiskitObjectsDecoder)
+    arguments = "{}"
+    if os.path.isfile("arguments.serverless"):
+        with open("arguments.serverless", "r", encoding="utf-8") as f:
+            arguments = f.read()
+    return json.loads(arguments, cls=QiskitObjectsDecoder)

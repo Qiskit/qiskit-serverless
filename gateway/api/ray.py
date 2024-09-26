@@ -118,6 +118,19 @@ class JobHandler:
             # get entrypoint
             entrypoint = f"python {program.entrypoint}"
 
+            # upload arguments to working directory
+            # if no arguments, write an empty dict to the arguments file
+            with open(
+                working_directory_for_upload + "/arguments.serverless",
+                "w",
+                encoding="utf-8",
+            ) as f:
+                if job.arguments:
+                    logger.debug("uploading arguments for job %s", job.id)
+                    f.write(job.arguments)
+                else:
+                    f.write({})
+
             # set tracing
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)

@@ -12,14 +12,12 @@
 
 """QiskitPattern serializers tests."""
 import json
-import os
 from unittest import TestCase, skip
 
 import numpy as np
 from qiskit.circuit.random import random_circuit
 from qiskit_ibm_runtime import QiskitRuntimeService
 
-from qiskit_serverless.core.constants import ENV_JOB_ARGUMENTS
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsDecoder,
     QiskitObjectsEncoder,
@@ -61,8 +59,8 @@ class TestArgParsing(TestCase):
         circuit = random_circuit(4, 2)
         array = np.array([[42.0], [0.0]])
 
-        os.environ[ENV_JOB_ARGUMENTS] = json.dumps(
-            {"circuit": circuit, "array": array}, cls=QiskitObjectsEncoder
-        )
+        with open("arguments.serverless", "w", encoding="utf-8") as f:
+            json.dump({"circuit": circuit, "array": array}, f, cls=QiskitObjectsEncoder)
+
         parsed_arguments = get_arguments()
         self.assertEqual(list(parsed_arguments.keys()), ["circuit", "array"])
