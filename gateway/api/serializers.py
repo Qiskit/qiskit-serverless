@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group, Permission
 from django.db.models import Q
 from rest_framework import serializers
+import objsize
 
 from api.utils import build_env_variables, encrypt_env_vars
 from .models import (

@@ -17,6 +17,7 @@ from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
 from django.conf import settings
 from parsley import makeGrammar
+import objsize
 
 from .models import Job
 
@@ -123,14 +124,16 @@ def build_env_variables(token, job: Job, args: str = None) -> Dict[str, str]:
         env variables dict
     """
     extra = {}
-    # only set arguments if size is <1MB
+    # only set arguments envvar if not too big
+    # remove this after sufficient time for users to upgrade client
     arguments = "{}"
     if args:
-        if sys.getsizeof(args) < 1000000:
+        if objsize.get_deep_size(args) < 100000:
+            logger.debug("passing arguments as envvar for job [%s]", job.id)
             arguments = args
         else:
             logger.warning(
-                "arguments for job [%s] are > 1MB and will not be written to env var",
+                "arguments for job [%s] are too large and will not be written to env var",
                 job.id,
             )
 
