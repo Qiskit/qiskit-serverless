@@ -231,7 +231,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============
 SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "default")
 SETTINGS_DEFAULT_AUTH_CLASSES = [
-    "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+    # "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
 ]
 ALL_AUTH_CLASSES_CONFIGURATION = {
     "default": SETTINGS_DEFAULT_AUTH_CLASSES,
