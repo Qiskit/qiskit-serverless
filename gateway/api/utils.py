@@ -417,3 +417,14 @@ def create_dependency_allowlist():
         raise ValueError("Unable to decode dependency allowlist") from e
 
     return allowlist
+
+
+def sanitize_name(name: str):
+    """Sanitize name"""
+    if name:
+        sanitized_name = ""
+        for c in name:
+            if c.isalnum() or c in ["_", "-", ":", "@", "/"]:
+                sanitized_name += c
+        return sanitized_name
+    return name

@@ -31,6 +31,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
+from api.utils import sanitize_name
 from utils import sanitize_file_path
 
 from .models import (
@@ -122,8 +123,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
     def get_queryset(self):
         author = self.request.user
-        title = self.request.query_params.get("title")
-        provider_name = self.request.query_params.get("provider")
+        title = sanitize_name(self.request.query_params.get("title"))
+        provider_name = sanitize_name(self.request.query_params.get("provider"))
         type_filter = self.request.query_params.get("filter")
 
         author_programs = self._get_program_queryset_for_title_and_provider(
@@ -263,7 +264,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
             author_program = self.get_run_queryset()
             author = request.user
-            title = serializer.data.get("title")
+            title = sanitize_name(serializer.data.get("title"))
             program = author_program.filter(title=title).first()
             if program is None:
                 logger.error("Qiskit Pattern [%s] was not found.", title)
@@ -378,6 +379,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
         author_groups_with_view_permissions_criteria = Q(
             instances__in=author_groups_with_view_permissions
         )
+        title = sanitize_name(title)
+        provider_name = sanitize_name(provider_name)
         if title:
             serializer = self.get_serializer_upload_program(data=self.request.data)
             provider_name, title = serializer.get_provider_name_and_title(
