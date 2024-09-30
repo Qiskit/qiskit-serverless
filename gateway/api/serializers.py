@@ -14,7 +14,7 @@ from django.contrib.auth.models import Group, Permission
 from django.db.models import Q
 from rest_framework import serializers
 
-from api.utils import build_env_variables, encrypt_env_vars
+from api.utils import build_env_variables, encrypt_env_vars, sanitize_name
 from .models import (
     Provider,
     Program,
@@ -90,10 +90,10 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         return Program.objects.filter(title=title, provider__name=provider_name).first()
 
     def create(self, validated_data):
-        title = validated_data.get("title")
+        title = sanitize_name(validated_data.get("title"))
         logger.info("Creating program [%s] with UploadProgramSerializer", title)
 
-        provider_name = validated_data.get("provider", None)
+        provider_name = sanitize_name(validated_data.get("provider", None))
         if provider_name:
             validated_data["provider"] = Provider.objects.filter(
                 name=provider_name
