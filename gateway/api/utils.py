@@ -424,7 +424,7 @@ def sanitize_name(name: str):
     if name:
         sanitized_name = ""
         for c in name:
-            if c.isalnum() or c in ["_", "-", ":", "@", "/"]:
+            if c.isalnum() or c in ["_", "-", "/"]:
                 sanitized_name += c
         return sanitized_name
     return name
