@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     "psycopg2",
     "drf_yasg",
     "corsheaders",
+    "csp",
 ]
 
 MIDDLEWARE = [
@@ -386,8 +387,8 @@ CSP_DEFAULT_SRC = "'none'"
 CSP_SCRIPT_SRC = "'none'"
 CSP_FRAME_ANCESTORS = "'self'"
 CSP_OBJECT_SRC = "'self'"
-CSP_IMG_SRC = ("'self'", "data:", "https://cdn.redoc.ly")
-CSP_STYLE_SRC_ELEM = ("'self'", "'unsafe-inline'")
+CSP_IMG_SRC = ("'self'", "data:")
+CSP_STYLE_SRC_ELEM = "'self'"
 CSP_SCRIPT_SRC_ELEM = "'self'"
 CSP_CONNECT_SRC = "'self'"
 CSP_WORKER_SRC = ("'self'", "blob:")
@@ -396,6 +397,7 @@ CSP_WORKER_SRC = ("'self'", "blob:")
 CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "runner")
 CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner")
 SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_AGE = 3600
 
 # Public group name
