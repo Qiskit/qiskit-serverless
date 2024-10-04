@@ -9,6 +9,8 @@ from typing import Optional
 
 from django.db.models import Q
 from django.contrib.auth.models import Group, Permission
+
+# pylint: disable=duplicate-code
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -29,6 +31,7 @@ from api.serializers import (
 )
 from api.models import VIEW_PROGRAM_PERMISSION, RUN_PROGRAM_PERMISSION, Program, Job
 
+# pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)

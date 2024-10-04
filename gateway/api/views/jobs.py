@@ -10,6 +10,8 @@ import time
 
 from concurrency.exceptions import RecordModifiedError
 from django.db.models import Q
+
+# pylint: disable=duplicate-code
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -24,6 +26,7 @@ from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
 
+# pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)

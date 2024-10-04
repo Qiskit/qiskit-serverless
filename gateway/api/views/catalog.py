@@ -8,6 +8,8 @@ import os
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+
+# pylint: disable=duplicate-code
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -21,6 +23,7 @@ from rest_framework.response import Response
 from api.models import Program
 from api.serializers import RetrieveCatalogSerializer
 
+# pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)

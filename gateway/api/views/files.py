@@ -11,6 +11,8 @@ from wsgiref.util import FileWrapper
 
 from django.conf import settings
 from django.http import StreamingHttpResponse
+
+# pylint: disable=duplicate-code
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -24,6 +26,7 @@ from rest_framework.response import Response
 from utils import sanitize_file_path
 from api.models import Provider
 
+# pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)
