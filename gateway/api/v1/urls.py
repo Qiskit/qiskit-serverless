@@ -3,7 +3,7 @@ URL Patterns for V1 api application.
 """
 
 from rest_framework import routers
-from . import views as v1_views
+from api.v1 import views as v1_views
 
 router = routers.DefaultRouter()
 router.register(
