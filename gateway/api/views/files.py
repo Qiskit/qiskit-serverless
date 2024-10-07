@@ -23,13 +23,20 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from utils import sanitize_file_path
+from api.services.storage import (
+    PROVIDER_STORAGE,
+    USER_STORAGE,
+    get_provider_path,
+    get_user_path,
+)
+from api.utils import sanitize_name
 from api.models import Provider
+from utils import sanitize_file_path
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
-provider = TracerProvider(resource=resource)
+tracer_provider = TracerProvider(resource=resource)
 otel_exporter = BatchSpanProcessor(
     OTLPSpanExporter(
         endpoint=os.environ.get(
@@ -38,9 +45,11 @@ otel_exporter = BatchSpanProcessor(
         insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
-provider.add_span_processor(otel_exporter)
+tracer_provider.add_span_processor(otel_exporter)
 if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+    trace._set_tracer_provider(  # pylint: disable=protected-access
+        tracer_provider, log=False
+    )
 
 
 class FilesViewSet(viewsets.ViewSet):
@@ -67,38 +76,79 @@ class FilesViewSet(viewsets.ViewSet):
         """check if user has the provider"""
         return provider_name in self.list_user_providers(user)
 
+    def user_has_provider_access(self, user, provider_name: str) -> bool:
+        """
+        This method returns True or False if the user has access to the provider or not.
+        """
+
+        provider = Provider.objects.filter(name=provider_name).first()
+        if provider is None:
+            logger.error("Provider [%s] does not exist.", provider_name)
+            return False
+
+        user_groups = user.groups.all()
+        admin_groups = provider.admin_groups.all()
+        has_access = any(group in admin_groups for group in user_groups)
+        if not has_access:
+            logger.error(
+                "User [%s] has no access to provider [%s].", user.id, provider_name
+            )
+        return has_access
+
     def list(self, request):
-        """List of available for user files."""
-        response = Response(
-            {"message": "Requested file was not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-        files = []
+        """
+        It returns a list with the names of available files.
+        Depending of the working_dir:
+            - "user": it will look under its username or username/provider_name/function_name
+            - "provider": it will look under provider_name/function_name
+        """
+
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.list", context=ctx):
-            user_dir = request.user.username
-            provider_name = request.query_params.get("provider")
-            if provider_name is not None:
-                if self.check_user_has_provider(request.user, provider_name):
-                    user_dir = provider_name
-                else:
-                    return response
-            user_dir = os.path.join(
-                sanitize_file_path(settings.MEDIA_ROOT),
-                sanitize_file_path(user_dir),
-            )
-            if os.path.exists(user_dir):
+            username = request.user.username
+            provider_name = sanitize_name(request.query_params.get("provider"))
+            function_name = sanitize_name(request.query_params.get("function"))
+            working_dir = request.query_params.get(
+                "working_dir"
+            )  # It can be "user" or "provider"
+
+            if provider_name:
+                if not self.user_has_provider_access(request.user, provider_name):
+                    return Response(
+                        {"message": "You don't have access to this provider."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+            if working_dir is USER_STORAGE:
+                files_path = get_user_path(
+                    username=username,
+                    function_name=function_name,
+                    provider_name=provider_name,
+                )
+            elif working_dir is PROVIDER_STORAGE:
+                files_path = get_provider_path(
+                    function_name=function_name, provider_name=provider_name
+                )
+            else:
+                return Response(
+                    {
+                        "message": "Working directory is not correct. Must be from a user or from a provider."  # pylint: disable=line-too-long
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if os.path.exists(files_path):
                 files = [
                     os.path.basename(path)
-                    for path in glob.glob(f"{user_dir}/*.tar")
-                    + glob.glob(f"{user_dir}/*.h5")
+                    for path in glob.glob(f"{files_path}/*.tar")
+                    + glob.glob(f"{files_path}/*.h5")
                 ]
             else:
                 logger.warning(
-                    "Directory %s does not exist for %s.", user_dir, request.user
+                    "Directory %s does not exist for %s.", files_path, request.user
                 )
-
+                files = []
         return Response({"results": files})
 
     @action(methods=["GET"], detail=False)
