@@ -120,8 +120,8 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
         description = validated_data.get("description")
         if description is not None:
-          instance.description = description
-        
+            instance.description = description
+
         instance.save()
         return instance
 
