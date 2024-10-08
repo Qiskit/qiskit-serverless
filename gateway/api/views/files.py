@@ -9,6 +9,8 @@ import mimetypes
 import os
 from wsgiref.util import FileWrapper
 
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from django.conf import settings
 from django.http import StreamingHttpResponse
 
@@ -67,6 +69,18 @@ class FilesViewSet(viewsets.ViewSet):
         """check if user has the provider"""
         return provider_name in self.list_user_providers(user)
 
+    @swagger_auto_schema(
+        operation_description="List of available for user files",
+        manual_parameters=[
+            openapi.Parameter(
+                "provider",
+                openapi.IN_QUERY,
+                description="provider name",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
+    )
     def list(self, request):
         """List of available for user files."""
         response = Response(
@@ -101,6 +115,25 @@ class FilesViewSet(viewsets.ViewSet):
 
         return Response({"results": files})
 
+    @swagger_auto_schema(
+        operation_description="List of available for user files",
+        manual_parameters=[
+            openapi.Parameter(
+                "file",
+                openapi.IN_QUERY,
+                description="file name",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                "provider",
+                openapi.IN_QUERY,
+                description="provider name",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
+    )
     @action(methods=["GET"], detail=False)
     def download(self, request):  # pylint: disable=invalid-name
         """Download selected file."""
@@ -146,6 +179,21 @@ class FilesViewSet(viewsets.ViewSet):
                     response["Content-Disposition"] = f"attachment; filename={filename}"
             return response
 
+    @swagger_auto_schema(
+        operation_description="Deletes file uploaded or produced by the programs",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "file": openapi.Schema(
+                    type=openapi.TYPE_STRING, description="file name"
+                ),
+                "provider": openapi.Schema(
+                    type=openapi.TYPE_STRING, description="provider name"
+                ),
+            },
+            required=["file"],
+        ),
+    )
     @action(methods=["DELETE"], detail=False)
     def delete(self, request):  # pylint: disable=invalid-name
         """Deletes file uploaded or produced by the programs,"""
@@ -182,6 +230,19 @@ class FilesViewSet(viewsets.ViewSet):
                     )
             return response
 
+    @swagger_auto_schema(
+        operation_description="Upload selected file",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "file": openapi.Schema(type=openapi.TYPE_FILE, description="file name"),
+                "provider": openapi.Schema(
+                    type=openapi.TYPE_STRING, description="provider name"
+                ),
+            },
+            required=["file"],
+        ),
+    )
     @action(methods=["POST"], detail=False)
     def upload(self, request):  # pylint: disable=invalid-name
         """Upload selected file."""

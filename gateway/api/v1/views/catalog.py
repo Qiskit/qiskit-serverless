@@ -3,6 +3,7 @@ Catalog views api for V1.
 """
 
 # pylint: disable=duplicate-code
+from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
 from rest_framework.decorators import action
@@ -42,6 +43,15 @@ class CatalogViewSet(views.CatalogViewSet):
 
     @swagger_auto_schema(
         operation_description="Get a specific public function in the catalog by title",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                description="A title of the function",
+                type=openapi.TYPE_STRING,
+                required=True,
+            )
+        ],
         responses={
             status.HTTP_200_OK: v1_serializers.RetrieveCatalogSerializer(many=False)
         },
