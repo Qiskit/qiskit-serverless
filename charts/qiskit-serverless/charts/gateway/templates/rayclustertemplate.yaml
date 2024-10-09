@@ -98,9 +98,11 @@ data:
                 protocol: TCP
               resources:
                 limits:
+                  nvidia.com/gpu: {{`{{gpu_request}}`}}
                   cpu: {{ .Values.application.ray.cpu }}
                   memory: {{ .Values.application.ray.memory }}Gi
                 requests:
+                  nvidia.com/gpu: {{`{{gpu_request}}`}}
                   cpu: {{ .Values.application.ray.cpu }}
                   memory: {{ .Values.application.ray.memory }}Gi
               securityContext:
@@ -230,6 +232,7 @@ data:
             serviceAccount: ray-cluster-sa
 {{- end }}
             nodeSelector:
+              {{`{{node_selector_label}}`}}
             tolerations: []
             securityContext:
               fsGroup: 1000

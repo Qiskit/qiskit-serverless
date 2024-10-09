@@ -143,6 +143,8 @@ class ComputeResource(models.Model):
         blank=True,
     )
 
+    gpu = models.BooleanField(default=False, null=False)
+
     def __str__(self):
         return self.title
 
@@ -200,6 +202,8 @@ class Job(models.Model):
         null=True,
         blank=True,
     )
+
+    gpu = models.BooleanField(default=False, null=False)
 
     def __str__(self):
         return f"<Job {self.id} | {self.status}>"

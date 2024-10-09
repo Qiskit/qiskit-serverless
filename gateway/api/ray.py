@@ -249,6 +249,14 @@ def create_ray_cluster(  # pylint: disable=too-many-branches
             job_config.auto_scaling = settings.RAY_CLUSTER_WORKER_AUTO_SCALING
         node_image = settings.RAY_NODE_IMAGE
 
+        # cpu job settings
+        node_selector_label = settings.RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL
+        gpu_request = 0
+        # if gpu job, use gpu nodes and resources
+        if job.gpu:
+            node_selector_label = settings.RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL
+            gpu_request = 1
+
         # if user specified image use specified image
         function_data = user.username
         if job.program.image is not None:
@@ -268,6 +276,8 @@ def create_ray_cluster(  # pylint: disable=too-many-branches
                 "max_workers": job_config.max_workers,
                 "auto_scaling": job_config.auto_scaling,
                 "user": user.username,
+                "node_selector_label": node_selector_label,
+                "gpu_request": gpu_request,
             }
         )
         cluster_data = yaml.safe_load(manifest)
@@ -292,6 +302,8 @@ def create_ray_cluster(  # pylint: disable=too-many-branches
         resource.owner = user
         resource.title = cluster_name
         resource.host = host
+        if job.gpu:
+            resource.gpu = True
         resource.save()
     else:
         raise RuntimeError("Something went wrong during cluster creation")

@@ -119,6 +119,10 @@ spec:
               value: {{ .Values.application.ray.minReplicas | quote }}
             - name: RAY_CLUSTER_WORKER_MAX_REPLICAS
               value: {{ .Values.application.ray.maxReplicas | quote }}
+            - name: RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL
+              value: {{ .Values.application.nodeSelector.cpu | quote }}
+            - name: RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL
+              value: {{ .Values.application.nodeSelector.gpu | quote }}
             - name: LIMITS_CPU_PER_TASK
               value: {{ .Values.application.ray.cpu | quote }}
             - name: LIMITS_MEMORY_PER_TASK
@@ -310,6 +314,10 @@ spec:
               value: {{ .Release.Namespace }}
             - name: RAY_NODE_IMAGE
               value: {{ .Values.application.ray.nodeImage | quote }}
+            - name: RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL
+              value: {{ .Values.application.nodeSelector.cpu | quote }}
+            - name: RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL
+              value: {{ .Values.application.nodeSelector.gpu | quote }}
             - name: LIMITS_JOBS_PER_USER
               value: {{ .Values.application.limits.maxJobsPerUser | quote }}
             - name: LIMITS_MAX_CLUSTERS

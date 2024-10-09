@@ -15,7 +15,7 @@ from opentelemetry import trace
 
 from api.models import Job, ComputeResource
 from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
-from api.utils import generate_cluster_name
+from api.utils import generate_cluster_name, create_gpujob_allowlist
 from main import settings as config
 
 
@@ -26,6 +26,7 @@ logger = logging.getLogger("commands")
 def execute_job(job: Job) -> Job:
     """Executes program.
 
+    0. configure compute resource type
     1. check if cluster exists
        1.1 if not: create cluster
     2. connect to cluster
@@ -41,6 +42,13 @@ def execute_job(job: Job) -> Job:
 
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
+        # configure functions to use gpus
+        gpujobs = create_gpujob_allowlist()
+        if job.program.provider and job.program.provider.name in gpujobs["gpu-functions"].keys():
+            logger.debug("Job %s will be run on GPU nodes", job.id)
+            job.gpu = True
+            job.save()
+
         compute_resource = ComputeResource.objects.filter(
             owner=job.author, active=True
         ).first()

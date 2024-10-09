@@ -9,8 +9,8 @@ RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
 WORKDIR /usr/src/app
 
 # set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 USER 0
 COPY gateway/requirements.txt .
