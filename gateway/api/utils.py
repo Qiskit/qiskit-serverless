@@ -1,5 +1,6 @@
 """Utilities."""
 
+# pylint: disable=duplicate-code
 import base64
 from collections import OrderedDict
 import inspect

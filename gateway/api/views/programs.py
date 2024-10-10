@@ -5,6 +5,7 @@ Version views inherit from the different views.
 """
 import logging
 import os
+import re
 from typing import Optional
 
 from django.db.models import Q
@@ -106,6 +107,18 @@ class ProgramViewSet(viewsets.GenericViewSet):
         title = sanitize_name(self.request.query_params.get("title"))
         provider_name = sanitize_name(self.request.query_params.get("provider"))
         type_filter = self.request.query_params.get("filter")
+
+        pk = self.kwargs.get("pk")
+        if pk and not re.match(
+            "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            pk,
+            re.IGNORECASE,
+        ):
+            logger.warning(
+                "Invalid job id format id[%s].",
+                pk,
+            )
+            return None
 
         author_programs = self._get_program_queryset_for_title_and_provider(
             author=author,

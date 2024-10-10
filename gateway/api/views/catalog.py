@@ -5,6 +5,7 @@ Version views inherit from the different views.
 """
 import logging
 import os
+import re
 
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -61,6 +62,19 @@ class CatalogViewSet(viewsets.GenericViewSet):
         """
         QuerySet to list public programs in the catalog
         """
+
+        pk = self.kwargs.get("pk")
+        if pk and not re.match(
+            "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            pk,
+            re.IGNORECASE,
+        ):
+            logger.warning(
+                "Invalid job id format id[%s].",
+                pk,
+            )
+            return None
+
         public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
 
         if public_group is None:
