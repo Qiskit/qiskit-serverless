@@ -1,17 +1,19 @@
 """Test utils."""
 import time
 
-from qiskit_serverless import BaseClient
+from qiskit_serverless import RayClient
 from qiskit_serverless.core.job import Job
+from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
 
-def wait_for_job_client(serverless: BaseClient, timeout: int = 60):
-    """Utility function that wait for job client to awake."""
+def wait_for_ray_ready(connection_url: str, timeout: int = 60):
+    client = None
     must_finish = time.time() + timeout
-    while time.time() < must_finish:
-        if serverless.job_client() is not None:
-            break
-        time.sleep(1)
+    while time.time() < must_finish and not client:
+        try:
+            client = JobSubmissionClient(connection_url)
+        except:
+            time.sleep(1)
 
 
 def wait_for_job_completion(job: Job, timeout: int = 60):

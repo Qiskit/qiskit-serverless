@@ -58,7 +58,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     version: Optional[str] = None
     tags: Optional[List[str]] = None
     raw_data: Optional[Dict[str, Any]] = None
-    job_client: Optional[Any] = None
+    client: Optional[Any] = None
     image: Optional[str] = None
     validate: bool = True
     schema: Optional[str] = None
@@ -100,7 +100,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         Returns:
             Job: job handler for function execution
         """
-        if self.job_client is None:
+        if self.client is None:
             raise ValueError("No clients specified for a function.")
 
         if self.validate:
@@ -112,7 +112,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
                 )
 
         config = kwargs.pop("config", None)
-        return self.job_client.run(
+        return self.client.run(
             program=self.title,
             provider=self.provider,
             arguments=kwargs,
@@ -149,7 +149,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
             Job,
         )
 
-        if self.job_client is None:
+        if self.client is None:
             raise ValueError("No clients specified for a function.")
 
         if self.validate:
@@ -160,12 +160,12 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
                     f"Function validation failed. Validation errors:\n {error_string}",
                 )
 
-        response = self.job_client.get_jobs(
+        response = self.client.get_jobs(
             title=self.title,
             provider=self.provider,
         )
         jobs = [
-            Job(job_id=job.get("id"), job_client=self.job_client, raw_data=job)
+            Job(job_id=job.get("id"), client=self.client, raw_data=job)
             for job in response
         ]
         return jobs

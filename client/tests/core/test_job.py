@@ -1,19 +1,25 @@
 """Tests job."""
 import os
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import requests_mock
 
 from qiskit.circuit.random import random_circuit
 
+from qiskit_serverless import ServerlessClient
 from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
     ENV_JOB_GATEWAY_TOKEN,
 )
-from qiskit_serverless.core.job import save_result, GatewayJobClient
+from qiskit_serverless.core.job import save_result
+
+
+class ResponseMock:
+    ok = True
+    text = "{}"
 
 
 class TestJob(TestCase):
@@ -40,9 +46,10 @@ class TestJob(TestCase):
             )
             self.assertTrue(result)
 
+    @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_filtered_logs(self):
         """Tests job filtered log."""
-        client = GatewayJobClient("host", "token", "version")
+        client = ServerlessClient(host="host", token="token", version="version")
         client.logs = MagicMock(
             return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n",  # pylint: disable=line-too-long
         )
