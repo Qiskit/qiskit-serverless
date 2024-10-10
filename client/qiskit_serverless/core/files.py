@@ -33,7 +33,7 @@ import requests
 from opentelemetry import trace
 from tqdm import tqdm
 
-from qiskit_serverless.core.constants import REQUESTS_TIMEOUT
+from qiskit_serverless.core.constants import REQUESTS_STREAMING_TIMEOUT, REQUESTS_TIMEOUT
 from qiskit_serverless.utils.json import safe_json_request
 
 
@@ -95,7 +95,7 @@ class GatewayFilesClient:
                     data={"provider": provider},
                     stream=True,
                     headers={"Authorization": f"Bearer {self._token}"},
-                    timeout=REQUESTS_TIMEOUT,
+                    timeout=REQUESTS_STREAMING_TIMEOUT,
                 ) as req:
                     if req.ok:
                         return req.text
