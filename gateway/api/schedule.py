@@ -44,7 +44,10 @@ def execute_job(job: Job) -> Job:
     with tracer.start_as_current_span("execute.job") as span:
         # configure functions to use gpus
         gpujobs = create_gpujob_allowlist()
-        if job.program.provider and job.program.provider.name in gpujobs["gpu-functions"].keys():
+        if (
+                job.program.provider
+                and job.program.provider.name in gpujobs["gpu-functions"].keys()
+        ):
             logger.debug("Job %s will be run on GPU nodes", job.id)
             job.gpu = True
             job.save()

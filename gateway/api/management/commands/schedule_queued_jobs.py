@@ -31,11 +31,19 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-        number_of_clusters_running = ComputeResource.objects.filter(active=True, gpu=False).count()
-        number_of_gpu_clusters_running = ComputeResource.objects.filter(active=True, gpu=True).count()
+        number_of_clusters_running = ComputeResource.objects.filter(
+            active=True, gpu=False
+        ).count()
+        number_of_gpu_clusters_running = ComputeResource.objects.filter(
+            active=True, gpu=True
+        ).count()
 
-        self.schedule_jobs_if_slots_available(max_ray_clusters_possible, number_of_clusters_running, False)
-        self.schedule_jobs_if_slots_available(max_gpu_clusters_possible, number_of_gpu_clusters_running, True)
+        self.schedule_jobs_if_slots_available(
+            max_ray_clusters_possible, number_of_clusters_running, False
+        )
+        self.schedule_jobs_if_slots_available(
+            max_gpu_clusters_possible, number_of_gpu_clusters_running, True
+        )
 
 
     def schedule_jobs_if_slots_available(self, max_ray_clusters_possible, number_of_clusters_running, gpu_job):

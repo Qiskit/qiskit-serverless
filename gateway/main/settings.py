@@ -369,11 +369,13 @@ RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(
 )
 
 RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL = os.environ.get(
-    "RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL", "ibm-cloud.kubernetes.io/worker-pool-name: default"
+    "RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL",
+    "ibm-cloud.kubernetes.io/worker-pool-name: default",
 )
 
 RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL = os.environ.get(
-    "RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL", "ibm-cloud.kubernetes.io/worker-pool-name: gpu-workers"
+    "RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL",
+    "ibm-cloud.kubernetes.io/worker-pool-name: gpu-workers",
 )
 
 PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
