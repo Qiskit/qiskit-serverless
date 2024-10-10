@@ -45,8 +45,8 @@ def execute_job(job: Job) -> Job:
         # configure functions to use gpus
         gpujobs = create_gpujob_allowlist()
         if (
-                job.program.provider
-                and job.program.provider.name in gpujobs["gpu-functions"].keys()
+            job.program.provider
+            and job.program.provider.name in gpujobs["gpu-functions"].keys()
         ):
             logger.debug("Job %s will be run on GPU nodes", job.id)
             job.gpu = True
