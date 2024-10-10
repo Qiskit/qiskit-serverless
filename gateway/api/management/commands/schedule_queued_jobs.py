@@ -45,7 +45,6 @@ class Command(BaseCommand):
             max_gpu_clusters_possible, number_of_gpu_clusters_running, True
         )
 
-
     def schedule_jobs_if_slots_available(
         self, max_ray_clusters_possible, number_of_clusters_running, gpu_job
     ):
