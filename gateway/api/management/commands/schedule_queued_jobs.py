@@ -48,6 +48,7 @@ class Command(BaseCommand):
     def schedule_jobs_if_slots_available(
         self, max_ray_clusters_possible, number_of_clusters_running, gpu_job
     ):
+        """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
         if gpu_job:
             logger.info("%s free GPU cluster slots.", free_clusters_slots)
