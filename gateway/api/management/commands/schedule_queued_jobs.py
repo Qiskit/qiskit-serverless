@@ -30,9 +30,30 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
-        number_of_clusters_running = ComputeResource.objects.filter(active=True).count()
+        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
+        number_of_clusters_running = ComputeResource.objects.filter(
+            active=True, gpu=False
+        ).count()
+        number_of_gpu_clusters_running = ComputeResource.objects.filter(
+            active=True, gpu=True
+        ).count()
+
+        self.schedule_jobs_if_slots_available(
+            max_ray_clusters_possible, number_of_clusters_running, False
+        )
+        self.schedule_jobs_if_slots_available(
+            max_gpu_clusters_possible, number_of_gpu_clusters_running, True
+        )
+
+    def schedule_jobs_if_slots_available(
+        self, max_ray_clusters_possible, number_of_clusters_running, gpu_job
+    ):
+        """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
-        logger.info("%s free cluster slots.", free_clusters_slots)
+        if gpu_job:
+            logger.info("%s free GPU cluster slots.", free_clusters_slots)
+        else:
+            logger.info("%s free CPU cluster slots.", free_clusters_slots)
 
         if free_clusters_slots < 1:
             # no available resources
@@ -44,6 +65,9 @@ class Command(BaseCommand):
         else:
             # we have available resources
             jobs = get_jobs_to_schedule_fair_share(slots=free_clusters_slots)
+
+            # only process jobs of the appropriate compute type
+            jobs = [job for job in jobs if job.gpu is gpu_job]
 
             for job in jobs:
                 # only for local mode
