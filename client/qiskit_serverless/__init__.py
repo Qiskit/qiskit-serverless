@@ -22,20 +22,15 @@
 from importlib_metadata import version as metadata_version, PackageNotFoundError
 
 from .core import (
-    BaseProvider,
     BaseClient,
     distribute_task,
     distribute_qiskit_function,
     get,
     put,
     get_refs_by_status,
-    ServerlessProvider,
     ServerlessClient,
-    IBMServerlessProvider,
     IBMServerlessClient,
-    RayProvider,
     RayClient,
-    LocalProvider,
     LocalClient,
     save_result,
     Configuration,

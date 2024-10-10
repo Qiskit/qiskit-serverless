@@ -51,25 +51,13 @@ Core abstractions
 
 """
 
-from .client import (
-    BaseProvider,
-    BaseClient,
-    ComputeResource,
-    ServerlessProvider,
-    ServerlessClient,
-    IBMServerlessProvider,
-    IBMServerlessClient,
-    LocalProvider,
-    LocalClient,
-    RayProvider,
-    RayClient,
-)
+from .client import BaseClient
+
+from .clients.LocalClient import LocalClient
+from .clients.RayClient import RayClient
+from .clients.ServerlessClient import ServerlessClient, IBMServerlessClient
 
 from .job import (
-    BaseJobClient,
-    RayJobClient,
-    GatewayJobClient,
-    LocalJobClient,
     Job,
     save_result,
     Configuration,
