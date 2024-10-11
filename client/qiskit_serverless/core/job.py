@@ -48,16 +48,13 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_ID_GATEWAY,
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
-    MAX_ARTIFACT_FILE_SIZE_MB,
 )
 
-from qiskit_serverless.core.function import QiskitFunction
-from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
-from qiskit_serverless.utils.json import is_jsonable, safe_json_request
+from qiskit_serverless.utils.json import is_jsonable
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 

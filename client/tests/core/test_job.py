@@ -1,4 +1,6 @@
 """Tests job."""
+
+# pylint: disable=too-few-public-methods
 import os
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock, patch
@@ -18,6 +20,8 @@ from qiskit_serverless.core.job import save_result
 
 
 class ResponseMock:
+    """Utility class to mock request.get response with a json"""
+
     ok = True
     text = "{}"
 

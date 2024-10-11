@@ -1,15 +1,11 @@
 """Tests jobs."""
 import os
 
-import ray
-
 from testcontainers.compose import DockerCompose
 
 from qiskit_serverless import RayClient, QiskitFunction
 from qiskit_serverless.core.job import Job
 from tests.utils import wait_for_ray_ready, wait_for_job_completion
-
-import time
 
 resources_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "../resources"

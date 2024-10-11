@@ -88,6 +88,8 @@ class LocalClient(BaseClient):
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> Job:
+        # pylint: disable=too-many-locals
+        title = ""
         if isinstance(program, QiskitFunction):
             title = program.title
         else:
@@ -129,8 +131,12 @@ class LocalClient(BaseClient):
             result = results.group(1)
 
         job = Job(job_id=str(uuid4()), client=self)
-        entry = {"status": status, "logs": output, "result": result, "job": job}
-        self._jobs[job.job_id] = entry
+        self._jobs[job.job_id] = {
+            "status": status,
+            "logs": output,
+            "result": result,
+            "job": job,
+        }
         return job
 
     def status(self, job_id: str):
@@ -189,9 +195,7 @@ class LocalClient(BaseClient):
     def get_function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
-        functions = {
-            function.title: function for function in self.client.get_programs()
-        }
+        functions = {function.title: function for function in self.get_functions()}
         return functions.get(title)
 
     #####################

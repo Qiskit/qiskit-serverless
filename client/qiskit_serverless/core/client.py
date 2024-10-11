@@ -95,7 +95,6 @@ class BaseClient(JsonSerializable, ABC):
         Returns:
             list of jobs.
         """
-        pass
 
     @abstractmethod
     def get_job(self, job_id: str) -> Optional[Job]:
@@ -107,9 +106,16 @@ class BaseClient(JsonSerializable, ABC):
         Returns:
             Job instance
         """
-        pass
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        """Returns job by job id.
+
+        Args:
+            job_id: job id
+
+        Returns:
+            Job instance
+        """
         warnings.warn(
             "`get_job_by_id` method has been deprecated. "
             "And will be removed in future releases. "
@@ -144,34 +150,28 @@ class BaseClient(JsonSerializable, ABC):
         Returns:
             Job
         """
-        pass
 
     @abstractmethod
     def status(self, job_id: str) -> str:
         """Check status."""
-        pass
 
     @abstractmethod
     def stop(
         self, job_id: str, service: Optional[QiskitRuntimeService] = None
     ) -> Union[str, bool]:
         """Stops job/program."""
-        pass
 
     @abstractmethod
     def result(self, job_id: str) -> Any:
         """Return results."""
-        pass
 
     @abstractmethod
     def logs(self, job_id: str) -> str:
         """Return logs."""
-        pass
 
     @abstractmethod
     def filtered_logs(self, job_id: str, **kwargs) -> str:
         """Return filtered logs."""
-        pass
 
     #########################
     ####### Functions #######
@@ -180,23 +180,21 @@ class BaseClient(JsonSerializable, ABC):
     @abstractmethod
     def upload(self, program: QiskitFunction) -> Optional[QiskitFunction]:
         """Uploads program."""
-        pass
 
     @abstractmethod
     def get_functions(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
-        pass
 
     @abstractmethod
     def get_function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
         """Returns program based on parameters."""
-        pass
 
     def get(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
+        """Returns program based on parameters."""
         warnings.warn(
             "`get` method has been deprecated. "
             "And will be removed in future releases. "
@@ -206,6 +204,7 @@ class BaseClient(JsonSerializable, ABC):
         return self.get_function(title, provider=provider)
 
     def list(self, **kwargs) -> List[QiskitFunction]:
+        """Returns list of available programs."""
         warnings.warn(
             "`list` method has been deprecated. "
             "And will be removed in future releases. "
@@ -221,7 +220,6 @@ class BaseClient(JsonSerializable, ABC):
     @abstractmethod
     def files(self) -> List[str]:
         """Returns list of available files produced by programs to download."""
-        pass
 
     @abstractmethod
     def file_download(
@@ -231,17 +229,14 @@ class BaseClient(JsonSerializable, ABC):
         download_location: str = "./",
     ):
         """Download file."""
-        pass
 
     @abstractmethod
     def file_delete(self, file: str):
         """Deletes file uploaded or produced by the programs,"""
-        pass
 
     @abstractmethod
     def file_upload(self, file: str):
         """Upload file."""
-        pass
 
     ######################
     ####### Widget #######
