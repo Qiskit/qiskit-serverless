@@ -145,7 +145,7 @@ class ServerlessClient(BaseClient):
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/jobs",
                     params=kwargs,
-                    headers={"Authorization": f"Bearer {self._token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -211,7 +211,7 @@ class ServerlessClient(BaseClient):
                 request=lambda: requests.post(
                     url=url,
                     json=data,
-                    headers={"Authorization": f"Bearer {self._token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -227,7 +227,7 @@ class ServerlessClient(BaseClient):
             response_data = safe_json_request(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                    headers={"Authorization": f"Bearer {self._token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -248,7 +248,7 @@ class ServerlessClient(BaseClient):
             response_data = safe_json_request(
                 request=lambda: requests.post(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
-                    headers={"Authorization": f"Bearer {self._token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     timeout=REQUESTS_TIMEOUT,
                     json=data,
                 )
@@ -262,7 +262,7 @@ class ServerlessClient(BaseClient):
             response_data = safe_json_request(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                    headers={"Authorization": f"Bearer {self._token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -276,7 +276,7 @@ class ServerlessClient(BaseClient):
             response_data = safe_json_request(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
-                    headers={"Authorization": f"Bearer {self._token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -316,12 +316,12 @@ class ServerlessClient(BaseClient):
             if program.image is not None:
                 # upload function with custom image
                 program_title = _upload_with_docker_image(
-                    program=program, url=url, token=self._token, span=span
+                    program=program, url=url, token=self.token, span=span
                 )
             elif program.entrypoint is not None:
                 # upload funciton with artifact
                 program_title = _upload_with_artifact(
-                    program=program, url=url, token=self._token, span=span
+                    program=program, url=url, token=self.token, span=span
                 )
             else:
                 raise QiskitServerlessException(
@@ -337,7 +337,7 @@ class ServerlessClient(BaseClient):
             response_data = safe_json_request(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/programs",
-                    headers={"Authorization": f"Bearer {self._token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     params=kwargs,
                     timeout=REQUESTS_TIMEOUT,
                 )
@@ -366,7 +366,7 @@ class ServerlessClient(BaseClient):
             response_data = safe_json_request(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
-                    headers={"Authorization": f"Bearer {self._token}"},
+                    headers={"Authorization": f"Bearer {self.token}"},
                     params={"provider": provider},
                     timeout=REQUESTS_TIMEOUT,
                 )
