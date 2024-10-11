@@ -23,9 +23,9 @@ Qiskit Serverless provider
 .. autosummary::
     :toctree: ../stubs/
 
-    ComputeResource
     ServerlessClient
 """
+# pylint: disable=duplicate-code
 import json
 import warnings
 from typing import Optional, List, Dict, Any, Union
