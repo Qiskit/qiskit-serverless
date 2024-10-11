@@ -154,11 +154,11 @@ class RayClient(BaseClient):
         """Uploads program."""
         raise NotImplementedError("Upload is not available for RayClient.")
 
-    def get_programs(self, **kwargs) -> List[QiskitFunction]:
+    def get_functions(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
         raise NotImplementedError("get_programs is not available for RayClient.")
 
-    def get_program(
+    def get_function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
         """Returns program based on parameters."""

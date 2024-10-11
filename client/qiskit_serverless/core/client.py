@@ -26,7 +26,7 @@ Qiskit Serverless provider
     ComputeResource
     BaseClient
 """
-# pylint: disable=duplicate-code
+import warnings
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any, Union
 
@@ -170,16 +170,38 @@ class BaseClient(JsonSerializable, ABC):
         pass
 
     @abstractmethod
-    def get_programs(self, **kwargs) -> List[QiskitFunction]:
+    def get_functions(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
         pass
 
     @abstractmethod
-    def get_program(
+    def get_function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
         """Returns program based on parameters."""
         pass
+
+    def get(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
+        warnings.warn(
+            "`get` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `get_function` instead.",
+            DeprecationWarning,
+        )
+        return self.get_function(title, provider=provider)
+
+    def list(
+        self, title: str, provider: Optional[str] = None
+    ) -> Optional[QiskitFunction]:
+        warnings.warn(
+            "`list` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `get_functions` instead.",
+            DeprecationWarning,
+        )
+        return self.get_functions(title, provider=provider)
 
     #####################
     ####### FILES #######

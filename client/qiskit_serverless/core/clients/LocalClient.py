@@ -174,7 +174,7 @@ class LocalClient(BaseClient):
         )
         return program.title
 
-    def get_programs(self, **kwargs) -> List[QiskitFunction]:
+    def get_functions(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of programs."""
         return [
             QiskitFunction(
@@ -186,7 +186,7 @@ class LocalClient(BaseClient):
             for program in self._patterns
         ]
 
-    def get_program(
+    def get_function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
         functions = {

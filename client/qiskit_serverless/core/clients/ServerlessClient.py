@@ -330,7 +330,7 @@ class ServerlessClient(BaseClient):
 
         return program_title
 
-    def get_programs(self, **kwargs) -> List[QiskitFunction]:
+    def get_functions(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("program.list"):
@@ -353,7 +353,7 @@ class ServerlessClient(BaseClient):
             for program in response_data
         ]
 
-    def get_program(
+    def get_function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
         """Returns program based on parameters."""
