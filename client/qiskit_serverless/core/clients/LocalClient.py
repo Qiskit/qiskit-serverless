@@ -55,8 +55,6 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
 )
 
-TIMEOUT = 30
-
 
 class LocalClient(BaseClient):
     """LocalClient."""

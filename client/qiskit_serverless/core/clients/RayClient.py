@@ -46,8 +46,6 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
 )
 
-TIMEOUT = 30
-
 from qiskit_serverless.core.client import BaseClient
 
 

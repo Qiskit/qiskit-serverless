@@ -24,7 +24,7 @@ Qiskit Serverless provider
     :toctree: ../stubs/
 
     ComputeResource
-    ServerlessClient
+    BaseClient
 """
 # pylint: disable=duplicate-code
 from abc import ABC, abstractmethod
@@ -36,8 +36,6 @@ from qiskit_serverless.core.job import Job
 from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.utils import JsonSerializable
 from qiskit_serverless.visualizaiton import Widget
-
-TIMEOUT = 30
 
 
 class BaseClient(JsonSerializable, ABC):
@@ -71,7 +69,6 @@ class BaseClient(JsonSerializable, ABC):
         self.host = host
         self.token = token
 
-    # ?¿¿?¿?
     @classmethod
     def from_dict(cls, dictionary: dict):
         return BaseClient(**dictionary)
@@ -213,9 +210,9 @@ class BaseClient(JsonSerializable, ABC):
         """Upload file."""
         pass
 
-    #####################
-    ####### ????? #######
-    #####################
+    ######################
+    ####### Widget #######
+    ######################
 
     def widget(self):
         """Widget for information about provider and jobs."""

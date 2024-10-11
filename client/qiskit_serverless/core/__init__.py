@@ -31,11 +31,7 @@ Core abstractions
     BaseClient
     RayClient
     LocalClient
-    ComputeResource
     Job
-    GatewayJobClient
-    BaseJobClient
-    RayJobClient
     save_result
     QiskitPattern
     QiskitFunction

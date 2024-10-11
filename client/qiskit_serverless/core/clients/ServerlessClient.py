@@ -63,8 +63,6 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsDecoder,
 )
 
-TIMEOUT = 30
-
 
 class ServerlessClient(BaseClient):
     """
