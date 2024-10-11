@@ -106,6 +106,15 @@ class BaseClient(JsonSerializable, ABC):
         """
         pass
 
+    def get_job_by_id(self, job_id: str) -> Optional[Job]:
+        warnings.warn(
+            "`get_job_by_id` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `get_job` instead.",
+            DeprecationWarning,
+        )
+        return self.get_job(job_id)
+
     @abstractmethod
     def run(
         self,
