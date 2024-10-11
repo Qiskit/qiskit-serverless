@@ -201,16 +201,14 @@ class BaseClient(JsonSerializable, ABC):
         )
         return self.get_function(title, provider=provider)
 
-    def list(
-        self, title: str, provider: Optional[str] = None
-    ) -> Optional[QiskitFunction]:
+    def list(self, **kwargs) -> List[QiskitFunction]:
         warnings.warn(
             "`list` method has been deprecated. "
             "And will be removed in future releases. "
             "Please, use `get_functions` instead.",
             DeprecationWarning,
         )
-        return self.get_functions(title, provider=provider)
+        return self.get_functions(kwargs)
 
     #####################
     ####### FILES #######
