@@ -32,7 +32,10 @@ from typing import Optional, List, Dict, Any, Union
 
 from qiskit_ibm_runtime import QiskitRuntimeService
 
-from qiskit_serverless.core.job import Job
+from qiskit_serverless.core.job import (
+    Job,
+    Configuration,
+)
 from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.utils import JsonSerializable
 from qiskit_serverless.visualizaiton import Widget
@@ -120,6 +123,7 @@ class BaseClient(JsonSerializable, ABC):
         self,
         program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> Job:
         """Execute a program as a async job.
 

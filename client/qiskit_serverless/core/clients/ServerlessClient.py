@@ -180,7 +180,6 @@ class ServerlessClient(BaseClient):
     def run(
         self,
         program: Union[QiskitFunction, str],
-        provider: Optional[str] = None,
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> Job:
@@ -192,14 +191,14 @@ class ServerlessClient(BaseClient):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
             span.set_attribute("program", title)
-            span.set_attribute("provider", provider)
+            span.set_attribute("provider", program.provider)
             span.set_attribute("arguments", str(arguments))
 
             url = f"{self.host}/api/{self.version}/programs/run/"
 
             data = {
                 "title": title,
-                "provider": provider,
+                "provider": program.provider,
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
             }  # type: Dict[str, Any]
             if config:

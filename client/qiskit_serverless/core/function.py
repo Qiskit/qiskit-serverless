@@ -113,8 +113,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
 
         config = kwargs.pop("config", None)
         return self.client.run(
-            program=self.title,
-            provider=self.provider,
+            program=self,
             arguments=kwargs,
             config=config,
         )

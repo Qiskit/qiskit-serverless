@@ -39,6 +39,7 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_ARGUMENTS,
 )
 from qiskit_serverless.core.job import (
+    Configuration,
     Job,
 )
 from qiskit_serverless.core.function import QiskitFunction
@@ -95,6 +96,7 @@ class RayClient(BaseClient):
         self,
         program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
     ) -> Job:
         if not isinstance(program, QiskitFunction):
             warnings.warn(
