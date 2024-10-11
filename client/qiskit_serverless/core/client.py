@@ -208,7 +208,7 @@ class BaseClient(JsonSerializable, ABC):
             "Please, use `get_functions` instead.",
             DeprecationWarning,
         )
-        return self.get_functions(kwargs)
+        return self.get_functions(**kwargs)
 
     #####################
     ####### FILES #######
