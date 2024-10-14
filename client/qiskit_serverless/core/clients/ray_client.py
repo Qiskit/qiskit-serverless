@@ -166,28 +166,3 @@ class RayClient(BaseClient):
     ) -> Optional[QiskitFunction]:
         """Returns program based on parameters."""
         raise NotImplementedError("get_program is not available for RayClient.")
-
-    #####################
-    ####### FILES #######
-    #####################
-
-    def files(self) -> List[str]:
-        """Returns list of available files produced by programs to download."""
-        raise NotImplementedError("files is not available for RayClient.")
-
-    def file_download(
-        self,
-        file: str,
-        target_name: Optional[str] = None,
-        download_location: str = "./",
-    ):
-        """Download file."""
-        raise NotImplementedError("file_download is not available for RayClient.")
-
-    def file_delete(self, file: str):
-        """Deletes file uploaded or produced by the programs,"""
-        raise NotImplementedError("file_delete is not available for RayClient.")
-
-    def file_upload(self, file: str):
-        """Upload file."""
-        raise NotImplementedError("file_upload is not available for RayClient.")

@@ -27,7 +27,6 @@ Qiskit Serverless provider
 """
 # pylint: disable=duplicate-code
 import json
-import logging
 import os.path
 import os
 import re
@@ -197,36 +196,3 @@ class LocalClient(BaseClient):
     ) -> Optional[QiskitFunction]:
         functions = {function.title: function for function in self.get_functions()}
         return functions.get(title)
-
-    #####################
-    ####### FILES #######
-    #####################
-
-    def files(self) -> List[str]:
-        if self.in_test:
-            logging.warning("files method is not implemented in LocalProvider.")
-            return []
-        raise NotImplementedError("files method is not implemented in LocalProvider.")
-
-    def file_upload(self, file: str):
-        if self.in_test:
-            logging.warning("file_upload method is not implemented in LocalProvider.")
-            return
-        raise NotImplementedError("files method is not implemented in LocalProvider.")
-
-    def file_download(
-        self,
-        file: str,
-        target_name: Optional[str] = None,
-        download_location: str = "./",
-    ):
-        if self.in_test:
-            logging.warning("file_download method is not implemented in LocalProvider.")
-            return None
-        raise NotImplementedError("files method is not implemented in LocalProvider.")
-
-    def file_delete(self, file: str):
-        if self.in_test:
-            logging.warning("file_delete method is not implemented in LocalProvider.")
-            return None
-        raise NotImplementedError("files method is not implemented in LocalProvider.")

@@ -389,6 +389,7 @@ class ServerlessClient(BaseClient):
     #####################
 
     def files(self, provider: Optional[str] = None) -> List[str]:
+        """Returns list of available files produced by programs to download."""
         return self._files_client.list(provider)
 
     def file_download(
@@ -398,14 +399,17 @@ class ServerlessClient(BaseClient):
         download_location: str = "./",
         provider: Optional[str] = None,
     ):
+        """Download file."""
         return self._files_client.download(
             file, download_location, target_name, provider
         )
 
     def file_delete(self, file: str, provider: Optional[str] = None):
+        """Deletes file uploaded or produced by the programs,"""
         return self._files_client.delete(file, provider)
 
     def file_upload(self, file: str, provider: Optional[str] = None):
+        """Upload file."""
         return self._files_client.upload(file, provider)
 
 

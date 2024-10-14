@@ -214,31 +214,6 @@ class BaseClient(JsonSerializable, ABC):
         )
         return self.get_functions(**kwargs)
 
-    #####################
-    ####### FILES #######
-    #####################
-
-    @abstractmethod
-    def files(self) -> List[str]:
-        """Returns list of available files produced by programs to download."""
-
-    @abstractmethod
-    def file_download(
-        self,
-        file: str,
-        target_name: Optional[str] = None,
-        download_location: str = "./",
-    ):
-        """Download file."""
-
-    @abstractmethod
-    def file_delete(self, file: str):
-        """Deletes file uploaded or produced by the programs,"""
-
-    @abstractmethod
-    def file_upload(self, file: str):
-        """Upload file."""
-
     ######################
     ####### Widget #######
     ######################
