@@ -104,7 +104,7 @@ class RayClient(BaseClient):
                 "`run` doesn't support program str yet. "
                 "Send a QiskitFunction instead. "
             )
-            return NotImplementedError
+            raise NotImplementedError
 
         arguments = arguments or {}
         entrypoint = f"python {program.entrypoint}"

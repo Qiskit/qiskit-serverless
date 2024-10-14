@@ -56,7 +56,11 @@ from qiskit_serverless.core.job import (
 )
 from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
-from qiskit_serverless.utils.json import safe_json_request
+from qiskit_serverless.utils.json import (
+    safe_json_request_as_dict,
+    safe_json_request_as_list,
+    safe_json_request,
+)
 from qiskit_serverless.utils.formatting import format_provider_name_and_title
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
@@ -141,7 +145,7 @@ class ServerlessClient(BaseClient):
             offset = kwargs.get("offset", 0)
             kwargs["offset"] = offset
 
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/jobs",
                     params=kwargs,
@@ -159,7 +163,7 @@ class ServerlessClient(BaseClient):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.get"):
             url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
                     url,
                     headers={"Authorization": f"Bearer {self.token}"},
@@ -182,23 +186,25 @@ class ServerlessClient(BaseClient):
         program: Union[QiskitFunction, str],
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
+        provider: Optional[str] = None,
     ) -> Job:
         if isinstance(program, QiskitFunction):
             title = program.title
+            provider = program.provider
         else:
             title = str(program)
 
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
             span.set_attribute("program", title)
-            span.set_attribute("provider", program.provider)
+            span.set_attribute("provider", provider)
             span.set_attribute("arguments", str(arguments))
 
             url = f"{self.host}/api/{self.version}/programs/run/"
 
             data = {
                 "title": title,
-                "provider": program.provider,
+                "provider": provider,
                 "arguments": json.dumps(arguments or {}, cls=QiskitObjectsEncoder),
             }  # type: Dict[str, Any]
             if config:
@@ -206,7 +212,7 @@ class ServerlessClient(BaseClient):
             else:
                 data["config"] = asdict(Configuration())
 
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.post(
                     url=url,
                     json=data,
@@ -223,7 +229,7 @@ class ServerlessClient(BaseClient):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.status"):
             default_status = "Unknown"
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/",
                     headers={"Authorization": f"Bearer {self.token}"},
@@ -244,7 +250,7 @@ class ServerlessClient(BaseClient):
                 data = {
                     "service": None,
                 }
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.post(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
                     headers={"Authorization": f"Bearer {self.token}"},
@@ -258,7 +264,7 @@ class ServerlessClient(BaseClient):
     def result(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.result"):
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/",
                     headers={"Authorization": f"Bearer {self.token}"},
@@ -272,7 +278,7 @@ class ServerlessClient(BaseClient):
     def logs(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.logs"):
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
                     headers={"Authorization": f"Bearer {self.token}"},
@@ -333,7 +339,7 @@ class ServerlessClient(BaseClient):
         """Returns list of available programs."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("program.list"):
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_list(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/programs",
                     headers={"Authorization": f"Bearer {self.token}"},
@@ -341,6 +347,7 @@ class ServerlessClient(BaseClient):
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
+
         return [
             QiskitFunction(
                 program.get("title"),
@@ -362,7 +369,7 @@ class ServerlessClient(BaseClient):
 
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("program.get_by_title"):
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
                     headers={"Authorization": f"Bearer {self.token}"},
@@ -482,7 +489,7 @@ def _upload_with_docker_image(
     Returns:
         str: uploaded function name
     """
-    response_data = safe_json_request(
+    response_data = safe_json_request_as_dict(
         request=lambda: requests.post(
             url=url,
             data={
@@ -550,7 +557,7 @@ def _upload_with_artifact(
             )
 
         with open(artifact_file_path, "rb") as file:
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.post(
                     url=url,
                     data={
