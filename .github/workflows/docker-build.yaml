@@ -27,7 +27,7 @@ jobs:
         shell: bash
         run: |
           cd tests/basic
-          rm tests/basic/06_function.py
+          rm ./06_function.py
           for f in *.py; do echo "$f" && python "$f" &>> basic.log; done
           done=$(cat basic.log | grep -c "DONE")
           if [[ $done == 4 ]]
