@@ -2,10 +2,10 @@
 Files view api for V1.
 """
 
-from rest_framework import permissions
-
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import permissions
+from rest_framework.decorators import action
 
 from api.permissions import IsOwner
 from api import views
@@ -32,7 +32,7 @@ class FilesViewSet(views.FilesViewSet):
     )
     def list(self, request):
         return super().list(request)
-    
+
     @swagger_auto_schema(
         operation_description="Download a specific file",
         manual_parameters=[
@@ -52,9 +52,10 @@ class FilesViewSet(views.FilesViewSet):
             ),
         ],
     )
+    @action(methods=["GET"], detail=False)
     def download(self, request):
         return super().download(request)
-    
+
     @swagger_auto_schema(
         operation_description="Deletes file uploaded or produced by the programs",
         request_body=openapi.Schema(
@@ -70,6 +71,7 @@ class FilesViewSet(views.FilesViewSet):
             required=["file"],
         ),
     )
+    @action(methods=["DELETE"], detail=False)
     def delete(self, request):
         return super().delete(request)
 
@@ -86,5 +88,6 @@ class FilesViewSet(views.FilesViewSet):
             required=["file"],
         ),
     )
+    @action(methods=["POST"], detail=False)
     def upload(self, request):
         return super().upload(request)
