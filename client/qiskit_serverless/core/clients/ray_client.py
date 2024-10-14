@@ -23,7 +23,7 @@ Qiskit Serverless provider
 .. autosummary::
     :toctree: ../stubs/
 
-    ServerlessClient
+    RayClient
 """
 # pylint: disable=duplicate-code
 import json

@@ -23,7 +23,7 @@ Qiskit Serverless provider
 .. autosummary::
     :toctree: ../stubs/
 
-    ServerlessClient
+    LocalClient
 """
 # pylint: disable=duplicate-code
 import json
@@ -64,7 +64,7 @@ class LocalClient(BaseClient):
         Args:
 
         Example:
-            >>> local = LocalClient())
+            >>> local = LocalClient()
         """
         super().__init__("local-client")
         self.in_test = os.getenv("IN_TEST")
