@@ -42,7 +42,7 @@ from qiskit_serverless.core.job import (
     Configuration,
     Job,
 )
-from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
 )
@@ -157,16 +157,16 @@ class RayClient(BaseClient):
     ####### Functions #######
     #########################
 
-    def upload(self, program: QiskitFunction) -> Optional[QiskitFunction]:
+    def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
         """Uploads program."""
         raise NotImplementedError("Upload is not available for RayClient.")
 
-    def get_functions(self, **kwargs) -> List[QiskitFunction]:
+    def get_functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of available programs."""
         raise NotImplementedError("get_programs is not available for RayClient.")
 
     def get_function(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[QiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
         raise NotImplementedError("get_program is not available for RayClient.")

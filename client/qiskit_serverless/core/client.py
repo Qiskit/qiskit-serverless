@@ -28,20 +28,19 @@ Qiskit Serverless provider
 """
 import warnings
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List
 
-from qiskit_ibm_runtime import QiskitRuntimeService
-
-from qiskit_serverless.core.job import (
-    Job,
-    Configuration,
+from qiskit_serverless.core.job import Job, JobClient
+from qiskit_serverless.core.function import (
+    QiskitFunction,
+    RunnableQiskitFunction,
+    RunService,
 )
-from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.utils import JsonSerializable
 from qiskit_serverless.visualizaiton import Widget
 
 
-class BaseClient(JsonSerializable, ABC):
+class BaseClient(JobClient, RunService, JsonSerializable, ABC):
     """
     A client class for specifying custom compute resources.
 
@@ -125,76 +124,27 @@ class BaseClient(JsonSerializable, ABC):
         )
         return self.get_job(job_id)
 
-    @abstractmethod
-    def run(
-        self,
-        program: Union[QiskitFunction, str],
-        arguments: Optional[Dict[str, Any]] = None,
-        config: Optional[Configuration] = None,
-    ) -> Job:
-        """Execute a program as a async job.
-
-        Example:
-            >>> serverless = QiskitServerless()
-            >>> program = QiskitFunction(
-            >>>     "job.py",
-            >>>     arguments={"arg1": "val1"},
-            >>>     dependencies=["requests"]
-            >>> )
-            >>> job = serverless.run(program)
-            >>> # <Job | ...>
-
-        Args:
-            arguments: arguments to run program with
-            program: Program object
-
-        Returns:
-            Job
-        """
-
-    @abstractmethod
-    def status(self, job_id: str) -> str:
-        """Check status."""
-
-    @abstractmethod
-    def stop(
-        self, job_id: str, service: Optional[QiskitRuntimeService] = None
-    ) -> Union[str, bool]:
-        """Stops job/program."""
-
-    @abstractmethod
-    def result(self, job_id: str) -> Any:
-        """Return results."""
-
-    @abstractmethod
-    def logs(self, job_id: str) -> str:
-        """Return logs."""
-
-    @abstractmethod
-    def filtered_logs(self, job_id: str, **kwargs) -> str:
-        """Return filtered logs."""
-
     #########################
     ####### Functions #######
     #########################
 
     @abstractmethod
-    def upload(self, program: QiskitFunction) -> Optional[QiskitFunction]:
+    def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
         """Uploads program."""
 
     @abstractmethod
-    def get_functions(self, **kwargs) -> List[QiskitFunction]:
+    def get_functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of available programs."""
 
     @abstractmethod
     def get_function(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[QiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
 
     def get(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[QiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
         warnings.warn(
             "`get` method has been deprecated. "
@@ -204,7 +154,7 @@ class BaseClient(JsonSerializable, ABC):
         )
         return self.get_function(title, provider=provider)
 
-    def list(self, **kwargs) -> List[QiskitFunction]:
+    def list(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of available programs."""
         warnings.warn(
             "`list` method has been deprecated. "

@@ -54,7 +54,8 @@ from qiskit_serverless.core.job import (
     Job,
     Configuration,
 )
-from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
+
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.json import (
     safe_json_request_as_dict,
@@ -339,7 +340,7 @@ class ServerlessClient(BaseClient):
 
         return program_title
 
-    def get_functions(self, **kwargs) -> List[QiskitFunction]:
+    def get_functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of available programs."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("program.list"):
@@ -353,11 +354,11 @@ class ServerlessClient(BaseClient):
             )
 
         return [
-            QiskitFunction(
-                program.get("title"),
+            RunnableQiskitFunction(
+                client=self,
+                title=program.get("title"),
                 provider=program.get("provider", None),
                 raw_data=program,
-                client=self,
                 description=program.get("description"),
             )
             for program in response_data
@@ -365,7 +366,7 @@ class ServerlessClient(BaseClient):
 
     def get_function(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[QiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
         provider, title = format_provider_name_and_title(
             request_provider=provider, title=title
@@ -381,11 +382,11 @@ class ServerlessClient(BaseClient):
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-            return QiskitFunction(
-                response_data.get("title"),
+            return RunnableQiskitFunction(
+                client=self,
+                title=response_data.get("title"),
                 provider=response_data.get("provider", None),
                 raw_data=response_data,
-                client=self,
             )
 
     #####################

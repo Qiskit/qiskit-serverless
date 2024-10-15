@@ -28,12 +28,13 @@ Qiskit Serverless job
     Job
 """
 # pylint: disable=duplicate-code
+from abc import ABC, abstractmethod
 import json
 import logging
 import os
 import time
 import warnings
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from dataclasses import dataclass
 
 import ray.runtime_env
@@ -76,13 +77,44 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
     auto_scaling: Optional[bool] = False
 
 
+class JobClient(ABC):
+    """Provide access to job information"""
+
+    @abstractmethod
+    def status(self, job_id: str) -> str:
+        """Check status."""
+
+    @abstractmethod
+    def stop(
+        self, job_id: str, service: Optional[QiskitRuntimeService] = None
+    ) -> Union[str, bool]:
+        """Stops job/program."""
+
+    @abstractmethod
+    def result(self, job_id: str) -> Any:
+        """Return results."""
+
+    @abstractmethod
+    def logs(self, job_id: str) -> str:
+        """Return logs."""
+
+    @abstractmethod
+    def filtered_logs(self, job_id: str, **kwargs) -> str:
+        """Returns logs of the job.
+        Args:
+            job_id: The job's logs
+            include: rex expression finds match in the log line to be included
+            exclude: rex expression finds match in the log line to be excluded
+        """
+
+
 class Job:
     """Job."""
 
     def __init__(
         self,
         job_id: str,
-        client: Any,
+        client: JobClient,
         raw_data: Optional[Dict[str, Any]] = None,
     ):
         """Job class for async script execution.

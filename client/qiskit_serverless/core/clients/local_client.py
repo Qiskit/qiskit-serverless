@@ -48,7 +48,7 @@ from qiskit_serverless.core.job import (
     Job,
     Configuration,
 )
-from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
@@ -183,20 +183,20 @@ class LocalClient(BaseClient):
         )
         return program.title
 
-    def get_functions(self, **kwargs) -> List[QiskitFunction]:
+    def get_functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of programs."""
         return [
-            QiskitFunction(
-                program.get("title"),
+            RunnableQiskitFunction(
+                client=self,
+                title=program.get("title"),
                 provider=program.get("provider", None),
                 raw_data=program,
-                client=self,
             )
             for program in self._patterns
         ]
 
     def get_function(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[QiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction]:
         functions = {function.title: function for function in self.get_functions()}
         return functions.get(title)
