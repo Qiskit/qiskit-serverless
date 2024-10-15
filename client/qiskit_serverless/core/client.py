@@ -72,10 +72,10 @@ class BaseClient(JsonSerializable, ABC):
         self.host = host
         self.token = token
 
-    # BaseClient cannot be instanced should we have it like class abstract method?
-    # @classmethod
-    # def from_dict(cls, dictionary: dict):
-    #    return BaseClient(**dictionary)
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, dictionary: dict):
+        """Converts dict to object."""
 
     def __eq__(self, other):
         if isinstance(other, BaseClient):

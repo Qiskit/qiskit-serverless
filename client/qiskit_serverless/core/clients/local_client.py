@@ -71,6 +71,10 @@ class LocalClient(BaseClient):
         self._jobs = {}
         self._patterns = []
 
+    @classmethod
+    def from_dict(cls, dictionary: dict):
+        return LocalClient(**dictionary)
+
     ####################
     ####### JOBS #######
     ####################

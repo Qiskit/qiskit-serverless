@@ -65,6 +65,10 @@ class RayClient(BaseClient):
         super().__init__("ray-client", host)
         self.job_submission_client = JobSubmissionClient(host)
 
+    @classmethod
+    def from_dict(cls, dictionary: dict):
+        return RayClient(**dictionary)
+
     ####################
     ####### JOBS #######
     ####################

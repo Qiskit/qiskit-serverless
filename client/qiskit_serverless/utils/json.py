@@ -26,7 +26,7 @@ Qiskit Serverless json utilities
     JsonSerializable
 """
 import json
-from abc import ABC
+from abc import ABC, abstractmethod
 from json import JSONEncoder
 from typing import List, Optional, Type, Callable, Dict, Any, Union
 
@@ -40,9 +40,9 @@ class JsonSerializable(ABC):
     """Classes that can be serialized as json."""
 
     @classmethod
+    @abstractmethod
     def from_dict(cls, dictionary: dict):
         """Converts dict to object."""
-        raise NotImplementedError
 
     def to_dict(self) -> dict:
         """Converts class to dict."""

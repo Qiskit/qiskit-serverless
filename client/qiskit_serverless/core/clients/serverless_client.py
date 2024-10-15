@@ -119,6 +119,10 @@ class ServerlessClient(BaseClient):
 
         self._files_client = GatewayFilesClient(self.host, self.token, self.version)
 
+    @classmethod
+    def from_dict(cls, dictionary: dict):
+        return ServerlessClient(**dictionary)
+
     def _verify_token(self, token: str):
         """Verify token."""
         try:
