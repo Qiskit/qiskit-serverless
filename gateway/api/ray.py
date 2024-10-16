@@ -255,7 +255,7 @@ def create_ray_cluster(  # pylint: disable=too-many-branches
         # if gpu job, use gpu nodes and resources
         if job.gpu:
             node_selector_label = settings.RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL
-            gpu_request = 1
+            gpu_request = settings.LIMITS_GPU_PER_TASK
 
         # if user specified image use specified image
         function_data = user.username

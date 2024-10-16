@@ -125,6 +125,8 @@ spec:
               value: {{ .Values.application.nodeSelector.gpu | quote }}
             - name: LIMITS_CPU_PER_TASK
               value: {{ .Values.application.ray.cpu | quote }}
+            - name: LIMITS_GPU_PER_TASK
+              value: {{ .Values.application.ray.gpu | quote }}
             - name: LIMITS_MEMORY_PER_TASK
               value: {{ .Values.application.ray.memory | quote }}
 {{- if .Values.application.superuser.enable }}
@@ -322,6 +324,10 @@ spec:
               value: {{ .Values.application.limits.maxJobsPerUser | quote }}
             - name: LIMITS_MAX_CLUSTERS
               value: {{ .Values.application.limits.maxComputeResources | quote }}
+            - name: LIMITS_GPU_CLUSTERS
+              value: {{ .Values.application.limits.maxGpuResources | quote }}
+            - name: GATEWAY_GPU_JOBS_CONFIG
+              value: {{ .Values.application.ray.gpuJobsConfig | quote }}
 {{- if .Values.application.limits.keepClusterOnComplete }}
             - name: RAY_CLUSTER_NO_DELETE_ON_COMPLETE
               value: "True"
