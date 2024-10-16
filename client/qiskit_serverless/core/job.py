@@ -882,7 +882,7 @@ def _upload_with_artifact(
         )
 
     try:
-        with tarfile.open(artifact_file_path, "w") as tar:
+        with tarfile.open(artifact_file_path, "w", dereference=True) as tar:
             for filename in os.listdir(program.working_dir):
                 fpath = os.path.join(program.working_dir, filename)
                 tar.add(fpath, arcname=filename)
