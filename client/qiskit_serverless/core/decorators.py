@@ -358,13 +358,13 @@ def distribute_qiskit_function(
     # pylint: disable=import-outside-toplevel,cyclic-import
     from qiskit_serverless import QiskitServerlessException
     from qiskit_serverless.core.function import QiskitFunction
-    from qiskit_serverless.core.client import ServerlessProvider
+    from qiskit_serverless import ServerlessClient
 
     # create provider
     if provider is None:
         # try to create from env vars
         try:
-            provider = ServerlessProvider()
+            provider = ServerlessClient()
         except QiskitServerlessException as qs_error:
             raise QiskitServerlessException(
                 "Set provider in arguments for `distribute_program` "

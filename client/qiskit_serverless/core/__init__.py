@@ -31,11 +31,7 @@ Core abstractions
     BaseClient
     RayClient
     LocalClient
-    ComputeResource
     Job
-    GatewayJobClient
-    BaseJobClient
-    RayJobClient
     save_result
     QiskitPattern
     QiskitFunction
@@ -51,25 +47,13 @@ Core abstractions
 
 """
 
-from .client import (
-    BaseProvider,
-    BaseClient,
-    ComputeResource,
-    ServerlessProvider,
-    ServerlessClient,
-    IBMServerlessProvider,
-    IBMServerlessClient,
-    LocalProvider,
-    LocalClient,
-    RayProvider,
-    RayClient,
-)
+from .client import BaseClient
+
+from .clients.local_client import LocalClient
+from .clients.ray_client import RayClient
+from .clients.serverless_client import ServerlessClient, IBMServerlessClient
 
 from .job import (
-    BaseJobClient,
-    RayJobClient,
-    GatewayJobClient,
-    LocalJobClient,
     Job,
     save_result,
     Configuration,
