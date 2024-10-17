@@ -79,10 +79,10 @@ class LocalClient(BaseClient):
     ####### JOBS #######
     ####################
 
-    def get_job(self, job_id: str) -> Optional[Job]:
+    def job(self, job_id: str) -> Optional[Job]:
         return self._jobs[job_id]["job"]
 
-    def get_jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, **kwargs) -> List[Job]:
         return [job["job"] for job in list(self._jobs.values())]
 
     def run(
@@ -183,7 +183,7 @@ class LocalClient(BaseClient):
         )
         return program.title
 
-    def get_functions(self, **kwargs) -> List[QiskitFunction]:
+    def functions(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of programs."""
         return [
             QiskitFunction(
@@ -195,8 +195,8 @@ class LocalClient(BaseClient):
             for program in self._patterns
         ]
 
-    def get_function(
+    def function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
-        functions = {function.title: function for function in self.get_functions()}
+        functions = {function.title: function for function in self.functions()}
         return functions.get(title)
