@@ -428,3 +428,23 @@ def sanitize_name(name: str):
                 sanitized_name += c
         return sanitized_name
     return name
+
+
+def create_gpujob_allowlist():
+    """
+    Create dictionary of jobs allowed to run on gpu nodes.
+
+    Sample format of json:
+        { "gpu-functions": { "mockprovider": [ "my-first-pattern" ] } }
+    """
+    try:
+        with open(settings.GATEWAY_GPU_JOBS_CONFIG, encoding="utf-8", mode="r") as f:
+            gpujobs = json.load(f)
+    except IOError as e:
+        logger.error("Unable to open gpu job config file: %s", e)
+        raise ValueError("Unable to open gpu job config file") from e
+    except ValueError as e:
+        logger.error("Unable to decode gpu job allowlist: %s", e)
+        raise ValueError("Unable to decode gpujob allowlist") from e
+
+    return gpujobs

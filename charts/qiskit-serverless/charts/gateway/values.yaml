@@ -21,6 +21,7 @@ application:
     nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.17.1"
     cpu: 2
     memory: 2
+    gpu: 1
     replicas: 1
     minReplicas: 1
     maxReplicas: 4
@@ -36,6 +37,7 @@ application:
       port: 4317
       insecure: 0
     useTLS: true
+    gpuJobsConfig: "api/v1/gpu-jobs.json"
   proxy:
     enabled: true
     cpu: 1
@@ -44,6 +46,7 @@ application:
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
+    maxGpuResources: 1
     keepClusterOnComplete: False
     programTimeoutDays: 14
   qiskitRuntime:

@@ -36,8 +36,8 @@ RUN ln -s /usr/bin/python3.11 /usr/bin/python
 WORKDIR /usr/src/app
 
 # set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 COPY gateway/requirements.txt .
 # Install pip
