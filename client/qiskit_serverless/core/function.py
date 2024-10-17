@@ -119,6 +119,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         )
 
     def get_jobs(self):
+        # pylint: disable=duplicate-code
         """List of jobs created in this function.
 
         Raises:

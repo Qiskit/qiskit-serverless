@@ -90,7 +90,7 @@ class BaseClient(JsonSerializable, ABC):
     ####### JOBS #######
     ####################
     @abstractmethod
-    def get_jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, **kwargs) -> List[Job]:
         """Return list of jobs.
 
         Returns:
@@ -98,7 +98,7 @@ class BaseClient(JsonSerializable, ABC):
         """
 
     @abstractmethod
-    def get_job(self, job_id: str) -> Optional[Job]:
+    def job(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.
 
         Args:
@@ -123,7 +123,22 @@ class BaseClient(JsonSerializable, ABC):
             "Please, use `get_job` instead.",
             DeprecationWarning,
         )
-        return self.get_job(job_id)
+        return self.job(job_id)
+
+    def get_jobs(self, **kwargs) -> List[Job]:
+        # pylint: disable=duplicate-code
+        """Return list of jobs.
+
+        Returns:
+            list of jobs.
+        """
+        warnings.warn(
+            "`get_jobs` method has been deprecated. "
+            "And will be removed in future releases. "
+            "Please, use `jobs` instead.",
+            DeprecationWarning,
+        )
+        return self.jobs(**kwargs)
 
     @abstractmethod
     def run(
@@ -183,11 +198,11 @@ class BaseClient(JsonSerializable, ABC):
         """Uploads program."""
 
     @abstractmethod
-    def get_functions(self, **kwargs) -> List[QiskitFunction]:
+    def functions(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
 
     @abstractmethod
-    def get_function(
+    def function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
         """Returns program based on parameters."""
@@ -202,7 +217,7 @@ class BaseClient(JsonSerializable, ABC):
             "Please, use `get_function` instead.",
             DeprecationWarning,
         )
-        return self.get_function(title, provider=provider)
+        return self.function(title, provider=provider)
 
     def list(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
@@ -212,7 +227,7 @@ class BaseClient(JsonSerializable, ABC):
             "Please, use `get_functions` instead.",
             DeprecationWarning,
         )
-        return self.get_functions(**kwargs)
+        return self.functions(**kwargs)
 
     ######################
     ####### Widget #######

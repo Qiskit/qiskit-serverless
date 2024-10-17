@@ -141,7 +141,7 @@ class ServerlessClient(BaseClient):
     ####### JOBS #######
     ####################
 
-    def get_jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, **kwargs) -> List[Job]:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.list"):
             limit = kwargs.get("limit", 10)
@@ -163,7 +163,7 @@ class ServerlessClient(BaseClient):
             for job in response_data.get("results", [])
         ]
 
-    def get_job(self, job_id: str) -> Optional[Job]:
+    def job(self, job_id: str) -> Optional[Job]:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.get"):
             url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
@@ -339,7 +339,7 @@ class ServerlessClient(BaseClient):
 
         return program_title
 
-    def get_functions(self, **kwargs) -> List[QiskitFunction]:
+    def functions(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("program.list"):
@@ -363,7 +363,7 @@ class ServerlessClient(BaseClient):
             for program in response_data
         ]
 
-    def get_function(
+    def function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[QiskitFunction]:
         """Returns program based on parameters."""
