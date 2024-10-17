@@ -26,9 +26,9 @@ Qiskit Serverless json utilities
     JsonSerializable
 """
 import json
-from abc import ABC
+from abc import ABC, abstractmethod
 from json import JSONEncoder
-from typing import Optional, Type, Callable, Dict, Any
+from typing import List, Optional, Type, Callable, Dict, Any, Union
 
 import requests
 
@@ -40,9 +40,9 @@ class JsonSerializable(ABC):
     """Classes that can be serialized as json."""
 
     @classmethod
+    @abstractmethod
     def from_dict(cls, dictionary: dict):
         """Converts dict to object."""
-        raise NotImplementedError
 
     def to_dict(self) -> dict:
         """Converts class to dict."""
@@ -74,7 +74,49 @@ def is_jsonable(data, cls: Optional[Type[JSONEncoder]] = None):
         return False
 
 
-def safe_json_request(request: Callable, verbose: bool = False) -> Dict[str, Any]:
+def safe_json_request_as_list(request: Callable, verbose: bool = False) -> List[Any]:
+    """Returns parsed json data from request.
+
+    Args:
+        request: callable for request.
+        verbose: post reason in error message
+
+    Example:
+        >>> safe_json_request(request=lambda: requests.get("https://ibm.com"))
+
+    Returns:
+        parsed json response as list structure
+    """
+    response = safe_json_request(request, verbose)
+    if isinstance(response, List):
+        return response
+    raise TypeError("JSON is not a List")
+
+
+def safe_json_request_as_dict(
+    request: Callable, verbose: bool = False
+) -> Dict[str, Any]:
+    """Returns parsed json data from request.
+
+    Args:
+        request: callable for request.
+        verbose: post reason in error message
+
+    Example:
+        >>> safe_json_request(request=lambda: requests.get("https://ibm.com"))
+
+    Returns:
+        parsed json response as dict structure
+    """
+    response = safe_json_request(request, verbose)
+    if isinstance(response, Dict):
+        return response
+    raise TypeError("JSON is not a Dict")
+
+
+def safe_json_request(
+    request: Callable, verbose: bool = False
+) -> Union[Dict[str, Any], List[Any]]:
     """Returns parsed json data from request.
 
     Args:
