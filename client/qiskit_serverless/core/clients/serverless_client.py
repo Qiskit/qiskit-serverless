@@ -316,7 +316,7 @@ class ServerlessClient(BaseClient):
     ####### Functions #######
     #########################
 
-    def upload(self, program: QiskitFunction):
+    def upload(self, program: QiskitFunction) -> Optional[QiskitFunction]:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
             span.set_attribute("program", program.title)
@@ -324,12 +324,12 @@ class ServerlessClient(BaseClient):
 
             if program.image is not None:
                 # upload function with custom image
-                program_title = _upload_with_docker_image(
+                function_uploaded = _upload_with_docker_image(
                     program=program, url=url, token=self.token, span=span
                 )
             elif program.entrypoint is not None:
                 # upload funciton with artifact
-                program_title = _upload_with_artifact(
+                function_uploaded = _upload_with_artifact(
                     program=program, url=url, token=self.token, span=span
                 )
             else:
@@ -337,7 +337,7 @@ class ServerlessClient(BaseClient):
                     "Function must either have `entrypoint` or `image` specified."
                 )
 
-        return program_title
+        return function_uploaded
 
     def functions(self, **kwargs) -> List[QiskitFunction]:
         """Returns list of available programs."""
@@ -485,7 +485,7 @@ class IBMServerlessClient(ServerlessClient):
 
 def _upload_with_docker_image(
     program: QiskitFunction, url: str, token: str, span: Any
-) -> str:
+) -> QiskitFunction:
     """Uploads function with custom docker image.
 
     Args:
@@ -517,12 +517,12 @@ def _upload_with_docker_image(
     program_provider = response_data.get("provider", "na")
     span.set_attribute("program.title", program_title)
     span.set_attribute("program.provider", program_provider)
-    return program_title
+    return QiskitFunction.from_json(response_data)
 
 
 def _upload_with_artifact(
     program: QiskitFunction, url: str, token: str, span: Any
-) -> str:
+) -> QiskitFunction:
     """Uploads function with artifact.
 
     Args:
@@ -586,10 +586,11 @@ def _upload_with_artifact(
             program_provider = response_data.get("provider", "na")
             span.set_attribute("program.title", program_title)
             span.set_attribute("program.provider", program_provider)
+            response_function = QiskitFunction.from_json(response_data)
     except Exception as error:  # pylint: disable=broad-exception-caught
         raise QiskitServerlessException from error
     finally:
         if os.path.exists(artifact_file_path):
             os.remove(artifact_file_path)
 
-    return program_title
+    return response_function
