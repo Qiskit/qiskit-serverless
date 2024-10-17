@@ -1,4 +1,4 @@
-cryptography>=42.0.5, <43
+cryptography>=43.0.1, <44
 djangorestframework>=3.15.2, <4
 django-allauth[socialaccount]>=0.61.1, <1
 django-allow-cidr>=0.7.1, <1
