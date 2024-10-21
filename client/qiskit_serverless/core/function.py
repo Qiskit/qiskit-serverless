@@ -179,6 +179,7 @@ class RunnableQiskitFunction(QiskitFunction):
         )
 
     def get_jobs(self):
+        # pylint: disable=duplicate-code
         """List of jobs created in this function.
 
         Raises:

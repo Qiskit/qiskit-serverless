@@ -79,10 +79,10 @@ class LocalClient(BaseClient):
     ####### JOBS #######
     ####################
 
-    def get_job(self, job_id: str) -> Optional[Job]:
+    def job(self, job_id: str) -> Optional[Job]:
         return self._jobs[job_id]["job"]
 
-    def get_jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, **kwargs) -> List[Job]:
         return [job["job"] for job in list(self._jobs.values())]
 
     def run(
@@ -163,40 +163,33 @@ class LocalClient(BaseClient):
     ####### Functions #######
     #########################
 
-    def upload(self, program: QiskitFunction):
+    def upload(self, program: QiskitFunction) -> Optional[QiskitFunction]:
         # check if entrypoint exists
         if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
             raise QiskitServerlessException(
                 f"Entrypoint file [{program.entrypoint}] does not exist "
                 f"in [{program.working_dir}] working directory."
             )
-        self._patterns.append(
-            {
-                "title": program.title,
-                "provider": program.provider,
-                "entrypoint": program.entrypoint,
-                "working_dir": program.working_dir,
-                "env_vars": program.env_vars,
-                "arguments": json.dumps({}),
-                "dependencies": json.dumps(program.dependencies or []),
-            }
-        )
-        return program.title
 
-    def get_functions(self, **kwargs) -> List[RunnableQiskitFunction]:
+        pattern = {
+            "title": program.title,
+            "provider": program.provider,
+            "entrypoint": program.entrypoint,
+            "working_dir": program.working_dir,
+            "env_vars": program.env_vars,
+            "arguments": json.dumps({}),
+            "dependencies": json.dumps(program.dependencies or []),
+            "client": self,
+        }
+        self._patterns.append(pattern)
+        return QiskitFunction.from_json(pattern)
+
+    def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of programs."""
-        return [
-            RunnableQiskitFunction(
-                client=self,
-                title=program.get("title"),
-                provider=program.get("provider", None),
-                raw_data=program,
-            )
-            for program in self._patterns
-        ]
+        return [QiskitFunction.from_json(program) for program in self._patterns]
 
-    def get_function(
+    def function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[RunnableQiskitFunction]:
-        functions = {function.title: function for function in self.get_functions()}
+        functions = {function.title: function for function in self.functions()}
         return functions.get(title)

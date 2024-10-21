@@ -44,7 +44,7 @@ def test_program():
         assert job.in_terminal_state()
         assert job.status() == "DONE"
 
-        recovered_job = serverless.get_job(job.job_id)
+        recovered_job = serverless.job(job.job_id)
         assert recovered_job.job_id == job.job_id
         assert "42" in recovered_job.logs()
         assert recovered_job.in_terminal_state()

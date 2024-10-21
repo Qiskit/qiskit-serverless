@@ -73,7 +73,7 @@ class RayClient(BaseClient):
     ####### JOBS #######
     ####################
 
-    def get_jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, **kwargs) -> List[Job]:
         """Return list of jobs.
 
         Returns:
@@ -84,7 +84,7 @@ class RayClient(BaseClient):
             for job in self.job_submission_client.list_jobs()
         ]
 
-    def get_job(self, job_id: str) -> Optional[Job]:
+    def job(self, job_id: str) -> Optional[Job]:
         """Returns job by job id.
 
         Args:
@@ -161,11 +161,11 @@ class RayClient(BaseClient):
         """Uploads program."""
         raise NotImplementedError("Upload is not available for RayClient.")
 
-    def get_functions(self, **kwargs) -> List[RunnableQiskitFunction]:
+    def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of available programs."""
         raise NotImplementedError("get_programs is not available for RayClient.")
 
-    def get_function(
+    def function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
