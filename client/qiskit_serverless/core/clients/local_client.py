@@ -186,7 +186,7 @@ class LocalClient(BaseClient):
 
     def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of programs."""
-        return [QiskitFunction.from_json(program) for program in self._patterns]
+        return [RunnableQiskitFunction.from_json(program) for program in self._patterns]
 
     def function(
         self, title: str, provider: Optional[str] = None
