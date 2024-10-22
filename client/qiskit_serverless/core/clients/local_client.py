@@ -163,7 +163,7 @@ class LocalClient(BaseClient):
     ####### Functions #######
     #########################
 
-    def upload(self, program: QiskitFunction) -> Optional[QiskitFunction]:
+    def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
         # check if entrypoint exists
         if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
             raise QiskitServerlessException(
@@ -182,7 +182,7 @@ class LocalClient(BaseClient):
             "client": self,
         }
         self._patterns.append(pattern)
-        return QiskitFunction.from_json(pattern)
+        return RunnableQiskitFunction.from_json(pattern)
 
     def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of programs."""

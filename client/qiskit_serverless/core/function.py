@@ -111,7 +111,7 @@ class RunService(ABC):
     """Provide access to run a function and retrieve the jobs associated to that function"""
 
     @abstractmethod
-    def get_jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, **kwargs) -> List[Job]:
         """Return list of jobs.
 
         Returns:
@@ -150,6 +150,15 @@ class RunnableQiskitFunction(QiskitFunction):
     ):
         self.client = client
         super().__init__(**kwargs)
+
+    @classmethod
+    def from_json(cls, data: Dict[str, Any]):
+        """Reconstructs QiskitPattern from dictionary."""
+        field_names = set(f.name for f in dataclasses.fields(QiskitFunction))
+        client = data["client"]
+        return RunnableQiskitFunction(
+            client, **{k: v for k, v in data.items() if k in field_names}
+        )
 
     def run(self, **kwargs):
         """Run function
