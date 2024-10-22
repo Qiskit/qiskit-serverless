@@ -37,7 +37,7 @@ from qiskit_serverless.core.constants import (
     REQUESTS_STREAMING_TIMEOUT,
     REQUESTS_TIMEOUT,
 )
-from qiskit_serverless.utils.json import safe_json_request
+from qiskit_serverless.utils.json import safe_json_request_as_dict
 
 
 class GatewayFilesClient:
@@ -109,7 +109,7 @@ class GatewayFilesClient:
         """Returns list of available files to download produced by programs,"""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.list"):
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
                     f"{self.host}/api/{self.version}/files/",
                     params={"provider": provider},
@@ -123,7 +123,7 @@ class GatewayFilesClient:
         """Deletes file uploaded or produced by the programs,"""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.delete"):
-            response_data = safe_json_request(
+            response_data = safe_json_request_as_dict(
                 request=lambda: requests.delete(
                     f"{self.host}/api/{self.version}/files/delete/",
                     data={"file": file, "provider": provider},
