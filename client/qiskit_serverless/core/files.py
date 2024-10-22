@@ -67,7 +67,7 @@ class GatewayFilesClient:
                 params={"file": file, "provider": provider},
                 stream=True,
                 headers={"Authorization": f"Bearer {self._token}"},
-                timeout=REQUESTS_TIMEOUT,
+                timeout=REQUESTS_STREAMING_TIMEOUT,
             ) as req:
                 req.raise_for_status()
 
