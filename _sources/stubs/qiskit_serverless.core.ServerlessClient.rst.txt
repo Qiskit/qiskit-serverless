@@ -14,23 +14,25 @@
    .. autosummary::
    
       ~ServerlessClient.__init__
-      ~ServerlessClient.context
-      ~ServerlessClient.create_compute_resource
-      ~ServerlessClient.delete_compute_resource
-      ~ServerlessClient.download
       ~ServerlessClient.file_delete
       ~ServerlessClient.file_download
       ~ServerlessClient.file_upload
       ~ServerlessClient.files
+      ~ServerlessClient.filtered_logs
       ~ServerlessClient.from_dict
+      ~ServerlessClient.function
+      ~ServerlessClient.functions
       ~ServerlessClient.get
-      ~ServerlessClient.get_compute_resources
       ~ServerlessClient.get_job_by_id
       ~ServerlessClient.get_jobs
-      ~ServerlessClient.get_programs
-      ~ServerlessClient.job_client
+      ~ServerlessClient.job
+      ~ServerlessClient.jobs
       ~ServerlessClient.list
+      ~ServerlessClient.logs
+      ~ServerlessClient.result
       ~ServerlessClient.run
+      ~ServerlessClient.status
+      ~ServerlessClient.stop
       ~ServerlessClient.to_dict
       ~ServerlessClient.upload
       ~ServerlessClient.widget

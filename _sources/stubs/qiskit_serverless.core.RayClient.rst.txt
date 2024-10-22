@@ -14,23 +14,21 @@
    .. autosummary::
    
       ~RayClient.__init__
-      ~RayClient.context
-      ~RayClient.create_compute_resource
-      ~RayClient.delete_compute_resource
-      ~RayClient.download
-      ~RayClient.file_delete
-      ~RayClient.file_download
-      ~RayClient.file_upload
-      ~RayClient.files
+      ~RayClient.filtered_logs
       ~RayClient.from_dict
+      ~RayClient.function
+      ~RayClient.functions
       ~RayClient.get
-      ~RayClient.get_compute_resources
       ~RayClient.get_job_by_id
       ~RayClient.get_jobs
-      ~RayClient.get_programs
-      ~RayClient.job_client
+      ~RayClient.job
+      ~RayClient.jobs
       ~RayClient.list
+      ~RayClient.logs
+      ~RayClient.result
       ~RayClient.run
+      ~RayClient.status
+      ~RayClient.stop
       ~RayClient.to_dict
       ~RayClient.upload
       ~RayClient.widget

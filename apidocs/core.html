@@ -239,11 +239,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.BaseClient.html">qiskit_serverless.core.BaseClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.RayClient.html">qiskit_serverless.core.RayClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.LocalClient.html">qiskit_serverless.core.LocalClient</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.ComputeResource.html">qiskit_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.Job.html">qiskit_serverless.core.Job</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.GatewayJobClient.html">qiskit_serverless.core.GatewayJobClient</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.BaseJobClient.html">qiskit_serverless.core.BaseJobClient</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.RayJobClient.html">qiskit_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.QiskitPattern.html">qiskit_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../stubs/qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
@@ -330,7 +326,7 @@
 <tr class="row-even"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient" title="qiskit_serverless.core.IBMServerlessClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">IBMServerlessClient</span></code></a>([token, name])</p></td>
 <td><p>A client for connecting to the IBM serverless host.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.BaseClient.html#qiskit_serverless.core.BaseClient" title="qiskit_serverless.core.BaseClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseClient</span></code></a>(name[, host, token, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.BaseClient.html#qiskit_serverless.core.BaseClient" title="qiskit_serverless.core.BaseClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseClient</span></code></a>(name[, host, token])</p></td>
 <td><p>A client class for specifying custom compute resources.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.RayClient.html#qiskit_serverless.core.RayClient" title="qiskit_serverless.core.RayClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RayClient</span></code></a>(host)</p></td>
@@ -339,20 +335,8 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.LocalClient.html#qiskit_serverless.core.LocalClient" title="qiskit_serverless.core.LocalClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LocalClient</span></code></a>()</p></td>
 <td><p>LocalClient.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.ComputeResource.html#qiskit_serverless.core.ComputeResource" title="qiskit_serverless.core.ComputeResource"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ComputeResource</span></code></a>(name[, host, ...])</p></td>
-<td><p>ComputeResource class.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job" title="qiskit_serverless.core.Job"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Job</span></code></a>(job_id, job_client[, raw_data])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job" title="qiskit_serverless.core.Job"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Job</span></code></a>(job_id, client[, raw_data])</p></td>
 <td><p>Job.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.GatewayJobClient.html#qiskit_serverless.core.GatewayJobClient" title="qiskit_serverless.core.GatewayJobClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GatewayJobClient</span></code></a>(host, token, version)</p></td>
-<td><p>GatewayJobClient.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.BaseJobClient.html#qiskit_serverless.core.BaseJobClient" title="qiskit_serverless.core.BaseJobClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseJobClient</span></code></a>()</p></td>
-<td><p>Base class for Job clients.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.RayJobClient.html#qiskit_serverless.core.RayJobClient" title="qiskit_serverless.core.RayJobClient"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RayJobClient</span></code></a>(client)</p></td>
-<td><p>RayJobClient.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="../stubs/qiskit_serverless.core.save_result.html#qiskit_serverless.core.save_result" title="qiskit_serverless.core.save_result"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_result</span></code></a>(result)</p></td>
 <td><p>Saves job results.</p></td>

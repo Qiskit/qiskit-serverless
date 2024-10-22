@@ -14,24 +14,26 @@
    .. autosummary::
    
       ~IBMServerlessClient.__init__
-      ~IBMServerlessClient.context
-      ~IBMServerlessClient.create_compute_resource
-      ~IBMServerlessClient.delete_compute_resource
-      ~IBMServerlessClient.download
       ~IBMServerlessClient.file_delete
       ~IBMServerlessClient.file_download
       ~IBMServerlessClient.file_upload
       ~IBMServerlessClient.files
+      ~IBMServerlessClient.filtered_logs
       ~IBMServerlessClient.from_dict
+      ~IBMServerlessClient.function
+      ~IBMServerlessClient.functions
       ~IBMServerlessClient.get
-      ~IBMServerlessClient.get_compute_resources
       ~IBMServerlessClient.get_job_by_id
       ~IBMServerlessClient.get_jobs
-      ~IBMServerlessClient.get_programs
-      ~IBMServerlessClient.job_client
+      ~IBMServerlessClient.job
+      ~IBMServerlessClient.jobs
       ~IBMServerlessClient.list
+      ~IBMServerlessClient.logs
+      ~IBMServerlessClient.result
       ~IBMServerlessClient.run
       ~IBMServerlessClient.save_account
+      ~IBMServerlessClient.status
+      ~IBMServerlessClient.stop
       ~IBMServerlessClient.to_dict
       ~IBMServerlessClient.upload
       ~IBMServerlessClient.widget

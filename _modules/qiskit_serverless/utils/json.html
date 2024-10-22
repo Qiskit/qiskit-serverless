@@ -239,11 +239,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.BaseClient.html">qiskit_serverless.core.BaseClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.RayClient.html">qiskit_serverless.core.RayClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.LocalClient.html">qiskit_serverless.core.LocalClient</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.ComputeResource.html">qiskit_serverless.core.ComputeResource</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.Job.html">qiskit_serverless.core.Job</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.GatewayJobClient.html">qiskit_serverless.core.GatewayJobClient</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.BaseJobClient.html">qiskit_serverless.core.BaseJobClient</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.RayJobClient.html">qiskit_serverless.core.RayJobClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.QiskitPattern.html">qiskit_serverless.core.QiskitPattern</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
@@ -338,9 +334,9 @@
 <span class="sd">    JsonSerializable</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
 <span class="kn">from</span> <span class="nn">json</span> <span class="kn">import</span> <span class="n">JSONEncoder</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span> <span class="nn">requests</span>
 
@@ -352,9 +348,9 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Classes that can be serialized as json.&quot;&quot;&quot;</span>
 
     <span class="nd">@classmethod</span>
+    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts dict to object.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts class to dict.&quot;&quot;&quot;</span>
@@ -386,7 +382,49 @@
         <span class="k">return</span> <span class="kc">False</span>
 
 
-<span class="k">def</span> <span class="nf">safe_json_request</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="k">def</span> <span class="nf">safe_json_request_as_list</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns parsed json data from request.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request: callable for request.</span>
+<span class="sd">        verbose: post reason in error message</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; safe_json_request(request=lambda: requests.get(&quot;https://ibm.com&quot;))</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        parsed json response as list structure</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">List</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">response</span>
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;JSON is not a List&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">safe_json_request_as_dict</span><span class="p">(</span>
+    <span class="n">request</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns parsed json data from request.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request: callable for request.</span>
+<span class="sd">        verbose: post reason in error message</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; safe_json_request(request=lambda: requests.get(&quot;https://ibm.com&quot;))</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        parsed json response as dict structure</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">safe_json_request</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">Dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">response</span>
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;JSON is not a Dict&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">safe_json_request</span><span class="p">(</span>
+    <span class="n">request</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns parsed json data from request.</span>
 
 <span class="sd">    Args:</span>

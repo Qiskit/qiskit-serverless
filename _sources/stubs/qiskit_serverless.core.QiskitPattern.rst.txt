@@ -27,12 +27,12 @@
 
    .. autosummary::
    
+      ~QiskitPattern.client
       ~QiskitPattern.dependencies
       ~QiskitPattern.description
       ~QiskitPattern.entrypoint
       ~QiskitPattern.env_vars
       ~QiskitPattern.image
-      ~QiskitPattern.job_client
       ~QiskitPattern.provider
       ~QiskitPattern.raw_data
       ~QiskitPattern.schema

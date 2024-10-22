@@ -14,23 +14,21 @@
    .. autosummary::
    
       ~LocalClient.__init__
-      ~LocalClient.context
-      ~LocalClient.create_compute_resource
-      ~LocalClient.delete_compute_resource
-      ~LocalClient.download
-      ~LocalClient.file_delete
-      ~LocalClient.file_download
-      ~LocalClient.file_upload
-      ~LocalClient.files
+      ~LocalClient.filtered_logs
       ~LocalClient.from_dict
+      ~LocalClient.function
+      ~LocalClient.functions
       ~LocalClient.get
-      ~LocalClient.get_compute_resources
       ~LocalClient.get_job_by_id
       ~LocalClient.get_jobs
-      ~LocalClient.get_programs
-      ~LocalClient.job_client
+      ~LocalClient.job
+      ~LocalClient.jobs
       ~LocalClient.list
+      ~LocalClient.logs
+      ~LocalClient.result
       ~LocalClient.run
+      ~LocalClient.status
+      ~LocalClient.stop
       ~LocalClient.to_dict
       ~LocalClient.upload
       ~LocalClient.widget
