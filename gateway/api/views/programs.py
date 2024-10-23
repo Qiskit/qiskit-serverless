@@ -338,7 +338,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
             instances__in=author_groups_with_view_permissions
         )
 
-        # Serverless filter only returns functions created by the user
+        # Serverless filter only returns functions created by the author with the next criterias:
+        # user is the author of the function and there is no provider
         if type_filter == "serverless":
             provider_criteria = Q(provider=None)
             result_queryset = Program.objects.filter(
@@ -346,7 +347,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
             )
             return result_queryset
 
-        # Catalog filter only returns providers functions that user has access
+        # Catalog filter only returns providers functions that user has access:
+        # author has view permissions and the function has a provider assigned
         if type_filter == "catalog":
             provider_exists_criteria = ~Q(provider=None)
             result_queryset = Program.objects.filter(
