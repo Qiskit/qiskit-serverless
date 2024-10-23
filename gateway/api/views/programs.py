@@ -319,27 +319,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
             codename=VIEW_PROGRAM_PERMISSION
         )
 
-        # Groups logic
-        if type_filter:
-            if type_filter == "catalog":
-                view_permission_criteria = Q(permissions=view_program_permission)
-                groups_with_view_permissions = Group.objects.filter(
-                    view_permission_criteria
-                )
-                groups_with_view_permissions_criteria = Q(
-                    instances__in=groups_with_view_permissions
-                )
-                provider_exists_criteria = ~Q(provider=None)
-                result_queryset = Program.objects.filter(
-                    groups_with_view_permissions_criteria & provider_exists_criteria
-                )
-                return result_queryset
-            if type_filter == "serverless":
-                result_queryset = Program.objects.filter(
-                    Q(author=author) & Q(provider=None)
-                )
-                return result_queryset
-
         user_criteria = Q(user=author)
         view_permission_criteria = Q(permissions=view_program_permission)
         author_groups_with_view_permissions = Group.objects.filter(
@@ -354,11 +333,30 @@ class ProgramViewSet(viewsets.GenericViewSet):
             author_groups_with_view_permissions_count,
         )
 
-        # Programs logic
         author_criteria = Q(author=author)
         author_groups_with_view_permissions_criteria = Q(
             instances__in=author_groups_with_view_permissions
         )
+
+        # Serverless filter only returns functions created by the author with the next criterias:
+        # user is the author of the function and there is no provider
+        if type_filter == "serverless":
+            provider_criteria = Q(provider=None)
+            result_queryset = Program.objects.filter(
+                author_criteria & provider_criteria
+            )
+            return result_queryset
+
+        # Catalog filter only returns providers functions that user has access:
+        # author has view permissions and the function has a provider assigned
+        if type_filter == "catalog":
+            provider_exists_criteria = ~Q(provider=None)
+            result_queryset = Program.objects.filter(
+                author_groups_with_view_permissions_criteria & provider_exists_criteria
+            )
+            return result_queryset
+
+        # If filter is not applied we return author and providers functions together
         title = sanitize_name(title)
         provider_name = sanitize_name(provider_name)
         if title:

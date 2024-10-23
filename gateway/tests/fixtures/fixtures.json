@@ -93,6 +93,21 @@
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbeb",
       "instances": [
+        100
+      ]
+    }
+  },
+  {
+    "model": "api.program",
+    "pk": "74d300c1-f3f2-4c79-9b3e-2faab5f76d76",
+    "fields": {
+      "created": "2023-02-01T15:30:43.281796Z",
+      "title": "Docker-Image-Program-3",
+      "image": "icr.io/awesome-namespace/awesome-title",
+      "author": 3,
+      "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
+      "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbeb",
+      "instances": [
         100,
         101
       ]
