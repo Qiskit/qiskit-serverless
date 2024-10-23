@@ -75,7 +75,7 @@ class TestProgramApi(APITestCase):
         )
         self.assertEqual(
             programs_response.data[0].get("title"),
-            "Docker-Image-Program-2",
+            "Docker-Image-Program-3",
         )
 
     def test_provider_programs_serverless_list(self):
