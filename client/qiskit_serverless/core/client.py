@@ -30,7 +30,7 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
-from qiskit_serverless.core.job import Job, JobClient
+from qiskit_serverless.core.job import Job, JobService
 from qiskit_serverless.core.function import (
     QiskitFunction,
     RunnableQiskitFunction,
@@ -40,7 +40,7 @@ from qiskit_serverless.utils import JsonSerializable
 from qiskit_serverless.visualizaiton import Widget
 
 
-class BaseClient(JobClient, RunService, JsonSerializable, ABC):
+class BaseClient(JobService, RunService, JsonSerializable, ABC):
     """
     A client class for specifying custom compute resources.
 

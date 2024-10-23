@@ -80,7 +80,7 @@ class RayClient(BaseClient):
             list of jobs.
         """
         return [
-            Job(job.job_id, client=self)
+            Job(job.job_id, jobService=self)
             for job in self.job_submission_client.list_jobs()
         ]
 
@@ -94,7 +94,7 @@ class RayClient(BaseClient):
             Job instance
         """
         return Job(
-            self.job_submission_client.get_job_info(job_id).submission_id, client=self
+            self.job_submission_client.get_job_info(job_id).submission_id, jobService=self
         )
 
     def run(
@@ -129,7 +129,7 @@ class RayClient(BaseClient):
                 "env_vars": env_vars,
             },
         )
-        return Job(job_id=job_id, client=self)
+        return Job(job_id=job_id, jobService=self)
 
     def status(self, job_id: str) -> str:
         """Check status."""
