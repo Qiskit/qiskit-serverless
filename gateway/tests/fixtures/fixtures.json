@@ -79,7 +79,10 @@
       "image": "icr.io/awesome-namespace/awesome-title",
       "author": 2,
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
-      "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea"
+      "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
+      "instances": [
+        100
+      ]
     }
   },
   {
