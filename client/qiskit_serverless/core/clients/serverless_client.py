@@ -54,7 +54,12 @@ from qiskit_serverless.core.job import (
     Job,
     Configuration,
 )
-from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.core.function import (
+    QiskitFunction,
+    RunService,
+    RunnableQiskitFunction,
+)
+
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.json import (
     safe_json_request_as_dict,
@@ -159,7 +164,7 @@ class ServerlessClient(BaseClient):
             )
 
         return [
-            Job(job.get("id"), client=self, raw_data=job)
+            Job(job.get("id"), job_service=self, raw_data=job)
             for job in response_data.get("results", [])
         ]
 
@@ -180,7 +185,7 @@ class ServerlessClient(BaseClient):
             if job_id is not None:
                 job = Job(
                     job_id=job_id,
-                    client=self,
+                    job_service=self,
                 )
 
         return job
@@ -227,7 +232,7 @@ class ServerlessClient(BaseClient):
             job_id = response_data.get("id")
             span.set_attribute("job.id", job_id)
 
-        return Job(job_id, client=self)
+        return Job(job_id, job_service=self)
 
     def status(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")
@@ -316,7 +321,7 @@ class ServerlessClient(BaseClient):
     ####### Functions #######
     #########################
 
-    def upload(self, program: QiskitFunction) -> Optional[QiskitFunction]:
+    def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
             span.set_attribute("program", program.title)
@@ -325,12 +330,12 @@ class ServerlessClient(BaseClient):
             if program.image is not None:
                 # upload function with custom image
                 function_uploaded = _upload_with_docker_image(
-                    program=program, url=url, token=self.token, span=span
+                    program=program, url=url, token=self.token, span=span, client=self
                 )
             elif program.entrypoint is not None:
                 # upload funciton with artifact
                 function_uploaded = _upload_with_artifact(
-                    program=program, url=url, token=self.token, span=span
+                    program=program, url=url, token=self.token, span=span, client=self
                 )
             else:
                 raise QiskitServerlessException(
@@ -339,7 +344,7 @@ class ServerlessClient(BaseClient):
 
         return function_uploaded
 
-    def functions(self, **kwargs) -> List[QiskitFunction]:
+    def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of available programs."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("program.list"):
@@ -353,11 +358,11 @@ class ServerlessClient(BaseClient):
             )
 
         return [
-            QiskitFunction(
-                program.get("title"),
+            RunnableQiskitFunction(
+                client=self,
+                title=program.get("title"),
                 provider=program.get("provider", None),
                 raw_data=program,
-                client=self,
                 description=program.get("description"),
             )
             for program in response_data
@@ -365,7 +370,7 @@ class ServerlessClient(BaseClient):
 
     def function(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[QiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
         provider, title = format_provider_name_and_title(
             request_provider=provider, title=title
@@ -381,11 +386,11 @@ class ServerlessClient(BaseClient):
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-            return QiskitFunction(
-                response_data.get("title"),
+            return RunnableQiskitFunction(
+                client=self,
+                title=response_data.get("title"),
                 provider=response_data.get("provider", None),
                 raw_data=response_data,
-                client=self,
             )
 
     #####################
@@ -484,8 +489,8 @@ class IBMServerlessClient(ServerlessClient):
 
 
 def _upload_with_docker_image(
-    program: QiskitFunction, url: str, token: str, span: Any
-) -> QiskitFunction:
+    program: QiskitFunction, url: str, token: str, span: Any, client: RunService
+) -> RunnableQiskitFunction:
     """Uploads function with custom docker image.
 
     Args:
@@ -517,12 +522,13 @@ def _upload_with_docker_image(
     program_provider = response_data.get("provider", "na")
     span.set_attribute("program.title", program_title)
     span.set_attribute("program.provider", program_provider)
-    return QiskitFunction.from_json(response_data)
+    response_data["client"] = client
+    return RunnableQiskitFunction.from_json(response_data)
 
 
 def _upload_with_artifact(
-    program: QiskitFunction, url: str, token: str, span: Any
-) -> QiskitFunction:
+    program: QiskitFunction, url: str, token: str, span: Any, client: RunService
+) -> RunnableQiskitFunction:
     """Uploads function with artifact.
 
     Args:
@@ -582,11 +588,10 @@ def _upload_with_artifact(
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-            program_title = response_data.get("title", "na")
-            program_provider = response_data.get("provider", "na")
-            span.set_attribute("program.title", program_title)
-            span.set_attribute("program.provider", program_provider)
-            response_function = QiskitFunction.from_json(response_data)
+            span.set_attribute("program.title", response_data.get("title", "na"))
+            span.set_attribute("program.provider", response_data.get("provider", "na"))
+            response_data["client"] = client
+            response_function = RunnableQiskitFunction.from_json(response_data)
     except Exception as error:  # pylint: disable=broad-exception-caught
         raise QiskitServerlessException from error
     finally:
