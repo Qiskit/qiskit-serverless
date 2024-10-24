@@ -143,12 +143,12 @@ class RunnableQiskitFunction(QiskitFunction):
         version: version of a program
     """
 
-    _runService: RunService = None
+    _run_service: RunService = None
 
     def __init__(  # pylint:  disable=too-many-positional-arguments
         self, client: RunService, **kwargs
     ):
-        self._runService = client
+        self._run_service = client
         super().__init__(**kwargs)
 
     @classmethod
@@ -169,7 +169,7 @@ class RunnableQiskitFunction(QiskitFunction):
         Returns:
             Job: job handler for function execution
         """
-        if self._runService is None:
+        if self._run_service is None:
             raise ValueError("No clients specified for a function.")
 
         if self.validate:
@@ -181,7 +181,7 @@ class RunnableQiskitFunction(QiskitFunction):
                 )
 
         config = kwargs.pop("config", None)
-        return self._runService.run(
+        return self._run_service.run(
             program=self,
             arguments=kwargs,
             config=config,
@@ -215,7 +215,7 @@ class RunnableQiskitFunction(QiskitFunction):
             [Job] : list of jobs
         """
 
-        if self._runService is None:
+        if self._run_service is None:
             raise ValueError("No clients specified for a function.")
 
         if self.validate:
@@ -226,7 +226,7 @@ class RunnableQiskitFunction(QiskitFunction):
                     f"Function validation failed. Validation errors:\n {error_string}",
                 )
 
-        jobs = self._runService.jobs(
+        jobs = self._run_service.jobs(
             title=self.title,
             provider=self.provider,
         )

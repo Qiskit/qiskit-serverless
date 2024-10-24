@@ -114,7 +114,7 @@ class Job:
     def __init__(
         self,
         job_id: str,
-        jobService: JobService,
+        job_service: JobService,
         raw_data: Optional[Dict[str, Any]] = None,
     ):
         """Job class for async script execution.
@@ -124,12 +124,12 @@ class Job:
             client: client
         """
         self.job_id = job_id
-        self._jobService = jobService
+        self._job_service = job_service
         self.raw_data = raw_data or {}
 
     def status(self):
         """Returns status of the job."""
-        return _map_status_to_serverless(self._jobService.status(self.job_id))
+        return _map_status_to_serverless(self._job_service.status(self.job_id))
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
@@ -143,11 +143,11 @@ class Job:
 
     def cancel(self, service: Optional[QiskitRuntimeService] = None):
         """Cancels the job."""
-        return self._jobService.stop(self.job_id, service=service)
+        return self._job_service.stop(self.job_id, service=service)
 
     def logs(self) -> str:
         """Returns logs of the job."""
-        return self._jobService.logs(self.job_id)
+        return self._job_service.logs(self.job_id)
 
     def filtered_logs(self, **kwargs) -> str:
         """Returns logs of the job.
@@ -155,7 +155,7 @@ class Job:
             include: rex expression finds match in the log line to be included
             exclude: rex expression finds match in the log line to be excluded
         """
-        return self._jobService.filtered_logs(job_id=self.job_id, **kwargs)
+        return self._job_service.filtered_logs(job_id=self.job_id, **kwargs)
 
     def result(self, wait=True, cadence=5, verbose=False, maxwait=0):
         """Return results of the job.
@@ -178,7 +178,7 @@ class Job:
                     logging.info(count)
 
         # Retrieve the results. If they're string format, try to decode to a dictionary.
-        results = self._jobService.result(self.job_id)
+        results = self._job_service.result(self.job_id)
         if isinstance(results, str):
             try:
                 results = json.loads(results, cls=QiskitObjectsDecoder)

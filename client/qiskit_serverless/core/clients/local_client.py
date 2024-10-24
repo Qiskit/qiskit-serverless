@@ -133,7 +133,7 @@ class LocalClient(BaseClient):
         if results:
             result = results.group(1)
 
-        job = Job(job_id=str(uuid4()), jobService=self)
+        job = Job(job_id=str(uuid4()), job_service=self)
         self._jobs[job.job_id] = {
             "status": status,
             "logs": output,

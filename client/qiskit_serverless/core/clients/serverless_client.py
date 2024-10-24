@@ -164,7 +164,7 @@ class ServerlessClient(BaseClient):
             )
 
         return [
-            Job(job.get("id"), jobService=self, raw_data=job)
+            Job(job.get("id"), job_service=self, raw_data=job)
             for job in response_data.get("results", [])
         ]
 
@@ -185,7 +185,7 @@ class ServerlessClient(BaseClient):
             if job_id is not None:
                 job = Job(
                     job_id=job_id,
-                    jobService=self,
+                    job_service=self,
                 )
 
         return job
@@ -232,7 +232,7 @@ class ServerlessClient(BaseClient):
             job_id = response_data.get("id")
             span.set_attribute("job.id", job_id)
 
-        return Job(job_id, jobService=self)
+        return Job(job_id, job_service=self)
 
     def status(self, job_id: str):
         tracer = trace.get_tracer("client.tracer")
