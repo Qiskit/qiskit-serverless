@@ -50,6 +50,7 @@ from qiskit_serverless.core.constants import (
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 
+from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
@@ -125,6 +126,10 @@ class Job:
         """
         return self._client.filtered_logs(job_id=self.job_id, **kwargs)
 
+    def error_message(self):
+        """Returns the execution error message."""
+        return self._client.result(self.job_id) if self.status() == "ERROR" else ""
+
     def result(self, wait=True, cadence=5, verbose=False, maxwait=0):
         """Return results of the job.
         Args:
@@ -144,6 +149,11 @@ class Job:
                 time.sleep(cadence)
                 if verbose:
                     logging.info(count)
+
+        if self.status() == "ERROR":
+            raise QiskitServerlessException(
+                "Job finished with an error. Use error_message() to get additional information."
+            )
 
         # Retrieve the results. If they're string format, try to decode to a dictionary.
         results = self._client.result(self.job_id)
