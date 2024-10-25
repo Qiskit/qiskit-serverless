@@ -152,7 +152,7 @@ class Job:
 
         if self.status() == "ERROR":
             raise QiskitServerlessException(
-                f"Job finished with an error. Use error_message() to get additional information. \n\n{self.status()}\n\n{self.logs()}\n\n{self.error_message()}"
+                "Job finished with an error. Use error_message() to get additional information."
             )
 
         # Retrieve the results. If they're string format, try to decode to a dictionary.
