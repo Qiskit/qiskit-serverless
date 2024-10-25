@@ -31,7 +31,10 @@ def hello_qiskit():
 
 job = hello_qiskit()
 print(job)
-print(job.result())
+try:
+  print(job.result())
+except:
+  print(job.error_message())
 print(job.status())
 print(job.logs())
 

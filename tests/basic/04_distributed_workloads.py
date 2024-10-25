@@ -36,8 +36,7 @@ print(job)
 try:
   print(job.result())
 except:
-  pass
+  print(job.error_message())
 
-print(job.error_message())
 print(job.status())
 print(job.logs())
