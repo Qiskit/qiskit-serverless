@@ -35,6 +35,7 @@ try:
   print(job.result())
 except:
   print(job.error_message())
+
 print(job.status())
 print(job.logs())
 
@@ -60,7 +61,11 @@ for _ in range(3):
 
 job = function_with_distributed_tasks(circuits=circuits)
 print(job)
-print(job.result())
+try:
+  print(job.result())
+except:
+  print(job.error_message())
+
 print(job.status())
 print(job.logs())
 
@@ -73,6 +78,10 @@ def my_function_with_modules():
 
 job = my_function_with_modules()
 print(job)
-print(job.result())
+try:
+  print(job.result())
+except:
+  print(job.error_message())
+
 print(job.status())
 print(job.logs())
