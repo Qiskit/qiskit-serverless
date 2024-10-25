@@ -150,13 +150,9 @@ class Job:
                 if verbose:
                     logging.info(count)
 
-        print(self.status)
-
         if self.status() == "ERROR":
-            print(self._client.result(self.job_id))
-            print(self.logs())
             raise QiskitServerlessException(
-                "Job finished with an error. Use error_message() to get additional information."
+                f"Job finished with an error. Use error_message() to get additional information. \n\n{self.status()}\n\n{self.logs()}\n\n{self.error_message()}"
             )
 
         # Retrieve the results. If they're string format, try to decode to a dictionary.
