@@ -42,7 +42,7 @@ from qiskit_serverless.core.job import (
     Configuration,
     Job,
 )
-from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
 )
@@ -80,7 +80,7 @@ class RayClient(BaseClient):
             list of jobs.
         """
         return [
-            Job(job.job_id, client=self)
+            Job(job.job_id, job_service=self)
             for job in self.job_submission_client.list_jobs()
         ]
 
@@ -94,7 +94,8 @@ class RayClient(BaseClient):
             Job instance
         """
         return Job(
-            self.job_submission_client.get_job_info(job_id).submission_id, client=self
+            self.job_submission_client.get_job_info(job_id).submission_id,
+            job_service=self,
         )
 
     def run(
@@ -129,7 +130,7 @@ class RayClient(BaseClient):
                 "env_vars": env_vars,
             },
         )
-        return Job(job_id=job_id, client=self)
+        return Job(job_id=job_id, job_service=self)
 
     def status(self, job_id: str) -> str:
         """Check status."""
@@ -157,16 +158,16 @@ class RayClient(BaseClient):
     ####### Functions #######
     #########################
 
-    def upload(self, program: QiskitFunction) -> Optional[QiskitFunction]:
+    def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
         """Uploads program."""
         raise NotImplementedError("Upload is not available for RayClient.")
 
-    def functions(self, **kwargs) -> List[QiskitFunction]:
+    def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of available programs."""
         raise NotImplementedError("get_programs is not available for RayClient.")
 
     def function(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[QiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
         raise NotImplementedError("get_program is not available for RayClient.")

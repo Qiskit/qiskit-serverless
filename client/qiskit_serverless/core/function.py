@@ -26,10 +26,16 @@ Qiskit Serverless function
 
     QiskitFunction
 """
+from abc import ABC, abstractmethod
 import dataclasses
 import warnings
 from dataclasses import dataclass
-from typing import Optional, Dict, List, Any, Tuple
+from typing import Optional, Dict, List, Any, Tuple, Union
+
+from qiskit_serverless.core.job import (
+    Job,
+    Configuration,
+)
 
 
 @dataclass
@@ -58,7 +64,6 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     version: Optional[str] = None
     tags: Optional[List[str]] = None
     raw_data: Optional[Dict[str, Any]] = None
-    client: Optional[Any] = None
     image: Optional[str] = None
     validate: bool = True
     schema: Optional[str] = None
@@ -91,6 +96,70 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     def __repr__(self):
         return self.__str__()
 
+    def _validate_function(self) -> Tuple[bool, List[str]]:
+        """Validate function arguments using schema provided.
+
+        Returns:
+            Tuple[bool, List[str]]:
+                boolean specifiying if function arguments are valid
+                list of validation errors, if any
+        """
+        return True, []
+
+
+class RunService(ABC):
+    """Provide access to run a function and retrieve the jobs associated to that function"""
+
+    @abstractmethod
+    def jobs(self, **kwargs) -> List[Job]:
+        """Return list of jobs.
+
+        Returns:
+            list of jobs.
+        """
+
+    @abstractmethod
+    def run(
+        self,
+        program: Union[QiskitFunction, str],
+        arguments: Optional[Dict[str, Any]] = None,
+        config: Optional[Configuration] = None,
+    ) -> Job:
+        """Run a function and return its job."""
+
+
+class RunnableQiskitFunction(QiskitFunction):
+    """Serverless QiskitPattern.
+
+    Args:
+        title: program name
+        provider: Qiskit Function provider reference
+        entrypoint: is a script that will be executed as a job
+            ex: job.py
+        env_vars: env vars
+        dependencies: list of python dependencies to execute a program
+        working_dir: directory where entrypoint file is located (max size 50MB)
+        description: description of a program
+        version: version of a program
+    """
+
+    _run_service: RunService = None
+
+    def __init__(  # pylint:  disable=too-many-positional-arguments
+        self, client: RunService, **kwargs
+    ):
+        self._run_service = client
+        super().__init__(**kwargs)
+
+    @classmethod
+    def from_json(cls, data: Dict[str, Any]):
+        """Reconstructs QiskitPattern from dictionary."""
+        field_names = set(f.name for f in dataclasses.fields(QiskitFunction))
+        client = data["client"]
+        return RunnableQiskitFunction(
+            client, **{k: v for k, v in data.items() if k in field_names}
+        )
+
     def run(self, **kwargs):
         """Run function
 
@@ -100,7 +169,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         Returns:
             Job: job handler for function execution
         """
-        if self.client is None:
+        if self._run_service is None:
             raise ValueError("No clients specified for a function.")
 
         if self.validate:
@@ -112,7 +181,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
                 )
 
         config = kwargs.pop("config", None)
-        return self.client.run(
+        return self._run_service.run(
             program=self,
             arguments=kwargs,
             config=config,
@@ -145,11 +214,8 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         Returns:
             [Job] : list of jobs
         """
-        from qiskit_serverless.core.job import (  # pylint: disable=import-outside-toplevel
-            Job,
-        )
 
-        if self.client is None:
+        if self._run_service is None:
             raise ValueError("No clients specified for a function.")
 
         if self.validate:
@@ -160,28 +226,15 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
                     f"Function validation failed. Validation errors:\n {error_string}",
                 )
 
-        response = self.client.get_jobs(
+        jobs = self._run_service.jobs(
             title=self.title,
             provider=self.provider,
         )
-        jobs = [
-            Job(job_id=job.get("id"), client=self.client, raw_data=job)
-            for job in response
-        ]
         return jobs
-
-    def _validate_function(self) -> Tuple[bool, List[str]]:
-        """Validate function arguments using schema provided.
-
-        Returns:
-            Tuple[bool, List[str]]:
-                boolean specifiying if function arguments are valid
-                list of validation errors, if any
-        """
-        return True, []
 
 
 # pylint: disable=abstract-method
+# pylint: disable=too-few-public-methods
 class QiskitPattern(QiskitFunction):
     """
     [Deprecated since version 0.10.0] Use :class:`.QiskitFunction` instead.
