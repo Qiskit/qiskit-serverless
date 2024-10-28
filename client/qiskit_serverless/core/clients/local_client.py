@@ -48,7 +48,7 @@ from qiskit_serverless.core.job import (
     Job,
     Configuration,
 )
-from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
@@ -133,7 +133,7 @@ class LocalClient(BaseClient):
         if results:
             result = results.group(1)
 
-        job = Job(job_id=str(uuid4()), client=self)
+        job = Job(job_id=str(uuid4()), job_service=self)
         self._jobs[job.job_id] = {
             "status": status,
             "logs": output,
@@ -163,7 +163,7 @@ class LocalClient(BaseClient):
     ####### Functions #######
     #########################
 
-    def upload(self, program: QiskitFunction) -> Optional[QiskitFunction]:
+    def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
         # check if entrypoint exists
         if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
             raise QiskitServerlessException(
@@ -182,14 +182,14 @@ class LocalClient(BaseClient):
             "client": self,
         }
         self._patterns.append(pattern)
-        return QiskitFunction.from_json(pattern)
+        return RunnableQiskitFunction.from_json(pattern)
 
-    def functions(self, **kwargs) -> List[QiskitFunction]:
+    def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of programs."""
-        return [QiskitFunction.from_json(program) for program in self._patterns]
+        return [RunnableQiskitFunction.from_json(program) for program in self._patterns]
 
     def function(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[QiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction]:
         functions = {function.title: function for function in self.functions()}
         return functions.get(title)
