@@ -279,3 +279,8 @@ def _map_status_to_serverless(status: str) -> str:
         return status_map[status]
     except KeyError:
         return status
+
+
+def is_running_as_serverless_program() -> bool:
+    """Return ``True`` if running as a Qiskit serverless program, ``False`` otherwise."""
+    return "ENV_JOB_ID_GATEWAY" in os.environ
