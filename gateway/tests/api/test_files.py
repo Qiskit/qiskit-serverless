@@ -35,7 +35,7 @@ class TestFilesApi(APITestCase):
             user = models.User.objects.get(username="test_user")
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-list")
-            response = self.client.get(url, {"working_dir": "user"}, format="json")
+            response = self.client.get(url, format="json")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.data, {"results": ["artifact.tar"]})
 
@@ -45,27 +45,18 @@ class TestFilesApi(APITestCase):
         provider = "default"
         function = "Program"
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+        url = reverse("v1:files-list")
+        response = self.client.get(
+            url,
+            {
+                "provider": provider,
+                "function": function,
+            },
+            format="json",
         )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
-            user = models.User.objects.get(username="test_user")
-            self.client.force_authenticate(user=user)
-            url = reverse("v1:files-list")
-            response = self.client.get(
-                url,
-                {
-                    "provider": provider,
-                    "function": function,
-                },
-                format="json",
-            )
-            self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_files_list_from_user_with_access_to_function(self):
         """Tests files list with working dir as user where the user has access to the function"""
@@ -102,30 +93,21 @@ class TestFilesApi(APITestCase):
         provider = "noexist"
         function = "Program"
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+        url = reverse("v1:files-list")
+        response = self.client.get(
+            url,
+            {
+                "provider": provider,
+                "function": function,
+            },
+            format="json",
         )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-        with self.settings(MEDIA_ROOT=media_root):
-            user = models.User.objects.get(username="test_user_2")
-            self.client.force_authenticate(user=user)
-            url = reverse("v1:files-list")
-            response = self.client.get(
-                url,
-                {
-                    "provider": provider,
-                    "function": function,
-                },
-                format="json",
-            )
-            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_files_list_using_provider_working_dir(self):
-        """Tests files list with working dir as provider"""
+    def test_files_provider_list_using_provider_working_dir(self):
+        """Tests files provider list with working dir as provider"""
 
         provider = "default"
         function = "Program"
@@ -154,6 +136,25 @@ class TestFilesApi(APITestCase):
             self.assertEqual(
                 response.data, {"results": ["provider_program_artifact.tar"]}
             )
+
+    def test_files_provider_list_with_a_user_that_has_no_access_to_provider(self):
+        """Tests files provider list with working dir as provider"""
+
+        provider = "default"
+        function = "Program"
+
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+        url = reverse("v1:files-provider-list")
+        response = self.client.get(
+            url,
+            {
+                "provider": provider,
+                "function": function,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_non_existing_file_download(self):
         """Tests downloading non-existing file."""
