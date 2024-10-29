@@ -3,7 +3,6 @@ Django Rest framework File views for api application:
 
 Version views inherit from the different views.
 """
-import glob
 import logging
 import mimetypes
 import os
@@ -172,20 +171,8 @@ class FilesViewSet(viewsets.ViewSet):
                 function_title=function_title,
                 provider_name=provider_name,
             )
+            files = file_storage.get_files()
 
-            if os.path.exists(file_storage.file_path):
-                files = [
-                    os.path.basename(path)
-                    for path in glob.glob(f"{file_storage.file_path}/*.tar")
-                    + glob.glob(f"{file_storage.file_path}/*.h5")
-                ]
-            else:
-                logger.warning(
-                    "Directory %s does not exist for %s.",
-                    file_storage.file_path,
-                    request.user,
-                )
-                files = []
         return Response({"results": files})
 
     @action(methods=["GET"], detail=False)
