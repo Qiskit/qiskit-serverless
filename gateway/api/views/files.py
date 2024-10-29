@@ -47,9 +47,8 @@ if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
 
 
 class FilesViewSet(viewsets.ViewSet):
-    """ViewSet for file operations handling.
-
-    Note: only tar files are available for list and download
+    """
+    ViewSet for file operations handling.
     """
 
     BASE_NAME = "files"
@@ -98,6 +97,9 @@ class FilesViewSet(viewsets.ViewSet):
         Args:
             provider_name (str): name of the provider
             function_title (str): title of the function
+
+        Returns:
+            Program | None: returns the function if it exists
         """
 
         provider = Provider.objects.filter(name=provider_name).first()
@@ -141,10 +143,8 @@ class FilesViewSet(viewsets.ViewSet):
 
     def list(self, request):
         """
-        It returns a list with the names of available files.
-        Depending of the working_dir:
-            - "user": it will look under its username or username/provider_name/function_title
-            - "provider": it will look under provider_name/function_title
+        It returns a list with the names of available files for the user directory:
+            it will look under its username or username/provider_name/function_title
         """
 
         tracer = trace.get_tracer("gateway.tracer")
@@ -153,9 +153,7 @@ class FilesViewSet(viewsets.ViewSet):
             username = request.user.username
             provider_name = sanitize_name(request.query_params.get("provider"))
             function_title = sanitize_name(request.query_params.get("function"))
-            working_dir = request.query_params.get(
-                "working_dir"
-            )  # It can be "user" or "provider"
+            working_dir = USER_STORAGE
 
             function = None
             if provider_name:
@@ -170,30 +168,56 @@ class FilesViewSet(viewsets.ViewSet):
                         status=status.HTTP_404_NOT_FOUND,
                     )
 
-            if working_dir == USER_STORAGE:
-                if function:
-                    if not self.user_has_access_to_provider_function(
-                        request.user, function
-                    ):
-                        return Response(
-                            {
-                                "message": "You don't have access to this Qiskit Function."
-                            },
-                            status=status.HTTP_403_FORBIDDEN,
-                        )
-            elif working_dir == PROVIDER_STORAGE:
+            if function:
+                if not self.user_has_access_to_provider_function(
+                    request.user, function
+                ):
+                    return Response(
+                        {"message": "You don't have access to this Qiskit Function."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+            file_storage = FileStorage(
+                username=username,
+                working_dir=working_dir,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            files = file_storage.get_files()
+
+        return Response({"results": files})
+
+    @action(methods=["GET"], detail=False, url_path="provider")
+    def provider_list(self, request):
+        """
+        It returns a list with the names of available files for the provider working directory:
+            provider_name/function_title
+        """
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.files.provider_list", context=ctx):
+            username = request.user.username
+            provider_name = sanitize_name(request.query_params.get("provider"))
+            function_title = sanitize_name(request.query_params.get("function"))
+            working_dir = PROVIDER_STORAGE
+
+            function = self.get_provider_function(
+                provider_name=provider_name, function_title=function_title
+            )
+            if not function:
+                return Response(
+                    {
+                        "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            if working_dir == PROVIDER_STORAGE:
                 if not self.user_has_provider_access(request.user, provider_name):
                     return Response(
                         {"message": "You don't have access to this provider."},
                         status=status.HTTP_403_FORBIDDEN,
                     )
-            else:
-                return Response(
-                    {
-                        "message": "Working directory is not correct. Must be from a user or from a provider."  # pylint: disable=line-too-long
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
 
             file_storage = FileStorage(
                 username=username,

@@ -60,7 +60,6 @@ class TestFilesApi(APITestCase):
             response = self.client.get(
                 url,
                 {
-                    "working_dir": "user",
                     "provider": provider,
                     "function": function,
                 },
@@ -89,7 +88,6 @@ class TestFilesApi(APITestCase):
             response = self.client.get(
                 url,
                 {
-                    "working_dir": "user",
                     "provider": provider,
                     "function": function,
                 },
@@ -119,7 +117,6 @@ class TestFilesApi(APITestCase):
             response = self.client.get(
                 url,
                 {
-                    "working_dir": "user",
                     "provider": provider,
                     "function": function,
                 },
@@ -144,11 +141,10 @@ class TestFilesApi(APITestCase):
         with self.settings(MEDIA_ROOT=media_root):
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
-            url = reverse("v1:files-list")
+            url = reverse("v1:files-provider-list")
             response = self.client.get(
                 url,
                 {
-                    "working_dir": "provider",
                     "provider": provider,
                     "function": function,
                 },
@@ -158,25 +154,6 @@ class TestFilesApi(APITestCase):
             self.assertEqual(
                 response.data, {"results": ["provider_program_artifact.tar"]}
             )
-
-    # def test_provider_files_list(self):
-    #     """Tests files list."""
-
-    #     media_root = os.path.join(
-    #         os.path.dirname(os.path.abspath(__file__)),
-    #         "..",
-    #         "resources",
-    #         "fake_media",
-    #     )
-    #     media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-    #     with self.settings(MEDIA_ROOT=media_root):
-    #         user = models.User.objects.get(username="test_user_2")
-    #         self.client.force_authenticate(user=user)
-    #         url = reverse("v1:files-list")
-    #         response = self.client.get(url, data={"provider": "default"}, format="json")
-    #         self.assertEqual(response.status_code, status.HTTP_200_OK)
-    #         self.assertEqual(response.data, {"results": ["provider_artifact.tar"]})
 
     def test_non_existing_file_download(self):
         """Tests downloading non-existing file."""
