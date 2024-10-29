@@ -24,6 +24,8 @@ jobs:
         with:
           k8s-version: 1.29.x
           kind-worker-count: 0
+      - name: Label nodes
+        run: kubectl label node kind-control-plane has-gpu=gpu has-cpu=cpu
       - name: Build and load gateway
         run: |
           docker build -t gateway:test -f ./gateway/Dockerfile .

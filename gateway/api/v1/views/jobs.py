@@ -46,4 +46,11 @@ class JobViewSet(views.JobViewSet):
     def result(self, request, pk=None):
         return super().result(request, pk)
 
+    @swagger_auto_schema(
+        operation_description="Stop a job",
+    )
+    @action(methods=["POST"], detail=True)
+    def stop(self, request, pk=None):
+        return super().stop(request, pk)
+
     ### We are not returning serializers in the rest of the end-points

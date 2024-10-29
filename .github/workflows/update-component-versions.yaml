@@ -44,6 +44,8 @@ jobs:
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/qiskit-serverless/values.yaml
           sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/qiskit-serverless/values.yaml
           sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" docs/deployment/custom_function/Sample-Dockerfile
+          sed -i "s/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node${OLDNUM}/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node${NEWNUM}/" docs/deployment/deploying_custom_image_function.rst
+          sed -i "s/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node${OLDNUM}/FROM icr.io\/quantum-public\/qiskit-serverless\/ray-node${NEWNUM}/" docs/deployment/example_custom_image_function.rst
           sed -i "s/qiskit-serverless\/ray-node:${OLDNUM}/qiskit-serverless\/ray-node:${NEWNUM}/" gateway/main/settings.py
           cd charts/qiskit-serverless
           helm dependency update

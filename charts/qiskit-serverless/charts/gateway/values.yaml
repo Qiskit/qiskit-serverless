@@ -18,15 +18,16 @@ application:
   superuser:
     enable: true
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.17.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.17.1"
     cpu: 2
     memory: 2
+    gpu: 1
     replicas: 1
     minReplicas: 1
     maxReplicas: 4
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
     kubectlImage: alpine/k8s:1.29.2@sha256:a51aa37f0a34ff827c7f2f9cb7f6fbb8f0e290fa625341be14c2fcc4b1880f60
-    proxyImage: "icr.io/quantum-public/qiskit-serverless/proxy:0.17.0"
+    proxyImage: "icr.io/quantum-public/qiskit-serverless/proxy:0.17.1"
     scrapeWithPrometheus: true
     openTelemetry: false
     openTelemetryCollector:
@@ -36,6 +37,7 @@ application:
       port: 4317
       insecure: 0
     useTLS: true
+    gpuJobsConfig: "api/v1/gpu-jobs.json"
   proxy:
     enabled: true
     cpu: 1
@@ -44,6 +46,7 @@ application:
   limits:
     maxJobsPerUser: 2
     maxComputeResources: 4
+    maxGpuResources: 1
     keepClusterOnComplete: False
     programTimeoutDays: 14
   qiskitRuntime:

@@ -75,7 +75,7 @@ class TestProgramApi(APITestCase):
         )
         self.assertEqual(
             programs_response.data[0].get("title"),
-            "Docker-Image-Program-2",
+            "Docker-Image-Program-3",
         )
 
     def test_provider_programs_serverless_list(self):
@@ -485,3 +485,49 @@ class TestProgramApi(APITestCase):
         )
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_upload_private_function_update_without_description(self):
+        """Tests upload end-point authorized."""
+
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
+
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "Program",
+                "entrypoint": "test_user_2_program.py",
+                "dependencies": "[]",
+                "artifact": fake_file,
+            },
+        )
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            programs_response.data.get("description"), "Program description test"
+        )
+
+    def test_upload_private_function_update_description(self):
+        """Tests upload end-point authorized."""
+
+        fake_file = ContentFile(b"print('Hello World')")
+        fake_file.name = "test_run.tar"
+
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+        description = "New program description test"
+        programs_response = self.client.post(
+            "/api/v1/programs/upload/",
+            data={
+                "title": "Program",
+                "entrypoint": "test_user_2_program.py",
+                "description": description,
+                "dependencies": "[]",
+                "artifact": fake_file,
+            },
+        )
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.data.get("description"), description)

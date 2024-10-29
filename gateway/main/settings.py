@@ -324,7 +324,9 @@ SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get(
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
+LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
+LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 
 # ray cluster management
@@ -336,7 +338,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.17.0"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.17.1"
 )
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
@@ -367,10 +369,24 @@ RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(
     os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False)
 )
 
+RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL = os.environ.get(
+    "RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL",
+    "ibm-cloud.kubernetes.io/worker-pool-name: default",
+)
+
+RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL = os.environ.get(
+    "RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL",
+    "ibm-cloud.kubernetes.io/worker-pool-name: gpu-workers",
+)
+
 PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
 
 GATEWAY_ALLOWLIST_CONFIG = str(
     os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json")
+)
+
+GATEWAY_GPU_JOBS_CONFIG = str(
+    os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json")
 )
 
 # qiskit runtime
