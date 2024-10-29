@@ -23,7 +23,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from api.services.storage import (
+from api.services.file_storage import (
     PROVIDER_STORAGE,
     USER_STORAGE,
     get_provider_path,

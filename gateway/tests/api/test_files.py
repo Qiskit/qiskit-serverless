@@ -97,7 +97,7 @@ class TestFilesApi(APITestCase):
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(response.data, {"results": ["user_program_artifact.tar"]})
-    
+
     def test_files_list_from_a_provider_that_not_exist(self):
         """Tests files list with a provider that it doesn't exist"""
 
@@ -155,7 +155,9 @@ class TestFilesApi(APITestCase):
                 format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(response.data, {"results": ["provider_program_artifact.tar"]})
+            self.assertEqual(
+                response.data, {"results": ["provider_program_artifact.tar"]}
+            )
 
     # def test_provider_files_list(self):
     #     """Tests files list."""
