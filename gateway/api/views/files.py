@@ -89,17 +89,21 @@ class FilesViewSet(viewsets.ViewSet):
             )
         return has_access
 
-    def user_has_access_to_provider_function(
-        self, user, provider_name: str, function_title: str
-    ) -> bool:
+    def get_provider_function(
+        self, provider_name: str, function_title: str
+    ) -> Program | None:
         """
-        This method returns True or False if the user has access to the provider function.
+        This method returns the specified function.
+
+        Args:
+            provider_name (str): name of the provider
+            function_title (str): title of the function
         """
 
         provider = Provider.objects.filter(name=provider_name).first()
         if provider is None:
             logger.error("Provider [%s] does not exist.", provider_name)
-            return False
+            return None
 
         function = Program.objects.filter(
             title=function_title, provider=provider
@@ -108,7 +112,20 @@ class FilesViewSet(viewsets.ViewSet):
             logger.error(
                 "Function [%s/%s] does not exist.", provider_name, function_title
             )
-            return False
+            return None
+        return function
+
+    def user_has_access_to_provider_function(self, user, function: Program) -> bool:
+        """
+        This method returns True or False if the user has access to the provider function.
+
+        Args:
+            user: the user that is doing the request
+            funtion (Program): the Qiskit Function that is going to be checked
+
+        Returns:
+            bool: boolean value that verifies if the user has access or not to the function
+        """
 
         instances = function.instances.all()
         user_groups = user.groups.all()
@@ -117,8 +134,8 @@ class FilesViewSet(viewsets.ViewSet):
             logger.error(
                 "User [%s] has no access to function [%s/%s].",
                 user.id,
-                provider_name,
-                function_title,
+                function.provider.name,
+                function.title,
             )
         return has_access
 
@@ -140,10 +157,23 @@ class FilesViewSet(viewsets.ViewSet):
                 "working_dir"
             )  # It can be "user" or "provider"
 
+            function = None
+            if provider_name:
+                function = self.get_provider_function(
+                    provider_name=provider_name, function_title=function_title
+                )
+                if not function:
+                    return Response(
+                        {
+                            "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                        },
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+
             if working_dir == USER_STORAGE:
-                if provider_name:
+                if function:
                     if not self.user_has_access_to_provider_function(
-                        request.user, provider_name, function_title
+                        request.user, function
                     ):
                         return Response(
                             {

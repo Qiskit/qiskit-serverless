@@ -125,7 +125,7 @@ class TestFilesApi(APITestCase):
                 },
                 format="json",
             )
-            self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_files_list_using_provider_working_dir(self):
         """Tests files list with working dir as provider"""
