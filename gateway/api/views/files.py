@@ -23,12 +23,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from api.services.file_storage import (
-    PROVIDER_STORAGE,
-    USER_STORAGE,
-    get_provider_path,
-    get_user_path,
-)
+from api.services.file_storage import PROVIDER_STORAGE, USER_STORAGE, FileStorage
 from api.utils import sanitize_name
 from api.models import Provider, Program
 from utils import sanitize_file_path
@@ -96,7 +91,7 @@ class FilesViewSet(viewsets.ViewSet):
         return has_access
 
     def user_has_access_to_provider_function(
-        self, user, provider_name: str, function_name: str
+        self, user, provider_name: str, function_title: str
     ) -> bool:
         """
         This method returns True or False if the user has access to the provider function.
@@ -108,11 +103,11 @@ class FilesViewSet(viewsets.ViewSet):
             return False
 
         function = Program.objects.filter(
-            title=function_name, provider=provider
+            title=function_title, provider=provider
         ).first()
         if function is None:
             logger.error(
-                "Function [%s/%s] does not exist.", provider_name, function_name
+                "Function [%s/%s] does not exist.", provider_name, function_title
             )
             return False
 
@@ -124,7 +119,7 @@ class FilesViewSet(viewsets.ViewSet):
                 "User [%s] has no access to function [%s/%s].",
                 user.id,
                 provider_name,
-                function_name,
+                function_title,
             )
         return has_access
 
@@ -132,8 +127,8 @@ class FilesViewSet(viewsets.ViewSet):
         """
         It returns a list with the names of available files.
         Depending of the working_dir:
-            - "user": it will look under its username or username/provider_name/function_name
-            - "provider": it will look under provider_name/function_name
+            - "user": it will look under its username or username/provider_name/function_title
+            - "provider": it will look under provider_name/function_title
         """
 
         tracer = trace.get_tracer("gateway.tracer")
@@ -141,7 +136,7 @@ class FilesViewSet(viewsets.ViewSet):
         with tracer.start_as_current_span("gateway.files.list", context=ctx):
             username = request.user.username
             provider_name = sanitize_name(request.query_params.get("provider"))
-            function_name = sanitize_name(request.query_params.get("function"))
+            function_title = sanitize_name(request.query_params.get("function"))
             working_dir = request.query_params.get(
                 "working_dir"
             )  # It can be "user" or "provider"
@@ -149,7 +144,7 @@ class FilesViewSet(viewsets.ViewSet):
             if working_dir == USER_STORAGE:
                 if provider_name:
                     if not self.user_has_access_to_provider_function(
-                        request.user, provider_name, function_name
+                        request.user, provider_name, function_title
                     ):
                         return Response(
                             {
@@ -157,23 +152,12 @@ class FilesViewSet(viewsets.ViewSet):
                             },
                             status=status.HTTP_403_FORBIDDEN,
                         )
-
-                files_path = get_user_path(
-                    username=username,
-                    function_name=function_name,
-                    provider_name=provider_name,
-                )
-
             elif working_dir == PROVIDER_STORAGE:
                 if not self.user_has_provider_access(request.user, provider_name):
                     return Response(
                         {"message": "You don't have access to this provider."},
                         status=status.HTTP_403_FORBIDDEN,
                     )
-
-                files_path = get_provider_path(
-                    function_name=function_name, provider_name=provider_name
-                )
             else:
                 return Response(
                     {
@@ -182,15 +166,24 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if os.path.exists(files_path):
+            file_storage = FileStorage(
+                username=username,
+                working_dir=working_dir,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+
+            if os.path.exists(file_storage.file_path):
                 files = [
                     os.path.basename(path)
-                    for path in glob.glob(f"{files_path}/*.tar")
-                    + glob.glob(f"{files_path}/*.h5")
+                    for path in glob.glob(f"{file_storage.file_path}/*.tar")
+                    + glob.glob(f"{file_storage.file_path}/*.h5")
                 ]
             else:
                 logger.warning(
-                    "Directory %s does not exist for %s.", files_path, request.user
+                    "Directory %s does not exist for %s.",
+                    file_storage.file_path,
+                    request.user,
                 )
                 files = []
         return Response({"results": files})
