@@ -30,7 +30,7 @@ from api.services.storage import (
     get_user_path,
 )
 from api.utils import sanitize_name
-from api.models import Provider
+from api.models import Provider, Program
 from utils import sanitize_file_path
 
 # pylint: disable=duplicate-code
@@ -95,6 +95,39 @@ class FilesViewSet(viewsets.ViewSet):
             )
         return has_access
 
+    def user_has_access_to_provider_function(
+        self, user, provider_name: str, function_name: str
+    ) -> bool:
+        """
+        This method returns True or False if the user has access to the provider function.
+        """
+
+        provider = Provider.objects.filter(name=provider_name).first()
+        if provider is None:
+            logger.error("Provider [%s] does not exist.", provider_name)
+            return False
+
+        function = Program.objects.filter(
+            title=function_name, provider=provider
+        ).first()
+        if function is None:
+            logger.error(
+                "Function [%s/%s] does not exist.", provider_name, function_name
+            )
+            return False
+
+        instances = function.instances.all()
+        user_groups = user.groups.all()
+        has_access = any(group in instances for group in user_groups)
+        if not has_access:
+            logger.error(
+                "User [%s] has no access to function [%s/%s].",
+                user.id,
+                provider_name,
+                function_name,
+            )
+        return has_access
+
     def list(self, request):
         """
         It returns a list with the names of available files.
@@ -113,20 +146,31 @@ class FilesViewSet(viewsets.ViewSet):
                 "working_dir"
             )  # It can be "user" or "provider"
 
-            if provider_name:
+            if working_dir == USER_STORAGE:
+                if provider_name:
+                    if not self.user_has_access_to_provider_function(
+                        request.user, provider_name, function_name
+                    ):
+                        return Response(
+                            {
+                                "message": "You don't have access to this Qiskit Function."
+                            },
+                            status=status.HTTP_403_FORBIDDEN,
+                        )
+
+                files_path = get_user_path(
+                    username=username,
+                    function_name=function_name,
+                    provider_name=provider_name,
+                )
+
+            elif working_dir == PROVIDER_STORAGE:
                 if not self.user_has_provider_access(request.user, provider_name):
                     return Response(
                         {"message": "You don't have access to this provider."},
                         status=status.HTTP_403_FORBIDDEN,
                     )
 
-            if working_dir is USER_STORAGE:
-                files_path = get_user_path(
-                    username=username,
-                    function_name=function_name,
-                    provider_name=provider_name,
-                )
-            elif working_dir is PROVIDER_STORAGE:
                 files_path = get_provider_path(
                     function_name=function_name, provider_name=provider_name
                 )
