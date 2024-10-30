@@ -51,6 +51,7 @@ from qiskit_serverless.core.constants import (
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
 
+from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
@@ -157,6 +158,10 @@ class Job:
         """
         return self._job_service.filtered_logs(job_id=self.job_id, **kwargs)
 
+    def error_message(self):
+        """Returns the execution error message."""
+        return self._job_service.result(self.job_id) if self.status() == "ERROR" else ""
+
     def result(self, wait=True, cadence=5, verbose=False, maxwait=0):
         """Return results of the job.
         Args:
@@ -179,6 +184,10 @@ class Job:
 
         # Retrieve the results. If they're string format, try to decode to a dictionary.
         results = self._job_service.result(self.job_id)
+
+        if self.status() == "ERROR":
+            raise QiskitServerlessException(results)
+
         if isinstance(results, str):
             try:
                 results = json.loads(results, cls=QiskitObjectsDecoder)
