@@ -44,7 +44,7 @@ Core abstractions
     get
     put
     get_refs_by_status
-    is_running_as_serverless_program
+    is_running_in_serverless
 
 """
 
@@ -58,7 +58,7 @@ from .job import (
     Job,
     save_result,
     Configuration,
-    is_running_as_serverless_program,
+    is_running_in_serverless,
 )
 from .function import QiskitPattern, QiskitFunction
 from .decorators import (

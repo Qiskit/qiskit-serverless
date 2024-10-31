@@ -16,7 +16,7 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_ID_GATEWAY,
     ENV_JOB_GATEWAY_TOKEN,
 )
-from qiskit_serverless.core.job import is_running_as_serverless_program, save_result
+from qiskit_serverless.core.job import is_running_in_serverless, save_result
 
 
 # pylint: disable=redefined-outer-name
@@ -78,13 +78,13 @@ class TestJob:
 
 
 class TestRunningAsServerlessProgram:
-    """Test ``is_running_as_serverless_program()``."""
+    """Test ``is_running_in_serverless()``."""
 
     def test_not_running_as_serverless_program(self):
-        """Test ``is_running_as_serverless_program()`` outside a serverless program."""
-        assert is_running_as_serverless_program() is False
+        """Test ``is_running_in_serverless()`` outside a serverless program."""
+        assert is_running_in_serverless() is False
 
     def test_running_as_serverless_program(self, job_env_variables):
-        """Test ``is_running_as_serverless_program()`` in a mocked serverless program."""
+        """Test ``is_running_in_serverless()`` in a mocked serverless program."""
         _ = job_env_variables
-        assert is_running_as_serverless_program() is True
+        assert is_running_in_serverless() is True

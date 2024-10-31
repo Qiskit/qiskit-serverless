@@ -34,7 +34,7 @@ from .core import (
     LocalClient,
     save_result,
     Configuration,
-    is_running_as_serverless_program,
+    is_running_in_serverless,
 )
 from .exception import QiskitServerlessException
 from .core.function import QiskitPattern, QiskitFunction
