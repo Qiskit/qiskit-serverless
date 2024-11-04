@@ -11,7 +11,7 @@ ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image
 RUN mkdir ${MICRO_IMAGE_DIR}
-COPY --from=BASE / ${MICRO_IMAGE_DIR}
+COPY --from=base / ${MICRO_IMAGE_DIR}
 
 # Install Python inside the BASE image
 # hadolint ignore=DL3041
@@ -27,7 +27,7 @@ RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
 FROM scratch AS app
 ARG MICRO_IMAGE_DIR
 # hadolint ignore=DL3045
-COPY --from=BUILD ${MICRO_IMAGE_DIR}/ .
+COPY --from=build ${MICRO_IMAGE_DIR}/ .
 
 # create symlinks for python
 RUN ln -s /usr/bin/python3.11 /usr/bin/python
