@@ -1,0 +1,6 @@
+﻿qiskit\_serverless.core.is\_running\_in\_serverless
+===================================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autofunction:: is_running_in_serverless

@@ -252,6 +252,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.get.html">qiskit_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.get_refs_by_status.html">qiskit_serverless.core.get_refs_by_status</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
 </ul>
 </li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (qiskit_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -596,6 +597,11 @@
         <span class="k">return</span> <span class="n">status_map</span><span class="p">[</span><span class="n">status</span><span class="p">]</span>
     <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">status</span>
+
+
+<div class="viewcode-block" id="is_running_in_serverless"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.is_running_in_serverless.html#qiskit_serverless.core.is_running_in_serverless">[docs]</a><span class="k">def</span> <span class="nf">is_running_in_serverless</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return ``True`` if running as a Qiskit serverless program, ``False`` otherwise.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="s2">&quot;ENV_JOB_ID_GATEWAY&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span></div>
 </pre></div>
         </article>
       </div>

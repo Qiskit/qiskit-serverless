@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="qiskit_serverless.core.distribute_task" href="qiskit_serverless.core.distribute_task.html" /><link rel="prev" title="qiskit_serverless.core.CircuitMeta" href="qiskit_serverless.core.CircuitMeta.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Serializers (qiskit_serverless.serializers)" href="../apidocs/serializers.html" /><link rel="prev" title="qiskit_serverless.core.get_refs_by_status" href="qiskit_serverless.core.get_refs_by_status.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>qiskit_serverless.core.fetch_execution_meta - Qiskit Serverless 0.17.1</title>
+        <title>qiskit_serverless.core.is_running_in_serverless - Qiskit Serverless 0.17.1</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -245,14 +245,14 @@
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.QiskitFunction.html">qiskit_serverless.core.QiskitFunction</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.Target.html">qiskit_serverless.core.Target</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.CircuitMeta.html">qiskit_serverless.core.CircuitMeta</a></li>
-<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">qiskit_serverless.core.fetch_execution_meta</a></li>
+<li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.fetch_execution_meta.html">qiskit_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.distribute_task.html">qiskit_serverless.core.distribute_task</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.distribute_program.html">qiskit_serverless.core.distribute_program</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.distribute_qiskit_function.html">qiskit_serverless.core.distribute_qiskit_function</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.get.html">qiskit_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.get_refs_by_status.html">qiskit_serverless.core.get_refs_by_status</a></li>
-<li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">qiskit_serverless.core.is_running_in_serverless</a></li>
 </ul>
 </li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (qiskit_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -292,7 +292,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/stubs/qiskit_serverless.core.fetch_execution_meta.rst.txt" title="View this page">
+  <a class="muted-link" href="../_sources/stubs/qiskit_serverless.core.is_running_in_serverless.rst.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -312,26 +312,15 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="qiskit-serverless-core-fetch-execution-meta">
-<h1>qiskit_serverless.core.fetch_execution_meta<a class="headerlink" href="#qiskit-serverless-core-fetch-execution-meta" title="Permalink to this heading">¶</a></h1>
+          <section id="qiskit-serverless-core-is-running-in-serverless">
+<h1>qiskit_serverless.core.is_running_in_serverless<a class="headerlink" href="#qiskit-serverless-core-is-running-in-serverless" title="Permalink to this heading">¶</a></h1>
 <dl class="py function">
-<dt class="sig sig-object py" id="qiskit_serverless.core.fetch_execution_meta">
-<span class="sig-name descname"><span class="pre">fetch_execution_meta</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qiskit_serverless/core/decorators.html#fetch_execution_meta"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qiskit_serverless.core.fetch_execution_meta" title="Permalink to this definition">¶</a></dt>
-<dd><p>Extracts meta information from function arguments.</p>
-<p>Meta information consist of metrics that describe circuits.
-Metrics described in <cite>CircuitMeta</cite> class.</p>
+<dt class="sig sig-object py" id="qiskit_serverless.core.is_running_in_serverless">
+<span class="sig-name descname"><span class="pre">is_running_in_serverless</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qiskit_serverless/core/job.html#is_running_in_serverless"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qiskit_serverless.core.is_running_in_serverless" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return <code class="docutils literal notranslate"><span class="pre">True</span></code> if running as a Qiskit serverless program, <code class="docutils literal notranslate"><span class="pre">False</span></code> otherwise.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>*args</strong> – arguments</p></li>
-<li><p><strong>**kwargs</strong> – named arguments</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]]]</span></p>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>return meta information dictionary</p>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -343,23 +332,23 @@ Metrics described in <cite>CircuitMeta</cite> class.</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="qiskit_serverless.core.distribute_task.html">
+          <a class="next-page" href="../apidocs/serializers.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">qiskit_serverless.core.distribute_task</div>
+                <div class="title">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="qiskit_serverless.core.CircuitMeta.html">
+          <a class="prev-page" href="qiskit_serverless.core.get_refs_by_status.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">qiskit_serverless.core.CircuitMeta</div>
+                <div class="title">qiskit_serverless.core.get_refs_by_status</div>
                 
               </div>
             </a>
@@ -393,8 +382,8 @@ Metrics described in <cite>CircuitMeta</cite> class.</p>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">qiskit_serverless.core.fetch_execution_meta</a><ul>
-<li><a class="reference internal" href="#qiskit_serverless.core.fetch_execution_meta"><code class="docutils literal notranslate"><span class="pre">fetch_execution_meta()</span></code></a></li>
+<li><a class="reference internal" href="#">qiskit_serverless.core.is_running_in_serverless</a><ul>
+<li><a class="reference internal" href="#qiskit_serverless.core.is_running_in_serverless"><code class="docutils literal notranslate"><span class="pre">is_running_in_serverless()</span></code></a></li>
 </ul>
 </li>
 </ul>
