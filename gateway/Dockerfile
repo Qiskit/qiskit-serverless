@@ -2,11 +2,11 @@ ARG MICRO_IMAGE_DIR=/ubi-micro-img
 
 # BASE image using UBI 9 micro where the
 # application and requirements will be installed
-FROM registry.access.redhat.com/ubi9-micro:9.4-15 AS BASE
+FROM registry.access.redhat.com/ubi9-micro:9.4-15 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed
-FROM registry.access.redhat.com/ubi9:9.4-1214.1726694543 AS BUILD
+FROM registry.access.redhat.com/ubi9:9.4-1214.1726694543 AS build
 ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image
@@ -24,7 +24,7 @@ RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
 
 # APP image from `scratch` which will be the final image
 # and remaining application requirements will be installed
-FROM scratch AS APP
+FROM scratch AS app
 ARG MICRO_IMAGE_DIR
 # hadolint ignore=DL3045
 COPY --from=BUILD ${MICRO_IMAGE_DIR}/ .
