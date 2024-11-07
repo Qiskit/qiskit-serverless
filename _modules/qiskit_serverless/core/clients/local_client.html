@@ -358,6 +358,7 @@
     <span class="n">Configuration</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">qiskit_serverless.core.function</span> <span class="kn">import</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">RunnableQiskitFunction</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless.core.local_functions_store</span> <span class="kn">import</span> <span class="n">LocalFunctionsStore</span>
 <span class="kn">from</span> <span class="nn">qiskit_serverless.exception</span> <span class="kn">import</span> <span class="n">QiskitServerlessException</span>
 <span class="kn">from</span> <span class="nn">qiskit_serverless.serializers.program_serializers</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">QiskitObjectsEncoder</span><span class="p">,</span>
@@ -378,7 +379,7 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;local-client&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">in_test</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;IN_TEST&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_jobs</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_patterns</span> <span class="o">=</span> <span class="p">[]</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_functions</span> <span class="o">=</span> <span class="n">LocalFunctionsStore</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
@@ -401,33 +402,30 @@
         <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
         <span class="c1"># pylint: disable=too-many-locals</span>
-        <span class="n">title</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">):</span>
-            <span class="n">title</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">title</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patterns</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">pattern</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">title</span><span class="p">:</span>
-                <span class="n">saved_program</span> <span class="o">=</span> <span class="n">pattern</span>
-        <span class="k">if</span> <span class="n">saved_program</span><span class="p">[</span>  <span class="c1"># pylint: disable=possibly-used-before-assignment</span>
-            <span class="s2">&quot;dependencies&quot;</span>
-        <span class="p">]:</span>
-            <span class="n">dept</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;dependencies&quot;</span><span class="p">])</span>
-            <span class="k">for</span> <span class="n">dependency</span> <span class="ow">in</span> <span class="n">dept</span><span class="p">:</span>
+        <span class="n">saved_program</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">saved_program</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="s2">&quot;QiskitFunction provided is not uploaded to the client. Use upload() first.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">saved_program</span><span class="o">.</span><span class="n">dependencies</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">dependency</span> <span class="ow">in</span> <span class="n">saved_program</span><span class="o">.</span><span class="n">dependencies</span><span class="p">:</span>
                 <span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span>
                     <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;pip&quot;</span><span class="p">,</span> <span class="s2">&quot;install&quot;</span><span class="p">,</span> <span class="n">dependency</span><span class="p">]</span>
                 <span class="p">)</span>
         <span class="n">arguments</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}</span>
         <span class="n">env_vars</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="o">**</span><span class="p">(</span><span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;env_vars&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="p">{}),</span>
-            <span class="o">**</span><span class="p">{</span><span class="n">OT_PROGRAM_NAME</span><span class="p">:</span> <span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]},</span>
+            <span class="o">**</span><span class="p">(</span><span class="n">saved_program</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{}),</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">OT_PROGRAM_NAME</span><span class="p">:</span> <span class="n">saved_program</span><span class="o">.</span><span class="n">title</span><span class="p">},</span>
             <span class="o">**</span><span class="p">{</span><span class="s2">&quot;PATH&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;PATH&quot;</span><span class="p">]},</span>
             <span class="o">**</span><span class="p">{</span><span class="n">ENV_JOB_ARGUMENTS</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">arguments</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">)},</span>
         <span class="p">}</span>
 
         <span class="k">with</span> <span class="n">Popen</span><span class="p">(</span>
-            <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;working_dir&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">saved_program</span><span class="p">[</span><span class="s2">&quot;entrypoint&quot;</span><span class="p">]],</span>
+            <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="n">saved_program</span><span class="o">.</span><span class="n">working_dir</span> <span class="o">+</span> <span class="n">saved_program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">],</span>
             <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
             <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span>
             <span class="n">universal_newlines</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -474,34 +472,15 @@
 
     <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
         <span class="c1"># check if entrypoint exists</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Entrypoint file [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">] does not exist &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;in [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="si">}</span><span class="s2">] working directory.&quot;</span>
-            <span class="p">)</span>
-
-        <span class="n">pattern</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
-            <span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span>
-            <span class="s2">&quot;entrypoint&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">,</span>
-            <span class="s2">&quot;working_dir&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span>
-            <span class="s2">&quot;env_vars&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">env_vars</span><span class="p">,</span>
-            <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({}),</span>
-            <span class="s2">&quot;dependencies&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">dependencies</span> <span class="ow">or</span> <span class="p">[]),</span>
-            <span class="s2">&quot;client&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="p">,</span>
-        <span class="p">}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_patterns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">RunnableQiskitFunction</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_functions</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">functions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of programs.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">program</span><span class="p">)</span> <span class="k">for</span> <span class="n">program</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patterns</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_functions</span><span class="o">.</span><span class="n">functions</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">function</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
-        <span class="n">functions</span> <span class="o">=</span> <span class="p">{</span><span class="n">function</span><span class="o">.</span><span class="n">title</span><span class="p">:</span> <span class="n">function</span> <span class="k">for</span> <span class="n">function</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">()}</span>
-        <span class="k">return</span> <span class="n">functions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">title</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_functions</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="n">title</span><span class="p">)</span></div>
 </pre></div>
         </article>
       </div>

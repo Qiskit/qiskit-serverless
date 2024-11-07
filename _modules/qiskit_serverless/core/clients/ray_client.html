@@ -336,7 +336,6 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="c1"># pylint: disable=duplicate-code</span>
 <span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span>
 <span class="kn">from</span> <span class="nn">uuid</span> <span class="kn">import</span> <span class="n">uuid4</span>
 
@@ -352,6 +351,8 @@
     <span class="n">Job</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">qiskit_serverless.core.function</span> <span class="kn">import</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="n">RunnableQiskitFunction</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless.core.local_functions_store</span> <span class="kn">import</span> <span class="n">LocalFunctionsStore</span>
+<span class="kn">from</span> <span class="nn">qiskit_serverless.exception</span> <span class="kn">import</span> <span class="n">QiskitServerlessException</span>
 <span class="kn">from</span> <span class="nn">qiskit_serverless.serializers.program_serializers</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">QiskitObjectsEncoder</span><span class="p">,</span>
 <span class="p">)</span>
@@ -372,7 +373,8 @@
 <span class="sd">            &gt;&gt;&gt; ray_provider = RayClient(&quot;http://localhost:8265&quot;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;ray-client&quot;</span><span class="p">,</span> <span class="n">host</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">job_submission_client</span> <span class="o">=</span> <span class="n">JobSubmissionClient</span><span class="p">(</span><span class="n">host</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_submission_client</span> <span class="o">=</span> <span class="n">JobSubmissionClient</span><span class="p">(</span><span class="n">host</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_functions</span> <span class="o">=</span> <span class="n">LocalFunctionsStore</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
@@ -413,20 +415,23 @@
         <span class="n">arguments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Configuration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">):</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="s2">&quot;`run` doesn&#39;t support program str yet. &quot;</span>
-                <span class="s2">&quot;Send a QiskitFunction instead. &quot;</span>
+        <span class="c1"># pylint: disable=too-many-locals</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+
+        <span class="n">saved_program</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">saved_program</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="s2">&quot;QiskitFunction provided is not uploaded to the client. Use upload() first.&quot;</span>
             <span class="p">)</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
         <span class="n">arguments</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}</span>
-        <span class="n">entrypoint</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;python </span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">entrypoint</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;python </span><span class="si">{</span><span class="n">saved_program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">&quot;</span>
 
         <span class="c1"># set program name so OT can use it as parent span name</span>
         <span class="n">env_vars</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="o">**</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{}),</span>
-            <span class="o">**</span><span class="p">{</span><span class="n">OT_PROGRAM_NAME</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">},</span>
+            <span class="o">**</span><span class="p">(</span><span class="n">saved_program</span><span class="o">.</span><span class="n">env_vars</span> <span class="ow">or</span> <span class="p">{}),</span>
+            <span class="o">**</span><span class="p">{</span><span class="n">OT_PROGRAM_NAME</span><span class="p">:</span> <span class="n">saved_program</span><span class="o">.</span><span class="n">title</span><span class="p">},</span>
             <span class="o">**</span><span class="p">{</span><span class="n">ENV_JOB_ARGUMENTS</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">arguments</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">)},</span>
         <span class="p">}</span>
 
@@ -434,8 +439,8 @@
             <span class="n">entrypoint</span><span class="o">=</span><span class="n">entrypoint</span><span class="p">,</span>
             <span class="n">submission_id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;qs_</span><span class="si">{</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="n">runtime_env</span><span class="o">=</span><span class="p">{</span>
-                <span class="s2">&quot;working_dir&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span>
-                <span class="s2">&quot;pip&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">dependencies</span><span class="p">,</span>
+                <span class="s2">&quot;working_dir&quot;</span><span class="p">:</span> <span class="n">saved_program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span>
+                <span class="s2">&quot;pip&quot;</span><span class="p">:</span> <span class="n">saved_program</span><span class="o">.</span><span class="n">dependencies</span><span class="p">,</span>
                 <span class="s2">&quot;env_vars&quot;</span><span class="p">:</span> <span class="n">env_vars</span><span class="p">,</span>
             <span class="p">},</span>
         <span class="p">)</span>
@@ -469,17 +474,17 @@
 
     <span class="k">def</span> <span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Uploads program.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Upload is not available for RayClient.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_functions</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">functions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of available programs.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;get_programs is not available for RayClient.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_functions</span><span class="o">.</span><span class="n">functions</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">function</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns program based on parameters.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;get_program is not available for RayClient.&quot;</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_functions</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="n">title</span><span class="p">)</span></div>
 </pre></div>
         </article>
       </div>
