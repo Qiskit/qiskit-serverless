@@ -14,10 +14,9 @@ RUN mkdir ${MICRO_IMAGE_DIR}
 COPY --from=base / ${MICRO_IMAGE_DIR}
 
 # Install Python inside the BASE image
-# hadolint ignore=DL3041
 RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
-    python3.11-3.11.7 \
-    python3.11-devel-3.11.7 \
+    python3.11-3.11.9 \
+    python3.11-devel-3.11.9 \
     libstdc++ &&\
     dnf upgrade --installroot ${MICRO_IMAGE_DIR} --nodocs -y && \
     dnf clean all --installroot ${MICRO_IMAGE_DIR}
@@ -26,7 +25,6 @@ RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
 # and remaining application requirements will be installed
 FROM scratch AS app
 ARG MICRO_IMAGE_DIR
-# hadolint ignore=DL3045
 COPY --from=build ${MICRO_IMAGE_DIR}/ .
 
 # create symlinks for python
