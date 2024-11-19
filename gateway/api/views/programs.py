@@ -116,7 +116,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         author_programs_count = author_programs.count()
         logger.info(
-            "ProgramViewSet get author[%s] programs[%s]",
+            "ProgramViewSet get author [%s] programs [%s]",
             author.id,
             author_programs_count,
         )
@@ -140,7 +140,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             author_groups_with_run_permissions.count()
         )
         logger.info(
-            "ProgramViewSet get author[%s] groups [%s]",
+            "ProgramViewSet get author [%s] groups [%s]",
             author.id,
             author_groups_with_run_permissions_count,
         )
@@ -155,7 +155,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         ).distinct()
         author_programs_count = author_programs.count()
         logger.info(
-            "ProgramViewSet get author[%s] programs[%s]",
+            "ProgramViewSet get author [%s] programs [%s]",
             author.id,
             author_programs_count,
         )
@@ -328,7 +328,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             author_groups_with_view_permissions.count()
         )
         logger.info(
-            "ProgramViewSet get author[%s] groups [%s]",
+            "ProgramViewSet get author [%s] groups [%s]",
             author.id,
             author_groups_with_view_permissions_count,
         )
