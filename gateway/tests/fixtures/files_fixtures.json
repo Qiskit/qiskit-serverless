@@ -78,5 +78,16 @@
                 101
             ]
         }
+    },
+    {
+        "model": "api.program",
+        "pk": "5b7deef6-45e2-4142-9e31-efb9e32e3592",
+        "fields": {
+            "created": "2023-02-01T15:30:43.281796Z",
+            "title": "personal-program",
+            "entrypoint": "program.py",
+            "artifact": "path",
+            "author": 2
+        }
     }
 ]

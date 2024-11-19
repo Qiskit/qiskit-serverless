@@ -88,6 +88,28 @@ class FilesViewSet(viewsets.ViewSet):
             )
         return has_access
 
+    def get_user_function(self, user, function_title: str) -> Program | None:
+        """
+        This method returns the specified function.
+
+        Args:
+            user: Django user to identify the author of the function
+            function_title (str): title of the function
+
+        Returns:
+            Program | None: returns the function if it exists
+        """
+
+        function = Program.objects.filter(title=function_title, author=user).first()
+        if function is None:
+            logger.error(
+                "Function [%s] does not exist for the author [%s]",
+                function_title,
+                user.id,
+            )
+            return None
+        return function
+
     def get_provider_function(
         self, provider_name: str, function_title: str
     ) -> Program | None:
@@ -160,21 +182,31 @@ class FilesViewSet(viewsets.ViewSet):
                 function = self.get_provider_function(
                     provider_name=provider_name, function_title=function_title
                 )
-                if not function:
+                if function:
+                    if not self.user_has_access_to_provider_function(
+                        request.user, function
+                    ):
+                        return Response(
+                            {
+                                "message": "You don't have access to this Qiskit Function."
+                            },
+                            status=status.HTTP_403_FORBIDDEN,
+                        )
+                else:
                     return Response(
                         {
                             "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
                         },
                         status=status.HTTP_404_NOT_FOUND,
                     )
-
-            if function:
-                if not self.user_has_access_to_provider_function(
-                    request.user, function
-                ):
+            else:
+                function = self.get_user_function(
+                    user=request.user, function_title=function_title
+                )
+                if not function:
                     return Response(
-                        {"message": "You don't have access to this Qiskit Function."},
-                        status=status.HTTP_403_FORBIDDEN,
+                        {"message": f"Qiskit Function {function_title} doesn't exist."},
+                        status=status.HTTP_404_NOT_FOUND,
                     )
 
             file_storage = FileStorage(

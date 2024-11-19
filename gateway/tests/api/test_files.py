@@ -20,8 +20,8 @@ class TestFilesApi(APITestCase):
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_files_list_from_user_working_dir(self):
-        """Tests files list with working dir as user"""
+    def test_files_list_with_empty_params(self):
+        """Tests files list using empty params"""
 
         media_root = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
@@ -36,8 +36,34 @@ class TestFilesApi(APITestCase):
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-list")
             response = self.client.get(url, format="json")
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_files_list_from_user_working_dir(self):
+        """Tests files list with working dir as user"""
+
+        function = "personal-program"
+
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-list")
+            response = self.client.get(
+                url,
+                {
+                    "function": function,
+                },
+                format="json",
+            )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(response.data, {"results": ["artifact.tar"]})
+            self.assertEqual(response.data, {"results": ["artifact_2.tar"]})
 
     def test_files_list_from_user_without_access_to_function(self):
         """Tests files list with working dir as user where the user has no access to the function"""
