@@ -4,6 +4,7 @@ This file stores the logic to manage the access to data stores
 import glob
 import logging
 import os
+from typing import Literal
 
 from django.conf import settings
 
@@ -23,13 +24,15 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
     Attributes:
         username (str): storgae user's username
-        file_path (str): base user storage file path
+        working_dir (Literal[USER_STORAGE, PROVIDER_STORAGE]): working directory
+        function_title (str): title of the function in case is needed to build the path
+        provider_name (str): name of the provider in caseis needed to build the path
     """
 
     def __init__(
         self,
         username: str,
-        working_dir: str,
+        working_dir: Literal[USER_STORAGE, PROVIDER_STORAGE],
         function_title: str | None,
         provider_name: str | None,
     ) -> None:
