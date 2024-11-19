@@ -33,8 +33,9 @@ def test_program():
             description="description",
             version="0.0.1",
         )
+        uploaded_program = serverless.upload(program)
 
-        job = serverless.run(program)
+        job = serverless.run(uploaded_program)
 
         assert isinstance(job, Job)
 
