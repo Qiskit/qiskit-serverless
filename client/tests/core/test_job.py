@@ -2,10 +2,10 @@
 
 # pylint: disable=too-few-public-methods
 import os
-from unittest import TestCase
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
+import pytest
 import requests_mock
 
 from qiskit.circuit.random import random_circuit
@@ -16,7 +16,19 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_ID_GATEWAY,
     ENV_JOB_GATEWAY_TOKEN,
 )
-from qiskit_serverless.core.job import save_result
+from qiskit_serverless.core.job import is_running_in_serverless, save_result
+
+
+# pylint: disable=redefined-outer-name
+@pytest.fixture()
+def job_env_variables(monkeypatch):
+    """Fixture to set mock job environment variables."""
+    # Inspired by https://stackoverflow.com/a/77256931/1558890
+    with patch.dict(os.environ, clear=True):
+        monkeypatch.setenv(ENV_JOB_GATEWAY_HOST, "https://awesome-tests.com/")
+        monkeypatch.setenv(ENV_JOB_ID_GATEWAY, "42")
+        monkeypatch.setenv(ENV_JOB_GATEWAY_TOKEN, "awesome-token")
+        yield  # Restore the environment after the test runs
 
 
 class ResponseMock:
@@ -26,15 +38,12 @@ class ResponseMock:
     text = "{}"
 
 
-class TestJob(TestCase):
+class TestJob:
     """TestJob."""
 
-    def test_save_result(self):
+    def test_save_result(self, job_env_variables):
         """Tests job save result."""
-
-        os.environ[ENV_JOB_GATEWAY_HOST] = "https://awesome-tests.com/"
-        os.environ[ENV_JOB_ID_GATEWAY] = "42"
-        os.environ[ENV_JOB_GATEWAY_TOKEN] = "awesome-token"
+        _ = job_env_variables
 
         url = (
             f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
@@ -48,7 +57,7 @@ class TestJob(TestCase):
                     "quantum_circuit": random_circuit(3, 2),
                 }
             )
-            self.assertTrue(result)
+            assert result is True
 
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_filtered_logs(self):
@@ -66,3 +75,16 @@ class TestJob(TestCase):
         assert "This is the line 1\n" == client.filtered_logs(
             "id", include="This is the l.+", exclude="the.+a.+l"
         )
+
+
+class TestRunningAsServerlessProgram:
+    """Test ``is_running_in_serverless()``."""
+
+    def test_not_running_as_serverless_program(self):
+        """Test ``is_running_in_serverless()`` outside a serverless program."""
+        assert is_running_in_serverless() is False
+
+    def test_running_as_serverless_program(self, job_env_variables):
+        """Test ``is_running_in_serverless()`` in a mocked serverless program."""
+        _ = job_env_variables
+        assert is_running_in_serverless() is True
