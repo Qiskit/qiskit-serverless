@@ -74,13 +74,13 @@ class FileStorage:  # pylint: disable=too-few-public-methods
                     be: username/
         """
         if provider_name is None:
-            path = self.username
+            path = os.path.join(settings.MEDIA_ROOT, self.username)
         else:
-            path = f"{self.username}/{provider_name}/{function_title}"
+            path = os.path.join(
+                settings.MEDIA_ROOT, self.username, provider_name, function_title
+            )
 
-        full_path = os.path.join(settings.MEDIA_ROOT, path)
-
-        return sanitize_file_path(full_path)
+        return sanitize_file_path(path)
 
     def __get_provider_path(self, function_title: str, provider_name: str) -> str:
         """
@@ -95,10 +95,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         Returns:
             str: storage path following the format provider_name/function_title/
         """
-        path = f"{provider_name}/{function_title}"
-        full_path = os.path.join(settings.MEDIA_ROOT, path)
+        path = os.path.join(settings.MEDIA_ROOT, provider_name, function_title)
 
-        return sanitize_file_path(full_path)
+        return sanitize_file_path(path)
 
     def get_files(self) -> list[str]:
         """
