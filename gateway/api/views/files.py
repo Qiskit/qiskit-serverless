@@ -255,8 +255,8 @@ class FilesViewSet(viewsets.ViewSet):
 
             if not self.user_has_provider_access(request.user, provider_name):
                 return Response(
-                    {"message": "You don't have access to this provider."},
-                    status=status.HTTP_403_FORBIDDEN,
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
 
             function = self.get_function(

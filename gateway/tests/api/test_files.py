@@ -180,7 +180,7 @@ class TestFilesApi(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_non_existing_file_download(self):
         """Tests downloading non-existing file."""
