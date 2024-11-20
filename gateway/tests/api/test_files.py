@@ -82,7 +82,7 @@ class TestFilesApi(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_files_list_from_user_with_access_to_function(self):
         """Tests files list with working dir as user where the user has access to the function"""
