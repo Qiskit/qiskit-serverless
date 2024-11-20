@@ -44,9 +44,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         elif working_dir == PROVIDER_STORAGE:
             self.file_path = self.__get_provider_path(function_title, provider_name)
 
-    def __get_user_path(
-        self, function_title: str, provider_name: str | None
-    ) -> str:
+    def __get_user_path(self, function_title: str, provider_name: str | None) -> str:
         """
         This method returns the path where the user will store its files
 
