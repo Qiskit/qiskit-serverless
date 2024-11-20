@@ -26,14 +26,14 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         username (str): storgae user's username
         working_dir (Literal[USER_STORAGE, PROVIDER_STORAGE]): working directory
         function_title (str): title of the function in case is needed to build the path
-        provider_name (str): name of the provider in caseis needed to build the path
+        provider_name (str | None): name of the provider in caseis needed to build the path
     """
 
     def __init__(
         self,
         username: str,
         working_dir: Literal[USER_STORAGE, PROVIDER_STORAGE],
-        function_title: str | None,
+        function_title: str,
         provider_name: str | None,
     ) -> None:
         self.file_path = None
@@ -45,22 +45,22 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             self.file_path = self.__get_provider_path(function_title, provider_name)
 
     def __get_user_path(
-        self, function_title: str | None, provider_name: str | None
+        self, function_title: str, provider_name: str | None
     ) -> str:
         """
         This method returns the path where the user will store its files
 
         Args:
-            function_title (str | None): in case the function is from a
+            function_title (str): in case the function is from a
                 provider it will identify the function folder
             provider_name (str | None): in case a provider is provided it will
                 identify the folder for the specific function
 
         Returns:
             str: storage path.
-                - In case the working_dir would be a provider that path would
+                - In case the function is from a provider that path would
                     be: username/provider_name/function_title
-                - In case the working_dir would be a user that path would
+                - In case the function is from a user that path would
                     be: username/
         """
         if provider_name is None:
