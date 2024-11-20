@@ -40,14 +40,12 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         self.username = username
 
         if working_dir == USER_STORAGE:
-            self.file_path = self.__get_user_path(
-                username, function_title, provider_name
-            )
+            self.file_path = self.__get_user_path(function_title, provider_name)
         elif working_dir == PROVIDER_STORAGE:
             self.file_path = self.__get_provider_path(function_title, provider_name)
 
     def __get_user_path(
-        self, username: str, function_title: str | None, provider_name: str | None
+        self, function_title: str | None, provider_name: str | None
     ) -> str:
         """
         This method returns the path where the user will store its files
@@ -67,9 +65,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
                     be: username/
         """
         if provider_name is None:
-            path = username
+            path = self.username
         else:
-            path = f"{username}/{provider_name}/{function_title}"
+            path = f"{self.username}/{provider_name}/{function_title}"
         return os.path.join(
             sanitize_file_path(settings.MEDIA_ROOT),
             sanitize_file_path(path),
