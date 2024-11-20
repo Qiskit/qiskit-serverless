@@ -51,7 +51,6 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         This method returns the path where the user will store its files
 
         Args:
-            username (str): username folder where files are going to be stored
             function_title (str | None): in case the function is from a
                 provider it will identify the function folder
             provider_name (str | None): in case a provider is provided it will
@@ -68,10 +67,10 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             path = self.username
         else:
             path = f"{self.username}/{provider_name}/{function_title}"
-        return os.path.join(
-            sanitize_file_path(settings.MEDIA_ROOT),
-            sanitize_file_path(path),
-        )
+
+        full_path = os.path.join(settings.MEDIA_ROOT, path)
+
+        return sanitize_file_path(full_path)
 
     def __get_provider_path(self, function_title: str, provider_name: str) -> str:
         """
@@ -87,10 +86,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             str: storage path following the format provider_name/function_title/
         """
         path = f"{provider_name}/{function_title}"
-        return os.path.join(
-            sanitize_file_path(settings.MEDIA_ROOT),
-            sanitize_file_path(path),
-        )
+        full_path = os.path.join(settings.MEDIA_ROOT, path)
+
+        return sanitize_file_path(full_path)
 
     def get_files(self) -> list[str]:
         """
