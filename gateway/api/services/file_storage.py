@@ -4,14 +4,26 @@ This file stores the logic to manage the access to data stores
 import glob
 import logging
 import os
-from typing import Literal
+from enum import Enum
 
 from django.conf import settings
 
 from utils import sanitize_file_path
 
-USER_STORAGE = "user"
-PROVIDER_STORAGE = "provider"
+
+class WorkingDir(Enum):
+    """
+    This Enum has the values:
+        USER_STORAGE
+        PROVIDER_STORAGE
+
+    Both values are being used to identify in
+        FileStorage service the path to be used
+    """
+
+    USER_STORAGE = 1
+    PROVIDER_STORAGE = 2
+
 
 SUPPORTED_FILE_EXTENSIONS = [".tar", ".h5"]
 
@@ -24,7 +36,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
     Attributes:
         username (str): storgae user's username
-        working_dir (Literal[USER_STORAGE, PROVIDER_STORAGE]): working directory
+        working_dir (WorkingDir(Enum)): working directory
         function_title (str): title of the function in case is needed to build the path
         provider_name (str | None): name of the provider in caseis needed to build the path
     """
@@ -32,16 +44,16 @@ class FileStorage:  # pylint: disable=too-few-public-methods
     def __init__(
         self,
         username: str,
-        working_dir: Literal[USER_STORAGE, PROVIDER_STORAGE],
+        working_dir: WorkingDir,
         function_title: str,
         provider_name: str | None,
     ) -> None:
         self.file_path = None
         self.username = username
 
-        if working_dir == USER_STORAGE:
+        if working_dir is WorkingDir.USER_STORAGE:
             self.file_path = self.__get_user_path(function_title, provider_name)
-        elif working_dir == PROVIDER_STORAGE:
+        elif working_dir == WorkingDir.PROVIDER_STORAGE:
             self.file_path = self.__get_provider_path(function_title, provider_name)
 
     def __get_user_path(self, function_title: str, provider_name: str | None) -> str:

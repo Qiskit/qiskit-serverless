@@ -22,7 +22,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from api.services.file_storage import PROVIDER_STORAGE, USER_STORAGE, FileStorage
+from api.services.file_storage import FileStorage, WorkingDir
 from api.utils import sanitize_name
 from api.models import Provider, Program
 from utils import sanitize_file_path
@@ -212,7 +212,7 @@ class FilesViewSet(viewsets.ViewSet):
             username = request.user.username
             provider_name = sanitize_name(request.query_params.get("provider", None))
             function_title = sanitize_name(request.query_params.get("function", None))
-            working_dir = USER_STORAGE
+            working_dir = WorkingDir.USER_STORAGE
 
             function = self.get_function(
                 user=request.user,
@@ -251,7 +251,7 @@ class FilesViewSet(viewsets.ViewSet):
             username = request.user.username
             provider_name = sanitize_name(request.query_params.get("provider"))
             function_title = sanitize_name(request.query_params.get("function"))
-            working_dir = PROVIDER_STORAGE
+            working_dir = WorkingDir.PROVIDER_STORAGE
 
             if not self.user_has_provider_access(request.user, provider_name):
                 return Response(
