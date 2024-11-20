@@ -69,25 +69,18 @@ class FilesViewSet(viewsets.ViewSet):
             Program | None: returns the function if it exists
         """
 
-        function = None
-        if provider_name:
-            function = self.get_provider_function(
-                provider_name=provider_name, function_title=function_title
-            )
+        if not provider_name:
+            return self.get_user_function(user=user, function_title=function_title)
 
-            access = False
-            if function:
-                access = self.user_has_access_to_provider_function(
-                    user=user, function=function
-                )
-            if not access:
-                function = None  # We restart the function because user has no access
-
+        function = self.get_provider_function(
+            provider_name=provider_name, function_title=function_title
+        )
+        if function and self.user_has_access_to_provider_function(
+            user=user, function=function
+        ):
             return function
 
-        function = self.get_user_function(user=user, function_title=function_title)
-
-        return function
+        return None
 
     def get_user_function(self, user, function_title: str) -> Program | None:
         """
