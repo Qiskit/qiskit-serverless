@@ -33,7 +33,7 @@ class FilesViewSet(views.FilesViewSet):
                 openapi.IN_QUERY,
                 description="function title",
                 type=openapi.TYPE_STRING,
-                required=False,
+                required=True,
             ),
         ],
     )
