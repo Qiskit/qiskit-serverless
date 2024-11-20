@@ -53,7 +53,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
         if working_dir is WorkingDir.USER_STORAGE:
             self.file_path = self.__get_user_path(function_title, provider_name)
-        elif working_dir == WorkingDir.PROVIDER_STORAGE:
+        elif working_dir is WorkingDir.PROVIDER_STORAGE:
             self.file_path = self.__get_provider_path(function_title, provider_name)
 
     def __get_user_path(self, function_title: str, provider_name: str | None) -> str:
