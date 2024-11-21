@@ -14,6 +14,9 @@ s3fs>=2023.6.0
 opentelemetry-instrumentation-requests>=0.40b0
 ipywidgets>=8.1.2, <9
 ipython>=8.10.0, <9
-numpy>=1.26.4, <2
+numpy>=1.17, <3
+# Minimum version of pyarrow to support the major version from numpy
+pyarrow>=16.0.0, <19
 aiohttp>=3.10.0, <4
 zipp==3.19.1
+certifi==2024.7.4

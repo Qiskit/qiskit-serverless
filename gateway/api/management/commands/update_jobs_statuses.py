@@ -76,7 +76,7 @@ class Command(BaseCommand):
                     job.save()
                 except RecordModifiedError:
                     logger.warning(
-                        "Job[%s] record has not been updated due to lock.", job.id
+                        "Job [%s] record has not been updated due to lock.", job.id
                     )
 
             else:

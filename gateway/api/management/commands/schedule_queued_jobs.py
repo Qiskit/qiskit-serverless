@@ -115,7 +115,7 @@ class Command(BaseCommand):
                             succeed = True
                         except RecordModifiedError:
                             logger.warning(
-                                "Schedule: Job[%s] record has not been updated due to lock.",
+                                "Schedule: Job [%s] record has not been updated due to lock.",
                                 job.id,
                             )
 
