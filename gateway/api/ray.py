@@ -126,7 +126,7 @@ class JobHandler:
                 encoding="utf-8",
             ) as f:
                 if job.arguments:
-                    logger.debug("uploading arguments for job %s", job.id)
+                    logger.debug("uploading arguments for job [%s]", job.id)
                     f.write(job.arguments)
                 else:
                     f.write({})

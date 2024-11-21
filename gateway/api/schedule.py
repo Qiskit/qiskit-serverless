@@ -48,7 +48,7 @@ def execute_job(job: Job) -> Job:
             job.program.provider
             and job.program.provider.name in gpujobs["gpu-functions"].keys()
         ):
-            logger.debug("Job %s will be run on GPU nodes", job.id)
+            logger.debug("Job [%s] will be run on GPU nodes", job.id)
             job.gpu = True
             job.save()
 
