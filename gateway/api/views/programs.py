@@ -21,6 +21,7 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
+from api.repositories.programs import ProgramRepository
 from api.utils import sanitize_name
 from api.serializers import (
     JobConfigSerializer,
@@ -54,6 +55,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
     """
 
     BASE_NAME = "programs"
+
+    program_repository = ProgramRepository()
 
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):
@@ -167,7 +170,27 @@ class ProgramViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.program.list", context=ctx):
-            serializer = self.get_serializer(self.get_queryset(), many=True)
+
+            author = self.request.user
+            type_filter = self.request.query_params.get("filter")
+
+            if type_filter == "serverless":
+                # Serverless filter only returns functions created by the author with the next criterias:
+                # user is the author of the function and there is no provider
+                functions = self.program_repository.get_user_functions(author)
+            elif type_filter == "catalog":
+                # Catalog filter only returns providers functions that user has access:
+                # author has view permissions and the function has a provider assigned
+                functions = (
+                    self.program_repository.get_provider_functions_with_run_permissions(
+                        author
+                    )
+                )
+            else:
+                # If filter is not applied we return author and providers functions together
+                functions = self.program_repository.get_functions(author)
+
+            serializer = self.get_serializer(functions, many=True)
 
         return Response(serializer.data)
 
@@ -296,14 +319,31 @@ class ProgramViewSet(viewsets.GenericViewSet):
     def get_by_title(self, request, title):
         """Returns programs by title."""
         author = self.request.user
-        provider_name = self.request.query_params.get("provider")
+        function_title = sanitize_name(title)
+        provider_name = sanitize_name(request.query_params.get("provider", None))
 
-        result_program = self._get_program_queryset_for_title_and_provider(
-            author=author, title=title, provider_name=provider_name, type_filter=None
-        ).first()
+        serializer = self.get_serializer_upload_program(data=self.request.data)
+        provider_name, function_title = serializer.get_provider_name_and_title(
+            provider_name, function_title
+        )
 
-        if result_program:
-            return Response(self.get_serializer(result_program).data)
+        if provider_name:
+            function = (
+                self.program_repository.get_provider_function_by_provider_and_title(
+                    author=author, title=function_title, provider_name=provider_name
+                )
+            )
+        else:
+            function = self.program_repository.get_user_function_by_title(
+                author=author, title=function_title
+            )
+
+        # result_program = self._get_program_queryset_for_title_and_provider(
+        #     author=author, title=title, provider_name=provider_name, type_filter=None
+        # ).first()
+
+        if function:
+            return Response(self.get_serializer(function).data)
 
         return Response(status=404)
 
