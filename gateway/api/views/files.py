@@ -3,7 +3,6 @@ Django Rest framework File views for api application:
 
 Version views inherit from the different views.
 """
-import glob
 import logging
 import mimetypes
 import os
@@ -23,13 +22,15 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from api.services.file_storage import FileStorage, WorkingDir
+from api.utils import sanitize_name
+from api.models import Provider, Program
 from utils import sanitize_file_path
-from api.models import Provider
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
-provider = TracerProvider(resource=resource)
+tracer_provider = TracerProvider(resource=resource)
 otel_exporter = BatchSpanProcessor(
     OTLPSpanExporter(
         endpoint=os.environ.get(
@@ -38,19 +39,125 @@ otel_exporter = BatchSpanProcessor(
         insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
-provider.add_span_processor(otel_exporter)
+tracer_provider.add_span_processor(otel_exporter)
 if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+    trace._set_tracer_provider(  # pylint: disable=protected-access
+        tracer_provider, log=False
+    )
 
 
 class FilesViewSet(viewsets.ViewSet):
-    """ViewSet for file operations handling.
-
-    Note: only tar files are available for list and download
+    """
+    ViewSet for file operations handling.
     """
 
     BASE_NAME = "files"
 
+    # Functions methods, these will be migrated to a Repository class
+    def get_function(
+        self, user, function_title: str, provider_name: str | None
+    ) -> None:
+        """
+        This method returns the specified function.
+
+        Args:
+            user: Django user of the function that wants to get it
+            function_title (str): title of the function
+            provider_name (str | None): name of the provider owner of the function
+
+        Returns:
+            Program | None: returns the function if it exists
+        """
+
+        if not provider_name:
+            return self.get_user_function(user=user, function_title=function_title)
+
+        function = self.get_provider_function(
+            provider_name=provider_name, function_title=function_title
+        )
+        if function and self.user_has_access_to_provider_function(
+            user=user, function=function
+        ):
+            return function
+
+        return None
+
+    def get_user_function(self, user, function_title: str) -> Program | None:
+        """
+        This method returns the specified function.
+
+        Args:
+            user: Django user to identify the author of the function
+            function_title (str): title of the function
+
+        Returns:
+            Program | None: returns the function if it exists
+        """
+
+        function = Program.objects.filter(title=function_title, author=user).first()
+        if function is None:
+            logger.error(
+                "Function [%s] does not exist for the author [%s]",
+                function_title,
+                user.id,
+            )
+            return None
+        return function
+
+    def get_provider_function(
+        self, provider_name: str, function_title: str
+    ) -> Program | None:
+        """
+        This method returns the specified function from a provider.
+
+        Args:
+            provider_name (str): name of the provider
+            function_title (str): title of the function
+
+        Returns:
+            Program | None: returns the function if it exists
+        """
+
+        provider = Provider.objects.filter(name=provider_name).first()
+        if provider is None:
+            logger.error("Provider [%s] does not exist.", provider_name)
+            return None
+
+        function = Program.objects.filter(
+            title=function_title, provider=provider
+        ).first()
+        if function is None:
+            logger.error(
+                "Function [%s/%s] does not exist.", provider_name, function_title
+            )
+            return None
+        return function
+
+    def user_has_access_to_provider_function(self, user, function: Program) -> bool:
+        """
+        This method returns True or False if the user has access to the provider function.
+
+        Args:
+            user: Django user that is being checked
+            function (Program): the Qiskit Function that is going to be checked
+
+        Returns:
+            bool: boolean value that verifies if the user has access or not to the function
+        """
+
+        instances = function.instances.all()
+        user_groups = user.groups.all()
+        has_access = any(group in instances for group in user_groups)
+        if not has_access:
+            logger.error(
+                "User [%s] has no access to function [%s/%s].",
+                user.id,
+                function.provider.name,
+                function.title,
+            )
+        return has_access
+
+    # Provider methods, these will be migrated to a Repository class
     def list_user_providers(self, user):
         """list provider names that the user in"""
         provider_list = []
@@ -67,37 +174,104 @@ class FilesViewSet(viewsets.ViewSet):
         """check if user has the provider"""
         return provider_name in self.list_user_providers(user)
 
+    def user_has_provider_access(self, user, provider_name: str) -> bool:
+        """
+        This method returns True or False if the user has access to the provider or not.
+        """
+
+        provider = Provider.objects.filter(name=provider_name).first()
+        if provider is None:
+            logger.error("Provider [%s] does not exist.", provider_name)
+            return False
+
+        user_groups = user.groups.all()
+        admin_groups = provider.admin_groups.all()
+        has_access = any(group in admin_groups for group in user_groups)
+        if not has_access:
+            logger.error(
+                "User [%s] has no access to provider [%s].", user.id, provider_name
+            )
+        return has_access
+
     def list(self, request):
-        """List of available for user files."""
-        response = Response(
-            {"message": "Requested file was not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-        files = []
+        """
+        It returns a list with the names of available files for the user directory:
+            it will look under its username or username/provider_name/function_title
+        """
+
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.list", context=ctx):
-            user_dir = request.user.username
-            provider_name = request.query_params.get("provider")
-            if provider_name is not None:
-                if self.check_user_has_provider(request.user, provider_name):
-                    user_dir = provider_name
-                else:
-                    return response
-            user_dir = os.path.join(
-                sanitize_file_path(settings.MEDIA_ROOT),
-                sanitize_file_path(user_dir),
+            username = request.user.username
+            provider_name = sanitize_name(request.query_params.get("provider", None))
+            function_title = sanitize_name(request.query_params.get("function", None))
+            working_dir = WorkingDir.USER_STORAGE
+
+            function = self.get_function(
+                user=request.user,
+                function_title=function_title,
+                provider_name=provider_name,
             )
-            if os.path.exists(user_dir):
-                files = [
-                    os.path.basename(path)
-                    for path in glob.glob(f"{user_dir}/*.tar")
-                    + glob.glob(f"{user_dir}/*.h5")
-                ]
-            else:
-                logger.warning(
-                    "Directory %s does not exist for %s.", user_dir, request.user
+            if not function:
+                if provider_name:
+                    error_message = f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                else:
+                    error_message = f"Qiskit Function {function_title} doesn't exist."
+                return Response(
+                    {"message": error_message},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
+
+            file_storage = FileStorage(
+                username=username,
+                working_dir=working_dir,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            files = file_storage.get_files()
+
+        return Response({"results": files})
+
+    @action(methods=["GET"], detail=False, url_path="provider")
+    def provider_list(self, request):
+        """
+        It returns a list with the names of available files for the provider working directory:
+            provider_name/function_title
+        """
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.files.provider_list", context=ctx):
+            username = request.user.username
+            provider_name = sanitize_name(request.query_params.get("provider"))
+            function_title = sanitize_name(request.query_params.get("function"))
+            working_dir = WorkingDir.PROVIDER_STORAGE
+
+            if not self.user_has_provider_access(request.user, provider_name):
+                return Response(
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            function = self.get_function(
+                user=request.user,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            if not function:
+                return Response(
+                    {
+                        "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            file_storage = FileStorage(
+                username=username,
+                working_dir=working_dir,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            files = file_storage.get_files()
 
         return Response({"results": files})
 
