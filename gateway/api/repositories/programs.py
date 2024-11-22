@@ -1,6 +1,7 @@
 """
 Repository implementatio for Programs model
 """
+import logging
 
 from typing import Any, List
 
@@ -8,6 +9,9 @@ from django.db.models import Q
 from django.contrib.auth.models import Group, Permission
 
 from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program
+
+
+logger = logging.getLogger("gateway")
 
 
 class ProgramRepository:
@@ -38,14 +42,6 @@ class ProgramRepository:
         author_groups_with_view_permissions = Group.objects.filter(
             user_criteria & view_permission_criteria
         )
-        # author_groups_with_view_permissions_count = (
-        #     author_groups_with_view_permissions.count()
-        # )
-        # logger.info(
-        #     "ProgramViewSet get author [%s] groups [%s]",
-        #     author.id,
-        #     author_groups_with_view_permissions_count,
-        # )
 
         author_criteria = Q(author=author)
         author_groups_with_view_permissions_criteria = Q(
@@ -55,6 +51,10 @@ class ProgramRepository:
         result_queryset = Program.objects.filter(
             author_criteria | author_groups_with_view_permissions_criteria
         ).distinct()
+
+        count = result_queryset.count()
+        logger.info("[%d] Functions found for author [%s]", count, author.id)
+
         return result_queryset
 
     def get_user_functions(self, author) -> List[Program] | Any:
@@ -73,18 +73,14 @@ class ProgramRepository:
         author_criteria = Q(author=author)
         provider_criteria = Q(provider=None)
 
-        user_functions = Program.objects.filter(
+        result_queryset = Program.objects.filter(
             author_criteria & provider_criteria
         ).distinct()
 
-        # user_functions_count = user_functions.count()
-        # logger.info(
-        #     "ProgramViewSet get author [%s] programs [%s]",
-        #     author.id,
-        #     user_functions_count,
-        # )
+        count = result_queryset.count()
+        logger.info("[%d] user Functions found for author [%s]", count, author.id)
 
-        return user_functions
+        return result_queryset
 
     def get_provider_functions_with_run_permissions(
         self, author
@@ -108,14 +104,6 @@ class ProgramRepository:
         author_groups_with_run_permissions = Group.objects.filter(
             user_criteria & run_permission_criteria
         )
-        # author_groups_with_run_permissions_count = (
-        #     author_groups_with_run_permissions.count()
-        # )
-        # logger.info(
-        #     "ProgramViewSet get author [%s] groups [%s]",
-        #     author.id,
-        #     author_groups_with_run_permissions_count,
-        # )
 
         author_groups_with_run_permissions_criteria = Q(
             instances__in=author_groups_with_run_permissions
@@ -126,6 +114,10 @@ class ProgramRepository:
         result_queryset = Program.objects.filter(
             author_groups_with_run_permissions_criteria & provider_exists_criteria
         ).distinct()
+
+        count = result_queryset.count()
+        logger.info("[%d] provider Functions found for author [%s]", count, author.id)
+
         return result_queryset
 
     def get_user_function_by_title(self, author, title: str) -> Program | Any:
@@ -146,6 +138,13 @@ class ProgramRepository:
         result_queryset = Program.objects.filter(
             author_criteria & title_criteria
         ).first()
+
+        if result_queryset is None:
+            logger.warning(
+                "Function [%s] was not found or author [%s] doesn't have access to it",
+                title,
+                author.id,
+            )
 
         return result_queryset
 
@@ -178,14 +177,6 @@ class ProgramRepository:
         author_groups_with_view_permissions = Group.objects.filter(
             user_criteria & view_permission_criteria
         )
-        # author_groups_with_view_permissions_count = (
-        #     author_groups_with_view_permissions.count()
-        # )
-        # logger.info(
-        #     "ProgramViewSet get author [%s] groups [%s]",
-        #     author.id,
-        #     author_groups_with_view_permissions_count,
-        # )
 
         author_criteria = Q(author=author)
         author_groups_with_view_permissions_criteria = Q(
@@ -198,5 +189,13 @@ class ProgramRepository:
             (author_criteria | author_groups_with_view_permissions_criteria)
             & title_criteria
         ).first()
+
+        if result_queryset is None:
+            logger.warning(
+                "Function [%s/%s] was not found or author [%s] doesn't have access to it",
+                provider_name,
+                title,
+                author.id,
+            )
 
         return result_queryset
