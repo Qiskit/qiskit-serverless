@@ -306,10 +306,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
         )
 
         if provider_name:
-            function = (
-                self.program_repository.get_provider_function_by_provider_and_title(
-                    author=author, title=function_title, provider_name=provider_name
-                )
+            function = self.program_repository.get_provider_function_by_title(
+                author=author, title=function_title, provider_name=provider_name
             )
         else:
             function = self.program_repository.get_user_function_by_title(

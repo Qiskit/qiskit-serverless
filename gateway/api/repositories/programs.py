@@ -148,7 +148,7 @@ class ProgramRepository:
 
         return result_queryset
 
-    def get_provider_function_by_provider_and_title(
+    def get_provider_function_by_title(
         self, author, title: str, provider_name: str
     ) -> Program | Any:
         """
