@@ -154,9 +154,9 @@ class ProgramRepository:
     ) -> Program | Any:
         """
         Returns the provider function associated to:
-          - Function title
-          - A provider
-          - Author must have view permission to see it
+          - A Function title
+          - A Provider
+          - Author must have view permission to see it or be the author
 
         Args:
             author: Django author from who retrieve the function
@@ -187,6 +187,7 @@ class ProgramRepository:
         #     author_groups_with_view_permissions_count,
         # )
 
+        author_criteria = Q(author=author)
         author_groups_with_view_permissions_criteria = Q(
             instances__in=author_groups_with_view_permissions
         )
@@ -194,7 +195,8 @@ class ProgramRepository:
         title_criteria = Q(title=title, provider__name=provider_name)
 
         result_queryset = Program.objects.filter(
-            author_groups_with_view_permissions_criteria & title_criteria
+            (author_criteria | author_groups_with_view_permissions_criteria)
+            & title_criteria
         ).first()
 
         return result_queryset

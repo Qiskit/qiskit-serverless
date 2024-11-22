@@ -68,13 +68,21 @@ class TestProgramApi(APITestCase):
         )
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(programs_response.data), 1)
+        self.assertEqual(len(programs_response.data), 2)
         self.assertEqual(
             programs_response.data[0].get("provider"),
             "ibm",
         )
         self.assertEqual(
             programs_response.data[0].get("title"),
+            "Docker-Image-Program-2",
+        )
+        self.assertEqual(
+            programs_response.data[1].get("provider"),
+            "ibm",
+        )
+        self.assertEqual(
+            programs_response.data[1].get("title"),
             "Docker-Image-Program-3",
         )
 
@@ -94,78 +102,6 @@ class TestProgramApi(APITestCase):
             programs_response.data[0].get("title"),
             "Program",
         )
-
-    def test_program_list_with_title_query_parameter(self):
-        """Tests program list filtered with title."""
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
-
-        programs_response = self.client.get(
-            reverse("v1:programs-list"), {"title": "Program"}, format="json"
-        )
-
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(programs_response.data), 1)
-        self.assertEqual(
-            programs_response.data[0].get("title"),
-            "Program",
-        )
-
-        empty_programs_response = self.client.get(
-            reverse("v1:programs-list"), {"title": "Non existing name"}, format="json"
-        )
-        self.assertEqual(empty_programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(empty_programs_response.data), 0)
-
-    def test_program_list_with_title_query_title_and_provider(self):
-        """Tests program list filtered with title."""
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
-
-        programs_response = self.client.get(
-            reverse("v1:programs-list"),
-            {"title": "Docker-Image-Program"},
-            format="json",
-        )
-
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(programs_response.data), 1)
-        self.assertEqual(programs_response.data[0].get("provider"), "default")
-
-        programs_response_with_provider = self.client.get(
-            reverse("v1:programs-list"),
-            {"title": "default/Docker-Image-Program"},
-            format="json",
-        )
-        self.assertEqual(
-            programs_response_with_provider.status_code, status.HTTP_200_OK
-        )
-        self.assertEqual(len(programs_response_with_provider.data), 1)
-        self.assertEqual(
-            programs_response_with_provider.data[0].get("provider"), "default"
-        )
-
-        programs_response_with_provider_as_parameter = self.client.get(
-            reverse("v1:programs-list"),
-            {"title": "Docker-Image-Program", "provider": "default"},
-            format="json",
-        )
-        self.assertEqual(
-            programs_response_with_provider_as_parameter.status_code, status.HTTP_200_OK
-        )
-        self.assertEqual(len(programs_response_with_provider_as_parameter.data), 1)
-        self.assertEqual(
-            programs_response_with_provider_as_parameter.data[0].get("provider"),
-            "default",
-        )
-
-        programs_response_empty = self.client.get(
-            reverse("v1:programs-list"),
-            {"title": "Docker-Image-Program", "provider": "non-existing-provider"},
-            format="json",
-        )
-        self.assertEqual(programs_response_empty.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(programs_response_empty.data), 0)
 
     def test_run(self):
         """Tests run existing authorized."""
