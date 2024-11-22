@@ -1,3 +1,9 @@
+"""
+Repository implementatio for Programs model
+"""
+
+from typing import Any, List
+
 from django.db.models import Q
 from django.contrib.auth.models import Group, Permission
 
@@ -5,7 +11,23 @@ from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program
 
 
 class ProgramRepository:
-    def get_functions(self, author):
+    """
+    The main objective of this class is to manage the access to the model
+    """
+
+    def get_functions(self, author) -> List[Program] | Any:
+        """
+        Returns all the functions available to the user. This means:
+          - User functions where the user is the author
+          - Provider functions with view permissions
+
+        Args:
+            author: Django author from who retrieve the functions
+
+        Returns:
+            List[Program] | Any: all the functions available to the user
+        """
+
         view_program_permission = Permission.objects.get(
             codename=VIEW_PROGRAM_PERMISSION
         )
@@ -35,7 +57,19 @@ class ProgramRepository:
         ).distinct()
         return result_queryset
 
-    def get_user_functions(self, author):
+    def get_user_functions(self, author) -> List[Program] | Any:
+        """
+        Returns the user functions available to the user. This means:
+          - User functions where the user is the author
+          - Provider is None
+
+        Args:
+            author: Django author from who retrieve the functions
+
+        Returns:
+            List[Program] | Any: user functions available to the user
+        """
+
         author_criteria = Q(author=author)
         provider_criteria = Q(provider=None)
 
@@ -52,7 +86,21 @@ class ProgramRepository:
 
         return user_functions
 
-    def get_provider_functions_with_run_permissions(self, author):
+    def get_provider_functions_with_run_permissions(
+        self, author
+    ) -> List[Program] | Any:
+        """
+        Returns the user functions available to the user. This means:
+          - Provider functions where the user has run permissions
+          - Provider is NOT None
+
+        Args:
+            author: Django author from who retrieve the functions
+
+        Returns:
+            List[Program] | Any: providers functions available to the user
+        """
+
         run_program_permission = Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
 
         user_criteria = Q(user=author)
@@ -80,7 +128,18 @@ class ProgramRepository:
         ).distinct()
         return result_queryset
 
-    def get_user_function_by_title(self, author, title: str):
+    def get_user_function_by_title(self, author, title: str) -> Program | Any:
+        """
+        Returns the user function associated to a title:
+
+        Args:
+            author: Django author from who retrieve the function
+            title: Title that the function must have to find it
+
+        Returns:
+            Program | Any: user function with the specific title
+        """
+
         author_criteria = Q(author=author)
         title_criteria = Q(title=title)
 
@@ -92,7 +151,23 @@ class ProgramRepository:
 
     def get_provider_function_by_provider_and_title(
         self, author, title: str, provider_name: str
-    ):
+    ) -> Program | Any:
+        """
+        Returns the provider function associated to:
+          - Function title
+          - A provider
+          - Author must have view permission to see it
+
+        Args:
+            author: Django author from who retrieve the function
+            title: Title that the function must have to find it
+            provider: Provider associated to the function
+
+        Returns:
+            Program | Any: provider function with the specific
+                title and provider
+        """
+
         view_program_permission = Permission.objects.get(
             codename=VIEW_PROGRAM_PERMISSION
         )

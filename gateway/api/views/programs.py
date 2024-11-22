@@ -5,7 +5,6 @@ Version views inherit from the different views.
 """
 import logging
 import os
-from typing import Optional
 
 from django.db.models import Q
 from django.contrib.auth.models import Group, Permission
@@ -30,7 +29,7 @@ from api.serializers import (
     RunProgramSerializer,
     UploadProgramSerializer,
 )
-from api.models import VIEW_PROGRAM_PERMISSION, RUN_PROGRAM_PERMISSION, Program, Job
+from api.models import RUN_PROGRAM_PERMISSION, Program, Job
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -153,8 +152,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
             type_filter = self.request.query_params.get("filter")
 
             if type_filter == "serverless":
-                # Serverless filter only returns functions created by the author with the next criterias:
-                # user is the author of the function and there is no provider
+                # Serverless filter only returns functions created by the author
+                # with the next criterias:
+                # - user is the author of the function and there is no provider
                 functions = self.program_repository.get_user_functions(author)
             elif type_filter == "catalog":
                 # Catalog filter only returns providers functions that user has access:
