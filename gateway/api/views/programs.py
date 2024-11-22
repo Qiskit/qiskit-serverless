@@ -321,6 +321,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         return Response(status=404)
 
+    # This end-point is deprecated and we need to confirm if we can remove it
     @action(methods=["GET"], detail=True)
     def get_jobs(
         self, request, pk=None
