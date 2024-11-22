@@ -31,6 +31,10 @@ my_pattern_function
 job = my_pattern_function.run(circuit=circuit)
 print(job)
 
-print(job.result())
+try:
+  print(job.result())
+except:
+  print(job.error_message())
+
 print(job.status())
 print(job.logs())
