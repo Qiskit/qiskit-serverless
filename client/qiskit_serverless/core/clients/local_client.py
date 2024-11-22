@@ -49,6 +49,7 @@ from qiskit_serverless.core.job import (
     Configuration,
 )
 from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
+from qiskit_serverless.core.local_functions_store import LocalFunctionsStore
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
@@ -69,7 +70,7 @@ class LocalClient(BaseClient):
         super().__init__("local-client")
         self.in_test = os.getenv("IN_TEST")
         self._jobs = {}
-        self._patterns = []
+        self._functions = LocalFunctionsStore(self)
 
     @classmethod
     def from_dict(cls, dictionary: dict):
@@ -92,33 +93,30 @@ class LocalClient(BaseClient):
         config: Optional[Configuration] = None,
     ) -> Job:
         # pylint: disable=too-many-locals
-        title = ""
-        if isinstance(program, QiskitFunction):
-            title = program.title
-        else:
-            title = str(program)
+        title = program.title if isinstance(program, QiskitFunction) else str(program)
 
-        for pattern in self._patterns:
-            if pattern["title"] == title:
-                saved_program = pattern
-        if saved_program[  # pylint: disable=possibly-used-before-assignment
-            "dependencies"
-        ]:
-            dept = json.loads(saved_program["dependencies"])
-            for dependency in dept:
+        saved_program = self.function(title)
+
+        if not saved_program:
+            raise QiskitServerlessException(
+                "QiskitFunction provided is not uploaded to the client. Use upload() first."
+            )
+
+        if saved_program.dependencies:
+            for dependency in saved_program.dependencies:
                 subprocess.check_call(
                     [sys.executable, "-m", "pip", "install", dependency]
                 )
         arguments = arguments or {}
         env_vars = {
-            **(saved_program["env_vars"] or {}),
-            **{OT_PROGRAM_NAME: saved_program["title"]},
+            **(saved_program.env_vars or {}),
+            **{OT_PROGRAM_NAME: saved_program.title},
             **{"PATH": os.environ["PATH"]},
             **{ENV_JOB_ARGUMENTS: json.dumps(arguments, cls=QiskitObjectsEncoder)},
         }
 
         with Popen(
-            ["python", saved_program["working_dir"] + saved_program["entrypoint"]],
+            ["python", saved_program.working_dir + saved_program.entrypoint],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
@@ -165,31 +163,12 @@ class LocalClient(BaseClient):
 
     def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
         # check if entrypoint exists
-        if not os.path.exists(os.path.join(program.working_dir, program.entrypoint)):
-            raise QiskitServerlessException(
-                f"Entrypoint file [{program.entrypoint}] does not exist "
-                f"in [{program.working_dir}] working directory."
-            )
-
-        pattern = {
-            "title": program.title,
-            "provider": program.provider,
-            "entrypoint": program.entrypoint,
-            "working_dir": program.working_dir,
-            "env_vars": program.env_vars,
-            "arguments": json.dumps({}),
-            "dependencies": json.dumps(program.dependencies or []),
-            "client": self,
-        }
-        self._patterns.append(pattern)
-        return RunnableQiskitFunction.from_json(pattern)
+        return self._functions.upload(program)
 
     def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
-        """Returns list of programs."""
-        return [RunnableQiskitFunction.from_json(program) for program in self._patterns]
+        return self._functions.functions()
 
     def function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[RunnableQiskitFunction]:
-        functions = {function.title: function for function in self.functions()}
-        return functions.get(title)
+        return self._functions.function(title)

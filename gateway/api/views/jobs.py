@@ -132,8 +132,7 @@ class JobViewSet(viewsets.GenericViewSet):
                     saved = True
                 except RecordModifiedError:
                     logger.warning(
-                        "Job[%s] record has not been updated due to lock. "
-                        "Retrying. Attempts left %s",
+                        "Job [%s] record has not been updated due to lock. Retrying. Attempts left %s",  # pylint: disable=line-too-long
                         job.id,
                         attempts_left,
                     )

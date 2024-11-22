@@ -27,7 +27,6 @@ Qiskit Serverless provider
 """
 # pylint: disable=duplicate-code
 import json
-import warnings
 from typing import Optional, List, Dict, Any, Union
 from uuid import uuid4
 
@@ -43,6 +42,8 @@ from qiskit_serverless.core.job import (
     Job,
 )
 from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
+from qiskit_serverless.core.local_functions_store import LocalFunctionsStore
+from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
 )
@@ -64,6 +65,7 @@ class RayClient(BaseClient):
         """
         super().__init__("ray-client", host)
         self.job_submission_client = JobSubmissionClient(host)
+        self._functions = LocalFunctionsStore(self)
 
     @classmethod
     def from_dict(cls, dictionary: dict):
@@ -104,20 +106,23 @@ class RayClient(BaseClient):
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
     ) -> Job:
-        if not isinstance(program, QiskitFunction):
-            warnings.warn(
-                "`run` doesn't support program str yet. "
-                "Send a QiskitFunction instead. "
+        # pylint: disable=too-many-locals
+        title = program.title if isinstance(program, QiskitFunction) else str(program)
+
+        saved_program = self.function(title)
+
+        if not saved_program:
+            raise QiskitServerlessException(
+                "QiskitFunction provided is not uploaded to the client. Use upload() first."
             )
-            raise NotImplementedError
 
         arguments = arguments or {}
-        entrypoint = f"python {program.entrypoint}"
+        entrypoint = f"python {saved_program.entrypoint}"
 
         # set program name so OT can use it as parent span name
         env_vars = {
-            **(program.env_vars or {}),
-            **{OT_PROGRAM_NAME: program.title},
+            **(saved_program.env_vars or {}),
+            **{OT_PROGRAM_NAME: saved_program.title},
             **{ENV_JOB_ARGUMENTS: json.dumps(arguments, cls=QiskitObjectsEncoder)},
         }
 
@@ -125,8 +130,8 @@ class RayClient(BaseClient):
             entrypoint=entrypoint,
             submission_id=f"qs_{uuid4()}",
             runtime_env={
-                "working_dir": program.working_dir,
-                "pip": program.dependencies,
+                "working_dir": saved_program.working_dir,
+                "pip": saved_program.dependencies,
                 "env_vars": env_vars,
             },
         )
@@ -160,14 +165,14 @@ class RayClient(BaseClient):
 
     def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
         """Uploads program."""
-        raise NotImplementedError("Upload is not available for RayClient.")
+        return self._functions.upload(program)
 
     def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
         """Returns list of available programs."""
-        raise NotImplementedError("get_programs is not available for RayClient.")
+        return self._functions.functions()
 
     def function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
-        raise NotImplementedError("get_program is not available for RayClient.")
+        return self._functions.function(title)
