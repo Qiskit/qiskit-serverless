@@ -123,9 +123,3 @@ class ProgramRepository:
         ).first()
 
         return result_queryset
-
-    def user_has_view_access(self):
-        pass
-
-    def user_has_run_access(self):
-        pass
