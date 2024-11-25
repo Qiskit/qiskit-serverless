@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  verify-client:
+  verify-integration:
     name: lint, test
 
     runs-on: ubuntu-latest
@@ -19,7 +19,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ./client
+        working-directory: ./tests
 
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
