@@ -30,6 +30,7 @@ from api.serializers import (
     UploadProgramSerializer,
 )
 from api.models import RUN_PROGRAM_PERMISSION, Program, Job
+from api.views.enums.type_filter import TypeFilter
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -151,12 +152,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
             author = self.request.user
             type_filter = self.request.query_params.get("filter")
 
-            if type_filter == "serverless":
+            if type_filter == TypeFilter.SERVERLESS:
                 # Serverless filter only returns functions created by the author
                 # with the next criterias:
                 # - user is the author of the function and there is no provider
                 functions = self.program_repository.get_user_functions(author)
-            elif type_filter == "catalog":
+            elif type_filter == TypeFilter.CATALOG:
                 # Catalog filter only returns providers functions that user has access:
                 # author has view permissions and the function has a provider assigned
                 functions = (
