@@ -1,0 +1,49 @@
+name: Client verify process
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-client:
+    name: lint, test
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # keep running if one leg fails
+      matrix:
+        python-version:
+          - '3.11'
+
+    defaults:
+      run:
+        working-directory: ./client
+
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f #5.1.1
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Set up tox environment
+        run: |
+          pver=${{ matrix.python-version }}
+          tox_env="-epy${pver/./}"
+          echo tox_env
+          echo TOX_ENV=$tox_env >> $GITHUB_ENV
+
+      - name: Install tox
+        run: |
+          pip install tox==4.16.0
+
+      - name: Run styles check
+        run: tox -elint
+
+      - name: Test using tox environment
+        run: |
+          tox ${{ env.TOX_ENV }}
