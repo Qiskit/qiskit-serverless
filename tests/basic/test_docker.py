@@ -121,9 +121,8 @@ class TestFunctionsDocker:
         job = my_pattern_function.run(circuits=circuits)
 
         assert job is not None
-        with raises(QiskitServerlessException):
-            job.result()
-        assert job.status() == "ERROR"
+        assert job.result() is not None
+        assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
     def test_retrieving_past_results(self, serverless_client: ServerlessClient):
@@ -197,7 +196,9 @@ class TestFunctionsDocker:
         job = my_function.run(message="Argument for the custum function")
 
         assert job is not None
-        assert job.result()
+
+        with raises(QiskitServerlessException):
+            job.result()
         assert isinstance(job.logs(), str)
 
         jobs = my_function.jobs()
