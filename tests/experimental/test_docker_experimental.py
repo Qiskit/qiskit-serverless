@@ -3,13 +3,10 @@
 import os
 import tarfile
 
-from pytest import fixture, raises, mark
+from pytest import fixture, mark
 from testcontainers.compose import DockerCompose
 
-from qiskit.circuit.random import random_circuit
-
 from qiskit_serverless import ServerlessClient, QiskitFunction
-from qiskit_serverless.exception import QiskitServerlessException
 
 resources_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "./source_files"
