@@ -89,6 +89,7 @@ jobs:
           for f in *.py; do echo "TEST: $f" && python "$f"; done
           # experimental tests
           cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/experimental
+          rm ./test_docker_experimental.py
           for f in *.py; do echo "TEST: $f" && python "$f"; done
       - uses: chainguard-dev/actions/kind-diag@main
         # Only upload logs on failure.

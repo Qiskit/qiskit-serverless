@@ -55,6 +55,7 @@ jobs:
         shell: bash
         run: |
           cd tests/experimental
+          rm ./test_docker_experimental.py
           for f in *.py; do echo "$f" && python "$f" &>> experimental.log; done
           done=$(cat experimental.log | grep -c "DONE")
           if [[ $done == 6 ]]

@@ -25,6 +25,7 @@ jobs:
           rm tests/basic/test_docker.py
           rm tests/experimental/file_download.py
           rm tests/experimental/manage_data_directory.py
+          rm tests/experimental/test_docker_experimental.py
       - name: install dependencies
         shell: bash
         run: pip install client/
