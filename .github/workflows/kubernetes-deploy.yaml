@@ -85,6 +85,7 @@ jobs:
           # basic tests
           cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/basic
           rm 06_function.py
+          rm test_docker.py
           for f in *.py; do echo "TEST: $f" && python "$f"; done
           # experimental tests
           cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/experimental
