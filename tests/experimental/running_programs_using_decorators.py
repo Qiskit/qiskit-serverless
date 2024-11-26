@@ -5,8 +5,8 @@ from source_files.circuit_utils import create_hello_world_circuit
 from qiskit import QuantumCircuit
 from qiskit.primitives import StatevectorSampler as Sampler
 from qiskit.circuit.random import random_circuit
+from qiskit_serverless import ServerlessClient
 from qiskit_serverless import (
-    ServerlessClient,
     distribute_qiskit_function,
     distribute_task,
     get,
