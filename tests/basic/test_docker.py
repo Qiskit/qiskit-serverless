@@ -1,15 +1,14 @@
+# pylint: disable=import-error, invalid-name
 """Tests jobs."""
 import os
-import time
-from unittest import skip
 
-from pytest import fixture, mark, raises
+from pytest import fixture, raises
 from testcontainers.compose import DockerCompose
-
-from qiskit_serverless import ServerlessClient, QiskitFunction
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
+
+from qiskit_serverless import ServerlessClient, QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 
 resources_path = os.path.join(
@@ -18,12 +17,15 @@ resources_path = os.path.join(
 
 
 class TestFunctionsDocker:
+    """Test class for integration testing with docker."""
 
     @fixture(scope="class")
     def serverless_client(self):
         """Fixture for testing Functions."""
         compose = DockerCompose(
-            resources_path, compose_file_name="../../../docker-compose-dev.yaml", pull=True
+            resources_path,
+            compose_file_name="../../../docker-compose-dev.yaml",
+            pull=True,
         )
         compose.start()
 
@@ -78,7 +80,7 @@ class TestFunctionsDocker:
 
         assert job is not None
         with raises(QiskitServerlessException):
-          job.result()
+            job.result()
         assert job.status() == "ERROR"
         assert isinstance(job.logs(), str)
 
@@ -104,7 +106,8 @@ class TestFunctionsDocker:
         """Integration test for Functions."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
-        [circuit.measure_all() for circuit in circuits]
+        for circuit in circuits:
+            circuit.measure_all()
 
         function = QiskitFunction(
             title="pattern-with-parallel-workflow",
@@ -112,13 +115,15 @@ class TestFunctionsDocker:
             working_dir=resources_path,
         )
         serverless_client.upload(function)
-        my_pattern_function = serverless_client.function("pattern-with-parallel-workflow")
+        my_pattern_function = serverless_client.function(
+            "pattern-with-parallel-workflow"
+        )
 
         job = my_pattern_function.run(circuits=circuits)
 
         assert job is not None
         with raises(QiskitServerlessException):
-          job.result()
+            job.result()
         assert job.status() == "ERROR"
         assert isinstance(job.logs(), str)
 
@@ -126,15 +131,18 @@ class TestFunctionsDocker:
         """Integration test for Functions."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
-        [circuit.measure_all() for circuit in circuits]
+        for circuit in circuits:
+            circuit.measure_all()
 
         function = QiskitFunction(
-            title="pattern-to-fetch-results", 
-            entrypoint="pattern.py", 
+            title="pattern-to-fetch-results",
+            entrypoint="pattern.py",
             working_dir=resources_path,
         )
         serverless_client.upload(function)
-        my_pattern_function = serverless_client.function("pattern-with-parallel-workflow")
+        my_pattern_function = serverless_client.function(
+            "pattern-with-parallel-workflow"
+        )
 
         job1 = my_pattern_function.run()
         job2 = my_pattern_function.run()
@@ -150,14 +158,14 @@ class TestFunctionsDocker:
 
         assert retrieved_job1.result() is not None
         assert retrieved_job2.result() is not None
-        
+
         assert isinstance(retrieved_job1.logs(), str)
         assert isinstance(retrieved_job2.logs(), str)
 
     def test_function(self, serverless_client: ServerlessClient):
         """Integration test for Functions."""
 
-        help = """
+        description = """
         title: custom-image-function
         description: sample function implemented in a custom image
         arguments:
@@ -170,11 +178,11 @@ class TestFunctionsDocker:
             title="custom-image-function",
             image="test_function:latest",
             provider=os.environ.get("PROVIDER_ID", "mockprovider"),
-            description=help
+            description=description,
         )
 
         serverless_client.upload(function_with_custom_image)
-        
+
         my_functions = serverless_client.functions()
 
         # ???
@@ -188,10 +196,9 @@ class TestFunctionsDocker:
 
         assert job is not None
         with raises(QiskitServerlessException):
-          job.result()
+            job.result()
         assert isinstance(job.logs(), str)
 
         jobs = my_function.jobs()
         print(jobs)
-        assert jobs.count is not 0
-
+        assert jobs.count != 0
