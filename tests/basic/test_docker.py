@@ -56,7 +56,7 @@ class TestFunctionsDocker:
 
         assert job is not None
         assert job.result() is not None
-        assert job.status() == "ERROR"
+        assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
     def test_arguments_and_resluts(self, serverless_client: ServerlessClient):
@@ -99,7 +99,7 @@ class TestFunctionsDocker:
 
         assert job is not None
         assert job.result() is not None
-        assert job.status() == "ERROR"
+        assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
     def test_distributed_workloads(self, serverless_client: ServerlessClient):
@@ -156,7 +156,9 @@ class TestFunctionsDocker:
         retrieved_job1 = serverless_client.job(job_id1)
         retrieved_job2 = serverless_client.job(job_id2)
 
-        assert retrieved_job1.result() is not None
+        with raises(QiskitServerlessException):
+          retrieved_job1.result()
+          
         assert retrieved_job2.result() is not None
 
         assert isinstance(retrieved_job1.logs(), str)
