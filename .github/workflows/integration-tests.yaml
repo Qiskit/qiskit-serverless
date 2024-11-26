@@ -23,12 +23,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
+      - name: Build the containers
+        run: docker compose -f docker-compose-dev.yaml build
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f #5.1.1
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
+          python-version: '3.11'
 
       - name: Set up tox environment
         run: |
