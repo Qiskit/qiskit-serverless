@@ -1,4 +1,4 @@
-name: Client verify process
+name: Integration tests
 
 on:
   pull_request:
