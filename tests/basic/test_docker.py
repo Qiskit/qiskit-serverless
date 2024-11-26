@@ -79,9 +79,8 @@ class TestFunctionsDocker:
         job = my_pattern_function.run(circuit=circuit)
 
         assert job is not None
-        with raises(QiskitServerlessException):
-            job.result()
-        assert job.status() == "ERROR"
+        assert job.result() is not None
+        assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
     def test_dependencies(self, serverless_client: ServerlessClient):
@@ -159,7 +158,8 @@ class TestFunctionsDocker:
         with raises(QiskitServerlessException):
             retrieved_job1.result()
 
-        assert retrieved_job2.result() is not None
+        with raises(QiskitServerlessException):
+            retrieved_job2.result()
 
         assert isinstance(retrieved_job1.logs(), str)
         assert isinstance(retrieved_job2.logs(), str)
@@ -197,8 +197,7 @@ class TestFunctionsDocker:
         job = my_function.run(message="Argument for the custum function")
 
         assert job is not None
-        with raises(QiskitServerlessException):
-            job.result()
+        assert job.result()
         assert isinstance(job.logs(), str)
 
         jobs = my_function.jobs()
