@@ -86,7 +86,7 @@ class ProgramRepository:
         self, author
     ) -> List[Program] | Any:
         """
-        Returns the user functions available to the user. This means:
+        Returns the provider functions available to the user. This means:
           - Provider functions where the user has run permissions
           - Provider is NOT None
 
