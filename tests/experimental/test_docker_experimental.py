@@ -57,6 +57,8 @@ class TestDockerExperimental:
 
         print("::: JOB LOGS :::")
         print(job.logs())
+        print("::: JOB RESULT :::")
+        print(job.result())
 
         available_files = serverless_client.files()
         assert available_files is not None
