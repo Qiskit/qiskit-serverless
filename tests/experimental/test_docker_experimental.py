@@ -64,7 +64,7 @@ class TestDockerExperimental:
         """Integration test for files."""
         filename = "uploaded_file.tar"
         with tarfile.open(filename, "w") as file:
-            file.add("manage_data_directory.py")
+            file.add(f"{resources_path}/../manage_data_directory.py")
             file.close()
 
             serverless_client.file_upload(filename)
