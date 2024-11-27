@@ -77,9 +77,7 @@ class TestDockerExperimental:
         )
         serverless_client.upload(function)
 
-        file_producer_function = serverless_client.function(
-            "file-producer-for-consume"
-        )
+        file_producer_function = serverless_client.function("file-producer-for-consume")
 
         job = file_producer_function.run()
 
