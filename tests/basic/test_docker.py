@@ -138,9 +138,7 @@ class TestFunctionsDocker:
             working_dir=resources_path,
         )
         serverless_client.upload(function)
-        my_pattern_function = serverless_client.function(
-            "pattern-to-fetch-results"
-        )
+        my_pattern_function = serverless_client.function("pattern-to-fetch-results")
 
         job1 = my_pattern_function.run()
         job2 = my_pattern_function.run()
