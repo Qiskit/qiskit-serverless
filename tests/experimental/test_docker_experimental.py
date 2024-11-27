@@ -57,6 +57,7 @@ class TestDockerExperimental:
 
         available_files = serverless_client.files()
         assert available_files is not None
+        assert len(available_files) > 0
 
         assert serverless_client.file_download(available_files[0]) is not None
 
@@ -66,29 +67,28 @@ class TestDockerExperimental:
         filename = "uploaded_file.tar"
         with tarfile.open(filename, "w") as file:
             file.add(f"{resources_path}/../manage_data_directory.py")
-            file.close()
 
-            serverless_client.file_upload(filename)
+        serverless_client.file_upload(filename)
 
-            function = QiskitFunction(
-                title="file-producer-for-consume",
-                entrypoint="produce_files.py",
-                working_dir=resources_path,
-            )
-            serverless_client.upload(function)
+        function = QiskitFunction(
+            title="file-producer-for-consume",
+            entrypoint="produce_files.py",
+            working_dir=resources_path,
+        )
+        serverless_client.upload(function)
 
-            file_producer_function = serverless_client.function(
-                "file-producer-for-consume"
-            )
+        file_producer_function = serverless_client.function(
+            "file-producer-for-consume"
+        )
 
-            job = file_producer_function.run()
+        job = file_producer_function.run()
 
-            assert job is not None
-            assert job.result() is not None
-            assert job.status() == "DONE"
-            assert isinstance(job.logs(), str)
+        assert job is not None
+        assert job.result() is not None
+        assert job.status() == "DONE"
+        assert isinstance(job.logs(), str)
 
-            assert len(serverless_client.files()) > 0
+        assert len(serverless_client.files()) > 0
 
     @mark.order(2)
     def test_file_consumer(self, serverless_client: ServerlessClient):
