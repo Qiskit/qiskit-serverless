@@ -41,13 +41,13 @@ class TestDockerExperimental:
         """Integration test for files."""
 
         function = QiskitFunction(
-            title="file-producer",
+            title="file-producer-for-download",
             entrypoint="produce_files.py",
-            working_dir="./source_files/",
+            working_dir=resources_path,
         )
         serverless_client.upload(function)
 
-        job = serverless_client.run("file-producer")
+        job = serverless_client.run("file-producer-for-download")
         assert job is not None
 
         assert job.result() is not None
@@ -70,13 +70,13 @@ class TestDockerExperimental:
             serverless_client.file_upload(filename)
 
             function = QiskitFunction(
-                title="file-producer",
+                title="file-producer-for-consume",
                 entrypoint="produce_files.py",
-                working_dir="./source_files/",
+                working_dir=resources_path
             )
             serverless_client.upload(function)
 
-            file_producer_function = serverless_client.function("file-producer")
+            file_producer_function = serverless_client.function("file-producer-for-consume")
 
             job = file_producer_function.run()
 
@@ -93,7 +93,7 @@ class TestDockerExperimental:
         function = QiskitFunction(
             title="file-consumer",
             entrypoint="consume_files.py",
-            working_dir="./source_files/",
+            working_dir=resources_path,
         )
         serverless_client.upload(function)
 

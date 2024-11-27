@@ -139,7 +139,7 @@ class TestFunctionsDocker:
         )
         serverless_client.upload(function)
         my_pattern_function = serverless_client.function(
-            "pattern-with-parallel-workflow"
+            "pattern-to-fetch-results"
         )
 
         job1 = my_pattern_function.run()
