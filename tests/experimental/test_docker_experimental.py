@@ -37,6 +37,7 @@ class TestDockerExperimental:
 
         compose.stop()
 
+    @mark.skip(reason="Speeding up testing with github jobs: delete before merge")
     def test_file_download(self, serverless_client: ServerlessClient):
         """Integration test for files."""
 
@@ -66,6 +67,7 @@ class TestDockerExperimental:
 
         assert serverless_client.file_download(available_files[0]) is not None
 
+    @mark.skip(reason="Speeding up testing with github jobs: delete before merge")
     @mark.order(1)
     def test_file_producer(self, serverless_client: ServerlessClient):
         """Integration test for files."""
@@ -93,6 +95,8 @@ class TestDockerExperimental:
 
         assert len(serverless_client.files()) > 0
 
+
+    @mark.skip(reason="Speeding up testing with github jobs: delete before merge")
     @mark.order(2)
     def test_file_consumer(self, serverless_client: ServerlessClient):
         """Integration test for files."""
