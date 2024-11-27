@@ -55,6 +55,9 @@ class TestDockerExperimental:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
+        print("::: JOB LOGS :::")
+        print(job.logs())
+
         available_files = serverless_client.files()
         assert available_files is not None
         assert len(available_files) > 0
