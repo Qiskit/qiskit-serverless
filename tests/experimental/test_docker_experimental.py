@@ -129,7 +129,7 @@ class TestDockerExperimental:
     def test_simple(self, serverless_client: ServerlessClient):
         """Integration test for files."""
 
-        filename = "source_files/data.tar"
+        filename = f"{resources_path}/data.tar"
 
         print("::: file_upload :::")
         print(serverless_client.file_upload(filename))
