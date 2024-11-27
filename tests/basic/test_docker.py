@@ -198,4 +198,4 @@ class TestFunctionsDocker:
 
         jobs = my_function.jobs()
         print(jobs)
-        assert jobs.count != 0
+        assert len(jobs)

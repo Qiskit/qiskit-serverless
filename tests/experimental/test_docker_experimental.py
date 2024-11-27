@@ -47,7 +47,8 @@ class TestDockerExperimental:
         )
         serverless_client.upload(function)
 
-        job = serverless_client.run("file-producer-for-download")
+        function = serverless_client.function("file-producer-for-download")
+        job = function.run()
         assert job is not None
 
         assert job.result() is not None
@@ -87,7 +88,7 @@ class TestDockerExperimental:
             assert job.status() == "DONE"
             assert isinstance(job.logs(), str)
 
-            assert serverless_client.files() is not None
+            assert len(serverless_client.files()) > 0
 
     @mark.order(2)
     def test_file_consumer(self, serverless_client: ServerlessClient):
@@ -111,8 +112,10 @@ class TestDockerExperimental:
 
         assert files is not None
 
-        file_count = files.count()
+        file_count = len(files)
+
+        assert file_count > 0
 
         serverless_client.file_delete("uploaded_file.tar")
 
-        assert (file_count - serverless_client.files().count) == 1
+        assert (file_count - len(serverless_client.files())) == 1
