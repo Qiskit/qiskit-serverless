@@ -129,6 +129,13 @@ class TestDockerExperimental:
     def test_simple(self, serverless_client: ServerlessClient):
         """Integration test for files."""
 
+        function = QiskitFunction(
+            title="file-consumer",
+            entrypoint="consume_files.py",
+            working_dir=resources_path,
+        )
+        serverless_client.upload(function)
+
         filename = f"{resources_path}/data.tar"
 
         print("::: file_upload :::")
