@@ -95,7 +95,6 @@ class TestDockerExperimental:
 
         assert len(serverless_client.files()) > 0
 
-
     @mark.skip(reason="Speeding up testing with github jobs: delete before merge")
     @mark.order(2)
     def test_file_consumer(self, serverless_client: ServerlessClient):
@@ -126,8 +125,7 @@ class TestDockerExperimental:
         serverless_client.file_delete("uploaded_file.tar")
 
         assert (file_count - len(serverless_client.files())) == 1
-        
-    
+
     def test_simple(self, serverless_client: ServerlessClient):
         """Integration test for files."""
 
