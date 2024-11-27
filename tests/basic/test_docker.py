@@ -152,11 +152,8 @@ class TestFunctionsDocker:
         retrieved_job1 = serverless_client.job(job_id1)
         retrieved_job2 = serverless_client.job(job_id2)
 
-        with raises(QiskitServerlessException):
-            retrieved_job1.result()
-
-        with raises(QiskitServerlessException):
-            retrieved_job2.result()
+        assert retrieved_job1.result() is not None
+        assert retrieved_job2.result() is not None
 
         assert isinstance(retrieved_job1.logs(), str)
         assert isinstance(retrieved_job2.logs(), str)
