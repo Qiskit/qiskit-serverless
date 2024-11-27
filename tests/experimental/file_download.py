@@ -24,6 +24,5 @@ print(job.logs())
 available_files = serverless.files()
 print(available_files)
 
-if len(available_files) > 0:
-    serverless.file_download(available_files[0])
+serverless.file_download(available_files[0])
 print("Download complete")

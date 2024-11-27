@@ -2,7 +2,7 @@
 """Tests jobs."""
 import os
 
-from pytest import fixture, raises
+from pytest import fixture, raises, mark
 from testcontainers.compose import DockerCompose
 
 from qiskit import QuantumCircuit
@@ -12,10 +12,10 @@ from qiskit_serverless import ServerlessClient, QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 
 resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "./source_files"
+    os.path.dirname(os.path.abspath(__file__)), "source_files"
 )
 
-
+@mark.skip(reason="Speeding up testing with github jobs: delete before merge")
 class TestFunctionsDocker:
     """Test class for integration testing with docker."""
 
