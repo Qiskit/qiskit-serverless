@@ -122,3 +122,32 @@ class TestDockerExperimental:
         serverless_client.file_delete("uploaded_file.tar")
 
         assert (file_count - len(serverless_client.files())) == 1
+        
+    
+    def test_simple(self, serverless_client: ServerlessClient):
+        """Integration test for files."""
+
+        filename = "source_files/data.tar"
+
+        print("::: file_upload :::")
+        print(serverless_client.file_upload(filename))
+
+        files = serverless_client.files()
+        print("::: files :::")
+        print(files)
+
+        assert files is not None
+
+        file_count = len(files)
+        print("::: file_count :::")
+        print(file_count)
+
+        assert file_count > 0
+
+        print("::: file_delete :::")
+        print(serverless_client.file_delete(filename))
+
+        print("::: files :::")
+        print(serverless_client.files())
+
+        assert (file_count - len(serverless_client.files())) == 1
