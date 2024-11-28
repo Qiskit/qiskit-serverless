@@ -8,10 +8,11 @@ from testcontainers.compose import DockerCompose
 from qiskit_serverless import ServerlessClient, QiskitFunction
 
 resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "./source_files"
+    os.path.dirname(os.path.abspath(__file__)), "source_files"
 )
 
-filename = f"{resources_path}/data.tar"
+filename = "data.tar"
+filename_path = os.path.join(resources_path, filename)
 
 
 class TestDockerExperimental:
@@ -109,7 +110,7 @@ class TestDockerExperimental:
         """Integration test for upload files."""
 
         print("::: file_upload :::")
-        print(serverless_client.file_upload(filename))
+        print(serverless_client.file_upload(filename_path))
 
         files = serverless_client.files()
         print("::: files :::")

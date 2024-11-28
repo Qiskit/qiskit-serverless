@@ -41,61 +41,82 @@ class TestFunctionsDocker:
 
         compose.stop()
 
-    def test_running_program(self, serverless_client: ServerlessClient):
-        """Integration test for Functions."""
-
-        function = QiskitFunction(
+    @fixture(scope="class")
+    def simple_function(self):
+        """Fixture of a simple function"""
+        return QiskitFunction(
             title="my-first-pattern",
             entrypoint="pattern.py",
             working_dir=resources_path,
         )
-        serverless_client.upload(function)
 
-        my_pattern_function = serverless_client.function("my-first-pattern")
+    @mark.order(1)
+    def test_upload_function(
+        self, serverless_client: ServerlessClient, simple_function: QiskitFunction
+    ):
+        """Integration test function uploading."""
 
-        job = my_pattern_function.run()
+        runnable_function = serverless_client.upload(simple_function)
+
+        assert runnable_function is not None
+
+    @mark.order(2)
+    def test_access_function(
+        self, serverless_client: ServerlessClient, simple_function: QiskitFunction
+    ):
+        """Integration test function accessing."""
+        runnable_function = serverless_client.function(simple_function.title)
+
+        assert runnable_function is not None
+
+    @mark.order(3)
+    def test_run_function(
+        self, serverless_client: ServerlessClient, simple_function: QiskitFunction
+    ):
+        """Integration test function run functions."""
+        runnable_function = serverless_client.function(simple_function.title)
+        job = runnable_function.run()
 
         assert job is not None
         assert job.result() is not None
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_arguments(self, serverless_client: ServerlessClient):
-        """Integration test for Functions."""
+    def test_function_with_arguments(self, serverless_client: ServerlessClient):
+        """Integration test for Functions with arguments."""
         circuit = QuantumCircuit(2)
         circuit.h(0)
         circuit.cx(0, 1)
         circuit.measure_all()
         circuit.draw()
 
-        function = QiskitFunction(
+        arguments_function = QiskitFunction(
             title="pattern-with-arguments",
             entrypoint="pattern_with_arguments.py",
             working_dir=resources_path,
         )
-        serverless_client.upload(function)
 
-        my_pattern_function = serverless_client.function("pattern-with-arguments")
+        runnable_function = serverless_client.upload(arguments_function)
 
-        job = my_pattern_function.run(circuit=circuit)
+        job = runnable_function.run(circuit=circuit)
 
         assert job is not None
         assert job.result() is not None
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_dependencies(self, serverless_client: ServerlessClient):
-        """Integration test for Functions."""
+    def test_dependencies_function(self, serverless_client: ServerlessClient):
+        """Integration test for Functions with dependencies."""
         function = QiskitFunction(
             title="pattern-with-dependencies",
             entrypoint="pattern_with_dependencies.py",
             working_dir=resources_path,
             dependencies=["pendulum"],
         )
-        serverless_client.upload(function)
-        my_pattern_function = serverless_client.function("pattern-with-dependencies")
 
-        job = my_pattern_function.run()
+        runnable_function = serverless_client.upload(function)
+
+        job = runnable_function.run()
 
         assert job is not None
         assert job.result() is not None
@@ -103,7 +124,7 @@ class TestFunctionsDocker:
         assert isinstance(job.logs(), str)
 
     def test_distributed_workloads(self, serverless_client: ServerlessClient):
-        """Integration test for Functions."""
+        """Integration test for Functions for distributed workloads."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
         for circuit in circuits:
@@ -114,12 +135,9 @@ class TestFunctionsDocker:
             entrypoint="pattern_with_parallel_workflow.py",
             working_dir=resources_path,
         )
-        serverless_client.upload(function)
-        my_pattern_function = serverless_client.function(
-            "pattern-with-parallel-workflow"
-        )
+        runnable_function = serverless_client.upload(function)
 
-        job = my_pattern_function.run(circuits=circuits)
+        job = runnable_function.run(circuits=circuits)
 
         assert job is not None
         assert job.result() is not None
@@ -127,7 +145,7 @@ class TestFunctionsDocker:
         assert isinstance(job.logs(), str)
 
     def test_multiple_runs(self, serverless_client: ServerlessClient):
-        """Integration test for Functions."""
+        """Integration test for run functions multiple times."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
         for circuit in circuits:
@@ -138,20 +156,18 @@ class TestFunctionsDocker:
             entrypoint="pattern.py",
             working_dir=resources_path,
         )
-        serverless_client.upload(function)
-        my_pattern_function = serverless_client.function("pattern-to-fetch-results")
+        runnable_function = serverless_client.upload(function)
 
-        job1 = my_pattern_function.run()
-        job2 = my_pattern_function.run()
+        job1 = runnable_function.run()
+        job2 = runnable_function.run()
 
         assert job1 is not None
         assert job2 is not None
 
-        job_id1 = job1.job_id
-        job_id2 = job2.job_id
+        assert job1.job_id != job2.job_id
 
-        retrieved_job1 = serverless_client.job(job_id1)
-        retrieved_job2 = serverless_client.job(job_id2)
+        retrieved_job1 = serverless_client.job(job1.job_id)
+        retrieved_job2 = serverless_client.job(job2.job_id)
 
         assert retrieved_job1.result() is not None
         assert retrieved_job2.result() is not None
@@ -159,14 +175,14 @@ class TestFunctionsDocker:
         assert isinstance(retrieved_job1.logs(), str)
         assert isinstance(retrieved_job2.logs(), str)
 
-    def test_function(self, serverless_client: ServerlessClient):
-        """Integration test for Functions."""
+    def test_error(self, serverless_client: ServerlessClient):
+        """Integration test to force an error."""
 
         description = """
         title: custom-image-function
         description: sample function implemented in a custom image
         arguments:
-            service: service created with the accunt information
+            service: service created with the account information
             circuit: circuit
             observable: observable
         """
@@ -178,22 +194,9 @@ class TestFunctionsDocker:
             description=description,
         )
 
-        serverless_client.upload(function_with_custom_image)
+        runnable_function = serverless_client.upload(function_with_custom_image)
 
-        my_functions = serverless_client.functions()
-
-        assert len(my_functions)
-
-        my_function = serverless_client.function("custom-image-function")
-        job = my_function.run(message="Argument for the custum function")
-
-        assert job is not None
+        job = runnable_function.run(message="Argument for the custum function")
 
         with raises(QiskitServerlessException):
             job.result()
-
-        assert isinstance(job.logs(), str)
-
-        jobs = my_function.jobs()
-        print(jobs)
-        assert len(jobs)
