@@ -2,8 +2,7 @@
 """Tests jobs."""
 import os
 
-from pytest import fixture, mark
-from testcontainers.compose import DockerCompose
+from pytest import mark
 
 from qiskit_serverless import ServerlessClient, QiskitFunction
 
