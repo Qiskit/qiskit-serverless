@@ -1,3 +1,5 @@
+# pylint: disable=import-error, invalid-name
+""" Fixtures for tests """
 import os
 
 from pytest import fixture
@@ -9,8 +11,8 @@ resources_path = os.path.join(
 )
 
 
-@fixture(scope="session")
-def serverless_client(self):
+@fixture(scope="module")
+def serverless_client():
     """Fixture for testing files."""
     compose = DockerCompose(
         resources_path,

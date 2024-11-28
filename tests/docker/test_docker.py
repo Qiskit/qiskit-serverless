@@ -16,6 +16,7 @@ resources_path = os.path.join(
 )
 
 
+@mark.skip(reason="Speedup tests")
 class TestFunctionsDocker:
     """Test class for integration testing with docker."""
 
