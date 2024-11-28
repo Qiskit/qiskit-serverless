@@ -5,7 +5,12 @@ from source_files.circuit_utils import create_hello_world_circuit
 from qiskit import QuantumCircuit
 from qiskit.primitives import StatevectorSampler as Sampler
 from qiskit.circuit.random import random_circuit
-from qiskit_serverless import ServerlessClient, distribute_qiskit_function, distribute_task, get
+from qiskit_serverless import ServerlessClient
+from qiskit_serverless import (
+    distribute_qiskit_function,
+    distribute_task,
+    get,
+)
 
 
 provider = ServerlessClient(
@@ -32,9 +37,9 @@ def hello_qiskit():
 job = hello_qiskit()
 print(job)
 try:
-  print(job.result())
+    print(job.result())
 except:
-  print(job.error_message())
+    print(job.error_message())
 
 print(job.status())
 print(job.logs())
@@ -62,9 +67,9 @@ for _ in range(3):
 job = function_with_distributed_tasks(circuits=circuits)
 print(job)
 try:
-  print(job.result())
+    print(job.result())
 except:
-  print(job.error_message())
+    print(job.error_message())
 
 print(job.status())
 print(job.logs())
@@ -72,16 +77,21 @@ print(job.logs())
 
 @distribute_qiskit_function(provider, working_dir="./")
 def my_function_with_modules():
-    quasi_dists = Sampler().run([(create_hello_world_circuit())]).result()[0].data.meas.get_counts()
+    quasi_dists = (
+        Sampler()
+        .run([(create_hello_world_circuit())])
+        .result()[0]
+        .data.meas.get_counts()
+    )
     return {"quasi_dists": quasi_dists}
 
 
 job = my_function_with_modules()
 print(job)
 try:
-  print(job.result())
+    print(job.result())
 except:
-  print(job.error_message())
+    print(job.error_message())
 
 print(job.status())
 print(job.logs())

@@ -1,6 +1,7 @@
 from qiskit import QuantumCircuit
 from qiskit.primitives import StatevectorSampler as Sampler
 
+
 def custom_function(arguments):
     # all print statement will be available in job logs
     print("Running function...")
@@ -19,6 +20,7 @@ def custom_function(arguments):
 
     print("Completed running pattern.")
     return quasi_dists
+
 
 class Runner:
     def run(self, arguments: dict) -> dict:

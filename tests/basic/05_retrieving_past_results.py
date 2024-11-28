@@ -12,7 +12,9 @@ print(serverless)
 from qiskit_serverless import QiskitFunction
 
 function = QiskitFunction(
-    title="pattern-to-fetch-results", entrypoint="pattern.py", working_dir="./source_files/"
+    title="pattern-to-fetch-results",
+    entrypoint="pattern.py",
+    working_dir="./source_files/",
 )
 serverless.upload(function)
 

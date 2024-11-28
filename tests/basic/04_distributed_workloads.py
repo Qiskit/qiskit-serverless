@@ -34,9 +34,9 @@ job = my_pattern_function.run(circuits=circuits)
 print(job)
 
 try:
-  print(job.result())
+    print(job.result())
 except:
-  print(job.error_message())
+    print(job.error_message())
 
 print(job.status())
 print(job.logs())
