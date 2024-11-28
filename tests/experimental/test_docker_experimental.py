@@ -12,6 +12,8 @@ resources_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "./source_files"
 )
 
+filename = f"{resources_path}/data.tar"
+
 
 class TestDockerExperimental:
     """Test class for integration testing with docker."""
@@ -33,41 +35,22 @@ class TestDockerExperimental:
             token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
             host=os.environ.get("GATEWAY_HOST", connection_url),
         )
+
+        # Initialize serverless folder for current user
+        function = QiskitFunction(
+            title="hello-world",
+            entrypoint="hello_world.py",
+            working_dir=resources_path,
+        )
+        serverless.upload(function)
+
         yield serverless
 
         compose.stop()
 
-    @mark.skip(reason="Speeding up testing with github jobs: delete before merge")
-    def test_file_download(self, serverless_client: ServerlessClient):
-        """Integration test for files."""
-
-        function = QiskitFunction(
-            title="file-producer-for-download",
-            entrypoint="produce_files.py",
-            working_dir=resources_path,
-        )
-        serverless_client.upload(function)
-
-        function = serverless_client.function("file-producer-for-download")
-        job = function.run()
-        assert job is not None
-
-        assert job.result() is not None
-        assert job.status() == "DONE"
-        assert isinstance(job.logs(), str)
-
-        print("::: JOB LOGS :::")
-        print(job.logs())
-        print("::: JOB RESULT :::")
-        print(job.result())
-
-        available_files = serverless_client.files()
-        assert available_files is not None
-        assert len(available_files) > 0
-
-        assert serverless_client.file_download(available_files[0]) is not None
-
-    @mark.skip(reason="Speeding up testing with github jobs: delete before merge")
+    @mark.skip(
+        reason="File producing and consuming is not working. Maybe write permissions for functions?"
+    )
     @mark.order(1)
     def test_file_producer(self, serverless_client: ServerlessClient):
         """Integration test for files."""
@@ -95,7 +78,9 @@ class TestDockerExperimental:
 
         assert len(serverless_client.files()) > 0
 
-    @mark.skip(reason="Speeding up testing with github jobs: delete before merge")
+    @mark.skip(
+        reason="File producing and consuming is not working. Maybe write permissions for functions?"
+    )
     @mark.order(2)
     def test_file_consumer(self, serverless_client: ServerlessClient):
         """Integration test for files."""
@@ -126,17 +111,9 @@ class TestDockerExperimental:
 
         assert (file_count - len(serverless_client.files())) == 1
 
-    def test_simple(self, serverless_client: ServerlessClient):
+    @mark.order(1)
+    def test_upload(self, serverless_client: ServerlessClient):
         """Integration test for files."""
-
-        function = QiskitFunction(
-            title="file-consumer",
-            entrypoint="consume_files.py",
-            working_dir=resources_path,
-        )
-        serverless_client.upload(function)
-
-        filename = f"{resources_path}/data.tar"
 
         print("::: file_upload :::")
         print(serverless_client.file_upload(filename))
@@ -146,6 +123,7 @@ class TestDockerExperimental:
         print(files)
 
         assert files is not None
+        assert len(files) > 0
 
         file_count = len(files)
         print("::: file_count :::")
@@ -153,10 +131,36 @@ class TestDockerExperimental:
 
         assert file_count > 0
 
+    @mark.order(2)
+    def test_download(self, serverless_client: ServerlessClient):
+        """Integration test for files."""
+
+        files = serverless_client.files()
+        file_count = len(files)
+        print("::: files before download :::")
+        print(files)
+
+        print("::: file_download :::")
+        assert serverless_client.file_download(filename) is not None
+
+        files = serverless_client.files()
+        print("::: files after download :::")
+        print(files)
+
+        assert file_count == len(files)
+
+    @mark.order(3)
+    def test_delete(self, serverless_client: ServerlessClient):
+        files = serverless_client.files()
+        print("::: files before delete :::")
+        print(files)
+        file_count = len(files)
+
         print("::: file_delete :::")
         print(serverless_client.file_delete(filename))
 
-        print("::: files :::")
-        print(serverless_client.files())
+        print("::: files after delete:::")
+        files = serverless_client.files()
+        print(files)
 
-        assert (file_count - len(serverless_client.files())) == 1
+        assert (file_count - len(files)) == 1

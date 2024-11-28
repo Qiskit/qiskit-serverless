@@ -60,7 +60,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_arguments_and_resluts(self, serverless_client: ServerlessClient):
+    def test_arguments(self, serverless_client: ServerlessClient):
         """Integration test for Functions."""
         circuit = QuantumCircuit(2)
         circuit.h(0)
@@ -126,7 +126,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_retrieving_past_results(self, serverless_client: ServerlessClient):
+    def test_multiple_runs(self, serverless_client: ServerlessClient):
         """Integration test for Functions."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
@@ -182,11 +182,7 @@ class TestFunctionsDocker:
 
         my_functions = serverless_client.functions()
 
-        # ???
-        for function in my_functions:
-            print("Name: " + function.title)
-            print(function.description)
-            print()
+        assert len(my_functions)
 
         my_function = serverless_client.function("custom-image-function")
         job = my_function.run(message="Argument for the custum function")
@@ -195,6 +191,7 @@ class TestFunctionsDocker:
 
         with raises(QiskitServerlessException):
             job.result()
+
         assert isinstance(job.logs(), str)
 
         jobs = my_function.jobs()
