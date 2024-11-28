@@ -1,7 +1,6 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
 import os
-import tarfile
 
 from pytest import fixture, mark
 from testcontainers.compose import DockerCompose
@@ -54,12 +53,6 @@ class TestDockerExperimental:
     @mark.order(1)
     def test_file_producer(self, serverless_client: ServerlessClient):
         """Integration test for files."""
-        filename = "uploaded_file.tar"
-        with tarfile.open(filename, "w") as file:
-            file.add(f"{resources_path}/../manage_data_directory.py")
-
-        serverless_client.file_upload(filename)
-
         function = QiskitFunction(
             title="file-producer-for-consume",
             entrypoint="produce_files.py",
@@ -113,7 +106,7 @@ class TestDockerExperimental:
 
     @mark.order(1)
     def test_upload(self, serverless_client: ServerlessClient):
-        """Integration test for files."""
+        """Integration test for upload files."""
 
         print("::: file_upload :::")
         print(serverless_client.file_upload(filename))
@@ -133,7 +126,7 @@ class TestDockerExperimental:
 
     @mark.order(2)
     def test_download(self, serverless_client: ServerlessClient):
-        """Integration test for files."""
+        """Integration test for download files."""
 
         files = serverless_client.files()
         file_count = len(files)
@@ -151,6 +144,7 @@ class TestDockerExperimental:
 
     @mark.order(3)
     def test_delete(self, serverless_client: ServerlessClient):
+        """Integration test for delete files."""
         files = serverless_client.files()
         print("::: files before delete :::")
         print(files)
