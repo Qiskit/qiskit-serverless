@@ -16,7 +16,6 @@ resources_path = os.path.join(
 )
 
 
-@mark.skip(reason="Speeding up testing with github jobs: delete before merge")
 class TestFunctionsDocker:
     """Test class for integration testing with docker."""
 
