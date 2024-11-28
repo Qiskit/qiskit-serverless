@@ -29,7 +29,7 @@ class TestFunctionsDocker:
         )
 
     @mark.order(1)
-    def test_upload_function(
+    def test_simple_function(
         self, serverless_client: ServerlessClient, simple_function: QiskitFunction
     ):
         """Integration test function uploading."""
@@ -38,21 +38,10 @@ class TestFunctionsDocker:
 
         assert runnable_function is not None
 
-    @mark.order(2)
-    def test_access_function(
-        self, serverless_client: ServerlessClient, simple_function: QiskitFunction
-    ):
-        """Integration test function accessing."""
         runnable_function = serverless_client.function(simple_function.title)
 
         assert runnable_function is not None
 
-    @mark.order(3)
-    def test_run_function(
-        self, serverless_client: ServerlessClient, simple_function: QiskitFunction
-    ):
-        """Integration test function run functions."""
-        runnable_function = serverless_client.function(simple_function.title)
         job = runnable_function.run()
 
         assert job is not None
