@@ -18,36 +18,6 @@ filename_path = os.path.join(resources_path, filename)
 class TestDockerExperimental:
     """Test class for integration testing with docker."""
 
-    @fixture(scope="class")
-    def serverless_client(self):
-        """Fixture for testing files."""
-        compose = DockerCompose(
-            resources_path,
-            compose_file_name="../../../docker-compose-dev.yaml",
-            pull=True,
-        )
-        compose.start()
-
-        connection_url = "http://localhost:8000"
-        compose.wait_for(f"{connection_url}/backoffice")
-
-        serverless = ServerlessClient(
-            token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
-            host=os.environ.get("GATEWAY_HOST", connection_url),
-        )
-
-        # Initialize serverless folder for current user
-        function = QiskitFunction(
-            title="hello-world",
-            entrypoint="hello_world.py",
-            working_dir=resources_path,
-        )
-        serverless.upload(function)
-
-        yield serverless
-
-        compose.stop()
-
     @mark.skip(
         reason="File producing and consuming is not working. Maybe write permissions for functions?"
     )
@@ -116,14 +86,11 @@ class TestDockerExperimental:
         print("::: files :::")
         print(files)
 
-        assert files is not None
-        assert len(files) > 0
-
         file_count = len(files)
         print("::: file_count :::")
         print(file_count)
 
-        assert file_count > 0
+        assert file_count == 1
 
     @mark.order(2)
     def test_download(self, serverless_client: ServerlessClient):

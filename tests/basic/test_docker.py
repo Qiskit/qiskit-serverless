@@ -3,13 +3,13 @@
 import os
 
 from pytest import fixture, raises, mark
-from testcontainers.compose import DockerCompose
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 
 from qiskit_serverless import ServerlessClient, QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
+
 
 resources_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "source_files"
@@ -18,27 +18,6 @@ resources_path = os.path.join(
 
 class TestFunctionsDocker:
     """Test class for integration testing with docker."""
-
-    @fixture(scope="class")
-    def serverless_client(self):
-        """Fixture for testing Functions."""
-        compose = DockerCompose(
-            resources_path,
-            compose_file_name="../../../docker-compose-dev.yaml",
-            pull=True,
-        )
-        compose.start()
-
-        connection_url = "http://localhost:8000"
-        compose.wait_for(f"{connection_url}/backoffice")
-
-        serverless = ServerlessClient(
-            token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
-            host=os.environ.get("GATEWAY_HOST", connection_url),
-        )
-        yield serverless
-
-        compose.stop()
 
     @fixture(scope="class")
     def simple_function(self):
