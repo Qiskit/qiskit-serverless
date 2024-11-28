@@ -75,7 +75,7 @@ class TestDockerExperimental:
         assert (file_count - len(serverless_client.files())) == 1
 
     @mark.order(1)
-    def test_upload(self, serverless_client: ServerlessClient):
+    def test_upload_download_delete(self, serverless_client: ServerlessClient):
         """Integration test for upload files."""
 
         print("::: file_upload :::")
@@ -91,15 +91,6 @@ class TestDockerExperimental:
 
         assert file_count == 1
 
-    @mark.order(2)
-    def test_download(self, serverless_client: ServerlessClient):
-        """Integration test for download files."""
-
-        files = serverless_client.files()
-        file_count = len(files)
-        print("::: files before download :::")
-        print(files)
-
         print("::: file_download :::")
         assert serverless_client.file_download(filename) is not None
 
@@ -108,14 +99,6 @@ class TestDockerExperimental:
         print(files)
 
         assert file_count == len(files)
-
-    @mark.order(3)
-    def test_delete(self, serverless_client: ServerlessClient):
-        """Integration test for delete files."""
-        files = serverless_client.files()
-        print("::: files before delete :::")
-        print(files)
-        file_count = len(files)
 
         print("::: file_delete :::")
         print(serverless_client.file_delete(filename))
