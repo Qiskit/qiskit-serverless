@@ -4,9 +4,7 @@ Django Rest framework File views for api application:
 Version views inherit from the different views.
 """
 import logging
-import mimetypes
 import os
-from wsgiref.util import FileWrapper
 
 from django.conf import settings
 from django.http import StreamingHttpResponse
@@ -276,48 +274,112 @@ class FilesViewSet(viewsets.ViewSet):
         return Response({"results": files})
 
     @action(methods=["GET"], detail=False)
-    def download(self, request):  # pylint: disable=invalid-name
-        """Download selected file."""
-        # default response for file not found, overwritten if file is found
-        response = Response(
-            {"message": "Requested file was not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+    def download(self, request):
+        """
+        It returns a file from user paths:
+            - username/
+            - username/provider_name/function_title
+        """
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.download", context=ctx):
-            requested_file_name = request.query_params.get("file")
-            provider_name = request.query_params.get("provider")
-            if requested_file_name is not None:
-                user_dir = request.user.username
-                if provider_name is not None:
-                    if self.check_user_has_provider(request.user, provider_name):
-                        user_dir = provider_name
-                    else:
-                        return response
-                # look for file in user's folder
-                filename = os.path.basename(requested_file_name)
-                user_dir = os.path.join(
-                    sanitize_file_path(settings.MEDIA_ROOT),
-                    sanitize_file_path(user_dir),
+            username = request.user.username
+            requested_file_name = request.query_params.get("file", None)
+            provider_name = sanitize_name(request.query_params.get("provider", None))
+            function_title = sanitize_name(request.query_params.get("function", None))
+            working_dir = WorkingDir.USER_STORAGE
+
+            function = self.get_function(
+                user=request.user,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            if not function:
+                if provider_name:
+                    error_message = f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                else:
+                    error_message = f"Qiskit Function {function_title} doesn't exist."
+                return Response(
+                    {"message": error_message},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
-                file_path = os.path.join(
-                    sanitize_file_path(user_dir), sanitize_file_path(filename)
+
+            file_storage = FileStorage(
+                username=username,
+                working_dir=working_dir,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            result = file_storage.get_file(file_name=requested_file_name)
+            if result is None:
+                return Response(
+                    {"message": "Requested file was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
-                if os.path.exists(user_dir) and os.path.exists(file_path) and filename:
-                    chunk_size = 8192
-                    # note: we do not use with statements as Streaming response closing file itself.
-                    response = StreamingHttpResponse(
-                        FileWrapper(
-                            open(  # pylint: disable=consider-using-with
-                                file_path, "rb"
-                            ),
-                            chunk_size,
-                        ),
-                        content_type=mimetypes.guess_type(file_path)[0],
-                    )
-                    response["Content-Length"] = os.path.getsize(file_path)
-                    response["Content-Disposition"] = f"attachment; filename={filename}"
+
+            file_wrapper, file_type, file_size = result
+            response = StreamingHttpResponse(file_wrapper, content_type=file_type)
+            response["Content-Length"] = file_size
+            response[
+                "Content-Disposition"
+            ] = f"attachment; filename={requested_file_name}"
+            return response
+
+    @action(methods=["GET"], detail=False, url_path="provider/download")
+    def provider_download(self, request):
+        """
+        It returns a file from provider path:
+            - provider_name/function_title
+        """
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span(
+            "gateway.files.provider_download", context=ctx
+        ):
+            username = request.user.username
+            requested_file_name = request.query_params.get("file", None)
+            provider_name = sanitize_name(request.query_params.get("provider", None))
+            function_title = sanitize_name(request.query_params.get("function", None))
+            working_dir = WorkingDir.PROVIDER_STORAGE
+
+            if not self.user_has_provider_access(request.user, provider_name):
+                return Response(
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            function = self.get_function(
+                user=request.user,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            if not function:
+                return Response(
+                    {
+                        "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            file_storage = FileStorage(
+                username=username,
+                working_dir=working_dir,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            result = file_storage.get_file(file_name=requested_file_name)
+            if result is None:
+                return Response(
+                    {"message": "Requested file was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            file_wrapper, file_type, file_size = result
+            response = StreamingHttpResponse(file_wrapper, content_type=file_type)
+            response["Content-Length"] = file_size
+            response[
+                "Content-Disposition"
+            ] = f"attachment; filename={requested_file_name}"
             return response
 
     @action(methods=["DELETE"], detail=False)
