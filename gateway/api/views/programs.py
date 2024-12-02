@@ -5,7 +5,6 @@ Version views inherit from the different views.
 """
 import logging
 import os
-from typing import Optional
 
 from django.db.models import Q
 from django.contrib.auth.models import Group, Permission
@@ -21,6 +20,7 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
+from api.repositories.programs import ProgramRepository
 from api.utils import sanitize_name
 from api.serializers import (
     JobConfigSerializer,
@@ -29,7 +29,8 @@ from api.serializers import (
     RunProgramSerializer,
     UploadProgramSerializer,
 )
-from api.models import VIEW_PROGRAM_PERMISSION, RUN_PROGRAM_PERMISSION, Program, Job
+from api.models import RUN_PROGRAM_PERMISSION, Program, Job
+from api.views.enums.type_filter import TypeFilter
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -54,6 +55,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
     """
 
     BASE_NAME = "programs"
+
+    program_repository = ProgramRepository()
 
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):
@@ -101,28 +104,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
     def get_object(self):
         logger.warning("ProgramViewSet.get_object not implemented")
 
-    def get_queryset(self):
-        author = self.request.user
-        title = sanitize_name(self.request.query_params.get("title"))
-        provider_name = sanitize_name(self.request.query_params.get("provider"))
-        type_filter = self.request.query_params.get("filter")
-
-        author_programs = self._get_program_queryset_for_title_and_provider(
-            author=author,
-            title=title,
-            provider_name=provider_name,
-            type_filter=type_filter,
-        ).distinct()
-
-        author_programs_count = author_programs.count()
-        logger.info(
-            "ProgramViewSet get author [%s] programs [%s]",
-            author.id,
-            author_programs_count,
-        )
-
-        return author_programs
-
     def get_run_queryset(self):
         """get run queryset"""
         author = self.request.user
@@ -167,7 +148,28 @@ class ProgramViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.program.list", context=ctx):
-            serializer = self.get_serializer(self.get_queryset(), many=True)
+
+            author = self.request.user
+            type_filter = self.request.query_params.get("filter")
+
+            if type_filter == TypeFilter.SERVERLESS:
+                # Serverless filter only returns functions created by the author
+                # with the next criterias:
+                # - user is the author of the function and there is no provider
+                functions = self.program_repository.get_user_functions(author)
+            elif type_filter == TypeFilter.CATALOG:
+                # Catalog filter only returns providers functions that user has access:
+                # author has view permissions and the function has a provider assigned
+                functions = (
+                    self.program_repository.get_provider_functions_with_run_permissions(
+                        author
+                    )
+                )
+            else:
+                # If filter is not applied we return author and providers functions together
+                functions = self.program_repository.get_functions(author)
+
+            serializer = self.get_serializer(functions, many=True)
 
         return Response(serializer.data)
 
@@ -296,87 +298,29 @@ class ProgramViewSet(viewsets.GenericViewSet):
     def get_by_title(self, request, title):
         """Returns programs by title."""
         author = self.request.user
-        provider_name = self.request.query_params.get("provider")
+        function_title = sanitize_name(title)
+        provider_name = sanitize_name(request.query_params.get("provider", None))
 
-        result_program = self._get_program_queryset_for_title_and_provider(
-            author=author, title=title, provider_name=provider_name, type_filter=None
-        ).first()
+        serializer = self.get_serializer_upload_program(data=self.request.data)
+        provider_name, function_title = serializer.get_provider_name_and_title(
+            provider_name, function_title
+        )
 
-        if result_program:
-            return Response(self.get_serializer(result_program).data)
+        if provider_name:
+            function = self.program_repository.get_provider_function_by_title(
+                author=author, title=function_title, provider_name=provider_name
+            )
+        else:
+            function = self.program_repository.get_user_function_by_title(
+                author=author, title=function_title
+            )
+
+        if function:
+            return Response(self.get_serializer(function).data)
 
         return Response(status=404)
 
-    def _get_program_queryset_for_title_and_provider(
-        self,
-        author,
-        title: str,
-        provider_name: Optional[str],
-        type_filter: Optional[str],
-    ):
-        """Returns queryset for program for gived request, title and provider."""
-        view_program_permission = Permission.objects.get(
-            codename=VIEW_PROGRAM_PERMISSION
-        )
-
-        user_criteria = Q(user=author)
-        view_permission_criteria = Q(permissions=view_program_permission)
-        author_groups_with_view_permissions = Group.objects.filter(
-            user_criteria & view_permission_criteria
-        )
-        author_groups_with_view_permissions_count = (
-            author_groups_with_view_permissions.count()
-        )
-        logger.info(
-            "ProgramViewSet get author [%s] groups [%s]",
-            author.id,
-            author_groups_with_view_permissions_count,
-        )
-
-        author_criteria = Q(author=author)
-        author_groups_with_view_permissions_criteria = Q(
-            instances__in=author_groups_with_view_permissions
-        )
-
-        # Serverless filter only returns functions created by the author with the next criterias:
-        # user is the author of the function and there is no provider
-        if type_filter == "serverless":
-            provider_criteria = Q(provider=None)
-            result_queryset = Program.objects.filter(
-                author_criteria & provider_criteria
-            )
-            return result_queryset
-
-        # Catalog filter only returns providers functions that user has access:
-        # author has view permissions and the function has a provider assigned
-        if type_filter == "catalog":
-            provider_exists_criteria = ~Q(provider=None)
-            result_queryset = Program.objects.filter(
-                author_groups_with_view_permissions_criteria & provider_exists_criteria
-            )
-            return result_queryset
-
-        # If filter is not applied we return author and providers functions together
-        title = sanitize_name(title)
-        provider_name = sanitize_name(provider_name)
-        if title:
-            serializer = self.get_serializer_upload_program(data=self.request.data)
-            provider_name, title = serializer.get_provider_name_and_title(
-                provider_name, title
-            )
-            title_criteria = Q(title=title)
-            if provider_name:
-                title_criteria = Q(title=title, provider__name=provider_name)
-            result_queryset = Program.objects.filter(
-                (author_criteria | author_groups_with_view_permissions_criteria)
-                & title_criteria
-            )
-        else:
-            result_queryset = Program.objects.filter(
-                author_criteria | author_groups_with_view_permissions_criteria
-            )
-        return result_queryset
-
+    # This end-point is deprecated and we need to confirm if we can remove it
     @action(methods=["GET"], detail=True)
     def get_jobs(
         self, request, pk=None

@@ -25,6 +25,7 @@ from rest_framework.response import Response
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
+from api.views.enums.type_filter import TypeFilter
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -56,13 +57,13 @@ class JobViewSet(viewsets.GenericViewSet):
     def get_queryset(self):
         type_filter = self.request.query_params.get("filter")
         if type_filter:
-            if type_filter == "catalog":
+            if type_filter == TypeFilter.CATALOG:
                 user_criteria = Q(author=self.request.user)
                 provider_exists_criteria = ~Q(program__provider=None)
                 return Job.objects.filter(
                     user_criteria & provider_exists_criteria
                 ).order_by("-created")
-            if type_filter == "serverless":
+            if type_filter == TypeFilter.SERVERLESS:
                 user_criteria = Q(author=self.request.user)
                 provider_not_exists_criteria = Q(program__provider=None)
                 return Job.objects.filter(

@@ -2,7 +2,7 @@
 Programs view api for V1.
 """
 
-# pylint: disable=duplicate-code
+from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
 from rest_framework.decorators import action
@@ -42,6 +42,15 @@ class ProgramViewSet(views.ProgramViewSet):
 
     @swagger_auto_schema(
         operation_description="List author Qiskit Functions",
+        manual_parameters=[
+            openapi.Parameter(
+                "filter",
+                openapi.IN_QUERY,
+                description="Filters that you can apply for list: serverless, catalog or empty",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
         responses={status.HTTP_200_OK: v1_serializers.ProgramSerializer(many=True)},
     )
     def list(self, request):
@@ -64,3 +73,26 @@ class ProgramViewSet(views.ProgramViewSet):
     @action(methods=["POST"], detail=False)
     def run(self, request):
         return super().run(request)
+
+    @swagger_auto_schema(
+        operation_description="Retrieve a Qiskit Function using the title",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_PATH,
+                description="The title of the function",
+                type=openapi.TYPE_STRING,
+            ),
+            openapi.Parameter(
+                "provider",
+                openapi.IN_QUERY,
+                description="The provider in case the function is owned by a provider",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
+        responses={status.HTTP_200_OK: v1_serializers.ProgramSerializer},
+    )
+    @action(methods=["GET"], detail=False, url_path="get_by_title/(?P<title>[^/.]+)")
+    def get_by_title(self, request, title):
+        return super().get_by_title(request, title)
