@@ -419,7 +419,7 @@ def create_dependency_allowlist():
     return allowlist
 
 
-def sanitize_name(name: str):
+def sanitize_name(name: str | None):
     """Sanitize name"""
     if name:
         sanitized_name = ""
