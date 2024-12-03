@@ -25,7 +25,6 @@ Qiskit Serverless files
     :toctree: ../stubs/
 
 """
-from enum import Enum
 import os.path
 import uuid
 from typing import List, Optional
@@ -41,15 +40,6 @@ from qiskit_serverless.core.constants import (
 from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.utils.json import safe_json_request_as_dict
 
-class WorkingDir(str, Enum):
-    """
-    WorkingDir values for the file management:
-    - USER_WORKING_DIR
-    - PROVIDER_WORKING_DIR
-    """
-
-    USER_WORKING_DIR = "user"
-    PROVIDER_WORKING_DIR = "provider"
 
 class GatewayFilesClient:
     """GatewayFilesClient."""
