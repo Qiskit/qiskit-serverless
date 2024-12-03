@@ -428,15 +428,29 @@ class TestFilesApi(APITestCase):
                 "fake_media",
             )
         ):
-            user = models.User.objects.get(username="test_user")
+            file = "../test_user/artifact.tar"
+            function = "personal-program"
+
+            user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-download")
             response = self.client.get(
-                url, data={"file": "../test_user_2/artifact_2.tar"}, format="json"
+                url,
+                {
+                    "file": file,
+                    "function": function,
+                },
+                format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+            file = "../test_user/artifact.tar/"
             response = self.client.get(
-                url, data={"file": "../test_user_2/artifact_2.tar/"}, format="json"
+                url,
+                {
+                    "file": file,
+                    "function": function,
+                },
+                format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

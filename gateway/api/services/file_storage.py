@@ -44,6 +44,21 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         provider_name (str | None): name of the provider in caseis needed to build the path
     """
 
+    @staticmethod
+    def file_extension_is_valid(file_name: str) -> bool:
+        """
+        This method verifies if the extension of the file is valid.
+
+        Args:
+            file_name (str): file name to verify
+
+        Returns:
+            bool: True or False if it is valid or not
+        """
+        return any(
+            file_name.endswith(extension) for extension in SUPPORTED_FILE_EXTENSIONS
+        )
+
     def __init__(
         self,
         username: str,

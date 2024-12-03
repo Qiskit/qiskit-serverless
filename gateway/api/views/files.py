@@ -20,8 +20,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from api.services.file_storage import FileStorage, WorkingDir
-from api.utils import sanitize_name
+from api.services.file_storage import SUPPORTED_FILE_EXTENSIONS, FileStorage, WorkingDir
+from api.utils import sanitize_file_name, sanitize_name
 from api.models import Provider, Program
 from utils import sanitize_file_path
 
@@ -284,10 +284,27 @@ class FilesViewSet(viewsets.ViewSet):
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.download", context=ctx):
             username = request.user.username
-            requested_file_name = request.query_params.get("file", None)
+            requested_file_name = sanitize_file_name(
+                request.query_params.get("file", None)
+            )
             provider_name = sanitize_name(request.query_params.get("provider", None))
             function_title = sanitize_name(request.query_params.get("function", None))
             working_dir = WorkingDir.USER_STORAGE
+
+            if requested_file_name is None or function_title is None:
+                return Response(
+                    {"message": "File name and Qiskit Function title are mandatory"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not FileStorage.file_extension_is_valid(requested_file_name):
+                extensions = ", ".join(SUPPORTED_FILE_EXTENSIONS)
+                return Response(
+                    {
+                        "message": f"File name needs to have a valid extension: {extensions}"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             function = self.get_function(
                 user=request.user,
@@ -337,10 +354,33 @@ class FilesViewSet(viewsets.ViewSet):
             "gateway.files.provider_download", context=ctx
         ):
             username = request.user.username
-            requested_file_name = request.query_params.get("file", None)
+            requested_file_name = sanitize_file_name(
+                request.query_params.get("file", None)
+            )
             provider_name = sanitize_name(request.query_params.get("provider", None))
             function_title = sanitize_name(request.query_params.get("function", None))
             working_dir = WorkingDir.PROVIDER_STORAGE
+
+            if (
+                requested_file_name is None
+                or function_title is None
+                or provider_name is None
+            ):
+                return Response(
+                    {
+                        "message": "File name, Qiskit Function title and Provider name are mandatory"  # pylint: disable=line-too-long
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not FileStorage.file_extension_is_valid(requested_file_name):
+                extensions = ", ".join(SUPPORTED_FILE_EXTENSIONS)
+                return Response(
+                    {
+                        "message": f"File name needs to have a valid extension: {extensions}"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             if not self.user_has_provider_access(request.user, provider_name):
                 return Response(
