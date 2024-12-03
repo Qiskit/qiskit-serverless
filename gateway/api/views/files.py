@@ -205,6 +205,12 @@ class FilesViewSet(viewsets.ViewSet):
             function_title = sanitize_name(request.query_params.get("function", None))
             working_dir = WorkingDir.USER_STORAGE
 
+            if function_title is None:
+                return Response(
+                    {"message": "Qiskit Function title is mandatory"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             function = self.get_function(
                 user=request.user,
                 function_title=function_title,
@@ -243,6 +249,14 @@ class FilesViewSet(viewsets.ViewSet):
             provider_name = sanitize_name(request.query_params.get("provider"))
             function_title = sanitize_name(request.query_params.get("function"))
             working_dir = WorkingDir.PROVIDER_STORAGE
+
+            if function_title is None or provider_name is None:
+                return Response(
+                    {
+                        "message": "File name, Qiskit Function title and Provider name are mandatory"  # pylint: disable=line-too-long
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             if not self.user_has_provider_access(request.user, provider_name):
                 return Response(

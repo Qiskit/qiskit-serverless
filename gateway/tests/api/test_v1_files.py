@@ -36,7 +36,7 @@ class TestFilesApi(APITestCase):
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-list")
             response = self.client.get(url, format="json")
-            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_files_list_from_user_working_dir(self):
         """Tests files list with working dir as user"""
