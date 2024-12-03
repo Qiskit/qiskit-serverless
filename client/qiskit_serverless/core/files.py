@@ -134,10 +134,10 @@ class GatewayFilesClient:
     def provider_list(self, function: QiskitFunction, provider: str) -> List[str]:
         """Returns list of available files to download produced by programs,"""
         tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("files.list"):
+        with tracer.start_as_current_span("files.provider_list"):
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/files/provider",
+                    os.path.join(self._files_url, "provider"),
                     params={"provider": provider, "title": function.title},
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
@@ -151,7 +151,7 @@ class GatewayFilesClient:
         with tracer.start_as_current_span("files.delete"):
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.delete(
-                    f"{self.host}/api/{self.version}/files/delete/",
+                    os.path.join(self._files_url, "delete"),
                     data={"file": file, "provider": provider},
                     headers={
                         "Authorization": f"Bearer {self._token}",
