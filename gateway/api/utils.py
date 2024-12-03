@@ -448,3 +448,14 @@ def create_gpujob_allowlist():
         raise ValueError("Unable to decode gpujob allowlist") from e
 
     return gpujobs
+
+
+def sanitize_file_name(name: str | None):
+    """Sanitize name of a file"""
+    if name:
+        sanitized_name = ""
+        for c in name:
+            if c.isalnum() or c in ["_", "-", "."]:
+                sanitized_name += c
+        return sanitized_name
+    return name

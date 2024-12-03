@@ -36,7 +36,7 @@ class TestFilesApi(APITestCase):
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-list")
             response = self.client.get(url, format="json")
-            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_files_list_from_user_working_dir(self):
         """Tests files list with working dir as user"""
@@ -184,18 +184,7 @@ class TestFilesApi(APITestCase):
 
     def test_non_existing_file_download(self):
         """Tests downloading non-existing file."""
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
-        url = reverse("v1:files-download")
-        response = self.client.get(
-            url, data={"file": "non_existing.tar"}, format="json"
-        )
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        response = self.client.get(url, format="json")
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_file_download(self):
-        """Tests downloading non-existing file."""
         media_root = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "..",
@@ -205,32 +194,104 @@ class TestFilesApi(APITestCase):
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
-            user = models.User.objects.get(username="test_user")
-            self.client.force_authenticate(user=user)
-            url = reverse("v1:files-download")
-            response = self.client.get(
-                url, data={"file": "artifact.tar"}, format="json"
-            )
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertTrue(response.streaming)
+            file = "non_existing_file.tar"
+            function = "personal-program"
 
-    def test_provider_file_download(self):
-        """Tests downloading non-existing file."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-download")
             response = self.client.get(
                 url,
-                data={"file": "provider_artifact.tar", "provider": "default"},
+                {
+                    "file": file,
+                    "function": function,
+                },
+                format="json",
+            )
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_file_download(self):
+        """Tests downloading an existing file."""
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            file = "artifact_2.tar"
+            function = "personal-program"
+
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-download")
+            response = self.client.get(
+                url,
+                {
+                    "file": file,
+                    "function": function,
+                },
+                format="json",
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertTrue(response.streaming)
+
+    def test_non_existing_provider_file_download(self):
+        """Tests downloading a non-existing file from a provider storage."""
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            file = "non-existing_artifact.tar"
+            provider = "default"
+            function = "Program"
+
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-provider-download")
+            response = self.client.get(
+                url,
+                {
+                    "file": file,
+                    "provider": provider,
+                    "function": function,
+                },
+                format="json",
+            )
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_provider_file_download(self):
+        """Tests downloading a file from a provider storage."""
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            file = "provider_program_artifact.tar"
+            provider = "default"
+            function = "Program"
+
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-provider-download")
+            response = self.client.get(
+                url,
+                {
+                    "file": file,
+                    "provider": provider,
+                    "function": function,
+                },
                 format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -367,15 +428,29 @@ class TestFilesApi(APITestCase):
                 "fake_media",
             )
         ):
-            user = models.User.objects.get(username="test_user")
+            file = "../test_user/artifact.tar"
+            function = "personal-program"
+
+            user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-download")
             response = self.client.get(
-                url, data={"file": "../test_user_2/artifact_2.tar"}, format="json"
+                url,
+                {
+                    "file": file,
+                    "function": function,
+                },
+                format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+            file = "../test_user/artifact.tar/"
             response = self.client.get(
-                url, data={"file": "../test_user_2/artifact_2.tar/"}, format="json"
+                url,
+                {
+                    "file": file,
+                    "function": function,
+                },
+                format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
