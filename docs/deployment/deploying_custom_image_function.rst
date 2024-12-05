@@ -68,7 +68,7 @@ and after that we need to build it:
 .. code-block::
    :caption: Build image
 
-    docker build -t local-provider-function -f Sample-Dockerfile .
+    docker build -t test-local-provider-function -f Sample-Dockerfile .
 
 We got to our final step of function development - uploading to serverless.
 
@@ -80,7 +80,7 @@ For a local development you can modify `docker-compose.yaml` ray image with the 
     services:
         ray-head:
             container_name: ray-head
-            image: local-provider-function:latest
+            image: test-local-provider-function:latest
 
 Run it:
 
@@ -88,6 +88,15 @@ Run it:
    :caption: Run docker compose
 
     docker-compose up
+
+Or if you are using kubernetes you will need to create the cluster and load the image in Kind:
+
+.. code-block::
+   :caption: Run docker compose
+    ./docs/deployment/custom_function/local_cluster/deploy.sh
+    kind load docker-image test-local-provider-function:latest
+
+And that's everything you need to take into account if you are using the k8s approach.
 
 Once time the local environment is running, it only remains to run the code! For that you just need to define `QiskitFunction` 
 
@@ -102,20 +111,20 @@ with the image that you just built, give it a name and upload it:
     serverless = ServerlessClient(
         token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
         host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
+        # If you are using the kubernetes approach the URL must be http://localhost
     )
     serverless
 
     function = QiskitFunction(
         title="custom-image-function",
-        image="local-provider-function:latest",
+        image="test-local-provider-function:latest",
         provider="mockprovider"
     )
-    function_with_custom_image
+    function
 
-    serverless.upload(function_with_custom_image)
+    serverless.upload(function)
 
-    functions = {f.title: f for f in serverless.list()}
-    my_function = functions.get("custom-image-function")
+    my_function = serverless.get("custom-image-function")
     my_function
 
     job = my_function.run(test_argument_one=1, test_argument_two="two")

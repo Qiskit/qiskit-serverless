@@ -31,13 +31,14 @@ on your local machine straightforward. The first thing we will do is clone the r
       cd /path/to/workspace/
       git clone git@github.com:Qiskit/qiskit-serverless.git
 
-Step 2: Set up Docker
+Step 2: Setup Docker
 
-To set up Qiskit Serverless on your local machine, you will need to use `docker compose`_.
+To setup Qiskit Serverless on your local machine, you will need to use `docker compose`_. As we mentioned in the `README <https://github.com/Qiskit/qiskit-serverless/blob/main/README.md>`_
+you can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman... 
+If you are using a MacOS with ARM processors we highly recommend to use `Colima <https://github.com/abiosoft/colima>`_
+as your container runtime to avoid problems with that architecture.
 
-.. _docker compose: https://docs.docker.com/compose/
-
-Step 3: Initiate the test cluster
+Step 2.1: Initiate the test environment
 
 Once you have Docker and docker compose installed, you can run the following command from the root of the
 ``qiskit-serverless`` repository to set up the infrastructure:
@@ -50,8 +51,27 @@ Additionally, you can include the profile `full`.
 With the full profile installs all core services, including logging and
 monitorying systems.
 
+Step 3: Setup Kind
+
+Additionally we provide you a way to deploy a k8s cluster on your local machine. This has some benefits as this is a more similar environment 
+to production than the docker-compose approach.
+
+To simplify the process to deploy a k8s cluster locally we use `Kind <https://kind.sigs.k8s.io/docs/user/quick-start#installation>`_ 
+as the main tool to create a cluster.
+
+Step 3.1: Initiate the test cluster
+
+To setup the cluster for testing we prepare a little script that will initialize for you all the needed resources. You can execute it
+using the terminal just running the next command:
+
+.. code-block::
+
+        $ ./docs/deployment/custom_function/local_cluster/deploy.sh
+
 Step 4: Run a program in the test environment
 
 Once the containers are running, you can simulate a remote cluster with the resources on your
-local machine. To create and run programs in this simulated cluster, we recommend using `Jupyter Lab <https://jupyter.org/install>`_. Refer to the :ref:`getting_started` guides
-for details about running your program remotely.
+local machine. Feel free to go to our tutorials in the `Getting started section <https://qiskit.github.io/qiskit-serverless/getting_started/index.html>`_
+and run some of them.
+
+
