@@ -7,7 +7,7 @@
 # Qiskit Serverless
 
 Qiskit Serverless is a user-friendly tool that enables you to easily run complex quantum computing tasks.
-With this software, you can execute Qiskit programs as long running jobs and distribute them across multiple CPUs, GPUs, and QPUs.
+With this software, you can execute Qiskit Functions as long running jobs and distribute them across multiple CPUs, GPUs, and QPUs.
 This means you can take on more complex quantum-classical programs and run them with ease.
 You don't have to worry about configuration or scaling up computational resources, as Qiskit Serverless takes care of everything for you.
 
@@ -16,6 +16,8 @@ You don't have to worry about configuration or scaling up computational resource
 ### Table of Contents
 
 1. [Quickstart](#quickstart)
+   1. [Using Docker](#docker)
+   1. [Using Kubernetes](#kubernetes)
 1. Modules
    1. [Client](./client)
    1. [Gateway](./gateway)
@@ -29,25 +31,23 @@ You don't have to worry about configuration or scaling up computational resource
 ----------------------------------------------------------------------------------------------------
 
 ### Quickstart
-This Quickstart section guides users to easily deploy QiskitServerless infrastructure and run a simple example.
-For user convenience, this section assumes that users will deploy the infrastructure in a local environment using Docker and test examples within the deployed Jupyter notebook.
+This Quickstart section guides users to easily deploy Qiskit Serverless infrastructure and run a simple example.
 
-1. Prepare local QiskitServerless infrastructure
+#### Docker
+For user convenience, this section assumes that users will deploy the infrastructure in a local environment using Docker following the next steps.
+
+1. Prepare local Qiskit Serverless infrastructure
    1. Install Docker
-      If Docker is not installed on your system, follow the directions on the [Docker website](https://docs.docker.com/engine/install/) to install Docker on your system.
+      You can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman... If you are using a MacOS with ARM processors we highly recommend to use [Colima](https://github.com/abiosoft/colima) as your container runtime to avoid problems with that architecture.
    1. Install qiskit-serverless on your local system (we recommend using a [virtual environment](https://docs.python.org/3/library/venv.html)).
       ```shell
       pip install qiskit-serverless
-      ```
-      Optional: install [Jupyter Lab](https://jupyter.org/)
-      ```shell
-      pip install jupyterlab
       ```
    1. Clone the Qiskit Serverless repository
       ```shell
       git clone https://github.com/Qiskit/qiskit-serverless.git
       ```
-   1. Run QiskitServerless infrastructure
+   1. Run Qiskit Serverless infrastructure
       Execute Docker Compose using the following commands.
       ```shell
       cd qiskit-serverless/
@@ -63,43 +63,40 @@ For user convenience, this section assumes that users will deploy the infrastruc
        ✔ Container public-qiskit-serverless-postgres-1  Created                                           0.0s
        ✔ Container gateway                               Created                                           0.0s
        ✔ Container scheduler                             Created                                           0.0s
-      Attaching to gateway, public-qiskit-serverless-postgres-1, qs-jupyter, ray-head, scheduler
+      Attaching to gateway, public-qiskit-serverless-postgres-1, ray-head, scheduler
       ```
+1. Write your first Qiskit Function following our hello-world example in the [tutorial section](https://qiskit.github.io/qiskit-serverless/getting_started/basic/01_running_program.html).
 
+   That's all!
 
-1. Launch JupyterLab environment.
-   ```shell
-   cd docs/getting_started/ # the directory with sample notebooks
-   jupyter lab
-   ```
-   This will open the Jupyter Lab environment in your web browser.
-1. Write your first example Qiskit Pattern.
-   In the JupyterLab, create a new file, `pattern.py`, in the `work` directory. You can include any arbitrary Python code in your program, or you can use the
-   [example Python file in this tutorial](https://github.com/Qiskit/qiskit-serverless/blob/main/docs/getting_started/basic/01_running_program.ipynb).
+#### Kubernetes
+For user convenience, this section assumes that users will deploy the infrastructure in a local environment using Kind following the next steps.
 
-1. Run the program
-   In the JupyterLab, create a new notebook in the same directory as your program, and execute [the tutorial code](https://github.com/Qiskit/qiskit-serverless/blob/main/docs/getting_started/basic/01_running_program.ipynb).
-
-   You can check the job status and get the result.
-
-   ```
-   job.status()
-   # 'DONE'
-
-   job.logs()
-   # 2023-09-21 03:48:40,286\tINFO worker.py:1329 -- Using address 172.18.0.4:6379 set in the environment variable RAY_ADDRESS\n2023-09-21 03:48:40,286\tINFO worker.py:1458 -- Connecting to existing Ray cluster at address: 172.18.0.4:6379...\n2023-09-21 03:48:40,295\tINFO worker.py:1633 -- Connected to Ray cluster. View the dashboard at \x1b[1m\x1b[32m172.18.0.4:8265 \x1b[39m\x1b[22m\n
-   ```
-   ```
-   job.status()
-   # '{"quasi_dists": [{"1": 0.5071335183298108, "5": 0.4334908044837378, "7": 0.0593756771864515}, {"1": 0.9161860602334094, "5": 0.0838139397665906}, {"2": 0.4999999999999999, "3": 0.4999999999999999}]}'
-   ```
+1. Prepare local Qiskit Serverless infrastructure
+   1. Install Kind
+      To simplify the process to deploy a k8s cluster locally we use [Kind](https://kind.sigs.k8s.io/docs/user/quick-start#installation) as the main tool to create a cluster.
+   1. Install qiskit-serverless on your local system (we recommend using a [virtual environment](https://docs.python.org/3/library/venv.html)).
+      ```shell
+      pip install qiskit-serverless
+      ```
+   1. Clone the Qiskit Serverless repository
+      ```shell
+      git clone https://github.com/Qiskit/qiskit-serverless.git
+      ```
+   1. Run Qiskit Serverless infrastructure
+      Execute the script to setup the cluster
+      ```shell
+      ./docs/deployment/custom_function/local_cluster/deploy.sh
+      ```
+      The creation process can take some minutes.
+1. Write your first Qiskit Function following our hello-world example in the [tutorial section](https://qiskit.github.io/qiskit-serverless/getting_started/basic/01_running_program.html).
 
    That's all!
 
 For more detailed examples and explanations refer to the [Guide](https://qiskit.github.io/qiskit-serverless/index.html):
 
 1. [Getting Started](https://qiskit.github.io/qiskit-serverless/getting_started/index.html#)
-1. [Example Qiskit Patterns](https://qiskit.github.io/qiskit-serverless/examples/index.html)
+1. [Example Qiskit Functions](https://qiskit.github.io/qiskit-serverless/examples/index.html)
 1. [Infrastructure](https://qiskit.github.io/qiskit-serverless/deployment/index.html)
 1. [Migrating from Qiskit Runtime programs](https://qiskit.github.io/qiskit-serverless/migration/index.html)
 
