@@ -33,7 +33,7 @@ on your local machine straightforward. The first thing we will do is clone the r
 
 Step 2: Setup Docker
 
-To setup Qiskit Serverless on your local machine, you will need to use `docker compose`_. As we mentioned in the `README <https://github.com/Qiskit/qiskit-serverless/blob/main/README.md>`_
+To setup Qiskit Serverless on your local machine, you will need to use docker compose. As we mentioned in the `README <https://github.com/Qiskit/qiskit-serverless/blob/main/README.md>`_
 you can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman... 
 If you are using a MacOS with ARM processors we highly recommend to use `Colima <https://github.com/abiosoft/colima>`_
 as your container runtime to avoid problems with that architecture.
