@@ -2,14 +2,14 @@
 
 from qiskit import QuantumCircuit
 
+from qiskit_serverless import ServerlessClient, QiskitFunction
+import os
+
 circuit = QuantumCircuit(2)
 circuit.h(0)
 circuit.cx(0, 1)
 circuit.measure_all()
 circuit.draw()
-
-from qiskit_serverless import ServerlessClient, QiskitFunction
-import os
 
 serverless = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
@@ -32,9 +32,9 @@ job = my_pattern_function.run(circuit=circuit)
 print(job)
 
 try:
-  print(job.result())
+    print(job.result())
 except:
-  print(job.error_message())
+    print(job.error_message())
 
 print(job.status())
 print(job.logs())
