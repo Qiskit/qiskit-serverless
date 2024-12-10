@@ -397,9 +397,13 @@ class ServerlessClient(BaseClient):
     ####### FILES #######
     #####################
 
-    def files(self, provider: Optional[str] = None) -> List[str]:
+    def files(self, function: QiskitFunction) -> List[str]:
         """Returns list of available files produced by programs to download."""
-        return self._files_client.list(provider)
+        return self._files_client.list(function)
+
+    def provider_files(self, function: QiskitFunction) -> List[str]:
+        """Returns list of available files produced by programs to download."""
+        return self._files_client.provider_list(function)
 
     def file_download(
         self,
