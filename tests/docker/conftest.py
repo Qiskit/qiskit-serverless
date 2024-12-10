@@ -16,10 +16,11 @@ resources_path = os.path.join(
 def any_client(request):
     """Fixture for testing files with every client."""
     if request.param == "serverless":
-        yield serverless_client()
-        return serverless_client()
-
-    return local_client()
+        [compose, serverless] = set_up_serverless_client()
+        yield serverless
+        compose.stop()
+    else:
+        yield LocalClient()
 
 
 @fixture(scope="module")
@@ -28,9 +29,8 @@ def local_client():
     return LocalClient()
 
 
-@fixture(scope="module")
-def serverless_client():
-    """Fixture for testing files with serverless client."""
+def set_up_serverless_client():
+    """Auxiliar fixture function to create a serverless client"""
     compose = DockerCompose(
         resources_path,
         compose_file_name="../../../docker-compose-dev.yaml",
@@ -53,6 +53,14 @@ def serverless_client():
         working_dir=resources_path,
     )
     serverless.upload(function)
+
+    return [compose, serverless]
+
+
+@fixture(scope="module")
+def serverless_client():
+    """Fixture for testing files with serverless client."""
+    [compose, serverless] = set_up_serverless_client()
 
     yield serverless
 

@@ -30,7 +30,9 @@ class TestFunctionsDocker:
         )
 
     @mark.order(1)
-    def test_simple_function(self, any_client: BaseClient, simple_function: QiskitFunction):
+    def test_simple_function(
+        self, any_client: BaseClient, simple_function: QiskitFunction
+    ):
         """Integration test function uploading."""
 
         runnable_function = any_client.upload(simple_function)
