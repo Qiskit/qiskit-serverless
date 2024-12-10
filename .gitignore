@@ -77,6 +77,7 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+tests/**/downloaded_*.tar
 
 # pyenv
 .python-version
