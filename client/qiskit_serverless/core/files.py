@@ -37,6 +37,8 @@ from qiskit_serverless.core.constants import (
     REQUESTS_STREAMING_TIMEOUT,
     REQUESTS_TIMEOUT,
 )
+from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.json import safe_json_request_as_dict
 
 
@@ -54,6 +56,7 @@ class GatewayFilesClient:
         self.host = host
         self.version = version
         self._token = token
+        self._files_url = os.path.join(self.host, "api", self.version, "files")
 
     def download(
         self,
@@ -66,7 +69,7 @@ class GatewayFilesClient:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.download"):
             with requests.get(
-                f"{self.host}/api/{self.version}/files/download/",
+                os.path.join(self._files_url, "download"),
                 params={"file": file, "provider": provider},
                 stream=True,
                 headers={"Authorization": f"Bearer {self._token}"},
@@ -93,7 +96,7 @@ class GatewayFilesClient:
         with tracer.start_as_current_span("files.upload"):
             with open(file, "rb") as f:
                 with requests.post(
-                    f"{self.host}/api/{self.version}/files/upload/",
+                    os.path.join(self._files_url, "upload"),
                     files={"file": f},
                     data={"provider": provider},
                     stream=True,
@@ -105,14 +108,31 @@ class GatewayFilesClient:
                     return "Upload failed"
             return "Can not open file"
 
-    def list(self, provider: Optional[str] = None) -> List[str]:
+    def list(self, function: QiskitFunction) -> List[str]:
         """Returns list of available files to download produced by programs,"""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.list"):
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/files/",
-                    params={"provider": provider},
+                    self._files_url,
+                    params={"title": function.title},
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+        return response_data.get("results", [])
+
+    def provider_list(self, function: QiskitFunction) -> List[str]:
+        """Returns list of available files to download produced by programs,"""
+        if not function.provider:
+            raise QiskitServerlessException("`function` doesn't have a provider.")
+
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("files.provider_list"):
+            response_data = safe_json_request_as_dict(
+                request=lambda: requests.get(
+                    os.path.join(self._files_url, "provider"),
+                    params={"provider": function.provider, "title": function.title},
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
@@ -125,7 +145,7 @@ class GatewayFilesClient:
         with tracer.start_as_current_span("files.delete"):
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.delete(
-                    f"{self.host}/api/{self.version}/files/delete/",
+                    os.path.join(self._files_url, "delete"),
                     data={"file": file, "provider": provider},
                     headers={
                         "Authorization": f"Bearer {self._token}",
