@@ -121,14 +121,14 @@ class GatewayFilesClient:
             )
         return response_data.get("results", [])
 
-    def provider_list(self, function: QiskitFunction, provider: str) -> List[str]:
+    def provider_list(self, function: QiskitFunction) -> List[str]:
         """Returns list of available files to download produced by programs,"""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.provider_list"):
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
                     os.path.join(self._files_url, "provider"),
-                    params={"provider": provider, "title": function.title},
+                    params={"provider": function.provider, "title": function.title},
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
