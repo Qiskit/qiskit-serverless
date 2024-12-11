@@ -41,7 +41,6 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_serverless.core.constants import (
     OT_PROGRAM_NAME,
-    ENV_JOB_ARGUMENTS,
 )
 from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.job import (
