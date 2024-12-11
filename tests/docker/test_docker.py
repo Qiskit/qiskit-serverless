@@ -2,7 +2,7 @@
 """Tests jobs."""
 import os
 
-from pytest import fixture, raises, mark
+from pytest import raises, mark
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
@@ -20,20 +20,14 @@ resources_path = os.path.join(
 class TestFunctionsDocker:
     """Test class for integration testing with docker."""
 
-    @fixture(scope="class")
-    def simple_function(self):
-        """Fixture of a simple function"""
-        return QiskitFunction(
+    @mark.order(1)
+    def test_simple_function(self, any_client: BaseClient):
+        """Integration test function uploading."""
+        simple_function = QiskitFunction(
             title="my-first-pattern",
             entrypoint="pattern.py",
             working_dir=resources_path,
         )
-
-    @mark.order(1)
-    def test_simple_function(
-        self, any_client: BaseClient, simple_function: QiskitFunction
-    ):
-        """Integration test function uploading."""
 
         runnable_function = any_client.upload(simple_function)
 
@@ -143,6 +137,10 @@ class TestFunctionsDocker:
         assert isinstance(retrieved_job1.logs(), str)
         assert isinstance(retrieved_job2.logs(), str)
 
+    @mark.skip(
+        reason="Images are not working in tests jet and "
+        + "LocalClient does not manage image instead of working_dir+entrypoint"
+    )
     def test_error(self, any_client: BaseClient):
         """Integration test to force an error."""
 
