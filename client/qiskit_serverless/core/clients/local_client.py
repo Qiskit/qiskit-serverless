@@ -118,7 +118,10 @@ class LocalClient(BaseClient):
             json.dump(arguments, f, cls=QiskitObjectsEncoder)
 
         with Popen(
-            ["python", os.path.join(saved_program.working_dir, saved_program.entrypoint)],
+            [
+                "python", 
+                os.path.join(saved_program.working_dir, saved_program.entrypoint)
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
