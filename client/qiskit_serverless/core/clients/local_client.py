@@ -119,7 +119,7 @@ class LocalClient(BaseClient):
 
         with Popen(
             [
-                "python", 
+                "python",
                 os.path.join(saved_program.working_dir, saved_program.entrypoint),
             ],
             stdout=subprocess.PIPE,
