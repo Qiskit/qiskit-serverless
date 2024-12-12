@@ -64,19 +64,26 @@ class FilesViewSet(views.FilesViewSet):
         return super().provider_list(request)
 
     @swagger_auto_schema(
-        operation_description="Download a specific file",
+        operation_description="Download a specific file in the user directory",
         manual_parameters=[
             openapi.Parameter(
                 "file",
                 openapi.IN_QUERY,
-                description="file name",
+                description="File name",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                "function",
+                openapi.IN_QUERY,
+                description="Qiskit Function title",
                 type=openapi.TYPE_STRING,
                 required=True,
             ),
             openapi.Parameter(
                 "provider",
                 openapi.IN_QUERY,
-                description="provider name",
+                description="Provider name",
                 type=openapi.TYPE_STRING,
                 required=False,
             ),
@@ -85,6 +92,36 @@ class FilesViewSet(views.FilesViewSet):
     @action(methods=["GET"], detail=False)
     def download(self, request):
         return super().download(request)
+
+    @swagger_auto_schema(
+        operation_description="Download a specific file in the provider directory",
+        manual_parameters=[
+            openapi.Parameter(
+                "file",
+                openapi.IN_QUERY,
+                description="File name",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                "function",
+                openapi.IN_QUERY,
+                description="Qiskit Function title",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                "provider",
+                openapi.IN_QUERY,
+                description="Provider name",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+        ],
+    )
+    @action(methods=["GET"], detail=False, url_path="provider/download")
+    def provider_download(self, request):
+        return super().provider_download(request)
 
     @swagger_auto_schema(
         operation_description="Deletes file uploaded or produced by the programs",
