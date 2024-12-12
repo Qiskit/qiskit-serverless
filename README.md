@@ -39,6 +39,11 @@ For user convenience, this section assumes that users will deploy the infrastruc
 1. Prepare local Qiskit Serverless infrastructure
    1. Install Docker
       You can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman... If you are using a MacOS with ARM processors we highly recommend to use [Colima](https://github.com/abiosoft/colima) as your container runtime to avoid problems with that architecture.
+
+      This is a project that takes advantage of distributed computing, so it places a high demand on resources. We recommend increasing the assigned resources to these runtimes. In case of Colima for example we typically use:
+      ```shell
+      colima start --cpu 4 --memory 8 --disk 100
+      ```
    1. Install qiskit-serverless on your local system (we recommend using a [virtual environment](https://docs.python.org/3/library/venv.html)).
       ```shell
       pip install qiskit-serverless
@@ -73,6 +78,13 @@ For user convenience, this section assumes that users will deploy the infrastruc
 For user convenience, this section assumes that users will deploy the infrastructure in a local environment using Kind following the next steps.
 
 1. Prepare local Qiskit Serverless infrastructure
+   1. Install Docker
+      You can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman... If you are using a MacOS with ARM processors we highly recommend to use [Colima](https://github.com/abiosoft/colima) as your container runtime to avoid problems with that architecture.
+
+      This is a project that takes advantage of distributed computing, so it places a high demand on resources. We recommend increasing the assigned resources to these runtimes. In case of Colima for example we typically use:
+      ```shell
+      colima start --cpu 4 --memory 8 --disk 100
+      ```
    1. Install Kind
       To simplify the process to deploy a k8s cluster locally we use [Kind](https://kind.sigs.k8s.io/docs/user/quick-start#installation) as the main tool to create a cluster.
    1. Install qiskit-serverless on your local system (we recommend using a [virtual environment](https://docs.python.org/3/library/venv.html)).

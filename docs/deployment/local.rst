@@ -38,6 +38,13 @@ you can use any runtime that you prefer to run Docker on your machine: Docker De
 If you are using a MacOS with ARM processors we highly recommend to use `Colima <https://github.com/abiosoft/colima>`_
 as your container runtime to avoid problems with that architecture.
 
+This is a project that takes advantage of distributed computing, so it places a high demand on resources. We recommend increasing the assigned resources to these runtimes. 
+In case of Colima for example we typically use:
+
+.. code-block::
+
+        $ colima start --cpu 4 --memory 8 --disk 100
+
 Step 2.1: Initiate the test environment
 
 Once you have Docker and docker compose installed, you can run the following command from the root of the
