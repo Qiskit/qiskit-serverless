@@ -164,18 +164,10 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             )
             return None
 
-        try:
-            with open(path_to_file, "rb") as file_object:
-                file_wrapper = FileWrapper(file_object)
+        with open(path_to_file, "rb") as file_object:
+            file_wrapper = FileWrapper(file_object)
 
-                file_type = mimetypes.guess_type(path_to_file)[0]
-                file_size = os.path.getsize(path_to_file)
+            file_type = mimetypes.guess_type(path_to_file)[0]
+            file_size = os.path.getsize(path_to_file)
 
-                return file_wrapper, file_type, file_size
-        except FileNotFoundError:
-            logger.warning(
-                "Directory %s does not exist for file %s.",
-                path_to_file,
-                file_name_path,
-            )
-            return None
+            return file_wrapper, file_type, file_size
