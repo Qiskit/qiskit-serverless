@@ -91,7 +91,7 @@ Or if you are using kubernetes you will need to create the cluster and load the 
 
 .. code-block::
    :caption: Run docker compose
-    ./docs/deployment/custom_function/local_cluster/deploy.sh
+    tox -e cluster-deploy
     kind load docker-image test-local-provider-function:latest
 
 Run serverless

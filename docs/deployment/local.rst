@@ -73,7 +73,7 @@ using the terminal just running the next command:
 
 .. code-block::
 
-        $ ./docs/deployment/custom_function/local_cluster/deploy.sh
+        $ tox -e cluster-deploy
 
 Step 4: Run a program in the test environment
 

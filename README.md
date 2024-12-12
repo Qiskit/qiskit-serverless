@@ -98,7 +98,7 @@ For user convenience, this section assumes that users will deploy the infrastruc
    1. Run Qiskit Serverless infrastructure
       Execute the script to setup the cluster
       ```shell
-      ./docs/deployment/custom_function/local_cluster/deploy.sh
+      tox -e cluster-deploy
       ```
       The creation process can take some minutes.
 1. Write your first Qiskit Function following our hello-world example in the [tutorial section](https://qiskit.github.io/qiskit-serverless/getting_started/basic/01_running_program.html).
