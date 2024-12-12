@@ -311,7 +311,7 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if not FileStorage.file_extension_is_valid(requested_file_name):
+            if not FileStorage.is_valid_extension(requested_file_name):
                 extensions = ", ".join(SUPPORTED_FILE_EXTENSIONS)
                 return Response(
                     {
@@ -383,7 +383,7 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if not FileStorage.file_extension_is_valid(requested_file_name):
+            if not FileStorage.is_valid_extension(requested_file_name):
                 extensions = ", ".join(SUPPORTED_FILE_EXTENSIONS)
                 return Response(
                     {

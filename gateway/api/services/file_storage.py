@@ -45,7 +45,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
     """
 
     @staticmethod
-    def file_extension_is_valid(file_name: str) -> bool:
+    def is_valid_extension(file_name: str) -> bool:
         """
         This method verifies if the extension of the file is valid.
 
