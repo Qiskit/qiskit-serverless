@@ -305,7 +305,7 @@ class FilesViewSet(viewsets.ViewSet):
             function_title = sanitize_name(request.query_params.get("function", None))
             working_dir = WorkingDir.USER_STORAGE
 
-            if requested_file_name is None or function_title is None:
+            if not all([requested_file_name, function_title]):
                 return Response(
                     {"message": "File name and Qiskit Function title are mandatory"},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -375,11 +375,7 @@ class FilesViewSet(viewsets.ViewSet):
             function_title = sanitize_name(request.query_params.get("function", None))
             working_dir = WorkingDir.PROVIDER_STORAGE
 
-            if (
-                requested_file_name is None
-                or function_title is None
-                or provider_name is None
-            ):
+            if not all([requested_file_name, function_title, provider_name]):
                 return Response(
                     {
                         "message": "File name, Qiskit Function title and Provider name are mandatory"  # pylint: disable=line-too-long
