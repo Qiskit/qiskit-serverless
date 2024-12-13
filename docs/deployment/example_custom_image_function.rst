@@ -87,6 +87,13 @@ Run it
 
     docker-compose up
 
+Or if you are using kubernetes you will need to create the cluster and load the image in Kind
+
+.. code-block::
+   :caption: Run docker compose
+    tox -e cluster-deploy
+    kind load docker-image test-local-provider-function:latest
+
 Run serverless
 
 .. code-block::
@@ -98,6 +105,7 @@ Run serverless
    serverless = ServerlessClient(
        token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
        host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
+       # If you are using the kubernetes approach the URL must be http://localhost
    )
 
    help = """
@@ -132,6 +140,7 @@ List all available functions
    serverless = ServerlessClient(
        token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
        host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
+       # If you are using the kubernetes approach the URL must be http://localhost
    )
 
    my_functions = serverless.list()
@@ -169,6 +178,7 @@ Execute Function
    serverless = ServerlessClient(
        token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
        host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
+       # If you are using the kubernetes approach the URL must be http://localhost
    )
 
    my_function = serverless.get("custom-image-function")
