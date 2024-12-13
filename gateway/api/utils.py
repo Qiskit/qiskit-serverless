@@ -452,4 +452,4 @@ def sanitize_file_name(name: str | None):
     if not name:
         return name
     # Remove all characters except alphanumeric, _, ., -
-    return re.sub("[^a-zA-Z0-9_\\.-]", "", name)
+    return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)
