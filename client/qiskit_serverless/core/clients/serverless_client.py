@@ -408,13 +408,25 @@ class ServerlessClient(BaseClient):
     def file_download(
         self,
         file: str,
+        function: QiskitFunction,
         target_name: Optional[str] = None,
         download_location: str = "./",
-        provider: Optional[str] = None,
     ):
         """Download file."""
         return self._files_client.download(
-            file, download_location, target_name, provider
+            file, download_location, function, target_name
+        )
+
+    def provider_file_download(
+        self,
+        file: str,
+        function: QiskitFunction,
+        target_name: Optional[str] = None,
+        download_location: str = "./",
+    ):
+        """Download file."""
+        return self._files_client.provider_download(
+            file, download_location, function, target_name
         )
 
     def file_delete(self, file: str, provider: Optional[str] = None):
