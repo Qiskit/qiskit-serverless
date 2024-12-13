@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Passing input arguments to your QiskitPattern" href="02_arguments_and_results.html" /><link rel="prev" title="&lt;no title&gt;" href="index.html" />
+<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Passing input arguments to your QiskitFunction" href="02_arguments_and_results.html" /><link rel="prev" title="&lt;no title&gt;" href="index.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>Running a QiskitPattern as a function - Qiskit Serverless 0.18.0</title>
+        <title>Running a Qiskit Function as a function - Qiskit Serverless 0.18.0</title>
       <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -203,14 +203,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../index.html">About Qiskit Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation/index.html">Installation</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Getting started</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Running a QiskitPattern as a function</a></li>
-<li class="toctree-l2"><a class="reference internal" href="02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
-<li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your QiskitPattern</a></li>
-<li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Running a Qiskit Function as a function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_arguments_and_results.html">Passing input arguments to your QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../experimental/running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -313,22 +312,20 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="Running-a-QiskitPattern-as-a-function">
-<h1>Running a QiskitPattern as a function<a class="headerlink" href="#Running-a-QiskitPattern-as-a-function" title="Permalink to this heading">¶</a></h1>
-<p>In this tutorial, we will write a basic QiskitPattern using Qiskit Serverless. We will show how to run the pattern remotely and retrieve the results from the serverless client.</p>
-<section id="Writing-the-QiskitPattern">
-<h2>Writing the QiskitPattern<a class="headerlink" href="#Writing-the-QiskitPattern" title="Permalink to this heading">¶</a></h2>
-<p>First, we need to write the pattern code and save it to a file called <a class="reference external" href="./source_files/pattern.py">pattern.py</a>. This pattern creates a two-qubit quantum circuit that prepares a Bell state, measures the result, and saves the measured probability distribution.</p>
-<p>The code for the pattern is shown below:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/pattern.py</span>
-
-<span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
+          <section id="Running-a-Qiskit-Function-as-a-function">
+<h1>Running a Qiskit Function as a function<a class="headerlink" href="#Running-a-Qiskit-Function-as-a-function" title="Permalink to this heading">¶</a></h1>
+<p>In this tutorial, we will write a basic Qiskit Function using Qiskit Serverless. We will show how to run the function remotely and retrieve the results from the serverless client.</p>
+<section id="Writing-the-Qiskit-Function">
+<h2>Writing the Qiskit Function<a class="headerlink" href="#Writing-the-Qiskit-Function" title="Permalink to this heading">¶</a></h2>
+<p>First, we need to write the function code and save it to a file called <a class="reference external" href="./source_files/function.py">function.py</a>. This function creates a two-qubit quantum circuit that prepares a Bell state, measures the result, and saves the measured probability distribution.</p>
+<p>The code for the function is shown below:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
 <span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
 
 <span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">save_result</span>
 
 <span class="c1"># all print statement will be available in job logs</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Running pattern...&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Running function...&quot;</span><span class="p">)</span>
 
 <span class="c1"># creating circuit</span>
 <span class="n">circuit</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
@@ -340,17 +337,17 @@
 <span class="n">sampler</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">()</span>
 <span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="o">.</span><span class="n">quasi_dists</span>
 
-<span class="c1"># save results of pattern execution,</span>
+<span class="c1"># save results of function execution,</span>
 <span class="c1"># which will be accessible by calling `.result()`</span>
 <span class="n">save_result</span><span class="p">(</span><span class="n">quasi_dists</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Completed running pattern.&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Completed running function.&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
 <section id="Deploying-the-function">
 <h2>Deploying the function<a class="headerlink" href="#Deploying-the-function" title="Permalink to this heading">¶</a></h2>
-<p>To run the pattern, we need to import the necessary classes and configure them. One of these classes is <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code>, which is a client class for interacting with compute resources.</p>
-<p>The client stores configuration information about our compute resources, such as where they are located and how to connect to them. In this example, we will use a provider that is connected to a local Docker Compose setup. In this case, it allows us to run the pattern locally on our machine. If you want to run the pattern elsewhere, you will need to provide the corresponding host and authentication details.</p>
+<p>To run the function, we need to import the necessary classes and configure them. One of these classes is <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code>, which is a client class for interacting with compute resources.</p>
+<p>The client stores configuration information about our compute resources, such as where they are located and how to connect to them. In this example, we will use a provider that is connected to a local Docker Compose setup. In this case, it allows us to run the function locally on our machine. If you want to run the function elsewhere, you will need to provide the corresponding host and authentication details.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
@@ -370,6 +367,7 @@
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
     <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+    <span class="c1"># If you are using the kubernetes approach the URL must be http://localhost</span>
 <span class="p">)</span>
 
 <span class="n">client</span>
@@ -387,7 +385,7 @@
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">QiskitFunction</span></code> accepts couple of required parameters:</p>
 <ul class="simple">
-<li><p>title - name of the program</p></li>
+<li><p>title - name of the Qiskit Function</p></li>
 <li><p>entrypoint - name of python file you want to execute</p></li>
 <li><p>working_dir - directory where your script is located (directory size must be less than 50MB). This is optional parameter and will be current folder by default.</p></li>
 </ul>
@@ -402,7 +400,7 @@
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">QiskitFunction</span>
 
 <span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;my-first-pattern&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;pattern.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;my-first-function&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;function.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
 <span class="p">)</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
@@ -415,19 +413,19 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;my-first-pattern&#39;
+QiskitFunction(my-first-function)
 </pre></div></div>
 </div>
 </section>
 <section id="Running-the-QiskitFunction">
 <h2>Running the QiskitFunction<a class="headerlink" href="#Running-the-QiskitFunction" title="Permalink to this heading">¶</a></h2>
-<p>After deploying the QiskitFunction, we can see our pattern in a <code class="docutils literal notranslate"><span class="pre">list</span></code> of availiable functions.</p>
+<p>After deploying the QiskitFunction, we can see our function in a <code class="docutils literal notranslate"><span class="pre">list</span></code> of availiable functions.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_pattern_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;my-first-pattern&quot;</span><span class="p">)</span>
-<span class="n">my_pattern_function</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_first_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;my-first-function&quot;</span><span class="p">)</span>
+<span class="n">my_first_function</span>
 </pre></div>
 </div>
 </div>
@@ -437,7 +435,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-QiskitFunction(my-first-pattern)
+QiskitFunction(my-first-function)
 </pre></div></div>
 </div>
 <p>We can run any function by calling <code class="docutils literal notranslate"><span class="pre">run</span></code> method on function object.</p>
@@ -445,7 +443,7 @@ QiskitFunction(my-first-pattern)
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">my_pattern_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">my_first_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 <span class="n">job</span>
 </pre></div>
 </div>
@@ -456,12 +454,12 @@ QiskitFunction(my-first-pattern)
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 50aaf775-7b14-40c9-bf35-51cb1f88fbe2&gt;
+&lt;Job | 860c98e2-ec3c-4197-8042-115ec3c6f5e8&gt;
 </pre></div></div>
 </div>
-<p><a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job">Job</a> instances have a <code class="docutils literal notranslate"><span class="pre">status()</span></code> method to check status of pattern execution.</p>
+<p><a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job">Job</a> instances have a <code class="docutils literal notranslate"><span class="pre">status()</span></code> method to check status of the function execution.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -469,26 +467,35 @@ QiskitFunction(my-first-pattern)
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;QUEUED&#39;
+&#39;DONE&#39;
 </pre></div></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">Job</span></code> instances also have a <code class="docutils literal notranslate"><span class="pre">result()</span></code> method for retrieving results. The <code class="docutils literal notranslate"><span class="pre">result()</span></code> method will not return until the job is done running the pattern.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<p><code class="docutils literal notranslate"><span class="pre">Job</span></code> instances also have a <code class="docutils literal notranslate"><span class="pre">result()</span></code> method for retrieving results. The <code class="docutils literal notranslate"><span class="pre">result()</span></code> method will not return until the job is done running the function.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
-<p>To inspect the logs from a pattern, access them from the <code class="docutils literal notranslate"><span class="pre">Job</span></code> instance.</p>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;00&#39;: 539, &#39;11&#39;: 485}
+</pre></div></div>
+</div>
+<p>To inspect the logs from a function, access them from the <code class="docutils literal notranslate"><span class="pre">Job</span></code> instance.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">())</span>
@@ -500,34 +507,18 @@ QiskitFunction(my-first-pattern)
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
-OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
-Running pattern...
-Completed running pattern.
+2024-12-05 17:26:40,785 INFO job_manager.py:531 -- Runtime env is setting up.
+Running function...
+Completed running function.
 
 </pre></div></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code> object has method <code class="docutils literal notranslate"><span class="pre">.widget</span></code> which renders Jupyter widget to see list of executed programs.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">client</span><span class="o">.</span><span class="n">widget</span><span class="p">()</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<script type="application/vnd.jupyter.widget-view+json">{"model_id": "96f50f9769514576a3a4499b5f2125a5", "version_major": 2, "version_minor": 0}</script></div>
-</div>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">client</span><span class="o">.</span><span class="n">widget</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -544,7 +535,7 @@ Completed running pattern.
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Passing input arguments to your QiskitPattern</div>
+                <div class="title">Passing input arguments to your QiskitFunction</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -589,8 +580,8 @@ Completed running pattern.
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Running a QiskitPattern as a function</a><ul>
-<li><a class="reference internal" href="#Writing-the-QiskitPattern">Writing the QiskitPattern</a></li>
+<li><a class="reference internal" href="#">Running a Qiskit Function as a function</a><ul>
+<li><a class="reference internal" href="#Writing-the-Qiskit-Function">Writing the Qiskit Function</a></li>
 <li><a class="reference internal" href="#Deploying-the-function">Deploying the function</a></li>
 <li><a class="reference internal" href="#Running-the-QiskitFunction">Running the QiskitFunction</a></li>
 </ul>

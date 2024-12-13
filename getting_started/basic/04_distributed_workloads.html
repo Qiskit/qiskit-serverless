@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Retrieving Results from Old Jobs" href="05_retrieving_past_results.html" /><link rel="prev" title="Using python packages with your QiskitPattern" href="03_dependencies.html" />
+<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Retrieving Results from Old Jobs" href="05_retrieving_past_results.html" /><link rel="prev" title="Using python packages with your QiskitFunction" href="03_dependencies.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>Parallel workflows in QiskitPatterns - Qiskit Serverless 0.18.0</title>
+        <title>Parallel workflows with QiskitFunction - Qiskit Serverless 0.18.0</title>
       <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=82a976d7" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -203,14 +203,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../index.html">About Qiskit Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation/index.html">Installation</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Getting started</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a QiskitPattern as a function</a></li>
-<li class="toctree-l2"><a class="reference internal" href="02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
-<li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your QiskitPattern</a></li>
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Parallel workflows in QiskitPatterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a Qiskit Function as a function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_arguments_and_results.html">Passing input arguments to your QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your QiskitFunction</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Parallel workflows with QiskitFunction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../experimental/running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -313,13 +312,11 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="Parallel-workflows-in-QiskitPatterns">
-<h1>Parallel workflows in QiskitPatterns<a class="headerlink" href="#Parallel-workflows-in-QiskitPatterns" title="Permalink to this heading">¶</a></h1>
-<p>In this document, we will learn how to run distributed workflows inside a pattern. In this case, we will compute the quasi-probability distribution in parallel for a list of quantum circuits.</p>
-<p>Let’s take a look at the pattern file <a class="reference external" href="./source_files/pattern_with_parallel_workflow.py">./source_files/pattern_with_parallel_workflow.py</a>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># source_files/pattern_with_parallel_workflow.py</span>
-
-<span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span>
+          <section id="Parallel-workflows-with-QiskitFunction">
+<h1>Parallel workflows with QiskitFunction<a class="headerlink" href="#Parallel-workflows-with-QiskitFunction" title="Permalink to this heading">¶</a></h1>
+<p>In this document, we will learn how to run distributed workflows inside a function. In this case, we will compute the quasi-probability distribution in parallel for a list of quantum circuits.</p>
+<p>Let’s take a look at the function file <a class="reference external" href="./source_files/function_with_parallel_workflow.py">./source_files/function_with_parallel_workflow.py</a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span>
 
 <span class="kn">from</span> <span class="nn">qiskit</span> <span class="kn">import</span> <span class="n">QuantumCircuit</span>
 <span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">Sampler</span>
@@ -350,20 +347,20 @@
 <span class="p">})</span>
 </pre></div>
 </div>
-<p>There are a lot of new concepts introduced in this pattern, so let’s go over them in more detail:</p>
-<p>The <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">distribute_task</a> decorator converts a function into a distributed task. This means that the function will be executed on compute resources asynchronously and in parallel to the main context of the pattern.</p>
+<p>There are a lot of new concepts introduced in this Qiskit Function, so let’s go over them in more detail:</p>
+<p>The <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">distribute_task</a> decorator converts a function into a distributed task. This means that the function will be executed on compute resources asynchronously and in parallel to the main context of the Qiskit Function.</p>
 <p>When you call a converted function, it will return a reference to the function execution instead of the result. In order to get the result back, you need to call the <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.get.html#qiskit_serverless.core.get">get</a> function on the function reference. <code class="docutils literal notranslate"><span class="pre">get</span></code> will wait until the function is finished and return the result of the function execution.</p>
-<p>In the pattern above, we have applied the <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator to the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function. This function takes a <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code> as input and returns the quasi distribution for that circuit.</p>
-<p>After we have defined the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function, we read the circuits from the pattern arguments using the <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments">get_arguments</a> function. We then call the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function for each of the circuits, which creates a reference to each of the function executions.</p>
+<p>In the Qiskit Function above, we have applied the <code class="docutils literal notranslate"><span class="pre">distribute_task</span></code> decorator to the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function. This function takes a <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code> as input and returns the quasi distribution for that circuit.</p>
+<p>After we have defined the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function, we read the circuits from the Qiskit Function arguments using the <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments">get_arguments</a> function. We then call the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function for each of the circuits, which creates a reference to each of the function executions.</p>
 <p>These function executions will run in parallel on compute resources, and we get task references as the return type. We store these task references in the <code class="docutils literal notranslate"><span class="pre">sample_task_references</span></code> list.</p>
 <p>After we have created the task references for each of the function executions, we need to collect the results from these tasks. We do this by calling the <code class="docutils literal notranslate"><span class="pre">get</span></code> function on the list of task references, which waits until all the tasks have completed and returns the results.</p>
 <p>Once we have the results, we can save them using the <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.save_result.html#qiskit_serverless.core.save_result">save_result</a> function.</p>
-<p>Essentially, this pattern reads the circuits from the pattern arguments, executes the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function on each circuit in parallel, collects the results from the function executions, and saves the results.</p>
+<p>Essentially, this Qiskit Function reads the circuits from the Qiskit Function arguments, executes the <code class="docutils literal notranslate"><span class="pre">distributed_sample</span></code> function on each circuit in parallel, collects the results from the function executions, and saves the results.</p>
 <blockquote>
 <div><p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/deployment/local.html">local infrastructure setup</a>.</p>
 </div></blockquote>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">ServerlessClient</span>
@@ -372,6 +369,7 @@
 <span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
     <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+    <span class="c1"># If you are using the kubernetes approach the URL must be http://localhost</span>
 <span class="p">)</span>
 
 <span class="n">client</span>
@@ -379,15 +377,14 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
-</pre></div>
+<div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 &lt;gateway-client&gt;
 </pre></div></div>
 </div>
-<p>Let’s create a list of random circuits which we will be passed as arguments to the pattern.</p>
+<p>Let’s create a list of random circuits which we will be passed as arguments to the function.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
@@ -406,21 +403,21 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[&lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fa4e8422cd0&gt;,
- &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fa4e8422340&gt;,
- &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x7fa5206e49d0&gt;]
+[&lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x16c07c390&gt;,
+ &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x16c054350&gt;,
+ &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x16c067ed0&gt;]
 </pre></div></div>
 </div>
-<p>Run pattern as usual, but pass the circuits in as a keyword argument, <code class="docutils literal notranslate"><span class="pre">circuits</span></code>.</p>
+<p>Run the function as usual, but pass the circuits in as a keyword argument, <code class="docutils literal notranslate"><span class="pre">circuits</span></code>.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">QiskitFunction</span>
 
 <span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;pattern-with-parallel-workflow&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;pattern_with_parallel_workflow.py&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;function-with-parallel-workflow&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;function_with_parallel_workflow.py&quot;</span><span class="p">,</span>
     <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 
@@ -429,35 +426,35 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;pattern-with-parallel-workflow&#39;
+QiskitFunction(function-with-parallel-workflow)
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">parallel_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;pattern-with-parallel-workflow&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">parallel_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;function-with-parallel-workflow&quot;</span><span class="p">)</span>
 <span class="n">job</span> <span class="o">=</span> <span class="n">parallel_function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuits</span><span class="o">=</span><span class="n">circuits</span><span class="p">)</span>
 <span class="n">job</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 5917cac2-1937-4657-9bd3-4054cb1a61bd&gt;
+&lt;Job | 8eedfd5f-a903-49f1-9147-ee2140f67e55&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
@@ -465,16 +462,16 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;QUEUED&#39;
+&#39;DONE&#39;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -482,14 +479,12 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;results&#39;: [{&#39;0&#39;: 0.5474338956985804, &#39;3&#39;: 0.4525661043014198},
-  {&#39;0&#39;: 0.9999999999999998},
-  {&#39;0&#39;: 0.9572706116932064, &#39;3&#39;: 0.0427293883067935}]}
+{&#39;results&#39;: [{&#39;00&#39;: 1024}, {&#39;00&#39;: 1024}, {&#39;01&#39;: 1002, &#39;00&#39;: 22}]}
 </pre></div></div>
 </div>
 </section>
@@ -515,7 +510,7 @@
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Using python packages with your QiskitPattern</div>
+                <div class="title">Using python packages with your QiskitFunction</div>
                 
               </div>
             </a>

@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="&lt;no title&gt;" href="../experimental/index.html" /><link rel="prev" title="Parallel workflows in QiskitPatterns" href="04_distributed_workloads.html" />
+<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="&lt;no title&gt;" href="../experimental/index.html" /><link rel="prev" title="Parallel workflows with QiskitFunction" href="04_distributed_workloads.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
         <title>Retrieving Results from Old Jobs - Qiskit Serverless 0.18.0</title>
@@ -203,14 +203,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../index.html">About Qiskit Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation/index.html">Installation</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Getting started</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a QiskitPattern as a function</a></li>
-<li class="toctree-l2"><a class="reference internal" href="02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
-<li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your QiskitPattern</a></li>
-<li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a Qiskit Function as a function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_arguments_and_results.html">Passing input arguments to your QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_dependencies.html">Using python packages with your QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../experimental/running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -315,7 +314,7 @@
         <article role="main" id="furo-main-content">
           <section id="Retrieving-Results-from-Old-Jobs">
 <h1>Retrieving Results from Old Jobs<a class="headerlink" href="#Retrieving-Results-from-Old-Jobs" title="Permalink to this heading">¶</a></h1>
-<p>In this tutorial, we will run two patterns and then retrieve the results of each pattern using the job IDs and the serverless client.</p>
+<p>In this tutorial, we will run two Qiskit Functions and then retrieve the results of each Qiskit Function using the job IDs and the serverless client.</p>
 <p>First, create <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Provider.html#qiskit_serverless.core.ServerlessProvider">ServerlessProvider</a> instance.</p>
 <blockquote>
 <div><p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/deployment/local.html">local infrastructure setup</a>.</p>
@@ -330,6 +329,7 @@
 <span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
     <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
     <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+    <span class="c1"># If you are using the kubernetes approach the URL must be http://localhost</span>
 <span class="p">)</span>
 <span class="n">client</span>
 </pre></div>
@@ -344,7 +344,7 @@
 &lt;gateway-client&gt;
 </pre></div></div>
 </div>
-<p>Run two patterns in parallel.</p>
+<p>Run two functions in parallel.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
@@ -352,11 +352,11 @@
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">qiskit_serverless</span> <span class="kn">import</span> <span class="n">QiskitFunction</span>
 
 <span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;pattern-to-fetch-results&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;pattern.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;function-to-fetch-results&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;function.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
 <span class="p">)</span>
 <span class="n">client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
 
-<span class="n">my_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;pattern-to-fetch-results&quot;</span><span class="p">)</span>
+<span class="n">my_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;function-to-fetch-results&quot;</span><span class="p">)</span>
 
 <span class="n">job1</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 <span class="n">job2</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
@@ -371,11 +371,11 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-(&lt;Job | 45493849-444d-4fd2-9221-5e30e6061b60&gt;,
- &lt;Job | c124c352-93af-42ae-ab2a-1bc8b192d894&gt;)
+(&lt;Job | 4c0b828f-03eb-487d-afa4-6cb4b2d38b18&gt;,
+ &lt;Job | 95e6312c-d246-48ac-b86b-70825ab30f26&gt;)
 </pre></div></div>
 </div>
-<p>Retrieve the job IDs for each of the running patterns.</p>
+<p>Retrieve the job IDs for each of the running functions.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
@@ -401,7 +401,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[{&#39;0&#39;: 0.4999999999999999, &#39;3&#39;: 0.4999999999999999}]
+{&#39;11&#39;: 531, &#39;00&#39;: 493}
 </pre></div></div>
 </div>
 <p>Retrieve the completed jobs through the serverless client, using the job IDs.</p>
@@ -409,8 +409,8 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">retrieved_job1</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_job_by_id</span><span class="p">(</span><span class="n">job_id1</span><span class="p">)</span>
-<span class="n">retrieved_job2</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_job_by_id</span><span class="p">(</span><span class="n">job_id2</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">retrieved_job1</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">job_id1</span><span class="p">)</span>
+<span class="n">retrieved_job2</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">job_id2</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -429,11 +429,11 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Job 1 results: [{&#39;0&#39;: 0.4999999999999999, &#39;3&#39;: 0.4999999999999999}]
-Job 2 results: [{&#39;0&#39;: 0.4999999999999999, &#39;3&#39;: 0.4999999999999999}]
+Job 1 results: {&#39;00&#39;: 519, &#39;11&#39;: 505}
+Job 2 results: {&#39;11&#39;: 531, &#39;00&#39;: 493}
 </pre></div></div>
 </div>
-<p>To inspect the logs from a pattern, access them from the <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job">Job</a> instance.</p>
+<p>To inspect the logs from a function, access them from the <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job">Job</a> instance.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
@@ -447,14 +447,13 @@ Job 2 results: [{&#39;0&#39;: 0.4999999999999999, &#39;3&#39;: 0.499999999999999
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Job 1 logs: OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
-OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
-Running pattern...
-Completed running pattern.
+Job 1 logs: 2024-12-05 17:33:36,813     INFO job_manager.py:531 -- Runtime env is setting up.
+Running function...
+Completed running function.
 
 </pre></div></div>
 </div>
-<p>To get a list of all previously executed patterns, use the <code class="docutils literal notranslate"><span class="pre">.get_jobs()</span></code> method of the <code class="docutils literal notranslate"><span class="pre">QiskitServerless</span></code> object. The <code class="docutils literal notranslate"><span class="pre">get_jobs</span></code> method accepts 2 optional parameters, <code class="docutils literal notranslate"><span class="pre">limit</span></code> and <code class="docutils literal notranslate"><span class="pre">offset</span></code>, which control the size of returned results.</p>
+<p>To get a list of all previously executed functions, use the <code class="docutils literal notranslate"><span class="pre">.get_jobs()</span></code> method of the <code class="docutils literal notranslate"><span class="pre">QiskitServerless</span></code> object. The <code class="docutils literal notranslate"><span class="pre">get_jobs</span></code> method accepts 2 optional parameters, <code class="docutils literal notranslate"><span class="pre">limit</span></code> and <code class="docutils literal notranslate"><span class="pre">offset</span></code>, which control the size of returned results.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
@@ -469,8 +468,8 @@ Completed running pattern.
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-[&lt;Job | 07b840ca-d09d-4e12-9a24-b7ce4e5e4c21&gt;,
- &lt;Job | 721339ce-1409-4326-8263-e0fa6b0bb6a8&gt;]
+[&lt;Job | 4c0b828f-03eb-487d-afa4-6cb4b2d38b18&gt;,
+ &lt;Job | 8eedfd5f-a903-49f1-9147-ee2140f67e55&gt;]
 </pre></div></div>
 </div>
 </section>
@@ -496,7 +495,7 @@ Completed running pattern.
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Parallel workflows in QiskitPatterns</div>
+                <div class="title">Parallel workflows with QiskitFunction</div>
                 
               </div>
             </a>

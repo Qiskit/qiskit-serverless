@@ -4,7 +4,7 @@ from qiskit.primitives import StatevectorSampler as Sampler
 from qiskit_serverless import save_result
 
 # all print statement will be available in job logs
-print("Running pattern...")
+print("Running function...")
 
 # creating circuit
 circuit = QuantumCircuit(2)
@@ -16,7 +16,7 @@ circuit.measure_all()
 sampler = Sampler()
 quasi_dists = sampler.run([(circuit)]).result()[0].data.meas.get_counts()
 
-# saves results of program execution,
+# saves results of function execution,
 # which will be accessible by calling `.result()`
 save_result(quasi_dists)
-print("Completed running pattern.")
+print("Completed running function.")

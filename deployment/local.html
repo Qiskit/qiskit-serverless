@@ -202,14 +202,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../index.html">About Qiskit Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../getting_started/index.html">Getting started</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a QiskitPattern as a function</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/01_running_program.html">Running a Qiskit Function as a function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/02_arguments_and_results.html">Passing input arguments to your QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/03_dependencies.html">Using python packages with your QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/04_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../getting_started/experimental/running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -343,9 +342,17 @@ on your local machine straightforward. The first thing we will do is clone the r
 </pre></div>
 </div>
 </div>
-<p>Step 2: Set up Docker</p>
-<p>To set up Qiskit Serverless on your local machine, you will need to use <a class="reference external" href="https://docs.docker.com/compose/">docker compose</a>.</p>
-<p>Step 3: Initiate the test cluster</p>
+<p>Step 2: Setup Docker</p>
+<p>To setup Qiskit Serverless on your local machine, you will need to use docker compose. As we mentioned in the <a class="reference external" href="https://github.com/Qiskit/qiskit-serverless/blob/main/README.md">README</a>
+you can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman…
+If you are using a MacOS with ARM processors we highly recommend to use <a class="reference external" href="https://github.com/abiosoft/colima">Colima</a>
+as your container runtime to avoid problems with that architecture.</p>
+<p>This is a project that takes advantage of distributed computing, so it places a high demand on resources. We recommend increasing the assigned resources to these runtimes.
+In case of Colima for example we typically use:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ colima start --cpu 4 --memory 8 --disk 100
+</pre></div>
+</div>
+<p>Step 2.1: Initiate the test environment</p>
 <p>Once you have Docker and docker compose installed, you can run the following command from the root of the
 <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code> repository to set up the infrastructure:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker compose [--profile &lt;PROFILE&gt;] up
@@ -354,10 +361,21 @@ on your local machine straightforward. The first thing we will do is clone the r
 <p>Additionally, you can include the profile <cite>full</cite>.
 With the full profile installs all core services, including logging and
 monitorying systems.</p>
+<p>Step 3: Setup Kind</p>
+<p>Additionally we provide you a way to deploy a k8s cluster on your local machine. This has some benefits as this is a more similar environment
+to production than the docker-compose approach.</p>
+<p>To simplify the process to deploy a k8s cluster locally we use <a class="reference external" href="https://kind.sigs.k8s.io/docs/user/quick-start#installation">Kind</a>
+as the main tool to create a cluster.</p>
+<p>Step 3.1: Initiate the test cluster</p>
+<p>To setup the cluster for testing we prepare a little script that will initialize for you all the needed resources. You can execute it
+using the terminal just running the next command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ tox -e cluster-deploy
+</pre></div>
+</div>
 <p>Step 4: Run a program in the test environment</p>
 <p>Once the containers are running, you can simulate a remote cluster with the resources on your
-local machine. To create and run programs in this simulated cluster, we recommend using <a class="reference external" href="https://jupyter.org/install">Jupyter Lab</a>. Refer to the <a class="reference internal" href="../getting_started/index.html#getting-started"><span class="std std-ref">Getting started</span></a> guides
-for details about running your program remotely.</p>
+local machine. Feel free to go to our tutorials in the <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/getting_started/index.html">Getting started section</a>
+and run some of them.</p>
 </section>
 
         </article>

@@ -3,7 +3,7 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Running QiskitPattern using decorators (Experimental)" href="running_programs_using_decorators.html" /><link rel="prev" title="File download (Experimental)" href="file_download.html" />
+<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Examples" href="../../examples/index.html" /><link rel="prev" title="File download (Experimental)" href="file_download.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
         <title>Shared data directory (Experimental) - Qiskit Serverless 0.18.0</title>
@@ -203,14 +203,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../../index.html">About Qiskit Serverless</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation/index.html">Installation</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Getting started</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="../basic/01_running_program.html">Running a QiskitPattern as a function</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../basic/02_arguments_and_results.html">Passing input arguments to your QiskitPattern</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../basic/03_dependencies.html">Using python packages with your QiskitPattern</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../basic/04_distributed_workloads.html">Parallel workflows in QiskitPatterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/01_running_program.html">Running a Qiskit Function as a function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/02_arguments_and_results.html">Passing input arguments to your QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/03_dependencies.html">Using python packages with your QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic/04_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../basic/05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Shared data directory (Experimental)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="running_programs_using_decorators.html">Running QiskitPattern using decorators (Experimental)</a></li>
 </ul>
 </li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -315,14 +314,15 @@
         <article role="main" id="furo-main-content">
           <section id="Shared-data-directory-(Experimental)">
 <h1>Shared data directory (Experimental)<a class="headerlink" href="#Shared-data-directory-(Experimental)" title="Permalink to this heading">¶</a></h1>
-<p>In this tutorial we will describe a shared directory <code class="docutils literal notranslate"><span class="pre">data</span></code>. Qiskit patterns can produce and consume files in the <code class="docutils literal notranslate"><span class="pre">data</span></code> directory. The files in the <code class="docutils literal notranslate"><span class="pre">data</span></code> directory are shared among Qiskit patterns.</p>
+<p>In this tutorial we will describe a shared directory <code class="docutils literal notranslate"><span class="pre">data</span></code>. Qiskit Functions can produce and consume files in the <code class="docutils literal notranslate"><span class="pre">data</span></code> directory. The files in the <code class="docutils literal notranslate"><span class="pre">data</span></code> directory are shared among Qiskit Functions.</p>
 <p><code class="docutils literal notranslate"><span class="pre">QiskitServerless</span></code> has <code class="docutils literal notranslate"><span class="pre">file_download</span></code>, <code class="docutils literal notranslate"><span class="pre">file_upload</span></code>, <code class="docutils literal notranslate"><span class="pre">file_delete</span></code> and <code class="docutils literal notranslate"><span class="pre">files</span></code> functions that provide file upload, file download, file delete and list files function.</p>
 <p>Limitations:</p>
 <ul class="simple">
 <li><p>only <code class="docutils literal notranslate"><span class="pre">tar</span></code> and <code class="docutils literal notranslate"><span class="pre">h5</span></code> files are supported</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tar</span></code> or <code class="docutils literal notranslate"><span class="pre">h5</span></code>file should be saved in <code class="docutils literal notranslate"><span class="pre">/data</span></code> director during your pattern execution to be visible by <code class="docutils literal notranslate"><span class="pre">.files()</span></code> method call</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tar</span></code> or <code class="docutils literal notranslate"><span class="pre">h5</span></code> file should be saved in <code class="docutils literal notranslate"><span class="pre">/data</span></code> director during your function execution to be visible by <code class="docutils literal notranslate"><span class="pre">.files()</span></code> method call</p></li>
 <li><p>only <code class="docutils literal notranslate"><span class="pre">/data</span></code> directory is supported, <code class="docutils literal notranslate"><span class="pre">/data/other_folder</span></code> will not be visible</p></li>
-<li><p>The working directory of these functions are <code class="docutils literal notranslate"><span class="pre">/data</span></code></p></li>
+<li><p>the working directory of these functions are <code class="docutils literal notranslate"><span class="pre">/data</span></code></p></li>
+<li><p>as a provider you have access to <code class="docutils literal notranslate"><span class="pre">/function-data</span></code>, it works in a similar way as the <code class="docutils literal notranslate"><span class="pre">/data</span></code> folder with the distinction that users don’t have access to it. Only the providers of the specific functions can see files under that path.</p></li>
 </ul>
 <blockquote>
 <div><p>⚠ This interface is experimental, therefore it is subjected to breaking changes.</p>
@@ -337,7 +337,8 @@
 
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
     <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
-    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost&quot;</span><span class="p">),</span>
+    <span class="c1"># If you are using the kubernetes approach the URL must be http://localhost</span>
 <span class="p">)</span>
 <span class="n">serverless</span>
 </pre></div>
@@ -349,7 +350,7 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;ServerlessProvider: gateway-provider&gt;
+&lt;gateway-client&gt;
 </pre></div></div>
 </div>
 <p>Upload a file in the <code class="docutils literal notranslate"><span class="pre">data</span></code> directory</p>
@@ -425,7 +426,7 @@
 [&#39;uploaded_file.tar&#39;, &#39;my_file.tar&#39;]
 </pre></div></div>
 </div>
-<p>Consume the file procuded by <code class="docutils literal notranslate"><span class="pre">file-producer</span></code> Qiskit Pattern</p>
+<p>Consume the file procuded by <code class="docutils literal notranslate"><span class="pre">file-producer</span></code> Qiskit Function</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
@@ -451,7 +452,7 @@
 </div>
 <p>List files</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">files</span><span class="p">()</span>
@@ -459,7 +460,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -469,10 +470,27 @@
 </div>
 <p>Delete files</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">file_delete</span><span class="p">(</span><span class="s2">&quot;uploaded_file.tar&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;Requested file was deleted.&#39;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">files</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -482,16 +500,8 @@
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;Requested file was deleted.&#39;
+[&#39;my_file.tar&#39;]
 </pre></div></div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
-</pre></div>
-</div>
 </div>
 </section>
 
@@ -500,12 +510,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="running_programs_using_decorators.html">
+          <a class="next-page" href="../../examples/index.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Running QiskitPattern using decorators (Experimental)</div>
+                <div class="title">Examples</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
