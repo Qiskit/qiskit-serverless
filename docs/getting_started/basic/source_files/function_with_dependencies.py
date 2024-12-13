@@ -1,5 +1,3 @@
-# source_files/program_4.py
-
 from qiskit_serverless import save_result
 
 import pendulum

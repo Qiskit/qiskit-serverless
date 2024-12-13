@@ -11,8 +11,8 @@ print(serverless)
 
 import tarfile
 
-filename= "uploaded_file.tar"
-file= tarfile.open(filename,"w")
+filename = "uploaded_file.tar"
+file = tarfile.open(filename, "w")
 file.add("manage_data_directory.py")
 file.close()
 
