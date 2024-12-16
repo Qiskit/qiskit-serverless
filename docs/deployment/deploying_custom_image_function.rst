@@ -50,7 +50,7 @@ In our simple case it will look something like this:
 .. code-block::
    :caption: Dockerfile for custom image function.
 
-    FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.18.0
+    FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.18.1
 
     # install all necessary dependencies for your custom image
 
@@ -92,7 +92,8 @@ Run it:
 Or if you are using kubernetes you will need to create the cluster and load the image in Kind:
 
 .. code-block::
-   :caption: Run docker compose
+   :caption: Run your local cluster
+    
     tox -e cluster-deploy
     kind load docker-image test-local-provider-function:latest
 
