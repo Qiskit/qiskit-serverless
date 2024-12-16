@@ -451,3 +451,34 @@ def distribute_program(
         "Please, use `distribute_qiskit_function` instead."
     )
     return distribute_qiskit_function(provider, dependencies, working_dir)
+
+
+def trace_decorator_factory(traced_feature: str):
+    """Factory for generate decorators for classes or features."""
+
+    def generated_decorator(
+        _func: Optional[Callable] = None, *, traced_function: Optional[str] = None
+    ):
+        """
+        The decorator wrapper to generate optional arguments
+        if traced_function is nullable it will be replaced by the decorated function name.
+        """
+
+        def decorator_trace(func: Callable):
+            """The decorator that python call"""
+
+            def wrapper(*args, **kwargs):
+                """The wrapper"""
+                tracer = trace.get_tracer("client.tracer")
+                function_name = traced_function if traced_function else func.__name__
+                with tracer.start_as_current_span(f"{traced_feature}.${function_name}"):
+                    result = func(*args, **kwargs)
+                return result
+
+            return wrapper
+
+        if _func:
+            return decorator_trace(_func)
+        return decorator_trace
+
+    return generated_decorator
