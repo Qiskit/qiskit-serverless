@@ -171,3 +171,33 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             file_size = os.path.getsize(path_to_file)
 
             return file_wrapper, file_type, file_size
+
+    def remove_file(self, file_name: str) -> Optional[Tuple[FileWrapper, str, int]]:
+        """
+        This method returns a file from file_name:
+            - Only files with supported extensions are available to download
+            - It returns only a file from a user or a provider file storage
+
+        Returns:
+            FileWrapper: the file itself
+            str: with the type of the file
+            int: with the size of the file
+        """
+
+        file_name_path = os.path.basename(file_name)
+        path_to_file = sanitize_file_path(os.path.join(self.file_path, file_name_path))
+
+        try:
+            os.remove(path_to_file)
+        except FileNotFoundError:
+            logger.warning(
+                "Directory %s does not exist for file %s.",
+                path_to_file,
+                file_name_path,
+            )
+            return False
+        except OSError as ex:
+            logger.warning("OSError: %s.", ex.strerror)
+            return False
+
+        return True

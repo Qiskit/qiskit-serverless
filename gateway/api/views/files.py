@@ -436,37 +436,114 @@ class FilesViewSet(viewsets.ViewSet):
     def delete(self, request):  # pylint: disable=invalid-name
         """Deletes file uploaded or produced by the programs,"""
         # default response for file not found, overwritten if file is found
-        response = Response(
-            {"message": "Requested file was not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.delete", context=ctx):
-            if request.data and "file" in request.data:
-                # look for file in user's folder
-                filename = os.path.basename(request.data["file"])
-                provider_name = request.data.get("provider")
-                user_dir = request.user.username
-                if provider_name is not None:
-                    if self.check_user_has_provider(request.user, provider_name):
-                        user_dir = provider_name
-                    else:
-                        return response
-                user_dir = os.path.join(
-                    sanitize_file_path(settings.MEDIA_ROOT),
-                    sanitize_file_path(user_dir),
+            # look for file in user's folder
+            username = request.user.username
+            file_name = sanitize_file_name(
+                os.path.basename(request.query_params.get["file"])
+            )
+            provider_name = sanitize_name(request.query_params.get("provider"))
+            function_title = sanitize_name(request.query_params.get("function", None))
+            working_dir = WorkingDir.USER_STORAGE
+
+            if not all([file_name, function_title]):
+                return Response(
+                    {"message": "File name and Qiskit Function title are mandatory"},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-                file_path = os.path.join(
-                    sanitize_file_path(user_dir), sanitize_file_path(filename)
+
+            function = self.get_function(
+                user=request.user,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+
+            if not function:
+                if provider_name:
+                    error_message = f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                else:
+                    error_message = f"Qiskit Function {function_title} doesn't exist."
+                return Response(
+                    {"message": error_message},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
-                if os.path.exists(user_dir) and os.path.exists(file_path) and filename:
-                    os.remove(file_path)
-                    response = Response(
-                        {"message": "Requested file was deleted."},
-                        status=status.HTTP_200_OK,
-                    )
-            return response
+
+            file_storage = FileStorage(
+                username=username,
+                working_dir=working_dir,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            result = file_storage.remove_file(file_name=file_name)
+            if not result:
+                return Response(
+                    {"message": "Requested file was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            return Response(
+                {"message": "Requested file was deleted."}, status=status.HTTP_200_OK
+            )
+
+    @action(methods=["DELETE"], detail=False)
+    def provider_delete(self, request):  # pylint: disable=invalid-name
+        """Deletes file uploaded or produced by the programs,"""
+        # default response for file not found, overwritten if file is found
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.files.delete", context=ctx):
+            # look for file in user's folder
+            username = request.user.username
+            file_name = sanitize_file_name(
+                os.path.basename(request.query_params.get("file"))
+            )
+            provider_name = sanitize_name(request.query_params.get("provider"))
+            function_title = sanitize_name(request.query_params.get("function", None))
+            working_dir = WorkingDir.USER_STORAGE
+
+            if not all([file_name, function_title, provider_name]):
+                return Response(
+                    {"message": "File name and Qiskit Function title are mandatory"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not self.user_has_provider_access(request.user, provider_name):
+                return Response(
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            function = self.get_function(
+                user=request.user,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+
+            if not function:
+                error_message = f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                return Response(
+                    {"message": error_message},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            file_storage = FileStorage(
+                username=username,
+                working_dir=working_dir,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            result = file_storage.remove_file(file_name=file_name)
+            if not result:
+                return Response(
+                    {"message": "Requested file was not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            return Response(
+                {"message": "Requested file was deleted."}, status=status.HTTP_200_OK
+            )
 
     @action(methods=["POST"], detail=False)
     def upload(self, request):  # pylint: disable=invalid-name

@@ -306,9 +306,11 @@ class TestFilesApi(APITestCase):
             "fake_media",
         )
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        function = "Program"
 
         with open(
-            os.path.join(media_root, "test_user", "artifact_delete.tar"), "w"
+            os.path.join(media_root, "test_user", function, "artifact_delete.tar"),
+            "w",
         ) as fp:
             fp.write("This is first line")
             print(fp)
@@ -319,7 +321,9 @@ class TestFilesApi(APITestCase):
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-delete")
             response = self.client.delete(
-                url, data={"file": "artifact_delete.tar"}, format="json"
+                url,
+                data={"file": "artifact_delete.tar", "function": function},
+                format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -332,9 +336,11 @@ class TestFilesApi(APITestCase):
             "fake_media",
         )
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        function = "Program"
 
         with open(
-            os.path.join(media_root, "default", "artifact_delete.tar"), "w"
+            os.path.join(media_root, "default", function, "artifact_delete.tar"),
+            "w",
         ) as fp:
             fp.write("This is first line")
             print(fp)
@@ -346,7 +352,11 @@ class TestFilesApi(APITestCase):
             url = reverse("v1:files-delete")
             response = self.client.delete(
                 url,
-                data={"file": "artifact_delete.tar", "provider": "default"},
+                data={
+                    "file": "artifact_delete.tar",
+                    "function": function,
+                    "provider": "default",
+                },
                 format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -366,7 +376,34 @@ class TestFilesApi(APITestCase):
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-delete")
             response = self.client.delete(
-                url, data={"file": "artifact_delete.tar"}, format="json"
+                url,
+                data={"file": "artifact_delete.tar", "function": "my-function"},
+                format="json",
+            )
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_non_existing_provider_file_delete(self):
+        """Tests delete file."""
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            user = models.User.objects.get(username="test_user")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-delete")
+            response = self.client.delete(
+                url,
+                data={
+                    "file": "artifact_delete.tar",
+                    "function": "my-function",
+                    "provider": "default",
+                },
+                format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
