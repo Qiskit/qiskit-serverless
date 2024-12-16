@@ -400,10 +400,9 @@
 </div>
 <p>Or if you are using kubernetes you will need to create the cluster and load the image in Kind</p>
 <div class="literal-block-wrapper docutils container" id="id6">
-<div class="code-block-caption"><span class="caption-text">Run docker compose
-tox -e cluster-deploy
-kind load docker-image test-local-provider-function:latest</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>
+<div class="code-block-caption"><span class="caption-text">Run your local cluster</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> <span class="n">tox</span> <span class="o">-</span><span class="n">e</span> <span class="n">cluster</span><span class="o">-</span><span class="n">deploy</span>
+ <span class="n">kind</span> <span class="n">load</span> <span class="n">docker</span><span class="o">-</span><span class="n">image</span> <span class="n">test</span><span class="o">-</span><span class="n">local</span><span class="o">-</span><span class="n">provider</span><span class="o">-</span><span class="n">function</span><span class="p">:</span><span class="n">latest</span>
 </pre></div>
 </div>
 </div>
