@@ -442,7 +442,7 @@ class FilesViewSet(viewsets.ViewSet):
             # look for file in user's folder
             username = request.user.username
             file_name = sanitize_file_name(
-                os.path.basename(request.query_params.get["file"])
+                os.path.basename(request.query_params.get("file"))
             )
             provider_name = sanitize_name(request.query_params.get("provider"))
             function_title = sanitize_name(request.query_params.get("function", None))
