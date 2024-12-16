@@ -469,34 +469,102 @@ class FilesViewSet(viewsets.ViewSet):
             return response
 
     @action(methods=["POST"], detail=False)
-    def upload(self, request):  # pylint: disable=invalid-name
-        """Upload selected file."""
-        response = Response(
-            {"message": "Requested file was not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+    def upload(self, request):
+        """
+        It upload a file to a specific user paths:
+            - username/
+            - username/provider_name/function_title
+        """
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.download", context=ctx):
+            username = request.user.username
             upload_file = request.FILES["file"]
-            filename = os.path.basename(upload_file.name)
-            user_dir = request.user.username
-            if request.data and "provider" in request.data:
-                provider_name = request.data["provider"]
-                if provider_name is not None:
-                    if self.check_user_has_provider(request.user, provider_name):
-                        user_dir = provider_name
-                    else:
-                        return response
-            user_dir = os.path.join(
-                sanitize_file_path(settings.MEDIA_ROOT),
-                sanitize_file_path(user_dir),
+            file_name = sanitize_file_name(upload_file.name)
+            provider_name = sanitize_name(request.query_params.get("provider", None))
+            function_title = sanitize_name(request.query_params.get("function", None))
+            working_dir = WorkingDir.USER_STORAGE
+
+            if not all([file_name, function_title]):
+                return Response(
+                    {"message": "A file and Qiskit Function title are mandatory"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            function = self.get_function(
+                user=request.user,
+                function_title=function_title,
+                provider_name=provider_name,
             )
-            file_path = os.path.join(
-                sanitize_file_path(user_dir), sanitize_file_path(filename)
+            if not function:
+                if provider_name:
+                    error_message = f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                else:
+                    error_message = f"Qiskit Function {function_title} doesn't exist."
+                return Response(
+                    {"message": error_message},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            file_storage = FileStorage(
+                username=username,
+                working_dir=working_dir,
+                function_title=function_title,
+                provider_name=provider_name,
             )
-            with open(file_path, "wb+") as destination:
-                for chunk in upload_file.chunks():
-                    destination.write(chunk)
-                return Response({"message": file_path})
-        return Response("server error", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            result = file_storage.upload_file(file=upload_file)
+
+            return Response({"message": result})
+
+    @action(methods=["POST"], detail=False, url_path="provider/upload")
+    def provider_upload(self, request):
+        """
+        It upload a file to a specific user paths:
+            - provider_name/function_title
+        """
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.files.download", context=ctx):
+            username = request.user.username
+            upload_file = request.FILES["file"]
+            file_name = sanitize_file_name(upload_file.name)
+            provider_name = sanitize_name(request.query_params.get("provider", None))
+            function_title = sanitize_name(request.query_params.get("function", None))
+            working_dir = WorkingDir.PROVIDER_STORAGE
+
+            if not all([file_name, function_title, provider_name]):
+                return Response(
+                    {
+                        "message": "The file, Qiskit Function title and Provider name are mandatory"  # pylint: disable=line-too-long
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not self.user_has_provider_access(request.user, provider_name):
+                return Response(
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            function = self.get_function(
+                user=request.user,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            if not function:
+                return Response(
+                    {
+                        "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            file_storage = FileStorage(
+                username=username,
+                working_dir=working_dir,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            result = file_storage.upload_file(file=upload_file)
+
+            return Response({"message": result})

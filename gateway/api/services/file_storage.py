@@ -10,6 +10,7 @@ from typing import Optional, Tuple
 from wsgiref.util import FileWrapper
 
 from django.conf import settings
+from django.core.files import File
 
 from utils import sanitize_file_path
 
@@ -171,3 +172,26 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             file_size = os.path.getsize(path_to_file)
 
             return file_wrapper, file_type, file_size
+
+    def upload_file(self, file: File) -> str:
+        """
+        This method upload a file to the specific path:
+            - Only files with supported extensions are available to download
+            - It returns only a file from a user or a provider file storage
+
+        Args:
+            file (django.File): the file to store in the specific path
+
+        Returns:
+            str: the path where the file was stored
+        """
+
+        file_name = sanitize_file_path(file.name)
+        basename = os.path.basename(file_name)
+        path_to_file = sanitize_file_path(os.path.join(self.file_path, basename))
+
+        with open(path_to_file, "wb+") as destination:
+            for chunk in file.chunks():
+                destination.write(chunk)
+
+        return path_to_file

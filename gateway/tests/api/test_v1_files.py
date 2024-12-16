@@ -1,7 +1,7 @@
 """Tests files api."""
 
 import os
-from urllib.parse import quote_plus
+from urllib.parse import urlencode
 
 from django.urls import reverse
 from rest_framework import status
@@ -381,18 +381,22 @@ class TestFilesApi(APITestCase):
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
-            user = models.User.objects.get(username="test_user")
+            function = "personal-program"
+            user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-upload")
+
             with open("README.md") as f:
+                query_params = {"function": function}
                 response = self.client.post(
-                    url,
-                    data={"file": f},
+                    f"{url}?{urlencode(query_params)}",
+                    {"file": f},
                     format="multipart",
                 )
+
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(os.path.join(media_root, "test_user", "README.md"))
-                os.remove(os.path.join(media_root, "test_user", "README.md"))
+                self.assertTrue(os.path.join(media_root, "test_user_2", "README.md"))
+                os.remove(os.path.join(media_root, "test_user_2", "README.md"))
 
     def test_provider_file_upload(self):
         """Tests uploading existing file."""
@@ -405,18 +409,25 @@ class TestFilesApi(APITestCase):
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
+            provider = "default"
+            function = "Program"
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
-            url = reverse("v1:files-upload")
+            url = reverse("v1:files-provider-upload")
+
             with open("README.md") as f:
+                query_params = {"function": function, "provider": provider}
                 response = self.client.post(
-                    url,
-                    data={"file": f, "provider": "default"},
+                    f"{url}?{urlencode(query_params)}",
+                    {"file": f},
                     format="multipart",
                 )
+
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(os.path.join(media_root, "test_user", "README.md"))
-                os.remove(os.path.join(media_root, "default", "README.md"))
+                self.assertTrue(
+                    os.path.join(media_root, "default", "Program", "README.md")
+                )
+                os.remove(os.path.join(media_root, "default", "Program", "README.md"))
 
     def test_escape_directory(self):
         """Tests directory escape / injection."""
