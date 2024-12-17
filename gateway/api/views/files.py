@@ -6,7 +6,6 @@ Version views inherit from the different views.
 import logging
 import os
 
-from django.conf import settings
 from django.http import StreamingHttpResponse
 
 # pylint: disable=duplicate-code
@@ -23,7 +22,6 @@ from rest_framework.response import Response
 from api.services.file_storage import SUPPORTED_FILE_EXTENSIONS, FileStorage, WorkingDir
 from api.utils import sanitize_file_name, sanitize_name
 from api.models import Provider, Program
-from utils import sanitize_file_path
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
