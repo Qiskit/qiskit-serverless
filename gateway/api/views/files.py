@@ -154,22 +154,6 @@ class FilesViewSet(viewsets.ViewSet):
         return has_access
 
     # Provider methods, these will be migrated to a Repository class
-    def list_user_providers(self, user):
-        """list provider names that the user in"""
-        provider_list = []
-        providers = Provider.objects.all()
-        for instance in providers:
-            user_groups = user.groups.all()
-            admin_groups = instance.admin_groups.all()
-            provider_found = any(group in admin_groups for group in user_groups)
-            if provider_found:
-                provider_list.append(instance.name)
-        return provider_list
-
-    def check_user_has_provider(self, user, provider_name):
-        """check if user has the provider"""
-        return provider_name in self.list_user_providers(user)
-
     def user_has_provider_access(self, user, provider_name: str) -> bool:
         """
         This method returns True or False if the user has access to the provider or not.
