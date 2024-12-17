@@ -433,9 +433,15 @@ class ServerlessClient(BaseClient):
         """Deletes file uploaded or produced by the programs,"""
         return self._files_client.delete(file, provider)
 
-    def file_upload(self, file: str, provider: Optional[str] = None):
+    def file_upload(
+        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+    ):
         """Upload file."""
-        return self._files_client.upload(file, provider)
+        return self._files_client.upload(file, function, provider)
+
+    def provider_file_upload(self, file: str, function: QiskitFunction, provider: str):
+        """Upload file."""
+        return self._files_client.provider_upload(file, function, provider)
 
 
 class IBMServerlessClient(ServerlessClient):
