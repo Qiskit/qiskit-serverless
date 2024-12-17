@@ -174,14 +174,11 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
     def remove_file(self, file_name: str) -> bool:
         """
-        This method returns a file from file_name:
-            - Only files with supported extensions are available to download
-            - It returns only a file from a user or a provider file storage
+        This method remove a file in the path of file_name
 
         Returns:
-            FileWrapper: the file itself
-            str: with the type of the file
-            int: with the size of the file
+            - True if it was deleted
+            - False otherwise
         """
 
         file_name_path = os.path.basename(file_name)
