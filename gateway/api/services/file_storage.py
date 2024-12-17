@@ -172,7 +172,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
             return file_wrapper, file_type, file_size
 
-    def remove_file(self, file_name: str) -> Optional[Tuple[FileWrapper, str, int]]:
+    def remove_file(self, file_name: str) -> bool:
         """
         This method returns a file from file_name:
             - Only files with supported extensions are available to download

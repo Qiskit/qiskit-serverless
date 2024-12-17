@@ -441,9 +441,7 @@ class FilesViewSet(viewsets.ViewSet):
         with tracer.start_as_current_span("gateway.files.delete", context=ctx):
             # look for file in user's folder
             username = request.user.username
-            file_name = sanitize_file_name(
-                os.path.basename(request.query_params.get("file"))
-            )
+            file_name = sanitize_file_name(request.query_params.get("file", None))
             provider_name = sanitize_name(request.query_params.get("provider"))
             function_title = sanitize_name(request.query_params.get("function", None))
             working_dir = WorkingDir.USER_STORAGE
@@ -487,7 +485,7 @@ class FilesViewSet(viewsets.ViewSet):
                 {"message": "Requested file was deleted."}, status=status.HTTP_200_OK
             )
 
-    @action(methods=["DELETE"], detail=False)
+    @action(methods=["DELETE"], detail=False, url_path="provider/delete")
     def provider_delete(self, request):  # pylint: disable=invalid-name
         """Deletes file uploaded or produced by the programs,"""
         # default response for file not found, overwritten if file is found
@@ -496,9 +494,7 @@ class FilesViewSet(viewsets.ViewSet):
         with tracer.start_as_current_span("gateway.files.delete", context=ctx):
             # look for file in user's folder
             username = request.user.username
-            file_name = sanitize_file_name(
-                os.path.basename(request.query_params.get("file"))
-            )
+            file_name = sanitize_file_name(request.query_params.get("file"))
             provider_name = sanitize_name(request.query_params.get("provider"))
             function_title = sanitize_name(request.query_params.get("function", None))
             working_dir = WorkingDir.USER_STORAGE

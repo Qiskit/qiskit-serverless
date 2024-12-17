@@ -179,9 +179,9 @@ class FilesViewSet(views.FilesViewSet):
             ),
         ],
     )
-    @action(methods=["DELETE"], detail=False)
+    @action(methods=["DELETE"], detail=False, url_path="provider/delete")
     def provider_delete(self, request):
-        return super().delete(request)
+        return super().provider_delete(request)
 
     @swagger_auto_schema(
         operation_description="Upload selected file",
