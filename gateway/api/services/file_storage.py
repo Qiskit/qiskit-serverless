@@ -148,6 +148,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             - Only files with supported extensions are available to download
             - It returns only a file from a user or a provider file storage
 
+        Args:
+            file_name (str): the name of the file to download
+
         Returns:
             FileWrapper: the file itself
             str: with the type of the file
@@ -195,7 +198,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
                 destination.write(chunk)
 
         return path_to_file
-    
+
     def remove_file(self, file_name: str) -> bool:
         """
         This method remove a file in the path of file_name
