@@ -195,3 +195,33 @@ class FileStorage:  # pylint: disable=too-few-public-methods
                 destination.write(chunk)
 
         return path_to_file
+    
+    def remove_file(self, file_name: str) -> bool:
+        """
+        This method remove a file in the path of file_name
+
+        Args:
+            file_name (str): the name of the file to remove
+
+        Returns:
+            - True if it was deleted
+            - False otherwise
+        """
+
+        file_name_path = os.path.basename(file_name)
+        path_to_file = sanitize_file_path(os.path.join(self.file_path, file_name_path))
+
+        try:
+            os.remove(path_to_file)
+        except FileNotFoundError:
+            logger.warning(
+                "Directory %s does not exist for file %s.",
+                path_to_file,
+                file_name_path,
+            )
+            return False
+        except OSError as ex:
+            logger.warning("OSError: %s.", ex.strerror)
+            return False
+
+        return True

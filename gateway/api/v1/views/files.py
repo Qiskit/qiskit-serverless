@@ -125,25 +125,66 @@ class FilesViewSet(views.FilesViewSet):
 
     @swagger_auto_schema(
         operation_description="Deletes file uploaded or produced by the programs",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "file": openapi.Schema(
-                    type=openapi.TYPE_STRING, description="file name"
-                ),
-                "provider": openapi.Schema(
-                    type=openapi.TYPE_STRING, description="provider name"
-                ),
-            },
-            required=["file"],
-        ),
+        manual_parameters=[
+            openapi.Parameter(
+                "file",
+                openapi.IN_QUERY,
+                description="File name",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                "function",
+                openapi.IN_QUERY,
+                description="Qiskit Function title",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                "provider",
+                openapi.IN_QUERY,
+                description="Provider name",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
     )
     @action(methods=["DELETE"], detail=False)
     def delete(self, request):
         return super().delete(request)
 
     @swagger_auto_schema(
-        operation_description="Upload a file into the user directory",
+        operation_description="Deletes file uploaded or produced by the programs",
+        manual_parameters=[
+            openapi.Parameter(
+                "file",
+                openapi.IN_QUERY,
+                description="File name",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                "function",
+                openapi.IN_QUERY,
+                description="Qiskit Function title",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                "provider",
+                openapi.IN_QUERY,
+                description="Provider name",
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+        ],
+    )
+    @action(methods=["DELETE"], detail=False, url_path="provider/delete")
+    def provider_delete(self, request):
+        return super().provider_delete(request)
+
+    @swagger_auto_schema(
+        operation_description="Upload selected file",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
