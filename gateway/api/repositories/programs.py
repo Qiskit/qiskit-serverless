@@ -6,9 +6,8 @@ import logging
 from typing import List
 
 from django.db.models import Q
-from django.contrib.auth.models import Group, Permission
 
-from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program
+from api.models import Program
 from api.repositories.groups import GroupRepository
 
 
@@ -35,7 +34,7 @@ class ProgramRepository:
             author: Django author from who retrieve the functions
 
         Returns:
-            List[Program] | Any: all the functions available to the user
+            List[Program]: all the functions available to the user
         """
 
         view_groups = self.group_repository.get_groups_with_view_permissions_from_user(
@@ -63,7 +62,7 @@ class ProgramRepository:
             author: Django author from who retrieve the functions
 
         Returns:
-            List[Program] | Any: user functions available to the user
+            List[Program]: user functions available to the user
         """
 
         author_criteria = Q(author=author)
@@ -88,7 +87,7 @@ class ProgramRepository:
             author: Django author from who retrieve the functions
 
         Returns:
-            List[Program] | Any: providers functions available to the user
+            List[Program]: providers functions available to the user
         """
 
         run_groups = self.group_repository.get_groups_with_run_permissions_from_user(
@@ -115,7 +114,7 @@ class ProgramRepository:
             title: Title that the function must have to find it
 
         Returns:
-            Program | Any: user function with the specific title
+            Program | None: user function with the specific title
         """
 
         author_criteria = Q(author=author)
