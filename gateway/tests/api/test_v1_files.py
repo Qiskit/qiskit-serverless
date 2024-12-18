@@ -1,9 +1,10 @@
 """Tests files api."""
 
 import os
-from urllib.parse import quote_plus
+from urllib.parse import urlencode
 
 from django.urls import reverse
+from pytest import mark
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import models
@@ -306,21 +307,28 @@ class TestFilesApi(APITestCase):
             "fake_media",
         )
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        function = "personal-program"
+        file = "artifact_delete.tar"
+        username = "test_user_2"
+        functionPath = os.path.join(media_root, username)
+
+        if not os.path.exists(functionPath):
+            os.makedirs(functionPath)
 
         with open(
-            os.path.join(media_root, "test_user", "artifact_delete.tar"), "w"
+            os.path.join(functionPath, file),
+            "w+",
         ) as fp:
             fp.write("This is first line")
             print(fp)
             fp.close()
 
         with self.settings(MEDIA_ROOT=media_root):
-            user = models.User.objects.get(username="test_user")
+            query_params = {"function": function, "file": file}
+            user = models.User.objects.get(username=username)
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-delete")
-            response = self.client.delete(
-                url, data={"file": "artifact_delete.tar"}, format="json"
-            )
+            response = self.client.delete(f"{url}?{urlencode(query_params)}")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_provider_file_delete(self):
@@ -332,23 +340,29 @@ class TestFilesApi(APITestCase):
             "fake_media",
         )
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        provider = "default"
+        function = "Program"
+        file = "artifact_delete.tar"
+        username = "test_user_2"
+        functionPath = os.path.join(media_root, username, provider, function)
+
+        if not os.path.exists(functionPath):
+            os.makedirs(functionPath)
 
         with open(
-            os.path.join(media_root, "default", "artifact_delete.tar"), "w"
+            os.path.join(functionPath, file),
+            "w+",
         ) as fp:
             fp.write("This is first line")
             print(fp)
             fp.close()
 
         with self.settings(MEDIA_ROOT=media_root):
-            user = models.User.objects.get(username="test_user_2")
+            query_params = {"function": function, "provider": provider, "file": file}
+            user = models.User.objects.get(username=username)
             self.client.force_authenticate(user=user)
-            url = reverse("v1:files-delete")
-            response = self.client.delete(
-                url,
-                data={"file": "artifact_delete.tar", "provider": "default"},
-                format="json",
-            )
+            url = reverse("v1:files-provider-delete")
+            response = self.client.delete(f"{url}?{urlencode(query_params)}")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_non_existing_file_delete(self):
@@ -360,14 +374,38 @@ class TestFilesApi(APITestCase):
             "fake_media",
         )
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        function = "personal-program"
+        file = "non-existing-artifact_delete.tar"
+        username = "test_user_2"
 
         with self.settings(MEDIA_ROOT=media_root):
-            user = models.User.objects.get(username="test_user")
+            query_params = {"function": function, "file": file}
+            user = models.User.objects.get(username=username)
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-delete")
-            response = self.client.delete(
-                url, data={"file": "artifact_delete.tar"}, format="json"
-            )
+            response = self.client.delete(f"{url}?{urlencode(query_params)}")
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_non_existing_provider_file_delete(self):
+        """Tests delete file."""
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        provider = "default"
+        function = "Program"
+        file = "non-existing-artifact_delete.tar"
+        username = "test_user_2"
+
+        with self.settings(MEDIA_ROOT=media_root):
+            query_params = {"function": function, "provider": provider, "file": file}
+            user = models.User.objects.get(username=username)
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-provider-delete")
+            response = self.client.delete(f"{url}?{urlencode(query_params)}")
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_file_upload(self):
@@ -381,18 +419,22 @@ class TestFilesApi(APITestCase):
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
-            user = models.User.objects.get(username="test_user")
+            function = "personal-program"
+            user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-upload")
+
             with open("README.md") as f:
+                query_params = {"function": function}
                 response = self.client.post(
-                    url,
-                    data={"file": f},
+                    f"{url}?{urlencode(query_params)}",
+                    {"file": f},
                     format="multipart",
                 )
+
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(os.path.join(media_root, "test_user", "README.md"))
-                os.remove(os.path.join(media_root, "test_user", "README.md"))
+                self.assertTrue(os.path.join(media_root, "test_user_2", "README.md"))
+                os.remove(os.path.join(media_root, "test_user_2", "README.md"))
 
     def test_provider_file_upload(self):
         """Tests uploading existing file."""
@@ -405,18 +447,25 @@ class TestFilesApi(APITestCase):
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
+            provider = "default"
+            function = "Program"
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
-            url = reverse("v1:files-upload")
+            url = reverse("v1:files-provider-upload")
+
             with open("README.md") as f:
+                query_params = {"function": function, "provider": provider}
                 response = self.client.post(
-                    url,
-                    data={"file": f, "provider": "default"},
+                    f"{url}?{urlencode(query_params)}",
+                    {"file": f},
                     format="multipart",
                 )
+
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(os.path.join(media_root, "test_user", "README.md"))
-                os.remove(os.path.join(media_root, "default", "README.md"))
+                self.assertTrue(
+                    os.path.join(media_root, "default", "Program", "README.md")
+                )
+                os.remove(os.path.join(media_root, "default", "Program", "README.md"))
 
     def test_escape_directory(self):
         """Tests directory escape / injection."""

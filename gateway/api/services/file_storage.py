@@ -10,6 +10,7 @@ from typing import Optional, Tuple
 from wsgiref.util import FileWrapper
 
 from django.conf import settings
+from django.core.files import File
 
 from utils import sanitize_file_path
 
@@ -147,6 +148,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             - Only files with supported extensions are available to download
             - It returns only a file from a user or a provider file storage
 
+        Args:
+            file_name (str): the name of the file to download
+
         Returns:
             FileWrapper: the file itself
             str: with the type of the file
@@ -171,3 +175,56 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             file_size = os.path.getsize(path_to_file)
 
             return file_wrapper, file_type, file_size
+
+    def upload_file(self, file: File) -> str:
+        """
+        This method upload a file to the specific path:
+            - Only files with supported extensions are available to download
+            - It returns only a file from a user or a provider file storage
+
+        Args:
+            file (django.File): the file to store in the specific path
+
+        Returns:
+            str: the path where the file was stored
+        """
+
+        file_name = sanitize_file_path(file.name)
+        basename = os.path.basename(file_name)
+        path_to_file = sanitize_file_path(os.path.join(self.file_path, basename))
+
+        with open(path_to_file, "wb+") as destination:
+            for chunk in file.chunks():
+                destination.write(chunk)
+
+        return path_to_file
+
+    def remove_file(self, file_name: str) -> bool:
+        """
+        This method remove a file in the path of file_name
+
+        Args:
+            file_name (str): the name of the file to remove
+
+        Returns:
+            - True if it was deleted
+            - False otherwise
+        """
+
+        file_name_path = os.path.basename(file_name)
+        path_to_file = sanitize_file_path(os.path.join(self.file_path, file_name_path))
+
+        try:
+            os.remove(path_to_file)
+        except FileNotFoundError:
+            logger.warning(
+                "Directory %s does not exist for file %s.",
+                path_to_file,
+                file_name_path,
+            )
+            return False
+        except OSError as ex:
+            logger.warning("OSError: %s.", ex.strerror)
+            return False
+
+        return True
