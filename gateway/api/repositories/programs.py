@@ -19,7 +19,7 @@ class ProgramRepository:
     The main objective of this class is to manage the access to the model
     """
 
-    def get_functions(self, author) -> List[Program] | Any:
+    def get_functions_with_view_permissions(self, author) -> List[Program] | Any:
         """
         Returns all the functions available to the user. This means:
           - User functions where the user is the author
