@@ -188,7 +188,7 @@ class GatewayFilesClient:
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.delete(
                     os.path.join(self._files_url, "delete"),
-                    data={
+                    params={
                         "file": file,
                         "function": function.title,
                         "provider": provider,
@@ -211,7 +211,7 @@ class GatewayFilesClient:
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.delete(
                     os.path.join(self._files_url, "provider", "delete"),
-                    data={
+                    params={
                         "file": file,
                         "function": function.title,
                         "provider": provider,
