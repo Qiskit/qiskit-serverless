@@ -220,3 +220,26 @@ class ProgramRepository:
             )
 
         return result_queryset
+
+    def get_function_by_title_with_run_permissions(
+        self, user, function_title: str, provider_name: str | None
+    ) -> None:
+        """
+        This method returns the specified function if the user is
+        the author of the function or it has run permissions.
+
+        Args:
+            user: Django user of the function that wants to get it
+            function_title (str): title of the function
+            provider_name (str | None): name of the provider owner of the function
+
+        Returns:
+            Program | None: returns the function if it exists
+        """
+
+        if provider_name:
+            return self.get_provider_function_by_title_with_run_permissions(
+                author=user, title=function_title, provider_name=provider_name
+            )
+
+        return self.get_user_function_by_title(author=user, title=function_title)
