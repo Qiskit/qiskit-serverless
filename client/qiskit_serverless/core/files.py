@@ -140,7 +140,7 @@ class GatewayFilesClient:
                 with requests.post(
                     os.path.join(self._files_url, "upload"),
                     files={"file": f},
-                    data={"provider": provider, "function": function.title},
+                    params={"provider": provider, "function": function.title},
                     stream=True,
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_STREAMING_TIMEOUT,
@@ -160,7 +160,7 @@ class GatewayFilesClient:
                 with requests.post(
                     os.path.join(self._files_url, "upload"),
                     files={"file": f},
-                    data={"provider": provider, "function": function.title},
+                    params={"provider": provider, "function": function.title},
                     stream=True,
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_STREAMING_TIMEOUT,
