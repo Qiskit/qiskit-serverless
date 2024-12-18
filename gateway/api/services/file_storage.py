@@ -29,8 +29,6 @@ class WorkingDir(Enum):
     PROVIDER_STORAGE = 2
 
 
-SUPPORTED_FILE_EXTENSIONS = [".tar", ".h5"]
-
 logger = logging.getLogger("gateway")
 
 
@@ -44,21 +42,6 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         function_title (str): title of the function in case is needed to build the path
         provider_name (str | None): name of the provider in caseis needed to build the path
     """
-
-    @staticmethod
-    def is_valid_extension(file_name: str) -> bool:
-        """
-        This method verifies if the extension of the file is valid.
-
-        Args:
-            file_name (str): file name to verify
-
-        Returns:
-            bool: True or False if it is valid or not
-        """
-        return any(
-            file_name.endswith(extension) for extension in SUPPORTED_FILE_EXTENSIONS
-        )
 
     def __init__(
         self,
@@ -121,8 +104,8 @@ class FileStorage:  # pylint: disable=too-few-public-methods
     def get_files(self) -> list[str]:
         """
         This method returns a list of file names following the next rules:
-            - Only files with supported extensions are listed
             - It returns only files from a user or a provider file storage
+            - Directories are excluded
 
         Returns:
             list[str]: list of file names
@@ -138,8 +121,8 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
         return [
             os.path.basename(path)
-            for extension in SUPPORTED_FILE_EXTENSIONS
-            for path in glob.glob(f"{self.file_path}/*{extension}")
+            for path in glob.glob(f"{self.file_path}/*")
+            if os.path.isfile(path)
         ]
 
     def get_file(self, file_name: str) -> Optional[Tuple[FileWrapper, str, int]]:

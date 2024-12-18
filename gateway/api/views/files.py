@@ -19,7 +19,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from api.services.file_storage import SUPPORTED_FILE_EXTENSIONS, FileStorage, WorkingDir
+from api.services.file_storage import FileStorage, WorkingDir
 from api.utils import sanitize_file_name, sanitize_name
 from api.models import Provider, Program
 
@@ -309,15 +309,6 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if not FileStorage.is_valid_extension(requested_file_name):
-                extensions = ", ".join(SUPPORTED_FILE_EXTENSIONS)
-                return Response(
-                    {
-                        "message": f"File name needs to have a valid extension: {extensions}"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
             function = self.get_function(
                 user=request.user,
                 function_title=function_title,
@@ -381,15 +372,6 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if not FileStorage.is_valid_extension(requested_file_name):
-                extensions = ", ".join(SUPPORTED_FILE_EXTENSIONS)
-                return Response(
-                    {
-                        "message": f"File name needs to have a valid extension: {extensions}"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
             if not self.user_has_provider_access(request.user, provider_name):
                 return Response(
                     {"message": f"Provider {provider_name} doesn't exist."},
@@ -431,7 +413,7 @@ class FilesViewSet(viewsets.ViewSet):
             return response
 
     @action(methods=["DELETE"], detail=False)
-    def delete(self, request):  # pylint: disable=invalid-name
+    def delete(self, request):
         """Deletes file uploaded or produced by the programs,"""
         # default response for file not found, overwritten if file is found
         tracer = trace.get_tracer("gateway.tracer")
@@ -484,7 +466,7 @@ class FilesViewSet(viewsets.ViewSet):
             )
 
     @action(methods=["DELETE"], detail=False, url_path="provider/delete")
-    def provider_delete(self, request):  # pylint: disable=invalid-name
+    def provider_delete(self, request):
         """Deletes file uploaded or produced by the programs,"""
         # default response for file not found, overwritten if file is found
         tracer = trace.get_tracer("gateway.tracer")
