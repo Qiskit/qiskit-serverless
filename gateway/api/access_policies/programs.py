@@ -36,7 +36,7 @@ class ProgramAccessPolicy:
 
         instances = function.instances.all()
         has_access = any(group in instances for group in user_view_groups)
-        # TODO: the message must be different if the function has a provider or not
+        # the message must be different if the function has a provider or not
         if not has_access:
             logger.warning(
                 "User [%s] has no access to function [%s/%s].",
@@ -67,7 +67,7 @@ class ProgramAccessPolicy:
 
         instances = function.instances.all()
         has_access = any(group in instances for group in user_run_groups)
-        # TODO: the message must be different if the function has a provider or not
+        # the message must be different if the function has a provider or not
         if not has_access:
             logger.warning(
                 "User [%s] has no access to function [%s/%s].",
