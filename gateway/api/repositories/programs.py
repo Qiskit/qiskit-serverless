@@ -159,10 +159,12 @@ class ProgramRepository:
             user=author
         )
         author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
+        author_criteria = Q(author=author)
         title_criteria = Q(title=title, provider__name=provider_name)
 
         result_queryset = Program.objects.filter(
-            author_groups_with_view_permissions_criteria & title_criteria
+            (author_criteria | author_groups_with_view_permissions_criteria)
+            & title_criteria
         ).first()
 
         if result_queryset is None:
@@ -201,10 +203,12 @@ class ProgramRepository:
             user=author
         )
         author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
+        author_criteria = Q(author=author)
         title_criteria = Q(title=title, provider__name=provider_name)
 
         result_queryset = Program.objects.filter(
-            author_groups_with_run_permissions_criteria & title_criteria
+            (author_criteria | author_groups_with_run_permissions_criteria)
+            & title_criteria
         ).first()
 
         if result_queryset is None:

@@ -69,7 +69,7 @@ class FilesViewSet(viewsets.ViewSet):
             Program | None: returns the function if it exists
         """
 
-        if not provider_name:
+        if provider_name:
             return self.program_repository.get_provider_function_by_title_with_run_permissions(
                 author=user, title=function_title, provider_name=provider_name
             )
