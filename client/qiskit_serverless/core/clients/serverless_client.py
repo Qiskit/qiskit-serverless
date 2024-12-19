@@ -429,9 +429,15 @@ class ServerlessClient(BaseClient):
             file, download_location, function, target_name
         )
 
-    def file_delete(self, file: str, provider: Optional[str] = None):
+    def file_delete(
+        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+    ):
         """Deletes file uploaded or produced by the programs,"""
-        return self._files_client.delete(file, provider)
+        return self._files_client.delete(file, function, provider)
+
+    def provider_file_delete(self, file: str, function: QiskitFunction, provider: str):
+        """Deletes file uploaded or produced by the programs,"""
+        return self._files_client.provider_delete(file, function, provider)
 
     def file_upload(
         self, file: str, function: QiskitFunction, provider: Optional[str] = None
