@@ -81,20 +81,6 @@
     },
     {
         "model": "api.program",
-        "pk": "1eecd6ff-97cb-45dc-aeda-1cf7689cb0d4",
-        "fields": {
-            "created": "2023-02-01T15:30:43.281796Z",
-            "title": "ProgramDelete",
-            "image": "icr.io/awesome-namespace/awesome-title",
-            "author": 2,
-            "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
-            "instances": [
-                101
-            ]
-        }
-    },
-    {
-        "model": "api.program",
         "pk": "5b7deef6-45e2-4142-9e31-efb9e32e3592",
         "fields": {
             "created": "2023-02-01T15:30:43.281796Z",
