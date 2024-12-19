@@ -79,12 +79,12 @@ class TestDockerExperimental:
     @mark.order(1)
     def test_upload_download_delete(self, serverless_client: ServerlessClient):
         """Integration test for upload files."""
-        functionTitle = "upload-download-delete-function"
+        function = serverless_client.function("hello-world")
 
         print("::: file_upload :::")
-        print(serverless_client.file_upload(filename_path, functionTitle))
+        print(serverless_client.file_upload(filename_path, function))
 
-        files = serverless_client.files(functionTitle)
+        files = serverless_client.files(function)
         print("::: files :::")
         print(files)
 
@@ -95,19 +95,61 @@ class TestDockerExperimental:
         assert file_count == 1
 
         print("::: file_download :::")
-        assert serverless_client.file_download(filename, functionTitle) is not None
+        assert serverless_client.file_download(filename, function) is not None
 
-        files = serverless_client.files(functionTitle)
+        files = serverless_client.files(function)
         print("::: files after download :::")
         print(files)
 
         assert file_count == len(files)
 
         print("::: file_delete :::")
-        print(serverless_client.file_delete(filename, functionTitle))
+        print(serverless_client.file_delete(filename, function))
 
         print("::: files after delete:::")
-        files = serverless_client.files(functionTitle)
+        files = serverless_client.files(function)
+        print(files)
+
+        assert (file_count - len(files)) == 1
+
+    def test_provider_upload_download_delete(self, serverless_client: ServerlessClient):
+        """Integration test for upload files."""
+        function = QiskitFunction(
+            title="provider-function",
+            provider="mockprovider",
+            image="test-local-provider-function:latest",
+        )
+        serverless_client.upload(function)
+
+        function = serverless_client.function("mockprovider/provider-function")
+
+        print("::: file_upload :::")
+        print(serverless_client.file_upload(filename_path, function))
+
+        files = serverless_client.files(function)
+        print("::: files :::")
+        print(files)
+
+        file_count = len(files)
+        print("::: file_count :::")
+        print(file_count)
+
+        assert file_count == 1
+
+        print("::: file_download :::")
+        assert serverless_client.file_download(filename, function) is not None
+
+        files = serverless_client.files(function)
+        print("::: files after download :::")
+        print(files)
+
+        assert file_count == len(files)
+
+        print("::: file_delete :::")
+        print(serverless_client.file_delete(filename, function))
+
+        print("::: files after delete:::")
+        files = serverless_client.files(function)
         print(files)
 
         assert (file_count - len(files)) == 1
