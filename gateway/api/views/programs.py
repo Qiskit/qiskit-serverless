@@ -167,7 +167,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
             else:
                 # If filter is not applied we return author and providers functions together
-                functions = self.program_repository.get_functions(author)
+                functions = self.program_repository.get_functions_with_view_permissions(
+                    author
+                )
 
             serializer = self.get_serializer(functions, many=True)
 
@@ -307,7 +309,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         )
 
         if provider_name:
-            function = self.program_repository.get_provider_function_by_title(
+            function = self.program_repository.get_provider_function_by_title_with_view_permissions(
                 author=author, title=function_title, provider_name=provider_name
             )
         else:
