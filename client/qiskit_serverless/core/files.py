@@ -106,7 +106,7 @@ class GatewayFilesClient:
                 download_location,
                 function,
                 os.path.join(self._files_url, "download"),
-                target_name
+                target_name,
             )
 
     def provider_download(
@@ -127,7 +127,7 @@ class GatewayFilesClient:
                 download_location,
                 function,
                 os.path.join(self._files_url, "provider", "download"),
-                target_name
+                target_name,
             )
 
     def upload(
