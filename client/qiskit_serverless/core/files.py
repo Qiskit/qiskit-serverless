@@ -37,6 +37,8 @@ from qiskit_serverless.core.constants import (
     REQUESTS_STREAMING_TIMEOUT,
     REQUESTS_TIMEOUT,
 )
+from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.json import safe_json_request_as_dict
 
 
@@ -54,48 +56,91 @@ class GatewayFilesClient:
         self.host = host
         self.version = version
         self._token = token
+        self._files_url = os.path.join(self.host, "api", self.version, "files")
+
+    def _download_with_url(  # pylint:  disable=too-many-positional-arguments
+        self,
+        file: str,
+        download_location: str,
+        function: QiskitFunction,
+        url: str,
+        target_name: Optional[str] = None,
+    ) -> Optional[str]:
+        """Auxiliar function to download a file using an url."""
+        with requests.get(
+            url,
+            params={
+                "file": file,
+                "provider": function.provider,
+                "function": function.title,
+            },
+            stream=True,
+            headers={"Authorization": f"Bearer {self._token}"},
+            timeout=REQUESTS_STREAMING_TIMEOUT,
+        ) as req:
+            req.raise_for_status()
+
+            total_size_in_bytes = int(req.headers.get("content-length", 0))
+            chunk_size = 8192
+            progress_bar = tqdm(total=total_size_in_bytes, unit="iB", unit_scale=True)
+            file_name = target_name or f"downloaded_{str(uuid.uuid4())[:8]}_{file}"
+            with open(os.path.join(download_location, file_name), "wb") as f:
+                for chunk in req.iter_content(chunk_size=chunk_size):
+                    progress_bar.update(len(chunk))
+                    f.write(chunk)
+            progress_bar.close()
+            return file_name
 
     def download(
         self,
         file: str,
         download_location: str,
+        function: QiskitFunction,
         target_name: Optional[str] = None,
-        provider: Optional[str] = None,
     ) -> Optional[str]:
-        """Downloads file."""
+        """Downloads user file."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.download"):
-            with requests.get(
-                f"{self.host}/api/{self.version}/files/download/",
-                params={"file": file, "provider": provider},
-                stream=True,
-                headers={"Authorization": f"Bearer {self._token}"},
-                timeout=REQUESTS_STREAMING_TIMEOUT,
-            ) as req:
-                req.raise_for_status()
+            return self._download_with_url(
+                file,
+                download_location,
+                function,
+                target_name,
+                os.path.join(self._files_url, "download"),
+            )
 
-                total_size_in_bytes = int(req.headers.get("content-length", 0))
-                chunk_size = 8192
-                progress_bar = tqdm(
-                    total=total_size_in_bytes, unit="iB", unit_scale=True
-                )
-                file_name = target_name or f"downloaded_{str(uuid.uuid4())[:8]}_{file}"
-                with open(os.path.join(download_location, file_name), "wb") as f:
-                    for chunk in req.iter_content(chunk_size=chunk_size):
-                        progress_bar.update(len(chunk))
-                        f.write(chunk)
-                progress_bar.close()
-                return file_name
+    def provider_download(
+        self,
+        file: str,
+        download_location: str,
+        function: QiskitFunction,
+        target_name: Optional[str] = None,
+    ) -> Optional[str]:
+        """Downloads provider file."""
+        if not function.provider:
+            raise QiskitServerlessException("`function` doesn't have a provider.")
 
-    def upload(self, file: str, provider: Optional[str] = None) -> Optional[str]:
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("files.provider_download"):
+            return self._download_with_url(
+                file,
+                download_location,
+                function,
+                target_name,
+                os.path.join(self._files_url, "provider", "download"),
+            )
+
+    def upload(
+        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+    ) -> Optional[str]:
         """Uploads file."""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.upload"):
             with open(file, "rb") as f:
                 with requests.post(
-                    f"{self.host}/api/{self.version}/files/upload/",
+                    os.path.join(self._files_url, "upload"),
                     files={"file": f},
-                    data={"provider": provider},
+                    params={"provider": provider, "function": function.title},
                     stream=True,
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_STREAMING_TIMEOUT,
@@ -105,28 +150,94 @@ class GatewayFilesClient:
                     return "Upload failed"
             return "Can not open file"
 
-    def list(self, provider: Optional[str] = None) -> List[str]:
+    def provider_upload(
+        self, file: str, function: QiskitFunction, provider: str
+    ) -> Optional[str]:
+        """Uploads file to provider/function file storage."""
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("files.upload"):
+            with open(file, "rb") as f:
+                with requests.post(
+                    os.path.join(self._files_url, "upload"),
+                    files={"file": f},
+                    params={"provider": provider, "function": function.title},
+                    stream=True,
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_STREAMING_TIMEOUT,
+                ) as req:
+                    if req.ok:
+                        return req.text
+                    return "Upload failed"
+            return "Can not open file"
+
+    def list(self, function: QiskitFunction) -> List[str]:
         """Returns list of available files to download produced by programs,"""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.list"):
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/files/",
-                    params={"provider": provider},
+                    self._files_url,
+                    params={"title": function.title},
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
         return response_data.get("results", [])
 
-    def delete(self, file: str, provider: Optional[str] = None) -> Optional[str]:
+    def provider_list(self, function: QiskitFunction) -> List[str]:
+        """Returns list of available files to download produced by programs,"""
+        if not function.provider:
+            raise QiskitServerlessException("`function` doesn't have a provider.")
+
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("files.provider_list"):
+            response_data = safe_json_request_as_dict(
+                request=lambda: requests.get(
+                    os.path.join(self._files_url, "provider"),
+                    params={"provider": function.provider, "title": function.title},
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+        return response_data.get("results", [])
+
+    def delete(
+        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+    ) -> Optional[str]:
         """Deletes file uploaded or produced by the programs,"""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.delete"):
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.delete(
-                    f"{self.host}/api/{self.version}/files/delete/",
-                    data={"file": file, "provider": provider},
+                    os.path.join(self._files_url, "delete"),
+                    params={
+                        "file": file,
+                        "function": function.title,
+                        "provider": provider,
+                    },
+                    headers={
+                        "Authorization": f"Bearer {self._token}",
+                        "format": "json",
+                    },
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+        return response_data.get("message", "")
+
+    def provider_delete(
+        self, file: str, function: QiskitFunction, provider: str
+    ) -> Optional[str]:
+        """Deletes file uploaded or produced by the programs,"""
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("files.provider_delete"):
+            response_data = safe_json_request_as_dict(
+                request=lambda: requests.delete(
+                    os.path.join(self._files_url, "provider", "delete"),
+                    params={
+                        "file": file,
+                        "function": function.title,
+                        "provider": provider,
+                    },
                     headers={
                         "Authorization": f"Bearer {self._token}",
                         "format": "json",

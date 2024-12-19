@@ -397,29 +397,57 @@ class ServerlessClient(BaseClient):
     ####### FILES #######
     #####################
 
-    def files(self, provider: Optional[str] = None) -> List[str]:
+    def files(self, function: QiskitFunction) -> List[str]:
         """Returns list of available files produced by programs to download."""
-        return self._files_client.list(provider)
+        return self._files_client.list(function)
+
+    def provider_files(self, function: QiskitFunction) -> List[str]:
+        """Returns list of available files produced by programs to download."""
+        return self._files_client.provider_list(function)
 
     def file_download(
         self,
         file: str,
+        function: QiskitFunction,
         target_name: Optional[str] = None,
         download_location: str = "./",
-        provider: Optional[str] = None,
     ):
         """Download file."""
         return self._files_client.download(
-            file, download_location, target_name, provider
+            file, download_location, function, target_name
         )
 
-    def file_delete(self, file: str, provider: Optional[str] = None):
-        """Deletes file uploaded or produced by the programs,"""
-        return self._files_client.delete(file, provider)
+    def provider_file_download(
+        self,
+        file: str,
+        function: QiskitFunction,
+        target_name: Optional[str] = None,
+        download_location: str = "./",
+    ):
+        """Download file."""
+        return self._files_client.provider_download(
+            file, download_location, function, target_name
+        )
 
-    def file_upload(self, file: str, provider: Optional[str] = None):
+    def file_delete(
+        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+    ):
+        """Deletes file uploaded or produced by the programs,"""
+        return self._files_client.delete(file, function, provider)
+
+    def provider_file_delete(self, file: str, function: QiskitFunction, provider: str):
+        """Deletes file uploaded or produced by the programs,"""
+        return self._files_client.provider_delete(file, function, provider)
+
+    def file_upload(
+        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+    ):
         """Upload file."""
-        return self._files_client.upload(file, provider)
+        return self._files_client.upload(file, function, provider)
+
+    def provider_file_upload(self, file: str, function: QiskitFunction, provider: str):
+        """Upload file."""
+        return self._files_client.provider_upload(file, function, provider)
 
 
 class IBMServerlessClient(ServerlessClient):
