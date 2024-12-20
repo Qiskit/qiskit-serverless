@@ -20,6 +20,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from api.access_policies.providers import ProviderAccessPolicy
+from api.models import RUN_PROGRAM_PERMISSION
 from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
 from api.services.file_storage import FileStorage, WorkingDir
@@ -74,12 +75,11 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            function = (
-                self.function_repository.get_function_by_title_with_run_permissions(
-                    user=request.user,
-                    function_title=function_title,
-                    provider_name=provider_name,
-                )
+            function = self.function_repository.get_function_by_permission(
+                user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
             )
             if not function:
                 if provider_name:
@@ -137,12 +137,11 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            function = (
-                self.function_repository.get_function_by_title_with_run_permissions(
-                    user=request.user,
-                    function_title=function_title,
-                    provider_name=provider_name,
-                )
+            function = self.function_repository.get_function_by_permission(
+                user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
             )
             if not function:
                 return Response(
@@ -186,12 +185,11 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            function = (
-                self.function_repository.get_function_by_title_with_run_permissions(
-                    user=request.user,
-                    function_title=function_title,
-                    provider_name=provider_name,
-                )
+            function = self.function_repository.get_function_by_permission(
+                user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
             )
             if not function:
                 if provider_name:
@@ -265,12 +263,11 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            function = (
-                self.function_repository.get_function_by_title_with_run_permissions(
-                    user=request.user,
-                    function_title=function_title,
-                    provider_name=provider_name,
-                )
+            function = self.function_repository.get_function_by_permission(
+                user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
             )
             if not function:
                 return Response(
@@ -319,12 +316,11 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            function = (
-                self.function_repository.get_function_by_title_with_run_permissions(
-                    user=request.user,
-                    function_title=function_title,
-                    provider_name=provider_name,
-                )
+            function = self.function_repository.get_function_by_permission(
+                user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
             )
 
             if not function:
@@ -386,12 +382,11 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            function = (
-                self.function_repository.get_function_by_title_with_run_permissions(
-                    user=request.user,
-                    function_title=function_title,
-                    provider_name=provider_name,
-                )
+            function = self.function_repository.get_function_by_permission(
+                user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
             )
 
             if not function:
@@ -441,12 +436,11 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            function = (
-                self.function_repository.get_function_by_title_with_run_permissions(
-                    user=request.user,
-                    function_title=function_title,
-                    provider_name=provider_name,
-                )
+            function = self.function_repository.get_function_by_permission(
+                user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
             )
             if not function:
                 if provider_name:
@@ -506,12 +500,11 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            function = (
-                self.function_repository.get_function_by_title_with_run_permissions(
-                    user=request.user,
-                    function_title=function_title,
-                    provider_name=provider_name,
-                )
+            function = self.function_repository.get_function_by_permission(
+                user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
             )
             if not function:
                 return Response(

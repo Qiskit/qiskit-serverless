@@ -23,7 +23,7 @@ class FunctionRepository:
     The main objective of this class is to manage the access to the model
     """
 
-    # This repository should be in the use case implementatio
+    # This repository should be in the use case implementation
     # but this class is not ready yet so it will live here
     # in the meantime
     user_repository = UserRepository()
@@ -109,7 +109,7 @@ class FunctionRepository:
 
         return result_queryset
 
-    def get_user_function_by_title(self, author, title: str) -> Function | None:
+    def get_user_function(self, author, title: str) -> Function | None:
         """
         Returns the user function associated to a title:
 
@@ -137,8 +137,8 @@ class FunctionRepository:
 
         return result_queryset
 
-    def get_provider_function_by_title_with_view_permissions(
-        self, author, title: str, provider_name: str
+    def get_provider_function_by_permission(
+        self, author, permission_name: str, title: str, provider_name: str
     ) -> Function | None:
         """
         Returns the provider function associated to:
@@ -160,7 +160,7 @@ class FunctionRepository:
         # have it implemented yet we will do the check by now in the
         # repository call
         view_groups = self.user_repository.get_groups_by_permissions(
-            user=author, permission_name=VIEW_PROGRAM_PERMISSION
+            user=author, permission_name=permission_name
         )
         author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
         author_criteria = Q(author=author)
@@ -181,52 +181,12 @@ class FunctionRepository:
 
         return result_queryset
 
-    def get_provider_function_by_title_with_run_permissions(
-        self, author, title: str, provider_name: str
-    ) -> Function | None:
-        """
-        Returns the provider function associated to:
-          - A Function title
-          - A Provider
-          - Author must have run permission to execute it or be the author
-
-        Args:
-            author: Django author from who retrieve the function
-            title: Title that the function must have to find it
-            provider: Provider associated to the function
-
-        Returns:
-            Program | None: provider function with the specific
-                title and provider
-        """
-
-        # This access should be checked in the use-case but how we don't
-        # have it implemented yet we will do the check by now in the
-        # repository call
-        run_groups = self.user_repository.get_groups_by_permissions(
-            user=author, permission_name=RUN_PROGRAM_PERMISSION
-        )
-        author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
-        author_criteria = Q(author=author)
-        title_criteria = Q(title=title, provider__name=provider_name)
-
-        result_queryset = Function.objects.filter(
-            (author_criteria | author_groups_with_run_permissions_criteria)
-            & title_criteria
-        ).first()
-
-        if result_queryset is None:
-            logger.warning(
-                "Function [%s/%s] was not found or author [%s] doesn't have access to it",
-                provider_name,
-                title,
-                author.id,
-            )
-
-        return result_queryset
-
-    def get_function_by_title_with_run_permissions(
-        self, user, function_title: str, provider_name: str | None
+    def get_function_by_permission(
+        self,
+        user,
+        permission_name: str,
+        function_title: str,
+        provider_name: str | None,
     ) -> None:
         """
         This method returns the specified function if the user is
@@ -242,8 +202,11 @@ class FunctionRepository:
         """
 
         if provider_name:
-            return self.get_provider_function_by_title_with_run_permissions(
-                author=user, title=function_title, provider_name=provider_name
+            return self.get_provider_function_by_permission(
+                author=user,
+                permission_name=permission_name,
+                title=function_title,
+                provider_name=provider_name,
             )
 
-        return self.get_user_function_by_title(author=user, title=function_title)
+        return self.get_user_function(author=user, title=function_title)

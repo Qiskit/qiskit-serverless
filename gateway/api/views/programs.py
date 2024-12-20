@@ -29,7 +29,7 @@ from api.serializers import (
     RunProgramSerializer,
     UploadProgramSerializer,
 )
-from api.models import RUN_PROGRAM_PERMISSION, Program, Job
+from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
 from api.views.enums.type_filter import TypeFilter
 
 # pylint: disable=duplicate-code
@@ -309,11 +309,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
         )
 
         if provider_name:
-            function = self.program_repository.get_provider_function_by_title_with_view_permissions(
-                author=author, title=function_title, provider_name=provider_name
+            function = self.program_repository.get_provider_function_by_permission(
+                author=author,
+                permission_name=VIEW_PROGRAM_PERMISSION,
+                title=function_title,
+                provider_name=provider_name,
             )
         else:
-            function = self.program_repository.get_user_function_by_title(
+            function = self.program_repository.get_user_function(
                 author=author, title=function_title
             )
 
