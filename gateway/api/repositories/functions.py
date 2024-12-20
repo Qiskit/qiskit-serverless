@@ -99,9 +99,11 @@ class FunctionRepository:
         )
         author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
         provider_exists_criteria = ~Q(provider=None)
+        author_criteria = Q(author=author)
 
         result_queryset = Function.objects.filter(
-            author_groups_with_run_permissions_criteria & provider_exists_criteria
+            (author_groups_with_run_permissions_criteria & provider_exists_criteria)
+            | (author_criteria & provider_exists_criteria)
         ).distinct()
 
         count = result_queryset.count()
