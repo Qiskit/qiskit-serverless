@@ -460,7 +460,8 @@ def trace_decorator_factory(traced_feature: str):
     def generated_decorator(traced_function: Union[FunctionType, str]):
         """
         The decorator wrapper to generate optional arguments
-        if traced_function is nullable it will be replaced by the decorated function name.
+        if traced_function is string it will be used in the span,
+        the function.__name__ attribute will be used otherwise
         """
 
         def decorator_trace(func: FunctionType):
