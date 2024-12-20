@@ -19,10 +19,10 @@ class ProviderRepository:  # pylint: disable=too-few-public-methods
         Returns the provider associated with a name.
 
         Args:
-            name: provider name
+          - name: provider name
 
         Returns:
-            Provider | None: returns the specific provider if it exists
+          - Provider | None: returns the specific provider if it exists
         """
 
         provider = Provider.objects.filter(name=name).first()

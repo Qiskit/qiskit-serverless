@@ -30,11 +30,13 @@ class FunctionRepository:
     ) -> List[Function]:
         """
         Returns all the functions available to the user. This means:
-          - User functions where the user is the author
-          - Provider functions with view permissions
+            - User functions where the user is the author
+            - Provider functions with the permission specified
 
         Args:
             author: Django author from who retrieve the functions
+            permission_name (str): name of the permission. Values accepted
+            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 
         Returns:
             List[Function]: all the functions available to the user
@@ -86,10 +88,13 @@ class FunctionRepository:
         """
         Returns the provider functions available to the user. This means:
           - Provider functions where the user has run permissions
+          - Provider functions where the user is the author
           - Provider is NOT None
 
         Args:
             author: Django author from who retrieve the functions
+            permission_name (str): name of the permission. Values accepted
+            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 
         Returns:
             List[Program]: providers functions available to the user
@@ -118,7 +123,7 @@ class FunctionRepository:
 
         Args:
             author: Django author from who retrieve the function
-            title: Title that the function must have to find it
+            title (str): Title that the function must have to find it
 
         Returns:
             Program | None: user function with the specific title
@@ -147,16 +152,18 @@ class FunctionRepository:
         Returns the provider function associated to:
           - A Function title
           - A Provider
-          - Author must have view permission to see it or be the author
+          - Author must have a permission to see it or be the author
 
         Args:
             author: Django author from who retrieve the function
-            title: Title that the function must have to find it
-            provider: Provider associated to the function
+            permission_name (str): name of the permission. Values accepted
+            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
+            title (str): Title that the function must have to find it
+            provider (str): the name of the provider
 
         Returns:
             Program | None: provider function with the specific
-                title and provider
+            title and provider
         """
 
         # This access should be checked in the use-case but how we don't
@@ -193,10 +200,12 @@ class FunctionRepository:
     ) -> None:
         """
         This method returns the specified function if the user is
-        the author of the function or it has run permissions.
+        the author of the function or it has a permission.
 
         Args:
             user: Django user of the function that wants to get it
+            permission_name (str): name of the permission. Values accepted
+            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
             function_title (str): title of the function
             provider_name (str | None): name of the provider owner of the function
 

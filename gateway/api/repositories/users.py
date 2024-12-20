@@ -18,7 +18,7 @@ class UserRepository:  # pylint: disable=too-few-public-methods
 
         Args:
             user: Django user from the request
-            permission
+            permission_name (str): name of the permission by look for
 
         Returns:
             List[Group]: all the groups available to the user
