@@ -382,7 +382,7 @@ class ServerlessClient(BaseClient):
                 timeout=REQUESTS_TIMEOUT,
             )
         )
-        
+
         return RunnableQiskitFunction(
             client=self,
             title=response_data.get("title"),
