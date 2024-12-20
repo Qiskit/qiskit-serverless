@@ -7,7 +7,7 @@ from django.contrib.auth.models import Group, Permission
 from django.db.models import Q
 
 
-class GroupRepository:  # pylint: disable=too-few-public-methods
+class UserRepository:  # pylint: disable=too-few-public-methods
     """
     The main objective of this class is to manage the access to the model
     """

@@ -12,7 +12,7 @@ from api.models import (
     VIEW_PROGRAM_PERMISSION,
     Program as Function,
 )
-from api.repositories.groups import GroupRepository
+from api.repositories.users import UserRepository
 
 
 logger = logging.getLogger("gateway")
@@ -26,7 +26,7 @@ class FunctionRepository:
     # This repository should be in the use case implementatio
     # but this class is not ready yet so it will live here
     # in the meantime
-    group_repository = GroupRepository()
+    user_repository = UserRepository()
 
     def get_functions_with_view_permissions(self, author) -> List[Function]:
         """
@@ -41,7 +41,7 @@ class FunctionRepository:
             List[Function]: all the functions available to the user
         """
 
-        view_groups = self.group_repository.get_groups_by_permissions(
+        view_groups = self.user_repository.get_groups_by_permissions(
             user=author, permission_name=VIEW_PROGRAM_PERMISSION
         )
         author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
@@ -94,7 +94,7 @@ class FunctionRepository:
             List[Program]: providers functions available to the user
         """
 
-        run_groups = self.group_repository.get_groups_by_permissions(
+        run_groups = self.user_repository.get_groups_by_permissions(
             user=author, permission_name=RUN_PROGRAM_PERMISSION
         )
         author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
@@ -159,7 +159,7 @@ class FunctionRepository:
         # This access should be checked in the use-case but how we don't
         # have it implemented yet we will do the check by now in the
         # repository call
-        view_groups = self.group_repository.get_groups_by_permissions(
+        view_groups = self.user_repository.get_groups_by_permissions(
             user=author, permission_name=VIEW_PROGRAM_PERMISSION
         )
         author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
@@ -203,7 +203,7 @@ class FunctionRepository:
         # This access should be checked in the use-case but how we don't
         # have it implemented yet we will do the check by now in the
         # repository call
-        run_groups = self.group_repository.get_groups_by_permissions(
+        run_groups = self.user_repository.get_groups_by_permissions(
             user=author, permission_name=RUN_PROGRAM_PERMISSION
         )
         author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
