@@ -161,14 +161,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 # Catalog filter only returns providers functions that user has access:
                 # author has view permissions and the function has a provider assigned
                 functions = (
-                    self.program_repository.get_provider_functions_with_run_permissions(
-                        author
+                    self.program_repository.get_provider_functions_by_permission(
+                        author, permission_name=RUN_PROGRAM_PERMISSION
                     )
                 )
             else:
                 # If filter is not applied we return author and providers functions together
-                functions = self.program_repository.get_functions_with_view_permissions(
-                    author
+                functions = self.program_repository.get_functions_by_permission(
+                    author, permission_name=VIEW_PROGRAM_PERMISSION
                 )
 
             serializer = self.get_serializer(functions, many=True)

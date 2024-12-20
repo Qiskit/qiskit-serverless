@@ -7,11 +7,8 @@ from typing import List
 
 from django.db.models import Q
 
-from api.models import (
-    RUN_PROGRAM_PERMISSION,
-    VIEW_PROGRAM_PERMISSION,
-    Program as Function,
-)
+from api.models import Program as Function
+
 from api.repositories.users import UserRepository
 
 
@@ -28,7 +25,9 @@ class FunctionRepository:
     # in the meantime
     user_repository = UserRepository()
 
-    def get_functions_with_view_permissions(self, author) -> List[Function]:
+    def get_functions_by_permission(
+        self, author, permission_name: str
+    ) -> List[Function]:
         """
         Returns all the functions available to the user. This means:
           - User functions where the user is the author
@@ -42,7 +41,7 @@ class FunctionRepository:
         """
 
         view_groups = self.user_repository.get_groups_by_permissions(
-            user=author, permission_name=VIEW_PROGRAM_PERMISSION
+            user=author, permission_name=permission_name
         )
         author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
         author_criteria = Q(author=author)
@@ -81,7 +80,9 @@ class FunctionRepository:
 
         return result_queryset
 
-    def get_provider_functions_with_run_permissions(self, author) -> List[Function]:
+    def get_provider_functions_by_permission(
+        self, author, permission_name: str
+    ) -> List[Function]:
         """
         Returns the provider functions available to the user. This means:
           - Provider functions where the user has run permissions
@@ -95,7 +96,7 @@ class FunctionRepository:
         """
 
         run_groups = self.user_repository.get_groups_by_permissions(
-            user=author, permission_name=RUN_PROGRAM_PERMISSION
+            user=author, permission_name=permission_name
         )
         author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
         provider_exists_criteria = ~Q(provider=None)
