@@ -199,12 +199,40 @@ class GatewayFilesClient:
         return response_data.get("results", [])
 
     @_trace
-    def delete(self, file: str, provider: Optional[str] = None) -> Optional[str]:
+    def delete(
+        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+    ) -> Optional[str]:
         """Deletes file uploaded or produced by the programs,"""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
                 os.path.join(self._files_url, "delete"),
-                data={"file": file, "provider": provider},
+                params={
+                    "file": file,
+                    "function": function.title,
+                    "provider": provider,
+                },
+                headers={
+                    "Authorization": f"Bearer {self._token}",
+                    "format": "json",
+                },
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        return response_data.get("message", "")
+
+    @_trace
+    def provider_delete(
+        self, file: str, function: QiskitFunction, provider: str
+    ) -> Optional[str]:
+        """Deletes file uploaded or produced by the programs,"""
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.delete(
+                os.path.join(self._files_url, "provider", "delete"),
+                params={
+                    "file": file,
+                    "function": function.title,
+                    "provider": provider,
+                },
                 headers={
                     "Authorization": f"Bearer {self._token}",
                     "format": "json",
