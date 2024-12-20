@@ -7,7 +7,11 @@ from typing import List
 
 from django.db.models import Q
 
-from api.models import Program as Function
+from api.models import (
+    RUN_PROGRAM_PERMISSION,
+    VIEW_PROGRAM_PERMISSION,
+    Program as Function,
+)
 from api.repositories.groups import GroupRepository
 
 
@@ -37,8 +41,8 @@ class FunctionRepository:
             List[Function]: all the functions available to the user
         """
 
-        view_groups = self.group_repository.get_groups_with_view_permissions_from_user(
-            user=author
+        view_groups = self.group_repository.get_groups_by_permissions(
+            user=author, permission_name=VIEW_PROGRAM_PERMISSION
         )
         author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
         author_criteria = Q(author=author)
@@ -90,8 +94,8 @@ class FunctionRepository:
             List[Program]: providers functions available to the user
         """
 
-        run_groups = self.group_repository.get_groups_with_run_permissions_from_user(
-            user=author
+        run_groups = self.group_repository.get_groups_by_permissions(
+            user=author, permission_name=RUN_PROGRAM_PERMISSION
         )
         author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
         provider_exists_criteria = ~Q(provider=None)
@@ -155,8 +159,8 @@ class FunctionRepository:
         # This access should be checked in the use-case but how we don't
         # have it implemented yet we will do the check by now in the
         # repository call
-        view_groups = self.group_repository.get_groups_with_view_permissions_from_user(
-            user=author
+        view_groups = self.group_repository.get_groups_by_permissions(
+            user=author, permission_name=VIEW_PROGRAM_PERMISSION
         )
         author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
         author_criteria = Q(author=author)
@@ -199,8 +203,8 @@ class FunctionRepository:
         # This access should be checked in the use-case but how we don't
         # have it implemented yet we will do the check by now in the
         # repository call
-        run_groups = self.group_repository.get_groups_with_run_permissions_from_user(
-            user=author
+        run_groups = self.group_repository.get_groups_by_permissions(
+            user=author, permission_name=RUN_PROGRAM_PERMISSION
         )
         author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
         author_criteria = Q(author=author)
