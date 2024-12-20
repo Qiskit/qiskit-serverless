@@ -18,7 +18,7 @@ application:
   superuser:
     enable: true
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.18.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.18.1"
     cpu: 2
     memory: 2
     gpu: 1
@@ -27,7 +27,7 @@ application:
     maxReplicas: 4
     opensslImage: registry.access.redhat.com/ubi8/openssl:8.8-9
     kubectlImage: alpine/k8s:1.29.2@sha256:a51aa37f0a34ff827c7f2f9cb7f6fbb8f0e290fa625341be14c2fcc4b1880f60
-    proxyImage: "icr.io/quantum-public/qiskit-serverless/proxy:0.18.0"
+    proxyImage: "icr.io/quantum-public/qiskit-serverless/proxy:0.18.1"
     scrapeWithPrometheus: true
     openTelemetry: false
     openTelemetryCollector:

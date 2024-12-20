@@ -132,13 +132,34 @@ class GatewayFilesClient:
         )
 
     @_trace
-    def upload(self, file: str, provider: Optional[str] = None) -> Optional[str]:
+    def upload(
+        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+    ) -> Optional[str]:
         """Uploads file."""
         with open(file, "rb") as f:
             with requests.post(
                 os.path.join(self._files_url, "upload"),
                 files={"file": f},
-                data={"provider": provider},
+                params={"provider": provider, "function": function.title},
+                stream=True,
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=REQUESTS_STREAMING_TIMEOUT,
+            ) as req:
+                if req.ok:
+                    return req.text
+                return "Upload failed"
+        return "Can not open file"
+
+    @_trace
+    def provider_upload(
+        self, file: str, function: QiskitFunction, provider: str
+    ) -> Optional[str]:
+        """Uploads file to provider/function file storage."""
+        with open(file, "rb") as f:
+            with requests.post(
+                os.path.join(self._files_url, "upload"),
+                files={"file": f},
+                params={"provider": provider, "function": function.title},
                 stream=True,
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_STREAMING_TIMEOUT,

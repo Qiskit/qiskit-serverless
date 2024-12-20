@@ -40,8 +40,8 @@ from subprocess import Popen
 from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_serverless.core.constants import (
+    JOB_ARGUMENTS_FILE,
     OT_PROGRAM_NAME,
-    ENV_JOB_ARGUMENTS,
 )
 from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.job import (
@@ -112,11 +112,16 @@ class LocalClient(BaseClient):
             **(saved_program.env_vars or {}),
             **{OT_PROGRAM_NAME: saved_program.title},
             **{"PATH": os.environ["PATH"]},
-            **{ENV_JOB_ARGUMENTS: json.dumps(arguments, cls=QiskitObjectsEncoder)},
         }
 
+        with open(JOB_ARGUMENTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(arguments, f, cls=QiskitObjectsEncoder)
+
         with Popen(
-            ["python", saved_program.working_dir + saved_program.entrypoint],
+            [
+                "python",
+                os.path.join(saved_program.working_dir, saved_program.entrypoint),
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
@@ -126,6 +131,9 @@ class LocalClient(BaseClient):
             if pipe.wait():
                 status = "FAILED"
             output, _ = pipe.communicate()
+
+        os.remove(JOB_ARGUMENTS_FILE)
+
         results = re.search("\nSaved Result:(.+?):End Saved Result\n", output)
         result = ""
         if results:
