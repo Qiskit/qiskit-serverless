@@ -151,8 +151,6 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             )
             return None
 
-        file_type = mimetypes.guess_type(path_to_file)[0]
-        file_size = os.path.getsize(path_to_file)
 
         # We can not use context manager here. Django close the file automatically:
         # https://docs.djangoproject.com/en/5.1/ref/request-response/#fileresponse-objects
