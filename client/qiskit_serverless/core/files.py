@@ -105,8 +105,8 @@ class GatewayFilesClient:
                 file,
                 download_location,
                 function,
-                target_name,
                 os.path.join(self._files_url, "download"),
+                target_name,
             )
 
     def provider_download(
@@ -126,8 +126,8 @@ class GatewayFilesClient:
                 file,
                 download_location,
                 function,
-                target_name,
                 os.path.join(self._files_url, "provider", "download"),
+                target_name,
             )
 
     def upload(
@@ -138,7 +138,7 @@ class GatewayFilesClient:
         with tracer.start_as_current_span("files.upload"):
             with open(file, "rb") as f:
                 with requests.post(
-                    os.path.join(self._files_url, "upload"),
+                    os.path.join(self._files_url, "upload/"),
                     files={"file": f},
                     params={"provider": provider, "function": function.title},
                     stream=True,
@@ -158,7 +158,7 @@ class GatewayFilesClient:
         with tracer.start_as_current_span("files.upload"):
             with open(file, "rb") as f:
                 with requests.post(
-                    os.path.join(self._files_url, "upload"),
+                    os.path.join(self._files_url, "upload/"),
                     files={"file": f},
                     params={"provider": provider, "function": function.title},
                     stream=True,
@@ -177,7 +177,7 @@ class GatewayFilesClient:
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
                     self._files_url,
-                    params={"title": function.title},
+                    params={"function": function.title},
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
@@ -194,21 +194,50 @@ class GatewayFilesClient:
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.get(
                     os.path.join(self._files_url, "provider"),
-                    params={"provider": function.provider, "title": function.title},
+                    params={"provider": function.provider, "function": function.title},
                     headers={"Authorization": f"Bearer {self._token}"},
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
         return response_data.get("results", [])
 
-    def delete(self, file: str, provider: Optional[str] = None) -> Optional[str]:
+    def delete(
+        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+    ) -> Optional[str]:
         """Deletes file uploaded or produced by the programs,"""
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("files.delete"):
             response_data = safe_json_request_as_dict(
                 request=lambda: requests.delete(
                     os.path.join(self._files_url, "delete"),
-                    data={"file": file, "provider": provider},
+                    params={
+                        "file": file,
+                        "function": function.title,
+                        "provider": provider,
+                    },
+                    headers={
+                        "Authorization": f"Bearer {self._token}",
+                        "format": "json",
+                    },
+                    timeout=REQUESTS_TIMEOUT,
+                )
+            )
+        return response_data.get("message", "")
+
+    def provider_delete(
+        self, file: str, function: QiskitFunction, provider: str
+    ) -> Optional[str]:
+        """Deletes file uploaded or produced by the programs,"""
+        tracer = trace.get_tracer("client.tracer")
+        with tracer.start_as_current_span("files.provider_delete"):
+            response_data = safe_json_request_as_dict(
+                request=lambda: requests.delete(
+                    os.path.join(self._files_url, "provider", "delete"),
+                    params={
+                        "file": file,
+                        "function": function.title,
+                        "provider": provider,
+                    },
                     headers={
                         "Authorization": f"Bearer {self._token}",
                         "format": "json",
