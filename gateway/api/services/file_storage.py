@@ -151,7 +151,6 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             )
             return None
 
-
         # We can not use context manager here. Django close the file automatically:
         # https://docs.djangoproject.com/en/5.1/ref/request-response/#fileresponse-objects
         file_wrapper = FileWrapper(
