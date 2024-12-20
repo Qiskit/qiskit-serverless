@@ -20,7 +20,7 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
-from api.repositories.programs import ProgramRepository
+from api.repositories.functions import FunctionRepository
 from api.utils import sanitize_name
 from api.serializers import (
     JobConfigSerializer,
@@ -56,7 +56,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
     BASE_NAME = "programs"
 
-    program_repository = ProgramRepository()
+    program_repository = FunctionRepository()
 
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):

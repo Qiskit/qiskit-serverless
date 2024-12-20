@@ -7,14 +7,14 @@ from typing import List
 
 from django.db.models import Q
 
-from api.models import Program
+from api.models import Program as Function
 from api.repositories.groups import GroupRepository
 
 
 logger = logging.getLogger("gateway")
 
 
-class ProgramRepository:
+class FunctionRepository:
     """
     The main objective of this class is to manage the access to the model
     """
@@ -24,7 +24,7 @@ class ProgramRepository:
     # in the meantime
     group_repository = GroupRepository()
 
-    def get_functions_with_view_permissions(self, author) -> List[Program]:
+    def get_functions_with_view_permissions(self, author) -> List[Function]:
         """
         Returns all the functions available to the user. This means:
           - User functions where the user is the author
@@ -34,7 +34,7 @@ class ProgramRepository:
             author: Django author from who retrieve the functions
 
         Returns:
-            List[Program]: all the functions available to the user
+            List[Function]: all the functions available to the user
         """
 
         view_groups = self.group_repository.get_groups_with_view_permissions_from_user(
@@ -43,7 +43,7 @@ class ProgramRepository:
         author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
         author_criteria = Q(author=author)
 
-        result_queryset = Program.objects.filter(
+        result_queryset = Function.objects.filter(
             author_criteria | author_groups_with_view_permissions_criteria
         ).distinct()
 
@@ -52,7 +52,7 @@ class ProgramRepository:
 
         return result_queryset
 
-    def get_user_functions(self, author) -> List[Program]:
+    def get_user_functions(self, author) -> List[Function]:
         """
         Returns the user functions available to the user. This means:
           - User functions where the user is the author
@@ -68,7 +68,7 @@ class ProgramRepository:
         author_criteria = Q(author=author)
         provider_criteria = Q(provider=None)
 
-        result_queryset = Program.objects.filter(
+        result_queryset = Function.objects.filter(
             author_criteria & provider_criteria
         ).distinct()
 
@@ -77,7 +77,7 @@ class ProgramRepository:
 
         return result_queryset
 
-    def get_provider_functions_with_run_permissions(self, author) -> List[Program]:
+    def get_provider_functions_with_run_permissions(self, author) -> List[Function]:
         """
         Returns the provider functions available to the user. This means:
           - Provider functions where the user has run permissions
@@ -96,7 +96,7 @@ class ProgramRepository:
         author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
         provider_exists_criteria = ~Q(provider=None)
 
-        result_queryset = Program.objects.filter(
+        result_queryset = Function.objects.filter(
             author_groups_with_run_permissions_criteria & provider_exists_criteria
         ).distinct()
 
@@ -105,7 +105,7 @@ class ProgramRepository:
 
         return result_queryset
 
-    def get_user_function_by_title(self, author, title: str) -> Program | None:
+    def get_user_function_by_title(self, author, title: str) -> Function | None:
         """
         Returns the user function associated to a title:
 
@@ -120,7 +120,7 @@ class ProgramRepository:
         author_criteria = Q(author=author)
         title_criteria = Q(title=title)
 
-        result_queryset = Program.objects.filter(
+        result_queryset = Function.objects.filter(
             author_criteria & title_criteria
         ).first()
 
@@ -135,7 +135,7 @@ class ProgramRepository:
 
     def get_provider_function_by_title_with_view_permissions(
         self, author, title: str, provider_name: str
-    ) -> Program | None:
+    ) -> Function | None:
         """
         Returns the provider function associated to:
           - A Function title
@@ -162,7 +162,7 @@ class ProgramRepository:
         author_criteria = Q(author=author)
         title_criteria = Q(title=title, provider__name=provider_name)
 
-        result_queryset = Program.objects.filter(
+        result_queryset = Function.objects.filter(
             (author_criteria | author_groups_with_view_permissions_criteria)
             & title_criteria
         ).first()
@@ -179,7 +179,7 @@ class ProgramRepository:
 
     def get_provider_function_by_title_with_run_permissions(
         self, author, title: str, provider_name: str
-    ) -> Program | None:
+    ) -> Function | None:
         """
         Returns the provider function associated to:
           - A Function title
@@ -206,7 +206,7 @@ class ProgramRepository:
         author_criteria = Q(author=author)
         title_criteria = Q(title=title, provider__name=provider_name)
 
-        result_queryset = Program.objects.filter(
+        result_queryset = Function.objects.filter(
             (author_criteria | author_groups_with_run_permissions_criteria)
             & title_criteria
         ).first()

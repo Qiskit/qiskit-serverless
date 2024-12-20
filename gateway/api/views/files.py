@@ -20,7 +20,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from api.access_policies.providers import ProviderAccessPolicy
-from api.repositories.programs import ProgramRepository
+from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
 from api.services.file_storage import FileStorage, WorkingDir
 from api.utils import sanitize_file_name, sanitize_name
@@ -51,7 +51,7 @@ class FilesViewSet(viewsets.ViewSet):
 
     BASE_NAME = "files"
 
-    program_repository = ProgramRepository()
+    function_repository = FunctionRepository()
     provider_repository = ProviderRepository()
 
     def list(self, request):
@@ -75,7 +75,7 @@ class FilesViewSet(viewsets.ViewSet):
                 )
 
             function = (
-                self.program_repository.get_function_by_title_with_run_permissions(
+                self.function_repository.get_function_by_title_with_run_permissions(
                     user=request.user,
                     function_title=function_title,
                     provider_name=provider_name,
@@ -138,7 +138,7 @@ class FilesViewSet(viewsets.ViewSet):
                 )
 
             function = (
-                self.program_repository.get_function_by_title_with_run_permissions(
+                self.function_repository.get_function_by_title_with_run_permissions(
                     user=request.user,
                     function_title=function_title,
                     provider_name=provider_name,
@@ -187,7 +187,7 @@ class FilesViewSet(viewsets.ViewSet):
                 )
 
             function = (
-                self.program_repository.get_function_by_title_with_run_permissions(
+                self.function_repository.get_function_by_title_with_run_permissions(
                     user=request.user,
                     function_title=function_title,
                     provider_name=provider_name,
@@ -266,7 +266,7 @@ class FilesViewSet(viewsets.ViewSet):
                 )
 
             function = (
-                self.program_repository.get_function_by_title_with_run_permissions(
+                self.function_repository.get_function_by_title_with_run_permissions(
                     user=request.user,
                     function_title=function_title,
                     provider_name=provider_name,
@@ -303,12 +303,10 @@ class FilesViewSet(viewsets.ViewSet):
 
     @action(methods=["DELETE"], detail=False)
     def delete(self, request):
-        """Deletes file uploaded or produced by the programs,"""
-        # default response for file not found, overwritten if file is found
+        """Deletes file uploaded or produced by the functions"""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.delete", context=ctx):
-            # look for file in user's folder
             username = request.user.username
             file_name = sanitize_file_name(request.query_params.get("file", None))
             provider_name = sanitize_name(request.query_params.get("provider"))
@@ -322,7 +320,7 @@ class FilesViewSet(viewsets.ViewSet):
                 )
 
             function = (
-                self.program_repository.get_function_by_title_with_run_permissions(
+                self.function_repository.get_function_by_title_with_run_permissions(
                     user=request.user,
                     function_title=function_title,
                     provider_name=provider_name,
@@ -358,12 +356,10 @@ class FilesViewSet(viewsets.ViewSet):
 
     @action(methods=["DELETE"], detail=False, url_path="provider/delete")
     def provider_delete(self, request):
-        """Deletes file uploaded or produced by the programs,"""
-        # default response for file not found, overwritten if file is found
+        """Deletes file uploaded or produced by the functions"""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.delete", context=ctx):
-            # look for file in user's folder
             username = request.user.username
             file_name = sanitize_file_name(request.query_params.get("file"))
             provider_name = sanitize_name(request.query_params.get("provider"))
@@ -391,7 +387,7 @@ class FilesViewSet(viewsets.ViewSet):
                 )
 
             function = (
-                self.program_repository.get_function_by_title_with_run_permissions(
+                self.function_repository.get_function_by_title_with_run_permissions(
                     user=request.user,
                     function_title=function_title,
                     provider_name=provider_name,
@@ -446,7 +442,7 @@ class FilesViewSet(viewsets.ViewSet):
                 )
 
             function = (
-                self.program_repository.get_function_by_title_with_run_permissions(
+                self.function_repository.get_function_by_title_with_run_permissions(
                     user=request.user,
                     function_title=function_title,
                     provider_name=provider_name,
@@ -511,7 +507,7 @@ class FilesViewSet(viewsets.ViewSet):
                 )
 
             function = (
-                self.program_repository.get_function_by_title_with_run_permissions(
+                self.function_repository.get_function_by_title_with_run_permissions(
                     user=request.user,
                     function_title=function_title,
                     provider_name=provider_name,
