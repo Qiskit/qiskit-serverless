@@ -9,6 +9,11 @@ serverless = ServerlessClient(
 )
 print(serverless)
 
+function = QiskitFunction(
+    title="file-producer", entrypoint="produce_files.py", working_dir="./source_files/"
+)
+serverless.upload(function)
+
 import tarfile
 
 filename = "uploaded_file.tar"
@@ -16,12 +21,7 @@ file = tarfile.open(filename, "w")
 file.add("manage_data_directory.py")
 file.close()
 
-serverless.file_upload(filename)
-
-function = QiskitFunction(
-    title="file-producer", entrypoint="produce_files.py", working_dir="./source_files/"
-)
-serverless.upload(function)
+serverless.file_upload(filename, function)
 
 functions = {f.title: f for f in serverless.list()}
 file_producer_function = functions.get("file-producer")
@@ -33,7 +33,7 @@ print(job.status())
 print(job.logs())
 
 
-print(serverless.files())
+print(serverless.files(file_producer_function))
 
 function = QiskitFunction(
     title="file-consumer", entrypoint="consume_files.py", working_dir="./source_files/"
@@ -49,8 +49,8 @@ print(job.result())
 print(job.status())
 print(job.logs())
 
-print(serverless.files())
+print(serverless.files(file_consumer_function))
 
-serverless.file_delete("uploaded_file.tar")
+serverless.file_delete("uploaded_file.tar", file_consumer_function)
 
 print("Done deleting files")
