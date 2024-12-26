@@ -19,9 +19,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from api.access_policies.providers import ProviderAccessPolicy
+from api.models import RUN_PROGRAM_PERMISSION
+from api.repositories.functions import FunctionRepository
+from api.repositories.providers import ProviderRepository
 from api.services.file_storage import FileStorage, WorkingDir
 from api.utils import sanitize_file_name, sanitize_name
-from api.models import Provider, Program
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -49,145 +52,8 @@ class FilesViewSet(viewsets.ViewSet):
 
     BASE_NAME = "files"
 
-    # Functions methods, these will be migrated to a Repository class
-    def get_function(
-        self, user, function_title: str, provider_name: str | None
-    ) -> None:
-        """
-        This method returns the specified function.
-
-        Args:
-            user: Django user of the function that wants to get it
-            function_title (str): title of the function
-            provider_name (str | None): name of the provider owner of the function
-
-        Returns:
-            Program | None: returns the function if it exists
-        """
-
-        if not provider_name:
-            return self.get_user_function(user=user, function_title=function_title)
-
-        function = self.get_provider_function(
-            provider_name=provider_name, function_title=function_title
-        )
-        if function and self.user_has_access_to_provider_function(
-            user=user, function=function
-        ):
-            return function
-
-        return None
-
-    def get_user_function(self, user, function_title: str) -> Program | None:
-        """
-        This method returns the specified function.
-
-        Args:
-            user: Django user to identify the author of the function
-            function_title (str): title of the function
-
-        Returns:
-            Program | None: returns the function if it exists
-        """
-
-        function = Program.objects.filter(title=function_title, author=user).first()
-        if function is None:
-            logger.error(
-                "Function [%s] does not exist for the author [%s]",
-                function_title,
-                user.id,
-            )
-            return None
-        return function
-
-    def get_provider_function(
-        self, provider_name: str, function_title: str
-    ) -> Program | None:
-        """
-        This method returns the specified function from a provider.
-
-        Args:
-            provider_name (str): name of the provider
-            function_title (str): title of the function
-
-        Returns:
-            Program | None: returns the function if it exists
-        """
-
-        provider = Provider.objects.filter(name=provider_name).first()
-        if provider is None:
-            logger.error("Provider [%s] does not exist.", provider_name)
-            return None
-
-        function = Program.objects.filter(
-            title=function_title, provider=provider
-        ).first()
-        if function is None:
-            logger.error(
-                "Function [%s/%s] does not exist.", provider_name, function_title
-            )
-            return None
-        return function
-
-    def user_has_access_to_provider_function(self, user, function: Program) -> bool:
-        """
-        This method returns True or False if the user has access to the provider function.
-
-        Args:
-            user: Django user that is being checked
-            function (Program): the Qiskit Function that is going to be checked
-
-        Returns:
-            bool: boolean value that verifies if the user has access or not to the function
-        """
-
-        instances = function.instances.all()
-        user_groups = user.groups.all()
-        has_access = any(group in instances for group in user_groups)
-        if not has_access:
-            logger.error(
-                "User [%s] has no access to function [%s/%s].",
-                user.id,
-                function.provider.name,
-                function.title,
-            )
-        return has_access
-
-    # Provider methods, these will be migrated to a Repository class
-    def list_user_providers(self, user):
-        """list provider names that the user in"""
-        provider_list = []
-        providers = Provider.objects.all()
-        for instance in providers:
-            user_groups = user.groups.all()
-            admin_groups = instance.admin_groups.all()
-            provider_found = any(group in admin_groups for group in user_groups)
-            if provider_found:
-                provider_list.append(instance.name)
-        return provider_list
-
-    def check_user_has_provider(self, user, provider_name):
-        """check if user has the provider"""
-        return provider_name in self.list_user_providers(user)
-
-    def user_has_provider_access(self, user, provider_name: str) -> bool:
-        """
-        This method returns True or False if the user has access to the provider or not.
-        """
-
-        provider = Provider.objects.filter(name=provider_name).first()
-        if provider is None:
-            logger.error("Provider [%s] does not exist.", provider_name)
-            return False
-
-        user_groups = user.groups.all()
-        admin_groups = provider.admin_groups.all()
-        has_access = any(group in admin_groups for group in user_groups)
-        if not has_access:
-            logger.error(
-                "User [%s] has no access to provider [%s].", user.id, provider_name
-            )
-        return has_access
+    function_repository = FunctionRepository()
+    provider_repository = ProviderRepository()
 
     def list(self, request):
         """
@@ -209,8 +75,9 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            function = self.get_function(
+            function = self.function_repository.get_function_by_permission(
                 user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
@@ -256,14 +123,23 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if not self.user_has_provider_access(request.user, provider_name):
+            provider = self.provider_repository.get_provider_by_name(name=provider_name)
+            if provider is None:
+                return Response(
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if not ProviderAccessPolicy.can_access(
+                user=request.user, provider=provider
+            ):
                 return Response(
                     {"message": f"Provider {provider_name} doesn't exist."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            function = self.get_function(
+            function = self.function_repository.get_function_by_permission(
                 user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
@@ -309,8 +185,9 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            function = self.get_function(
+            function = self.function_repository.get_function_by_permission(
                 user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
@@ -372,14 +249,23 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if not self.user_has_provider_access(request.user, provider_name):
+            provider = self.provider_repository.get_provider_by_name(name=provider_name)
+            if provider is None:
+                return Response(
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if not ProviderAccessPolicy.can_access(
+                user=request.user, provider=provider
+            ):
                 return Response(
                     {"message": f"Provider {provider_name} doesn't exist."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            function = self.get_function(
+            function = self.function_repository.get_function_by_permission(
                 user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
@@ -414,12 +300,10 @@ class FilesViewSet(viewsets.ViewSet):
 
     @action(methods=["DELETE"], detail=False)
     def delete(self, request):
-        """Deletes file uploaded or produced by the programs,"""
-        # default response for file not found, overwritten if file is found
+        """Deletes file uploaded or produced by the functions"""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.delete", context=ctx):
-            # look for file in user's folder
             username = request.user.username
             file_name = sanitize_file_name(request.query_params.get("file", None))
             provider_name = sanitize_name(request.query_params.get("provider"))
@@ -432,8 +316,9 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            function = self.get_function(
+            function = self.function_repository.get_function_by_permission(
                 user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
@@ -467,17 +352,15 @@ class FilesViewSet(viewsets.ViewSet):
 
     @action(methods=["DELETE"], detail=False, url_path="provider/delete")
     def provider_delete(self, request):
-        """Deletes file uploaded or produced by the programs,"""
-        # default response for file not found, overwritten if file is found
+        """Deletes file uploaded or produced by the functions"""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.delete", context=ctx):
-            # look for file in user's folder
             username = request.user.username
             file_name = sanitize_file_name(request.query_params.get("file"))
             provider_name = sanitize_name(request.query_params.get("provider"))
             function_title = sanitize_name(request.query_params.get("function", None))
-            working_dir = WorkingDir.USER_STORAGE
+            working_dir = WorkingDir.PROVIDER_STORAGE
 
             if not all([file_name, function_title, provider_name]):
                 return Response(
@@ -485,14 +368,23 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if not self.user_has_provider_access(request.user, provider_name):
+            provider = self.provider_repository.get_provider_by_name(name=provider_name)
+            if provider is None:
+                return Response(
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if not ProviderAccessPolicy.can_access(
+                user=request.user, provider=provider
+            ):
                 return Response(
                     {"message": f"Provider {provider_name} doesn't exist."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            function = self.get_function(
+            function = self.function_repository.get_function_by_permission(
                 user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
@@ -544,8 +436,9 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            function = self.get_function(
+            function = self.function_repository.get_function_by_permission(
                 user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
@@ -593,14 +486,23 @@ class FilesViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if not self.user_has_provider_access(request.user, provider_name):
+            provider = self.provider_repository.get_provider_by_name(name=provider_name)
+            if provider is None:
+                return Response(
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if not ProviderAccessPolicy.can_access(
+                user=request.user, provider=provider
+            ):
                 return Response(
                     {"message": f"Provider {provider_name} doesn't exist."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            function = self.get_function(
+            function = self.function_repository.get_function_by_permission(
                 user=request.user,
+                permission_name=RUN_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )

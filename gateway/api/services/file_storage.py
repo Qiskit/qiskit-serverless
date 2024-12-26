@@ -82,7 +82,14 @@ class FileStorage:  # pylint: disable=too-few-public-methods
                 settings.MEDIA_ROOT, self.username, provider_name, function_title
             )
 
-        return sanitize_file_path(path)
+        sanitized_path = sanitize_file_path(path)
+
+        # Create directory if it doesn't exist
+        if not os.path.exists(sanitized_path):
+            os.makedirs(sanitized_path, exist_ok=True)
+            logger.debug("Path %s was created.", sanitized_path)
+
+        return sanitized_path
 
     def __get_provider_path(self, function_title: str, provider_name: str) -> str:
         """
@@ -99,7 +106,14 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         """
         path = os.path.join(settings.MEDIA_ROOT, provider_name, function_title)
 
-        return sanitize_file_path(path)
+        sanitized_path = sanitize_file_path(path)
+
+        # Create directory if it doesn't exist
+        if not os.path.exists(sanitized_path):
+            os.makedirs(sanitized_path, exist_ok=True)
+            logger.debug("Path %s was created.", sanitized_path)
+
+        return sanitized_path
 
     def get_files(self) -> list[str]:
         """
@@ -110,14 +124,6 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         Returns:
             list[str]: list of file names
         """
-
-        if not os.path.exists(self.file_path):
-            logger.warning(
-                "Directory %s does not exist for %s.",
-                self.file_path,
-                self.username,
-            )
-            return []
 
         return [
             os.path.basename(path)
@@ -145,9 +151,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
         if not os.path.exists(path_to_file):
             logger.warning(
-                "Directory %s does not exist for file %s.",
-                path_to_file,
+                "File %s not found in %s.",
                 file_name_path,
+                path_to_file,
             )
             return None
 
@@ -204,9 +210,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             os.remove(path_to_file)
         except FileNotFoundError:
             logger.warning(
-                "Directory %s does not exist for file %s.",
-                path_to_file,
+                "File %s not found in %s.",
                 file_name_path,
+                path_to_file,
             )
             return False
         except OSError as ex:

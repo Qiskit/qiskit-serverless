@@ -132,15 +132,13 @@ class GatewayFilesClient:
         )
 
     @_trace
-    def upload(
-        self, file: str, function: QiskitFunction, provider: Optional[str] = None
-    ) -> Optional[str]:
+    def upload(self, file: str, function: QiskitFunction) -> Optional[str]:
         """Uploads file."""
         with open(file, "rb") as f:
             with requests.post(
                 os.path.join(self._files_url, "upload/"),
                 files={"file": f},
-                params={"provider": provider, "function": function.title},
+                params={"provider": function.provider, "function": function.title},
                 stream=True,
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_STREAMING_TIMEOUT,
@@ -151,15 +149,16 @@ class GatewayFilesClient:
         return "Can not open file"
 
     @_trace
-    def provider_upload(
-        self, file: str, function: QiskitFunction, provider: str
-    ) -> Optional[str]:
+    def provider_upload(self, file: str, function: QiskitFunction) -> Optional[str]:
         """Uploads file to provider/function file storage."""
+        if not function.provider:
+            raise QiskitServerlessException("`function` doesn't have a provider.")
+
         with open(file, "rb") as f:
             with requests.post(
-                os.path.join(self._files_url, "upload/"),
+                os.path.join(self._files_url, "provider", "upload/"),
                 files={"file": f},
-                params={"provider": provider, "function": function.title},
+                params={"provider": function.provider, "function": function.title},
                 stream=True,
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_STREAMING_TIMEOUT,
@@ -175,7 +174,7 @@ class GatewayFilesClient:
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 self._files_url,
-                params={"function": function.title},
+                params={"function": function.title, "provider": function.provider},
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -191,7 +190,7 @@ class GatewayFilesClient:
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 os.path.join(self._files_url, "provider"),
-                params={"provider": function.provider, "function": function.title},
+                params={"function": function.title, "provider": function.provider},
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -199,9 +198,7 @@ class GatewayFilesClient:
         return response_data.get("results", [])
 
     @_trace
-    def delete(
-        self, file: str, function: QiskitFunction, provider: Optional[str] = None
-    ) -> Optional[str]:
+    def delete(self, file: str, function: QiskitFunction) -> Optional[str]:
         """Deletes file uploaded or produced by the programs,"""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
@@ -209,7 +206,7 @@ class GatewayFilesClient:
                 params={
                     "file": file,
                     "function": function.title,
-                    "provider": provider,
+                    "provider": function.provider,
                 },
                 headers={
                     "Authorization": f"Bearer {self._token}",
@@ -221,17 +218,18 @@ class GatewayFilesClient:
         return response_data.get("message", "")
 
     @_trace
-    def provider_delete(
-        self, file: str, function: QiskitFunction, provider: str
-    ) -> Optional[str]:
-        """Deletes file uploaded or produced by the programs,"""
+    def provider_delete(self, file: str, function: QiskitFunction) -> Optional[str]:
+        """Deletes a file uploaded or produced by the Qiskit Functions"""
+        if not function.provider:
+            raise QiskitServerlessException("`function` doesn't have a provider.")
+
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
                 os.path.join(self._files_url, "provider", "delete"),
                 params={
                     "file": file,
                     "function": function.title,
-                    "provider": provider,
+                    "provider": function.provider,
                 },
                 headers={
                     "Authorization": f"Bearer {self._token}",
