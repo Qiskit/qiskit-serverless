@@ -156,7 +156,7 @@ class GatewayFilesClient:
 
         with open(file, "rb") as f:
             with requests.post(
-                os.path.join(self._files_url, "upload/"),
+                os.path.join(self._files_url, "provider", "upload/"),
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,

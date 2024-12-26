@@ -360,7 +360,7 @@ class FilesViewSet(viewsets.ViewSet):
             file_name = sanitize_file_name(request.query_params.get("file"))
             provider_name = sanitize_name(request.query_params.get("provider"))
             function_title = sanitize_name(request.query_params.get("function", None))
-            working_dir = WorkingDir.USER_STORAGE
+            working_dir = WorkingDir.PROVIDER_STORAGE
 
             if not all([file_name, function_title, provider_name]):
                 return Response(

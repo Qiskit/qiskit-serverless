@@ -344,7 +344,7 @@ class TestFilesApi(APITestCase):
         function = "Program"
         file = "artifact_delete.tar"
         username = "test_user_2"
-        functionPath = os.path.join(media_root, username, provider, function)
+        functionPath = os.path.join(media_root, provider, function)
 
         if not os.path.exists(functionPath):
             os.makedirs(functionPath)
