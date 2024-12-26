@@ -82,7 +82,12 @@ class FileStorage:  # pylint: disable=too-few-public-methods
                 settings.MEDIA_ROOT, self.username, provider_name, function_title
             )
 
-        return sanitize_file_path(path)
+        sanitized_path = sanitize_file_path(path)
+
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(sanitized_path), exist_ok=True)
+
+        return sanitized_path
 
     def __get_provider_path(self, function_title: str, provider_name: str) -> str:
         """
@@ -99,7 +104,12 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         """
         path = os.path.join(settings.MEDIA_ROOT, provider_name, function_title)
 
-        return sanitize_file_path(path)
+        sanitized_path = sanitize_file_path(path)
+
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(sanitized_path), exist_ok=True)
+
+        return sanitized_path
 
     def get_files(self) -> list[str]:
         """
