@@ -85,7 +85,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         sanitized_path = sanitize_file_path(path)
 
         # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(sanitized_path), exist_ok=True)
+        if not os.path.exists(sanitized_path):
+            os.makedirs(sanitized_path, exist_ok=True)
+            logger.debug("Path %s was created.", sanitized_path)
 
         return sanitized_path
 
@@ -107,7 +109,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         sanitized_path = sanitize_file_path(path)
 
         # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(sanitized_path), exist_ok=True)
+        if not os.path.exists(sanitized_path):
+            os.makedirs(sanitized_path, exist_ok=True)
+            logger.debug("Path %s was created.", sanitized_path)
 
         return sanitized_path
 
