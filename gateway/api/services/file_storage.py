@@ -121,14 +121,6 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             list[str]: list of file names
         """
 
-        if not os.path.exists(self.file_path):
-            logger.warning(
-                "Directory %s does not exist for %s.",
-                self.file_path,
-                self.username,
-            )
-            return []
-
         return [
             os.path.basename(path)
             for path in glob.glob(f"{self.file_path}/*")
@@ -155,9 +147,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
         if not os.path.exists(path_to_file):
             logger.warning(
-                "Directory %s does not exist for file %s.",
-                path_to_file,
+                "File %s not found in %s.",
                 file_name_path,
+                path_to_file,
             )
             return None
 
@@ -214,9 +206,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
             os.remove(path_to_file)
         except FileNotFoundError:
             logger.warning(
-                "Directory %s does not exist for file %s.",
-                path_to_file,
+                "File %s not found in %s.",
                 file_name_path,
+                path_to_file,
             )
             return False
         except OSError as ex:
