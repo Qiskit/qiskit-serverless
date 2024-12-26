@@ -133,14 +133,14 @@ class GatewayFilesClient:
 
     @_trace
     def upload(
-        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+        self, file: str, function: QiskitFunction
     ) -> Optional[str]:
         """Uploads file."""
         with open(file, "rb") as f:
             with requests.post(
                 os.path.join(self._files_url, "upload/"),
                 files={"file": f},
-                params={"provider": provider, "function": function.title},
+                params={"provider": function.provider, "function": function.title},
                 stream=True,
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_STREAMING_TIMEOUT,
@@ -152,14 +152,17 @@ class GatewayFilesClient:
 
     @_trace
     def provider_upload(
-        self, file: str, function: QiskitFunction, provider: str
+        self, file: str, function: QiskitFunction
     ) -> Optional[str]:
+        if not function.provider:
+            raise QiskitServerlessException("`function` doesn't have a provider.")
+
         """Uploads file to provider/function file storage."""
         with open(file, "rb") as f:
             with requests.post(
                 os.path.join(self._files_url, "upload/"),
                 files={"file": f},
-                params={"provider": provider, "function": function.title},
+                params={"provider": function.provider, "function": function.title},
                 stream=True,
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_STREAMING_TIMEOUT,
@@ -175,7 +178,7 @@ class GatewayFilesClient:
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 self._files_url,
-                params={"function": function.title},
+                params={"function": function.title, "provider": function.provider},
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -191,7 +194,7 @@ class GatewayFilesClient:
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 os.path.join(self._files_url, "provider"),
-                params={"provider": function.provider, "function": function.title},
+                params={"function": function.title, "provider": function.provider},
                 headers={"Authorization": f"Bearer {self._token}"},
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -200,7 +203,7 @@ class GatewayFilesClient:
 
     @_trace
     def delete(
-        self, file: str, function: QiskitFunction, provider: Optional[str] = None
+        self, file: str, function: QiskitFunction
     ) -> Optional[str]:
         """Deletes file uploaded or produced by the programs,"""
         response_data = safe_json_request_as_dict(
@@ -209,7 +212,7 @@ class GatewayFilesClient:
                 params={
                     "file": file,
                     "function": function.title,
-                    "provider": provider,
+                    "provider": function.provider,
                 },
                 headers={
                     "Authorization": f"Bearer {self._token}",
@@ -222,8 +225,11 @@ class GatewayFilesClient:
 
     @_trace
     def provider_delete(
-        self, file: str, function: QiskitFunction, provider: str
+        self, file: str, function: QiskitFunction
     ) -> Optional[str]:
+        if not function.provider:
+            raise QiskitServerlessException("`function` doesn't have a provider.")
+
         """Deletes file uploaded or produced by the programs,"""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
@@ -231,7 +237,7 @@ class GatewayFilesClient:
                 params={
                     "file": file,
                     "function": function.title,
-                    "provider": provider,
+                    "provider": function.provider,
                 },
                 headers={
                     "Authorization": f"Bearer {self._token}",
