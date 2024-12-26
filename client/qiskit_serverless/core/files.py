@@ -132,9 +132,7 @@ class GatewayFilesClient:
         )
 
     @_trace
-    def upload(
-        self, file: str, function: QiskitFunction
-    ) -> Optional[str]:
+    def upload(self, file: str, function: QiskitFunction) -> Optional[str]:
         """Uploads file."""
         with open(file, "rb") as f:
             with requests.post(
@@ -151,13 +149,11 @@ class GatewayFilesClient:
         return "Can not open file"
 
     @_trace
-    def provider_upload(
-        self, file: str, function: QiskitFunction
-    ) -> Optional[str]:
+    def provider_upload(self, file: str, function: QiskitFunction) -> Optional[str]:
+        """Uploads file to provider/function file storage."""
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
-        """Uploads file to provider/function file storage."""
         with open(file, "rb") as f:
             with requests.post(
                 os.path.join(self._files_url, "upload/"),
@@ -202,9 +198,7 @@ class GatewayFilesClient:
         return response_data.get("results", [])
 
     @_trace
-    def delete(
-        self, file: str, function: QiskitFunction
-    ) -> Optional[str]:
+    def delete(self, file: str, function: QiskitFunction) -> Optional[str]:
         """Deletes file uploaded or produced by the programs,"""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
@@ -224,13 +218,11 @@ class GatewayFilesClient:
         return response_data.get("message", "")
 
     @_trace
-    def provider_delete(
-        self, file: str, function: QiskitFunction
-    ) -> Optional[str]:
+    def provider_delete(self, file: str, function: QiskitFunction) -> Optional[str]:
+        """Deletes a file uploaded or produced by the Qiskit Functions"""
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
-        """Deletes file uploaded or produced by the programs,"""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
                 os.path.join(self._files_url, "provider", "delete"),
