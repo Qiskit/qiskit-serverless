@@ -51,19 +51,22 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         provider_name: str | None,
     ) -> None:
         self.sub_path = None
-        self.file_path = None
+        self.absolute_path = None
         self.username = username
 
         if working_dir is WorkingDir.USER_STORAGE:
             self.sub_path = self.__get_user_sub_path(function_title, provider_name)
-            self.file_path = self.__get_user_path(function_title, provider_name)
         elif working_dir is WorkingDir.PROVIDER_STORAGE:
             self.sub_path = self.__get_provider_sub_path(function_title, provider_name)
-            self.file_path = self.__get_provider_path(function_title, provider_name)
 
-    def __get_user_sub_path(self, function_title: str, provider_name: str | None) -> str:
+        self.absolute_path = self.__get_absolute_path(self.sub_path)
+
+    def __get_user_sub_path(
+        self, function_title: str, provider_name: str | None
+    ) -> str:
         """
-        This method returns the sub-path where the user will store its files
+        This method returns the sub-path where the user or the function
+        will store files
 
         Args:
             function_title (str): in case the function is from a
@@ -81,15 +84,14 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         if provider_name is None:
             path = os.path.join(self.username)
         else:
-            path = os.path.join(
-                self.username, provider_name, function_title
-            )
+            path = os.path.join(self.username, provider_name, function_title)
 
         return sanitize_file_path(path)
 
     def __get_provider_sub_path(self, function_title: str, provider_name: str) -> str:
         """
-        This method returns the provider sub-path where the user will store its files
+        This method returns the provider sub-path where the user
+        or the function will store files
 
         Args:
             function_title (str): in case the function is from a provider
@@ -104,54 +106,19 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
         return sanitize_file_path(path)
 
-    def __get_user_path(self, function_title: str, provider_name: str | None) -> str:
+    def __get_absolute_path(self, sub_path: str) -> str:
         """
-        This method returns the path where the user will store its files
+        This method returns the absolute path where the user
+        or the function will store files
 
         Args:
-            function_title (str): in case the function is from a
-                provider it will identify the function folder
-            provider_name (str | None): in case a provider is provided it will
-                identify the folder for the specific function
+            sub_path (str): the sub-path that we will use to build
+                the absolute path
 
         Returns:
             str: storage path.
-                - In case the function is from a provider that path would
-                    be: username/provider_name/function_title
-                - In case the function is from a user that path would
-                    be: username/
         """
-        if provider_name is None:
-            path = os.path.join(settings.MEDIA_ROOT, self.username)
-        else:
-            path = os.path.join(
-                settings.MEDIA_ROOT, self.username, provider_name, function_title
-            )
-
-        sanitized_path = sanitize_file_path(path)
-
-        # Create directory if it doesn't exist
-        if not os.path.exists(sanitized_path):
-            os.makedirs(sanitized_path, exist_ok=True)
-            logger.debug("Path %s was created.", sanitized_path)
-
-        return sanitized_path
-
-    def __get_provider_path(self, function_title: str, provider_name: str) -> str:
-        """
-        This method returns the provider path where the user will store its files
-
-        Args:
-            function_title (str): in case the function is from a provider
-                it will identify the function folder
-            provider_name (str): in case a provider is provided
-                it will identify the folder for the specific function
-
-        Returns:
-            str: storage path following the format provider_name/function_title/
-        """
-        path = os.path.join(settings.MEDIA_ROOT, provider_name, function_title)
-
+        path = os.path.join(settings.MEDIA_ROOT, sub_path)
         sanitized_path = sanitize_file_path(path)
 
         # Create directory if it doesn't exist
@@ -173,7 +140,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
         return [
             os.path.basename(path)
-            for path in glob.glob(f"{self.file_path}/*")
+            for path in glob.glob(f"{self.absolute_path}/*")
             if os.path.isfile(path)
         ]
 
@@ -193,7 +160,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         """
 
         file_name_path = os.path.basename(file_name)
-        path_to_file = sanitize_file_path(os.path.join(self.file_path, file_name_path))
+        path_to_file = sanitize_file_path(
+            os.path.join(self.absolute_path, file_name_path)
+        )
 
         if not os.path.exists(path_to_file):
             logger.warning(
@@ -229,7 +198,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
 
         file_name = sanitize_file_path(file.name)
         basename = os.path.basename(file_name)
-        path_to_file = sanitize_file_path(os.path.join(self.file_path, basename))
+        path_to_file = sanitize_file_path(os.path.join(self.absolute_path, basename))
 
         with open(path_to_file, "wb+") as destination:
             for chunk in file.chunks():
@@ -250,7 +219,9 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         """
 
         file_name_path = os.path.basename(file_name)
-        path_to_file = sanitize_file_path(os.path.join(self.file_path, file_name_path))
+        path_to_file = sanitize_file_path(
+            os.path.join(self.absolute_path, file_name_path)
+        )
 
         try:
             os.remove(path_to_file)
