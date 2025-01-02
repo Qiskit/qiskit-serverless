@@ -50,13 +50,59 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         function_title: str,
         provider_name: str | None,
     ) -> None:
+        self.sub_path = None
         self.file_path = None
         self.username = username
 
         if working_dir is WorkingDir.USER_STORAGE:
+            self.sub_path = self.__get_user_sub_path(function_title, provider_name)
             self.file_path = self.__get_user_path(function_title, provider_name)
         elif working_dir is WorkingDir.PROVIDER_STORAGE:
+            self.sub_path = self.__get_provider_sub_path(function_title, provider_name)
             self.file_path = self.__get_provider_path(function_title, provider_name)
+
+    def __get_user_sub_path(self, function_title: str, provider_name: str | None) -> str:
+        """
+        This method returns the sub-path where the user will store its files
+
+        Args:
+            function_title (str): in case the function is from a
+                provider it will identify the function folder
+            provider_name (str | None): in case a provider is provided it will
+                identify the folder for the specific function
+
+        Returns:
+            str: storage sub-path.
+                - In case the function is from a provider that sub-path would
+                    be: username/provider_name/function_title
+                - In case the function is from a user that path would
+                    be: username/
+        """
+        if provider_name is None:
+            path = os.path.join(self.username)
+        else:
+            path = os.path.join(
+                self.username, provider_name, function_title
+            )
+
+        return sanitize_file_path(path)
+
+    def __get_provider_sub_path(self, function_title: str, provider_name: str) -> str:
+        """
+        This method returns the provider sub-path where the user will store its files
+
+        Args:
+            function_title (str): in case the function is from a provider
+                it will identify the function folder
+            provider_name (str): in case a provider is provided
+                it will identify the folder for the specific function
+
+        Returns:
+            str: storage sub-path following the format provider_name/function_title/
+        """
+        path = os.path.join(provider_name, function_title)
+
+        return sanitize_file_path(path)
 
     def __get_user_path(self, function_title: str, provider_name: str | None) -> str:
         """

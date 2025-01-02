@@ -283,8 +283,8 @@ def create_ray_cluster(  # pylint: disable=too-many-branches,too-many-locals,too
         manifest = cluster.render(
             {
                 "cluster_name": cluster_name,
-                "user_data_folder": user_file_storage.file_path,
-                "provider_data_folder": provider_file_storage.file_path,
+                "user_data_folder": user_file_storage.sub_path,
+                "provider_data_folder": provider_file_storage.sub_path,
                 "node_image": node_image,
                 "workers": job_config.workers,
                 "min_workers": job_config.min_workers,
