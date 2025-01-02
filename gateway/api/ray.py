@@ -248,7 +248,6 @@ def create_ray_cluster(  # pylint: disable=too-many-branches,too-many-locals,too
             job_config.max_workers = settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
         if not job_config.auto_scaling:
             job_config.auto_scaling = settings.RAY_CLUSTER_WORKER_AUTO_SCALING
-        # node_image = settings.RAY_NODE_IMAGE
 
         # cpu job settings
         node_selector_label = settings.RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL
