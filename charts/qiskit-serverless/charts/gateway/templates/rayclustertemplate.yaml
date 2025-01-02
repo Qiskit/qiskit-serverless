@@ -184,7 +184,7 @@ data:
 {{- end }}
               - mountPath: /data
                 name: user-storage
-                subPath: {{`{{ data_folder }}`}}
+                subPath: {{`{{ user_data_folder }}`}}
               env:
                 # Environment variables for Ray TLS authentication.
                 # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
