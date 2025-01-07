@@ -7,7 +7,7 @@
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
         <title>qiskit_serverless.serializers.program_serializers - Qiskit Serverless 0.18.1</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=354aac6f" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=82a976d7" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=3ee1c6c6" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
     <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
     <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
@@ -334,20 +334,20 @@
 <span class="sd">    QiskitObjectsDecoder</span>
 <span class="sd">    QiskitObjectsEncoder</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span>
-<span class="kn">from</span> <span class="nn">qiskit.primitives</span> <span class="kn">import</span> <span class="n">SamplerResult</span><span class="p">,</span> <span class="n">EstimatorResult</span>
-<span class="kn">from</span> <span class="nn">qiskit_ibm_runtime</span> <span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
-<span class="kn">from</span> <span class="nn">qiskit_ibm_runtime.utils.json</span> <span class="kn">import</span> <span class="n">RuntimeDecoder</span><span class="p">,</span> <span class="n">RuntimeEncoder</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit.primitives</span><span class="w"> </span><span class="kn">import</span> <span class="n">SamplerResult</span><span class="p">,</span> <span class="n">EstimatorResult</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime.utils.json</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeDecoder</span><span class="p">,</span> <span class="n">RuntimeEncoder</span>
 
-<span class="kn">from</span> <span class="nn">qiskit_serverless.core.constants</span> <span class="kn">import</span> <span class="n">JOB_ARGUMENTS_FILE</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">JOB_ARGUMENTS_FILE</span>
 
 
-<span class="k">class</span> <span class="nc">QiskitObjectsEncoder</span><span class="p">(</span><span class="n">RuntimeEncoder</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">QiskitObjectsEncoder</span><span class="p">(</span><span class="n">RuntimeEncoder</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Json encoder for Qiskit objects.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">QiskitRuntimeService</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">{</span>
                 <span class="s2">&quot;__type__&quot;</span><span class="p">:</span> <span class="s2">&quot;QiskitRuntimeService&quot;</span><span class="p">,</span>
@@ -366,10 +366,10 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
 
 
-<span class="k">class</span> <span class="nc">QiskitObjectsDecoder</span><span class="p">(</span><span class="n">RuntimeDecoder</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">QiskitObjectsDecoder</span><span class="p">(</span><span class="n">RuntimeDecoder</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Json decoder for Qiskit objects.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">object_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">object_hook</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="k">if</span> <span class="s2">&quot;__type__&quot;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
             <span class="n">obj_type</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s2">&quot;__type__&quot;</span><span class="p">]</span>
 
@@ -383,7 +383,7 @@
         <span class="k">return</span> <span class="n">obj</span>
 
 
-<div class="viewcode-block" id="get_arguments"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments">[docs]</a><span class="k">def</span> <span class="nf">get_arguments</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<div class="viewcode-block" id="get_arguments"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">get_arguments</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Parses arguments for program and returns them as dict.</span>
 
 <span class="sd">    Returns:</span>
