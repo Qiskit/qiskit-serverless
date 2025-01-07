@@ -68,7 +68,7 @@ Build container image
 .. code-block::
    :caption: Docker build
 
-    docker build -t local-provider-function .
+    docker build -t test-local-provider-function .
 
 Prepare your local environment
 
@@ -78,7 +78,7 @@ Prepare your local environment
     services:
         ray-head:
             container_name: ray-head
-            image: local-provider-function:latest
+            image: test-local-provider-function:latest
 
 Run it
 
@@ -122,7 +122,7 @@ Run serverless
 
    function_with_custom_image = QiskitFunction(
        title="custom-image-function",
-       image=local-provider-function:latest,
+       image=test-local-provider-function:latest,
        provider=os.environ.get("PROVIDER_ID", "mockprovider"),
        description=help
    )
