@@ -21,11 +21,10 @@ RUN mkdir /function_data && chown 1000:1000 /function_data
 COPY client ./qs
 WORKDIR /qs
 
-# Need versions of pip/setuptools more recent than provided by UBI image
+# Need versions of pip more recent than provided by UBI image
 RUN python3.11 -m ensurepip --upgrade
 
-RUN pip install --upgrade --no-cache-dir pip>=24.2 &&\
-    pip install --upgrade --no-cache-dir setuptools>=72.1.0
+RUN pip install --upgrade --no-cache-dir pip>=24.2
 
 RUN pip install -r requirements.txt --no-cache-dir &&\
     pip install . --no-cache-dir &&\
