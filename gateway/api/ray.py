@@ -22,6 +22,7 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from api.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
+from api.services.file_storage import FileStorage, WorkingDir
 from api.utils import (
     try_json_loads,
     retry_function,
@@ -214,7 +215,7 @@ def submit_job(job: Job) -> Job:
     return job
 
 
-def create_ray_cluster(  # pylint: disable=too-many-branches
+def create_ray_cluster(  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
     job: Job,
     cluster_name: Optional[str] = None,
     cluster_data: Optional[str] = None,
@@ -247,7 +248,6 @@ def create_ray_cluster(  # pylint: disable=too-many-branches
             job_config.max_workers = settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
         if not job_config.auto_scaling:
             job_config.auto_scaling = settings.RAY_CLUSTER_WORKER_AUTO_SCALING
-        node_image = settings.RAY_NODE_IMAGE
 
         # cpu job settings
         node_selector_label = settings.RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL
@@ -257,19 +257,34 @@ def create_ray_cluster(  # pylint: disable=too-many-branches
             node_selector_label = settings.RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL
             gpu_request = settings.LIMITS_GPU_PER_TASK
 
-        # if user specified image use specified image
-        function_data = user.username
-        if job.program.image is not None:
+        # configure provider configuration if needed
+        node_image = settings.RAY_NODE_IMAGE
+        provider_name = None
+        if job.program.provider is not None:
             node_image = job.program.image
-            if job.program.provider.name:
-                function_data = job.program.provider.name
+            provider_name = job.program.provider.name
+
+        user_file_storage = FileStorage(
+            username=user.username,
+            working_dir=WorkingDir.USER_STORAGE,
+            function_title=job.program.title,
+            provider_name=provider_name,
+        )
+        provider_file_storage = user_file_storage
+        if job.program.provider is not None:
+            provider_file_storage = FileStorage(
+                username=user.username,
+                working_dir=WorkingDir.PROVIDER_STORAGE,
+                function_title=job.program.title,
+                provider_name=provider_name,
+            )
 
         cluster = get_template("rayclustertemplate.yaml")
         manifest = cluster.render(
             {
                 "cluster_name": cluster_name,
-                "user_id": user.username,
-                "function_data": function_data,
+                "user_data_folder": user_file_storage.sub_path,
+                "provider_data_folder": provider_file_storage.sub_path,
                 "node_image": node_image,
                 "workers": job_config.workers,
                 "min_workers": job_config.min_workers,
