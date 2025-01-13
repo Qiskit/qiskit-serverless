@@ -34,6 +34,7 @@ import functools
 import inspect
 import os
 import shutil
+from types import FunctionType
 import warnings
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Union, List, Callable, Sequence
@@ -451,3 +452,37 @@ def distribute_program(
         "Please, use `distribute_qiskit_function` instead."
     )
     return distribute_qiskit_function(provider, dependencies, working_dir)
+
+
+def trace_decorator_factory(traced_feature: str):
+    """Factory for generate decorators for classes or features."""
+
+    def generated_decorator(traced_function: Union[FunctionType, str]):
+        """
+        The decorator wrapper to generate optional arguments
+        if traced_function is string it will be used in the span,
+        the function.__name__ attribute will be used otherwise
+        """
+
+        def decorator_trace(func: FunctionType):
+            """The decorator that python call"""
+
+            def wrapper(*args, **kwargs):
+                """The wrapper"""
+                tracer = trace.get_tracer("client.tracer")
+                function_name = (
+                    traced_function
+                    if isinstance(traced_function, str)
+                    else func.__name__
+                )
+                with tracer.start_as_current_span(f"{traced_feature}.${function_name}"):
+                    result = func(*args, **kwargs)
+                return result
+
+            return wrapper
+
+        if callable(traced_function):
+            return decorator_trace(traced_function)
+        return decorator_trace
+
+    return generated_decorator

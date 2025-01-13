@@ -419,15 +419,12 @@ def create_dependency_allowlist():
     return allowlist
 
 
-def sanitize_name(name: str):
+def sanitize_name(name: str | None):
     """Sanitize name"""
-    if name:
-        sanitized_name = ""
-        for c in name:
-            if c.isalnum() or c in ["_", "-", "/"]:
-                sanitized_name += c
-        return sanitized_name
-    return name
+    if not name:
+        return name
+    # Remove all characters except alphanumeric, _, -, /
+    return re.sub("[^a-zA-Z0-9_\\-/]", "", name)
 
 
 def create_gpujob_allowlist():
@@ -448,3 +445,11 @@ def create_gpujob_allowlist():
         raise ValueError("Unable to decode gpujob allowlist") from e
 
     return gpujobs
+
+
+def sanitize_file_name(name: str | None):
+    """Sanitize the name of a file"""
+    if not name:
+        return name
+    # Remove all characters except alphanumeric, _, ., -
+    return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)

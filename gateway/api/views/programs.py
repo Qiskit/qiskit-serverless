@@ -20,7 +20,7 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
-from api.repositories.programs import ProgramRepository
+from api.repositories.functions import FunctionRepository
 from api.utils import sanitize_name
 from api.serializers import (
     JobConfigSerializer,
@@ -29,7 +29,7 @@ from api.serializers import (
     RunProgramSerializer,
     UploadProgramSerializer,
 )
-from api.models import RUN_PROGRAM_PERMISSION, Program, Job
+from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
 from api.views.enums.type_filter import TypeFilter
 
 # pylint: disable=duplicate-code
@@ -56,7 +56,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
     BASE_NAME = "programs"
 
-    program_repository = ProgramRepository()
+    program_repository = FunctionRepository()
 
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):
@@ -161,13 +161,15 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 # Catalog filter only returns providers functions that user has access:
                 # author has view permissions and the function has a provider assigned
                 functions = (
-                    self.program_repository.get_provider_functions_with_run_permissions(
-                        author
+                    self.program_repository.get_provider_functions_by_permission(
+                        author, permission_name=RUN_PROGRAM_PERMISSION
                     )
                 )
             else:
                 # If filter is not applied we return author and providers functions together
-                functions = self.program_repository.get_functions(author)
+                functions = self.program_repository.get_functions_by_permission(
+                    author, permission_name=VIEW_PROGRAM_PERMISSION
+                )
 
             serializer = self.get_serializer(functions, many=True)
 
@@ -307,11 +309,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
         )
 
         if provider_name:
-            function = self.program_repository.get_provider_function_by_title(
-                author=author, title=function_title, provider_name=provider_name
+            function = self.program_repository.get_provider_function_by_permission(
+                author=author,
+                permission_name=VIEW_PROGRAM_PERMISSION,
+                title=function_title,
+                provider_name=provider_name,
             )
         else:
-            function = self.program_repository.get_user_function_by_title(
+            function = self.program_repository.get_user_function(
                 author=author, title=function_title
             )
 

@@ -49,6 +49,7 @@ from qiskit_serverless.core.constants import (
     MAX_ARTIFACT_FILE_SIZE_MB,
 )
 from qiskit_serverless.core.client import BaseClient
+from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.files import GatewayFilesClient
 from qiskit_serverless.core.job import (
     Job,
@@ -71,6 +72,9 @@ from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
+
+_trace_job = trace_decorator_factory("job")
+_trace_functions = trace_decorator_factory("function")
 
 
 class ServerlessClient(BaseClient):
@@ -146,47 +150,45 @@ class ServerlessClient(BaseClient):
     ####### JOBS #######
     ####################
 
+    @_trace_job("list")
     def jobs(self, **kwargs) -> List[Job]:
-        tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("job.list"):
-            limit = kwargs.get("limit", 10)
-            kwargs["limit"] = limit
-            offset = kwargs.get("offset", 0)
-            kwargs["offset"] = offset
+        limit = kwargs.get("limit", 10)
+        kwargs["limit"] = limit
+        offset = kwargs.get("offset", 0)
+        kwargs["offset"] = offset
 
-            response_data = safe_json_request_as_dict(
-                request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/jobs",
-                    params=kwargs,
-                    headers={"Authorization": f"Bearer {self.token}"},
-                    timeout=REQUESTS_TIMEOUT,
-                )
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs",
+                params=kwargs,
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
+        )
 
         return [
             Job(job.get("id"), job_service=self, raw_data=job)
             for job in response_data.get("results", [])
         ]
 
+    @_trace_job("get")
     def job(self, job_id: str) -> Optional[Job]:
-        tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("job.get"):
-            url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
-            response_data = safe_json_request_as_dict(
-                request=lambda: requests.get(
-                    url,
-                    headers={"Authorization": f"Bearer {self.token}"},
-                    timeout=REQUESTS_TIMEOUT,
-                )
+        url = f"{self.host}/api/{self.version}/jobs/{job_id}/"
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                url,
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
+        )
 
-            job = None
-            job_id = response_data.get("id")
-            if job_id is not None:
-                job = Job(
-                    job_id=job_id,
-                    job_service=self,
-                )
+        job = None
+        job_id = response_data.get("id")
+        if job_id is not None:
+            job = Job(
+                job_id=job_id,
+                job_service=self,
+            )
 
         return job
 
@@ -205,7 +207,7 @@ class ServerlessClient(BaseClient):
 
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("job.run") as span:
-            span.set_attribute("program", title)
+            span.set_attribute("function", title)
             span.set_attribute("provider", provider)
             span.set_attribute("arguments", str(arguments))
 
@@ -234,66 +236,62 @@ class ServerlessClient(BaseClient):
 
         return Job(job_id, job_service=self)
 
+    @_trace_job
     def status(self, job_id: str):
-        tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("job.status"):
-            default_status = "Unknown"
-            response_data = safe_json_request_as_dict(
-                request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                    headers={"Authorization": f"Bearer {self.token}"},
-                    timeout=REQUESTS_TIMEOUT,
-                )
+        default_status = "Unknown"
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
+        )
 
         return response_data.get("status", default_status)
 
+    @_trace_job
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
-        tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("job.stop"):
-            if service:
-                data = {
-                    "service": json.dumps(service, cls=QiskitObjectsEncoder),
-                }
-            else:
-                data = {
-                    "service": None,
-                }
-            response_data = safe_json_request_as_dict(
-                request=lambda: requests.post(
-                    f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
-                    headers={"Authorization": f"Bearer {self.token}"},
-                    timeout=REQUESTS_TIMEOUT,
-                    json=data,
-                )
+        if service:
+            data = {
+                "service": json.dumps(service, cls=QiskitObjectsEncoder),
+            }
+        else:
+            data = {
+                "service": None,
+            }
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.post(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=REQUESTS_TIMEOUT,
+                json=data,
             )
+        )
 
         return response_data.get("message")
 
+    @_trace_job
     def result(self, job_id: str):
-        tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("job.result"):
-            response_data = safe_json_request_as_dict(
-                request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                    headers={"Authorization": f"Bearer {self.token}"},
-                    timeout=REQUESTS_TIMEOUT,
-                )
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
+        )
         return json.loads(
             response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder
         )
 
+    @_trace_job
     def logs(self, job_id: str):
-        tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("job.logs"):
-            response_data = safe_json_request_as_dict(
-                request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
-                    headers={"Authorization": f"Bearer {self.token}"},
-                    timeout=REQUESTS_TIMEOUT,
-                )
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=REQUESTS_TIMEOUT,
             )
+        )
         return response_data.get("logs")
 
     def filtered_logs(self, job_id: str, **kwargs):
@@ -323,8 +321,8 @@ class ServerlessClient(BaseClient):
 
     def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
         tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("job.run") as span:
-            span.set_attribute("program", program.title)
+        with tracer.start_as_current_span("function.upload") as span:
+            span.set_attribute("function", program.title)
             url = f"{self.host}/api/{self.version}/programs/upload/"
 
             if program.image is not None:
@@ -344,18 +342,17 @@ class ServerlessClient(BaseClient):
 
         return function_uploaded
 
+    @_trace_functions("list")
     def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
-        """Returns list of available programs."""
-        tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("program.list"):
-            response_data = safe_json_request_as_list(
-                request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/programs",
-                    headers={"Authorization": f"Bearer {self.token}"},
-                    params=kwargs,
-                    timeout=REQUESTS_TIMEOUT,
-                )
+        """Returns list of available functions."""
+        response_data = safe_json_request_as_list(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/programs",
+                headers={"Authorization": f"Bearer {self.token}"},
+                params=kwargs,
+                timeout=REQUESTS_TIMEOUT,
             )
+        )
 
         return [
             RunnableQiskitFunction(
@@ -368,6 +365,7 @@ class ServerlessClient(BaseClient):
             for program in response_data
         ]
 
+    @_trace_functions("get_by_title")
     def function(
         self, title: str, provider: Optional[str] = None
     ) -> Optional[RunnableQiskitFunction]:
@@ -376,50 +374,73 @@ class ServerlessClient(BaseClient):
             request_provider=provider, title=title
         )
 
-        tracer = trace.get_tracer("client.tracer")
-        with tracer.start_as_current_span("program.get_by_title"):
-            response_data = safe_json_request_as_dict(
-                request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
-                    headers={"Authorization": f"Bearer {self.token}"},
-                    params={"provider": provider},
-                    timeout=REQUESTS_TIMEOUT,
-                )
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
+                headers={"Authorization": f"Bearer {self.token}"},
+                params={"provider": provider},
+                timeout=REQUESTS_TIMEOUT,
             )
-            return RunnableQiskitFunction(
-                client=self,
-                title=response_data.get("title"),
-                provider=response_data.get("provider", None),
-                raw_data=response_data,
-            )
+        )
+
+        return RunnableQiskitFunction(
+            client=self,
+            title=response_data.get("title"),
+            provider=response_data.get("provider", None),
+            raw_data=response_data,
+        )
 
     #####################
     ####### FILES #######
     #####################
 
-    def files(self, provider: Optional[str] = None) -> List[str]:
-        """Returns list of available files produced by programs to download."""
-        return self._files_client.list(provider)
+    def files(self, function: QiskitFunction) -> List[str]:
+        """Returns the list of files available for the user in the Qiskit Function folder."""
+        return self._files_client.list(function)
+
+    def provider_files(self, function: QiskitFunction) -> List[str]:
+        """Returns the list of files available for the provider in the Qiskit Function folder."""
+        return self._files_client.provider_list(function)
 
     def file_download(
         self,
         file: str,
+        function: QiskitFunction,
         target_name: Optional[str] = None,
         download_location: str = "./",
-        provider: Optional[str] = None,
     ):
-        """Download file."""
+        """Download a file available to the user for the specific Qiskit Function."""
         return self._files_client.download(
-            file, download_location, target_name, provider
+            file, download_location, function, target_name
         )
 
-    def file_delete(self, file: str, provider: Optional[str] = None):
-        """Deletes file uploaded or produced by the programs,"""
-        return self._files_client.delete(file, provider)
+    def provider_file_download(
+        self,
+        file: str,
+        function: QiskitFunction,
+        target_name: Optional[str] = None,
+        download_location: str = "./",
+    ):
+        """Download a file available to the provider for the specific Qiskit Function."""
+        return self._files_client.provider_download(
+            file, download_location, function, target_name
+        )
 
-    def file_upload(self, file: str, provider: Optional[str] = None):
-        """Upload file."""
-        return self._files_client.upload(file, provider)
+    def file_delete(self, file: str, function: QiskitFunction):
+        """Deletes a file available to the user for the specific Qiskit Function."""
+        return self._files_client.delete(file, function)
+
+    def provider_file_delete(self, file: str, function: QiskitFunction):
+        """Deletes a file available to the provider for the specific Qiskit Function."""
+        return self._files_client.provider_delete(file, function)
+
+    def file_upload(self, file: str, function: QiskitFunction):
+        """Uploads a file in the specific user's Qiskit Function folder."""
+        return self._files_client.upload(file, function)
+
+    def provider_file_upload(self, file: str, function: QiskitFunction):
+        """Uploads a file in the specific provider's Qiskit Function folder."""
+        return self._files_client.provider_upload(file, function)
 
 
 class IBMServerlessClient(ServerlessClient):
@@ -520,8 +541,8 @@ def _upload_with_docker_image(
     )
     program_title = response_data.get("title", "na")
     program_provider = response_data.get("provider", "na")
-    span.set_attribute("program.title", program_title)
-    span.set_attribute("program.provider", program_provider)
+    span.set_attribute("function.title", program_title)
+    span.set_attribute("function.provider", program_provider)
     response_data["client"] = client
     return RunnableQiskitFunction.from_json(response_data)
 
@@ -588,8 +609,8 @@ def _upload_with_artifact(
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-            span.set_attribute("program.title", response_data.get("title", "na"))
-            span.set_attribute("program.provider", response_data.get("provider", "na"))
+            span.set_attribute("function.title", response_data.get("title", "na"))
+            span.set_attribute("function.provider", response_data.get("provider", "na"))
             response_data["client"] = client
             response_function = RunnableQiskitFunction.from_json(response_data)
     except Exception as error:  # pylint: disable=broad-exception-caught
