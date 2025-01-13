@@ -357,6 +357,7 @@
     <span class="n">MAX_ARTIFACT_FILE_SIZE_MB</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseClient</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.decorators</span><span class="w"> </span><span class="kn">import</span> <span class="n">trace_decorator_factory</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.files</span><span class="w"> </span><span class="kn">import</span> <span class="n">GatewayFilesClient</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.job</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">Job</span><span class="p">,</span>
@@ -379,6 +380,9 @@
     <span class="n">QiskitObjectsEncoder</span><span class="p">,</span>
     <span class="n">QiskitObjectsDecoder</span><span class="p">,</span>
 <span class="p">)</span>
+
+<span class="n">_trace_job</span> <span class="o">=</span> <span class="n">trace_decorator_factory</span><span class="p">(</span><span class="s2">&quot;job&quot;</span><span class="p">)</span>
+<span class="n">_trace_functions</span> <span class="o">=</span> <span class="n">trace_decorator_factory</span><span class="p">(</span><span class="s2">&quot;function&quot;</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="ServerlessClient"><a class="viewcode-back" href="../../../../stubs/qiskit_serverless.core.ServerlessClient.html#qiskit_serverless.core.ServerlessClient">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">ServerlessClient</span><span class="p">(</span><span class="n">BaseClient</span><span class="p">):</span>
@@ -454,47 +458,45 @@
     <span class="c1">####### JOBS #######</span>
     <span class="c1">####################</span>
 
+    <span class="nd">@_trace_job</span><span class="p">(</span><span class="s2">&quot;list&quot;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
-        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.list&quot;</span><span class="p">):</span>
-            <span class="n">limit</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
-            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;limit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">limit</span>
-            <span class="n">offset</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;offset&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">offset</span>
+        <span class="n">limit</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;limit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">limit</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;offset&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">offset</span>
 
-            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
-                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs&quot;</span><span class="p">,</span>
-                    <span class="n">params</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
-                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
-                <span class="p">)</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs&quot;</span><span class="p">,</span>
+                <span class="n">params</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
+        <span class="p">)</span>
 
         <span class="k">return</span> <span class="p">[</span>
             <span class="n">Job</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span> <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">=</span><span class="n">job</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])</span>
         <span class="p">]</span>
 
+    <span class="nd">@_trace_job</span><span class="p">(</span><span class="s2">&quot;get&quot;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
-        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.get&quot;</span><span class="p">):</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span>
-            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
-                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                    <span class="n">url</span><span class="p">,</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
-                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
-                <span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">url</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
+        <span class="p">)</span>
 
-            <span class="n">job</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="n">job_id</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">job_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span>
-                    <span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span>
-                    <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
-                <span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">job_id</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">job_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span>
+                <span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span>
+                <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">job</span>
 
@@ -513,7 +515,7 @@
 
         <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.run&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">span</span><span class="p">:</span>
-            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program&quot;</span><span class="p">,</span> <span class="n">title</span><span class="p">)</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;function&quot;</span><span class="p">,</span> <span class="n">title</span><span class="p">)</span>
             <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;provider&quot;</span><span class="p">,</span> <span class="n">provider</span><span class="p">)</span>
             <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;arguments&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">arguments</span><span class="p">))</span>
 
@@ -542,66 +544,62 @@
 
         <span class="k">return</span> <span class="n">Job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
 
+    <span class="nd">@_trace_job</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.status&quot;</span><span class="p">):</span>
-            <span class="n">default_status</span> <span class="o">=</span> <span class="s2">&quot;Unknown&quot;</span>
-            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
-                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">,</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
-                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
-                <span class="p">)</span>
+        <span class="n">default_status</span> <span class="o">=</span> <span class="s2">&quot;Unknown&quot;</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
+        <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="n">default_status</span><span class="p">)</span>
 
+    <span class="nd">@_trace_job</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">service</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitRuntimeService</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.stop&quot;</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">service</span><span class="p">:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">),</span>
-                <span class="p">}</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-                <span class="p">}</span>
-            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
-                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/stop/&quot;</span><span class="p">,</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
-                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
-                    <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
-                <span class="p">)</span>
+        <span class="k">if</span> <span class="n">service</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/stop/&quot;</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+                <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
             <span class="p">)</span>
+        <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">)</span>
 
+    <span class="nd">@_trace_job</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.result&quot;</span><span class="p">):</span>
-            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
-                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">,</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
-                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
-                <span class="p">)</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
+        <span class="p">)</span>
         <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
             <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;result&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsDecoder</span>
         <span class="p">)</span>
 
+    <span class="nd">@_trace_job</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.logs&quot;</span><span class="p">):</span>
-            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
-                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/logs/&quot;</span><span class="p">,</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
-                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
-                <span class="p">)</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/logs/&quot;</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
+        <span class="p">)</span>
         <span class="k">return</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;logs&quot;</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">filtered_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -631,8 +629,8 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
         <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;job.run&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">span</span><span class="p">:</span>
-            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program&quot;</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;function.upload&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">span</span><span class="p">:</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;function&quot;</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
             <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs/upload/&quot;</span>
 
             <span class="k">if</span> <span class="n">program</span><span class="o">.</span><span class="n">image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -652,18 +650,17 @@
 
         <span class="k">return</span> <span class="n">function_uploaded</span>
 
+    <span class="nd">@_trace_functions</span><span class="p">(</span><span class="s2">&quot;list&quot;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">functions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of available programs.&quot;&quot;&quot;</span>
-        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;program.list&quot;</span><span class="p">):</span>
-            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_list</span><span class="p">(</span>
-                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs&quot;</span><span class="p">,</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
-                    <span class="n">params</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
-                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
-                <span class="p">)</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of available functions.&quot;&quot;&quot;</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_list</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs&quot;</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                <span class="n">params</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
+        <span class="p">)</span>
 
         <span class="k">return</span> <span class="p">[</span>
             <span class="n">RunnableQiskitFunction</span><span class="p">(</span>
@@ -676,6 +673,7 @@
             <span class="k">for</span> <span class="n">program</span> <span class="ow">in</span> <span class="n">response_data</span>
         <span class="p">]</span>
 
+    <span class="nd">@_trace_functions</span><span class="p">(</span><span class="s2">&quot;get_by_title&quot;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">function</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
@@ -684,50 +682,73 @@
             <span class="n">request_provider</span><span class="o">=</span><span class="n">provider</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span>
         <span class="p">)</span>
 
-        <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="s2">&quot;program.get_by_title&quot;</span><span class="p">):</span>
-            <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
-                <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs/get_by_title/</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
-                    <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="n">provider</span><span class="p">},</span>
-                    <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
-                <span class="p">)</span>
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs/get_by_title/</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="n">provider</span><span class="p">},</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="k">return</span> <span class="n">RunnableQiskitFunction</span><span class="p">(</span>
-                <span class="n">client</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
-                <span class="n">title</span><span class="o">=</span><span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">),</span>
-                <span class="n">provider</span><span class="o">=</span><span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;provider&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-                <span class="n">raw_data</span><span class="o">=</span><span class="n">response_data</span><span class="p">,</span>
-            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">RunnableQiskitFunction</span><span class="p">(</span>
+            <span class="n">client</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">),</span>
+            <span class="n">provider</span><span class="o">=</span><span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;provider&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="n">raw_data</span><span class="o">=</span><span class="n">response_data</span><span class="p">,</span>
+        <span class="p">)</span>
 
     <span class="c1">#####################</span>
     <span class="c1">####### FILES #######</span>
     <span class="c1">#####################</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns list of available files produced by programs to download.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the list of files available for the user in the Qiskit Function folder.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">provider_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the list of files available for the provider in the Qiskit Function folder.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">provider_list</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">file_download</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span>
         <span class="n">target_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">download_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;./&quot;</span><span class="p">,</span>
-        <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Download file.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Download a file available to the user for the specific Qiskit Function.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">download</span><span class="p">(</span>
-            <span class="n">file</span><span class="p">,</span> <span class="n">download_location</span><span class="p">,</span> <span class="n">target_name</span><span class="p">,</span> <span class="n">provider</span>
+            <span class="n">file</span><span class="p">,</span> <span class="n">download_location</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">target_name</span>
         <span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">file_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deletes file uploaded or produced by the programs,&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">provider</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">provider_file_download</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span>
+        <span class="n">target_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">download_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;./&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Download a file available to the provider for the specific Qiskit Function.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">provider_download</span><span class="p">(</span>
+            <span class="n">file</span><span class="p">,</span> <span class="n">download_location</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">target_name</span>
+        <span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">file_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Upload file.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">provider</span><span class="p">)</span></div>
+    <span class="k">def</span><span class="w"> </span><span class="nf">file_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deletes a file available to the user for the specific Qiskit Function.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">provider_file_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deletes a file available to the provider for the specific Qiskit Function.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">provider_delete</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">file_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Uploads a file in the specific user&#39;s Qiskit Function folder.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">provider_file_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Uploads a file in the specific provider&#39;s Qiskit Function folder.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">provider_upload</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">function</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="IBMServerlessClient"><a class="viewcode-back" href="../../../../stubs/qiskit_serverless.core.IBMServerlessClient.html#qiskit_serverless.core.IBMServerlessClient">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">IBMServerlessClient</span><span class="p">(</span><span class="n">ServerlessClient</span><span class="p">):</span>
@@ -828,8 +849,8 @@
     <span class="p">)</span>
     <span class="n">program_title</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;na&quot;</span><span class="p">)</span>
     <span class="n">program_provider</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;provider&quot;</span><span class="p">,</span> <span class="s2">&quot;na&quot;</span><span class="p">)</span>
-    <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program.title&quot;</span><span class="p">,</span> <span class="n">program_title</span><span class="p">)</span>
-    <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program.provider&quot;</span><span class="p">,</span> <span class="n">program_provider</span><span class="p">)</span>
+    <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;function.title&quot;</span><span class="p">,</span> <span class="n">program_title</span><span class="p">)</span>
+    <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;function.provider&quot;</span><span class="p">,</span> <span class="n">program_provider</span><span class="p">)</span>
     <span class="n">response_data</span><span class="p">[</span><span class="s2">&quot;client&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">client</span>
     <span class="k">return</span> <span class="n">RunnableQiskitFunction</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">response_data</span><span class="p">)</span>
 
@@ -896,8 +917,8 @@
                     <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="p">)</span>
-            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program.title&quot;</span><span class="p">,</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;na&quot;</span><span class="p">))</span>
-            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;program.provider&quot;</span><span class="p">,</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;provider&quot;</span><span class="p">,</span> <span class="s2">&quot;na&quot;</span><span class="p">))</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;function.title&quot;</span><span class="p">,</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;na&quot;</span><span class="p">))</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_attribute</span><span class="p">(</span><span class="s2">&quot;function.provider&quot;</span><span class="p">,</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;provider&quot;</span><span class="p">,</span> <span class="s2">&quot;na&quot;</span><span class="p">))</span>
             <span class="n">response_data</span><span class="p">[</span><span class="s2">&quot;client&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">client</span>
             <span class="n">response_function</span> <span class="o">=</span> <span class="n">RunnableQiskitFunction</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">response_data</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-exception-caught</span>

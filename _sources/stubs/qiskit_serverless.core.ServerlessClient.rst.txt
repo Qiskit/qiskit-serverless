@@ -29,6 +29,10 @@
       ~ServerlessClient.jobs
       ~ServerlessClient.list
       ~ServerlessClient.logs
+      ~ServerlessClient.provider_file_delete
+      ~ServerlessClient.provider_file_download
+      ~ServerlessClient.provider_file_upload
+      ~ServerlessClient.provider_files
       ~ServerlessClient.result
       ~ServerlessClient.run
       ~ServerlessClient.status

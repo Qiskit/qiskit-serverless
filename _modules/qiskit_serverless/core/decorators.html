@@ -342,6 +342,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">types</span><span class="w"> </span><span class="kn">import</span> <span class="n">FunctionType</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Sequence</span>
@@ -759,6 +760,40 @@
         <span class="s2">&quot;Please, use `distribute_qiskit_function` instead.&quot;</span>
     <span class="p">)</span>
     <span class="k">return</span> <span class="n">distribute_qiskit_function</span><span class="p">(</span><span class="n">provider</span><span class="p">,</span> <span class="n">dependencies</span><span class="p">,</span> <span class="n">working_dir</span><span class="p">)</span></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">trace_decorator_factory</span><span class="p">(</span><span class="n">traced_feature</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory for generate decorators for classes or features.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">generated_decorator</span><span class="p">(</span><span class="n">traced_function</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">FunctionType</span><span class="p">,</span> <span class="nb">str</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The decorator wrapper to generate optional arguments</span>
+<span class="sd">        if traced_function is string it will be used in the span,</span>
+<span class="sd">        the function.__name__ attribute will be used otherwise</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">decorator_trace</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">FunctionType</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;The decorator that python call&quot;&quot;&quot;</span>
+
+            <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;The wrapper&quot;&quot;&quot;</span>
+                <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
+                <span class="n">function_name</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">traced_function</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">traced_function</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+                    <span class="k">else</span> <span class="n">func</span><span class="o">.</span><span class="vm">__name__</span>
+                <span class="p">)</span>
+                <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">traced_feature</span><span class="si">}</span><span class="s2">.$</span><span class="si">{</span><span class="n">function_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">):</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">result</span>
+
+            <span class="k">return</span> <span class="n">wrapper</span>
+
+        <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">traced_function</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">decorator_trace</span><span class="p">(</span><span class="n">traced_function</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">decorator_trace</span>
+
+    <span class="k">return</span> <span class="n">generated_decorator</span>
 </pre></div>
         </article>
       </div>

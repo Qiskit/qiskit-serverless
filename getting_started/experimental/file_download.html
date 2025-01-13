@@ -315,20 +315,19 @@
           <section id="File-download-(Experimental)">
 <h1>File download (Experimental)<a class="headerlink" href="#File-download-(Experimental)" title="Permalink to this heading">¶</a></h1>
 <p>In this tutorial we will describe a way to retrieve files produced by Qiskit Functions.</p>
-<p>This function provides a way to download files produced by functions during execution. All you need is to call <code class="docutils literal notranslate"><span class="pre">QiskitServerless.download</span></code> function and pass <code class="docutils literal notranslate"><span class="pre">tar</span></code> file name to start downloading the file. Or you can list all available files to you by calling <code class="docutils literal notranslate"><span class="pre">QiskitServerless.files</span></code>.</p>
+<p>This function provides a way to download files produced by functions during execution. All you need is to call <code class="docutils literal notranslate"><span class="pre">QiskitServerless.file_download</span></code> function and pass a file name and the Qiskit Function to start downloading the file. Or you can list all available files to you by calling <code class="docutils literal notranslate"><span class="pre">QiskitServerless.files</span></code>.</p>
 <p>Limitations:</p>
 <ul class="simple">
-<li><p>only <code class="docutils literal notranslate"><span class="pre">tar</span></code> and <code class="docutils literal notranslate"><span class="pre">h5</span></code> files are supported</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">tar</span></code> or <code class="docutils literal notranslate"><span class="pre">h5</span></code> file should be saved in <code class="docutils literal notranslate"><span class="pre">/data</span></code> directory during your function execution to be visible by <code class="docutils literal notranslate"><span class="pre">.files()</span></code> method call</p></li>
-<li><p>only <code class="docutils literal notranslate"><span class="pre">/data</span></code> directory is supported, <code class="docutils literal notranslate"><span class="pre">/data/other_folder</span></code> will not be visible</p></li>
+<li><p>files should be saved in <code class="docutils literal notranslate"><span class="pre">/data</span></code> directory during your function execution to be visible by <code class="docutils literal notranslate"><span class="pre">.files()</span></code> method call.</p></li>
+<li><p>only <code class="docutils literal notranslate"><span class="pre">/data</span></code> directory is supported, <code class="docutils literal notranslate"><span class="pre">/data/other_folder</span></code> will not be visible.</p></li>
 <li><p>as a provider you have access to <code class="docutils literal notranslate"><span class="pre">/function-data</span></code>, it works in a similar way as the <code class="docutils literal notranslate"><span class="pre">/data</span></code> folder with the distinction that users don’t have access to it. Only the providers of the specific functions can see files under that path.</p></li>
+<li><p>Qiskit Functions created by you and Qiskit Functions created by others don’t share directories.</p></li>
 </ul>
 <blockquote>
-<div><p>⚠ This interface is experimental, therefore it is subjected to breaking changes.</p>
-<p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/deployment/local.html">local infrastructure setup</a>.</p>
+<div><p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/deployment/local.html">local infrastructure setup</a>.</p>
 </div></blockquote>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
@@ -336,7 +335,7 @@
 
 <span class="n">serverless</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
     <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
-    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:8000&quot;</span><span class="p">),</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_HOST&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost&quot;</span><span class="p">),</span>
     <span class="c1"># If you are using the kubernetes approach the URL must be http://localhost</span>
 <span class="p">)</span>
 <span class="n">serverless</span>
@@ -344,7 +343,8 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
@@ -353,7 +353,7 @@
 </div>
 <p>Let’s create a Qiskit Function to write <code class="docutils literal notranslate"><span class="pre">tar</span></code> file into <code class="docutils literal notranslate"><span class="pre">/data</span></code> folder</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
@@ -365,7 +365,7 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -374,25 +374,43 @@ QiskitFunction(file-producer)
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;file-producer&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_function</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;file-producer&quot;</span><span class="p">)</span>
+<span class="n">my_function</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+QiskitFunction(file-producer)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 <span class="n">job</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | 6be3ac4d-b20e-4493-9961-a187847cff49&gt;
+&lt;Job | 4868d039-3342-4f3e-b843-c0d15ad52fe6&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
@@ -400,7 +418,7 @@ QiskitFunction(file-producer)
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -410,16 +428,16 @@ QiskitFunction(file-producer)
 </div>
 <p>Now we can look at files available using <code class="docutils literal notranslate"><span class="pre">files</span></code> method</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">available_files</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">files</span><span class="p">()</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">available_files</span> <span class="o">=</span> <span class="n">serverless</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="n">my_function</span><span class="p">)</span>
 <span class="n">available_files</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -429,10 +447,10 @@ QiskitFunction(file-producer)
 </div>
 <p>And download them if needed using <code class="docutils literal notranslate"><span class="pre">download</span></code> method</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">file_download</span><span class="p">(</span><span class="n">available_files</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">serverless</span><span class="o">.</span><span class="n">file_download</span><span class="p">(</span><span class="n">available_files</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">my_function</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -441,16 +459,16 @@ QiskitFunction(file-producer)
 </div>
 <div class="output_area stderr docutils container">
 <div class="highlight"><pre>
-100%|██████████| 201/201 [00:00&lt;00:00, 331kiB/s]
+100%|██████████| 200/200 [00:00&lt;00:00, 309kiB/s]
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&#39;downloaded_91ea37d9_my_file.tar&#39;
+&#39;downloaded_8d3f92ba_my_file.tar&#39;
 </pre></div></div>
 </div>
 </section>
