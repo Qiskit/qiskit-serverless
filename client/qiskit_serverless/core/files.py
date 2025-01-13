@@ -102,7 +102,7 @@ class GatewayFilesClient:
         function: QiskitFunction,
         target_name: Optional[str] = None,
     ) -> Optional[str]:
-        """Downloads user file."""
+        """Download a file available to the user for the specific Qiskit Function."""
         return self._download_with_url(
             file,
             download_location,
@@ -119,7 +119,7 @@ class GatewayFilesClient:
         function: QiskitFunction,
         target_name: Optional[str] = None,
     ) -> Optional[str]:
-        """Downloads provider file."""
+        """Download a file available to the provider for the specific Qiskit Function."""
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
@@ -133,7 +133,7 @@ class GatewayFilesClient:
 
     @_trace
     def upload(self, file: str, function: QiskitFunction) -> Optional[str]:
-        """Uploads file."""
+        """Uploads a file in the specific user's Qiskit Function folder."""
         with open(file, "rb") as f:
             with requests.post(
                 os.path.join(self._files_url, "upload/"),
@@ -150,7 +150,7 @@ class GatewayFilesClient:
 
     @_trace
     def provider_upload(self, file: str, function: QiskitFunction) -> Optional[str]:
-        """Uploads file to provider/function file storage."""
+        """Uploads a file in the specific provider's Qiskit Function folder."""
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
@@ -170,7 +170,7 @@ class GatewayFilesClient:
 
     @_trace
     def list(self, function: QiskitFunction) -> List[str]:
-        """Returns list of available files to download produced by programs,"""
+        """Returns the list of files available for the user in the Qiskit Function folder."""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 self._files_url,
@@ -183,7 +183,7 @@ class GatewayFilesClient:
 
     @_trace
     def provider_list(self, function: QiskitFunction) -> List[str]:
-        """Returns list of available files to download produced by programs,"""
+        """Returns the list of files available for the provider in the Qiskit Function folder."""
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
@@ -199,7 +199,7 @@ class GatewayFilesClient:
 
     @_trace
     def delete(self, file: str, function: QiskitFunction) -> Optional[str]:
-        """Deletes file uploaded or produced by the programs,"""
+        """Deletes a file available to the user for the specific Qiskit Function."""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
                 os.path.join(self._files_url, "delete"),
@@ -219,7 +219,7 @@ class GatewayFilesClient:
 
     @_trace
     def provider_delete(self, file: str, function: QiskitFunction) -> Optional[str]:
-        """Deletes a file uploaded or produced by the Qiskit Functions"""
+        """Deletes a file available to the provider for the specific Qiskit Function."""
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
