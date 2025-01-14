@@ -54,8 +54,17 @@ class ResultStorage:
             return file_wrapper, file_type, file_size
 
     def save(self, job_id: str, result: str) -> None:
+        """
+        Save the result content to a file associated with the given job ID.
+
+        Args:
+            job_id (str): The unique identifier for the job. This will be used as the base 
+                        name for the result file.
+            result (str): The job result content to be saved in the file.
+        """
         result_path = self.__build_result_path(job_id)
 
         with open(result_path, "w", encoding=self.ENCODING) as result_file:
             result_file.write(result)
-            logger.info("Result for job ID '%s' successfully saved at '%s'.", job_id, result_path)
+            logger.info(
+                "Result for job ID '%s' successfully saved at '%s'.", job_id, result_path)
