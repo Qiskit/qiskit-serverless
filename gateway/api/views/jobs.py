@@ -26,6 +26,8 @@ from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
 from api.views.enums.type_filter import TypeFilter
+from api.services.result_storage import ResultStorage
+from api.access_policies.jobs import JobAccessPolocies
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -116,29 +118,19 @@ class JobViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.result", context=ctx):
-            saved = False
-            attempts_left = 10
-            while not saved:
-                if attempts_left <= 0:
-                    return Response(
-                        {"error": "All attempts to save results failed."}, status=500
-                    )
+            author = self.request.user
+            job = self.get_object()
+            can_access = JobAccessPolocies.can_save_result(author, job)
 
-                attempts_left -= 1
-
-                try:
-                    job = self.get_object()
-                    job.result = json.dumps(request.data.get("result"))
-                    job.save()
-                    saved = True
-                except RecordModifiedError:
-                    logger.warning(
-                        "Job [%s] record has not been updated due to lock. Retrying. Attempts left %s",  # pylint: disable=line-too-long
-                        job.id,
-                        attempts_left,
-                    )
-                    continue
-                time.sleep(1)
+            if not can_access:
+                return Response(
+                    {"message": f"User [{author}] does not have permissions to access to job [{job.id}]."},
+                    status=status.status.status.HTTP_403_FORBIDDEN,
+                )
+            
+            result = json.dumps(request.data.get("result"))
+            result_storage = ResultStorage(author)
+            result_storage.save(job.id, result)
 
             serializer = self.get_serializer(job)
         return Response(serializer.data)
