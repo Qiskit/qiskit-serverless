@@ -6,9 +6,7 @@ Version views inherit from the different views.
 import json
 import logging
 import os
-import time
 
-from concurrency.exceptions import RecordModifiedError
 from django.db.models import Q
 
 # pylint: disable=duplicate-code
@@ -124,10 +122,13 @@ class JobViewSet(viewsets.GenericViewSet):
 
             if not can_access:
                 return Response(
-                    {"message": f"User [{author}] does not have permissions to access to job [{job.id}]."},
-                    status=status.status.status.HTTP_403_FORBIDDEN,
+                    {
+                        "message": f"User [{author}] does not have permissions"
+                        + " to access to job [{job.id}]."
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
                 )
-            
+
             result = json.dumps(request.data.get("result"))
             result_storage = ResultStorage(author)
             result_storage.save(job.id, result)
