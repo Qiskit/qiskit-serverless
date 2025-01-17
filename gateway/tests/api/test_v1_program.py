@@ -126,9 +126,12 @@ class TestProgramApi(APITestCase):
         )
         job_id = programs_response.data.get("id")
         job = Job.objects.get(id=job_id)
+        env_vars = json.loads(job.env_vars)
+
         self.assertEqual(job.status, Job.QUEUED)
         self.assertEqual(job.arguments, arguments)
         self.assertEqual(job.trial, True)
+        self.assertEqual(env_vars["ENV_JOB_TRIAL"], "True")
         self.assertEqual(job.config.min_workers, 1)
         self.assertEqual(job.config.max_workers, 5)
         self.assertEqual(job.config.workers, None)
