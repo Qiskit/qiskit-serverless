@@ -184,6 +184,7 @@ class RunProgramSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
     arguments = serializers.CharField()
     config = serializers.JSONField()
+    provider = serializers.CharField(required=False)
 
     def retrieve_one_by_title(self, title, author):
         """
@@ -212,7 +213,8 @@ class RunJobSerializer(serializers.ModelSerializer):
 
     def is_trial(self, function: Program, author) -> bool:
         """
-        This method checks if the author is assigned to a trial instance in the program
+        This method checks if a group with run permissions from the author
+            is assigned to a trial instance in a function
         """
 
         function_repository = FunctionRepository()
@@ -222,15 +224,6 @@ class RunJobSerializer(serializers.ModelSerializer):
         user_run_groups = user_repository.get_groups_by_permissions(
             user=author, permission_name=RUN_PROGRAM_PERMISSION
         )
-
-        print("---------------------------")
-        print("---------------------------")
-        print(function.trial_instances)
-        print(trial_groups)
-        print(author)
-        print(user_run_groups)
-        print("---------------------------")
-        print("---------------------------")
 
         return any(group in trial_groups for group in user_run_groups)
 

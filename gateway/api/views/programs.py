@@ -205,19 +205,16 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             author = request.user
-            provider_name = request.data.get("provider", None)
-            print("-------------------- PROVIDER")
-            print(provider_name)
-            print("-------------------- PROVIDER")
+            # The sanitization should happen in the serializer
+            # but it's here until we can refactor the /run end-point
+            provider_name = sanitize_name(serializer.data.get("provider"))
             function_title = sanitize_name(serializer.data.get("title"))
-
             function = self.function_repository.get_function_by_permission(
                 user=author,
                 permission_name=RUN_PROGRAM_PERMISSION,
                 function_title=function_title,
                 provider_name=provider_name,
             )
-
             if function is None:
                 logger.error("Qiskit Pattern [%s] was not found.", function_title)
                 return Response(
