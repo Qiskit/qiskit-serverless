@@ -6,9 +6,6 @@ Version views inherit from the different views.
 import logging
 import os
 
-from django.db.models import Q
-from django.contrib.auth.models import Group, Permission
-
 # pylint: disable=duplicate-code
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -56,7 +53,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
     BASE_NAME = "programs"
 
-    program_repository = FunctionRepository()
+    function_repository = FunctionRepository()
 
     @staticmethod
     def get_serializer_job_config(*args, **kwargs):
@@ -104,45 +101,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
     def get_object(self):
         logger.warning("ProgramViewSet.get_object not implemented")
 
-    def get_run_queryset(self):
-        """get run queryset"""
-        author = self.request.user
-
-        logger.info("ProgramViewSet get run_program permission")
-        run_program_permission = Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
-
-        # Groups logic
-        user_criteria = Q(user=author)
-        run_permission_criteria = Q(permissions=run_program_permission)
-        author_groups_with_run_permissions = Group.objects.filter(
-            user_criteria & run_permission_criteria
-        )
-        author_groups_with_run_permissions_count = (
-            author_groups_with_run_permissions.count()
-        )
-        logger.info(
-            "ProgramViewSet get author [%s] groups [%s]",
-            author.id,
-            author_groups_with_run_permissions_count,
-        )
-
-        # Programs logic
-        author_criteria = Q(author=author)
-        author_groups_with_run_permissions_criteria = Q(
-            instances__in=author_groups_with_run_permissions
-        )
-        author_programs = Program.objects.filter(
-            author_criteria | author_groups_with_run_permissions_criteria
-        ).distinct()
-        author_programs_count = author_programs.count()
-        logger.info(
-            "ProgramViewSet get author [%s] programs [%s]",
-            author.id,
-            author_programs_count,
-        )
-
-        return author_programs
-
     def list(self, request):
         """List programs:"""
         tracer = trace.get_tracer("gateway.tracer")
@@ -156,18 +114,18 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 # Serverless filter only returns functions created by the author
                 # with the next criterias:
                 # - user is the author of the function and there is no provider
-                functions = self.program_repository.get_user_functions(author)
+                functions = self.function_repository.get_user_functions(author)
             elif type_filter == TypeFilter.CATALOG:
                 # Catalog filter only returns providers functions that user has access:
                 # author has view permissions and the function has a provider assigned
                 functions = (
-                    self.program_repository.get_provider_functions_by_permission(
+                    self.function_repository.get_provider_functions_by_permission(
                         author, permission_name=RUN_PROGRAM_PERMISSION
                     )
                 )
             else:
                 # If filter is not applied we return author and providers functions together
-                functions = self.program_repository.get_functions_by_permission(
+                functions = self.function_repository.get_functions_by_permission(
                     author, permission_name=VIEW_PROGRAM_PERMISSION
                 )
 
@@ -246,21 +204,31 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            author_program = self.get_run_queryset()
             author = request.user
-            title = sanitize_name(serializer.data.get("title"))
-            program = author_program.filter(title=title).first()
-            if program is None:
-                logger.error("Qiskit Pattern [%s] was not found.", title)
+            provider_name = request.data.get("provider", None)
+            print("-------------------- PROVIDER")
+            print(provider_name)
+            print("-------------------- PROVIDER")
+            function_title = sanitize_name(serializer.data.get("title"))
+
+            function = self.function_repository.get_function_by_permission(
+                user=author,
+                permission_name=RUN_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+
+            if function is None:
+                logger.error("Qiskit Pattern [%s] was not found.", function_title)
                 return Response(
-                    {"message": f"Qiskit Pattern [{title}] was not found."},
+                    {"message": f"Qiskit Pattern [{function_title}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
             jobconfig = None
             config_json = serializer.data.get("config")
             if config_json:
-                logger.info("Configuration for [%s] was found.", title)
+                logger.info("Configuration for [%s] was found.", function_title)
                 job_config_serializer = self.get_serializer_job_config(data=config_json)
                 if not job_config_serializer.is_valid():
                     logger.error(
@@ -279,7 +247,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             token = ""
             if request.auth:
                 token = request.auth.token.decode()
-            job_data = {"arguments": arguments, "program": program.id}
+            job_data = {"arguments": arguments, "program": function.id}
             job_serializer = self.get_serializer_run_job(data=job_data)
             if not job_serializer.is_valid():
                 logger.error(
@@ -309,14 +277,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
         )
 
         if provider_name:
-            function = self.program_repository.get_provider_function_by_permission(
+            function = self.function_repository.get_provider_function_by_permission(
                 author=author,
                 permission_name=VIEW_PROGRAM_PERMISSION,
                 title=function_title,
                 provider_name=provider_name,
             )
         else:
-            function = self.program_repository.get_user_function(
+            function = self.function_repository.get_user_function(
                 author=author, title=function_title
             )
 

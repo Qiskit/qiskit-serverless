@@ -114,9 +114,7 @@ class TestProgramApi(APITestCase):
             "/api/v1/programs/run/",
             data={
                 "title": "Program",
-                "entrypoint": "program.py",
                 "arguments": arguments,
-                "dependencies": "[]",
                 "config": {
                     "workers": None,
                     "min_workers": 1,
@@ -130,7 +128,7 @@ class TestProgramApi(APITestCase):
         job = Job.objects.get(id=job_id)
         self.assertEqual(job.status, Job.QUEUED)
         self.assertEqual(job.arguments, arguments)
-        self.assertEqual(job.program.dependencies, "[]")
+        self.assertEqual(job.trial, True)
         self.assertEqual(job.config.min_workers, 1)
         self.assertEqual(job.config.max_workers, 5)
         self.assertEqual(job.config.workers, None)
@@ -332,7 +330,7 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
         programs_response = self.client.post(
-            "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec83/add_runtimejob/",
+            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/add_runtimejob/",
             data={
                 "runtime_job": "runtime_job_4",
             },
@@ -344,13 +342,13 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
         programs_response = self.client.get(
-            "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec83/list_runtimejob/",
+            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/list_runtimejob/",
             format="json",
         )
         self.assertEqual(programs_response.json(), '["runtime_job_1", "runtime_job_2"]')
 
         programs_response = self.client.get(
-            "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec82/list_runtimejob/",
+            "/api/v1/jobs/57fc2e4d-267f-40c6-91a3-38153272e764/list_runtimejob/",
             format="json",
         )
         self.assertEqual(programs_response.json(), '["runtime_job_3"]')

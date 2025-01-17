@@ -14,6 +14,8 @@ from django.contrib.auth.models import Group, Permission
 from django.db.models import Q
 from rest_framework import serializers
 
+from api.repositories.functions import FunctionRepository
+from api.repositories.users import UserRepository
 from api.utils import build_env_variables, encrypt_env_vars, sanitize_name
 from .models import (
     Provider,
@@ -208,6 +210,30 @@ class RunJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
 
+    def is_trial(self, function: Program, author) -> bool:
+        """
+        This method checks if the author is assigned to a trial instance in the program
+        """
+
+        function_repository = FunctionRepository()
+        user_repository = UserRepository()
+
+        trial_groups = function_repository.get_trial_instances(function=function)
+        user_run_groups = user_repository.get_groups_by_permissions(
+            user=author, permission_name=RUN_PROGRAM_PERMISSION
+        )
+
+        print("---------------------------")
+        print("---------------------------")
+        print(function.trial_instances)
+        print(trial_groups)
+        print(author)
+        print(user_run_groups)
+        print("---------------------------")
+        print("---------------------------")
+
+        return any(group in trial_groups for group in user_run_groups)
+
     def create(self, validated_data):
         logger.info("Creating Job with RunExistingJobSerializer")
         status = Job.QUEUED
@@ -219,7 +245,9 @@ class RunJobSerializer(serializers.ModelSerializer):
         token = validated_data.pop("token")
         carrier = validated_data.pop("carrier")
 
+        trial = self.is_trial(program, author)
         job = Job(
+            trial=trial,
             status=status,
             program=program,
             arguments=arguments,
@@ -227,7 +255,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             config=config,
         )
 
-        env = encrypt_env_vars(build_env_variables(token, job, arguments))
+        env = encrypt_env_vars(build_env_variables(token, job, trial, arguments))
         try:
             env["traceparent"] = carrier["traceparent"]
         except KeyError:
