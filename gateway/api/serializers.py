@@ -14,6 +14,8 @@ from django.contrib.auth.models import Group, Permission
 from django.db.models import Q
 from rest_framework import serializers
 
+from api.repositories.functions import FunctionRepository
+from api.repositories.users import UserRepository
 from api.utils import build_env_variables, encrypt_env_vars, sanitize_name
 from .models import (
     Provider,
@@ -182,6 +184,7 @@ class RunProgramSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
     arguments = serializers.CharField()
     config = serializers.JSONField()
+    provider = serializers.CharField(required=False, allow_null=True)
 
     def retrieve_one_by_title(self, title, author):
         """
@@ -202,11 +205,27 @@ class RunProgramSerializer(serializers.Serializer):
 
 class RunJobSerializer(serializers.ModelSerializer):
     """
-    Job serializer for the /run and /run end-point
+    Job serializer for the /run and end-point
     """
 
     class Meta:
         model = Job
+
+    def is_trial(self, function: Program, author) -> bool:
+        """
+        This method checks if a group with run permissions from the author
+            is assigned to a trial instance in a function
+        """
+
+        function_repository = FunctionRepository()
+        user_repository = UserRepository()
+
+        trial_groups = function_repository.get_trial_instances(function=function)
+        user_run_groups = user_repository.get_groups_by_permissions(
+            user=author, permission_name=RUN_PROGRAM_PERMISSION
+        )
+
+        return any(group in trial_groups for group in user_run_groups)
 
     def create(self, validated_data):
         logger.info("Creating Job with RunExistingJobSerializer")
@@ -219,7 +238,9 @@ class RunJobSerializer(serializers.ModelSerializer):
         token = validated_data.pop("token")
         carrier = validated_data.pop("carrier")
 
+        trial = self.is_trial(program, author)
         job = Job(
+            trial=trial,
             status=status,
             program=program,
             arguments=arguments,
@@ -227,7 +248,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             config=config,
         )
 
-        env = encrypt_env_vars(build_env_variables(token, job, arguments))
+        env = encrypt_env_vars(build_env_variables(token, job, trial, arguments))
         try:
             env["traceparent"] = carrier["traceparent"]
         except KeyError:
