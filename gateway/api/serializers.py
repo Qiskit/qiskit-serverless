@@ -184,7 +184,7 @@ class RunProgramSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
     arguments = serializers.CharField()
     config = serializers.JSONField()
-    provider = serializers.CharField(required=False)
+    provider = serializers.CharField(required=False, allow_null=True)
 
     def retrieve_one_by_title(self, title, author):
         """
@@ -205,7 +205,7 @@ class RunProgramSerializer(serializers.Serializer):
 
 class RunJobSerializer(serializers.ModelSerializer):
     """
-    Job serializer for the /run and /run end-point
+    Job serializer for the /run and end-point
     """
 
     class Meta:

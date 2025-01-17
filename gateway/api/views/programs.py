@@ -199,7 +199,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             serializer = self.get_serializer_run_program(data=request.data)
             if not serializer.is_valid():
                 logger.error(
-                    "RunExistingProgramSerializer validation failed:\n %s",
+                    "RunProgramSerializer validation failed:\n %s",
                     serializer.errors,
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
