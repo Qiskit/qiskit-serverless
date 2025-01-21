@@ -102,7 +102,12 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
 
-    instances = models.ManyToManyField(Group, blank=True)
+    instances = models.ManyToManyField(
+        Group, blank=True, related_name="program_instances"
+    )
+    trial_instances = models.ManyToManyField(
+        Group, blank=True, related_name="program_trial_instances"
+    )
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -174,27 +179,27 @@ class Job(models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, null=True)
 
-    program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
     arguments = models.TextField(null=False, blank=True, default="{}")
     env_vars = models.TextField(null=False, blank=True, default="{}")
+    gpu = models.BooleanField(default=False, null=False)
+    logs = models.TextField(default="No logs yet.")
+    ray_job_id = models.CharField(max_length=255, null=True, blank=True)
     result = models.TextField(null=True, blank=True)
-    author = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-    )
     status = models.CharField(
         max_length=10,
         choices=JOB_STATUSES,
         default=QUEUED,
     )
+    trial = models.BooleanField(default=False, null=False)
+    version = IntegerVersionField()
+
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+    )
     compute_resource = models.ForeignKey(
         ComputeResource, on_delete=models.SET_NULL, null=True, blank=True
     )
-    ray_job_id = models.CharField(max_length=255, null=True, blank=True)
-    logs = models.TextField(default="No logs yet.")
-
-    version = IntegerVersionField()
-
     config = models.ForeignKey(
         to=JobConfig,
         on_delete=models.CASCADE,
@@ -202,8 +207,7 @@ class Job(models.Model):
         null=True,
         blank=True,
     )
-
-    gpu = models.BooleanField(default=False, null=False)
+    program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
         return f"<Job {self.id} | {self.status}>"
