@@ -69,18 +69,6 @@ data:
                       fieldRef:
                         fieldPath: status.podIP
 {{- end }}
-{{- if .Values.application.proxy.enabled }}
-              - name: iptables
-                image: {{ .Values.application.proxy.initImage }}
-                command: ["sh", "-c", "/var/iptables/iptables.sh"]
-                volumeMounts:
-                  - mountPath: /var/iptables
-                    name: iptables
-                securityContext:
-                  privileged: true
-                  capabilities:
-                    add: ["NET_ADMIN"]
-{{- end }}
             affinity:
             containers:
             - image: {{`{{ node_image }}`| quote  }}
@@ -266,12 +254,3 @@ data:
             - name: user-storage
               persistentVolumeClaim:
                 claimName: {{ .Values.cos.claimName }}
-{{- if .Values.application.proxy.enabled }}
-            - name: iptables
-              configMap:
-                name: proxy-iptables
-                defaultMode: 0777
-                items:
-                - key: iptables.sh
-                  path: iptables.sh
-{{- end }}
