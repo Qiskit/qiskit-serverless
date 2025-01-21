@@ -151,7 +151,7 @@ def build_env_variables(
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
             "ENV_JOB_ARGUMENTS": arguments,
-            "ENV_JOB_TRIAL": str(trial_mode),
+            "ENV_ACCESS_TRIAL": str(trial_mode),
         },
         **extra,
     }

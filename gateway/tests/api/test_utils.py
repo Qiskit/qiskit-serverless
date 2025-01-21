@@ -32,7 +32,7 @@ class TestUtils(APITestCase):
                 "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
                 "ENV_JOB_ID_GATEWAY": "42",
                 "ENV_JOB_ARGUMENTS": "{}",
-                "ENV_JOB_TRIAL": "False",
+                "ENV_ACCESS_TRIAL": "False",
             },
         )
 
@@ -47,7 +47,7 @@ class TestUtils(APITestCase):
                 "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
                 "ENV_JOB_ID_GATEWAY": "42",
                 "ENV_JOB_ARGUMENTS": "{}",
-                "ENV_JOB_TRIAL": "True",
+                "ENV_ACCESS_TRIAL": "True",
                 "QISKIT_IBM_TOKEN": "42",
                 "QISKIT_IBM_CHANNEL": "ibm_quantum",
                 "QISKIT_IBM_URL": "https://auth.quantum-computing.ibm.com/api",

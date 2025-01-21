@@ -131,7 +131,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(job.status, Job.QUEUED)
         self.assertEqual(job.arguments, arguments)
         self.assertEqual(job.trial, True)
-        self.assertEqual(env_vars["ENV_JOB_TRIAL"], "True")
+        self.assertEqual(env_vars["ENV_ACCESS_TRIAL"], "True")
         self.assertEqual(job.config.min_workers, 1)
         self.assertEqual(job.config.max_workers, 5)
         self.assertEqual(job.config.workers, None)
