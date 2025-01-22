@@ -40,7 +40,7 @@ class ResultStorage:
             - File MIME type
             - File size in bytes
         """
-        result_path = self.__build_result_path(job_id)
+        result_path = self.__get_result_path(job_id)
 
         if not os.path.exists(result_path):
             logger.warning(
@@ -67,7 +67,7 @@ class ResultStorage:
                         name for the result file.
             result (str): The job result content to be saved in the file.
         """
-        result_path = self.__build_result_path(job_id)
+        result_path = self.__get_result_path(job_id)
 
         with open(result_path, "w", encoding=self.ENCODING) as result_file:
             result_file.write(result)

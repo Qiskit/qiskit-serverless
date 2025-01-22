@@ -26,6 +26,7 @@ from api.ray import get_job_handler
 from api.views.enums.type_filter import TypeFilter
 from api.services.result_storage import ResultStorage
 from api.access_policies.jobs import JobAccessPolocies
+from api.repositories.jobs import JobsRepository
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -36,12 +37,14 @@ otel_exporter = BatchSpanProcessor(
         endpoint=os.environ.get(
             "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
         ),
-        insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
+        insecure=bool(
+            int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
 provider.add_span_processor(otel_exporter)
 if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+    trace._set_tracer_provider(
+        provider, log=False)  # pylint: disable=protected-access
 
 
 class JobViewSet(viewsets.GenericViewSet):
@@ -50,6 +53,9 @@ class JobViewSet(viewsets.GenericViewSet):
     """
 
     BASE_NAME = "jobs"
+
+
+    jobs_repository = JobsRepository()
 
     def get_serializer_class(self):
         return self.serializer_class
@@ -87,7 +93,8 @@ class JobViewSet(viewsets.GenericViewSet):
             if job.program and job.program.provider:
                 provider_groups = job.program.provider.admin_groups.all()
                 author_groups = author.groups.all()
-                has_access = any(group in provider_groups for group in author_groups)
+                has_access = any(
+                    group in provider_groups for group in author_groups)
                 if has_access:
                     serializer = self.get_serializer(job)
                     return Response(serializer.data)
@@ -117,20 +124,18 @@ class JobViewSet(viewsets.GenericViewSet):
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.result", context=ctx):
             author = self.request.user
-            job = self.get_object()
+            job = self.jobs_repository.get_job_by_id(pk)
             can_access = JobAccessPolocies.can_save_result(author, job)
-
             if not can_access:
                 return Response(
                     {
-                        "message": f"User [{author}] does not have permissions"
-                        + " to access to job [{job.id}]."
+                        "message": f"Job [{job.id}] nor found for user [{author}]"
                     },
-                    status=status.HTTP_403_FORBIDDEN,
+                    status=status.HTTP_404_NOT_FOUND,
                 )
 
             result = json.dumps(request.data.get("result"))
-            result_storage = ResultStorage(author)
+            result_storage = ResultStorage(author.username)
             result_storage.save(job.id, result)
 
             serializer = self.get_serializer(job)
@@ -152,7 +157,8 @@ class JobViewSet(viewsets.GenericViewSet):
             if job.program and job.program.provider:
                 provider_groups = job.program.provider.admin_groups.all()
                 author_groups = author.groups.all()
-                has_access = any(group in provider_groups for group in author_groups)
+                has_access = any(
+                    group in provider_groups for group in author_groups)
                 if has_access:
                     return Response({"logs": logs})
                 return Response({"logs": "No available logs"})
@@ -185,7 +191,8 @@ class JobViewSet(viewsets.GenericViewSet):
                         ]
                     )
                     for runtime_job_entry in runtime_jobs:
-                        jobinstance = service.job(runtime_job_entry.runtime_job)
+                        jobinstance = service.job(
+                            runtime_job_entry.runtime_job)
                         if jobinstance:
                             try:
                                 logger.info(
