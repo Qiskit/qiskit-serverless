@@ -54,7 +54,6 @@ class JobViewSet(viewsets.GenericViewSet):
 
     BASE_NAME = "jobs"
 
-
     jobs_repository = JobsRepository()
 
     def get_serializer_class(self):
@@ -134,9 +133,9 @@ class JobViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            result = json.dumps(request.data.get("result"))
+            job.result = json.dumps(request.data.get("result"))
             result_storage = ResultStorage(author.username)
-            result_storage.save(job.id, result)
+            result_storage.save(job.id, job.result)
 
             serializer = self.get_serializer(job)
         return Response(serializer.data)

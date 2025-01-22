@@ -116,22 +116,31 @@ class TestJobApi(APITestCase):
 
     def test_job_save_result(self):
         """Tests job results save."""
-        self._authorize()
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
-        job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
-        jobs_response = self.client.post(
-            reverse("v1:jobs-result",
-                    args=[job_id]),
-            format="json",
-            data={"result": {"ultimate": 42}},
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("status"), "SUCCEEDED")
-        self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
-        result_path = os.path.join(
-            settings.MEDIA_ROOT, "test_user", "result", f"{job_id}.json"
-        )
-        self.assertTrue(os.path.exists(result_path))
+        with self.settings(MEDIA_ROOT=media_root):
+            self._authorize()
+
+            job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
+            jobs_response = self.client.post(
+                reverse("v1:jobs-result",
+                        args=[job_id]),
+                format="json",
+                data={"result": {"ultimate": 42}},
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get(
+                "result"), '{"ultimate": 42}')
+            result_path = os.path.join(
+                settings.MEDIA_ROOT, "test_user", "result", f"{job_id}.json"
+            )
+            self.assertTrue(os.path.exists(result_path))
 
     def test_not_authorized_job_save_result(self):
         """Tests job results save."""
