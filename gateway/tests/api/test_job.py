@@ -133,6 +133,7 @@ class TestJobApi(APITestCase):
                 settings.MEDIA_ROOT, "test_user", "results", f"{job_id}.json"
             )
             self.assertTrue(os.path.exists(result_path))
+            os.remove(result_path)
 
     def test_not_authorized_job_save_result(self):
         """Tests job results save."""
