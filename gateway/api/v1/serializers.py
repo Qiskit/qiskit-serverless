@@ -67,7 +67,8 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         title = attrs.get("title")
         provider = attrs.get("provider", None)
         if provider and "/" in title:
-            raise ValidationError("Provider defined in title and in provider fields.")
+            raise ValidationError(
+                "Provider defined in title and in provider fields.")
 
         title_split = title.split("/")
         if len(title_split) > 2:
@@ -144,6 +145,17 @@ class JobSerializer(serializers.JobSerializer):
 
     class Meta(serializers.JobSerializer.Meta):
         fields = ["id", "result", "status", "program", "created"]
+
+
+class JobSerializerWithoutResult(serializers.JobSerializer):
+    """
+    Job serializer first version. Include basic fields from the initial model.
+    """
+
+    program = ProgramSerializer(many=False)
+
+    class Meta(serializers.JobSerializer.Meta):
+        fields = ["id", "status", "program", "created"]
 
 
 class RuntimeJobSerializer(serializers.RuntimeJobSerializer):

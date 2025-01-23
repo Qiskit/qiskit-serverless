@@ -27,6 +27,7 @@ from api.views.enums.type_filter import TypeFilter
 from api.services.result_storage import ResultStorage
 from api.access_policies.jobs import JobAccessPolocies
 from api.repositories.jobs import JobsRepository
+from api.v1 import serializers as v1_serializers
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -37,12 +38,14 @@ otel_exporter = BatchSpanProcessor(
         endpoint=os.environ.get(
             "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
         ),
-        insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
+        insecure=bool(
+            int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
 provider.add_span_processor(otel_exporter)
 if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+    trace._set_tracer_provider(
+        provider, log=False)  # pylint: disable=protected-access
 
 
 class JobViewSet(viewsets.GenericViewSet):
@@ -56,6 +59,14 @@ class JobViewSet(viewsets.GenericViewSet):
 
     def get_serializer_class(self):
         return self.serializer_class
+
+    @staticmethod
+    def get_serializer_job(*args, **kwargs):
+        return v1_serializers.JobSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_serializer_job_without_result(*args, **kwargs):
+        return v1_serializers.JobSerializerWithoutResult(*args, **kwargs)
 
     def get_queryset(self):
         type_filter = self.request.query_params.get("filter")
@@ -79,24 +90,29 @@ class JobViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.retrieve", context=ctx):
-            job = Job.objects.filter(pk=pk).first()
-            if job is None:
+
+            author = self.request.user
+            job = self.jobs_repository.get_job_by_id(pk)
+
+            if not JobAccessPolocies.can_access(author, job):
                 logger.warning("Job [%s] not found", pk)
                 return Response(
                     {"message": f"Job [{pk}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            author = self.request.user
-            if job.program and job.program.provider:
-                provider_groups = job.program.provider.admin_groups.all()
-                author_groups = author.groups.all()
-                has_access = any(group in provider_groups for group in author_groups)
-                if has_access:
-                    serializer = self.get_serializer(job)
-                    return Response(serializer.data)
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+
+            is_provider_job = job.program and job.program.provider
+            if is_provider_job:
+                serializer = self.get_serializer_job_without_result(job)
+                return Response(serializer.data)
+
+            serializer = self.get_serializer_job(job)
+            result_store = ResultStorage(author.username)
+            results = result_store.get(job.id)
+            if results is not None:
+                serializer.results = results
+
+            return Response(serializer.data)
 
     def list(self, request):
         """List jobs:"""
@@ -124,7 +140,8 @@ class JobViewSet(viewsets.GenericViewSet):
             can_access = JobAccessPolocies.can_save_result(author, job)
             if not can_access:
                 return Response(
-                    {"message": f"Job [{job.id}] nor found for user [{author}]"},
+                    {"message": f"Job [{
+                        job.id}] nor found for user [{author}]"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
@@ -151,7 +168,8 @@ class JobViewSet(viewsets.GenericViewSet):
             if job.program and job.program.provider:
                 provider_groups = job.program.provider.admin_groups.all()
                 author_groups = author.groups.all()
-                has_access = any(group in provider_groups for group in author_groups)
+                has_access = any(
+                    group in provider_groups for group in author_groups)
                 if has_access:
                     return Response({"logs": logs})
                 return Response({"logs": "No available logs"})
@@ -184,7 +202,8 @@ class JobViewSet(viewsets.GenericViewSet):
                         ]
                     )
                     for runtime_job_entry in runtime_jobs:
-                        jobinstance = service.job(runtime_job_entry.runtime_job)
+                        jobinstance = service.job(
+                            runtime_job_entry.runtime_job)
                         if jobinstance:
                             try:
                                 logger.info(
