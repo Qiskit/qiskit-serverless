@@ -2,13 +2,13 @@
 Repository implementation for Job model
 """
 import logging
-from api.models import Job
 from django.db.models import Q
+from api.models import Job
 
 logger = logging.getLogger("gateway")
 
 
-class JobsRepository:
+class JobsRepository:  # pylint: disable=too-few-public-methods
     """
     The main objective of this class is to manage the access to the Job model
     """

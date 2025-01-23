@@ -31,5 +31,6 @@ class JobAccessPolocies:  # pylint: disable=too-few-public-methods
         has_access = user.id == job.author.id
         if not has_access:
             logger.warning(
-                "User [%s] has no access to job [%s].", user.username, job.author)
+                "User [%s] has no access to job [%s].", user.username, job.author
+            )
         return has_access
