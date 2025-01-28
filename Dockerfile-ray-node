@@ -2,9 +2,8 @@ FROM registry.access.redhat.com/ubi9-minimal:9.4@sha256:104cf11d890aeb7dd5728b7d
 RUN microdnf install -y \
     python3.11-3.11.9 \
     python3.11-devel-3.11.9 \
-    vim-enhanced-8.2.2637 \
-    wget-1.21.1 &&\
-    microdnf clean all
+    wget-1.21.1
+RUN microdnf clean all
 
 # Custom part to install from source Qiskit
 RUN microdnf install -y git
