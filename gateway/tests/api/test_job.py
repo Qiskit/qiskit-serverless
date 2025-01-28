@@ -75,21 +75,31 @@ class TestJobApi(APITestCase):
 
     def test_job_detail(self):
         """Tests job detail authorized."""
-        self._authorize()
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
-            format="json",
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
         )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            self._authorize()
+
+            jobs_response = self.client.get(
+                reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
 
     def test_job_detail_without_result_file(self):
         """Tests job detail authorized."""
+        
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"]),
+            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec86"]),
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
