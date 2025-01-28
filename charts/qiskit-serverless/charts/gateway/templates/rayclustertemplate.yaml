@@ -69,18 +69,6 @@ data:
                       fieldRef:
                         fieldPath: status.podIP
 {{- end }}
-{{- if .Values.application.proxy.enabled }}
-              - name: iptables
-                image: {{ .Values.application.proxy.initImage }}
-                command: ["sh", "-c", "/var/iptables/iptables.sh"]
-                volumeMounts:
-                  - mountPath: /var/iptables
-                    name: iptables
-                securityContext:
-                  privileged: true
-                  capabilities:
-                    add: ["NET_ADMIN"]
-{{- end }}
             affinity:
             containers:
             - image: {{`{{ node_image }}`| quote  }}
@@ -160,72 +148,6 @@ data:
                 - name: OT_ENABLED
                   value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
 {{- end }}
-{{- if .Values.application.proxy.enabled }}
-            - image: {{ .Values.application.ray.proxyImage }}
-              securityContext:
-                runAsGroup: 1000
-              imagePullPolicy: IfNotPresent
-              name: proxy
-              resources:
-                limits:
-                  cpu: {{ .Values.application.proxy.cpu }}
-                  memory: {{ .Values.application.proxy.memory }}Gi
-              volumeMounts:
-              - mountPath: /tmp/ray
-                name: log-volume
-              - mountPath: /etc/ca/tls
-                name: ca-tls
-                readOnly: true
-              - mountPath: /etc/ray/tls
-                name: ray-tls
-{{- if .Values.useCertManager }}
-              - mountPath: /tmp/tls
-                name: cert-tls
-{{- end }}
-              - mountPath: /data
-                name: user-storage
-                subPath: {{`{{ user_data_folder }}`}}
-              env:
-                # Environment variables for Ray TLS authentication.
-                # See https://docs.ray.io/en/latest/ray-core/configure.html#tls-authentication for more details.
-                - name: DST_PROTOCOL
-                  value: "https"
-                - name: GATEWAY_URL
-                  value: "gateway:8000"
-{{- if .Values.application.ray.useTLS }}
-                - name: RAY_USE_TLS
-                  value: "1"
-{{- end }}
-{{- if .Values.useCertManager }}
-                - name: RAY_TLS_SERVER_CERT
-                  value: "/tmp/tls/tls.crt"
-                - name: RAY_TLS_SERVER_KEY
-                  value: "/tmp/tls/tls.key"
-                - name: RAY_TLS_CA_CERT
-                  value: "/tmp/tls/ca.crt"
-{{- else }}
-                - name: RAY_TLS_SERVER_CERT
-                  value: "/etc/ray/tls/tls.crt"
-                - name: RAY_TLS_SERVER_KEY
-                  value: "/etc/ray/tls/tls.key"
-                - name: RAY_TLS_CA_CERT
-                  value: "/etc/ca/tls/ca.crt"
-{{- end }}
-{{- if .Values.application.ray.openTelemetry }}
-                - name: OT_RAY_TRACER
-                  value: "1"
-{{- end }}
-{{- if .Values.application.ray.openTelemetryCollector.local }}
-                - name: OT_JAEGER_HOST_KEY
-                  value: {{ .Values.application.ray.openTelemetryCollector.host }}
-                - name: OT_JAEGER_PORT_KEY
-                  value: {{ .Values.application.ray.openTelemetryCollector.port | quote }}
-                - name: OT_INSECURE
-                  value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
-                - name: OT_ENABLED
-                  value: {{ .Values.application.ray.openTelemetryCollector.enabled | quote }}
-{{- end }}
-{{- end }}
             imagePullSecrets: []
 {{- if .Values.useCertManager }}
             serviceAccountName: ray-cluster-sa
@@ -266,12 +188,3 @@ data:
             - name: user-storage
               persistentVolumeClaim:
                 claimName: {{ .Values.cos.claimName }}
-{{- if .Values.application.proxy.enabled }}
-            - name: iptables
-              configMap:
-                name: proxy-iptables
-                defaultMode: 0777
-                items:
-                - key: iptables.sh
-                  path: iptables.sh
-{{- end }}
