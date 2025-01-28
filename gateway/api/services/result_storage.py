@@ -30,7 +30,7 @@ class ResultStorage:
             self.user_results_directory, f"{job_id}{self.RESULT_FILE_EXTENSION}"
         )
 
-    def get(self, job_id: str) -> Optional[Tuple[FileWrapper, str, int]]:
+    def get(self, job_id: str) -> Optional[str]:
         """
         Retrieve a result file for the given job ID.
 
@@ -50,13 +50,16 @@ class ResultStorage:
             )
             return None
 
-        with open(result_path, "rb") as result_file:
-            file_wrapper = FileWrapper(result_file)
-            file_type = (
-                mimetypes.guess_type(result_path)[0] or "application/octet-stream"
+        try:
+            with open(result_path, "r", encoding="utf-8") as result_file:
+                return result_file.read()
+        except (UnicodeDecodeError, IOError) as e:
+            logger.error(
+                "Failed to read result file for job ID '%s': %s",
+                job_id,
+                str(e),
             )
-            file_size = os.path.getsize(result_path)
-            return file_wrapper, file_type, file_size
+            return None
 
     def save(self, job_id: str, result: str) -> None:
         """

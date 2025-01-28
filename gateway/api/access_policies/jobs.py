@@ -27,7 +27,6 @@ class JobAccessPolocies:  # pylint: disable=too-few-public-methods
             bool: True or False in case the user has access
         """
 
-        print(type(user))
         is_provider_job = job.program and job.program.provider
         if is_provider_job:
             provider_groups = job.program.provider.admin_groups.all()

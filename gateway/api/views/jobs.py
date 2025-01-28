@@ -105,12 +105,13 @@ class JobViewSet(viewsets.GenericViewSet):
             if is_provider_job:
                 serializer = self.get_serializer_job_without_result(job)
                 return Response(serializer.data)
+            
+            result_store = ResultStorage(author.username)
+            result = result_store.get(job.id)
+            if result is not None:
+                job.result = result
 
             serializer = self.get_serializer_job(job)
-            result_store = ResultStorage(author.username)
-            results = result_store.get(job.id)
-            if results is not None:
-                serializer.results = results
 
             return Response(serializer.data)
 
@@ -140,8 +141,7 @@ class JobViewSet(viewsets.GenericViewSet):
             can_access = JobAccessPolocies.can_save_result(author, job)
             if not can_access:
                 return Response(
-                    {"message": f"Job [{
-                        job.id}] nor found for user [{author}]"},
+                    {"message": f"Job [{job.id}] nor found for user [{author}]"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 

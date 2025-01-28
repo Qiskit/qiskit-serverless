@@ -82,7 +82,17 @@ class TestJobApi(APITestCase):
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("status"), "SUCCEEDED")
+        self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
+
+    def test_job_detail_without_result_file(self):
+        """Tests job detail authorized."""
+        self._authorize()
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"]),
+            format="json",
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("result"), '{"somekey":1}')
 
     def test_job_provider_detail(self):
@@ -96,7 +106,7 @@ class TestJobApi(APITestCase):
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("status"), "QUEUED")
-        self.assertEqual(jobs_response.data.get("result"), '{"somekey":1}')
+        self.assertEqual(jobs_response.data.get("result"), None)
 
     def test_not_authorized_job_detail(self):
         """Tests job detail fails trying to access to other user job."""
@@ -133,6 +143,7 @@ class TestJobApi(APITestCase):
                 settings.MEDIA_ROOT, "test_user", "results", f"{job_id}.json"
             )
             self.assertTrue(os.path.exists(result_path))
+            os.remove(result_path)
 
     def test_not_authorized_job_save_result(self):
         """Tests job results save."""
