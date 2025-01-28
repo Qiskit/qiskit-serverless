@@ -99,7 +99,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec86"]),
+            reverse("v1:jobs-detail", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -160,7 +160,7 @@ class TestJobApi(APITestCase):
         self._authorize()
         job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84"
         jobs_response = self.client.post(
-            reverse("v1:jobs-result", args=[job_id]),
+            reverse("v1:jobs-result", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
             format="json",
             data={"result": {"ultimate": 42}},
         )
@@ -178,13 +178,13 @@ class TestJobApi(APITestCase):
         job_stop_response = self.client.post(
             reverse(
                 "v1:jobs-stop",
-                args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"],
+                args=["8317718f-5c0d-4fb6-9947-72e480b8a348"],
             ),
             format="json",
         )
         self.assertEqual(job_stop_response.status_code, status.HTTP_200_OK)
         job = Job.objects.filter(
-            id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"
+            id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348"
         ).first()
         self.assertEqual(job.status, Job.STOPPED)
         self.assertEqual(job_stop_response.data.get("message"), "Job has been stopped.")
@@ -194,7 +194,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"]),
+            reverse("v1:jobs-logs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)

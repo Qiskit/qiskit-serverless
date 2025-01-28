@@ -67,7 +67,8 @@
       "instances": [
         100,
         101
-      ]
+      ],
+      "trial_instances": []
     }
   },
   {
@@ -94,7 +95,8 @@
       "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbeb",
       "instances": [
         100
-      ]
+      ],
+      "trial_instances": []
     }
   },
   {
@@ -110,7 +112,8 @@
       "instances": [
         100,
         101
-      ]
+      ],
+      "trial_instances": []
     }
   },
   {
@@ -125,12 +128,15 @@
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "instances": [
         100
+      ],
+      "trial_instances": [
+        100
       ]
     }
   },
   {
     "model": "api.job",
-    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+    "pk": "57fc2e4d-267f-40c6-91a3-38153272e764",
     "fields": {
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2023-02-01T15:30:43.281796Z",
@@ -142,7 +148,7 @@
   },
   {
     "model": "api.job",
-    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
+    "pk": "8317718f-5c0d-4fb6-9947-72e480b8a348",
     "fields": {
       "program": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
       "created": "2023-02-01T15:30:43.281796Z",
@@ -189,7 +195,7 @@
     "model": "api.runtimejob",
     "pk": "runtime_job_1",
     "fields": {
-      "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
+      "job": "8317718f-5c0d-4fb6-9947-72e480b8a348",
       "runtime_job": "runtime_job_1"
     }
   },
@@ -197,7 +203,7 @@
     "model": "api.runtimejob",
     "pk": "runtime_job_2",
     "fields": {
-      "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec83",
+      "job": "8317718f-5c0d-4fb6-9947-72e480b8a348",
       "runtime_job": "runtime_job_2"
     }
   },
@@ -205,7 +211,7 @@
     "model": "api.runtimejob",
     "pk": "runtime_job_3",
     "fields": {
-      "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "job": "57fc2e4d-267f-40c6-91a3-38153272e764",
       "runtime_job": "runtime_job_3"
     }
   },

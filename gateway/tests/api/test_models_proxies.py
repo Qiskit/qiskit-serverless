@@ -101,13 +101,13 @@ class ProxiesTest(APITestCase):
         test_user_proxy = QuantumUserProxy.objects.get(username="test_user")
         user_criteria = Q(user=test_user_proxy)
         run_permission_criteria = Q(permissions=run_program_permission)
-        program_pk_criteria = Q(program=program_with_run_permission)
+        program_pk_criteria = Q(program_instances=program_with_run_permission)
         test_user_program_with_run_permissions = Group.objects.filter(
             user_criteria & run_permission_criteria & program_pk_criteria
         )
         self.assertTrue(test_user_program_with_run_permissions.exists())
 
-        program_pk_criteria = Q(program=program_without_run_permission)
+        program_pk_criteria = Q(program_instances=program_without_run_permission)
         test_user_program_without_run_permissions = Group.objects.filter(
             user_criteria & run_permission_criteria & program_pk_criteria
         )
