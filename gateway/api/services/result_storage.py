@@ -27,8 +27,7 @@ class ResultStorage:
     def __get_result_path(self, job_id: str) -> str:
         """Construct the full path for a result file."""
         return os.path.join(
-            self.user_results_directory, f"{
-                job_id}{self.RESULT_FILE_EXTENSION}"
+            self.user_results_directory, f"{job_id}{self.RESULT_FILE_EXTENSION}"
         )
 
     def get(self, job_id: str) -> Optional[str]:

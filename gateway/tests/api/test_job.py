@@ -110,8 +110,6 @@ class TestJobApi(APITestCase):
                 reverse("v1:jobs-detail", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
                 format="json",
             )
-            print("AQUI")
-            print(jobs_response.data)
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("result"), '{"somekey":1}')
 
