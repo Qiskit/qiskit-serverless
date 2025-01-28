@@ -93,6 +93,12 @@ class JobViewSet(viewsets.GenericViewSet):
 
             author = self.request.user
             job = self.jobs_repository.get_job_by_id(pk)
+            if job is None:
+                logger.info("Job [%s] nor found", pk)
+                return Response(
+                    {"message": f"Job [{pk}] nor found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
             if not JobAccessPolocies.can_access(author, job):
                 logger.warning("Job [%s] not found", pk)
@@ -105,9 +111,9 @@ class JobViewSet(viewsets.GenericViewSet):
             if is_provider_job:
                 serializer = self.get_serializer_job_without_result(job)
                 return Response(serializer.data)
-            
+
             result_store = ResultStorage(author.username)
-            result = result_store.get(job.id)
+            result = result_store.get(str(job.id))
             if result is not None:
                 job.result = result
 
@@ -138,10 +144,18 @@ class JobViewSet(viewsets.GenericViewSet):
         with tracer.start_as_current_span("gateway.job.result", context=ctx):
             author = self.request.user
             job = self.jobs_repository.get_job_by_id(pk)
+            if job is None:
+                logger.info("Job [%s] nor found", pk)
+                return Response(
+                    {"message": f"Job [{pk}] nor found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
             can_access = JobAccessPolocies.can_save_result(author, job)
             if not can_access:
+                logger.info("Job [%s] nor found for author %s", pk, author.username)
                 return Response(
-                    {"message": f"Job [{job.id}] nor found for user [{author}]"},
+                    {"message": f"Job [{job.id}] nor found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 

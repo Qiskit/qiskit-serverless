@@ -87,7 +87,7 @@ class TestJobApi(APITestCase):
             self._authorize()
 
             jobs_response = self.client.get(
-                reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec83"]),
+                reverse("v1:jobs-detail", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]),
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -95,15 +95,25 @@ class TestJobApi(APITestCase):
 
     def test_job_detail_without_result_file(self):
         """Tests job detail authorized."""
-        
-        self._authorize()
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-detail", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
-            format="json",
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
         )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("result"), '{"somekey":1}')
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            self._authorize()
+
+            jobs_response = self.client.get(
+                reverse("v1:jobs-detail", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
+                format="json",
+            )
+            print("AQUI")
+            print(jobs_response.data)
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("result"), '{"somekey":1}')
 
     def test_job_provider_detail(self):
         """Tests job detail authorized."""
@@ -141,7 +151,7 @@ class TestJobApi(APITestCase):
         with self.settings(MEDIA_ROOT=media_root):
             self._authorize()
 
-            job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
+            job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
             jobs_response = self.client.post(
                 reverse("v1:jobs-result", args=[job_id]),
                 format="json",
@@ -160,7 +170,7 @@ class TestJobApi(APITestCase):
         self._authorize()
         job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84"
         jobs_response = self.client.post(
-            reverse("v1:jobs-result", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
+            reverse("v1:jobs-result", args=[job_id]),
             format="json",
             data={"result": {"ultimate": 42}},
         )
@@ -168,7 +178,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(
             jobs_response.data.get("message"),
-            f"Job [{job_id}] nor found for user [test_user]",
+            f"Job [{job_id}] nor found",
         )
 
     def test_stop_job(self):

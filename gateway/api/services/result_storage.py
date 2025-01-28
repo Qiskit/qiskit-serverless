@@ -27,7 +27,8 @@ class ResultStorage:
     def __get_result_path(self, job_id: str) -> str:
         """Construct the full path for a result file."""
         return os.path.join(
-            self.user_results_directory, f"{job_id}{self.RESULT_FILE_EXTENSION}"
+            self.user_results_directory, f"{
+                job_id}{self.RESULT_FILE_EXTENSION}"
         )
 
     def get(self, job_id: str) -> Optional[str]:
@@ -41,7 +42,6 @@ class ResultStorage:
             - File size in bytes
         """
         result_path = self.__get_result_path(job_id)
-
         if not os.path.exists(result_path):
             logger.warning(
                 "Result file for job ID '%s' not found in directory '%s'.",
