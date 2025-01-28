@@ -18,7 +18,7 @@ class JobAccessPolocies:  # pylint: disable=too-few-public-methods
     @staticmethod
     def can_save_result(user, job: Job) -> bool:
         """
-        Checks if the user has access to a Provider:
+        Checks if the user has access to save the result of a Job:
 
         Args:
             user: Django user from the request
@@ -31,6 +31,6 @@ class JobAccessPolocies:  # pylint: disable=too-few-public-methods
         has_access = user.id == job.author.id
         if not has_access:
             logger.warning(
-                "User [%s] has no access to job [%s].", user.username, job.author
+                "User [%s] has no access to save the result of the job [%s].", user.username, job.author"
             )
         return has_access

@@ -24,9 +24,7 @@ class JobsRepository:  # pylint: disable=too-few-public-methods
             Job | None: job with the requested id
         """
 
-        id_criteria = Q(id=job_id)
-
-        result_queryset = Job.objects.filter(id_criteria).first()
+        result_queryset = Job.objects.filter(id=job_id).first()
 
         if result_queryset is None:
             logger.warning("Job [%s] was not found", id)
