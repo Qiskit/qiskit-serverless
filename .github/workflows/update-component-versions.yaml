@@ -39,7 +39,6 @@ jobs:
           sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/qiskit-serverless/charts/gateway/Chart.yaml
           sed -i "s/appVersion: \"${OLDNUM}\"/appVersion: \"${NEWNUM}\"/" charts/qiskit-serverless/charts/gateway/Chart.yaml
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/qiskit-serverless/charts/gateway/values.yaml
-          sed -i "s/qiskit-serverless\/proxy:${OLDNUM}/qiskit-serverless\/proxy:${NEWNUM}/" charts/qiskit-serverless/charts/gateway/values.yaml
           sed -i "s/tag: \"${OLDNUM}\"/tag: \"${NEWNUM}\"/" charts/qiskit-serverless/values.yaml
           sed -i "s/ray-node:${OLDNUM}/ray-node:${NEWNUM}/" charts/qiskit-serverless/values.yaml
           sed -i "s/version: ${OLDNUM}/version: ${NEWNUM}/" charts/qiskit-serverless/values.yaml

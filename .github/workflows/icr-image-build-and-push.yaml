@@ -24,9 +24,6 @@ jobs:
           - imagename: qiskit-serverless/gateway
             dockerfile: ./gateway/Dockerfile
             platforms: linux/amd64,linux/arm64
-          - imagename: qiskit-serverless/proxy
-            dockerfile: ./proxy/Dockerfile
-            platforms: linux/amd64,linux/arm64
     steps:
       - name: Checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
