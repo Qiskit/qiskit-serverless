@@ -1,14 +1,13 @@
 """
 Repository implementation for Programs model
 """
+
 import logging
-
 from typing import List
-
 from django.db.models import Q
+from django.contrib.auth.models import Group
 
 from api.models import Program as Function
-
 from api.repositories.users import UserRepository
 
 
@@ -222,3 +221,15 @@ class FunctionRepository:
             )
 
         return self.get_user_function(author=user, title=function_title)
+
+    def get_trial_instances(self, function: Function) -> List[Group]:
+        """
+        Returns the details of the function groups from trial_instances field
+
+        Args:
+            function: the instance of the Function
+
+        Returns:
+            [Group]: list of available groups
+        """
+        return function.trial_instances.all()

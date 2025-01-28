@@ -113,7 +113,9 @@ def decrypt_string(string: str) -> str:
     return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
-def build_env_variables(token, job: Job, args: str = None) -> Dict[str, str]:
+def build_env_variables(
+    token, job: Job, trial_mode: bool, args: str = None
+) -> Dict[str, str]:
     """Builds env variables for job.
 
     Args:
@@ -149,6 +151,7 @@ def build_env_variables(token, job: Job, args: str = None) -> Dict[str, str]:
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
             "ENV_JOB_ARGUMENTS": arguments,
+            "ENV_ACCESS_TRIAL": str(trial_mode),
         },
         **extra,
     }
