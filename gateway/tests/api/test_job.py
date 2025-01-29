@@ -87,7 +87,9 @@ class TestJobApi(APITestCase):
             self._authorize()
 
             jobs_response = self.client.get(
-                reverse("v1:jobs-detail", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]),
+                reverse(
+                    "v1:jobs-detail", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]
+                ),
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -107,7 +109,9 @@ class TestJobApi(APITestCase):
             self._authorize()
 
             jobs_response = self.client.get(
-                reverse("v1:jobs-detail", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
+                reverse(
+                    "v1:jobs-detail", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]
+                ),
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)

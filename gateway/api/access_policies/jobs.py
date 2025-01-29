@@ -2,8 +2,10 @@
 Access policies implementation for Job access
 """
 import logging
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from api.models import Job
+
+User = get_user_model()
 
 
 logger = logging.getLogger("gateway")
@@ -14,6 +16,7 @@ class JobAccessPolocies:  # pylint: disable=too-few-public-methods
     The main objective of this class is to manage the access for the user
     to the Job entities.
     """
+
     @staticmethod
     def can_access(user: User, job: Job) -> bool:
         """
@@ -31,8 +34,7 @@ class JobAccessPolocies:  # pylint: disable=too-few-public-methods
         if is_provider_job:
             provider_groups = job.program.provider.admin_groups.all()
             author_groups = user.groups.all()
-            has_access = any(
-                group in provider_groups for group in author_groups)
+            has_access = any(group in provider_groups for group in author_groups)
         else:
             has_access = user.id == job.author.id
 
@@ -58,6 +60,8 @@ class JobAccessPolocies:  # pylint: disable=too-few-public-methods
         has_access = user.id == job.author.id
         if not has_access:
             logger.warning(
-                "User [%s] has no access to save the result of the job [%s].", user.username, job.author
+                "User [%s] has no access to save the result of the job [%s].",
+                user.username,
+                job.author,
             )
         return has_access

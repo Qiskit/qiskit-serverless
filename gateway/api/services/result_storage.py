@@ -3,9 +3,7 @@ This module handle the access to the result store
 """
 import os
 import logging
-import mimetypes
-from typing import Optional, Tuple
-from wsgiref.util import FileWrapper
+from typing import Optional
 from django.conf import settings
 
 logger = logging.getLogger("gateway")

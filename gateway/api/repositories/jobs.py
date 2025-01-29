@@ -2,7 +2,6 @@
 Repository implementation for Job model
 """
 import logging
-from django.db.models import Q
 from api.models import Job
 
 logger = logging.getLogger("gateway")

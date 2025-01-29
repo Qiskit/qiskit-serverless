@@ -38,14 +38,12 @@ otel_exporter = BatchSpanProcessor(
         endpoint=os.environ.get(
             "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
         ),
-        insecure=bool(
-            int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
+        insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
 provider.add_span_processor(otel_exporter)
 if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-    trace._set_tracer_provider(
-        provider, log=False)  # pylint: disable=protected-access
+    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
 
 class JobViewSet(viewsets.GenericViewSet):
@@ -58,17 +56,36 @@ class JobViewSet(viewsets.GenericViewSet):
     jobs_repository = JobsRepository()
 
     def get_serializer_class(self):
+        """
+        Returns the default serializer class for the view.
+        """
         return self.serializer_class
 
     @staticmethod
     def get_serializer_job(*args, **kwargs):
+        """
+        Returns a `JobSerializer` instance
+        """
         return v1_serializers.JobSerializer(*args, **kwargs)
 
     @staticmethod
     def get_serializer_job_without_result(*args, **kwargs):
+        """
+        Returns a `JobSerializerWithoutResult` instance
+        """
         return v1_serializers.JobSerializerWithoutResult(*args, **kwargs)
 
     def get_queryset(self):
+        """
+        Returns a filtered queryset of `Job` objects based on the `filter` query parameter.
+
+        - If `filter=catalog`, returns jobs authored by the user with an existing provider.
+        - If `filter=serverless`, returns jobs authored by the user without a provider.
+        - Otherwise, returns all jobs authored by the user.
+
+        Returns:
+            QuerySet: A filtered queryset of `Job` objects ordered by creation date (descending).
+        """
         type_filter = self.request.query_params.get("filter")
         if type_filter:
             if type_filter == TypeFilter.CATALOG:
@@ -182,8 +199,7 @@ class JobViewSet(viewsets.GenericViewSet):
             if job.program and job.program.provider:
                 provider_groups = job.program.provider.admin_groups.all()
                 author_groups = author.groups.all()
-                has_access = any(
-                    group in provider_groups for group in author_groups)
+                has_access = any(group in provider_groups for group in author_groups)
                 if has_access:
                     return Response({"logs": logs})
                 return Response({"logs": "No available logs"})
@@ -216,8 +232,7 @@ class JobViewSet(viewsets.GenericViewSet):
                         ]
                     )
                     for runtime_job_entry in runtime_jobs:
-                        jobinstance = service.job(
-                            runtime_job_entry.runtime_job)
+                        jobinstance = service.job(runtime_job_entry.runtime_job)
                         if jobinstance:
                             try:
                                 logger.info(

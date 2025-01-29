@@ -67,8 +67,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         title = attrs.get("title")
         provider = attrs.get("provider", None)
         if provider and "/" in title:
-            raise ValidationError(
-                "Provider defined in title and in provider fields.")
+            raise ValidationError("Provider defined in title and in provider fields.")
 
         title_split = title.split("/")
         if len(title_split) > 2:
