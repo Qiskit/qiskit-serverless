@@ -23,7 +23,7 @@ class ProgramAdmin(admin.ModelAdmin):
     search_fields = ["title", "author__username"]
     list_filter = ["provider", "type"]
     exclude = ["env_vars"]
-    filter_horizontal = ["instances"]
+    filter_horizontal = ["instances", "trial_instances"]
 
 
 @admin.register(ComputeResource)
