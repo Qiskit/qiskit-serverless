@@ -2,25 +2,23 @@
 Access policies implementation for Job access
 """
 import logging
-from django.contrib.auth import get_user_model
 from api.models import Job
-
-User = get_user_model()
+from api.access_policies.providers import ProviderAccessPolicy
 
 
 logger = logging.getLogger("gateway")
 
 
-class JobAccessPolocies:  # pylint: disable=too-few-public-methods
+class JobAccessPolocies:
     """
     The main objective of this class is to manage the access for the user
     to the Job entities.
     """
 
     @staticmethod
-    def can_access(user: User, job: Job) -> bool:
+    def can_access(user, job: Job) -> bool:
         """
-        Checks if the user has access to save the result of a Job:
+        Checks if the user has access to the Job
 
         Args:
             user: Django user from the request
@@ -32,9 +30,8 @@ class JobAccessPolocies:  # pylint: disable=too-few-public-methods
 
         is_provider_job = job.program and job.program.provider
         if is_provider_job:
-            provider_groups = job.program.provider.admin_groups.all()
-            author_groups = user.groups.all()
-            has_access = any(group in provider_groups for group in author_groups)
+            has_access = ProviderAccessPolicy.can_access(
+                user, job.program.provider)
         else:
             has_access = user.id == job.author.id
 
@@ -45,7 +42,7 @@ class JobAccessPolocies:  # pylint: disable=too-few-public-methods
         return has_access
 
     @staticmethod
-    def can_save_result(user: User, job: Job) -> bool:
+    def can_save_result(user, job: Job) -> bool:
         """
         Checks if the user has permissions to save the result of a job:
 

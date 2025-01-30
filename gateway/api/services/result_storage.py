@@ -32,15 +32,14 @@ class ResultStorage:
         """
         Retrieve a result file for the given job ID.
 
+        Args:
+            job_id (str): the id for the job to get the result
         Returns:
-            Tuple containing:
-            - FileWrapper for the file
-            - File MIME type
-            - File size in bytes
+                Optional[str]: content of the file
         """
         result_path = self.__get_result_path(job_id)
         if not os.path.exists(result_path):
-            logger.warning(
+            logger.info(
                 "Result file for job ID '%s' not found in directory '%s'.",
                 job_id,
                 self.user_results_directory,
@@ -66,6 +65,8 @@ class ResultStorage:
             job_id (str): The unique identifier for the job. This will be used as the base
                         name for the result file.
             result (str): The job result content to be saved in the file.
+        Returns:
+            None
         """
         result_path = self.__get_result_path(job_id)
 

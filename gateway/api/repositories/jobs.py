@@ -26,6 +26,6 @@ class JobsRepository:  # pylint: disable=too-few-public-methods
         result_queryset = Job.objects.filter(id=job_id).first()
 
         if result_queryset is None:
-            logger.warning("Job [%s] was not found", id)
+            logger.info("Job [%s] was not found", id)
 
         return result_queryset

@@ -111,14 +111,12 @@ class JobViewSet(viewsets.GenericViewSet):
             author = self.request.user
             job = self.jobs_repository.get_job_by_id(pk)
             if job is None:
-                logger.info("Job [%s] nor found", pk)
                 return Response(
                     {"message": f"Job [{pk}] nor found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
             if not JobAccessPolocies.can_access(author, job):
-                logger.warning("Job [%s] not found", pk)
                 return Response(
                     {"message": f"Job [{pk}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
@@ -162,15 +160,13 @@ class JobViewSet(viewsets.GenericViewSet):
             author = self.request.user
             job = self.jobs_repository.get_job_by_id(pk)
             if job is None:
-                logger.info("Job [%s] nor found", pk)
                 return Response(
                     {"message": f"Job [{pk}] nor found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            can_access = JobAccessPolocies.can_save_result(author, job)
-            if not can_access:
-                logger.info("Job [%s] nor found for author %s", pk, author.username)
+            can_save_result = JobAccessPolocies.can_save_result(author, job)
+            if not can_save_result:
                 return Response(
                     {"message": f"Job [{job.id}] nor found"},
                     status=status.HTTP_404_NOT_FOUND,
