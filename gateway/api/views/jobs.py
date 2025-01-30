@@ -145,10 +145,10 @@ class JobViewSet(viewsets.GenericViewSet):
 
             page = self.paginate_queryset(queryset)
             if page is not None:
-                serializer = self.get_serializer(page, many=True)
+                serializer = self.get_serializer_job_without_result(page, many=True)
                 return self.get_paginated_response(serializer.data)
 
-            serializer = self.get_serializer(queryset, many=True)
+            serializer = self.get_serializer_job_without_result(queryset, many=True)
         return Response(serializer.data)
 
     @action(methods=["POST"], detail=True)

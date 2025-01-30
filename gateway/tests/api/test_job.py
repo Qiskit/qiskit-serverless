@@ -37,7 +37,7 @@ class TestJobApi(APITestCase):
             jobs_response.data.get("results")[0].get("status"), "SUCCEEDED"
         )
         self.assertEqual(
-            jobs_response.data.get("results")[0].get("result"), '{"somekey":1}'
+            jobs_response.data.get("results")[0].get("result"), None
         )
 
     def test_job_catalog_list(self):
@@ -51,7 +51,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.data.get("count"), 1)
         self.assertEqual(jobs_response.data.get("results")[0].get("status"), "QUEUED")
         self.assertEqual(
-            jobs_response.data.get("results")[0].get("result"), '{"somekey":1}'
+            jobs_response.data.get("results")[0].get("result"), None
         )
 
     def test_job_serverless_list(self):
@@ -63,15 +63,6 @@ class TestJobApi(APITestCase):
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 2)
-        job_status = jobs_response.data.get("results")[0].get("status")
-        if job_status == "SUCCEEDED":
-            self.assertEqual(
-                jobs_response.data.get("results")[0].get("result"), '{"somekey":1}'
-            )
-        elif job_status == "QUEUED":
-            self.assertEqual(
-                jobs_response.data.get("results")[0].get("result"), '{"somekey":2}'
-            )
 
     def test_job_detail(self):
         """Tests job detail authorized."""
