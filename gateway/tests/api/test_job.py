@@ -36,9 +36,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(
             jobs_response.data.get("results")[0].get("status"), "SUCCEEDED"
         )
-        self.assertEqual(
-            jobs_response.data.get("results")[0].get("result"), None
-        )
+        self.assertEqual(jobs_response.data.get("results")[0].get("result"), None)
 
     def test_job_catalog_list(self):
         """Tests job list authorized."""
@@ -50,9 +48,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 1)
         self.assertEqual(jobs_response.data.get("results")[0].get("status"), "QUEUED")
-        self.assertEqual(
-            jobs_response.data.get("results")[0].get("result"), None
-        )
+        self.assertEqual(jobs_response.data.get("results")[0].get("result"), None)
 
     def test_job_serverless_list(self):
         """Tests job list authorized."""
