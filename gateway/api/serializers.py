@@ -176,6 +176,15 @@ class JobSerializer(serializers.ModelSerializer):
         model = Job
 
 
+class JobSerializerWithoutResult(serializers.ModelSerializer):
+    """
+    Serializer for the job model.
+    """
+
+    class Meta:
+        model = Job
+
+
 class RunProgramSerializer(serializers.Serializer):
     """
     Program serializer for the /run end-point

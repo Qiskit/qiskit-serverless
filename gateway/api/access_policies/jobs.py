@@ -30,8 +30,7 @@ class JobAccessPolocies:
 
         is_provider_job = job.program and job.program.provider
         if is_provider_job:
-            has_access = ProviderAccessPolicy.can_access(
-                user, job.program.provider)
+            has_access = ProviderAccessPolicy.can_access(user, job.program.provider)
         else:
             has_access = user.id == job.author.id
 
