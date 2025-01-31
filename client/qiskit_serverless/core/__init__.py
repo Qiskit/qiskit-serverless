@@ -59,6 +59,7 @@ from .job import (
     save_result,
     Configuration,
     is_running_in_serverless,
+    is_trial,
 )
 from .function import QiskitPattern, QiskitFunction
 from .decorators import (

@@ -15,8 +15,9 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
     ENV_JOB_GATEWAY_TOKEN,
+    ENV_ACCESS_TRIAL,
 )
-from qiskit_serverless.core.job import is_running_in_serverless, save_result
+from qiskit_serverless.core.job import is_running_in_serverless, save_result, is_trial
 
 
 # pylint: disable=redefined-outer-name
@@ -28,6 +29,20 @@ def job_env_variables(monkeypatch):
         monkeypatch.setenv(ENV_JOB_GATEWAY_HOST, "https://awesome-tests.com/")
         monkeypatch.setenv(ENV_JOB_ID_GATEWAY, "42")
         monkeypatch.setenv(ENV_JOB_GATEWAY_TOKEN, "awesome-token")
+        monkeypatch.setenv(ENV_ACCESS_TRIAL, "False")
+        yield  # Restore the environment after the test runs
+
+
+# pylint: disable=redefined-outer-name
+@pytest.fixture()
+def trial_job_env_variables(monkeypatch):
+    """Fixture to set mock job environment variables."""
+    # Inspired by https://stackoverflow.com/a/77256931/1558890
+    with patch.dict(os.environ, clear=True):
+        monkeypatch.setenv(ENV_JOB_GATEWAY_HOST, "https://awesome-tests.com/")
+        monkeypatch.setenv(ENV_JOB_ID_GATEWAY, "42")
+        monkeypatch.setenv(ENV_JOB_GATEWAY_TOKEN, "awesome-token")
+        monkeypatch.setenv(ENV_ACCESS_TRIAL, "True")
         yield  # Restore the environment after the test runs
 
 
@@ -88,3 +103,17 @@ class TestRunningAsServerlessProgram:
         """Test ``is_running_in_serverless()`` in a mocked serverless program."""
         _ = job_env_variables
         assert is_running_in_serverless() is True
+
+
+class TestRunningInTrialMode:
+    """Test ``is_trial()``."""
+
+    def test_not_running_in_trial_mode(self, job_env_variables):
+        """Test ``is_trial()`` in a not trial job."""
+        _ = job_env_variables
+        assert is_trial() is False
+
+    def test_running_in_trial_mode(self, trial_job_env_variables):
+        """Test ``is_trial()`` in a trial job."""
+        _ = trial_job_env_variables
+        assert is_trial() is True
