@@ -27,7 +27,7 @@ from api.views.enums.type_filter import TypeFilter
 from api.services.result_storage import ResultStorage
 from api.access_policies.jobs import JobAccessPolocies
 from api.repositories.jobs import JobsRepository
-from api.v1 import serializers as v1_serializers
+from api.serializers import JobSerializer, JobSerializerWithoutResult
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -66,14 +66,14 @@ class JobViewSet(viewsets.GenericViewSet):
         """
         Returns a `JobSerializer` instance
         """
-        return v1_serializers.JobSerializer(*args, **kwargs)
+        return JobSerializer(*args, **kwargs)
 
     @staticmethod
     def get_serializer_job_without_result(*args, **kwargs):
         """
         Returns a `JobSerializerWithoutResult` instance
         """
-        return v1_serializers.JobSerializerWithoutResult(*args, **kwargs)
+        return JobSerializerWithoutResult(*args, **kwargs)
 
     def get_queryset(self):
         """
