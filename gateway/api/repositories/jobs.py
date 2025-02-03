@@ -45,9 +45,9 @@ class JobsRepository:  # pylint: disable=too-few-public-methods
         """
         user_criteria = Q(author=user)
         provider_exists_criteria = ~Q(program__provider=None)
-        return Job.objects.filter(
-            user_criteria & provider_exists_criteria
-        ).order_by(ordering)
+        return Job.objects.filter(user_criteria & provider_exists_criteria).order_by(
+            ordering
+        )
 
     def get_user_jobs_without_provider(self, user, ordering="-created") -> List[Job]:
         """
