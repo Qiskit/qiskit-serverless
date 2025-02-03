@@ -36,12 +36,14 @@ otel_exporter = BatchSpanProcessor(
         endpoint=os.environ.get(
             "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
         ),
-        insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
+        insecure=bool(
+            int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
 provider.add_span_processor(otel_exporter)
 if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+    trace._set_tracer_provider(
+        provider, log=False)  # pylint: disable=protected-access
 
 
 class JobViewSet(viewsets.GenericViewSet):
@@ -137,14 +139,20 @@ class JobViewSet(viewsets.GenericViewSet):
         with tracer.start_as_current_span("gateway.job.list", context=ctx):
             type_filter = self.request.query_params.get("filter")
             user = self.request.user
-            queryset = self.filter_queryset(self.get_queryset(type_filter, user))  # pylint: too-many-function-args
+            queryset = self.filter_queryset(
+                self.get_queryset(
+                    type_filter, user
+                )
+            )
 
             page = self.paginate_queryset(queryset)
             if page is not None:
-                serializer = self.get_serializer_job_without_result(page, many=True)
+                serializer = self.get_serializer_job_without_result(
+                    page, many=True)
                 return self.get_paginated_response(serializer.data)
 
-            serializer = self.get_serializer_job_without_result(queryset, many=True)
+            serializer = self.get_serializer_job_without_result(
+                queryset, many=True)
         return Response(serializer.data)
 
     @action(methods=["POST"], detail=True)
@@ -191,7 +199,8 @@ class JobViewSet(viewsets.GenericViewSet):
             if job.program and job.program.provider:
                 provider_groups = job.program.provider.admin_groups.all()
                 author_groups = author.groups.all()
-                has_access = any(group in provider_groups for group in author_groups)
+                has_access = any(
+                    group in provider_groups for group in author_groups)
                 if has_access:
                     return Response({"logs": logs})
                 return Response({"logs": "No available logs"})
@@ -224,7 +233,8 @@ class JobViewSet(viewsets.GenericViewSet):
                         ]
                     )
                     for runtime_job_entry in runtime_jobs:
-                        jobinstance = service.job(runtime_job_entry.runtime_job)
+                        jobinstance = service.job(
+                            runtime_job_entry.runtime_job)
                         if jobinstance:
                             try:
                                 logger.info(
