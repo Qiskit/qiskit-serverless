@@ -357,6 +357,7 @@
     <span class="n">ENV_JOB_ID_GATEWAY</span><span class="p">,</span>
     <span class="n">ENV_GATEWAY_PROVIDER_VERSION</span><span class="p">,</span>
     <span class="n">GATEWAY_PROVIDER_VERSION_DEFAULT</span><span class="p">,</span>
+    <span class="n">ENV_ACCESS_TRIAL</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.exception</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitServerlessException</span>
@@ -600,7 +601,12 @@
 
 <div class="viewcode-block" id="is_running_in_serverless"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.is_running_in_serverless.html#qiskit_serverless.core.is_running_in_serverless">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">is_running_in_serverless</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return ``True`` if running as a Qiskit serverless program, ``False`` otherwise.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="s2">&quot;ENV_JOB_ID_GATEWAY&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span></div>
+    <span class="k">return</span> <span class="n">ENV_JOB_ID_GATEWAY</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">is_trial</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return ``True`` if Job is running in trial mode, ``False`` otherwise.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="n">ENV_ACCESS_TRIAL</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;True&quot;</span>
 </pre></div>
         </article>
       </div>
