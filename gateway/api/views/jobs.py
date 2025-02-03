@@ -135,7 +135,10 @@ class JobViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.list", context=ctx):
-            queryset = self.filter_queryset(self.get_queryset())
+            type_filter = self.request.query_params.get("filter")
+            user = self.request.user
+            queryset = self.filter_queryset(
+                self.jobs_repository.get_queryset(type_filter, user))
 
             page = self.paginate_queryset(queryset)
             if page is not None:
