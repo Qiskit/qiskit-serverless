@@ -49,6 +49,7 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_ID_GATEWAY,
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
+    ENV_ACCESS_TRIAL,
 )
 
 from qiskit_serverless.exception import QiskitServerlessException
@@ -292,4 +293,9 @@ def _map_status_to_serverless(status: str) -> str:
 
 def is_running_in_serverless() -> bool:
     """Return ``True`` if running as a Qiskit serverless program, ``False`` otherwise."""
-    return "ENV_JOB_ID_GATEWAY" in os.environ
+    return ENV_JOB_ID_GATEWAY in os.environ
+
+
+def is_trial() -> bool:
+    """Return ``True`` if Job is running in trial mode, ``False`` otherwise."""
+    return os.getenv(ENV_ACCESS_TRIAL) == "True"
