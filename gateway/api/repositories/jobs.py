@@ -32,6 +32,20 @@ class JobsRepository:  # pylint: disable=too-few-public-methods
 
         return result_queryset
 
+    def get_user_jobs(self, user, ordering="-created") -> List[Job]:
+        """
+        Retrieves jobs created by a specific user.
+
+        Args:
+            user (User): The user whose jobs are to be retrieved.
+            ordering (str, optional): The field to order the results by. Defaults to "-created".
+
+        Returns:
+            List[Jobs]: a list of Jobs
+        """
+        user_criteria = Q(author=user)
+        return Job.objects.filter(user_criteria).order_by(ordering)
+
     def get_user_jobs_with_provider(self, user, ordering="-created") -> List[Job]:
         """
         Retrieves jobs created by a specific user that have an associated provider.
