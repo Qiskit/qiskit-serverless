@@ -3,8 +3,8 @@ Repository implementation for Job model
 """
 import logging
 from typing import List
-from api.models import Job
 from django.db.models import Q
+from api.models import Job
 
 logger = logging.getLogger("gateway")
 

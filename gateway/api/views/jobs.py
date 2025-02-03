@@ -137,9 +137,7 @@ class JobViewSet(viewsets.GenericViewSet):
         with tracer.start_as_current_span("gateway.job.list", context=ctx):
             type_filter = self.request.query_params.get("filter")
             user = self.request.user
-            queryset = self.filter_queryset(
-                self.get_queryset(type_filter, user)
-            )
+            queryset = self.filter_queryset(self.get_queryset(type_filter, user))  # pylint: too-many-function-args
 
             page = self.paginate_queryset(queryset)
             if page is not None:
