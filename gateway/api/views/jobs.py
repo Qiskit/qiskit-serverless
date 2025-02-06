@@ -7,8 +7,6 @@ import json
 import logging
 import os
 
-from django.db.models import Q
-
 # pylint: disable=duplicate-code
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -89,18 +87,14 @@ class JobViewSet(viewsets.GenericViewSet):
         type_filter = self.request.query_params.get("filter")
         if type_filter:
             if type_filter == TypeFilter.CATALOG:
-                user_criteria = Q(author=self.request.user)
-                provider_exists_criteria = ~Q(program__provider=None)
-                return Job.objects.filter(
-                    user_criteria & provider_exists_criteria
-                ).order_by("-created")
+                return self.jobs_repository.get_user_jobs_with_provider(
+                    self.request.user
+                )
             if type_filter == TypeFilter.SERVERLESS:
-                user_criteria = Q(author=self.request.user)
-                provider_not_exists_criteria = Q(program__provider=None)
-                return Job.objects.filter(
-                    user_criteria & provider_not_exists_criteria
-                ).order_by("-created")
-        return Job.objects.filter(author=self.request.user).order_by("-created")
+                return self.jobs_repository.get_user_jobs_without_provider(
+                    self.request.user
+                )
+        return self.jobs_repository.get_user_jobs(self.request.user)
 
     def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
         """Get job:"""
@@ -141,14 +135,14 @@ class JobViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.list", context=ctx):
-            queryset = self.filter_queryset(self.get_queryset())
+            queryset = self.get_queryset()
 
             page = self.paginate_queryset(queryset)
             if page is not None:
-                serializer = self.get_serializer(page, many=True)
+                serializer = self.get_serializer_job_without_result(page, many=True)
                 return self.get_paginated_response(serializer.data)
 
-            serializer = self.get_serializer(queryset, many=True)
+            serializer = self.get_serializer_job_without_result(queryset, many=True)
         return Response(serializer.data)
 
     @action(methods=["POST"], detail=True)
