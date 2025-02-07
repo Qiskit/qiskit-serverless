@@ -35,6 +35,7 @@ from .core import (
     save_result,
     Configuration,
     is_running_in_serverless,
+    is_trial,
 )
 from .exception import QiskitServerlessException
 from .core.function import QiskitPattern, QiskitFunction
