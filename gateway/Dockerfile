@@ -37,6 +37,10 @@ WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# Add environment variables to set swagger-ui to not send analytics data
+ENV SCARF_ANALYTICS=false \
+    DO_NOT_TRACK=1
+
 COPY gateway/requirements.txt .
 # Install pip
 RUN python3.11 -m ensurepip --upgrade
