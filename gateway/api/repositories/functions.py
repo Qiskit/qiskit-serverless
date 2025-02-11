@@ -44,7 +44,8 @@ class FunctionRepository:
         view_groups = self.user_repository.get_groups_by_permissions(
             user=author, permission_name=permission_name
         )
-        author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
+        author_groups_with_view_permissions_criteria = Q(
+            instances__in=view_groups)
         author_criteria = Q(author=author)
 
         result_queryset = Function.objects.filter(
@@ -77,7 +78,8 @@ class FunctionRepository:
         ).distinct()
 
         count = result_queryset.count()
-        logger.info("[%d] user Functions found for author [%s]", count, author.id)
+        logger.info("[%d] user Functions found for author [%s]",
+                    count, author.id)
 
         return result_queryset
 
@@ -102,7 +104,8 @@ class FunctionRepository:
         run_groups = self.user_repository.get_groups_by_permissions(
             user=author, permission_name=permission_name
         )
-        author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
+        author_groups_with_run_permissions_criteria = Q(
+            instances__in=run_groups)
         provider_exists_criteria = ~Q(provider=None)
         author_criteria = Q(author=author)
 
@@ -112,7 +115,8 @@ class FunctionRepository:
         ).distinct()
 
         count = result_queryset.count()
-        logger.info("[%d] provider Functions found for author [%s]", count, author.id)
+        logger.info(
+            "[%d] provider Functions found for author [%s]", count, author.id)
 
         return result_queryset
 
@@ -171,7 +175,8 @@ class FunctionRepository:
         view_groups = self.user_repository.get_groups_by_permissions(
             user=author, permission_name=permission_name
         )
-        author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
+        author_groups_with_view_permissions_criteria = Q(
+            instances__in=view_groups)
         author_criteria = Q(author=author)
         title_criteria = Q(title=title, provider__name=provider_name)
 
@@ -196,7 +201,7 @@ class FunctionRepository:
         permission_name: str,
         function_title: str,
         provider_name: str | None,
-    ) -> None:
+    ) -> Function | None:
         """
         This method returns the specified function if the user is
         the author of the function or it has a permission.

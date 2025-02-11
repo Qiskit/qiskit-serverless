@@ -5,6 +5,7 @@ import logging
 from typing import List
 from django.db.models import Q
 from api.models import Job
+from api.models import Program
 
 logger = logging.getLogger("gateway")
 
@@ -31,6 +32,20 @@ class JobsRepository:  # pylint: disable=too-few-public-methods
             logger.info("Job [%s] was not found", id)
 
         return result_queryset
+
+    def get_program_jobs(self, program: Program, ordering="-created") -> List[Job]:
+        """
+        Retrieves all program's jobs.
+
+        Args:
+            program (Program): The programs which jobs are to be retrieved.
+            ordering (str, optional): The field to order the results by. Defaults to "-created".
+
+        Returns:
+            List[Jobs]: a list of Jobs
+        """
+        program_criteria = Q(program=program)
+        return Job.objects.filter(program_criteria).order_by(ordering)
 
     def get_user_jobs(self, user, ordering="-created") -> List[Job]:
         """
