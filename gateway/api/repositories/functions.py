@@ -196,7 +196,7 @@ class FunctionRepository:
         permission_name: str,
         function_title: str,
         provider_name: str | None,
-    ) -> None:
+    ) -> Function | None:
         """
         This method returns the specified function if the user is
         the author of the function or it has a permission.
