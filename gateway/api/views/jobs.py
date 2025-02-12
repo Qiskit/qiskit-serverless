@@ -19,7 +19,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
-from api.utils import sanitize_file_name, sanitize_name
+from api.utils import sanitize_name
 from api.access_policies.providers import ProviderAccessPolicy
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
@@ -35,20 +35,20 @@ from api.serializers import JobSerializer, JobSerializerWithoutResult
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
-provider = TracerProvider(resource=resource)
+tracer_provider = TracerProvider(resource=resource)
 otel_exporter = BatchSpanProcessor(
     OTLPSpanExporter(
         endpoint=os.environ.get(
             "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
         ),
-        insecure=bool(
-            int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
+        insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
-provider.add_span_processor(otel_exporter)
+tracer_provider.add_span_processor(otel_exporter)
 if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-    trace._set_tracer_provider(
-        provider, log=False)  # pylint: disable=protected-access
+    trace._set_tracer_provider(  # pylint: disable=protected-access
+        tracer_provider, log=False
+    )
 
 
 class JobViewSet(viewsets.GenericViewSet):
@@ -148,12 +148,10 @@ class JobViewSet(viewsets.GenericViewSet):
 
             page = self.paginate_queryset(queryset)
             if page is not None:
-                serializer = self.get_serializer_job_without_result(
-                    page, many=True)
+                serializer = self.get_serializer_job_without_result(page, many=True)
                 return self.get_paginated_response(serializer.data)
 
-            serializer = self.get_serializer_job_without_result(
-                queryset, many=True)
+            serializer = self.get_serializer_job_without_result(queryset, many=True)
         return Response(serializer.data)
 
     @action(methods=["GET"], detail=False, url_path="provider")
@@ -166,8 +164,7 @@ class JobViewSet(viewsets.GenericViewSet):
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.files.provider_list", context=ctx):
             provider_name = sanitize_name(request.query_params.get("provider"))
-            function_title = sanitize_name(
-                request.query_params.get("function"))
+            function_title = sanitize_name(request.query_params.get("function"))
 
             if function_title is None or provider_name is None:
                 return Response(
@@ -177,8 +174,7 @@ class JobViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            provider = self.provider_repository.get_provider_by_name(
-                name=provider_name)
+            provider = self.provider_repository.get_provider_by_name(name=provider_name)
             if provider is None:
                 return Response(
                     {"message": f"Provider {provider_name} doesn't exist."},
@@ -209,12 +205,12 @@ class JobViewSet(viewsets.GenericViewSet):
             jobs_queryset = self.jobs_repository.get_program_jobs(function)
             page = self.paginate_queryset(jobs_queryset)
             if page is not None:
-                serializer = self.get_serializer_job_without_result(
-                    page, many=True)
+                serializer = self.get_serializer_job_without_result(page, many=True)
                 return self.get_paginated_response(serializer.data)
 
             serializer = self.get_serializer_job_without_result(
-                jobs_queryset, many=True)
+                jobs_queryset, many=True
+            )
             return Response(serializer.data)
 
     @action(methods=["POST"], detail=True)
@@ -261,8 +257,7 @@ class JobViewSet(viewsets.GenericViewSet):
             if job.program and job.program.provider:
                 provider_groups = job.program.provider.admin_groups.all()
                 author_groups = author.groups.all()
-                has_access = any(
-                    group in provider_groups for group in author_groups)
+                has_access = any(group in provider_groups for group in author_groups)
                 if has_access:
                     return Response({"logs": logs})
                 return Response({"logs": "No available logs"})
@@ -295,8 +290,7 @@ class JobViewSet(viewsets.GenericViewSet):
                         ]
                     )
                     for runtime_job_entry in runtime_jobs:
-                        jobinstance = service.job(
-                            runtime_job_entry.runtime_job)
+                        jobinstance = service.job(runtime_job_entry.runtime_job)
                         if jobinstance:
                             try:
                                 logger.info(
