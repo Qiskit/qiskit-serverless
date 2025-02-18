@@ -6,10 +6,6 @@ Version views inherit from the different views.
 import json
 import logging
 import os
-import time
-
-from concurrency.exceptions import RecordModifiedError
-from django.db.models import Q
 
 # pylint: disable=duplicate-code
 from opentelemetry import trace
@@ -26,6 +22,10 @@ from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
 from api.views.enums.type_filter import TypeFilter
+from api.services.result_storage import ResultStorage
+from api.access_policies.jobs import JobAccessPolocies
+from api.repositories.jobs import JobsRepository
+from api.serializers import JobSerializer, JobSerializerWithoutResult
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -51,63 +51,98 @@ class JobViewSet(viewsets.GenericViewSet):
 
     BASE_NAME = "jobs"
 
+    jobs_repository = JobsRepository()
+
     def get_serializer_class(self):
+        """
+        Returns the default serializer class for the view.
+        """
         return self.serializer_class
 
+    @staticmethod
+    def get_serializer_job(*args, **kwargs):
+        """
+        Returns a `JobSerializer` instance
+        """
+        return JobSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_serializer_job_without_result(*args, **kwargs):
+        """
+        Returns a `JobSerializerWithoutResult` instance
+        """
+        return JobSerializerWithoutResult(*args, **kwargs)
+
     def get_queryset(self):
+        """
+        Returns a filtered queryset of `Job` objects based on the `filter` query parameter.
+
+        - If `filter=catalog`, returns jobs authored by the user with an existing provider.
+        - If `filter=serverless`, returns jobs authored by the user without a provider.
+        - Otherwise, returns all jobs authored by the user.
+
+        Returns:
+            QuerySet: A filtered queryset of `Job` objects ordered by creation date (descending).
+        """
         type_filter = self.request.query_params.get("filter")
         if type_filter:
             if type_filter == TypeFilter.CATALOG:
-                user_criteria = Q(author=self.request.user)
-                provider_exists_criteria = ~Q(program__provider=None)
-                return Job.objects.filter(
-                    user_criteria & provider_exists_criteria
-                ).order_by("-created")
+                return self.jobs_repository.get_user_jobs_with_provider(
+                    self.request.user
+                )
             if type_filter == TypeFilter.SERVERLESS:
-                user_criteria = Q(author=self.request.user)
-                provider_not_exists_criteria = Q(program__provider=None)
-                return Job.objects.filter(
-                    user_criteria & provider_not_exists_criteria
-                ).order_by("-created")
-        return Job.objects.filter(author=self.request.user).order_by("-created")
+                return self.jobs_repository.get_user_jobs_without_provider(
+                    self.request.user
+                )
+        return self.jobs_repository.get_user_jobs(self.request.user)
 
     def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
         """Get job:"""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.retrieve", context=ctx):
-            job = Job.objects.filter(pk=pk).first()
+
+            author = self.request.user
+            job = self.jobs_repository.get_job_by_id(pk)
             if job is None:
-                logger.warning("Job [%s] not found", pk)
+                return Response(
+                    {"message": f"Job [{pk}] nor found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            if not JobAccessPolocies.can_access(author, job):
                 return Response(
                     {"message": f"Job [{pk}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            author = self.request.user
-            if job.program and job.program.provider:
-                provider_groups = job.program.provider.admin_groups.all()
-                author_groups = author.groups.all()
-                has_access = any(group in provider_groups for group in author_groups)
-                if has_access:
-                    serializer = self.get_serializer(job)
-                    return Response(serializer.data)
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+
+            is_provider_job = job.program and job.program.provider
+            if is_provider_job:
+                serializer = self.get_serializer_job_without_result(job)
+                return Response(serializer.data)
+
+            result_store = ResultStorage(author.username)
+            result = result_store.get(str(job.id))
+            if result is not None:
+                job.result = result
+
+            serializer = self.get_serializer_job(job)
+
+            return Response(serializer.data)
 
     def list(self, request):
         """List jobs:"""
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.list", context=ctx):
-            queryset = self.filter_queryset(self.get_queryset())
+            queryset = self.get_queryset()
 
             page = self.paginate_queryset(queryset)
             if page is not None:
-                serializer = self.get_serializer(page, many=True)
+                serializer = self.get_serializer_job_without_result(page, many=True)
                 return self.get_paginated_response(serializer.data)
 
-            serializer = self.get_serializer(queryset, many=True)
+            serializer = self.get_serializer_job_without_result(queryset, many=True)
         return Response(serializer.data)
 
     @action(methods=["POST"], detail=True)
@@ -116,29 +151,24 @@ class JobViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.result", context=ctx):
-            saved = False
-            attempts_left = 10
-            while not saved:
-                if attempts_left <= 0:
-                    return Response(
-                        {"error": "All attempts to save results failed."}, status=500
-                    )
+            author = self.request.user
+            job = self.jobs_repository.get_job_by_id(pk)
+            if job is None:
+                return Response(
+                    {"message": f"Job [{pk}] nor found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-                attempts_left -= 1
+            can_save_result = JobAccessPolocies.can_save_result(author, job)
+            if not can_save_result:
+                return Response(
+                    {"message": f"Job [{job.id}] nor found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-                try:
-                    job = self.get_object()
-                    job.result = json.dumps(request.data.get("result"))
-                    job.save()
-                    saved = True
-                except RecordModifiedError:
-                    logger.warning(
-                        "Job [%s] record has not been updated due to lock. Retrying. Attempts left %s",  # pylint: disable=line-too-long
-                        job.id,
-                        attempts_left,
-                    )
-                    continue
-                time.sleep(1)
+            job.result = json.dumps(request.data.get("result"))
+            result_storage = ResultStorage(author.username)
+            result_storage.save(job.id, job.result)
 
             serializer = self.get_serializer(job)
         return Response(serializer.data)

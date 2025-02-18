@@ -146,6 +146,17 @@ class JobSerializer(serializers.JobSerializer):
         fields = ["id", "result", "status", "program", "created"]
 
 
+class JobSerializerWithoutResult(serializers.JobSerializer):
+    """
+    Job serializer first version. Include basic fields from the initial model.
+    """
+
+    program = ProgramSerializer(many=False)
+
+    class Meta(serializers.JobSerializer.Meta):
+        fields = ["id", "status", "program", "created"]
+
+
 class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
     """
     Runtime job serializer first version. Serializer for the runtime job model.
