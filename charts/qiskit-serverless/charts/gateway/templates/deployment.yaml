@@ -105,10 +105,8 @@ spec:
               value: {{ .Values.application.auth.mechanism | quote }}
             - name: SETTINGS_AUTH_MOCK_TOKEN
               value: {{ .Values.application.auth.token.mock | quote }}
-            - name: SETTINGS_TOKEN_AUTH_URL
+            - name: QUANTUM_PLATFORM_API_BASE_URL
               value: {{ .Values.application.auth.token.url | quote }}
-            - name: SETTINGS_TOKEN_AUTH_VERIFICATION_URL
-              value: {{ .Values.application.auth.token.verificationUrl | quote }}
             - name: SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD
               value: {{ .Values.application.auth.token.verificationField | quote }}
             - name: SETTINGS_AUTH_MOCKPROVIDER_REGISTRY

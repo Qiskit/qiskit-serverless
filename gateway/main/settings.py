@@ -293,16 +293,7 @@ SIMPLE_JWT = {
 }
 
 # custom token auth
-SETTINGS_TOKEN_AUTH_URL = os.environ.get("SETTINGS_TOKEN_AUTH_URL", None)
-SETTINGS_TOKEN_AUTH_USER_FIELD = os.environ.get(
-    "SETTINGS_TOKEN_AUTH_USER_FIELD", "userId"
-)
-SETTINGS_TOKEN_AUTH_TOKEN_FIELD = os.environ.get(
-    "SETTINGS_TOKEN_AUTH_TOKEN_FIELD", "apiToken"
-)
-SETTINGS_TOKEN_AUTH_VERIFICATION_URL = os.environ.get(
-    "SETTINGS_TOKEN_AUTH_VERIFICATION_URL", None
-)
+QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", None)
 # verification fields to check when returned from auth api
 # Example of checking multiple fields:
 #    For following verification data
