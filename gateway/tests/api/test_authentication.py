@@ -49,7 +49,7 @@ class TestAuthentication(APITestCase):
         request.META.get.return_value = "Bearer AWESOME_TOKEN"
 
         with self.settings(
-            QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url",
+            QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
             SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD="is_valid",
         ):
             user, token = custom_auth.authenticate(request)
@@ -84,7 +84,7 @@ class TestAuthentication(APITestCase):
         request.META.get.return_value = "Bearer AWESOME_TOKEN"
 
         with self.settings(
-            QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url",
+            QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
             SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD="is_valid;other,nested,field",
         ):
             user, token = custom_auth.authenticate(request)
@@ -95,7 +95,7 @@ class TestAuthentication(APITestCase):
             self.assertEqual(user.username, "AwesomeUser")
 
         with self.settings(
-            QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url",
+            QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
             SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD="is_valid;other,WRONG_NESTED_FIELD",
         ):
             user, token = custom_auth.authenticate(request)
@@ -111,7 +111,7 @@ class TestAuthentication(APITestCase):
         )
 
         with self.settings(
-            QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url",
+            QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
             SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD="is_valid;other,nested,field",
         ):
             # this should raise an error as `SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD`
