@@ -154,7 +154,6 @@ class JobViewSet(viewsets.GenericViewSet):
             serializer = self.get_serializer_job_without_result(queryset, many=True)
         return Response(serializer.data)
 
-    @action(methods=["GET"], detail=False, url_path="provider")
     def provider_list(self, request):
         """
         It returns a list with the jobs for the provider function:
