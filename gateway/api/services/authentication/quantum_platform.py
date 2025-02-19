@@ -18,9 +18,7 @@ class QuantumPlatformService:
     """
 
     def __init__(self, authorization_token):
-        self.auth_url = (
-            f"{settings.QUANTUM_PLATFORM_API_BASE_URL}/users/loginWithToken"
-        )
+        self.auth_url = f"{settings.QUANTUM_PLATFORM_API_BASE_URL}/users/loginWithToken"
         self.verification_url = f"{settings.QUANTUM_PLATFORM_API_BASE_URL}/users/me"
         self.instances_url = f"{settings.IQP_QCON_API_BASE_URL}/network"
         self.authorization_token = authorization_token
