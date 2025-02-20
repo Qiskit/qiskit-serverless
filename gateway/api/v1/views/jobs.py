@@ -54,7 +54,7 @@ class JobViewSet(views.JobViewSet):
 
     @swagger_auto_schema(
         operation_description="List provider Jobs",
-        responses={status.HTTP_200_OK: v1_serializers.JobSerializer(many=True)},
+        responses={status.HTTP_200_OK: v1_serializers.JobSerializerWithoutResult(many=True)},
     )
     @action(methods=["GET"], detail=False, url_path="provider")
     def provider_list(self, request):
