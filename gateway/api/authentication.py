@@ -34,7 +34,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             logger.warning(
                 "Problems authenticating: user did not provide authorization token."
             )
-            return quantum_user, CustomToken(authorization_token.encode())
+            return quantum_user, authorization_token
         authorization_token = auth_header.split(" ")[-1]
 
         quantum_user = AuthenticationUseCase(
