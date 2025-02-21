@@ -173,7 +173,7 @@ class ServerlessClient(BaseClient):
             for job in response_data.get("results", [])
         ]
 
-    @_trace_job("list")
+    @_trace_job("provider_list")
     def provider_jobs(self, function: QiskitFunction, **kwargs) -> List[Job]:
         """List of jobs created in this provider and function.
 
