@@ -77,7 +77,7 @@ _trace_job = trace_decorator_factory("job")
 _trace_functions = trace_decorator_factory("function")
 
 
-class ServerlessClient(BaseClient):
+class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     """
     A client for connecting to a specified host.
 
@@ -159,7 +159,46 @@ class ServerlessClient(BaseClient):
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs",
+                f"{self.host}/api/{self.version}/jobs/",
+                params=kwargs,
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
+        return [
+            Job(job.get("id"), job_service=self, raw_data=job)
+            for job in response_data.get("results", [])
+        ]
+
+    @_trace_job("provider_list")
+    def provider_jobs(self, function: QiskitFunction, **kwargs) -> List[Job]:
+        """List of jobs created in this provider and function.
+
+        Args:
+            function: QiskitFunction
+            **kwargs: additional parameters for the request
+
+        Raises:
+            QiskitServerlessException: validation exception
+
+        Returns:
+            [Job] : list of jobs
+        """
+
+        if not function.provider:
+            raise QiskitServerlessException("`function` doesn't have a provider.")
+
+        limit = kwargs.get("limit", 10)
+        kwargs["limit"] = limit
+        offset = kwargs.get("offset", 0)
+        kwargs["offset"] = offset
+        kwargs["function"] = function.title
+        kwargs["provider"] = function.provider
+
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/provider/",
                 params=kwargs,
                 headers={"Authorization": f"Bearer {self.token}"},
                 timeout=REQUESTS_TIMEOUT,
