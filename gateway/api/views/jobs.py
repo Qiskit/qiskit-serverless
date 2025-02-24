@@ -19,18 +19,23 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
+from api.utils import sanitize_name
+from api.access_policies.providers import ProviderAccessPolicy
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
 from api.views.enums.type_filter import TypeFilter
 from api.services.result_storage import ResultStorage
 from api.access_policies.jobs import JobAccessPolocies
 from api.repositories.jobs import JobsRepository
+from api.models import VIEW_PROGRAM_PERMISSION
+from api.repositories.functions import FunctionRepository
+from api.repositories.providers import ProviderRepository
 from api.serializers import JobSerializer, JobSerializerWithoutResult
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
-provider = TracerProvider(resource=resource)
+tracer_provider = TracerProvider(resource=resource)
 otel_exporter = BatchSpanProcessor(
     OTLPSpanExporter(
         endpoint=os.environ.get(
@@ -39,9 +44,11 @@ otel_exporter = BatchSpanProcessor(
         insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
-provider.add_span_processor(otel_exporter)
+tracer_provider.add_span_processor(otel_exporter)
 if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+    trace._set_tracer_provider(  # pylint: disable=protected-access
+        tracer_provider, log=False
+    )
 
 
 class JobViewSet(viewsets.GenericViewSet):
@@ -52,6 +59,8 @@ class JobViewSet(viewsets.GenericViewSet):
     BASE_NAME = "jobs"
 
     jobs_repository = JobsRepository()
+    function_repository = FunctionRepository()
+    provider_repository = ProviderRepository()
 
     def get_serializer_class(self):
         """
@@ -116,8 +125,7 @@ class JobViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            is_provider_job = job.program and job.program.provider
-            if is_provider_job:
+            if not JobAccessPolocies.can_read_result(author, job):
                 serializer = self.get_serializer_job_without_result(job)
                 return Response(serializer.data)
 
@@ -144,6 +152,65 @@ class JobViewSet(viewsets.GenericViewSet):
 
             serializer = self.get_serializer_job_without_result(queryset, many=True)
         return Response(serializer.data)
+
+    @action(methods=["GET"], detail=False, url_path="provider")
+    def provider_list(self, request):
+        """
+        It returns a list with the jobs for the provider function:
+            provider_name/function_title
+        """
+        tracer = trace.get_tracer("gateway.tracer")
+        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
+        with tracer.start_as_current_span("gateway.files.provider_list", context=ctx):
+            provider_name = sanitize_name(request.query_params.get("provider"))
+            function_title = sanitize_name(request.query_params.get("function"))
+
+            if function_title is None or provider_name is None:
+                return Response(
+                    {
+                        "message": "Qiskit Function title and Provider name are mandatory"  # pylint: disable=line-too-long
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            provider = self.provider_repository.get_provider_by_name(name=provider_name)
+            if provider is None:
+                return Response(
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if not ProviderAccessPolicy.can_access(
+                user=request.user, provider=provider
+            ):
+                return Response(
+                    {"message": f"Provider {provider_name} doesn't exist."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            function = self.function_repository.get_function_by_permission(
+                user=request.user,
+                permission_name=VIEW_PROGRAM_PERMISSION,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+            if not function:
+                return Response(
+                    {
+                        "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            jobs_queryset = self.jobs_repository.get_program_jobs(function)
+            page = self.paginate_queryset(jobs_queryset)
+            if page is not None:
+                serializer = self.get_serializer_job_without_result(page, many=True)
+                return self.get_paginated_response(serializer.data)
+
+            serializer = self.get_serializer_job_without_result(
+                jobs_queryset, many=True
+            )
+            return Response(serializer.data)
 
     @action(methods=["POST"], detail=True)
     def result(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument

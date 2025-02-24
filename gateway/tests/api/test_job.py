@@ -32,7 +32,7 @@ class TestJobApi(APITestCase):
 
         jobs_response = self.client.get(reverse("v1:jobs-list"), format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("count"), 3)
+        self.assertEqual(jobs_response.data.get("count"), 4)
         self.assertEqual(
             jobs_response.data.get("results")[0].get("status"), "SUCCEEDED"
         )
@@ -46,7 +46,7 @@ class TestJobApi(APITestCase):
             reverse("v1:jobs-list"), {"filter": "catalog"}, format="json"
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("count"), 1)
+        self.assertEqual(jobs_response.data.get("count"), 2)
         self.assertEqual(jobs_response.data.get("results")[0].get("status"), "QUEUED")
         self.assertEqual(jobs_response.data.get("results")[0].get("result"), None)
 
@@ -58,6 +58,87 @@ class TestJobApi(APITestCase):
             reverse("v1:jobs-list"), {"filter": "serverless"}, format="json"
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("count"), 2)
+
+    def test_job_provider_list_wrong_params(self):
+        """Tests job provider list wrong params."""
+        self._authorize()
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-list"), {}, format="json"
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            jobs_response.data.get("message"),
+            "Qiskit Function title and Provider name are mandatory",
+        )
+
+    def test_job_provider_list_wrong_provider(self):
+        """Tests job provider list wrong provider."""
+        self._authorize()
+
+        provider = "fake_provider"
+        function = "Program"
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-list"),
+            {"provider": provider, "function": function},
+            format="json",
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(
+            jobs_response.data.get("message"), f"Provider {provider} doesn't exist."
+        )
+
+    def test_job_provider_list_not_authorized_provider(self):
+        """Tests job provider list not authorized provider."""
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+        provider = "default"
+        function = "Program"
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-list"),
+            {"provider": provider, "function": function},
+            format="json",
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(
+            jobs_response.data.get("message"), f"Provider {provider} doesn't exist."
+        )
+
+    def test_job_provider_list_function_not_found(self):
+        """Tests job provider list not authorized provider."""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+        provider = "default"
+        function = "fake_program"
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-list"),
+            {"provider": provider, "function": function},
+            format="json",
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(
+            jobs_response.data.get("message"),
+            f"Qiskit Function {provider}/{function} doesn't exist.",
+        )
+
+    def test_job_provider_list_ok(self):
+        """Tests job provider list without errors."""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+        provider = "default"
+        function = "Docker-Image-Program"
+
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-list"),
+            {"provider": provider, "function": function},
+            format="json",
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        print(jobs_response.data)
         self.assertEqual(jobs_response.data.get("count"), 2)
 
     def test_job_detail(self):
@@ -169,6 +250,57 @@ class TestJobApi(APITestCase):
             jobs_response.data.get("message"),
             f"Job [{job_id}] nor found",
         )
+
+    def test_user_has_access_to_job_result_from_provider_function(self):
+        """
+        User has access to job result from a function provider
+        as the authot of the job
+        """
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            self._authorize()
+
+            jobs_response = self.client.get(
+                reverse(
+                    "v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"]
+                ),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("result"), '{"somekey":1}')
+
+    def test_provider_admin_has_no_access_to_job_result_from_provider_function(self):
+        """
+        A provider admin has no access to job result from a function provider
+        if it's not the author of the job
+        """
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            user = models.User.objects.get(username="test_user_3")
+            self.client.force_authenticate(user=user)
+
+            jobs_response = self.client.get(
+                reverse(
+                    "v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"]
+                ),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("result"), None)
 
     def test_stop_job(self):
         """Tests job stop."""
