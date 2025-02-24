@@ -33,6 +33,7 @@
       ~ServerlessClient.provider_file_download
       ~ServerlessClient.provider_file_upload
       ~ServerlessClient.provider_files
+      ~ServerlessClient.provider_jobs
       ~ServerlessClient.result
       ~ServerlessClient.run
       ~ServerlessClient.status

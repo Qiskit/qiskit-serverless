@@ -385,7 +385,7 @@
 <span class="n">_trace_functions</span> <span class="o">=</span> <span class="n">trace_decorator_factory</span><span class="p">(</span><span class="s2">&quot;function&quot;</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="ServerlessClient"><a class="viewcode-back" href="../../../../stubs/qiskit_serverless.core.ServerlessClient.html#qiskit_serverless.core.ServerlessClient">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">ServerlessClient</span><span class="p">(</span><span class="n">BaseClient</span><span class="p">):</span>
+<div class="viewcode-block" id="ServerlessClient"><a class="viewcode-back" href="../../../../stubs/qiskit_serverless.core.ServerlessClient.html#qiskit_serverless.core.ServerlessClient">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">ServerlessClient</span><span class="p">(</span><span class="n">BaseClient</span><span class="p">):</span>  <span class="c1"># pylint: disable=too-many-public-methods</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A client for connecting to a specified host.</span>
 
@@ -467,7 +467,46 @@
 
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/&quot;</span><span class="p">,</span>
+                <span class="n">params</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">Job</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span> <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">=</span><span class="n">job</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="p">]</span>
+
+    <span class="nd">@_trace_job</span><span class="p">(</span><span class="s2">&quot;provider_list&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">provider_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List of jobs created in this provider and function.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            function: QiskitFunction</span>
+<span class="sd">            **kwargs: additional parameters for the request</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            QiskitServerlessException: validation exception</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            [Job] : list of jobs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">function</span><span class="o">.</span><span class="n">provider</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">&quot;`function` doesn&#39;t have a provider.&quot;</span><span class="p">)</span>
+
+        <span class="n">limit</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;limit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">limit</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;offset&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">offset</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;function&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">function</span><span class="o">.</span><span class="n">title</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;provider&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">function</span><span class="o">.</span><span class="n">provider</span>
+
+        <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/provider/&quot;</span><span class="p">,</span>
                 <span class="n">params</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
                 <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
