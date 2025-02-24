@@ -14,4 +14,5 @@ arguments = get_arguments()
 runner = Runner()
 result = runner.run(arguments)
 
-save_result(result)
+if result is not None:
+    save_result(result)

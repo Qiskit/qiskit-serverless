@@ -125,8 +125,7 @@ class JobViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            is_provider_job = job.program and job.program.provider
-            if is_provider_job:
+            if not JobAccessPolocies.can_read_result(author, job):
                 serializer = self.get_serializer_job_without_result(job)
                 return Response(serializer.data)
 
