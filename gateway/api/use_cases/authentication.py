@@ -4,6 +4,8 @@ import logging
 from django.contrib.auth.models import AbstractUser
 
 from api.repositories.users import UserRepository
+from api.services.authentication.authentication_base import AuthenticationBase
+from api.services.authentication.ibm_cloud import IBMCloudService
 from api.services.authentication.quantum_platform import QuantumPlatformService
 
 
@@ -17,26 +19,34 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
 
     user_repository = UserRepository()
 
-    def __init__(self, authorization_token: str):
+    def __init__(self, authorization_token: str, crn: str | None):
         self.authorization_token = authorization_token
+        self.crn = crn
+
+    def _get_authentication_service_instance(self) -> AuthenticationBase:
+        if self.crn:
+            logger.debug("Authentication will be executed with IBM Cloud")
+            return IBMCloudService(api_key=self.authorization_token, crn=self.crn)
+
+        logger.debug("Authentication will be executed with Quantum Platform")
+        return QuantumPlatformService(authorization_token=self.authorization_token)
 
     def execute(self) -> type[AbstractUser] | None:
         """
         This contains the logic to authenticate and validate the user
         that is doing the request.
         """
-        quantum_platform_service = QuantumPlatformService(
-            authorization_token=self.authorization_token
-        )
-        user_id = quantum_platform_service.authenticate()
+        authentication_service = self._get_authentication_service_instance()
+
+        user_id = authentication_service.authenticate()
         if user_id is None:
             return None
 
-        verified = quantum_platform_service.verify_access()
+        verified = authentication_service.verify_access()
         if verified is False:
             return None
 
-        access_groups = quantum_platform_service.get_groups()
+        access_groups = authentication_service.get_groups()
 
         quantum_user = self.user_repository.get_or_create_by_id(user_id=user_id)
         self.user_repository.restart_user_groups(
