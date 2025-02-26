@@ -40,7 +40,7 @@ class JobAdmin(admin.ModelAdmin):
 
     search_fields = ["author__username", "program__title"]
     list_filter = ["status"]
-    exclude = ["arguments", "env_vars", "logs"]
+    exclude = ["arguments", "env_vars", "logs", "result"]
 
 
 @admin.register(RuntimeJob)
