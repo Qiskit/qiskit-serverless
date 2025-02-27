@@ -29,6 +29,8 @@ class CustomTokenBackend(authentication.BaseAuthentication):
     def authenticate(self, request):
         quantum_user = None
         authorization_token = None
+
+        crn = request.META.get("HTTP_SERVICE_CRN", None)
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
             logger.warning(
@@ -38,7 +40,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         authorization_token = auth_header.split(" ")[-1]
 
         quantum_user = AuthenticationUseCase(
-            authorization_token=authorization_token
+            authorization_token=authorization_token, crn=crn
         ).execute()
         if quantum_user is None:
             return quantum_user, CustomToken(authorization_token.encode())

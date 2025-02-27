@@ -6,23 +6,24 @@ from typing import List
 from django.conf import settings
 import requests
 
+from api.services.authentication.authentication_base import AuthenticationBase
 from api.utils import remove_duplicates_from_list, safe_request
 
-logger = logging.getLogger("gateway.services.quantum_platform")
+logger = logging.getLogger("gateway.services.authentication.quantum_platform")
 
 
-class QuantumPlatformService:
+class QuantumPlatformService(AuthenticationBase):
     """
     This class will manage the different access to the different
-    end-points that we will make us of them in this service.
+    end-points that we will make use of them in this service.
     """
 
-    def __init__(self, authorization_token):
+    def __init__(self, authorization_token: str):
         self.auth_url = f"{settings.QUANTUM_PLATFORM_API_BASE_URL}/users/loginWithToken"
         self.verification_url = f"{settings.QUANTUM_PLATFORM_API_BASE_URL}/users/me"
         self.instances_url = f"{settings.IQP_QCON_API_BASE_URL}/network"
         self.authorization_token = authorization_token
-        self.access_token = None
+        self.access_token: str | None = None
 
     def _get_network(self, access_token: str):
         """Obtain network configuration for a specific user:
@@ -89,6 +90,10 @@ class QuantumPlatformService:
         instantiation of the class and populates the access_token attribute.
 
         Ideally this method should be called first.
+
+        Returns:
+            str: the user_id of the authenticated user
+            None: in case the authentication failed
         """
         if self.auth_url is None:
             logger.warning(
@@ -126,6 +131,9 @@ class QuantumPlatformService:
         This method validates that the user has access to Quantum Functions.
         In this specific case the most important validation is the ibmQNetwork
         field.
+
+        Returns:
+            bool: True or False if the user has or no access
         """
         verification_data = safe_request(
             request=lambda: requests.get(
@@ -157,8 +165,6 @@ class QuantumPlatformService:
     def get_groups(self) -> List[str]:
         """
         Returns an array of instances from network configuration.
-        Args:
-            network: Quantum User IQP Network configuration
 
         Returns:
             List of instances, ex:
