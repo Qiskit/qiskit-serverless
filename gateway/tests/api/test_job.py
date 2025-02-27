@@ -138,7 +138,6 @@ class TestJobApi(APITestCase):
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        print(jobs_response.data)
         self.assertEqual(jobs_response.data.get("count"), 2)
 
     def test_job_detail(self):

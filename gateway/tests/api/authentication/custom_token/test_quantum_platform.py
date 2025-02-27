@@ -1,16 +1,16 @@
-"""Tests authentication."""
+"""This file contains e2e tests for Quantum Platform authentication process."""
+
 
 from unittest.mock import MagicMock, patch
-
 import responses
 from rest_framework.test import APITestCase
 
-from api.authentication import CustomTokenBackend, CustomToken, MockAuthBackend
+from api.authentication import CustomTokenBackend, CustomToken
 from api.services.authentication.quantum_platform import QuantumPlatformService
 
 
-class TestAuthentication(APITestCase):
-    """Tests authentication."""
+class TestQuantumPlatformAuthentication(APITestCase):
+    """This class contains e2e tests for Quantum Platform authentication process."""
 
     network_configuration_without_project = [
         {
@@ -26,7 +26,7 @@ class TestAuthentication(APITestCase):
     @responses.activate
     @patch.object(QuantumPlatformService, "_get_network")
     def test_custom_token_authentication(self, get_network_mock: MagicMock):
-        """Tests custom token auth."""
+        """This test verifies the entire flow of the custom token authentication"""
 
         get_network_mock.return_value = self.network_configuration_without_project
 
@@ -46,7 +46,7 @@ class TestAuthentication(APITestCase):
 
         custom_auth = CustomTokenBackend()
         request = MagicMock()
-        request.META.get.return_value = "Bearer AWESOME_TOKEN"
+        request.META = {"HTTP_AUTHORIZATION": "Bearer AWESOME_TOKEN"}
 
         with self.settings(
             QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
@@ -64,7 +64,10 @@ class TestAuthentication(APITestCase):
 
     @responses.activate
     def test_with_nested_verification_fields(self):
-        """Tests custom token auth."""
+        """
+        This test verifies the entire flow of the custom token authentication
+        with the difference that we validate a more complex verification field.
+        """
         responses.add(
             responses.POST,
             "http://token_auth_url/api/users/loginWithToken",
@@ -81,7 +84,7 @@ class TestAuthentication(APITestCase):
 
         custom_auth = CustomTokenBackend()
         request = MagicMock()
-        request.META.get.return_value = "Bearer AWESOME_TOKEN"
+        request.META = {"HTTP_AUTHORIZATION": "Bearer AWESOME_TOKEN"}
 
         with self.settings(
             QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
@@ -118,18 +121,3 @@ class TestAuthentication(APITestCase):
             # is not configured properly
             with self.assertRaises(AttributeError):
                 custom_auth.authenticate(request)
-
-    def test_mock_auth(self):
-        """Tests for mock authentication backend."""
-        backend = MockAuthBackend()
-        request = MagicMock()
-        request.META.get.return_value = "Bearer my_awesome_token"
-
-        with self.settings(SETTINGS_AUTH_MOCK_TOKEN="my_awesome_token"):
-            user, token = backend.authenticate(request)
-            self.assertEqual(user.username, "mockuser")
-            self.assertEqual(token.token.decode(), "my_awesome_token")
-
-        with self.settings(SETTINGS_AUTH_MOCK_TOKEN="other_awesome_token"):
-            user, token = backend.authenticate(request)
-            self.assertIsNone(user)
