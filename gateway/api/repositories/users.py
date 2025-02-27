@@ -8,8 +8,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db.models import Q
 
-from api.models import VIEW_PROGRAM_PERMISSION
-
 
 User = get_user_model()
 logger = logging.getLogger("gateway.repositories.user")
@@ -57,8 +55,11 @@ class UserRepository:
         return Group.objects.filter(user_criteria & permission_criteria)
 
     def restart_user_groups(
-        self, user: type[AbstractUser], unique_group_names: List[str]
-    ) -> None:
+        self,
+        user: type[AbstractUser],
+        unique_group_names: List[str],
+        permission_names: List[str],
+    ) -> List[Group]:
         """
         This method will restart all the groups from a user given a specific list
         with the new groups.
@@ -66,16 +67,25 @@ class UserRepository:
         Args:
             user: Django user
             unique_group_names List[str]: list with the names of the new groups
+            permission_names: name of the permissions that will be applied to the new groups
         """
+
+        new_groups = []
+
+        permissions = []
+        for permission_name in permission_names:
+            permissions.append(Permission.objects.get(codename=permission_name))
 
         logger.debug("Clean user groups before update them")
         user.groups.clear()
 
         logger.debug("Update [%s] groups", len(unique_group_names))
-        view_program = Permission.objects.get(codename=VIEW_PROGRAM_PERMISSION)
         for instance in unique_group_names:
             group, created = Group.objects.get_or_create(name=instance)
             if created:
-                logger.debug("New group created")
-                group.permissions.add(view_program)
+                for permission in permissions:
+                    group.permissions.add(permission)
             group.user_set.add(user)
+            new_groups.append(group)
+
+        return new_groups

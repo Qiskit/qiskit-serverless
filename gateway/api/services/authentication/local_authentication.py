@@ -19,7 +19,7 @@ class LocalAuthenticationService(AuthenticationBase):
 
     def __init__(self, authorization_token: str):
         self.authorization_token = authorization_token
-        self.username="mockuser"
+        self.username = "mockuser"
 
     def authenticate(self) -> str | None:
         """
@@ -33,19 +33,17 @@ class LocalAuthenticationService(AuthenticationBase):
             None: in case the authentication failed
         """
         if settings.SETTINGS_AUTH_MOCK_TOKEN is None:
-            logger.warning(
-                "Problems authenticating: mock token is not configured."
-            )
+            logger.warning("Problems authenticating: mock token is not configured.")
             return None
-        
+
         if self.authorization_token != settings.SETTINGS_AUTH_MOCK_TOKEN:
             logger.warning(
                 "Problems authenticating: authorization token and mock token are different."
             )
             return None
-        
+
         return self.username
-    
+
     def verify_access(self) -> bool:
         """
         Locally there is no verification needed so this method always return True.
@@ -54,7 +52,7 @@ class LocalAuthenticationService(AuthenticationBase):
             bool: True or False if the user has or no access
         """
         return True
-    
+
     def get_groups(self) -> List[str]:
         """
         Locally there is only one group called mockgroup.
