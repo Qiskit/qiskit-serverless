@@ -8,6 +8,7 @@ from ibm_platform_services import IamAccessGroupsV2, IamIdentityV1, ResourceCont
 from ibm_cloud_sdk_core import DetailedResponse
 
 from api.authentication import CustomTokenBackend, CustomToken
+from api.models import VIEW_PROGRAM_PERMISSION
 
 
 class TestIBMCloudAuthentication(APITestCase):
@@ -83,3 +84,7 @@ class TestIBMCloudAuthentication(APITestCase):
             self.assertListEqual(
                 groups_names_list, ["abc18abcd41546508b35dfe0627109c4/PrivateGroup"]
             )
+
+            for group in user.groups.all():
+                permissions = list(group.permissions.values_list("codename", flat=True))
+                self.assertEqual(permissions, [VIEW_PROGRAM_PERMISSION])
