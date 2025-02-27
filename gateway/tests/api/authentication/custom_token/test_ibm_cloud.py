@@ -80,4 +80,6 @@ class TestIBMCloudAuthentication(APITestCase):
 
             groups_names = user.groups.values_list("name", flat=True).distinct()
             groups_names_list = list(groups_names)
-            self.assertListEqual(groups_names_list, ["abc18abcd41546508b35dfe0627109c4/PrivateGroup"])
+            self.assertListEqual(
+                groups_names_list, ["abc18abcd41546508b35dfe0627109c4/PrivateGroup"]
+            )
