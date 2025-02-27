@@ -7,7 +7,7 @@ in local environments.
 from unittest.mock import MagicMock
 from rest_framework.test import APITestCase
 
-from api.authentication import MockAuthBackend
+from api.authentication import MockTokenBackend
 
 
 class TestMockTokenAuthentication(APITestCase):
@@ -18,7 +18,7 @@ class TestMockTokenAuthentication(APITestCase):
 
     def test_mock_auth(self):
         """This test verifies the authentication process for Mock Token."""
-        backend = MockAuthBackend()
+        backend = MockTokenBackend()
         request = MagicMock()
         request.META = {"HTTP_AUTHORIZATION": "Bearer my_awesome_token"}
 

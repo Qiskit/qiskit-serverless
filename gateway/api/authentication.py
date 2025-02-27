@@ -48,7 +48,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         return quantum_user, CustomToken(authorization_token.encode())
 
 
-class MockAuthBackend(authentication.BaseAuthentication):
+class MockTokenBackend(authentication.BaseAuthentication):
     """Custom mock auth backend for tests."""
 
     def authenticate(self, request):
