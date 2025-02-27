@@ -177,9 +177,8 @@ class TestJobApi(APITestCase):
             self._authorize()
 
             jobs_response = self.client.get(
-                reverse(
-                    "v1:jobs-detail", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]
-                ) + "?with_result=false",
+                reverse("v1:jobs-detail", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"])
+                + "?with_result=false",
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
