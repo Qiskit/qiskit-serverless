@@ -51,16 +51,15 @@ class Command(BaseCommand):
         """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
         if gpu_job:
-            logger.info("%s free GPU cluster slots.", free_clusters_slots)
+            logger.info(f"{free_clusters_slots} free GPU cluster slots.")
         else:
-            logger.info("%s free CPU cluster slots.", free_clusters_slots)
+            logger.info(f"{free_clusters_slots} free CPU cluster slots.")
 
         if free_clusters_slots < 1:
             # no available resources
             logger.info(
-                "No clusters available. Resource consumption: %s / %s",
-                number_of_clusters_running,
-                max_ray_clusters_possible,
+                "No clusters available. Resource consumption: "
+                + f"{number_of_clusters_running} / {max_ray_clusters_possible}"
             )
         else:
             # we have available resources
@@ -115,8 +114,7 @@ class Command(BaseCommand):
                             succeed = True
                         except RecordModifiedError:
                             logger.warning(
-                                "Schedule: Job [%s] record has not been updated due to lock.",
-                                job.id,
+                                f"Schedule: Job [{job.id}] record has not been updated due to lock."
                             )
 
                             time.sleep(1)
@@ -127,5 +125,5 @@ class Command(BaseCommand):
                             job.compute_resource = backup_resource
                             job.ray_job_id = backup_ray_job_id
 
-                    logger.info("Executing %s of %s", job, job.author)
-            logger.info("%s are scheduled for execution.", len(jobs))
+                    logger.info(f"Executing {job} of {job.author}")
+            logger.info(f"{len(jobs)} are scheduled for execution.")

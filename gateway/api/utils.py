@@ -73,13 +73,13 @@ def retry_function(
     while run < num_retries and not success:
         run += 1
 
-        logger.debug("[%s] attempt %d", name, run)
+        logger.debug(f"[{name}] attempt {run}")
 
         try:
             result = callback()
             success = True
         except Exception:  # pylint: disable=broad-exception-caught
-            logger.debug("%s Retrying...", error_message)
+            logger.debug(f"{error_message} Retrying...")
 
         time.sleep(interval)
     return result
@@ -131,12 +131,11 @@ def build_env_variables(
     arguments = "{}"
     if args:
         if objsize.get_deep_size(args) < 100000:
-            logger.debug("passing arguments as env_var for job [%s]", job.id)
+            logger.debug(f"passing arguments as env_var for job [{job.id}]")
             arguments = args
         else:
             logger.warning(
-                "arguments for job [%s] are too large and will not be written to env_var",
-                job.id,
+                f"arguments for job [{job.id}] are too large and will not be written to env_var"
             )
 
     if settings.SETTINGS_AUTH_MECHANISM != "default":
@@ -186,7 +185,7 @@ def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
             try:
                 env_vars[key] = decrypt_string(value)
             except Exception:  # pylint: disable=broad-exception-caught
-                logger.error("Cannot decrypt %s.", key)
+                logger.error(f"Cannot decrypt {key}.")
     return env_vars
 
 
@@ -215,7 +214,7 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
     """
     if job.status == Job.FAILED and logs in ["", None]:
         logs = f"Job {job.id} failed due to an internal error."
-        logger.warning("Job %s failed due to an internal error.", job.id)
+        logger.warning(f"Job {job.id} failed due to an internal error.")
     return logs
 
 
@@ -234,7 +233,7 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
         except Exception:  # pylint: disable=broad-exception-caught
             logger.error("Response is not valid json in safe_request")
     if response is not None and not response.ok:
-        logger.error("%d : %s", response.status_code, response.text)
+        logger.error(f"{response.status_code} : {response.text}")
 
     return result
 
@@ -413,10 +412,10 @@ def create_dependency_allowlist():
         with open(settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r") as f:
             allowlist = json.load(f)
     except IOError as e:
-        logger.error("Unable to open allowlist config file: %s", e)
+        logger.error(f"Unable to open allowlist config file: {e}")
         raise ValueError("Unable to open allowlist config file") from e
     except ValueError as e:
-        logger.error("Unable to decode dependency allowlist: %s", e)
+        logger.error(f"Unable to decode dependency allowlist: {e}")
         raise ValueError("Unable to decode dependency allowlist") from e
 
     return allowlist
@@ -441,10 +440,10 @@ def create_gpujob_allowlist():
         with open(settings.GATEWAY_GPU_JOBS_CONFIG, encoding="utf-8", mode="r") as f:
             gpujobs = json.load(f)
     except IOError as e:
-        logger.error("Unable to open gpu job config file: %s", e)
+        logger.error(f"Unable to open gpu job config file: {e}")
         raise ValueError("Unable to open gpu job config file") from e
     except ValueError as e:
-        logger.error("Unable to decode gpu job allowlist: %s", e)
+        logger.error(f"Unable to decode gpu job allowlist: {e}")
         raise ValueError("Unable to decode gpujob allowlist") from e
 
     return gpujobs

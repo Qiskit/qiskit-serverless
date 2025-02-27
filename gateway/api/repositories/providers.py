@@ -27,6 +27,6 @@ class ProviderRepository:  # pylint: disable=too-few-public-methods
 
         provider = Provider.objects.filter(name=name).first()
         if provider is None:
-            logger.warning("Provider [%s] does not exist.", name)
+            logger.warning(f"Provider [{name}] does not exist.")
 
         return provider

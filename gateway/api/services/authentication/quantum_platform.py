@@ -44,7 +44,7 @@ class QuantumPlatformService:
                 }
             }
         """
-        logger.debug("Get Network information from [%s]", self.instances_url)
+        logger.debug(f"Get Network information from [{self.instances_url}]")
         if self.instances_url is None:
             return []
 

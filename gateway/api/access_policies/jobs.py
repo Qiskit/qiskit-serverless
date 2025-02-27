@@ -42,7 +42,7 @@ class JobAccessPolocies:
 
         if not has_access:
             logger.warning(
-                "User [%s] has no access to job [%s].", user.username, job.author
+                f"User [{user.username}] has no access to job [{job.author}]."
             )
         return has_access
 
@@ -62,9 +62,8 @@ class JobAccessPolocies:
         has_access = user.id == job.author.id
         if not has_access:
             logger.warning(
-                "User [%s] has no access to read the result of the job [%s].",
-                user.username,
-                job.author,
+                f"User [{user.username}] has no access to read the result of "
+                f"the job [{job.author}]."
             )
         return has_access
 
@@ -84,8 +83,7 @@ class JobAccessPolocies:
         has_access = user.id == job.author.id
         if not has_access:
             logger.warning(
-                "User [%s] has no access to save the result of the job [%s].",
-                user.username,
-                job.author,
+                f"User [{user.username}] has no access to save the "
+                + f"result of the job [{job.author}]."
             )
         return has_access

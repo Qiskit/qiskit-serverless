@@ -142,8 +142,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             serializer = self.get_serializer_upload_program(data=request.data)
             if not serializer.is_valid():
                 logger.error(
-                    "UploadProgramSerializer validation failed:\n %s",
-                    serializer.errors,
+                    f"UploadProgramSerializer validation failed:\n {serializer.errors}"
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -173,21 +172,21 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
 
             if program is not None:
-                logger.info("Program found. [%s] is going to be updated", title)
+                logger.info(f"Program found. [{title}] is going to be updated")
                 serializer = self.get_serializer_upload_program(
                     program, data=request.data
                 )
                 if not serializer.is_valid():
                     logger.error(
-                        "UploadProgramSerializer validation failed with program instance:\n %s",
-                        serializer.errors,
+                        "UploadProgramSerializer validation failed with "
+                        + f"program instance:\n {serializer.errors}"
                     )
                     return Response(
                         serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
             serializer.save(author=author, title=title, provider=provider_name)
 
-            logger.info("Return response with Program [%s]", title)
+            logger.info(f"Return response with Program [{title}]")
             return Response(serializer.data)
 
     @action(methods=["POST"], detail=False)
@@ -199,8 +198,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             serializer = self.get_serializer_run_program(data=request.data)
             if not serializer.is_valid():
                 logger.error(
-                    "RunProgramSerializer validation failed:\n %s",
-                    serializer.errors,
+                    f"RunProgramSerializer validation failed:\n {serializer.errors}"
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -216,7 +214,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 provider_name=provider_name,
             )
             if function is None:
-                logger.error("Qiskit Pattern [%s] was not found.", function_title)
+                logger.error(f"Qiskit Pattern [{function_title}] was not found.")
                 return Response(
                     {"message": f"Qiskit Pattern [{function_title}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
@@ -225,18 +223,17 @@ class ProgramViewSet(viewsets.GenericViewSet):
             jobconfig = None
             config_json = serializer.data.get("config")
             if config_json:
-                logger.info("Configuration for [%s] was found.", function_title)
+                logger.info(f"Configuration for [{function_title}] was found.")
                 job_config_serializer = self.get_serializer_job_config(data=config_json)
                 if not job_config_serializer.is_valid():
                     logger.error(
-                        "JobConfigSerializer validation failed:\n %s",
-                        serializer.errors,
+                        f"JobConfigSerializer validation failed:\n {serializer.errors}"
                     )
                     return Response(
                         job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
                 jobconfig = job_config_serializer.save()
-                logger.info("JobConfig [%s] created.", jobconfig.id)
+                logger.info(f"JobConfig [{jobconfig.id}] created.")
 
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
@@ -248,8 +245,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             job_serializer = self.get_serializer_run_job(data=job_data)
             if not job_serializer.is_valid():
                 logger.error(
-                    "RunJobSerializer validation failed:\n %s",
-                    serializer.errors,
+                    f"RunJobSerializer validation failed:\n {serializer.errors}"
                 )
                 return Response(
                     job_serializer.errors, status=status.HTTP_400_BAD_REQUEST
@@ -257,7 +253,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             job = job_serializer.save(
                 author=author, carrier=carrier, token=token, config=jobconfig
             )
-            logger.info("Returning Job [%s] created.", job.id)
+            logger.info(f"Returning Job [{job.id}] created.")
 
         return Response(job_serializer.data)
 

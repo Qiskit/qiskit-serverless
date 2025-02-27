@@ -66,7 +66,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         """
         provider = Provider.objects.filter(name=provider_name).first()
         if provider is None:
-            logger.error("Provider [%s] does not exist.", provider_name)
+            logger.error(f"Provider [{provider_name}] does not exist.")
             return False
 
         author_groups = author.groups.all()
@@ -74,7 +74,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         has_access = any(group in admin_groups for group in author_groups)
         if not has_access:
             logger.error(
-                "User [%s] has no access to provider [%s].", author.id, provider_name
+                f"User [{author.id}] has no access to provider [{provider_name}]."
             )
 
         return has_access
@@ -93,7 +93,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         title = sanitize_name(validated_data.get("title"))
-        logger.info("Creating program [%s] with UploadProgramSerializer", title)
+        logger.info(f"Creating program [{title}] with UploadProgramSerializer")
 
         provider_name = sanitize_name(validated_data.get("provider", None))
         if provider_name:
@@ -109,7 +109,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         logger.info(
-            "Updating program [%s] with UploadProgramSerializer", instance.title
+            f"Updating program [{instance.title}] with UploadProgramSerializer",
         )
         instance.entrypoint = validated_data.get(
             "entrypoint", DEFAULT_PROGRAM_ENTRYPOINT

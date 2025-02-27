@@ -40,9 +40,8 @@ class ResultStorage:
         result_path = self.__get_result_path(job_id)
         if not os.path.exists(result_path):
             logger.info(
-                "Result file for job ID '%s' not found in directory '%s'.",
-                job_id,
-                self.user_results_directory,
+                f"Result file for job ID '{job_id}' not found in directory"
+                + f"'{self.user_results_directory}'."
             )
             return None
 
@@ -50,11 +49,7 @@ class ResultStorage:
             with open(result_path, "r", encoding="utf-8") as result_file:
                 return result_file.read()
         except (UnicodeDecodeError, IOError) as e:
-            logger.error(
-                "Failed to read result file for job ID '%s': %s",
-                job_id,
-                str(e),
-            )
+            logger.error(f"Failed to read result file for job ID '{job_id}': {str(e)}")
             return None
 
     def save(self, job_id: str, result: str) -> None:
@@ -73,7 +68,5 @@ class ResultStorage:
         with open(result_path, "w", encoding=self.ENCODING) as result_file:
             result_file.write(result)
             logger.info(
-                "Result for job ID '%s' successfully saved at '%s'.",
-                job_id,
-                result_path,
+                f"Result for job ID '{job_id}' successfully saved at '{result_path}'."
             )
