@@ -124,7 +124,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         # Create directory if it doesn't exist
         if not os.path.exists(sanitized_path):
             os.makedirs(sanitized_path, exist_ok=True)
-            logger.debug("Path %s was created.", sanitized_path)
+            logger.debug(f"Path {sanitized_path} was created.")
 
         return sanitized_path
 
@@ -165,11 +165,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         )
 
         if not os.path.exists(path_to_file):
-            logger.warning(
-                "File %s not found in %s.",
-                file_name_path,
-                path_to_file,
-            )
+            logger.warning(f"File {file_name_path} not found in {path_to_file}.")
             return None
 
         # We can not use context manager here. Django close the file automatically:
@@ -226,14 +222,10 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         try:
             os.remove(path_to_file)
         except FileNotFoundError:
-            logger.warning(
-                "File %s not found in %s.",
-                file_name_path,
-                path_to_file,
-            )
+            logger.warning(f"File {file_name_path} not found in {path_to_file}.")
             return False
         except OSError as ex:
-            logger.warning("OSError: %s.", ex.strerror)
+            logger.warning(f"OSError: {ex.strerror}.")
             return False
 
         return True

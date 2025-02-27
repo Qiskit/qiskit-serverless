@@ -127,7 +127,7 @@ class JobHandler:
                 encoding="utf-8",
             ) as f:
                 if job.arguments:
-                    logger.debug("uploading arguments for job [%s]", job.id)
+                    logger.debug(f"uploading arguments for job [{job.id}]")
                     f.write(job.arguments)
                 else:
                     f.write({})
@@ -197,7 +197,7 @@ def submit_job(job: Job) -> Job:
     ray_client = get_job_handler(job.compute_resource.host)
     if ray_client is None:
         logger.error(
-            "Unable to set up ray client with host [%s]", job.compute_resource.host
+            f"Unable to set up ray client with host [{job.compute_resource.host}]"
         )
         raise ConnectionError(
             f"Unable to set up ray client with host [{job.compute_resource.host}]"
@@ -205,7 +205,7 @@ def submit_job(job: Job) -> Job:
 
     ray_job_id = ray_client.submit(job)
     if ray_job_id is None:
-        logger.error("Unable to submit ray job [%s]", job.id)
+        logger.error(f"Unable to submit ray job [{job.id}]")
         raise ConnectionError(f"Unable to submit ray job [{job.id}]")
 
     # TODO: if submission failed log message and save with failed status to prevent loop over  # pylint: disable=fixme
@@ -303,9 +303,7 @@ def create_ray_cluster(  # pylint: disable=too-many-branches,too-many-locals,too
     raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
     if response.metadata.name != cluster_name:
-        logger.warning(
-            "Something went wrong during cluster creation: %s", response.text
-        )
+        logger.warning(f"Something went wrong during cluster creation: {response.text}")
         raise RuntimeError("Something went wrong during cluster creation")
 
     # wait for cluster to be up and running
@@ -340,10 +338,10 @@ def wait_for_cluster_ready(cluster_name: str):
                 if response.ok:
                     success = True
             except Exception:  # pylint: disable=broad-exception-caught
-                logger.debug("Head node %s is not ready yet.", url)
+                logger.debug(f"Head node {url} is not ready yet.")
             time.sleep(1)
         else:
-            logger.warning("Waiting too long for cluster [%s] creation", cluster_name)
+            logger.warning(f"Waiting too long for cluster [{cluster_name}] creation")
             break
     return url, success
 
@@ -371,8 +369,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
         logger.error(
-            "Something went wrong during ray cluster deletion request: %s",
-            sanitized,
+            f"Something went wrong during ray cluster deletion request: {sanitized}"
         )
         return success
 
@@ -381,8 +378,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     else:
         sanitized = delete_response.text.replace("\n", "").replace("\r", "")
         logger.error(
-            "Something went wrong during ray cluster deletion request: %s",
-            sanitized,
+            f"Something went wrong during ray cluster deletion request: {sanitized}"
         )
     try:
         cert_client = dyn_client.resources.get(api_version="v1", kind="Certificate")
@@ -394,16 +390,14 @@ def kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except NotFoundError:
         logger.error(
-            "Something went wrong during ray certification deletion request: %s",
-            cluster_name,
+            f"Something went wrong during ray certification deletion request: {cluster_name}"
         )
     try:
         cert_client.delete(name=f"{cluster_name}-worker", namespace=namespace)
         success = True
     except NotFoundError:
         logger.error(
-            "Something went wrong during ray certification deletion request: %s",
-            f"{cluster_name}-worker",
+            f"Something went wrong during ray certification deletion request: {cluster_name}-worker"
         )
 
     corev1 = kubernetes_client.CoreV1Api()
@@ -412,8 +406,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except ApiException:
         logger.error(
-            "Something went wrong during ray secret deletion request: %s",
-            cluster_name,
+            f"Something went wrong during ray secret deletion request: {cluster_name}"
         )
     try:
         corev1.delete_namespaced_secret(
@@ -422,7 +415,6 @@ def kill_ray_cluster(cluster_name: str) -> bool:
         success = True
     except ApiException:
         logger.error(
-            "Something went wrong during ray secret deletion request: %s",
-            f"{cluster_name}-worker",
+            f"Something went wrong during ray secret deletion request: {cluster_name}-worker"
         )
     return success

@@ -52,7 +52,7 @@ class FunctionRepository:
         ).distinct()
 
         count = result_queryset.count()
-        logger.info("[%d] Functions found for author [%s]", count, author.id)
+        logger.info(f"[{count}] Functions found for author [{author.id}]")
 
         return result_queryset
 
@@ -77,7 +77,7 @@ class FunctionRepository:
         ).distinct()
 
         count = result_queryset.count()
-        logger.info("[%d] user Functions found for author [%s]", count, author.id)
+        logger.info(f"[{count}] user Functions found for author [{author.id}]")
 
         return result_queryset
 
@@ -112,7 +112,7 @@ class FunctionRepository:
         ).distinct()
 
         count = result_queryset.count()
-        logger.info("[%d] provider Functions found for author [%s]", count, author.id)
+        logger.info(f"[{count}] provider Functions found for author [{author.id}]")
 
         return result_queryset
 
@@ -137,9 +137,8 @@ class FunctionRepository:
 
         if result_queryset is None:
             logger.warning(
-                "Function [%s] was not found or author [%s] doesn't have access to it",
-                title,
-                author.id,
+                f"Function [{title}] was not found or author "
+                + f"[{author.id}] doesn't have access to it"
             )
 
         return result_queryset
@@ -182,10 +181,8 @@ class FunctionRepository:
 
         if result_queryset is None:
             logger.warning(
-                "Function [%s/%s] was not found or author [%s] doesn't have access to it",
-                provider_name,
-                title,
-                author.id,
+                f"Function [{provider_name}/{title}] was not found or author "
+                + f"[{author.id}] doesn't have access to it"
             )
 
         return result_queryset

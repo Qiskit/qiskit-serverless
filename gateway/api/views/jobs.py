@@ -248,7 +248,7 @@ class JobViewSet(viewsets.GenericViewSet):
         with tracer.start_as_current_span("gateway.job.logs", context=ctx):
             job = Job.objects.filter(pk=pk).first()
             if job is None:
-                logger.warning("Job [%s] not found", pk)
+                logger.warning(f"Job [{pk}] not found")
                 return Response(status=404)
 
             logs = job.logs
@@ -293,7 +293,7 @@ class JobViewSet(viewsets.GenericViewSet):
                         if jobinstance:
                             try:
                                 logger.info(
-                                    "canceling [%s]", runtime_job_entry.runtime_job
+                                    f"canceling [{runtime_job_entry.runtime_job}]"
                                 )
                                 jobinstance.cancel()
                             except RuntimeInvalidStateError:
@@ -313,8 +313,7 @@ class JobViewSet(viewsets.GenericViewSet):
                             message = "Job was already not running."
                     else:
                         logger.warning(
-                            "Compute resource is not accessible %s",
-                            job.compute_resource,
+                            f"Compute resource is not accessible {job.compute_resource}"
                         )
         return Response({"message": message})
 
