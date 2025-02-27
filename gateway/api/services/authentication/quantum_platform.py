@@ -9,7 +9,7 @@ import requests
 from api.services.authentication.authentication_base import AuthenticationBase
 from api.utils import remove_duplicates_from_list, safe_request
 
-logger = logging.getLogger("gateway.services.quantum_platform")
+logger = logging.getLogger("gateway.services.authentication.quantum_platform")
 
 
 class QuantumPlatformService(AuthenticationBase):

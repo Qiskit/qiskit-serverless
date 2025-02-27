@@ -12,7 +12,7 @@ from api.services.authentication.authentication_base import AuthenticationBase
 from api.utils import sanitize_name
 
 
-logger = logging.getLogger("gateway.services.ibm_cloud")
+logger = logging.getLogger("gateway.services.authentication.ibm_cloud")
 
 
 class IBMCloudService(AuthenticationBase):
