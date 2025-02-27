@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import responses
 from rest_framework.test import APITestCase
 
-from api.authentication import CustomTokenBackend, CustomToken, MockAuthBackend
+from api.authentication import CustomTokenBackend, CustomToken
 from api.services.authentication.quantum_platform import QuantumPlatformService
 
 

@@ -9,6 +9,7 @@ from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 from ibm_platform_services import IamIdentityV1, ResourceControllerV2, IamAccessGroupsV2
 
 from api.services.authentication.authentication_base import AuthenticationBase
+from api.utils import sanitize_name
 
 
 logger = logging.getLogger("gateway.services.ibm_cloud")
@@ -60,6 +61,12 @@ class IBMCloudService(AuthenticationBase):
         self.account_id = user_info.get("account_id")
         self.iam_id = user_info.get("iam_id")
 
+        logger.debug(
+            "User authenticated with account_id[%s] and iam_id[%s]",
+            self.account_id,
+            self.iam_id,
+        )
+
         return self.iam_id
 
     def verify_access(self) -> bool:
@@ -84,8 +91,9 @@ class IBMCloudService(AuthenticationBase):
         resource_plan_id = instance.get("resource_plan_id")
         if resource_plan_id not in settings.RESOURCE_PLANS_ID_ALLOWED:
             logger.warning(
-                "Problems authenticating: Resource plan id [%s] is not a valid plan.",
+                "Problems authenticating: Resource plan id [%s] is not a valid plan %s.",
                 resource_plan_id,
+                settings.RESOURCE_PLANS_ID_ALLOWED,
             )
             return False
         return True
@@ -119,7 +127,8 @@ class IBMCloudService(AuthenticationBase):
             for access_group in access_groups
             if access_group["name"] != "Public Access"
         ]
+
         return [
-            f"{self.account_id}/{access_group['name']}"
+            f"{self.account_id}/{sanitize_name(access_group['name'])}"
             for access_group in access_groups_filtered
         ]
