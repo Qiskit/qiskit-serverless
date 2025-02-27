@@ -280,7 +280,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         default_status = "Unknown"
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                f"{self.host}/api/{self.version}/jobs/{job_id}?with_result=false",
                 headers={"Authorization": f"Bearer {self.token}"},
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -313,7 +313,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     def result(self, job_id: str):
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                f"{self.host}/api/{self.version}/jobs/{job_id}",
                 headers={"Authorization": f"Bearer {self.token}"},
                 timeout=REQUESTS_TIMEOUT,
             )
