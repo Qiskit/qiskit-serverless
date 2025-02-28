@@ -112,6 +112,10 @@ class JobViewSet(viewsets.GenericViewSet):
         with tracer.start_as_current_span("gateway.job.retrieve", context=ctx):
 
             author = self.request.user
+            return_with_result = (
+                sanitize_name(request.query_params.get("with_result", "true"))
+                != "false"
+            )
             job = self.jobs_repository.get_job_by_id(pk)
             if job is None:
                 return Response(
@@ -134,9 +138,14 @@ class JobViewSet(viewsets.GenericViewSet):
             if result is not None:
                 job.result = result
 
-            serializer = self.get_serializer_job(job)
+            serializer = (
+                self.get_serializer_job
+                if return_with_result
+                else self.get_serializer_job_without_result
+            )
+            serialized = serializer(job)
 
-            return Response(serializer.data)
+            return Response(serialized.data)
 
     def list(self, request):
         """List jobs:"""
