@@ -32,7 +32,7 @@ class UserRepository:
 
         user, created = User.objects.get_or_create(username=user_id)
         if created:
-            logger.debug("New user created")
+            logger.debug("New user [%s] created", user_id)
 
         return user
 

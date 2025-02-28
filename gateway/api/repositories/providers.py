@@ -33,7 +33,7 @@ class ProviderRepository:  # pylint: disable=too-few-public-methods
 
         return provider
 
-    def create(
+    def get_or_create_by_name(
         self, name: str, registry: str, admin_groups: List[Group]
     ) -> Provider | None:
         """
@@ -49,11 +49,12 @@ class ProviderRepository:  # pylint: disable=too-few-public-methods
           - Provider | None: returns the new Provider
         """
 
-        provider = Provider.objects.create(
+        provider, created = Provider.objects.get_or_create(
             name=name,
             registry=registry,
         )
-        for admin_group in admin_groups:
-            provider.admin_groups.add(admin_group)
+        if created:
+            for admin_group in admin_groups:
+                provider.admin_groups.add(admin_group)
 
         return provider

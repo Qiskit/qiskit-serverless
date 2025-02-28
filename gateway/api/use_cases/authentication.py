@@ -67,7 +67,7 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
                 unique_group_names=access_groups,
                 permission_names=permission_names,
             )
-            self.provider_repository.create(
+            self.provider_repository.get_or_create_by_name(
                 name="mockprovider",
                 registry=settings.SETTINGS_AUTH_MOCKPROVIDER_REGISTRY,
                 admin_groups=groups,
