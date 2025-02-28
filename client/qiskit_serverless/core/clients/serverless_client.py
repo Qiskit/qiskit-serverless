@@ -109,7 +109,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         name = name or "gateway-client"
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
-            raise QiskitServerlessException("Please provide `host` of gateway.")
+            raise QiskitServerlessException(
+                "Please provide `host` of gateway.")
 
         version = version or os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
         if version is None:
@@ -126,7 +127,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         self.version = version
         self._verify_token(token)
 
-        self._files_client = GatewayFilesClient(self.host, self.token, self.version)
+        self._files_client = GatewayFilesClient(
+            self.host, self.token, self.version)
 
     @classmethod
     def from_dict(cls, dictionary: dict):
@@ -187,7 +189,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         """
 
         if not function.provider:
-            raise QiskitServerlessException("`function` doesn't have a provider.")
+            raise QiskitServerlessException(
+                "`function` doesn't have a provider.")
 
         limit = kwargs.get("limit", 10)
         kwargs["limit"] = limit
@@ -280,7 +283,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         default_status = "Unknown"
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}?with_result=false",
+                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                params={"with_result": "false"}
                 headers={"Authorization": f"Bearer {self.token}"},
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -528,7 +532,8 @@ class IBMServerlessClient(ServerlessClient):
             token: IBM quantum token
             name: Name of the account to load
         """
-        token = token or QiskitRuntimeService(name=name).active_account().get("token")
+        token = token or QiskitRuntimeService(
+            name=name).active_account().get("token")
         super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
 
     @staticmethod
@@ -545,7 +550,8 @@ class IBMServerlessClient(ServerlessClient):
             name: Name of the account to save
             overwrite: ``True`` if the existing account is to be overwritten
         """
-        QiskitRuntimeService.save_account(token=token, name=name, overwrite=overwrite)
+        QiskitRuntimeService.save_account(
+            token=token, name=name, overwrite=overwrite)
 
 
 def _upload_with_docker_image(
@@ -607,7 +613,8 @@ def _upload_with_artifact(
 
     # check if entrypoint exists
     if (
-        not os.path.exists(os.path.join(program.working_dir, program.entrypoint))
+        not os.path.exists(os.path.join(
+            program.working_dir, program.entrypoint))
         or program.entrypoint[0] == "/"
     ):
         raise QiskitServerlessException(
@@ -648,8 +655,10 @@ def _upload_with_artifact(
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-            span.set_attribute("function.title", response_data.get("title", "na"))
-            span.set_attribute("function.provider", response_data.get("provider", "na"))
+            span.set_attribute(
+                "function.title", response_data.get("title", "na"))
+            span.set_attribute("function.provider",
+                               response_data.get("provider", "na"))
             response_data["client"] = client
             response_function = RunnableQiskitFunction.from_json(response_data)
     except Exception as error:  # pylint: disable=broad-exception-caught
