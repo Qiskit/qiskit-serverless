@@ -6,6 +6,7 @@ import responses
 from rest_framework.test import APITestCase
 
 from api.authentication import CustomTokenBackend, CustomToken
+from api.models import VIEW_PROGRAM_PERMISSION
 from api.services.authentication.quantum_platform import QuantumPlatformService
 
 
@@ -61,6 +62,10 @@ class TestQuantumPlatformAuthentication(APITestCase):
 
             self.assertEqual(user.username, "AwesomeUser")
             self.assertListEqual(groups_names_list, ["ibm-q", "ibm-q/open"])
+
+            for group in user.groups.all():
+                permissions = list(group.permissions.values_list("codename", flat=True))
+                self.assertEqual(permissions, [VIEW_PROGRAM_PERMISSION])
 
     @responses.activate
     def test_with_nested_verification_fields(self):
