@@ -112,7 +112,10 @@ class JobViewSet(viewsets.GenericViewSet):
         with tracer.start_as_current_span("gateway.job.retrieve", context=ctx):
 
             author = self.request.user
-            return_with_result = request.GET.get("with_result", "true") != "false"
+            return_with_result = (
+                sanitize_name(request.query_params.get("with_result", "true"))
+                != "false"
+            )
             job = self.jobs_repository.get_job_by_id(pk)
             if job is None:
                 return Response(
