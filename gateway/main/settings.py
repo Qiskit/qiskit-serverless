@@ -242,7 +242,7 @@ ALL_AUTH_CLASSES_CONFIGURATION = {
         "api.authentication.CustomTokenBackend",
     ],
     "mock_token": [
-        "api.authentication.MockAuthBackend",
+        "api.authentication.MockTokenBackend",
     ],
 }
 DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
