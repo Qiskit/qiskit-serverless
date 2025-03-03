@@ -200,7 +200,7 @@ def generate_cluster_name(username: str) -> str:
         generated cluster name
     """
     pattern = re.compile("[^a-zA-Z0-9-.]")
-    cluster_name = f"c-{re.sub(pattern,'-',username)}-{str(uuid.uuid4())[:8]}"
+    cluster_name = f"c-{re.sub(pattern, '-', username)}-{str(uuid.uuid4())[:8]}"
     return cluster_name
 
 
@@ -428,6 +428,21 @@ def sanitize_name(name: str | None):
         return name
     # Remove all characters except alphanumeric, _, -, /
     return re.sub("[^a-zA-Z0-9_\\-/]", "", name)
+
+
+def sanitize_boolean(value: str | None) -> bool | None:
+    """Sanitize a string into a boolean."""
+    if value is None:
+        return None
+
+    value = value.strip().lower()
+
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+
+    return None
 
 
 def create_gpujob_allowlist():

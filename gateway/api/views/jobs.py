@@ -19,7 +19,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
-from api.utils import sanitize_name
+from api.utils import sanitize_name, sanitize_boolean
 from api.access_policies.providers import ProviderAccessPolicy
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
@@ -113,9 +113,7 @@ class JobViewSet(viewsets.GenericViewSet):
 
             author = self.request.user
             return_with_result = (
-                sanitize_name(request.query_params.get("with_result", "true"))
-                != "false"
-            )
+                sanitize_boolean(request.query_params.get("with_result", "true")))
             job = self.jobs_repository.get_job_by_id(pk)
             if job is None:
                 return Response(
