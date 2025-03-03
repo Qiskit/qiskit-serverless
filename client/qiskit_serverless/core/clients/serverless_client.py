@@ -146,7 +146,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             safe_json_request(
                 request=lambda: requests.get(
                     url=f"{self.host}/api/v1/programs/",
-                    headers=self.get_headers(),
+                    headers=BaseClient.get_headers(
+                        token=self.token, instance=self.instance
+                    ),
                     timeout=REQUESTS_TIMEOUT,
                 ),
                 verbose=self.verbose,
@@ -171,7 +173,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/",
                 params=kwargs,
-                headers=self.get_headers(),
+                headers=BaseClient.get_headers(
+                    token=self.token, instance=self.instance
+                ),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -210,7 +214,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/provider/",
                 params=kwargs,
-                headers=self.get_headers(),
+                headers=BaseClient.get_headers(
+                    token=self.token, instance=self.instance
+                ),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -226,7 +232,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 url,
-                headers=self.get_headers(),
+                headers=BaseClient.get_headers(
+                    token=self.token, instance=self.instance
+                ),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -276,7 +284,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 request=lambda: requests.post(
                     url=url,
                     json=data,
-                    headers=self.get_headers(),
+                    headers=BaseClient.get_headers(
+                        token=self.token, instance=self.instance
+                    ),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -291,7 +301,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers=self.get_headers(),
+                headers=BaseClient.get_headers(
+                    token=self.token, instance=self.instance
+                ),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -311,7 +323,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
-                headers=self.get_headers(),
+                headers=BaseClient.get_headers(
+                    token=self.token, instance=self.instance
+                ),
                 timeout=REQUESTS_TIMEOUT,
                 json=data,
             )
@@ -324,7 +338,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers=self.get_headers(),
+                headers=BaseClient.get_headers(
+                    token=self.token, instance=self.instance
+                ),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -337,7 +353,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
-                headers=self.get_headers(),
+                headers=BaseClient.get_headers(
+                    token=self.token, instance=self.instance
+                ),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -397,7 +415,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_list(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs",
-                headers=self.get_headers(),
+                headers=BaseClient.get_headers(
+                    token=self.token, instance=self.instance
+                ),
                 params=kwargs,
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -426,7 +446,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
-                headers=self.get_headers(),
+                headers=BaseClient.get_headers(
+                    token=self.token, instance=self.instance
+                ),
                 params={"provider": provider},
                 timeout=REQUESTS_TIMEOUT,
             )

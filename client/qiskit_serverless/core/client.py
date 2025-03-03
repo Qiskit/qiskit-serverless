@@ -90,14 +90,15 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
     def __repr__(self):
         return f"<{self.name}>"
 
-    def get_headers(self) -> Dict[str, str]:
+    @staticmethod
+    def get_headers(token: str, instance: Optional[str] = None) -> Dict[str, str]:
         """Returns the headers to make the calls to the API"""
 
-        headers = {}
-        if self.token is not None:
-            headers["Authorization"] = f"Bearer {self.token}"
-        if self.instance is not None:
-            headers["Service-CRN"] = self.instance
+        headers = {
+            "Authorization": f"Bearer {token}",
+        }
+        if instance is not None:
+            headers["Service-CRN"] = instance
 
         return headers
 
