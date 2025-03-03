@@ -48,17 +48,21 @@ _trace = trace_decorator_factory("files")
 class GatewayFilesClient:
     """GatewayFilesClient."""
 
-    def __init__(self, host: str, token: str, version: str):
+    def __init__(
+        self, host: str, token: str, version: str, instance: Optional[str] = None
+    ):
         """Files client for Gateway service.
 
         Args:
             host: gateway host
             version: gateway version
             token: authorization token
+            instance: IBM Cloud CRN
         """
         self.host = host
         self.version = version
         self._token = token
+        self._instance = instance
         self._files_url = os.path.join(self.host, "api", self.version, "files")
 
     def _download_with_url(  # pylint:  disable=too-many-positional-arguments

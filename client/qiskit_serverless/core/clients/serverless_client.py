@@ -134,7 +134,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         self.version = version
         self._verify_credentials()
 
-        self._files_client = GatewayFilesClient(self.host, self.token, self.version)
+        self._files_client = GatewayFilesClient(
+            self.host, self.token, self.version, self.instance
+        )
 
     @classmethod
     def from_dict(cls, dictionary: dict):
