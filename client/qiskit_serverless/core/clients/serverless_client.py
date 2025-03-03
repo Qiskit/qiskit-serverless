@@ -171,7 +171,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/",
                 params=kwargs,
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=self.get_headers(),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -210,7 +210,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/provider/",
                 params=kwargs,
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=self.get_headers(),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -226,7 +226,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 url,
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=self.get_headers(),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -276,7 +276,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 request=lambda: requests.post(
                     url=url,
                     json=data,
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers=self.get_headers(),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -291,7 +291,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=self.get_headers(),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -311,7 +311,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=self.get_headers(),
                 timeout=REQUESTS_TIMEOUT,
                 json=data,
             )
@@ -324,7 +324,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=self.get_headers(),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -337,7 +337,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=self.get_headers(),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -397,7 +397,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_list(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=self.get_headers(),
                 params=kwargs,
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -426,7 +426,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=self.get_headers(),
                 params={"provider": provider},
                 timeout=REQUESTS_TIMEOUT,
             )
