@@ -42,6 +42,7 @@ import requests
 
 from qiskit_ibm_runtime import QiskitRuntimeService
 
+from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.constants import (
     REQUESTS_TIMEOUT,
     ENV_JOB_GATEWAY_TOKEN,
@@ -264,7 +265,7 @@ def save_result(result: Dict[str, Any]):
     response = requests.post(
         url,
         data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
-        headers={"Authorization": f"Bearer {token}"},
+        headers=BaseClient.get_headers(token=token, instance=None),
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:

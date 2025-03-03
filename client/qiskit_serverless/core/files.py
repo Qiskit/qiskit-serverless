@@ -32,6 +32,7 @@ from typing import List, Optional
 import requests
 from tqdm import tqdm
 
+from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.constants import (
     REQUESTS_STREAMING_TIMEOUT,
     REQUESTS_TIMEOUT,
@@ -82,7 +83,7 @@ class GatewayFilesClient:
                 "function": function.title,
             },
             stream=True,
-            headers={"Authorization": f"Bearer {self._token}"},
+            headers=BaseClient.get_headers(token=self._token, instance=self._instance),
             timeout=REQUESTS_STREAMING_TIMEOUT,
         ) as req:
             req.raise_for_status()
@@ -144,7 +145,9 @@ class GatewayFilesClient:
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,
-                headers={"Authorization": f"Bearer {self._token}"},
+                headers=BaseClient.get_headers(
+                    token=self._token, instance=self._instance
+                ),
                 timeout=REQUESTS_STREAMING_TIMEOUT,
             ) as req:
                 if req.ok:
@@ -164,7 +167,9 @@ class GatewayFilesClient:
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,
-                headers={"Authorization": f"Bearer {self._token}"},
+                headers=BaseClient.get_headers(
+                    token=self._token, instance=self._instance
+                ),
                 timeout=REQUESTS_STREAMING_TIMEOUT,
             ) as req:
                 if req.ok:
@@ -179,7 +184,9 @@ class GatewayFilesClient:
             request=lambda: requests.get(
                 self._files_url,
                 params={"function": function.title, "provider": function.provider},
-                headers={"Authorization": f"Bearer {self._token}"},
+                headers=BaseClient.get_headers(
+                    token=self._token, instance=self._instance
+                ),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -195,7 +202,9 @@ class GatewayFilesClient:
             request=lambda: requests.get(
                 os.path.join(self._files_url, "provider"),
                 params={"function": function.title, "provider": function.provider},
-                headers={"Authorization": f"Bearer {self._token}"},
+                headers=BaseClient.get_headers(
+                    token=self._token, instance=self._instance
+                ),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -204,6 +213,8 @@ class GatewayFilesClient:
     @_trace
     def delete(self, file: str, function: QiskitFunction) -> Optional[str]:
         """Deletes a file available to the user for the specific Qiskit Function."""
+        headers = BaseClient.get_headers(token=self._token, instance=self._instance)
+        headers["format"] = "json"
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
                 os.path.join(self._files_url, "delete"),
@@ -212,10 +223,7 @@ class GatewayFilesClient:
                     "function": function.title,
                     "provider": function.provider,
                 },
-                headers={
-                    "Authorization": f"Bearer {self._token}",
-                    "format": "json",
-                },
+                headers=headers,
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -227,6 +235,8 @@ class GatewayFilesClient:
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
+        headers = BaseClient.get_headers(token=self._token, instance=self._instance)
+        headers["format"] = "json"
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
                 os.path.join(self._files_url, "provider", "delete"),
@@ -235,10 +245,7 @@ class GatewayFilesClient:
                     "function": function.title,
                     "provider": function.provider,
                 },
-                headers={
-                    "Authorization": f"Bearer {self._token}",
-                    "format": "json",
-                },
+                headers=headers,
                 timeout=REQUESTS_TIMEOUT,
             )
         )

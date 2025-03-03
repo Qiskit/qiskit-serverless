@@ -36,6 +36,7 @@ from qiskit_ibm_runtime.runtime_job_v2 import RuntimeJobV2
 from qiskit_ibm_runtime.runtime_options import RuntimeOptions
 from qiskit_ibm_runtime.utils.result_decoder import ResultDecoder
 
+from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.constants import (
     REQUESTS_TIMEOUT,
     ENV_JOB_GATEWAY_TOKEN,
@@ -74,7 +75,7 @@ def associate_runtime_job_with_serverless_job(
     response = requests.post(
         url,
         json={"runtime_job": runtime_job_id, "runtime_session": session_id},
-        headers={"Authorization": f"Bearer {token}"},
+        headers=BaseClient.get_headers(token=token, instance=None),
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:

@@ -608,7 +608,7 @@ def _upload_with_docker_image(
                 "env_vars": json.dumps(program.env_vars or {}),
                 "description": program.description,
             },
-            headers={"Authorization": f"Bearer {token}"},
+            headers=BaseClient.get_headers(token=token, instance=None),
             timeout=REQUESTS_TIMEOUT,
         )
     )
