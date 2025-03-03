@@ -28,7 +28,7 @@ Qiskit Serverless provider
 """
 import warnings
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Dict, Optional, List
 
 from qiskit_serverless.core.job import Job, JobService
 from qiskit_serverless.core.function import (
@@ -57,7 +57,11 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
     """
 
     def __init__(  # pylint:  disable=too-many-positional-arguments
-        self, name: str, host: Optional[str] = None, token: Optional[str] = None
+        self,
+        name: str,
+        host: Optional[str] = None,
+        token: Optional[str] = None,
+        instance: Optional[str] = None,
     ):
         """
         Initialize a BaseClient instance.
@@ -70,6 +74,7 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
         self.name = name
         self.host = host
         self.token = token
+        self.instance = instance
 
     @classmethod
     @abstractmethod
@@ -84,6 +89,17 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
 
     def __repr__(self):
         return f"<{self.name}>"
+
+    def get_headers(self) -> Dict[str, str]:
+        """Returns the headers to make the calls to the API"""
+
+        headers = {}
+        if self.token is not None:
+            headers["Authorization"] = f"Bearer {self.token}"
+        if self.instance is not None:
+            headers["Service-CRN"] = self.instance
+
+        return headers
 
     ####################
     ####### JOBS #######

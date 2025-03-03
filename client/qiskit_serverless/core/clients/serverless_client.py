@@ -50,6 +50,7 @@ from qiskit_serverless.core.constants import (
 )
 from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.decorators import trace_decorator_factory
+from qiskit_serverless.core.enums import Channel
 from qiskit_serverless.core.files import GatewayFilesClient
 from qiskit_serverless.core.job import (
     Job,
@@ -95,6 +96,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         host: Optional[str] = None,
         version: Optional[str] = None,
         token: Optional[str] = None,
+        instance: Optional[str] = None,
+        channel: Optional[Channel] = Channel.IBM_QUANTUM,
         verbose: bool = False,
     ):
         """
@@ -121,10 +124,15 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "Authentication credentials must be provided in form of `token`."
             )
 
-        super().__init__(name, host, token)
+        if channel is Channel.IBM_CLOUD and instance is None:
+            raise QiskitServerlessException(
+                "Authentication with IBM Cloud requires to pass the CRN as an instance."
+            )
+
+        super().__init__(name, host, token, instance)
         self.verbose = verbose
         self.version = version
-        self._verify_token(token)
+        self._verify_credentials()
 
         self._files_client = GatewayFilesClient(self.host, self.token, self.version)
 
@@ -132,19 +140,21 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     def from_dict(cls, dictionary: dict):
         return ServerlessClient(**dictionary)
 
-    def _verify_token(self, token: str):
-        """Verify token."""
+    def _verify_credentials(self):
+        """Verify against the API that the credentials are correct."""
         try:
             safe_json_request(
                 request=lambda: requests.get(
                     url=f"{self.host}/api/v1/programs/",
-                    headers={"Authorization": f"Bearer {token}"},
+                    headers=self.get_headers(),
                     timeout=REQUESTS_TIMEOUT,
                 ),
                 verbose=self.verbose,
             )
         except QiskitServerlessException as reason:
-            raise QiskitServerlessException("Cannot verify token.") from reason
+            raise QiskitServerlessException(
+                "Credentials couldn't be verified."
+            ) from reason
 
     ####################
     ####### JOBS #######
