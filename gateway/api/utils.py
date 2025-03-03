@@ -456,14 +456,3 @@ def sanitize_file_name(name: str | None):
         return name
     # Remove all characters except alphanumeric, _, ., -
     return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)
-
-
-def is_valid_json(value) -> bool:
-    """Validates if a variable can be converted to json"""
-    if isinstance(value, (dict, list)):
-        return True
-    try:
-        json.loads(value)
-        return True
-    except (TypeError, json.JSONDecodeError):
-        return False
