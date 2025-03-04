@@ -19,6 +19,8 @@ from django.conf import settings
 from parsley import makeGrammar
 import objsize
 
+from api.use_cases.enums.channel import Channel
+
 from .models import Job
 
 logger = logging.getLogger("commands")
@@ -114,13 +116,17 @@ def decrypt_string(string: str) -> str:
 
 
 def build_env_variables(
-    token, job: Job, trial_mode: bool, args: str = None
+    channel: Channel, token: str , job: Job, trial_mode: bool, args: str = None, instance: Optional[str] = None
 ) -> Dict[str, str]:
     """Builds env variables for job.
 
     Args:
+        channel: Channel the user uses to authenticate
         token: django request token decoded
-        job: job
+        job: job data to be executed
+        trial_mode: identifies if the user is trial or not
+        args: job arguments
+        instance: IBM Cloud crn
 
     Returns:
         env variables dict
@@ -140,14 +146,20 @@ def build_env_variables(
             )
 
     if settings.SETTINGS_AUTH_MECHANISM != "default":
-        extra = {
+        if instance:
+            extra = {
+                "QISKIT_IBM_INSTANCE": str(instance),    
+            }
+        
+        extra.update({
             "QISKIT_IBM_TOKEN": str(token),
-            "QISKIT_IBM_CHANNEL": settings.QISKIT_IBM_CHANNEL,
+            "QISKIT_IBM_CHANNEL": channel.value,
             "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
-        }
+        })
     return {
         **{
             "ENV_JOB_GATEWAY_TOKEN": str(token),
+            "ENV_JOB_GATEWAY_INSTANCE": str(instance),
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
             "ENV_JOB_ARGUMENTS": arguments,

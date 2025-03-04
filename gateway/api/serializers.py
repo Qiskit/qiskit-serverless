@@ -244,7 +244,9 @@ class RunJobSerializer(serializers.ModelSerializer):
         author = validated_data.get("author")
         config = validated_data.get("config", None)
 
+        channel = validated_data.pop("channel")
         token = validated_data.pop("token")
+        instance = validated_data.pop("instance", None)
         carrier = validated_data.pop("carrier")
 
         trial = self.is_trial(program, author)
@@ -257,7 +259,16 @@ class RunJobSerializer(serializers.ModelSerializer):
             config=config,
         )
 
-        env = encrypt_env_vars(build_env_variables(token, job, trial, arguments))
+        env = encrypt_env_vars(
+            build_env_variables(
+                channel=channel,
+                token=token,
+                job=job,
+                trial_mode=trial,
+                args=arguments,
+                instance=instance,
+            )
+        )
         try:
             env["traceparent"] = carrier["traceparent"]
         except KeyError:

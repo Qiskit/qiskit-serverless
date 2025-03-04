@@ -381,7 +381,6 @@ GATEWAY_GPU_JOBS_CONFIG = str(
 )
 
 # qiskit runtime
-QISKIT_IBM_CHANNEL = os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum")
 QISKIT_IBM_URL = os.environ.get(
     "QISKIT_IBM_URL", "https://auth.quantum-computing.ibm.com/api"
 )

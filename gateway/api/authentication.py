@@ -2,6 +2,7 @@
 
 import logging
 from dataclasses import dataclass
+from typing import Optional
 from rest_framework import authentication
 
 from api.use_cases.authentication import AuthenticationUseCase
@@ -12,10 +13,12 @@ logger = logging.getLogger("gateway.authentication")
 
 
 @dataclass
-class CustomToken:
+class CustomAuthentication:
     """CustomToken."""
 
+    channel: Channel
     token: str
+    instance: Optional[str]
 
 
 class CustomTokenBackend(authentication.BaseAuthentication):
@@ -42,9 +45,13 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             channel=channel, authorization_token=authorization_token, crn=crn
         ).execute()
         if quantum_user is None:
-            return quantum_user, CustomToken(authorization_token.encode())
+            return quantum_user, CustomAuthentication(
+                channel=channel, token=authorization_token.encode(), instance=crn
+            )
 
-        return quantum_user, CustomToken(authorization_token.encode())
+        return quantum_user, CustomAuthentication(
+            channel=channel, token=authorization_token.encode(), instance=crn
+        )
 
 
 class MockTokenBackend(authentication.BaseAuthentication):
@@ -67,6 +74,10 @@ class MockTokenBackend(authentication.BaseAuthentication):
             channel=channel, authorization_token=authorization_token, crn=None
         ).execute()
         if quantum_user is None:
-            return quantum_user, CustomToken(authorization_token.encode())
+            return quantum_user, CustomAuthentication(
+                channel=channel, token=authorization_token.encode(), instance=None
+            )
 
-        return quantum_user, CustomToken(authorization_token.encode())
+        return quantum_user, CustomAuthentication(
+            channel=channel, token=authorization_token.encode(), instance=None
+        )
