@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import responses
 from rest_framework.test import APITestCase
 
-from api.authentication import CustomTokenBackend, CustomToken
+from api.authentication import CustomTokenBackend, CustomAuthentication
 from api.models import VIEW_PROGRAM_PERMISSION
 from api.services.authentication.quantum_platform import QuantumPlatformService
 
@@ -57,7 +57,7 @@ class TestQuantumPlatformAuthentication(APITestCase):
             groups_names = user.groups.values_list("name", flat=True).distinct()
             groups_names_list = list(groups_names)
 
-            self.assertIsInstance(token, CustomToken)
+            self.assertIsInstance(token, CustomAuthentication)
             self.assertEqual(token.token, b"AWESOME_TOKEN")
 
             self.assertEqual(user.username, "AwesomeUser")
@@ -97,7 +97,7 @@ class TestQuantumPlatformAuthentication(APITestCase):
         ):
             user, token = custom_auth.authenticate(request)
 
-            self.assertIsInstance(token, CustomToken)
+            self.assertIsInstance(token, CustomAuthentication)
             self.assertEqual(token.token, b"AWESOME_TOKEN")
 
             self.assertEqual(user.username, "AwesomeUser")

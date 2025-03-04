@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 from rest_framework.test import APITestCase
 
+from api.use_cases.enums.channel import Channel
 from api.utils import (
     build_env_variables,
     encrypt_string,
@@ -24,7 +25,9 @@ class TestUtils(APITestCase):
         token = "42"
         job = MagicMock()
         job.id = "42"
-        env_vars = build_env_variables(token=token, job=job, trial_mode=False)
+        env_vars = build_env_variables(
+            channel=Channel.IBM_QUANTUM, token=token, job=job, trial_mode=False
+        )
         self.assertEqual(
             env_vars,
             {
@@ -40,7 +43,7 @@ class TestUtils(APITestCase):
             SETTINGS_AUTH_MECHANISM="custom_token", SECRET_KEY="super-secret"
         ):
             env_vars_with_qiskit_runtime = build_env_variables(
-                token=token, job=job, trial_mode=True
+                channel=Channel.IBM_QUANTUM, token=token, job=job, trial_mode=True
             )
             expecting = {
                 "ENV_JOB_GATEWAY_TOKEN": "42",

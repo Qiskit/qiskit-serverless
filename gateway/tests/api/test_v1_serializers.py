@@ -234,7 +234,11 @@ class SerializerTest(APITestCase):
         job_serializer = RunJobSerializer(data=job_data)
         job_serializer.is_valid()
         job = job_serializer.save(
-            author=user, carrier={}, token="my_token", config=jobconfig
+            channel="ibm_quantum",
+            author=user,
+            carrier={},
+            token="my_token",
+            config=jobconfig,
         )
         env_vars = json.loads(job.env_vars)
 
