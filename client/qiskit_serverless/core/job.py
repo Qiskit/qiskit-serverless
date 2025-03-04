@@ -51,12 +51,12 @@ from qiskit_serverless.core.constants import (
     GATEWAY_PROVIDER_VERSION_DEFAULT,
     ENV_ACCESS_TRIAL,
 )
-
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
+from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
@@ -264,7 +264,7 @@ def save_result(result: Dict[str, Any]):
     response = requests.post(
         url,
         data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
-        headers={"Authorization": f"Bearer {token}"},
+        headers=get_headers(token=token, instance=None),
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:

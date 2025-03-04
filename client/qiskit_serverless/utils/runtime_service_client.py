@@ -44,6 +44,7 @@ from qiskit_serverless.core.constants import (
     ENV_GATEWAY_PROVIDER_VERSION,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
 )
+from qiskit_serverless.utils.http import get_headers
 
 
 def associate_runtime_job_with_serverless_job(
@@ -74,7 +75,7 @@ def associate_runtime_job_with_serverless_job(
     response = requests.post(
         url,
         json={"runtime_job": runtime_job_id, "runtime_session": session_id},
-        headers={"Authorization": f"Bearer {token}"},
+        headers=get_headers(token=token, instance=None),
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:

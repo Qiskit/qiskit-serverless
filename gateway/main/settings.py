@@ -395,7 +395,7 @@ IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL", None)
 RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = os.environ.get(
     "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL", None
 )
-RESOURCE_PLANS_ID_ALLOWED = os.environ.get("IAM_IBM_CLOUD_BASE_URL", "").split(",")
+RESOURCE_PLANS_ID_ALLOWED = os.environ.get("RESOURCE_PLANS_ID_ALLOWED", "").split(",")
 
 # Content Security Policy
 CSP_DEFAULT_SRC = "'none'"
