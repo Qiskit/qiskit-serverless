@@ -28,7 +28,7 @@ Qiskit Serverless provider
 """
 import warnings
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, List
+from typing import Optional, List
 
 from qiskit_serverless.core.job import Job, JobService
 from qiskit_serverless.core.function import (
@@ -89,18 +89,6 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
 
     def __repr__(self):
         return f"<{self.name}>"
-
-    @staticmethod
-    def get_headers(token: str, instance: Optional[str] = None) -> Dict[str, str]:
-        """Returns the headers to make the calls to the API"""
-
-        headers = {
-            "Authorization": f"Bearer {token}",
-        }
-        if instance is not None:
-            headers["Service-CRN"] = instance
-
-        return headers
 
     ####################
     ####### JOBS #######

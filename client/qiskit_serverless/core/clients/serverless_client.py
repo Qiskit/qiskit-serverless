@@ -63,6 +63,7 @@ from qiskit_serverless.core.function import (
 )
 
 from qiskit_serverless.exception import QiskitServerlessException
+from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import (
     safe_json_request_as_dict,
     safe_json_request_as_list,
@@ -148,9 +149,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             safe_json_request(
                 request=lambda: requests.get(
                     url=f"{self.host}/api/v1/programs/",
-                    headers=BaseClient.get_headers(
-                        token=self.token, instance=self.instance
-                    ),
+                    headers=get_headers(token=self.token, instance=self.instance),
                     timeout=REQUESTS_TIMEOUT,
                 ),
                 verbose=self.verbose,
@@ -175,9 +174,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/",
                 params=kwargs,
-                headers=BaseClient.get_headers(
-                    token=self.token, instance=self.instance
-                ),
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -216,9 +213,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/provider/",
                 params=kwargs,
-                headers=BaseClient.get_headers(
-                    token=self.token, instance=self.instance
-                ),
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -234,9 +229,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 url,
-                headers=BaseClient.get_headers(
-                    token=self.token, instance=self.instance
-                ),
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -286,9 +279,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 request=lambda: requests.post(
                     url=url,
                     json=data,
-                    headers=BaseClient.get_headers(
-                        token=self.token, instance=self.instance
-                    ),
+                    headers=get_headers(token=self.token, instance=self.instance),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -303,9 +294,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers=BaseClient.get_headers(
-                    token=self.token, instance=self.instance
-                ),
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -325,9 +314,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
-                headers=BaseClient.get_headers(
-                    token=self.token, instance=self.instance
-                ),
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
                 json=data,
             )
@@ -340,9 +327,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers=BaseClient.get_headers(
-                    token=self.token, instance=self.instance
-                ),
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -355,9 +340,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
-                headers=BaseClient.get_headers(
-                    token=self.token, instance=self.instance
-                ),
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -417,9 +400,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_list(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs",
-                headers=BaseClient.get_headers(
-                    token=self.token, instance=self.instance
-                ),
+                headers=get_headers(token=self.token, instance=self.instance),
                 params=kwargs,
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -448,9 +429,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
-                headers=BaseClient.get_headers(
-                    token=self.token, instance=self.instance
-                ),
+                headers=get_headers(token=self.token, instance=self.instance),
                 params={"provider": provider},
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -608,7 +587,7 @@ def _upload_with_docker_image(
                 "env_vars": json.dumps(program.env_vars or {}),
                 "description": program.description,
             },
-            headers=BaseClient.get_headers(token=token, instance=None),
+            headers=get_headers(token=token, instance=None),
             timeout=REQUESTS_TIMEOUT,
         )
     )

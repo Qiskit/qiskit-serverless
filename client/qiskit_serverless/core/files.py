@@ -32,7 +32,6 @@ from typing import List, Optional
 import requests
 from tqdm import tqdm
 
-from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.constants import (
     REQUESTS_STREAMING_TIMEOUT,
     REQUESTS_TIMEOUT,
@@ -40,6 +39,7 @@ from qiskit_serverless.core.constants import (
 from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
+from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import safe_json_request_as_dict
 
 
@@ -83,7 +83,7 @@ class GatewayFilesClient:
                 "function": function.title,
             },
             stream=True,
-            headers=BaseClient.get_headers(token=self._token, instance=self._instance),
+            headers=get_headers(token=self._token, instance=self._instance),
             timeout=REQUESTS_STREAMING_TIMEOUT,
         ) as req:
             req.raise_for_status()
@@ -145,9 +145,7 @@ class GatewayFilesClient:
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,
-                headers=BaseClient.get_headers(
-                    token=self._token, instance=self._instance
-                ),
+                headers=get_headers(token=self._token, instance=self._instance),
                 timeout=REQUESTS_STREAMING_TIMEOUT,
             ) as req:
                 if req.ok:
@@ -167,9 +165,7 @@ class GatewayFilesClient:
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,
-                headers=BaseClient.get_headers(
-                    token=self._token, instance=self._instance
-                ),
+                headers=get_headers(token=self._token, instance=self._instance),
                 timeout=REQUESTS_STREAMING_TIMEOUT,
             ) as req:
                 if req.ok:
@@ -184,9 +180,7 @@ class GatewayFilesClient:
             request=lambda: requests.get(
                 self._files_url,
                 params={"function": function.title, "provider": function.provider},
-                headers=BaseClient.get_headers(
-                    token=self._token, instance=self._instance
-                ),
+                headers=get_headers(token=self._token, instance=self._instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -202,9 +196,7 @@ class GatewayFilesClient:
             request=lambda: requests.get(
                 os.path.join(self._files_url, "provider"),
                 params={"function": function.title, "provider": function.provider},
-                headers=BaseClient.get_headers(
-                    token=self._token, instance=self._instance
-                ),
+                headers=get_headers(token=self._token, instance=self._instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -213,7 +205,7 @@ class GatewayFilesClient:
     @_trace
     def delete(self, file: str, function: QiskitFunction) -> Optional[str]:
         """Deletes a file available to the user for the specific Qiskit Function."""
-        headers = BaseClient.get_headers(token=self._token, instance=self._instance)
+        headers = get_headers(token=self._token, instance=self._instance)
         headers["format"] = "json"
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
@@ -235,7 +227,7 @@ class GatewayFilesClient:
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
-        headers = BaseClient.get_headers(token=self._token, instance=self._instance)
+        headers = get_headers(token=self._token, instance=self._instance)
         headers["format"] = "json"
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
