@@ -109,6 +109,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             host: host of gateway
             version: version of gateway
             token: authorization token
+            instance: IBM Cloud CRN
+            channel: identifies the method to use to authenticate the user
         """
         name = name or "gateway-client"
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)

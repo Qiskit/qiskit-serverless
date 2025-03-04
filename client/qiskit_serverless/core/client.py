@@ -70,6 +70,7 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
             name: name of client
             host: host of client a.k.a managers host
             token: authentication token for manager
+            instance: IBM Cloud CRN
         """
         self.name = name
         self.host = host
