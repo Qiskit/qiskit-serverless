@@ -19,7 +19,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
-from api.utils import sanitize_name
+from api.utils import sanitize_name, sanitize_boolean
 from api.access_policies.providers import ProviderAccessPolicy
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
@@ -112,6 +112,9 @@ class JobViewSet(viewsets.GenericViewSet):
         with tracer.start_as_current_span("gateway.job.retrieve", context=ctx):
 
             author = self.request.user
+            return_with_result = sanitize_boolean(
+                request.query_params.get("with_result", "true")
+            )
             job = self.jobs_repository.get_job_by_id(pk)
             if job is None:
                 return Response(
@@ -134,9 +137,14 @@ class JobViewSet(viewsets.GenericViewSet):
             if result is not None:
                 job.result = result
 
-            serializer = self.get_serializer_job(job)
+            serializer = (
+                self.get_serializer_job
+                if return_with_result
+                else self.get_serializer_job_without_result
+            )
+            serialized = serializer(job)
 
-            return Response(serializer.data)
+            return Response(serialized.data)
 
     def list(self, request):
         """List jobs:"""

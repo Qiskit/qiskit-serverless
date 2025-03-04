@@ -430,6 +430,21 @@ def sanitize_name(name: str | None):
     return re.sub("[^a-zA-Z0-9_\\-/]", "", name)
 
 
+def sanitize_boolean(value: str | None) -> bool | None:
+    """Sanitize a string into a boolean."""
+    if value is None:
+        return None
+
+    value = value.strip().lower()
+
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+
+    return None
+
+
 def create_gpujob_allowlist():
     """
     Create dictionary of jobs allowed to run on gpu nodes.
