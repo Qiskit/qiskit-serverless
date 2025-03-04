@@ -200,7 +200,7 @@ def generate_cluster_name(username: str) -> str:
         generated cluster name
     """
     pattern = re.compile("[^a-zA-Z0-9-.]")
-    cluster_name = f"c-{re.sub(pattern, '-', username)}-{str(uuid.uuid4())[:8]}"
+    cluster_name = f"c-{re.sub(pattern,'-',username)}-{str(uuid.uuid4())[:8]}"
     return cluster_name
 
 
