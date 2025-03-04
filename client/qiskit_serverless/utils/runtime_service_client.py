@@ -68,7 +68,7 @@ def associate_runtime_job_with_serverless_job(
     if token is None:
         logging.warning("Runtime job will not be associated with serverless job.")
         return False
-    
+
     instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
 
     url = (

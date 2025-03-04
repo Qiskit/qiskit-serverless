@@ -115,8 +115,13 @@ def decrypt_string(string: str) -> str:
     return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
-def build_env_variables(
-    channel: Channel, token: str , job: Job, trial_mode: bool, args: str = None, instance: Optional[str] = None
+def build_env_variables(  # pylint: disable=too-many-positional-arguments
+    channel: Channel,
+    token: str,
+    job: Job,
+    trial_mode: bool,
+    args: str = None,
+    instance: Optional[str] = None,
 ) -> Dict[str, str]:
     """Builds env variables for job.
 
@@ -148,19 +153,23 @@ def build_env_variables(
     if settings.SETTINGS_AUTH_MECHANISM != "default":
         if instance:
             extra = {
-                "QISKIT_IBM_INSTANCE": str(instance),    
+                "QISKIT_IBM_INSTANCE": str(instance),
             }
-        
-        extra.update({
-            "QISKIT_IBM_TOKEN": str(token),
-            "QISKIT_IBM_CHANNEL": channel.value,
-            "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
-        })
+
+        extra.update(
+            {
+                "QISKIT_IBM_TOKEN": str(token),
+                "QISKIT_IBM_CHANNEL": channel.value,
+                "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
+            }
+        )
 
     if instance:
-        extra.update({
-            "ENV_JOB_GATEWAY_INSTANCE": str(instance),
-        })
+        extra.update(
+            {
+                "ENV_JOB_GATEWAY_INSTANCE": str(instance),
+            }
+        )
 
     return {
         **{

@@ -253,7 +253,7 @@ def save_result(result: Dict[str, Any]):
         result_record = json.dumps(result or {}, cls=QiskitObjectsEncoder)
         print(f"\nSaved Result:{result_record}:End Saved Result\n")
         return False
-    
+
     instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
 
     if not is_jsonable(result, cls=QiskitObjectsEncoder):
