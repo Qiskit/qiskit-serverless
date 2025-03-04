@@ -525,7 +525,13 @@ class IBMServerlessClient(ServerlessClient):
         client = IBMServerlessClient(token=<INSERT_IBM_QUANTUM_TOKEN>)
     """
 
-    def __init__(self, token: Optional[str] = None, name: Optional[str] = None):
+    def __init__(
+        self,
+        token: Optional[str] = None,
+        name: Optional[str] = None,
+        instance: Optional[str] = None,
+        channel: Optional[Channel] = Channel.IBM_QUANTUM,
+    ):
         """
         Initialize a client with access to an IBMQ-provided remote cluster.
 
@@ -542,9 +548,16 @@ class IBMServerlessClient(ServerlessClient):
         Args:
             token: IBM quantum token
             name: Name of the account to load
+            instance: IBM Cloud CRN
+            channel: identifies the method to use to authenticate the user
         """
         token = token or QiskitRuntimeService(name=name).active_account().get("token")
-        super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
+        super().__init__(
+            channel=channel,
+            token=token,
+            instance=instance,
+            host=IBM_SERVERLESS_HOST_URL,
+        )
 
     @staticmethod
     def save_account(
