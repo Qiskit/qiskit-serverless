@@ -156,10 +156,15 @@ def build_env_variables(
             "QISKIT_IBM_CHANNEL": channel.value,
             "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
         })
+
+    if instance:
+        extra.update({
+            "ENV_JOB_GATEWAY_INSTANCE": str(instance),
+        })
+
     return {
         **{
             "ENV_JOB_GATEWAY_TOKEN": str(token),
-            "ENV_JOB_GATEWAY_INSTANCE": str(instance),
             "ENV_JOB_GATEWAY_HOST": str(settings.SITE_HOST),
             "ENV_JOB_ID_GATEWAY": str(job.id),
             "ENV_JOB_ARGUMENTS": arguments,
