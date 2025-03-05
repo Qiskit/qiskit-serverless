@@ -49,6 +49,15 @@ class CustomTokenBackend(authentication.BaseAuthentication):
             channel=channel, token=authorization_token.encode(), instance=crn
         )
 
+    def authenticate_header(self, request):
+        """
+        This method is needed to returna 401 when the authentication fails.
+
+        It setups the WWW-Authenticate header with the value Bearer to identify
+        that we are using Bearer <token> as way to authenticate the user.
+        """
+        return "Bearer"
+
 
 class MockTokenBackend(authentication.BaseAuthentication):
     """Custom mock auth backend for tests."""
@@ -73,3 +82,12 @@ class MockTokenBackend(authentication.BaseAuthentication):
         return quantum_user, CustomAuthentication(
             channel=channel, token=authorization_token.encode(), instance=None
         )
+
+    def authenticate_header(self, request):
+        """
+        This method is needed to returna 401 when the authentication fails.
+
+        It setups the WWW-Authenticate header with the value Bearer to identify
+        that we are using Bearer <token> as way to authenticate the user.
+        """
+        return "Bearer"
