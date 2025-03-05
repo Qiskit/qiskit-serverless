@@ -79,7 +79,7 @@ class TestIBMCloudAuthentication(APITestCase):
             self.assertIsInstance(authentication, CustomAuthentication)
             self.assertEqual(authentication.channel, "ibm_cloud")
             self.assertEqual(authentication.token, b"AWESOME_TOKEN")
-            self.assertEqual(authentication.instance, "AWESOME_CRN")            
+            self.assertEqual(authentication.instance, "AWESOME_CRN")
 
             groups_names = user.groups.values_list("name", flat=True).distinct()
             groups_names_list = list(groups_names)
