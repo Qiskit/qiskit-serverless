@@ -97,9 +97,7 @@ class QuantumPlatformService(AuthenticationBase):
             None: in case the authentication failed
         """
         if self.auth_url is None:
-            logger.warning(
-                "Authentication url is not correctly configured."
-            )
+            logger.warning("Authentication url is not correctly configured.")
             raise exceptions.AuthenticationFailed("You couldn't be authenticated.")
 
         auth_data = safe_request(
@@ -110,20 +108,26 @@ class QuantumPlatformService(AuthenticationBase):
             )
         )
         if auth_data is None:
-            logger.warning(
-                "Quantum Platform returned no data for the specific user. Probably the token is not valid."
+            logger.warning("Authentication data is empty, probably token is not valid.")
+            raise exceptions.AuthenticationFailed(
+                "You couldn't be authenticated, please review your token."
             )
-            raise exceptions.AuthenticationFailed("You couldn't be authenticated, please review your token.")
 
         user_id = auth_data.get("userId")
         if user_id is None:
             logger.warning("Quantum Platform didn't return the id for the user.")
-            raise exceptions.AuthenticationFailed("There was a problem in the autentication process with Quantum Platform, please try later.")
+            raise exceptions.AuthenticationFailed(
+                "There was a problem in the autentication process with Quantum Platform, please try later."  # pylint: disable=line-too-long
+            )
 
         self.access_token = auth_data.get("id")
         if self.access_token is None:
-            logger.warning("Quantum Platform didn't return the access token for the user")
-            raise exceptions.AuthenticationFailed("There was a problem in the autentication process with Quantum Platform, please try later.")
+            logger.warning(
+                "Quantum Platform didn't return the access token for the user"
+            )
+            raise exceptions.AuthenticationFailed(
+                "There was a problem in the autentication process with Quantum Platform, please try later."  # pylint: disable=line-too-long
+            )
 
         return user_id
 
@@ -144,10 +148,10 @@ class QuantumPlatformService(AuthenticationBase):
             )
         )
         if verification_data is None:
-            logger.warning(
-                "Quantum Platform didn't return user data to verify."
+            logger.warning("Quantum Platform didn't return user data to verify.")
+            raise exceptions.AuthenticationFailed(
+                "There was a problem in the autentication process with Quantum Platform, please try later."  # pylint: disable=line-too-long
             )
-            raise exceptions.AuthenticationFailed("There was a problem in the autentication process with Quantum Platform, please try later.")
 
         verifications = []
         verification_fields = settings.SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD.split(";")

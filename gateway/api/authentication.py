@@ -35,10 +35,10 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
-            logger.warning(
+            logger.warning("Authorization token was not provided.")
+            raise exceptions.AuthenticationFailed(
                 "Authorization token was not provided."
             )
-            raise exceptions.AuthenticationFailed("Authorization token was not provided.")
         authorization_token = auth_header.split(" ")[-1]
 
         quantum_user = AuthenticationUseCase(
@@ -60,10 +60,10 @@ class MockTokenBackend(authentication.BaseAuthentication):
 
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
-            logger.warning(
+            logger.warning("Authorization token was not provided.")
+            raise exceptions.AuthenticationFailed(
                 "Authorization token was not provided."
             )
-            raise exceptions.AuthenticationFailed("Authorization token was not provided.")
         authorization_token = auth_header.split(" ")[-1]
 
         quantum_user = AuthenticationUseCase(

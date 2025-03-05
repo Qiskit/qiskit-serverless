@@ -3,6 +3,7 @@
 
 from unittest.mock import MagicMock, patch
 import responses
+from rest_framework import exceptions
 from rest_framework.test import APITestCase
 
 from api.authentication import CustomTokenBackend, CustomAuthentication
@@ -110,13 +111,11 @@ class TestQuantumPlatformAuthentication(APITestCase):
             QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
             SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD="is_valid;other,WRONG_NESTED_FIELD",
         ):
-            user, authentication = custom_auth.authenticate(request)
-
-            self.assertIsNone(user)
-            self.assertIsInstance(authentication, CustomAuthentication)
-            self.assertEqual(authentication.channel, "ibm_quantum")
-            self.assertEqual(authentication.token, b"AWESOME_TOKEN")
-            self.assertEqual(authentication.instance, None)
+            self.assertRaises(
+                exceptions.AuthenticationFailed,
+                custom_auth.authenticate,
+                request,
+            )
 
         responses.add(
             responses.GET,
