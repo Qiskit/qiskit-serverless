@@ -132,7 +132,7 @@ class JobViewSet(viewsets.GenericViewSet):
                 serializer = self.get_serializer_job_without_result(job)
                 return Response(serializer.data)
 
-            if return_with_result :
+            if return_with_result:
                 result_store = ResultStorage(author.username)
                 result = result_store.get(str(job.id))
                 if result is not None:
