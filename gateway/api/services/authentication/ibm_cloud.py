@@ -7,6 +7,7 @@ from django.conf import settings
 from ibm_cloud_sdk_core import ApiException
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 from ibm_platform_services import IamIdentityV1, ResourceControllerV2, IamAccessGroupsV2
+from rest_framework import exceptions
 
 from api.services.authentication.authentication_base import AuthenticationBase
 from api.utils import sanitize_name
@@ -44,9 +45,9 @@ class IBMCloudService(AuthenticationBase):
         """
         if self.iam_url is None:
             logger.warning(
-                "Problems authenticating: No iam url: something is broken in our settings."
+                "IAM URL environment variable was not correctly configured."
             )
-            return None
+            raise exceptions.AuthenticationFailed("You couldn't be authenticated.")
 
         iam_identity_service = IamIdentityV1(authenticator=self.authenticator)
         iam_identity_service.set_service_url(self.iam_url)
@@ -55,11 +56,18 @@ class IBMCloudService(AuthenticationBase):
                 iam_api_key=self.api_key, include_history=False
             ).get_result()
         except ApiException as api_exception:
-            logger.warning("Problems authenticating: %s.", api_exception.message)
-            return None
+            logger.warning("IBM Cloud authentication error: %s.", api_exception.message)
+            raise exceptions.AuthenticationFailed("You couldn't be authenticated, please review your API Key.")
 
         self.account_id = user_info.get("account_id")
+        if self.account_id is None:
+            logger.warning("IBM Cloud didn't return the Account ID for the user.")
+            raise exceptions.AuthenticationFailed("There was a problem in the autentication process with IBM Cloud, please try later.")
+        
         self.iam_id = user_info.get("iam_id")
+        if self.iam_id is None:
+            logger.warning("IBM Cloud didn't return the IAM ID for the user.")
+            raise exceptions.AuthenticationFailed("There was a problem in the autentication process with IBM Cloud, please try later.")
 
         logger.debug(
             "User authenticated with account_id[%s] and iam_id[%s]",
@@ -85,13 +93,17 @@ class IBMCloudService(AuthenticationBase):
                 id=self.crn
             ).get_result()
         except ApiException as api_exception:
-            logger.warning("Problems authenticating: %s.", api_exception.message)
-            return False
+            logger.warning("IBM Cloud verification error: %s.", api_exception.message)
+            raise exceptions.AuthenticationFailed("There was a problem in the autentication process with IBM Cloud, please review your CRN.")
 
         resource_plan_id = instance.get("resource_plan_id")
+        if resource_plan_id is None:
+            logger.warning("IBM Cloud didn't return the Resource plan ID for the resource.")
+            raise exceptions.AuthenticationFailed("There was a problem in the autentication process with IBM Cloud, please try later.")
+        
         if resource_plan_id not in settings.RESOURCE_PLANS_ID_ALLOWED:
             logger.warning(
-                "Problems authenticating: Resource plan id [%s] is not a valid plan %s.",
+                "User has no access to the service using IBM Cloud, Resource plan ID [%s] is not a valid plan %s.",
                 resource_plan_id,
                 settings.RESOURCE_PLANS_ID_ALLOWED,
             )
@@ -115,7 +127,7 @@ class IBMCloudService(AuthenticationBase):
                 account_id=self.account_id
             ).get_result()
         except ApiException as api_exception:
-            logger.warning("Problems authenticating: %s.", api_exception.message)
+            logger.warning("IBM Cloud authentication error: %s.", api_exception.message)
             return []
 
         access_groups = access_groups_response.get("groups", [])
