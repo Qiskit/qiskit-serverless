@@ -577,7 +577,13 @@ class IBMServerlessClient(ServerlessClient):
             overwrite: ``True`` if the existing account is to be overwritten
             instance: (str | None) - The CRN (ibm_cloud) or hub/group/project (ibm_quantum).
         """
-        QiskitRuntimeService.save_account(token=token, name=name, overwrite=overwrite, instance=instance, channel=channel)
+        QiskitRuntimeService.save_account(
+            token=token,
+            name=name,
+            overwrite=overwrite,
+            instance=instance,
+            channel=channel,
+        )
 
 
 def _upload_with_docker_image(
