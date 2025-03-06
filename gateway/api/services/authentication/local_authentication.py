@@ -4,6 +4,7 @@ import logging
 from typing import List
 
 from django.conf import settings
+from rest_framework import exceptions
 
 from api.services.authentication.authentication_base import AuthenticationBase
 
@@ -33,14 +34,14 @@ class LocalAuthenticationService(AuthenticationBase):
             None: in case the authentication failed
         """
         if settings.SETTINGS_AUTH_MOCK_TOKEN is None:
-            logger.warning("Problems authenticating: mock token is not configured.")
-            return None
+            logger.warning("Mock token environment variable is not configured.")
+            raise exceptions.AuthenticationFailed(
+                "Mock token environment variable is not configured."
+            )
 
         if self.authorization_token != settings.SETTINGS_AUTH_MOCK_TOKEN:
-            logger.warning(
-                "Problems authenticating: authorization token and mock token are different."
-            )
-            return None
+            logger.warning("Authorization token and mock token are different.")
+            raise exceptions.AuthenticationFailed("Authorization token is not valid.")
 
         return self.username
 

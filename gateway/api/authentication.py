@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 from typing import Optional
-from rest_framework import authentication
+from rest_framework import authentication, exceptions
 
 from api.use_cases.authentication import AuthenticationUseCase
 from api.use_cases.enums.channel import Channel
@@ -35,23 +35,28 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
-            logger.warning(
-                "Problems authenticating: user did not provide authorization token."
+            logger.warning("Authorization token was not provided.")
+            raise exceptions.AuthenticationFailed(
+                "Authorization token was not provided."
             )
-            return quantum_user, authorization_token
         authorization_token = auth_header.split(" ")[-1]
 
         quantum_user = AuthenticationUseCase(
             channel=channel, authorization_token=authorization_token, crn=crn
         ).execute()
-        if quantum_user is None:
-            return quantum_user, CustomAuthentication(
-                channel=channel, token=authorization_token.encode(), instance=crn
-            )
 
         return quantum_user, CustomAuthentication(
             channel=channel, token=authorization_token.encode(), instance=crn
         )
+
+    def authenticate_header(self, request):
+        """
+        This method is needed to returna 401 when the authentication fails.
+
+        It setups the WWW-Authenticate header with the value Bearer to identify
+        that we are using Bearer <token> as way to authenticate the user.
+        """
+        return "Bearer"
 
 
 class MockTokenBackend(authentication.BaseAuthentication):
@@ -64,20 +69,25 @@ class MockTokenBackend(authentication.BaseAuthentication):
 
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
-            logger.warning(
-                "Problems authenticating: user did not provide authorization token."
+            logger.warning("Authorization token was not provided.")
+            raise exceptions.AuthenticationFailed(
+                "Authorization token was not provided."
             )
-            return quantum_user, authorization_token
         authorization_token = auth_header.split(" ")[-1]
 
         quantum_user = AuthenticationUseCase(
             channel=channel, authorization_token=authorization_token, crn=None
         ).execute()
-        if quantum_user is None:
-            return quantum_user, CustomAuthentication(
-                channel=channel, token=authorization_token.encode(), instance=None
-            )
 
         return quantum_user, CustomAuthentication(
             channel=channel, token=authorization_token.encode(), instance=None
         )
+
+    def authenticate_header(self, request):
+        """
+        This method is needed to returna 401 when the authentication fails.
+
+        It setups the WWW-Authenticate header with the value Bearer to identify
+        that we are using Bearer <token> as way to authenticate the user.
+        """
+        return "Bearer"
