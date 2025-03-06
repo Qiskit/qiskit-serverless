@@ -98,7 +98,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         version: Optional[str] = None,
         token: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: Optional[Channel] = Channel.IBM_QUANTUM,
+        channel: str = Channel.IBM_QUANTUM.value,
         verbose: bool = False,
     ):
         """
@@ -127,7 +127,15 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "Authentication credentials must be provided in form of `token`."
             )
 
-        if channel is Channel.IBM_CLOUD and instance is None:
+        try:
+            channel_enum = Channel(channel)
+        except ValueError as error:
+            raise QiskitServerlessException(
+                "Your channel value is not correct. Use one of the available channels: "
+                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, {Channel.IBM_CLOUD.value}"
+            ) from error
+
+        if channel_enum is Channel.IBM_CLOUD and instance is None:
             raise QiskitServerlessException(
                 "Authentication with IBM Cloud requires to pass the CRN as an instance."
             )
@@ -541,7 +549,7 @@ class IBMServerlessClient(ServerlessClient):
         token: Optional[str] = None,
         name: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: Optional[Channel] = Channel.IBM_QUANTUM,
+        channel: str = Channel.IBM_QUANTUM.value,
     ):
         """
         Initialize a client with access to an IBMQ-provided remote cluster.
