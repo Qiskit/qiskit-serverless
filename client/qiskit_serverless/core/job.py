@@ -163,7 +163,7 @@ class Job:
         """Returns the execution error message."""
         return self._job_service.result(self.job_id) if self.status() == "ERROR" else ""
 
-    def result(self, wait=True, cadence=5, verbose=False, maxwait=0):
+    def result(self, wait=True, cadence=30, verbose=False, maxwait=0):
         """Return results of the job.
         Args:
             wait: flag denoting whether to wait for the
