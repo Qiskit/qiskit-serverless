@@ -575,7 +575,8 @@ class IBMServerlessClient(ServerlessClient):
             token: IBM Quantum API token
             name: Name of the account to save
             overwrite: ``True`` if the existing account is to be overwritten
-            instance: (str | None) - The CRN (ibm_cloud) or hub/group/project (ibm_quantum).
+            instance: IBM Cloud CRN
+            channel: identifies the method to use to authenticate the user
         """
         QiskitRuntimeService.save_account(
             token=token,
