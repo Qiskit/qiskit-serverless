@@ -162,6 +162,27 @@ class TestJobApi(APITestCase):
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
 
+    def test_job_detail_with_with_result_param(self):
+        """Tests job detail authorized."""
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            self._authorize()
+
+            jobs_response = self.client.get(
+                reverse("v1:jobs-detail", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"])
+                + "?with_result=false",
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("result"), None)
+
     def test_job_detail_without_result_file(self):
         """Tests job detail authorized."""
         media_root = os.path.join(

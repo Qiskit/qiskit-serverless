@@ -296,6 +296,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                params={"with_result": "false"},
                 headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
