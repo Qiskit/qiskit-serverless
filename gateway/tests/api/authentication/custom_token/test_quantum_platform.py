@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import responses
 from rest_framework.test import APITestCase
 
-from api.authentication import CustomTokenBackend, CustomToken
+from api.authentication import CustomTokenBackend, CustomAuthentication
 from api.models import VIEW_PROGRAM_PERMISSION
 from api.services.authentication.quantum_platform import QuantumPlatformService
 
@@ -53,12 +53,14 @@ class TestQuantumPlatformAuthentication(APITestCase):
             QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
             SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD="is_valid",
         ):
-            user, token = custom_auth.authenticate(request)
+            user, authentication = custom_auth.authenticate(request)
             groups_names = user.groups.values_list("name", flat=True).distinct()
             groups_names_list = list(groups_names)
 
-            self.assertIsInstance(token, CustomToken)
-            self.assertEqual(token.token, b"AWESOME_TOKEN")
+            self.assertIsInstance(authentication, CustomAuthentication)
+            self.assertEqual(authentication.channel, "ibm_quantum")
+            self.assertEqual(authentication.token, b"AWESOME_TOKEN")
+            self.assertEqual(authentication.instance, None)
 
             self.assertEqual(user.username, "AwesomeUser")
             self.assertListEqual(groups_names_list, ["ibm-q", "ibm-q/open"])
@@ -95,10 +97,12 @@ class TestQuantumPlatformAuthentication(APITestCase):
             QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
             SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD="is_valid;other,nested,field",
         ):
-            user, token = custom_auth.authenticate(request)
+            user, authentication = custom_auth.authenticate(request)
 
-            self.assertIsInstance(token, CustomToken)
-            self.assertEqual(token.token, b"AWESOME_TOKEN")
+            self.assertIsInstance(authentication, CustomAuthentication)
+            self.assertEqual(authentication.channel, "ibm_quantum")
+            self.assertEqual(authentication.token, b"AWESOME_TOKEN")
+            self.assertEqual(authentication.instance, None)
 
             self.assertEqual(user.username, "AwesomeUser")
 
@@ -106,10 +110,13 @@ class TestQuantumPlatformAuthentication(APITestCase):
             QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
             SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD="is_valid;other,WRONG_NESTED_FIELD",
         ):
-            user, token = custom_auth.authenticate(request)
+            user, authentication = custom_auth.authenticate(request)
 
             self.assertIsNone(user)
-            self.assertEqual(token.token, b"AWESOME_TOKEN")
+            self.assertIsInstance(authentication, CustomAuthentication)
+            self.assertEqual(authentication.channel, "ibm_quantum")
+            self.assertEqual(authentication.token, b"AWESOME_TOKEN")
+            self.assertEqual(authentication.instance, None)
 
         responses.add(
             responses.GET,

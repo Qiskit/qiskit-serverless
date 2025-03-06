@@ -37,6 +37,7 @@ from qiskit_ibm_runtime.runtime_options import RuntimeOptions
 from qiskit_ibm_runtime.utils.result_decoder import ResultDecoder
 
 from qiskit_serverless.core.constants import (
+    ENV_JOB_GATEWAY_INSTANCE,
     REQUESTS_TIMEOUT,
     ENV_JOB_GATEWAY_TOKEN,
     ENV_JOB_GATEWAY_HOST,
@@ -68,6 +69,8 @@ def associate_runtime_job_with_serverless_job(
         logging.warning("Runtime job will not be associated with serverless job.")
         return False
 
+    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
+
     url = (
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
         f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/add_runtimejob/"
@@ -75,7 +78,7 @@ def associate_runtime_job_with_serverless_job(
     response = requests.post(
         url,
         json={"runtime_job": runtime_job_id, "runtime_session": session_id},
-        headers=get_headers(token=token, instance=None),
+        headers=get_headers(token=token, instance=instance),
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:

@@ -382,12 +382,22 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             if program.image is not None:
                 # upload function with custom image
                 function_uploaded = _upload_with_docker_image(
-                    program=program, url=url, token=self.token, span=span, client=self
+                    program=program,
+                    url=url,
+                    token=self.token,
+                    span=span,
+                    client=self,
+                    instance=self.instance,
                 )
             elif program.entrypoint is not None:
                 # upload funciton with artifact
                 function_uploaded = _upload_with_artifact(
-                    program=program, url=url, token=self.token, span=span, client=self
+                    program=program,
+                    url=url,
+                    token=self.token,
+                    span=span,
+                    client=self,
+                    instance=self.instance,
                 )
             else:
                 raise QiskitServerlessException(
@@ -576,8 +586,13 @@ class IBMServerlessClient(ServerlessClient):
         QiskitRuntimeService.save_account(token=token, name=name, overwrite=overwrite)
 
 
-def _upload_with_docker_image(
-    program: QiskitFunction, url: str, token: str, span: Any, client: RunService
+def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
+    program: QiskitFunction,
+    url: str,
+    token: str,
+    span: Any,
+    client: RunService,
+    instance: Optional[str],
 ) -> RunnableQiskitFunction:
     """Uploads function with custom docker image.
 
@@ -586,6 +601,7 @@ def _upload_with_docker_image(
         url (str): upload gateway url
         token (str): auth token
         span (Any): tracing span
+        instance (Optional[str]): IBM Cloud crn
 
     Returns:
         str: uploaded function name
@@ -602,7 +618,7 @@ def _upload_with_docker_image(
                 "env_vars": json.dumps(program.env_vars or {}),
                 "description": program.description,
             },
-            headers=get_headers(token=token, instance=None),
+            headers=get_headers(token=token, instance=instance),
             timeout=REQUESTS_TIMEOUT,
         )
     )
@@ -614,8 +630,13 @@ def _upload_with_docker_image(
     return RunnableQiskitFunction.from_json(response_data)
 
 
-def _upload_with_artifact(
-    program: QiskitFunction, url: str, token: str, span: Any, client: RunService
+def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments
+    program: QiskitFunction,
+    url: str,
+    token: str,
+    span: Any,
+    client: RunService,
+    instance: Optional[str],
 ) -> RunnableQiskitFunction:
     """Uploads function with artifact.
 
@@ -624,6 +645,7 @@ def _upload_with_artifact(
         url (str): endpoint for gateway upload
         token (str): auth token
         span (Any): tracing span
+        instance (Optional[str]): IBM Cloud crn
 
     Raises:
         QiskitServerlessException: if no entrypoint or size of artifact is too large.
@@ -672,7 +694,7 @@ def _upload_with_artifact(
                         "description": program.description,
                     },
                     files={"artifact": file},
-                    headers={"Authorization": f"Bearer {token}"},
+                    headers=get_headers(token=token, instance=instance),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )

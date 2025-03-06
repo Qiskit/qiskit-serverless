@@ -43,6 +43,7 @@ import requests
 from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_serverless.core.constants import (
+    ENV_JOB_GATEWAY_INSTANCE,
     REQUESTS_TIMEOUT,
     ENV_JOB_GATEWAY_TOKEN,
     ENV_JOB_GATEWAY_HOST,
@@ -253,6 +254,8 @@ def save_result(result: Dict[str, Any]):
         print(f"\nSaved Result:{result_record}:End Saved Result\n")
         return False
 
+    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
+
     if not is_jsonable(result, cls=QiskitObjectsEncoder):
         logging.warning("Object passed is not json serializable.")
         return False
@@ -264,7 +267,7 @@ def save_result(result: Dict[str, Any]):
     response = requests.post(
         url,
         data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
-        headers=get_headers(token=token, instance=None),
+        headers=get_headers(token=token, instance=instance),
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:

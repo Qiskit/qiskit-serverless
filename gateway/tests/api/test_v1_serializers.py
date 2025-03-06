@@ -7,6 +7,7 @@ from django.contrib.auth import models
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files import File
 from rest_framework.test import APITestCase
+from api.use_cases.enums.channel import Channel
 from api.v1.serializers import (
     JobConfigSerializer,
     UploadProgramSerializer,
@@ -234,7 +235,11 @@ class SerializerTest(APITestCase):
         job_serializer = RunJobSerializer(data=job_data)
         job_serializer.is_valid()
         job = job_serializer.save(
-            author=user, carrier={}, token="my_token", config=jobconfig
+            channel=Channel.IBM_QUANTUM,
+            author=user,
+            carrier={},
+            token="my_token",
+            config=jobconfig,
         )
         env_vars = json.loads(job.env_vars)
 
