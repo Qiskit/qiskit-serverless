@@ -39,5 +39,4 @@ docker build -t qiskit/qiskit-serverless/gateway:<VERSION> .
 | RAY_CLUSTER_WORKER_MAX_REPLICAS        | max replicas per cluster for auto scaling                                                                                                                             |
 | RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX    | maximum number of max worker replicas per cluster for auto scaling                                                                                                    |
 | RAY_CLUSTER_MAX_READINESS_TIME         | max time in seconds to wait for cluster readiness. Will fail job if cluster is not ready in time.                                                                     |
-| QISKIT_IBM_CHANNEL                     | Channel that will be set in env variables in jobs for QiskitRuntimeService client                                                                                     |
 | QISKIT_IBM_URL                         | Authentication url for QiskitRuntimeService that will be set for each job                                                                                             |

@@ -43,6 +43,7 @@ import requests
 from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_serverless.core.constants import (
+    ENV_JOB_GATEWAY_INSTANCE,
     REQUESTS_TIMEOUT,
     ENV_JOB_GATEWAY_TOKEN,
     ENV_JOB_GATEWAY_HOST,
@@ -51,12 +52,12 @@ from qiskit_serverless.core.constants import (
     GATEWAY_PROVIDER_VERSION_DEFAULT,
     ENV_ACCESS_TRIAL,
 )
-
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
+from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
@@ -253,6 +254,8 @@ def save_result(result: Dict[str, Any]):
         print(f"\nSaved Result:{result_record}:End Saved Result\n")
         return False
 
+    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
+
     if not is_jsonable(result, cls=QiskitObjectsEncoder):
         logging.warning("Object passed is not json serializable.")
         return False
@@ -264,7 +267,7 @@ def save_result(result: Dict[str, Any]):
     response = requests.post(
         url,
         data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
-        headers={"Authorization": f"Bearer {token}"},
+        headers=get_headers(token=token, instance=instance),
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:

@@ -50,6 +50,7 @@ from qiskit_serverless.core.constants import (
 )
 from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.decorators import trace_decorator_factory
+from qiskit_serverless.core.enums import Channel
 from qiskit_serverless.core.files import GatewayFilesClient
 from qiskit_serverless.core.job import (
     Job,
@@ -62,6 +63,7 @@ from qiskit_serverless.core.function import (
 )
 
 from qiskit_serverless.exception import QiskitServerlessException
+from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import (
     safe_json_request_as_dict,
     safe_json_request_as_list,
@@ -95,6 +97,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         host: Optional[str] = None,
         version: Optional[str] = None,
         token: Optional[str] = None,
+        instance: Optional[str] = None,
+        channel: str = Channel.IBM_QUANTUM.value,
         verbose: bool = False,
     ):
         """
@@ -105,6 +109,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             host: host of gateway
             version: version of gateway
             token: authorization token
+            instance: IBM Cloud CRN
+            channel: identifies the method to use to authenticate the user
         """
         name = name or "gateway-client"
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
@@ -121,30 +127,47 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "Authentication credentials must be provided in form of `token`."
             )
 
-        super().__init__(name, host, token)
+        try:
+            channel_enum = Channel(channel)
+        except ValueError as error:
+            raise QiskitServerlessException(
+                "Your channel value is not correct. Use one of the available channels: "
+                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, {Channel.IBM_CLOUD.value}"
+            ) from error
+
+        if channel_enum is Channel.IBM_CLOUD and instance is None:
+            raise QiskitServerlessException(
+                "Authentication with IBM Cloud requires to pass the CRN as an instance."
+            )
+
+        super().__init__(name, host, token, instance)
         self.verbose = verbose
         self.version = version
-        self._verify_token(token)
+        self._verify_credentials()
 
-        self._files_client = GatewayFilesClient(self.host, self.token, self.version)
+        self._files_client = GatewayFilesClient(
+            self.host, self.token, self.version, self.instance
+        )
 
     @classmethod
     def from_dict(cls, dictionary: dict):
         return ServerlessClient(**dictionary)
 
-    def _verify_token(self, token: str):
-        """Verify token."""
+    def _verify_credentials(self):
+        """Verify against the API that the credentials are correct."""
         try:
             safe_json_request(
                 request=lambda: requests.get(
                     url=f"{self.host}/api/v1/programs/",
-                    headers={"Authorization": f"Bearer {token}"},
+                    headers=get_headers(token=self.token, instance=self.instance),
                     timeout=REQUESTS_TIMEOUT,
                 ),
                 verbose=self.verbose,
             )
         except QiskitServerlessException as reason:
-            raise QiskitServerlessException("Cannot verify token.") from reason
+            raise QiskitServerlessException(
+                "Credentials couldn't be verified."
+            ) from reason
 
     ####################
     ####### JOBS #######
@@ -161,7 +184,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/",
                 params=kwargs,
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -200,7 +223,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/provider/",
                 params=kwargs,
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -216,7 +239,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 url,
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -266,7 +289,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 request=lambda: requests.post(
                     url=url,
                     json=data,
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers=get_headers(token=self.token, instance=self.instance),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -282,7 +305,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
                 params={"with_result": "false"},
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -302,7 +325,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
                 json=data,
             )
@@ -315,7 +338,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -328,7 +351,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/logs/",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=get_headers(token=self.token, instance=self.instance),
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -368,12 +391,22 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             if program.image is not None:
                 # upload function with custom image
                 function_uploaded = _upload_with_docker_image(
-                    program=program, url=url, token=self.token, span=span, client=self
+                    program=program,
+                    url=url,
+                    token=self.token,
+                    span=span,
+                    client=self,
+                    instance=self.instance,
                 )
             elif program.entrypoint is not None:
                 # upload funciton with artifact
                 function_uploaded = _upload_with_artifact(
-                    program=program, url=url, token=self.token, span=span, client=self
+                    program=program,
+                    url=url,
+                    token=self.token,
+                    span=span,
+                    client=self,
+                    instance=self.instance,
                 )
             else:
                 raise QiskitServerlessException(
@@ -388,7 +421,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_list(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=get_headers(token=self.token, instance=self.instance),
                 params=kwargs,
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -417,7 +450,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
-                headers={"Authorization": f"Bearer {self.token}"},
+                headers=get_headers(token=self.token, instance=self.instance),
                 params={"provider": provider},
                 timeout=REQUESTS_TIMEOUT,
             )
@@ -511,7 +544,13 @@ class IBMServerlessClient(ServerlessClient):
         client = IBMServerlessClient(token=<INSERT_IBM_QUANTUM_TOKEN>)
     """
 
-    def __init__(self, token: Optional[str] = None, name: Optional[str] = None):
+    def __init__(
+        self,
+        token: Optional[str] = None,
+        name: Optional[str] = None,
+        instance: Optional[str] = None,
+        channel: str = Channel.IBM_QUANTUM.value,
+    ):
         """
         Initialize a client with access to an IBMQ-provided remote cluster.
 
@@ -528,15 +567,24 @@ class IBMServerlessClient(ServerlessClient):
         Args:
             token: IBM quantum token
             name: Name of the account to load
+            instance: IBM Cloud CRN
+            channel: identifies the method to use to authenticate the user
         """
         token = token or QiskitRuntimeService(name=name).active_account().get("token")
-        super().__init__(token=token, host=IBM_SERVERLESS_HOST_URL)
+        super().__init__(
+            channel=channel,
+            token=token,
+            instance=instance,
+            host=IBM_SERVERLESS_HOST_URL,
+        )
 
     @staticmethod
     def save_account(
         token: Optional[str] = None,
         name: Optional[str] = None,
         overwrite: Optional[bool] = False,
+        instance: Optional[str] = None,
+        channel: str = Channel.IBM_QUANTUM.value,
     ) -> None:
         """
         Save the account to disk for future use.
@@ -545,12 +593,25 @@ class IBMServerlessClient(ServerlessClient):
             token: IBM Quantum API token
             name: Name of the account to save
             overwrite: ``True`` if the existing account is to be overwritten
+            instance: IBM Cloud CRN
+            channel: identifies the method to use to authenticate the user
         """
-        QiskitRuntimeService.save_account(token=token, name=name, overwrite=overwrite)
+        QiskitRuntimeService.save_account(
+            token=token,
+            name=name,
+            overwrite=overwrite,
+            instance=instance,
+            channel=channel,
+        )
 
 
-def _upload_with_docker_image(
-    program: QiskitFunction, url: str, token: str, span: Any, client: RunService
+def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
+    program: QiskitFunction,
+    url: str,
+    token: str,
+    span: Any,
+    client: RunService,
+    instance: Optional[str],
 ) -> RunnableQiskitFunction:
     """Uploads function with custom docker image.
 
@@ -559,6 +620,7 @@ def _upload_with_docker_image(
         url (str): upload gateway url
         token (str): auth token
         span (Any): tracing span
+        instance (Optional[str]): IBM Cloud crn
 
     Returns:
         str: uploaded function name
@@ -575,7 +637,7 @@ def _upload_with_docker_image(
                 "env_vars": json.dumps(program.env_vars or {}),
                 "description": program.description,
             },
-            headers={"Authorization": f"Bearer {token}"},
+            headers=get_headers(token=token, instance=instance),
             timeout=REQUESTS_TIMEOUT,
         )
     )
@@ -587,8 +649,13 @@ def _upload_with_docker_image(
     return RunnableQiskitFunction.from_json(response_data)
 
 
-def _upload_with_artifact(
-    program: QiskitFunction, url: str, token: str, span: Any, client: RunService
+def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments
+    program: QiskitFunction,
+    url: str,
+    token: str,
+    span: Any,
+    client: RunService,
+    instance: Optional[str],
 ) -> RunnableQiskitFunction:
     """Uploads function with artifact.
 
@@ -597,6 +664,7 @@ def _upload_with_artifact(
         url (str): endpoint for gateway upload
         token (str): auth token
         span (Any): tracing span
+        instance (Optional[str]): IBM Cloud crn
 
     Raises:
         QiskitServerlessException: if no entrypoint or size of artifact is too large.
@@ -645,7 +713,7 @@ def _upload_with_artifact(
                         "description": program.description,
                     },
                     files={"artifact": file},
-                    headers={"Authorization": f"Bearer {token}"},
+                    headers=get_headers(token=token, instance=instance),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )

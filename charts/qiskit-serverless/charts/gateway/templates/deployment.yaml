@@ -156,8 +156,6 @@ spec:
               value: {{ .Values.application.ray.openTelemetryCollector.host }}:{{ .Values.application.ray.openTelemetryCollector.port }}
             - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
               value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
-            - name: QISKIT_IBM_CHANNEL
-              value: {{ .Values.application.qiskitRuntime.channel }}
             - name: QISKIT_IBM_URL
               value: {{ .Values.application.qiskitRuntime.url }}
             - name: IQP_QCON_API_BASE_URL
