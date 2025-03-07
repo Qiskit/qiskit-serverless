@@ -233,3 +233,18 @@ class RuntimeJob(models.Model):
     runtime_session = models.CharField(
         max_length=100, blank=True, null=True, default=None
     )
+
+
+class GroupAccount(models.Model):
+    """
+    Group account stores the IBM Cloud account owner of each Group.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+
+    account = models.TextField(default=None, null=True)
+
+    group = models.OneToOneField(
+        Group, on_delete=models.CASCADE, default=None, null=True, related_name="account"
+    )

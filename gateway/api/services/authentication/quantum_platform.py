@@ -7,6 +7,7 @@ from django.conf import settings
 import requests
 from rest_framework import exceptions
 
+from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.services.authentication.authentication_base import AuthenticationBase
 from api.utils import remove_duplicates_from_list, safe_request
 
@@ -167,7 +168,7 @@ class QuantumPlatformService(AuthenticationBase):
 
         return verified
 
-    def get_groups(self) -> List[str]:
+    def get_groups(self) -> List[AuthenticationGroup]:
         """
         Returns an array of instances from network configuration.
 
@@ -181,4 +182,8 @@ class QuantumPlatformService(AuthenticationBase):
         # Initially the list generated should not contain duplicates
         # but this is just to sanitize the entry
         logger.debug("Remove duplicates from instances")
-        return remove_duplicates_from_list(instances)
+        unique_instances = remove_duplicates_from_list(instances)
+
+        return [
+            AuthenticationGroup(group_name=instance) for instance in unique_instances
+        ]

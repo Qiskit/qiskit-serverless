@@ -6,6 +6,7 @@ from typing import List
 from django.conf import settings
 from rest_framework import exceptions
 
+from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.services.authentication.authentication_base import AuthenticationBase
 
 
@@ -54,11 +55,11 @@ class LocalAuthenticationService(AuthenticationBase):
         """
         return True
 
-    def get_groups(self) -> List[str]:
+    def get_groups(self) -> List[AuthenticationGroup]:
         """
         Locally there is only one group called mockgroup.
 
         Returns:
             List of groups
         """
-        return ["mockgroup"]
+        return [AuthenticationGroup(group_name="mockgroup")]

@@ -7,7 +7,8 @@ from rest_framework.test import APITestCase
 from ibm_platform_services import IamAccessGroupsV2, IamIdentityV1, ResourceControllerV2
 from ibm_cloud_sdk_core import DetailedResponse
 
-from api.authentication import CustomTokenBackend, CustomAuthentication
+from api.authentication import CustomTokenBackend
+from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.models import VIEW_PROGRAM_PERMISSION
 
 
@@ -45,7 +46,12 @@ class TestIBMCloudAuthentication(APITestCase):
 
         mock_list_access_groups.return_value = DetailedResponse(
             response={
-                "groups": [{"name": "Private Group"}],
+                "groups": [
+                    {
+                        "id": "AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de",
+                        "name": "Private Group",
+                    }
+                ],
             },
             headers={},
             status_code=200,
@@ -84,7 +90,8 @@ class TestIBMCloudAuthentication(APITestCase):
             groups_names = user.groups.values_list("name", flat=True).distinct()
             groups_names_list = list(groups_names)
             self.assertListEqual(
-                groups_names_list, ["abc18abcd41546508b35dfe0627109c4/PrivateGroup"]
+                groups_names_list,
+                ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"],
             )
 
             for group in user.groups.all():

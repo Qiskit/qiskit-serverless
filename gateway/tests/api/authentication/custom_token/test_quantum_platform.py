@@ -6,7 +6,8 @@ import responses
 from rest_framework import exceptions
 from rest_framework.test import APITestCase
 
-from api.authentication import CustomTokenBackend, CustomAuthentication
+from api.authentication import CustomTokenBackend
+from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.models import VIEW_PROGRAM_PERMISSION
 from api.services.authentication.quantum_platform import QuantumPlatformService
 
