@@ -12,7 +12,7 @@ from api.services.authentication.authentication_base import AuthenticationBase
 from api.services.authentication.ibm_cloud import IBMCloudService
 from api.services.authentication.local_authentication import LocalAuthenticationService
 from api.services.authentication.quantum_platform import QuantumPlatformService
-from api.use_cases.enums.channel import Channel
+from api.domain.authentication.channel import Channel
 
 
 logger = logging.getLogger("gateway.use_cases.authentication")
@@ -65,7 +65,7 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
             permission_names = [VIEW_PROGRAM_PERMISSION, RUN_PROGRAM_PERMISSION]
             groups = self.user_repository.restart_user_groups(
                 user=quantum_user,
-                unique_group_names=access_groups,
+                authentication_groups=access_groups,
                 permission_names=permission_names,
             )
             self.provider_repository.get_or_create_by_name(
@@ -77,7 +77,7 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
             permission_names = [VIEW_PROGRAM_PERMISSION]
             self.user_repository.restart_user_groups(
                 user=quantum_user,
-                unique_group_names=access_groups,
+                authentication_groups=access_groups,
                 permission_names=permission_names,
             )
 

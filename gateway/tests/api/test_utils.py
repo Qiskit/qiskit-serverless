@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from rest_framework.test import APITestCase
 
-from api.use_cases.enums.channel import Channel
+from api.domain.authentication.channel import Channel
 from api.utils import (
     build_env_variables,
     encrypt_string,

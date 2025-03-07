@@ -3,6 +3,8 @@
 from abc import ABC, abstractmethod
 from typing import List
 
+from api.domain.authentication.authentication_group import AuthenticationGroup
+
 
 class AuthenticationBase(ABC):
     """
@@ -22,5 +24,5 @@ class AuthenticationBase(ABC):
         """This method verifies if the user has access to Qiskit Functions."""
 
     @abstractmethod
-    def get_groups(self) -> List[str]:
+    def get_groups(self) -> List[AuthenticationGroup]:
         """This method returns the current groups of the user."""

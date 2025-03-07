@@ -9,8 +9,8 @@ from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 from ibm_platform_services import IamIdentityV1, ResourceControllerV2, IamAccessGroupsV2
 from rest_framework import exceptions
 
+from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.services.authentication.authentication_base import AuthenticationBase
-from api.utils import sanitize_name
 
 
 logger = logging.getLogger("gateway.services.authentication.ibm_cloud")
@@ -120,7 +120,7 @@ class IBMCloudService(AuthenticationBase):
             return False
         return True
 
-    def get_groups(self) -> List[str]:
+    def get_groups(self) -> List[AuthenticationGroup]:
         """
         Returns an array of access groups from the IBM Cloud account.
 
@@ -151,6 +151,6 @@ class IBMCloudService(AuthenticationBase):
         ]
 
         return [
-            f"{self.account_id}/{sanitize_name(access_group['name'])}"
+            AuthenticationGroup(group_name=access_group["id"], account=self.account_id)
             for access_group in access_groups_filtered
         ]

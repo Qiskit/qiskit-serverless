@@ -18,7 +18,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from api.repositories.functions import FunctionRepository
-from api.use_cases.enums.channel import Channel
+from api.domain.authentication.channel import Channel
 from api.utils import sanitize_name
 from api.serializers import (
     JobConfigSerializer,
