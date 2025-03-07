@@ -71,7 +71,7 @@ class UserRepository:
         logger.debug("Clean user groups before update them")
         user.groups.clear()
 
-        logger.debug("Update [%s] groups", len(unique_group_names))
+        logger.debug(f"Update [{len(unique_group_names)}] groups")
         view_program = Permission.objects.get(codename=VIEW_PROGRAM_PERMISSION)
         for instance in unique_group_names:
             group, created = Group.objects.get_or_create(name=instance)

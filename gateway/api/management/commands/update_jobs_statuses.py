@@ -47,11 +47,8 @@ class Command(BaseCommand):
 
                 if job_status != job.status:
                     logger.info(
-                        "Job [%s] of [%s] changed from [%s] to [%s]",
-                        job.id,
-                        job.author,
-                        job.status,
-                        job_status,
+                        f"Job [{job.id}] of [{job.author}] changed from "
+                        + f"[{job.status}] to [{job_status}]"
                     )
                     updated_jobs_counter += 1
                     job.status = job_status
@@ -76,13 +73,12 @@ class Command(BaseCommand):
                     job.save()
                 except RecordModifiedError:
                     logger.warning(
-                        "Job [%s] record has not been updated due to lock.", job.id
+                        f"Job [{job.id}] record has not been updated due to lock."
                     )
 
             else:
                 logger.warning(
-                    "Job [%s] does not have compute resource associated with it. Skipping.",
-                    job.id,
+                    f"Job [{job.id}] does not have compute resource associated with it. Skipping."
                 )
 
-        logger.info("Updated %s jobs.", updated_jobs_counter)
+        logger.info(f"Updated {updated_jobs_counter} jobs.")

@@ -48,7 +48,7 @@ def execute_job(job: Job) -> Job:
             job.program.provider
             and job.program.provider.name in gpujobs["gpu-functions"].keys()
         ):
-            logger.debug("Job [%s] will be run on GPU nodes", job.id)
+            logger.debug(f"Job [{job.id}] will be run on GPU nodes")
             job.gpu = True
             job.save()
 
@@ -65,10 +65,8 @@ def execute_job(job: Job) -> Job:
                 # if something went wrong
                 #   try to kill resource if it was allocated
                 logger.warning(
-                    "Compute resource [%s] was not created properly.\n"
-                    "Setting job [%s] status to [FAILED].",
-                    cluster_name,
-                    job,
+                    f"Compute resource [{cluster_name}] was not created properly.\n"
+                    f"Setting job [{job}] status to [FAILED]."
                 )
                 kill_ray_cluster(cluster_name)
                 job.status = Job.FAILED
@@ -81,12 +79,11 @@ def execute_job(job: Job) -> Job:
                 job.status = Job.PENDING
             except Exception:  # pylint: disable=broad-exception-caught:
                 logger.error(
-                    "Exception was caught during scheduling job on user [%s] resource.\n"
-                    "Resource [%s] was in DB records, but address is not reachable.\n"
-                    "Cleaning up db record and setting job [%s] to failed",
-                    job.author,
-                    compute_resource.title,
-                    job.id,
+                    "Exception was caught during scheduling job on user "
+                    + f"[{job.author}] resource.\n"
+                    + f"Resource [{compute_resource.title}] was in DB records, "
+                    + "but address is not reachable.\n"
+                    + f"Cleaning up db record and setting job [{job.id}] to failed"
                 )
                 kill_ray_cluster(compute_resource.title)
                 compute_resource.delete()
@@ -155,9 +152,7 @@ def check_job_timeout(job: Job, job_status):
         job_status = Job.STOPPED
         job.logs += f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
         logger.warning(
-            "Job [%s] reached maximum runtime [%s] days and stopped.",
-            job.id,
-            timeout,
+            f"Job [{job.id}] reached maximum runtime [{timeout}] days and stopped."
         )
     return job_status
 
@@ -185,8 +180,7 @@ def fail_job_insufficient_resources(job: Job):
     if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
             "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
-            + "so cluster [%s] will not be removed",
-            job.compute_resource.title,
+            + f"so cluster [{job.compute_resource.title}] will not be removed"
         )
     else:
         kill_ray_cluster(job.compute_resource.title)

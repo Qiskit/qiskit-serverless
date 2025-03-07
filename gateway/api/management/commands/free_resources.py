@@ -32,8 +32,7 @@ class Command(BaseCommand):
                 if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
                     logger.debug(
                         "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
-                        + "so cluster [%s] will not be removed",
-                        compute_resource.title,
+                        + f"so cluster [{compute_resource.title}] will not be removed"
                     )
                     return
                 kill_ray_cluster(compute_resource.title)
@@ -42,9 +41,10 @@ class Command(BaseCommand):
                 compute_resource.save()
                 counter += 1
                 logger.info(
-                    "Cluster [%s] is free after usage from [%s]",
-                    compute_resource.title,
-                    compute_resource.owner,
+                    f"Cluster [{compute_resource.title}] is free after usage "
+                    + f"from [{compute_resource.owner}]"
                 )
 
-        logger.info("Deallocated %s compute resources.", counter)
+        logger.info(
+            f"Deallocated {counter} compute resources.",
+        )

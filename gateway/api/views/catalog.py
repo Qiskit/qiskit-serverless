@@ -64,7 +64,7 @@ class CatalogViewSet(viewsets.GenericViewSet):
         public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
 
         if public_group is None:
-            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
+            logger.error(f"Public group [{self.PUBLIC_GROUP_NAME}] does not exist.")
             return []
 
         return Program.objects.filter(instances=public_group).distinct()
@@ -76,7 +76,7 @@ class CatalogViewSet(viewsets.GenericViewSet):
         public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
 
         if public_group is None:
-            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
+            logger.error(f"Public group [{self.PUBLIC_GROUP_NAME}] does not exist.")
             return None
 
         return Program.objects.filter(id=pk, instances=public_group).first()
@@ -88,7 +88,7 @@ class CatalogViewSet(viewsets.GenericViewSet):
         public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
 
         if public_group is None:
-            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
+            logger.error(f"Public group [{self.PUBLIC_GROUP_NAME}] does not exist.")
             return None
 
         return Program.objects.filter(
