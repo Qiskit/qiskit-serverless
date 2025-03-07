@@ -235,16 +235,18 @@ class RuntimeJob(models.Model):
     )
 
 
-class GroupAccount(models.Model):
+class ServerlessGroup(Group):
     """
-    Group account stores the IBM Cloud account owner of each Group.
+    This model extends Group to store new fields from other resources.
     """
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created = models.DateTimeField(auto_now_add=True, editable=False)
-
-    account = models.TextField(default=None, null=True)
-
-    group = models.OneToOneField(
-        Group, on_delete=models.CASCADE, default=None, null=True, related_name="account"
+    parent_group = models.OneToOneField(
+        Group,
+        on_delete=models.CASCADE,
+        parent_link=True,
+        primary_key=True,
+        db_column="parent_group",
     )
+
+    # This field will store the account_id from IBM Cloud.
+    account = models.CharField(max_length=255, blank=True, null=True, default=None)

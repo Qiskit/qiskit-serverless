@@ -6,11 +6,10 @@ import logging
 from typing import List
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, Group, Permission
-from django.db import IntegrityError
 from django.db.models import Q
 
 from api.domain.authentication.authentication_group import AuthenticationGroup
-from api.models import GroupAccount
+from api.models import ServerlessGroup
 
 
 User = get_user_model()
@@ -86,22 +85,13 @@ class UserRepository:
 
         logger.debug("Update [%s] groups", len(authentication_groups))
         for authentication_group in authentication_groups:
-            group, created = Group.objects.get_or_create(
-                name=authentication_group.group_name
+            group, created = ServerlessGroup.objects.get_or_create(
+                name=authentication_group.group_name,
+                account=authentication_group.account,
             )
             if created:
                 for permission in permissions:
                     group.permissions.add(permission)
-            if created and authentication_group.account is not None:
-                try:
-                    GroupAccount.objects.create(
-                        group=group, account=authentication_group.account
-                    )
-                except IntegrityError as error:
-                    logger.error(
-                        "GroupAccount creation is a best effort. IntegrityError: %s",
-                        error,
-                    )
             group.user_set.add(user)
             new_groups.append(group)
 
