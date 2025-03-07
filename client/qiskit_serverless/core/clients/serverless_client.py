@@ -583,6 +583,8 @@ class IBMServerlessClient(ServerlessClient):
         token: Optional[str] = None,
         name: Optional[str] = None,
         overwrite: Optional[bool] = False,
+        instance: Optional[str] = None,
+        channel: str = Channel.IBM_QUANTUM.value,
     ) -> None:
         """
         Save the account to disk for future use.
@@ -591,8 +593,16 @@ class IBMServerlessClient(ServerlessClient):
             token: IBM Quantum API token
             name: Name of the account to save
             overwrite: ``True`` if the existing account is to be overwritten
+            instance: IBM Cloud CRN
+            channel: identifies the method to use to authenticate the user
         """
-        QiskitRuntimeService.save_account(token=token, name=name, overwrite=overwrite)
+        QiskitRuntimeService.save_account(
+            token=token,
+            name=name,
+            overwrite=overwrite,
+            instance=instance,
+            channel=channel,
+        )
 
 
 def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
