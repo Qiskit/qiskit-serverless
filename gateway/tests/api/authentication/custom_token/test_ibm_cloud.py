@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 from ibm_platform_services import IamAccessGroupsV2, IamIdentityV1, ResourceControllerV2
 from ibm_cloud_sdk_core import DetailedResponse
 
-from api.authentication import CustomTokenBackend, CustomToken
+from api.authentication import CustomTokenBackend, CustomAuthentication
 from api.models import VIEW_PROGRAM_PERMISSION
 
 
@@ -73,11 +73,13 @@ class TestIBMCloudAuthentication(APITestCase):
             RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL="https://resource-controller.test.cloud.ibm.com",
             RESOURCE_PLANS_ID_ALLOWED=["f04b2f00-35b0-46b0-b84d-eb63418417e6"],
         ):
-            user, token = custom_auth.authenticate(request)
+            user, authentication = custom_auth.authenticate(request)
 
             self.assertEqual(user.username, "IBMid-0000000ABC")
-            self.assertIsInstance(token, CustomToken)
-            self.assertEqual(token.token, b"AWESOME_TOKEN")
+            self.assertIsInstance(authentication, CustomAuthentication)
+            self.assertEqual(authentication.channel, "ibm_cloud")
+            self.assertEqual(authentication.token, b"AWESOME_TOKEN")
+            self.assertEqual(authentication.instance, "AWESOME_CRN")
 
             groups_names = user.groups.values_list("name", flat=True).distinct()
             groups_names_list = list(groups_names)

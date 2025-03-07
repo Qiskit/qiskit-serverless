@@ -5,6 +5,7 @@ import logging
 from typing import List
 from django.conf import settings
 import requests
+from rest_framework import exceptions
 
 from api.services.authentication.authentication_base import AuthenticationBase
 from api.utils import remove_duplicates_from_list, safe_request
@@ -96,10 +97,8 @@ class QuantumPlatformService(AuthenticationBase):
             None: in case the authentication failed
         """
         if self.auth_url is None:
-            logger.warning(
-                "Problems authenticating: No auth url: something is broken in our settings."
-            )
-            return None
+            logger.warning("Authentication url is not correctly configured.")
+            raise exceptions.AuthenticationFailed("You couldn't be authenticated.")
 
         auth_data = safe_request(
             request=lambda: requests.post(
@@ -109,20 +108,26 @@ class QuantumPlatformService(AuthenticationBase):
             )
         )
         if auth_data is None:
-            logger.warning(
-                "Problems authenticating: No authorization data returned from auth url."
+            logger.warning("Authentication data is empty, probably token is not valid.")
+            raise exceptions.AuthenticationFailed(
+                "You couldn't be authenticated, please review your token."
             )
-            return None
 
         user_id = auth_data.get("userId")
         if user_id is None:
-            logger.warning("Problems authenticating: No user id.")
-            return None
+            logger.warning("Quantum Platform didn't return the id for the user.")
+            raise exceptions.AuthenticationFailed(
+                "There was a problem in the autentication process with Quantum Platform, please try later."  # pylint: disable=line-too-long
+            )
 
         self.access_token = auth_data.get("id")
         if self.access_token is None:
-            logger.warning("Problems authenticating: No access token.")
-            return None
+            logger.warning(
+                "Quantum Platform didn't return the access token for the user"
+            )
+            raise exceptions.AuthenticationFailed(
+                "There was a problem in the autentication process with Quantum Platform, please try later."  # pylint: disable=line-too-long
+            )
 
         return user_id
 
@@ -143,10 +148,10 @@ class QuantumPlatformService(AuthenticationBase):
             )
         )
         if verification_data is None:
-            logger.warning(
-                "Problems authenticating: No verification data returned from request."
+            logger.warning("Quantum Platform didn't return user data to verify.")
+            raise exceptions.AuthenticationFailed(
+                "There was a problem in the autentication process with Quantum Platform, please try later."  # pylint: disable=line-too-long
             )
-            return False
 
         verifications = []
         verification_fields = settings.SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD.split(";")
@@ -158,7 +163,7 @@ class QuantumPlatformService(AuthenticationBase):
 
         verified = all(verifications)
         if verified is False:
-            logger.warning("Problems authenticating: User is not verified.")
+            logger.warning("User has no access to the service using Quantum Platform.")
 
         return verified
 

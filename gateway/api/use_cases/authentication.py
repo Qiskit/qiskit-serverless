@@ -3,6 +3,7 @@
 import logging
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from rest_framework import exceptions
 
 from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 from api.repositories.providers import ProviderRepository
@@ -32,14 +33,14 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
 
     def _get_authentication_service_instance(self) -> AuthenticationBase:
         if self.channel == Channel.IBM_CLOUD:
-            logger.debug("Authentication will be executed with IBM Cloud")
+            logger.debug("Authentication will be executed with IBM Cloud.")
             return IBMCloudService(api_key=self.authorization_token, crn=self.crn)
 
         if self.channel == Channel.IBM_QUANTUM:
-            logger.debug("Authentication will be executed with Quantum Platform")
+            logger.debug("Authentication will be executed with Quantum Platform.")
             return QuantumPlatformService(authorization_token=self.authorization_token)
 
-        logger.debug("Authentication will be executed with Local service")
+        logger.debug("Authentication will be executed with Local service.")
         return LocalAuthenticationService(authorization_token=self.authorization_token)
 
     def execute(self) -> type[AbstractUser] | None:
@@ -50,12 +51,12 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
         authentication_service = self._get_authentication_service_instance()
 
         user_id = authentication_service.authenticate()
-        if user_id is None:
-            return None
 
         verified = authentication_service.verify_access()
         if verified is False:
-            return None
+            raise exceptions.AuthenticationFailed(
+                "Sorry, you don't have access to the service."
+            )
 
         access_groups = authentication_service.get_groups()
         quantum_user = self.user_repository.get_or_create_by_id(user_id=user_id)

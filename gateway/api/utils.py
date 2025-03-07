@@ -19,6 +19,8 @@ from django.conf import settings
 from parsley import makeGrammar
 import objsize
 
+from api.use_cases.enums.channel import Channel
+
 from .models import Job
 
 logger = logging.getLogger("commands")
@@ -113,14 +115,23 @@ def decrypt_string(string: str) -> str:
     return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
-def build_env_variables(
-    token, job: Job, trial_mode: bool, args: str = None
+def build_env_variables(  # pylint: disable=too-many-positional-arguments
+    channel: Channel,
+    token: str,
+    job: Job,
+    trial_mode: bool,
+    args: str = None,
+    instance: Optional[str] = None,
 ) -> Dict[str, str]:
     """Builds env variables for job.
 
     Args:
+        channel: Channel the user uses to authenticate
         token: django request token decoded
-        job: job
+        job: job data to be executed
+        trial_mode: identifies if the user is trial or not
+        args: job arguments
+        instance: IBM Cloud crn
 
     Returns:
         env variables dict
@@ -140,11 +151,26 @@ def build_env_variables(
             )
 
     if settings.SETTINGS_AUTH_MECHANISM != "default":
-        extra = {
-            "QISKIT_IBM_TOKEN": str(token),
-            "QISKIT_IBM_CHANNEL": settings.QISKIT_IBM_CHANNEL,
-            "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
-        }
+        if instance:
+            extra = {
+                "QISKIT_IBM_INSTANCE": str(instance),
+            }
+
+        extra.update(
+            {
+                "QISKIT_IBM_TOKEN": str(token),
+                "QISKIT_IBM_CHANNEL": channel.value,
+                "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
+            }
+        )
+
+    if instance:
+        extra.update(
+            {
+                "ENV_JOB_GATEWAY_INSTANCE": str(instance),
+            }
+        )
+
     return {
         **{
             "ENV_JOB_GATEWAY_TOKEN": str(token),
@@ -428,6 +454,21 @@ def sanitize_name(name: str | None):
         return name
     # Remove all characters except alphanumeric, _, -, /
     return re.sub("[^a-zA-Z0-9_\\-/]", "", name)
+
+
+def sanitize_boolean(value: str | None) -> bool | None:
+    """Sanitize a string into a boolean."""
+    if value is None:
+        return None
+
+    value = value.strip().lower()
+
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+
+    return None
 
 
 def create_gpujob_allowlist():

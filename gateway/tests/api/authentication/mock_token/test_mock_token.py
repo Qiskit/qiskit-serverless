@@ -5,6 +5,7 @@ in local environments.
 
 
 from unittest.mock import MagicMock
+from rest_framework import exceptions
 from rest_framework.test import APITestCase
 
 from api.authentication import MockTokenBackend
@@ -50,5 +51,8 @@ class TestMockTokenAuthentication(APITestCase):
         request.META = {"HTTP_AUTHORIZATION": "Bearer my_awesome_token"}
 
         with self.settings(SETTINGS_AUTH_MOCK_TOKEN="other_awesome_token"):
-            user, token = backend.authenticate(request)
-            self.assertIsNone(user)
+            self.assertRaises(
+                exceptions.AuthenticationFailed,
+                backend.authenticate,
+                request,
+            )
