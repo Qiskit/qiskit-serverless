@@ -571,7 +571,6 @@ class IBMServerlessClient(ServerlessClient):
             channel: identifies the method to use to authenticate the user
         """
         token = token or QiskitRuntimeService(name=name).active_account().get("token")
-        print(token)
         super().__init__(
             channel=channel,
             token=token,
@@ -585,7 +584,7 @@ class IBMServerlessClient(ServerlessClient):
         name: Optional[str] = None,
         overwrite: Optional[bool] = False,
         instance: Optional[str] = None,
-        channel: Optional[Channel] = Channel.IBM_QUANTUM,
+        channel: str = Channel.IBM_QUANTUM.value,
     ) -> None:
         """
         Save the account to disk for future use.

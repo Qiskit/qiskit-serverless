@@ -101,5 +101,3 @@ docs/_build/
 .jupyter/
 .ipython/
 .virtual_documents/
-
-jupyter
