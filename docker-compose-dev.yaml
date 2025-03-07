@@ -43,13 +43,7 @@ services:
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
       - SITE_HOST=http://gateway:8000
-      - SETTINGS_AUTH_MECHANISM=custom_token
-      - QUANTUM_PLATFORM_API_BASE_URL=https://auth-dev.quantum-computing.ibm.com/api
-      - IQP_QCON_API_BASE_URL=https://api-qcon-dev.quantum.ibm.com/api
-      - SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD=ibmQNetwork;urls,services,serverless
-      - IAM_IBM_CLOUD_BASE_URL=https://iam.test.cloud.ibm.com
-      - RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL=https://resource-controller.test.cloud.ibm.com
-      - RESOURCE_PLANS_ID_ALLOWED=ddcef81a-4fc7-4b5b-9395-e28efbf6512d
+      - SETTINGS_AUTH_MECHANISM=mock_token
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_NAME=serverlessdb
