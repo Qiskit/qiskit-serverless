@@ -18,6 +18,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from api.repositories.functions import FunctionRepository
+from api.domain.authentication.channel import Channel
 from api.utils import sanitize_name
 from api.serializers import (
     JobConfigSerializer,
@@ -241,9 +242,13 @@ class ProgramViewSet(viewsets.GenericViewSet):
             carrier = {}
             TraceContextTextMapPropagator().inject(carrier)
             arguments = serializer.data.get("arguments")
+            channel = Channel.IBM_QUANTUM
             token = ""
+            instance = None
             if request.auth:
+                channel = request.auth.channel
                 token = request.auth.token.decode()
+                instance = request.auth.instance
             job_data = {"arguments": arguments, "program": function.id}
             job_serializer = self.get_serializer_run_job(data=job_data)
             if not job_serializer.is_valid():
@@ -255,7 +260,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     job_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                 )
             job = job_serializer.save(
-                author=author, carrier=carrier, token=token, config=jobconfig
+                author=author,
+                carrier=carrier,
+                channel=channel,
+                token=token,
+                config=jobconfig,
+                instance=instance,
             )
             logger.info("Returning Job [%s] created.", job.id)
 

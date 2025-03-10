@@ -320,7 +320,6 @@ class TestFilesApi(APITestCase):
             "w+",
         ) as fp:
             fp.write("This is first line")
-            print(fp)
             fp.close()
 
         with self.settings(MEDIA_ROOT=media_root):
@@ -354,7 +353,6 @@ class TestFilesApi(APITestCase):
             "w+",
         ) as fp:
             fp.write("This is first line")
-            print(fp)
             fp.close()
 
         with self.settings(MEDIA_ROOT=media_root):

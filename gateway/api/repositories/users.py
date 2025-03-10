@@ -8,7 +8,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db.models import Q
 
-from api.models import VIEW_PROGRAM_PERMISSION
+from api.domain.authentication.authentication_group import AuthenticationGroup
+from api.models import ServerlessGroup
 
 
 User = get_user_model()
@@ -34,7 +35,7 @@ class UserRepository:
 
         user, created = User.objects.get_or_create(username=user_id)
         if created:
-            logger.debug("New user created")
+            logger.debug("New user [%s] created", user_id)
 
         return user
 
@@ -57,25 +58,41 @@ class UserRepository:
         return Group.objects.filter(user_criteria & permission_criteria)
 
     def restart_user_groups(
-        self, user: type[AbstractUser], unique_group_names: List[str]
-    ) -> None:
+        self,
+        user: type[AbstractUser],
+        authentication_groups: List[AuthenticationGroup],
+        permission_names: List[str],
+    ) -> List[Group]:
         """
         This method will restart all the groups from a user given a specific list
         with the new groups.
 
         Args:
             user: Django user
-            unique_group_names List[str]: list with the names of the new groups
+            authentication_groups List[AuthenticationGroup]:
+            list with the names and accounts of new groups
+            permission_names: name of the permissions that will be applied to the new groups
         """
+
+        new_groups = []
+
+        permissions = []
+        for permission_name in permission_names:
+            permissions.append(Permission.objects.get(codename=permission_name))
 
         logger.debug("Clean user groups before update them")
         user.groups.clear()
 
-        logger.debug("Update [%s] groups", len(unique_group_names))
-        view_program = Permission.objects.get(codename=VIEW_PROGRAM_PERMISSION)
-        for instance in unique_group_names:
-            group, created = Group.objects.get_or_create(name=instance)
+        logger.debug("Update [%s] groups", len(authentication_groups))
+        for authentication_group in authentication_groups:
+            group, created = ServerlessGroup.objects.get_or_create(
+                name=authentication_group.group_name,
+                account=authentication_group.account,
+            )
             if created:
-                logger.debug("New group created")
-                group.permissions.add(view_program)
+                for permission in permissions:
+                    group.permissions.add(permission)
             group.user_set.add(user)
+            new_groups.append(group)
+
+        return new_groups

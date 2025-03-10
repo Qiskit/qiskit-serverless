@@ -109,6 +109,12 @@ spec:
               value: {{ .Values.application.auth.token.url | quote }}
             - name: SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD
               value: {{ .Values.application.auth.token.verificationField | quote }}
+            - name: IAM_IBM_CLOUD_BASE_URL
+              value: {{ .Values.application.auth.token.iamUrl | quote }}
+            - name: RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL
+              value: {{ .Values.application.auth.token.resourceControllerUrl | quote }}
+            - name: RESOURCE_PLANS_ID_ALLOWED
+              value: {{ .Values.application.auth.token.resourcePlansAllowed | quote }}
             - name: SETTINGS_AUTH_MOCKPROVIDER_REGISTRY
               value: {{ .Values.application.authMockproviderRegistry }}
             - name: RAY_CLUSTER_WORKER_REPLICAS
@@ -156,8 +162,6 @@ spec:
               value: {{ .Values.application.ray.openTelemetryCollector.host }}:{{ .Values.application.ray.openTelemetryCollector.port }}
             - name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
               value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
-            - name: QISKIT_IBM_CHANNEL
-              value: {{ .Values.application.qiskitRuntime.channel }}
             - name: QISKIT_IBM_URL
               value: {{ .Values.application.qiskitRuntime.url }}
             - name: IQP_QCON_API_BASE_URL
