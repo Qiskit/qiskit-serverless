@@ -1,24 +1,14 @@
-"""CustomTokenBackend."""
+"""Custom Authentication DRF Backends to authenticate the user."""
 
 import logging
-from dataclasses import dataclass
-from typing import Optional
 from rest_framework import authentication, exceptions
 
+from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.use_cases.authentication import AuthenticationUseCase
-from api.use_cases.enums.channel import Channel
+from api.domain.authentication.channel import Channel
 
 
 logger = logging.getLogger("gateway.authentication")
-
-
-@dataclass
-class CustomAuthentication:
-    """CustomToken."""
-
-    channel: Channel
-    token: str
-    instance: Optional[str]
 
 
 class CustomTokenBackend(authentication.BaseAuthentication):

@@ -6,7 +6,8 @@ import responses
 from rest_framework import exceptions
 from rest_framework.test import APITestCase
 
-from api.authentication import CustomTokenBackend, CustomAuthentication
+from api.authentication import CustomTokenBackend
+from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.models import VIEW_PROGRAM_PERMISSION
 from api.services.authentication.quantum_platform import QuantumPlatformService
 
@@ -65,6 +66,9 @@ class TestQuantumPlatformAuthentication(APITestCase):
 
             self.assertEqual(user.username, "AwesomeUser")
             self.assertListEqual(groups_names_list, ["ibm-q", "ibm-q/open"])
+
+            groups = user.groups.all()
+            self.assertIsNone(groups[0].serverlessgroup.account)
 
             for group in user.groups.all():
                 permissions = list(group.permissions.values_list("codename", flat=True))

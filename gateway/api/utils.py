@@ -19,7 +19,7 @@ from django.conf import settings
 from parsley import makeGrammar
 import objsize
 
-from api.use_cases.enums.channel import Channel
+from api.domain.authentication.channel import Channel
 
 from .models import Job
 

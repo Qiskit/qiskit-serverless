@@ -8,6 +8,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db.models import Q
 
+from api.domain.authentication.authentication_group import AuthenticationGroup
+from api.models import ServerlessGroup
+
 
 User = get_user_model()
 logger = logging.getLogger("gateway.repositories.user")
@@ -57,7 +60,7 @@ class UserRepository:
     def restart_user_groups(
         self,
         user: type[AbstractUser],
-        unique_group_names: List[str],
+        authentication_groups: List[AuthenticationGroup],
         permission_names: List[str],
     ) -> List[Group]:
         """
@@ -66,7 +69,8 @@ class UserRepository:
 
         Args:
             user: Django user
-            unique_group_names List[str]: list with the names of the new groups
+            authentication_groups List[AuthenticationGroup]:
+            list with the names and accounts of new groups
             permission_names: name of the permissions that will be applied to the new groups
         """
 
@@ -79,9 +83,12 @@ class UserRepository:
         logger.debug("Clean user groups before update them")
         user.groups.clear()
 
-        logger.debug("Update [%s] groups", len(unique_group_names))
-        for instance in unique_group_names:
-            group, created = Group.objects.get_or_create(name=instance)
+        logger.debug("Update [%s] groups", len(authentication_groups))
+        for authentication_group in authentication_groups:
+            group, created = ServerlessGroup.objects.get_or_create(
+                name=authentication_group.group_name,
+                account=authentication_group.account,
+            )
             if created:
                 for permission in permissions:
                     group.permissions.add(permission)
