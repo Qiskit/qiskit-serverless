@@ -233,20 +233,3 @@ class RuntimeJob(models.Model):
     runtime_session = models.CharField(
         max_length=100, blank=True, null=True, default=None
     )
-
-
-class ServerlessGroup(Group):
-    """
-    This model extends Group to store new fields from other resources.
-    """
-
-    parent_group = models.OneToOneField(
-        Group,
-        on_delete=models.CASCADE,
-        parent_link=True,
-        primary_key=True,
-        db_column="parent_group",
-    )
-
-    # This field will store the account_id from IBM Cloud.
-    account = models.CharField(max_length=255, blank=True, null=True, default=None)

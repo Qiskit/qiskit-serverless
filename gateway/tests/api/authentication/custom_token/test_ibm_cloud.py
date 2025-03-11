@@ -93,11 +93,6 @@ class TestIBMCloudAuthentication(APITestCase):
                 groups_names_list,
                 ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"],
             )
-            groups = user.groups.all()
-            self.assertEqual(
-                groups[0].serverlessgroup.account,
-                "abc18abcd41546508b35dfe0627109c4",
-            )
 
             for group in user.groups.all():
                 permissions = list(group.permissions.values_list("codename", flat=True))
