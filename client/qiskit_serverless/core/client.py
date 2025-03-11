@@ -57,7 +57,11 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
     """
 
     def __init__(  # pylint:  disable=too-many-positional-arguments
-        self, name: str, host: Optional[str] = None, token: Optional[str] = None
+        self,
+        name: str,
+        host: Optional[str] = None,
+        token: Optional[str] = None,
+        instance: Optional[str] = None,
     ):
         """
         Initialize a BaseClient instance.
@@ -66,10 +70,12 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
             name: name of client
             host: host of client a.k.a managers host
             token: authentication token for manager
+            instance: IBM Cloud CRN
         """
         self.name = name
         self.host = host
         self.token = token
+        self.instance = instance
 
     @classmethod
     @abstractmethod

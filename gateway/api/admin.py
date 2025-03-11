@@ -1,7 +1,19 @@
 """Admin module."""
 
 from django.contrib import admin
-from api.models import JobConfig, Provider, Program, ComputeResource, Job, RuntimeJob
+from django.contrib.auth.models import Group
+from api.models import (
+    JobConfig,
+    Provider,
+    Program,
+    ComputeResource,
+    Job,
+    RuntimeJob,
+    ServerlessGroup,
+)
+
+
+admin.site.unregister(Group)
 
 
 @admin.register(JobConfig)
@@ -40,7 +52,7 @@ class JobAdmin(admin.ModelAdmin):
 
     search_fields = ["author__username", "program__title"]
     list_filter = ["status"]
-    exclude = ["arguments", "env_vars", "logs"]
+    exclude = ["arguments", "env_vars", "logs", "result"]
 
 
 @admin.register(RuntimeJob)
@@ -48,3 +60,11 @@ class RuntimeJobAdmin(admin.ModelAdmin):
     """RuntimeJobAdmin."""
 
     search_fields = ["job__id"]
+
+
+@admin.register(ServerlessGroup)
+class ServerlessGroupAdmin(admin.ModelAdmin):
+    """ServerlessGroupAdmin."""
+
+    search_fields = ["name", "account"]
+    filter_horizontal = ["permissions"]

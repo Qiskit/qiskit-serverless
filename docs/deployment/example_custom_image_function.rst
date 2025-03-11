@@ -49,7 +49,7 @@ Dockerfile
 .. code-block::
    :caption: Dockerfile
 
-   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.19.0
+   FROM icr.io/quantum-public/qiskit-serverless/ray-node:0.20.0
 
    # install all necessary dependencies for your custom image
 
