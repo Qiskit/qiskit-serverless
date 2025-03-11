@@ -9,6 +9,7 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db.models import Q
 
 from api.domain.authentication.authentication_group import AuthenticationGroup
+from api.models import GroupMetadata
 
 
 User = get_user_model()
@@ -90,6 +91,10 @@ class UserRepository:
             if created:
                 for permission in permissions:
                     group.permissions.add(permission)
+                if authentication_group.account is not None:
+                    GroupMetadata.objects.create(
+                        group=group, account=authentication_group.account
+                    )
             group.user_set.add(user)
             new_groups.append(group)
 

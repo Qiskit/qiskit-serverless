@@ -94,6 +94,12 @@ class TestIBMCloudAuthentication(APITestCase):
                 ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"],
             )
 
+            groups = user.groups.all()
+            for group in groups:
+                self.assertEqual(
+                    group.metadata.account, "abc18abcd41546508b35dfe0627109c4"
+                )
+
             for group in user.groups.all():
                 permissions = list(group.permissions.values_list("codename", flat=True))
                 self.assertEqual(permissions, [VIEW_PROGRAM_PERMISSION])

@@ -233,3 +233,22 @@ class RuntimeJob(models.Model):
     runtime_session = models.CharField(
         max_length=100, blank=True, null=True, default=None
     )
+
+
+class GroupMetadata(models.Model):
+    """
+    This model will store metadata from different resources for Group
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+
+    # This field will store the account_id from IBM Cloud.
+    account = models.CharField(max_length=255, blank=True, null=True, default=None)
+
+    group = models.OneToOneField(
+        Group, on_delete=models.CASCADE, related_name="metadata"
+    )
+
+    def __str__(self):
+        return f"{self.id}"

@@ -2,6 +2,7 @@
 
 from django.contrib import admin
 from api.models import (
+    GroupMetadata,
     JobConfig,
     Provider,
     Program,
@@ -55,3 +56,10 @@ class RuntimeJobAdmin(admin.ModelAdmin):
     """RuntimeJobAdmin."""
 
     search_fields = ["job__id"]
+
+
+@admin.register(GroupMetadata)
+class GroupMetadataAdmin(admin.ModelAdmin):
+    """RuntimeJobAdmin."""
+
+    search_fields = ["account"]

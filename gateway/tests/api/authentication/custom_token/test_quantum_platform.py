@@ -67,6 +67,11 @@ class TestQuantumPlatformAuthentication(APITestCase):
             self.assertEqual(user.username, "AwesomeUser")
             self.assertListEqual(groups_names_list, ["ibm-q", "ibm-q/open"])
 
+            groups = user.groups.all()
+            for group in groups:
+                metadata = getattr(groups, "metadata", None)
+                self.assertIsNone(metadata)
+
             for group in user.groups.all():
                 permissions = list(group.permissions.values_list("codename", flat=True))
                 self.assertEqual(permissions, [VIEW_PROGRAM_PERMISSION])

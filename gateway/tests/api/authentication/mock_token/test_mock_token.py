@@ -44,6 +44,10 @@ class TestMockTokenAuthentication(APITestCase):
             provider_groups = list(provider.admin_groups.values_list("name", flat=True))
             self.assertEqual(provider_groups, ["mockgroup"])
 
+            groups = user.groups.all()
+            metadata = getattr(groups[0], "metadata", None)
+            self.assertIsNone(metadata)
+
     def test_incorrect_authorization_header(self):
         """This test verifies that user is None if the authentication fails."""
         backend = MockTokenBackend()
