@@ -1,19 +1,15 @@
 """Admin module."""
 
 from django.contrib import admin
-from django.contrib.auth.models import Group
 from api.models import (
+    GroupMetadata,
     JobConfig,
     Provider,
     Program,
     ComputeResource,
     Job,
     RuntimeJob,
-    ServerlessGroup,
 )
-
-
-admin.site.unregister(Group)
 
 
 @admin.register(JobConfig)
@@ -62,9 +58,8 @@ class RuntimeJobAdmin(admin.ModelAdmin):
     search_fields = ["job__id"]
 
 
-@admin.register(ServerlessGroup)
-class ServerlessGroupAdmin(admin.ModelAdmin):
-    """ServerlessGroupAdmin."""
+@admin.register(GroupMetadata)
+class GroupMetadataAdmin(admin.ModelAdmin):
+    """RuntimeJobAdmin."""
 
-    search_fields = ["name", "account"]
-    filter_horizontal = ["permissions"]
+    search_fields = ["account"]

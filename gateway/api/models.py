@@ -235,18 +235,20 @@ class RuntimeJob(models.Model):
     )
 
 
-class ServerlessGroup(Group):
+class GroupMetadata(models.Model):
     """
-    This model extends Group to store new fields from other resources.
+    This model will store metadata from different resources for Group
     """
 
-    parent_group = models.OneToOneField(
-        Group,
-        on_delete=models.CASCADE,
-        parent_link=True,
-        primary_key=True,
-        db_column="parent_group",
-    )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
 
     # This field will store the account_id from IBM Cloud.
     account = models.CharField(max_length=255, blank=True, null=True, default=None)
+
+    group = models.OneToOneField(
+        Group, on_delete=models.CASCADE, related_name="metadata"
+    )
+
+    def __str__(self):
+        return f"{self.id}"
