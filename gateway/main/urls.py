@@ -23,9 +23,8 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 import probes.views
 import version.views
-from api.utils import custom_server_error
 
-handler500 = custom_server_error
+handler500 = 'rest_framework.exceptions.server_error'
 
 schema = get_schema_view(  # pylint: disable=invalid-name
     openapi.Info(
