@@ -24,6 +24,8 @@ from drf_yasg import openapi
 import probes.views
 import version.views
 
+handler500 = "rest_framework.exceptions.server_error"
+
 schema = get_schema_view(  # pylint: disable=invalid-name
     openapi.Info(
         title="Gateway API",

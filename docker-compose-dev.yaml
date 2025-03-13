@@ -36,6 +36,7 @@ services:
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
+    user: "root"
     environment:
       - DEBUG=1
       - RAY_HOST=http://ray-head:8265
@@ -55,6 +56,11 @@ services:
       - program-artifacts:/usr/src/app/media/
     depends_on:
       - postgres
+    develop:
+      watch:
+        - path: ./gateway
+          action: sync
+          target: /usr/src/app
   scheduler:
     container_name: scheduler
     build:
