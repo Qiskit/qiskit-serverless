@@ -152,7 +152,6 @@ class JobViewSet(viewsets.GenericViewSet):
         tracer = trace.get_tracer("gateway.tracer")
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.list", context=ctx):
-            raise Exception("Errorrr")
             queryset = self.get_queryset()
 
             page = self.paginate_queryset(queryset)

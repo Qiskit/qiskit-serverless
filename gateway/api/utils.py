@@ -12,7 +12,6 @@ import uuid
 import sys
 import platform
 from typing import Any, Optional, Tuple, Union, Callable, Dict, List
-from django.http import JsonResponse
 from django.conf import settings
 
 from cryptography.fernet import Fernet
