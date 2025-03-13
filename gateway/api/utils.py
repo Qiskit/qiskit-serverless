@@ -10,8 +10,10 @@ import re
 import time
 import uuid
 import sys
+import traceback
 import platform
 from typing import Any, Optional, Tuple, Union, Callable, Dict, List
+from django.http import JsonResponse
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
@@ -200,7 +202,7 @@ def generate_cluster_name(username: str) -> str:
         generated cluster name
     """
     pattern = re.compile("[^a-zA-Z0-9-.]")
-    cluster_name = f"c-{re.sub(pattern,'-',username)}-{str(uuid.uuid4())[:8]}"
+    cluster_name = f"c-{re.sub(pattern, '-', username)}-{str(uuid.uuid4())[:8]}"
     return cluster_name
 
 
@@ -471,3 +473,13 @@ def sanitize_file_name(name: str | None):
         return name
     # Remove all characters except alphanumeric, _, ., -
     return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)
+
+
+def custom_server_error():
+    """Handle 500 error"""
+    response_data = {
+        "error": "internal_server_error",
+        "message": "An unexpected error occurred. Please try again later.",
+    }
+
+    return JsonResponse(response_data, status=500)
