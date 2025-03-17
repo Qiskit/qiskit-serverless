@@ -36,7 +36,7 @@ services:
     command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=4
     ports:
       - 8000:8000
-    user: "root"
+    user: "root" # we use the root user here so the docker-compose watch can sync files into the container
     environment:
       - DEBUG=1
       - RAY_HOST=http://ray-head:8265
