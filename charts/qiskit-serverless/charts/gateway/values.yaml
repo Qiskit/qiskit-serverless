@@ -18,7 +18,7 @@ application:
   superuser:
     enable: true
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.21.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.21.1"
     cpu: 2
     memory: 2
     gpu: 1
