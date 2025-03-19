@@ -26,10 +26,17 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
     user_repository = UserRepository()
     provider_repository = ProviderRepository()
 
-    def __init__(self, channel: Channel, authorization_token: str, crn: str | None):
+    def __init__(
+        self,
+        channel: Channel,
+        authorization_token: str,
+        crn: str | None,
+        public_access=False,
+    ):
         self.channel = channel
         self.authorization_token = authorization_token
         self.crn = crn
+        self.public_access = public_access
 
     def _get_authentication_service_instance(self) -> AuthenticationBase:
         if self.channel == Channel.IBM_CLOUD:
@@ -52,11 +59,12 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
 
         user_id = authentication_service.authenticate()
 
-        verified = authentication_service.verify_access()
-        if verified is False:
-            raise exceptions.AuthenticationFailed(
-                "Sorry, you don't have access to the service."
-            )
+        if self.public_access is False:
+            verified = authentication_service.verify_access()
+            if verified is False:
+                raise exceptions.AuthenticationFailed(
+                    "Sorry, you don't have access to the service."
+                )
 
         access_groups = authentication_service.get_groups()
         quantum_user = self.user_repository.get_or_create_by_id(user_id=user_id)
