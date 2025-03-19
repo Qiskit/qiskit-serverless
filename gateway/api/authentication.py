@@ -1,7 +1,7 @@
 """Custom Authentication DRF Backends to authenticate the user."""
 
 import logging
-from rest_framework import authentication, exceptions
+from rest_framework import authentication
 
 from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.use_cases.authentication import AuthenticationUseCase
@@ -25,7 +25,9 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
-            logger.debug("Authorization token was not provided. Only public access allowed.")
+            logger.debug(
+                "Authorization token was not provided. Only public access allowed."
+            )
             return None, None
         authorization_token = auth_header.split(" ")[-1]
 
@@ -57,7 +59,9 @@ class MockTokenBackend(authentication.BaseAuthentication):
 
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
-            logger.debug("Authorization token was not provided. Only public access allowed.")
+            logger.debug(
+                "Authorization token was not provided. Only public access allowed."
+            )
             return None, None
         authorization_token = auth_header.split(" ")[-1]
 
