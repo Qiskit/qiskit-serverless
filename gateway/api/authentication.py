@@ -1,7 +1,7 @@
 """Custom Authentication DRF Backends to authenticate the user."""
 
 import logging
-from rest_framework import authentication
+from rest_framework import authentication, exceptions
 
 from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.use_cases.authentication import AuthenticationUseCase
@@ -19,20 +19,33 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         quantum_user = None
         authorization_token = None
 
+        # Specific logic to guarantee access to catalog end-points
+        public_access = False
+        if "catalog" in request.path:
+            public_access = True
+
         crn = request.META.get("HTTP_SERVICE_CRN", None)
         if crn is not None:
             channel = Channel.IBM_CLOUD
 
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
-            logger.debug(
-                "Authorization token was not provided. Only public access allowed."
+            if public_access:
+                logger.debug(
+                    "Authorization token was not provided. Only public access allowed."
+                )
+                return None, None
+            logger.warning("Authorization token was not provided.")
+            raise exceptions.AuthenticationFailed(
+                "Authorization token was not provided."
             )
-            return None, None
         authorization_token = auth_header.split(" ")[-1]
 
         quantum_user = AuthenticationUseCase(
-            channel=channel, authorization_token=authorization_token, crn=crn
+            channel=channel,
+            authorization_token=authorization_token,
+            crn=crn,
+            public_access=public_access,
         ).execute()
 
         return quantum_user, CustomAuthentication(
@@ -57,16 +70,29 @@ class MockTokenBackend(authentication.BaseAuthentication):
         quantum_user = None
         authorization_token = None
 
+        # Specific logic to guarantee access to catalog end-points
+        public_access = False
+        if "catalog" in request.path:
+            public_access = True
+
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:
-            logger.debug(
-                "Authorization token was not provided. Only public access allowed."
+            if public_access:
+                logger.debug(
+                    "Authorization token was not provided. Only public access allowed."
+                )
+                return None, None
+            logger.warning("Authorization token was not provided.")
+            raise exceptions.AuthenticationFailed(
+                "Authorization token was not provided."
             )
-            return None, None
         authorization_token = auth_header.split(" ")[-1]
 
         quantum_user = AuthenticationUseCase(
-            channel=channel, authorization_token=authorization_token, crn=None
+            channel=channel,
+            authorization_token=authorization_token,
+            crn=None,
+            public_access=public_access,
         ).execute()
 
         return quantum_user, CustomAuthentication(
