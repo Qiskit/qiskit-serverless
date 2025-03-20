@@ -1,4 +1,4 @@
-ray[default,data]>=2.30.0, <2.35.0
+ray[default,data]>=2.30, <3
 requests>=2.32.2, <3
 importlib-metadata>=5.2.0, <9
 qiskit>=1.0.2
