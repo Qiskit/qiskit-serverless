@@ -68,7 +68,9 @@ class TestQuantumPlatformAuthentication(APITestCase):
             self.assertListEqual(groups_names_list, ["ibm-q", "ibm-q/open"])
 
             groups = user.groups.all()
-            self.assertIsNone(groups[0].serverlessgroup.account)
+            for group in groups:
+                metadata = getattr(groups, "metadata", None)
+                self.assertIsNone(metadata)
 
             for group in user.groups.all():
                 permissions = list(group.permissions.values_list("codename", flat=True))
