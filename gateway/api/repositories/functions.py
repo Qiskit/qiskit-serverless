@@ -3,7 +3,7 @@ Repository implementation for Programs model
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 from django.db.models import Q
 from django.contrib.auth.models import Group
 
@@ -116,7 +116,7 @@ class FunctionRepository:
 
         return result_queryset
 
-    def get_user_function(self, author, title: str) -> Function | None:
+    def get_user_function(self, author, title: str) -> Optional[Function]:
         """
         Returns the user function associated to a title:
 
@@ -146,7 +146,7 @@ class FunctionRepository:
 
     def get_provider_function_by_permission(
         self, author, permission_name: str, title: str, provider_name: str
-    ) -> Function | None:
+    ) -> Optional[Function]:
         """
         Returns the provider function associated to:
           - A Function title
@@ -195,8 +195,8 @@ class FunctionRepository:
         user,
         permission_name: str,
         function_title: str,
-        provider_name: str | None,
-    ) -> Function | None:
+        provider_name: Optional[str],
+    ) -> Optional[Function]:
         """
         This method returns the specified function if the user is
         the author of the function or it has a permission.

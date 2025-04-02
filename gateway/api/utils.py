@@ -459,7 +459,7 @@ def create_dependency_allowlist():
     return allowlist
 
 
-def sanitize_name(name: str | None):
+def sanitize_name(name: Optional[str]):
     """Sanitize name"""
     if not name:
         return name
@@ -467,7 +467,7 @@ def sanitize_name(name: str | None):
     return re.sub("[^a-zA-Z0-9_\\-/]", "", name)
 
 
-def sanitize_boolean(value: str | None) -> bool | None:
+def sanitize_boolean(value: Optional[str]) -> Optional[bool]:
     """Sanitize a string into a boolean."""
     if value is None:
         return None
@@ -502,7 +502,7 @@ def create_gpujob_allowlist():
     return gpujobs
 
 
-def sanitize_file_name(name: str | None):
+def sanitize_file_name(name: Optional[str]):
     """Sanitize the name of a file"""
     if not name:
         return name

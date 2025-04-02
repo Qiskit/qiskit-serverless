@@ -1,7 +1,7 @@
 """This service will manage the access for local developments."""
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from django.conf import settings
 from rest_framework import exceptions
@@ -23,7 +23,7 @@ class LocalAuthenticationService(AuthenticationBase):
         self.authorization_token = authorization_token
         self.username = "mockuser"
 
-    def authenticate(self) -> str | None:
+    def authenticate(self) -> Optional[str]:
         """
         This method authenticates verifies if the token is the
         correct one.
