@@ -200,8 +200,8 @@ class Job:
 
     def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
-        terminal_states = ["CANCELED", "DONE", "ERROR"]
-        return self.status() in terminal_states
+        terminal_status = ["CANCELED", "DONE", "ERROR"]
+        return self.status() in terminal_status
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"
