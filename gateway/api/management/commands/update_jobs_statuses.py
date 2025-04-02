@@ -26,7 +26,7 @@ class Command(BaseCommand):
         # update job statuses
         # pylint: disable=too-many-branches
         updated_jobs_counter = 0
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATES)
+        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES)
         for job in jobs:
             if job.compute_resource:
                 job_status = Job.PENDING

@@ -271,6 +271,20 @@ class TestJobApi(APITestCase):
             f"Job [{job_id}] nor found",
         )
 
+    def test_job_update_status(self):
+        """Test job update status"""
+        self._authorize()
+
+        job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
+        response = self.client.post(
+            reverse("v1:jobs-update-result", args=[job_id]),
+            format="json",
+            data={"sub_status": "MAPPING"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get("message"), "Sub status updated correctly")
+
     def test_user_has_access_to_job_result_from_provider_function(self):
         """
         User has access to job result from a function provider

@@ -71,6 +71,13 @@ class JobViewSet(views.JobViewSet):
         return super().result(request, pk)
 
     @swagger_auto_schema(
+        operation_description="Update the sub status of a job",
+    )
+    @action(methods=["POST"], detail=True)
+    def sub_status(self, request, pk=None):
+        return super().sub_status(request, pk)
+
+    @swagger_auto_schema(
         operation_description="Stop a job",
     )
     @action(methods=["POST"], detail=True)
