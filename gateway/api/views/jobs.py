@@ -118,7 +118,7 @@ class JobViewSet(viewsets.GenericViewSet):
             job = self.jobs_repository.get_job_by_id(pk)
             if job is None:
                 return Response(
-                    {"message": f"Job [{pk}] nor found"},
+                    {"message": f"Job [{pk}] not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
@@ -256,7 +256,7 @@ class JobViewSet(viewsets.GenericViewSet):
         ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
         with tracer.start_as_current_span("gateway.job.sub_status", context=ctx):
             author = self.request.user
-            sub_status = self.request.sub_status
+            sub_status = self.request.data.get("sub_status")
             if sub_status is None or sub_status not in Job.RUNNING_SUB_STATUSES:
                 return Response(
                     {"message": "sub_status not providedor is not valid"},

@@ -268,22 +268,31 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(
             jobs_response.data.get("message"),
-            f"Job [{job_id}] nor found",
+            f"Job [{job_id}] not found",
         )
 
-    def test_job_update_status(self):
+    def test_job_update_sub_status(self):
         """Test job update status"""
         self._authorize()
 
         job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
-        response = self.client.post(
-            reverse("v1:jobs-update-result", args=[job_id]),
+        response_sub_status = self.client.post(
+            reverse("v1:jobs-sub-status", args=[job_id]),
             format="json",
             data={"sub_status": "MAPPING"},
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data.get("message"), "Sub status updated correctly")
+        self.assertEqual(response_sub_status.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_sub_status.data.get("message"), "Sub status updated correctly")
+
+        response_details = self.client.get(
+            reverse("v1:jobs-detail", args=[job_id]),
+            format="json",
+        )
+
+        self.assertEqual(response_details.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_details.data.get("sub_status"), "MAPPING")
+
 
     def test_user_has_access_to_job_result_from_provider_function(self):
         """
