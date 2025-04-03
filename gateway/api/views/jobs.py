@@ -259,7 +259,7 @@ class JobViewSet(viewsets.GenericViewSet):
             sub_status = self.request.data.get("sub_status")
             if sub_status is None or sub_status not in Job.RUNNING_SUB_STATUSES:
                 return Response(
-                    {"message": "sub_status not providedor is not valid"},
+                    {"message": "'sub_status' not provided or is not valid"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -278,6 +278,17 @@ class JobViewSet(viewsets.GenericViewSet):
                         {"message": f"Job [{job.id}] not found"},
                         status=status.HTTP_404_NOT_FOUND,
                     )
+                        
+                if job.status is not Job.RUNNING:
+                    logger.warning(
+                        "'sub_status' cannot change because the job [%s] current status is not Running",
+                        job.id,
+                    )
+                    return Response(
+                        {"message": "Cannot update 'sub_status' when is not in RUNNING status."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                    
 
                 job.sub_status = sub_status
                 job.save()

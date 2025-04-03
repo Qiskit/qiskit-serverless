@@ -108,6 +108,6 @@ class JobAccessPolocies:
             logger.warning(
                 "User [%s] has no access to update the sub_status of the job [%s].",
                 user.username,
-                job.author,
+                job.id,
             )
         return has_access
