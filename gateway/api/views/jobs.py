@@ -279,7 +279,7 @@ class JobViewSet(viewsets.GenericViewSet):
                         status=status.HTTP_404_NOT_FOUND,
                     )
                         
-                if job.status is not Job.RUNNING:
+                if job.status != Job.RUNNING:
                     logger.warning(
                         "'sub_status' cannot change because the job [%s] current status is not Running",
                         job.id,

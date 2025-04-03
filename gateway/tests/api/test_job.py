@@ -32,7 +32,7 @@ class TestJobApi(APITestCase):
 
         jobs_response = self.client.get(reverse("v1:jobs-list"), format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("count"), 4)
+        self.assertEqual(jobs_response.data.get("count"), 5)
         self.assertEqual(
             jobs_response.data.get("results")[0].get("status"), "SUCCEEDED"
         )
@@ -58,7 +58,7 @@ class TestJobApi(APITestCase):
             reverse("v1:jobs-list"), {"filter": "serverless"}, format="json"
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("count"), 2)
+        self.assertEqual(jobs_response.data.get("count"), 3)
 
     def test_job_provider_list_wrong_params(self):
         """Tests job provider list wrong params."""
@@ -272,10 +272,10 @@ class TestJobApi(APITestCase):
         )
 
     def test_job_update_sub_status(self):
-        """Test job update status"""
+        """Test job update sub status"""
         self._authorize()
 
-        job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
+        job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
         response_sub_status = self.client.post(
             reverse("v1:jobs-sub-status", args=[job_id]),
             format="json",
@@ -293,11 +293,11 @@ class TestJobApi(APITestCase):
         self.assertEqual(response_details.status_code, status.HTTP_200_OK)
         self.assertEqual(response_details.data.get("sub_status"), "MAPPING")
 
-    def test_job_update_sub_status_wrong(self):
-        """Test job update status"""
+    def test_job_update_sub_status_wrong_value(self):
+        """Test job update sub status with wrong sub-status"""
         self._authorize()
 
-        job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
+        job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
         response_sub_status = self.client.post(
             reverse("v1:jobs-sub-status", args=[job_id]),
             format="json",
@@ -307,7 +307,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(response_sub_status.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response_sub_status.data.get("message"), "'sub_status' not provided or is not valid")
 
-    def test_job_update_sub_status_wrong(self):
+    def test_job_update_sub_status_not_running(self):
         """Test job update status"""
         self._authorize()
 
