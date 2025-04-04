@@ -289,6 +289,38 @@ def save_result(result: Dict[str, Any]):
 
     return response.ok
 
+def update_status(status: str):
+    """Update sub status.
+    """
+
+    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
+    if version is None:
+        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+
+    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    if token is None:
+        logging.warning(
+            "'sub_status' cannot be updated since"
+            "there is no information about the"
+            "authorization token in the environment."
+        )
+        return False
+
+    url = (
+        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
+        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/sub_status/"
+    )
+    response = requests.post(
+        url,
+        data={"sub_status": status},
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=REQUESTS_TIMEOUT,
+    )
+    if not response.ok:
+        sanitized = response.text.replace("\n", "").replace("\r", "")
+        logging.warning("Something went wrong: %s", sanitized)
+
+    return response.ok
 
 def _map_status_to_serverless(status: str) -> str:
     """Map a status string from job client to the Qiskit terminology."""

@@ -17,7 +17,7 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_TOKEN,
     ENV_ACCESS_TRIAL,
 )
-from qiskit_serverless.core.job import is_running_in_serverless, save_result, is_trial
+from qiskit_serverless.core.job import is_running_in_serverless, save_result, is_trial, update_sub_status
 
 
 # pylint: disable=redefined-outer-name
@@ -73,6 +73,14 @@ class TestJob:
                 }
             )
             assert result is True
+
+    @patch("requests.post", Mock(return_value=ResponseMock()))
+    def test_update_sub_status(self, job_env_variables):
+        """Tests update sub status."""
+        _ = job_env_variables
+        
+        result = update_sub_status("MAPPING")
+        assert result is True
 
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_filtered_logs(self):
