@@ -115,7 +115,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         name = name or "gateway-client"
         host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
         if host is None:
-            raise QiskitServerlessException("Please provide `host` of gateway.")
+            raise QiskitServerlessException(
+                "Please provide `host` of gateway.")
 
         version = version or os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
         if version is None:
@@ -159,7 +160,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             safe_json_request(
                 request=lambda: requests.get(
                     url=f"{self.host}/api/v1/programs/",
-                    headers=get_headers(token=self.token, instance=self.instance),
+                    headers=get_headers(
+                        token=self.token, instance=self.instance),
                     timeout=REQUESTS_TIMEOUT,
                 ),
                 verbose=self.verbose,
@@ -210,7 +212,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         """
 
         if not function.provider:
-            raise QiskitServerlessException("`function` doesn't have a provider.")
+            raise QiskitServerlessException(
+                "`function` doesn't have a provider.")
 
         limit = kwargs.get("limit", 10)
         kwargs["limit"] = limit
@@ -289,7 +292,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 request=lambda: requests.post(
                     url=url,
                     json=data,
-                    headers=get_headers(token=self.token, instance=self.instance),
+                    headers=get_headers(
+                        token=self.token, instance=self.instance),
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
@@ -310,7 +314,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return response_data.get("status", default_status)
+        status = response_data.get("status", default_status)
+        sub_status = response_data.get("sub_status")
+        if status == Job.RUNNING and sub_status is not None:
+            return sub_status
+
+        return status
 
     @_trace_job
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
@@ -570,7 +579,8 @@ class IBMServerlessClient(ServerlessClient):
             instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
-        token = token or QiskitRuntimeService(name=name).active_account().get("token")
+        token = token or QiskitRuntimeService(
+            name=name).active_account().get("token")
         super().__init__(
             channel=channel,
             token=token,
@@ -676,7 +686,8 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments
 
     # check if entrypoint exists
     if (
-        not os.path.exists(os.path.join(program.working_dir, program.entrypoint))
+        not os.path.exists(os.path.join(
+            program.working_dir, program.entrypoint))
         or program.entrypoint[0] == "/"
     ):
         raise QiskitServerlessException(
@@ -717,8 +728,10 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-            span.set_attribute("function.title", response_data.get("title", "na"))
-            span.set_attribute("function.provider", response_data.get("provider", "na"))
+            span.set_attribute(
+                "function.title", response_data.get("title", "na"))
+            span.set_attribute("function.provider",
+                               response_data.get("provider", "na"))
             response_data["client"] = client
             response_function = RunnableQiskitFunction.from_json(response_data)
     except Exception as error:  # pylint: disable=broad-exception-caught

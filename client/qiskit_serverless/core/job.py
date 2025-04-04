@@ -114,6 +114,19 @@ class JobService(ABC):
 class Job:
     """Job."""
 
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    STOPPED = "STOPPED"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    QUEUED = "QUEUED"
+    # RUNNING statuses
+    MAPPING = "MAPPING"
+    OPTIMIZING_HARDWARE = "OPTIMIZING_HARDWARE"
+    WAITING_QPU = "WAITING_QPU"
+    EXECUTING_QPU = "EXECUTING_QPU"
+    POST_PROCESSING = "POST_PROCESSING"
+
     def __init__(
         self,
         job_id: str,
@@ -280,12 +293,17 @@ def save_result(result: Dict[str, Any]):
 def _map_status_to_serverless(status: str) -> str:
     """Map a status string from job client to the Qiskit terminology."""
     status_map = {
-        "PENDING": "INITIALIZING",
-        "RUNNING": "RUNNING",
-        "STOPPED": "CANCELED",
-        "SUCCEEDED": "DONE",
-        "FAILED": "ERROR",
-        "QUEUED": "QUEUED",
+        Job.PENDING: "INITIALIZING",
+        Job.RUNNING: "RUNNING",
+        Job.STOPPED: "CANCELED",
+        Job.SUCCEEDED: "DONE",
+        Job.FAILED: "ERROR",
+        Job.QUEUED: "QUEUED",
+        Job.MAPPING: "RUNNING: MAPPING",
+        Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_HARDWARE",
+        Job.WAITING_QPU: "RUNNING: WAITING_QPU",
+        Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
+        Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
     }
 
     try:
