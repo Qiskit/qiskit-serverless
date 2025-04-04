@@ -56,8 +56,7 @@ class Provider(models.Model):
     )
     url = models.TextField(null=True, blank=True, default=None)
     icon_url = models.TextField(null=True, blank=True, default=None)
-    registry = models.CharField(
-        max_length=255, null=True, blank=True, default=None)
+    registry = models.CharField(max_length=255, null=True, blank=True, default=None)
     admin_groups = models.ManyToManyField(Group)
 
     def __str__(self):
@@ -88,7 +87,8 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
 
     disabled = models.BooleanField(default=False, null=True)
     disabled_message = models.TextField(
-        default=DEFAULT_DISABLED_MESSAGE, null=True, blank=True)
+        default=DEFAULT_DISABLED_MESSAGE, null=True, blank=True
+    )
     type = models.CharField(
         max_length=20,
         choices=PROGRAM_TYPES,
@@ -98,8 +98,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     documentation_url = models.TextField(null=True, blank=True, default=None)
     additional_info = models.TextField(null=True, blank=True, default="{}")
 
-    entrypoint = models.CharField(
-        max_length=255, default=DEFAULT_PROGRAM_ENTRYPOINT)
+    entrypoint = models.CharField(max_length=255, default=DEFAULT_PROGRAM_ENTRYPOINT)
     artifact = models.FileField(
         upload_to=get_upload_path,
         null=True,
@@ -215,8 +214,7 @@ class Job(models.Model):
         null=True,
         blank=True,
     )
-    program = models.ForeignKey(
-        to=Program, on_delete=models.SET_NULL, null=True)
+    program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
         return f"<Job {self.id} | {self.status}>"
@@ -253,8 +251,7 @@ class GroupMetadata(models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
 
     # This field will store the account_id from IBM Cloud.
-    account = models.CharField(
-        max_length=255, blank=True, null=True, default=None)
+    account = models.CharField(max_length=255, blank=True, null=True, default=None)
 
     group = models.OneToOneField(
         Group, on_delete=models.CASCADE, related_name="metadata"

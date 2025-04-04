@@ -29,8 +29,7 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
 
-        programs_response = self.client.get(
-            reverse("v1:programs-list"), format="json")
+        programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 3)
@@ -45,8 +44,7 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
 
-        programs_response = self.client.get(
-            reverse("v1:programs-list"), format="json")
+        programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 1)
@@ -162,8 +160,7 @@ class TestProgramApi(APITestCase):
         )
 
         self.assertEqual(programs_response.status_code, status.HTTP_423_LOCKED)
-        self.assertEqual(programs_response.data.get(
-            "message"), "Program is locked")
+        self.assertEqual(programs_response.data.get("message"), "Program is locked")
 
     def test_run_locked_default_msg(self):
         """Tests run disabled program."""
@@ -188,8 +185,9 @@ class TestProgramApi(APITestCase):
         )
 
         self.assertEqual(programs_response.status_code, status.HTTP_423_LOCKED)
-        self.assertEqual(programs_response.data.get(
-            "message"), Program.DEFAULT_DISABLED_MESSAGE)
+        self.assertEqual(
+            programs_response.data.get("message"), Program.DEFAULT_DISABLED_MESSAGE
+        )
 
     def test_upload_private_function(self):
         """Tests upload end-point authorized."""
@@ -230,8 +228,7 @@ class TestProgramApi(APITestCase):
                 "image": "icr.io/awesome-namespace/awesome-title",
             },
         )
-        self.assertEqual(programs_response.status_code,
-                         status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(programs_response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_upload_custom_image_without_access_to_the_provider(self):
         """Tests upload end-point authorized."""
@@ -250,8 +247,7 @@ class TestProgramApi(APITestCase):
                 "provider": "ibm",
             },
         )
-        self.assertEqual(programs_response.status_code,
-                         status.HTTP_404_NOT_FOUND)
+        self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
 
         programs_response = self.client.post(
             "/api/v1/programs/upload/",
@@ -262,8 +258,7 @@ class TestProgramApi(APITestCase):
                 "image": "docker.io/awesome-namespace/awesome-title",
             },
         )
-        self.assertEqual(programs_response.status_code,
-                         status.HTTP_404_NOT_FOUND)
+        self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_upload_provider_function(self):
         """Tests upload end-point authorized."""
@@ -314,8 +309,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(
             programs_response.data.get("entrypoint"), "test_user_3_program.py"
         )
-        self.assertEqual(programs_response.data.get(
-            "title"), "Provider Function")
+        self.assertEqual(programs_response.data.get("title"), "Provider Function")
         self.assertRaises(
             Program.DoesNotExist,
             Program.objects.get,
@@ -343,8 +337,7 @@ class TestProgramApi(APITestCase):
                 "provider": "default",
             },
         )
-        self.assertEqual(programs_response.status_code,
-                         status.HTTP_404_NOT_FOUND)
+        self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_upload_provider_function_with_description(self):
         """Tests upload end-point authorized."""
@@ -372,8 +365,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.data.get("provider"), "default")
 
-        programs_response = self.client.get(
-            reverse("v1:programs-list"), format="json")
+        programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 2)
@@ -408,8 +400,7 @@ class TestProgramApi(APITestCase):
             "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/list_runtimejob/",
             format="json",
         )
-        self.assertEqual(programs_response.json(),
-                         '["runtime_job_1", "runtime_job_2"]')
+        self.assertEqual(programs_response.json(), '["runtime_job_1", "runtime_job_2"]')
 
         programs_response = self.client.get(
             "/api/v1/jobs/57fc2e4d-267f-40c6-91a3-38153272e764/list_runtimejob/",
@@ -442,8 +433,7 @@ class TestProgramApi(APITestCase):
             {"provider": "non-existing"},
             format="json",
         )
-        self.assertEqual(
-            programs_response_non_existing_provider.status_code, 404)
+        self.assertEqual(programs_response_non_existing_provider.status_code, 404)
 
         programs_response_do_not_have_access = self.client.get(
             "/api/v1/programs/get_by_title/Program/",
@@ -505,8 +495,7 @@ class TestProgramApi(APITestCase):
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            programs_response.data.get(
-                "description"), "Program description test"
+            programs_response.data.get("description"), "Program description test"
         )
 
     def test_upload_private_function_update_description(self):
@@ -530,5 +519,4 @@ class TestProgramApi(APITestCase):
         )
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get(
-            "description"), description)
+        self.assertEqual(programs_response.data.get("description"), description)
