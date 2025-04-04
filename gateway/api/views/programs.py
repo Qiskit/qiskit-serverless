@@ -39,12 +39,14 @@ otel_exporter = BatchSpanProcessor(
         endpoint=os.environ.get(
             "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
         ),
-        insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
+        insecure=bool(
+            int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
 provider.add_span_processor(otel_exporter)
 if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-    trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+    trace._set_tracer_provider(
+        provider, log=False)  # pylint: disable=protected-access
 
 
 class ProgramViewSet(viewsets.GenericViewSet):
@@ -174,7 +176,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
 
             if program is not None:
-                logger.info("Program found. [%s] is going to be updated", title)
+                logger.info(
+                    "Program found. [%s] is going to be updated", title)
                 serializer = self.get_serializer_upload_program(
                     program, data=request.data
                 )
@@ -217,17 +220,27 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 provider_name=provider_name,
             )
             if function is None:
-                logger.error("Qiskit Pattern [%s] was not found.", function_title)
+                logger.error(
+                    "Qiskit Pattern [%s] was not found.", function_title)
                 return Response(
                     {"message": f"Qiskit Pattern [{function_title}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
+            if function.disabled:
+                error_message = function.disabled_message if function.disabled_message else Program.DEFAULT_DISABLED_MESSAGE
+                return Response(
+                    {"message": error_message},
+                    status=status.HTTP_423_LOCKED,
+                )
+
             jobconfig = None
             config_json = serializer.data.get("config")
             if config_json:
-                logger.info("Configuration for [%s] was found.", function_title)
-                job_config_serializer = self.get_serializer_job_config(data=config_json)
+                logger.info(
+                    "Configuration for [%s] was found.", function_title)
+                job_config_serializer = self.get_serializer_job_config(
+                    data=config_json)
                 if not job_config_serializer.is_valid():
                     logger.error(
                         "JobConfigSerializer validation failed:\n %s",
@@ -276,7 +289,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
         """Returns programs by title."""
         author = self.request.user
         function_title = sanitize_name(title)
-        provider_name = sanitize_name(request.query_params.get("provider", None))
+        provider_name = sanitize_name(
+            request.query_params.get("provider", None))
 
         serializer = self.get_serializer_upload_program(data=self.request.data)
         provider_name, function_title = serializer.get_provider_name_and_title(
@@ -320,7 +334,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
             if program.provider:
                 admin_groups = program.provider.admin_groups.all()
                 user_groups = request.user.groups.all()
-                user_is_provider = any(group in admin_groups for group in user_groups)
+                user_is_provider = any(
+                    group in admin_groups for group in user_groups)
 
             if user_is_provider:
                 jobs = Job.objects.filter(program=program)
