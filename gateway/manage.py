@@ -47,4 +47,4 @@ if __name__ == "__main__":
     main()
 
 
-MY_PASSWORD="admin123"
+PASSWORD="admin123"
