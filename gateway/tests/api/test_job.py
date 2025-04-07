@@ -357,7 +357,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(response_sub_status.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(
             response_sub_status.data.get("message"),
-            "Cannot update 'sub_status' when is not in RUNNING status.",
+            "Cannot update 'sub_status' when is not in RUNNING status. (Currently SUCCEEDED)",
         )
 
     def test_user_has_access_to_job_result_from_provider_function(self):

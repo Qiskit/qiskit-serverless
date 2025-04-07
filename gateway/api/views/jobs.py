@@ -291,7 +291,7 @@ class JobViewSet(viewsets.GenericViewSet):
                     return Response(
                         {
                             "message": "Cannot update 'sub_status' when is not"
-                            f"in RUNNING status. (Currently {job.status})"
+                            f" in RUNNING status. (Currently {job.status})"
                         },
                         status=status.HTTP_403_FORBIDDEN,
                     )

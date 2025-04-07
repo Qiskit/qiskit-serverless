@@ -24,6 +24,7 @@ def update_job_status(job: Job):
             "Job [%s] does not have compute resource associated with it. Skipping.",
             job.id,
         )
+        return False
 
     status_has_changed = False
     job_status = Job.PENDING
