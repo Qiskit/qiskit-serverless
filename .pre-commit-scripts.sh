@@ -23,7 +23,7 @@ run_gateway_lint() {
 
 run_secrets() {
     echo "🔎 Auditing secrets..."
-    UNVERIFIED_COUNT=$(detect-secrets audit .secrets.baseline --json | jq '.results[] | select(.is_secret==true)' | wc -l)
+    UNVERIFIED_COUNT=$(detect-secrets audit .secrets.baseline --report --json | jq '.results[] | select(.is_secret==true)' | wc -l)
     
     if [ "$UNVERIFIED_COUNT" -gt 0 ]; then
         echo "❌ Found $UNVERIFIED_COUNT unverified secrets! Run \`detect-secrets audit .secrets.baseline\` to review."
