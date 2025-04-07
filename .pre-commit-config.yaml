@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: gateway-black
+        name: "[gateway] Run black"
+        language: system
+        entry: "./.pre-commit-scripts.sh gateway_black"
+      - id: gateway-lint
+        name: "[gateway] Run lint"
+        language: system
+        entry: "./.pre-commit-scripts.sh geteway_lint"
+      - id: detect-secrets
+        name: "[gateway] Run detect-secrets"
+        language: system
+        entry: "./.pre-commit-scripts.sh detect_secrets"
