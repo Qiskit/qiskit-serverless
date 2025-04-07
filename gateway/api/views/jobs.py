@@ -31,6 +31,7 @@ from api.models import VIEW_PROGRAM_PERMISSION
 from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
 from api.serializers import JobSerializer, JobSerializerWithoutResult
+from api.management.commands.update_jobs_statuses import update_job_status
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -265,6 +266,8 @@ class JobViewSet(viewsets.GenericViewSet):
 
             def set_sub_status():
                 job = self.jobs_repository.get_job_by_id(pk)
+                update_job_status(job)
+
                 if job is None:
                     return Response(
                         {"message": f"Job [{pk}] not found"},
@@ -278,17 +281,20 @@ class JobViewSet(viewsets.GenericViewSet):
                         {"message": f"Job [{job.id}] not found"},
                         status=status.HTTP_404_NOT_FOUND,
                     )
-                        
+
                 if job.status != Job.RUNNING:
                     logger.warning(
-                        "'sub_status' cannot change because the job [%s] current status is not Running",
+                        "'sub_status' cannot change because the job"
+                        " [%s] current status is not Running",
                         job.id,
                     )
                     return Response(
-                        {"message": "Cannot update 'sub_status' when is not in RUNNING status."},
+                        {
+                            "message": "Cannot update 'sub_status' when is not"
+                            f"in RUNNING status. (Currently {job.status})"
+                        },
                         status=status.HTTP_403_FORBIDDEN,
                     )
-                    
 
                 job.sub_status = sub_status
                 job.save()

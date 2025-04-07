@@ -1,15 +1,19 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
 import os
+from time import sleep
 
 from pytest import raises, mark
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 
-from qiskit_serverless import QiskitFunction
-from qiskit_serverless.core.client import BaseClient
-from qiskit_serverless.exception import QiskitServerlessException
+from qiskit_serverless import (
+    QiskitFunction,
+    BaseClient,
+    ServerlessClient,
+    QiskitServerlessException,
+)
 
 
 resources_path = os.path.join(
@@ -166,3 +170,23 @@ class TestFunctionsDocker:
 
         with raises(QiskitServerlessException):
             job.result()
+
+    def test_update_sub_status(self, serverless_client: ServerlessClient):
+        """Integration test for run functions multiple times."""
+
+        function = QiskitFunction(
+            title="pattern-with-sub-status",
+            entrypoint="pattern_with_sub_status_and_wait.py",
+            working_dir=resources_path,
+        )
+        runnable_function = serverless_client.upload(function)
+
+        job = runnable_function.run()
+
+        while job.status() == "QUEUED" or job.status() == "INITIALIZING":
+            sleep(1)
+
+        print(job.logs())
+
+        sleep(2)
+        assert job.status() == "RUNNING: MAPPING"

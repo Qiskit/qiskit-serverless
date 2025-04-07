@@ -33,6 +33,8 @@ from .core import (
     RayClient,
     LocalClient,
     save_result,
+    update_status,
+    Job,
     Configuration,
     is_running_in_serverless,
     is_trial,

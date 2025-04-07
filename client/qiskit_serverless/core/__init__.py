@@ -57,6 +57,7 @@ from .clients.serverless_client import ServerlessClient, IBMServerlessClient
 from .job import (
     Job,
     save_result,
+    update_status,
     Configuration,
     is_running_in_serverless,
     is_trial,

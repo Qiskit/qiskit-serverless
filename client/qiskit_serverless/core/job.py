@@ -289,9 +289,9 @@ def save_result(result: Dict[str, Any]):
 
     return response.ok
 
+
 def update_status(status: str):
-    """Update sub status.
-    """
+    """Update sub status."""
 
     version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
     if version is None:
@@ -321,6 +321,7 @@ def update_status(status: str):
         logging.warning("Something went wrong: %s", sanitized)
 
     return response.ok
+
 
 def _map_status_to_serverless(status: str) -> str:
     """Map a status string from job client to the Qiskit terminology."""

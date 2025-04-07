@@ -283,7 +283,9 @@ class TestJobApi(APITestCase):
         )
 
         self.assertEqual(response_sub_status.status_code, status.HTTP_200_OK)
-        self.assertEqual(response_sub_status.data.get("message"), "Sub status updated correctly")
+        self.assertEqual(
+            response_sub_status.data.get("message"), "Sub status updated correctly"
+        )
 
         response_details = self.client.get(
             reverse("v1:jobs-detail", args=[job_id]),
@@ -305,7 +307,10 @@ class TestJobApi(APITestCase):
         )
 
         self.assertEqual(response_sub_status.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response_sub_status.data.get("message"), "'sub_status' not provided or is not valid")
+        self.assertEqual(
+            response_sub_status.data.get("message"),
+            "'sub_status' not provided or is not valid",
+        )
 
     def test_job_update_sub_status_empty_value(self):
         """Test job update sub status with empty sub-status"""
@@ -313,12 +318,14 @@ class TestJobApi(APITestCase):
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
         response_sub_status = self.client.post(
-            reverse("v1:jobs-sub-status", args=[job_id]),
-            format="json"
+            reverse("v1:jobs-sub-status", args=[job_id]), format="json"
         )
 
         self.assertEqual(response_sub_status.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response_sub_status.data.get("message"), "'sub_status' not provided or is not valid")
+        self.assertEqual(
+            response_sub_status.data.get("message"),
+            "'sub_status' not provided or is not valid",
+        )
 
     def test_job_update_sub_status_wrong_user(self):
         """Test job update sub status with unauthorized user"""
@@ -332,7 +339,9 @@ class TestJobApi(APITestCase):
         )
 
         self.assertEqual(response_sub_status.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response_sub_status.data.get("message"), f"Job [{job_id}] not found")
+        self.assertEqual(
+            response_sub_status.data.get("message"), f"Job [{job_id}] not found"
+        )
 
     def test_job_update_sub_status_not_running(self):
         """Test job update sub status not in running state"""
@@ -346,8 +355,10 @@ class TestJobApi(APITestCase):
         )
 
         self.assertEqual(response_sub_status.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response_sub_status.data.get("message"), "Cannot update 'sub_status' when is not in RUNNING status.")
-
+        self.assertEqual(
+            response_sub_status.data.get("message"),
+            "Cannot update 'sub_status' when is not in RUNNING status.",
+        )
 
     def test_user_has_access_to_job_result_from_provider_function(self):
         """
