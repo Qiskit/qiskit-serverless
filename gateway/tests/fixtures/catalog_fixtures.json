@@ -31,6 +31,7 @@
     "fields": {
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Public-Function",
+      "public": true,
       "readable_title": "Public Function",
       "type": "APPLICATION",
       "image": "icr.io/awesome-namespace/awesome-title",

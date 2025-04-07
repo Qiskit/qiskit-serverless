@@ -6,9 +6,6 @@ Version views inherit from the different views.
 import logging
 import os
 
-from django.conf import settings
-from django.contrib.auth.models import Group
-
 # pylint: disable=duplicate-code
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -47,7 +44,6 @@ class CatalogViewSet(viewsets.GenericViewSet):
     """
 
     BASE_NAME = "catalog"
-    PUBLIC_GROUP_NAME = settings.PUBLIC_GROUP_NAME
 
     @staticmethod
     def get_serializer_retrieve_catalog(*args, **kwargs):
@@ -61,38 +57,23 @@ class CatalogViewSet(viewsets.GenericViewSet):
         """
         QuerySet to list public programs in the catalog
         """
-        public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
 
-        if public_group is None:
-            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
-            return []
-
-        return Program.objects.filter(instances=public_group).distinct()
+        return Program.objects.filter(public=True).distinct()
 
     def get_retrieve_queryset(self, pk):
         """
         QuerySet to retrieve a specifc public programs in the catalog
         """
-        public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
 
-        if public_group is None:
-            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
-            return None
-
-        return Program.objects.filter(id=pk, instances=public_group).first()
+        return Program.objects.filter(id=pk, public=True).first()
 
     def get_by_title_queryset(self, title, provider_name):
         """
         QuerySet to retrieve a specifc public programs in the catalog
         """
-        public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
-
-        if public_group is None:
-            logger.error("Public group [%s] does not exist.", self.PUBLIC_GROUP_NAME)
-            return None
 
         return Program.objects.filter(
-            title=title, provider__name=provider_name, instances=public_group
+            title=title, provider__name=provider_name, public=True
         ).first()
 
     def list(self, request):

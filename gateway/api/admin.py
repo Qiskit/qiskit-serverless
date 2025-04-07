@@ -29,7 +29,7 @@ class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
 
     search_fields = ["title", "author__username"]
-    list_filter = ["provider", "type"]
+    list_filter = ["provider", "type", "public"]
     exclude = ["env_vars"]
     filter_horizontal = ["instances", "trial_instances"]
 
