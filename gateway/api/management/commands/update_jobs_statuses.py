@@ -27,32 +27,29 @@ def update_job_status(job: Job):
         return False
 
     status_has_changed = False
-    job_status = Job.PENDING
-    success = True
+    job_new_status = Job.PENDING
+    success = False
     job_handler = get_job_handler(job.compute_resource.host)
-    if job_handler:
-        ray_job_status = job_handler.status(job.ray_job_id)
-        if ray_job_status:
-            job_status = ray_job_status_to_model_job_status(ray_job_status)
-        else:
-            success = False
-    else:
-        success = False
+    ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
+    
+    if ray_job_status:
+        job_new_status = ray_job_status_to_model_job_status(ray_job_status)
+        success = True
 
-    job_status = check_job_timeout(job, job_status)
+    job_new_status = check_job_timeout(job, job_new_status)
     if not success:
-        job_status = handle_job_status_not_available(job, job_status)
+        job_new_status = handle_job_status_not_available(job, job_new_status)
 
-    if job_status != job.status:
+    if job_new_status != job.status:
         logger.info(
             "Job [%s] of [%s] changed from [%s] to [%s]",
             job.id,
             job.author,
             job.status,
-            job_status,
+            job_new_status,
         )
         status_has_changed = True
-        job.status = job_status
+        job.status = job_new_status
         # cleanup env vars
         if job.in_terminal_state():
             job.env_vars = "{}"
@@ -63,8 +60,8 @@ def update_job_status(job: Job):
         # check if job is resource constrained
         no_resources_log = "No available node types can fulfill resource request"
         if no_resources_log in job.logs:
-            job_status = fail_job_insufficient_resources(job)
-            job.status = job_status
+            job_new_status = fail_job_insufficient_resources(job)
+            job.status = job_new_status
             # cleanup env vars
             job.env_vars = "{}"
 
