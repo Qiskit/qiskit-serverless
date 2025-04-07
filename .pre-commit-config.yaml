@@ -13,3 +13,4 @@ repos:
         name: "[gateway] Run detect-secrets"
         language: system
         entry: "./.pre-commit-scripts.sh detect_secrets"
+        verbose: true
