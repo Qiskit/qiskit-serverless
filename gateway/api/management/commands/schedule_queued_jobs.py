@@ -86,8 +86,7 @@ class Command(BaseCommand):
                     ).first()
                     if compute_resource is None:
                         compute_resource = ComputeResource(
-                            host=settings.RAY_CLUSTER_MODE.get(
-                                "ray_local_host"),
+                            host=settings.RAY_CLUSTER_MODE.get("ray_local_host"),
                             title="Local compute resource",
                             owner=job.author,
                         )
