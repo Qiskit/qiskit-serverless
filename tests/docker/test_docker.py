@@ -186,7 +186,4 @@ class TestFunctionsDocker:
         while job.status() == "QUEUED" or job.status() == "INITIALIZING":
             sleep(1)
 
-        print(job.logs())
-
-        sleep(2)
         assert job.status() == "RUNNING: MAPPING"
