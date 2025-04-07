@@ -31,7 +31,7 @@ def update_job_status(job: Job):
     success = False
     job_handler = get_job_handler(job.compute_resource.host)
     ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
-    
+
     if ray_job_status:
         job_new_status = ray_job_status_to_model_job_status(ray_job_status)
         success = True
