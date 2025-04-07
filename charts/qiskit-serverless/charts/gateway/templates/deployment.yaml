@@ -133,6 +133,8 @@ spec:
               value: {{ .Values.application.ray.gpu | quote }}
             - name: LIMITS_MEMORY_PER_TASK
               value: {{ .Values.application.ray.memory | quote }}
+            - name: MAINTENANCE
+              value: {{ .Values.application.maintenance | quote }}
 {{- if .Values.application.superuser.enable }}
             - name: DJANGO_SUPERUSER_USERNAME
               valueFrom:
@@ -335,6 +337,8 @@ spec:
               value: {{ .Values.application.limits.maxGpuResources | quote }}
             - name: GATEWAY_GPU_JOBS_CONFIG
               value: {{ .Values.application.ray.gpuJobsConfig | quote }}
+            - name: MAINTENANCE
+              value: {{ .Values.application.maintenance | quote }}
 {{- if .Values.application.limits.keepClusterOnComplete }}
             - name: RAY_CLUSTER_NO_DELETE_ON_COMPLETE
               value: "True"

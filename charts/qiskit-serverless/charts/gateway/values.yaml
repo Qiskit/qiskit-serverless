@@ -17,6 +17,7 @@ application:
     authMockproviderRegistry: "icr.io"
   superuser:
     enable: true
+  maintenance: false
   ray:
     nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.21.1"
     cpu: 2
