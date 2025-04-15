@@ -37,7 +37,6 @@ from qiskit_serverless.core.function import (
     RunService,
 )
 from qiskit_serverless.utils import JsonSerializable
-from qiskit_serverless.visualizaiton import Widget
 
 
 class BaseClient(JobService, RunService, JsonSerializable, ABC):
@@ -191,4 +190,9 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
 
     def widget(self):
         """Widget for information about provider and jobs."""
+        # prevent ciclic import
+        from qiskit_serverless.visualizaiton import (  # pylint: disable=import-outside-toplevel
+            Widget,
+        )
+
         return Widget(self).show()
