@@ -4,13 +4,6 @@ RUN microdnf install -y \
     python3.11-devel-3.11.9 \
     wget-1.21.1
 RUN microdnf clean all
-
-# Custom part to install from source Qiskit
-RUN microdnf install -y git
-RUN microdnf install -y gcc
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
 RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
     ln -s /usr/bin/python3.11 /usr/local/bin/python &&\
     ln -s /usr/bin/pip3.11 /usr/local/bin/pip3 &&\
