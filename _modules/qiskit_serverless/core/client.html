@@ -345,7 +345,6 @@
     <span class="n">RunService</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">JsonSerializable</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.visualizaiton</span><span class="w"> </span><span class="kn">import</span> <span class="n">Widget</span>
 
 
 <div class="viewcode-block" id="BaseClient"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.BaseClient.html#qiskit_serverless.core.BaseClient">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">BaseClient</span><span class="p">(</span><span class="n">JobService</span><span class="p">,</span> <span class="n">RunService</span><span class="p">,</span> <span class="n">JsonSerializable</span><span class="p">,</span> <span class="n">ABC</span><span class="p">):</span>
@@ -499,6 +498,11 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">widget</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Widget for information about provider and jobs.&quot;&quot;&quot;</span>
+        <span class="c1"># prevent ciclic import</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.visualization</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>  <span class="c1"># pylint: disable=import-outside-toplevel</span>
+            <span class="n">Widget</span><span class="p">,</span>
+        <span class="p">)</span>
+
         <span class="k">return</span> <span class="n">Widget</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
 </pre></div>
         </article>
