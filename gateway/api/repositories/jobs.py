@@ -108,6 +108,8 @@ class JobsRepository:  # pylint: disable=too-few-public-methods
         """
         if sub_status and sub_status not in Job.RUNNING_SUB_STATUSES:
             return False
-        
-        updated = Job.objects.filter(id=id, status=Job.RUNNING).update(sub_status=sub_status)
+
+        updated = Job.objects.filter(id=job.id, status=Job.RUNNING).update(
+            sub_status=sub_status
+        )
         return updated == 1

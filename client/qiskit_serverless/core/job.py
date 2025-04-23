@@ -307,7 +307,7 @@ def update_status(status: str):
         return False
 
     instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
-    
+
     url = (
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
         f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/sub_status/"
