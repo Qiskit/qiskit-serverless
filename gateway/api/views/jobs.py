@@ -266,6 +266,12 @@ class JobViewSet(viewsets.GenericViewSet):
             def set_sub_status():
                 job = self.jobs_repository.get_job_by_id(pk)
 
+                if job is None:
+                    return Response(
+                        {"message": f"Job [{pk}] not found"},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+
                 # If we import this with the regular imports,
                 # update jobs statuses test command fail.
                 # it should be something related with python import order.
@@ -275,11 +281,6 @@ class JobViewSet(viewsets.GenericViewSet):
 
                 update_job_status(job)
 
-                if job is None:
-                    return Response(
-                        {"message": f"Job [{pk}] not found"},
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
                 can_update_sub_status = JobAccessPolocies.can_update_sub_status(
                     author, job
                 )
