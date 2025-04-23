@@ -214,7 +214,7 @@ class Job(models.Model):
         default=QUEUED,
     )
     sub_status = models.CharField(
-        max_length=30, choices=SUB_STATUSES, default=None, null=True, blank=True
+        max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True
     )
     trial = models.BooleanField(default=False, null=False)
     version = IntegerVersionField()
