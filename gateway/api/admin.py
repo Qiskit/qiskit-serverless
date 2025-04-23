@@ -49,7 +49,7 @@ class JobAdmin(admin.ModelAdmin):
     search_fields = ["id", "author__username", "program__title"]
     list_filter = ["status"]
     exclude = ["arguments", "env_vars", "logs", "result"]
-    ordering = ['-created']
+    ordering = ["-created"]
 
 
 @admin.register(RuntimeJob)
