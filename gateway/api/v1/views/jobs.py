@@ -76,10 +76,8 @@ class JobViewSet(views.JobViewSet):
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=["sub_status"],
-            properties={
-                "sub_status": openapi.Schema(type=openapi.TYPE_STRING)
-            },
-            description="Value to populate the sub-status of a Job"
+            properties={"sub_status": openapi.Schema(type=openapi.TYPE_STRING)},
+            description="Value to populate the sub-status of a Job",
         ),
         responses={
             status.HTTP_200_OK: openapi.Response(
@@ -89,10 +87,10 @@ class JobViewSet(views.JobViewSet):
                     properties={
                         "message": openapi.Schema(
                             type=openapi.TYPE_STRING,
-                            example="Sub status updated correctly"
+                            example="Sub status updated correctly",
                         )
-                    }
-                )
+                    },
+                ),
             ),
             status.HTTP_400_BAD_REQUEST: openapi.Response(
                 description="In case your request doesnt have a valid 'sub_status'.",
@@ -101,10 +99,10 @@ class JobViewSet(views.JobViewSet):
                     properties={
                         "message": openapi.Schema(
                             type=openapi.TYPE_STRING,
-                            example="'sub_status' not provided or is not valid"
+                            example="'sub_status' not provided or is not valid",
                         )
-                    }
-                )
+                    },
+                ),
             ),
             status.HTTP_403_FORBIDDEN: openapi.Response(
                 description="In case you cannot change the sub_status.",
@@ -113,10 +111,11 @@ class JobViewSet(views.JobViewSet):
                     properties={
                         "message": openapi.Schema(
                             type=openapi.TYPE_STRING,
-                            example="Cannot update 'sub_status' when is not  in RUNNING status. (Currently PENDING)"
+                            example="Cannot update 'sub_status' when "
+                            "is not  in RUNNING status. (Currently PENDING)",
                         )
-                    }
-                )
+                    },
+                ),
             ),
             status.HTTP_404_NOT_FOUND: openapi.Response(
                 description="In case the job doesnt exist or you dont have access to it.",
@@ -124,12 +123,11 @@ class JobViewSet(views.JobViewSet):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="Job [XXXX] not found"
+                            type=openapi.TYPE_STRING, example="Job [XXXX] not found"
                         )
-                    }
-                )
-            )
+                    },
+                ),
+            ),
         },
     )
     @action(methods=["POST"], detail=True)
