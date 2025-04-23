@@ -52,6 +52,7 @@ def update_job_status(job: Job):
         job.status = job_new_status
         # cleanup env vars
         if job.in_terminal_state():
+            job.sub_status = None
             job.env_vars = "{}"
 
     if job_handler:
