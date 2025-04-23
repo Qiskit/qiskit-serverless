@@ -306,6 +306,8 @@ def update_status(status: str):
         )
         return False
 
+    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
+    
     url = (
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
         f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/sub_status/"
@@ -313,7 +315,7 @@ def update_status(status: str):
     response = requests.post(
         url,
         data={"sub_status": status},
-        headers={"Authorization": f"Bearer {token}"},
+        headers=get_headers(token=token, instance=instance),
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:
