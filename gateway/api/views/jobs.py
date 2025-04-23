@@ -281,7 +281,7 @@ class JobViewSet(viewsets.GenericViewSet):
 
                 update_job_status(job)
 
-                can_update_sub_status = JobAccessPolocies.can_update_sub_status(
+                can_update_sub_status = JobAccessPolicies.can_update_sub_status(
                     author, job
                 )
                 if not can_update_sub_status:
