@@ -304,8 +304,7 @@ class JobViewSet(viewsets.GenericViewSet):
                         status=status.HTTP_403_FORBIDDEN,
                     )
 
-                job.sub_status = sub_status
-                job.save()
+                self.jobs_repository.update_job_sub_status(job, sub_status)
 
                 return Response({"message": "Sub status updated correctly"})
 
