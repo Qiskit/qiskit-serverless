@@ -11,7 +11,7 @@ from api.access_policies.providers import ProviderAccessPolicy
 logger = logging.getLogger("gateway")
 
 
-class JobAccessPolocies:
+class JobAccessPolicies:
     """
     The main objective of this class is to manage the access for the user
     to the Job entities.

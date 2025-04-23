@@ -25,7 +25,7 @@ from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
 from api.views.enums.type_filter import TypeFilter
 from api.services.result_storage import ResultStorage
-from api.access_policies.jobs import JobAccessPolocies
+from api.access_policies.jobs import JobAccessPolicies
 from api.repositories.jobs import JobsRepository
 from api.models import VIEW_PROGRAM_PERMISSION
 from api.repositories.functions import FunctionRepository
@@ -122,13 +122,13 @@ class JobViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            if not JobAccessPolocies.can_access(author, job):
+            if not JobAccessPolicies.can_access(author, job):
                 return Response(
                     {"message": f"Job [{pk}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            if not JobAccessPolocies.can_read_result(author, job):
+            if not JobAccessPolicies.can_read_result(author, job):
                 serializer = self.get_serializer_job_without_result(job)
                 return Response(serializer.data)
 
@@ -235,7 +235,7 @@ class JobViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            can_save_result = JobAccessPolocies.can_save_result(author, job)
+            can_save_result = JobAccessPolicies.can_save_result(author, job)
             if not can_save_result:
                 return Response(
                     {"message": f"Job [{job.id}] not found"},
