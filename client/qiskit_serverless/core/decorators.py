@@ -475,7 +475,7 @@ def trace_decorator_factory(traced_feature: str):
                     if isinstance(traced_function, str)
                     else func.__name__
                 )
-                with tracer.start_as_current_span(f"{traced_feature}.${function_name}"):
+                with tracer.start_as_current_span(f"{traced_feature}.{function_name}"):
                     result = func(*args, **kwargs)
                 return result
 

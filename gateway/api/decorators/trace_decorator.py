@@ -14,6 +14,7 @@ Gateway API decorators
     trace_decorator_factory
 """
 
+from functools import wraps
 from types import FunctionType
 from typing import Union
 from opentelemetry import trace
@@ -33,19 +34,19 @@ def trace_decorator_factory(traced_feature: str):
         def decorator_trace(func: FunctionType):
             """The decorator that python call"""
 
+            @wraps(func)
             def wrapper(*args, **kwargs):
                 """The wrapper"""
-                tracer = trace.get_tracer("gateway.tracer")
+                tracer = trace.get_tracer("xxxxxxx")
                 function_name = (
                     traced_function
                     if isinstance(traced_function, str)
                     else func.__name__
                 )
                 request = args[0]
-                print(request)
                 ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
                 with tracer.start_as_current_span(
-                    f"gateway.{traced_feature}.${function_name}", context=ctx
+                    f"xxxxxx.{traced_feature}.{function_name}", context=ctx
                 ):
                     result = func(*args, **kwargs)
                 return result
