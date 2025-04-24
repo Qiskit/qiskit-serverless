@@ -276,31 +276,23 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
-        response_sub_status = self.client.post(
+        response_sub_status = self.client.patch(
             reverse("v1:jobs-sub-status", args=[job_id]),
             format="json",
             data={"sub_status": "MAPPING"},
         )
 
         self.assertEqual(response_sub_status.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            response_sub_status.data.get("message"), "Sub status updated correctly"
-        )
-
-        response_details = self.client.get(
-            reverse("v1:jobs-detail", args=[job_id]),
-            format="json",
-        )
-
-        self.assertEqual(response_details.status_code, status.HTTP_200_OK)
-        self.assertEqual(response_details.data.get("sub_status"), "MAPPING")
+        job = response_sub_status.data.get("job")
+        self.assertEqual(job.status, "RUNNING")
+        self.assertEqual(job.sub_status, "MAPPING")
 
     def test_job_update_sub_status_wrong_value(self):
         """Test job update sub status with wrong sub-status value"""
         self._authorize()
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
-        response_sub_status = self.client.post(
+        response_sub_status = self.client.patch(
             reverse("v1:jobs-sub-status", args=[job_id]),
             format="json",
             data={"sub_status": "JUMPING"},
@@ -317,7 +309,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
-        response_sub_status = self.client.post(
+        response_sub_status = self.client.patch(
             reverse("v1:jobs-sub-status", args=[job_id]), format="json"
         )
 
@@ -332,7 +324,7 @@ class TestJobApi(APITestCase):
         self._authorize(username="test_user_2")
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
-        response_sub_status = self.client.post(
+        response_sub_status = self.client.patch(
             reverse("v1:jobs-sub-status", args=[job_id]),
             format="json",
             data={"sub_status": "MAPPING"},
@@ -348,7 +340,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
-        response_sub_status = self.client.post(
+        response_sub_status = self.client.patch(
             reverse("v1:jobs-sub-status", args=[job_id]),
             format="json",
             data={"sub_status": "MAPPING"},
