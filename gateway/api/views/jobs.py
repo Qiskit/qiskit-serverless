@@ -249,7 +249,7 @@ class JobViewSet(viewsets.GenericViewSet):
             serializer = self.get_serializer(job)
         return Response(serializer.data)
 
-    @action(methods=["POST"], detail=True)
+    @action(methods=["PATCH"], detail=True)
     def sub_status(self, request, pk=None):
         """Update the sub status of a job."""
         tracer = trace.get_tracer("gateway.tracer")
@@ -305,8 +305,9 @@ class JobViewSet(viewsets.GenericViewSet):
                     )
 
                 self.jobs_repository.update_job_sub_status(job, sub_status)
+                job = self.jobs_repository.get_job_by_id(pk)
 
-                return Response({"message": "Sub status updated correctly"})
+                return Response({"job": job})
 
             result = retry_function(
                 callback=set_sub_status,

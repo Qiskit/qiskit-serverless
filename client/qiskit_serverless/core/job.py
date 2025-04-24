@@ -312,7 +312,7 @@ def update_status(status: str):
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
         f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/sub_status/"
     )
-    response = requests.post(
+    response = requests.patch(
         url,
         data={"sub_status": status},
         headers=get_headers(token=token, instance=instance),
@@ -335,8 +335,8 @@ def _map_status_to_serverless(status: str) -> str:
         Job.FAILED: "ERROR",
         Job.QUEUED: "QUEUED",
         Job.MAPPING: "RUNNING: MAPPING",
-        Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_HARDWARE",
-        Job.WAITING_QPU: "RUNNING: WAITING_QPU",
+        Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_FOR_HARDWARE",
+        Job.WAITING_QPU: "RUNNING: WAITING_FOR_QPU",
         Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
         Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
     }

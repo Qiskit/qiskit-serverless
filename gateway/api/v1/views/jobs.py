@@ -80,18 +80,7 @@ class JobViewSet(views.JobViewSet):
             description="Value to populate the sub-status of a Job",
         ),
         responses={
-            status.HTTP_200_OK: openapi.Response(
-                description="In case everything is ok.",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="Sub status updated correctly",
-                        )
-                    },
-                ),
-            ),
+            status.HTTP_200_OK: v1_serializers.JobSerializerWithoutResult(many=False),
             status.HTTP_400_BAD_REQUEST: openapi.Response(
                 description="In case your request doesnt have a valid 'sub_status'.",
                 schema=openapi.Schema(
@@ -130,7 +119,7 @@ class JobViewSet(views.JobViewSet):
             ),
         },
     )
-    @action(methods=["POST"], detail=True)
+    @action(methods=["PATCH"], detail=True)
     def sub_status(self, request, pk=None):
         return super().sub_status(request, pk)
 
