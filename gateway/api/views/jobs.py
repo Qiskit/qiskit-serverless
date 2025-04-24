@@ -13,7 +13,6 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
@@ -31,6 +30,7 @@ from api.models import VIEW_PROGRAM_PERMISSION
 from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
 from api.serializers import JobSerializer, JobSerializerWithoutResult
+from api.decorators.trace_decorator import trace_decorator_factory
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -49,6 +49,8 @@ if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
     trace._set_tracer_provider(  # pylint: disable=protected-access
         tracer_provider, log=False
     )
+
+_trace = trace_decorator_factory("jobs")
 
 
 class JobViewSet(viewsets.GenericViewSet):
@@ -105,264 +107,241 @@ class JobViewSet(viewsets.GenericViewSet):
                 )
         return self.jobs_repository.get_user_jobs(self.request.user)
 
+    @_trace
     def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
         """Get job:"""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.job.retrieve", context=ctx):
-
-            author = self.request.user
-            return_with_result = sanitize_boolean(
-                request.query_params.get("with_result", "true")
+        author = self.request.user
+        return_with_result = sanitize_boolean(
+            request.query_params.get("with_result", "true")
+        )
+        job = self.jobs_repository.get_job_by_id(pk)
+        if job is None:
+            return Response(
+                {"message": f"Job [{pk}] nor found"},
+                status=status.HTTP_404_NOT_FOUND,
             )
-            job = self.jobs_repository.get_job_by_id(pk)
-            if job is None:
-                return Response(
-                    {"message": f"Job [{pk}] nor found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
 
-            if not JobAccessPolicies.can_access(author, job):
-                return Response(
-                    {"message": f"Job [{pk}] was not found."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            if not JobAccessPolicies.can_read_result(author, job):
-                serializer = self.get_serializer_job_without_result(job)
-                return Response(serializer.data)
-
-            if return_with_result:
-                result_store = ResultStorage(author.username)
-                result = result_store.get(str(job.id))
-                if result is not None:
-                    job.result = result
-
-            serializer = (
-                self.get_serializer_job
-                if return_with_result
-                else self.get_serializer_job_without_result
+        if not JobAccessPolicies.can_access(author, job):
+            return Response(
+                {"message": f"Job [{pk}] was not found."},
+                status=status.HTTP_404_NOT_FOUND,
             )
-            serialized = serializer(job)
 
-            return Response(serialized.data)
+        if not JobAccessPolicies.can_read_result(author, job):
+            serializer = self.get_serializer_job_without_result(job)
+            return Response(serializer.data)
 
+        if return_with_result:
+            result_store = ResultStorage(author.username)
+            result = result_store.get(str(job.id))
+            if result is not None:
+                job.result = result
+
+        serializer = (
+            self.get_serializer_job
+            if return_with_result
+            else self.get_serializer_job_without_result
+        )
+        serialized = serializer(job)
+
+        return Response(serialized.data)
+
+    @_trace
     def list(self, request):
         """List jobs:"""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.job.list", context=ctx):
-            queryset = self.get_queryset()
+        queryset = self.get_queryset()
 
-            page = self.paginate_queryset(queryset)
-            if page is not None:
-                serializer = self.get_serializer_job_without_result(page, many=True)
-                return self.get_paginated_response(serializer.data)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer_job_without_result(page, many=True)
+            return self.get_paginated_response(serializer.data)
 
-            serializer = self.get_serializer_job_without_result(queryset, many=True)
+        serializer = self.get_serializer_job_without_result(queryset, many=True)
         return Response(serializer.data)
 
+    @_trace
     @action(methods=["GET"], detail=False, url_path="provider")
     def provider_list(self, request):
         """
         It returns a list with the jobs for the provider function:
             provider_name/function_title
         """
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.files.provider_list", context=ctx):
-            provider_name = sanitize_name(request.query_params.get("provider"))
-            function_title = sanitize_name(request.query_params.get("function"))
+        provider_name = sanitize_name(request.query_params.get("provider"))
+        function_title = sanitize_name(request.query_params.get("function"))
 
-            if function_title is None or provider_name is None:
-                return Response(
-                    {
-                        "message": "Qiskit Function title and Provider name are mandatory"  # pylint: disable=line-too-long
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            provider = self.provider_repository.get_provider_by_name(name=provider_name)
-            if provider is None:
-                return Response(
-                    {"message": f"Provider {provider_name} doesn't exist."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            if not ProviderAccessPolicy.can_access(
-                user=request.user, provider=provider
-            ):
-                return Response(
-                    {"message": f"Provider {provider_name} doesn't exist."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            function = self.function_repository.get_function_by_permission(
-                user=request.user,
-                permission_name=VIEW_PROGRAM_PERMISSION,
-                function_title=function_title,
-                provider_name=provider_name,
+        if function_title is None or provider_name is None:
+            return Response(
+                {
+                    "message": "Qiskit Function title and Provider name are mandatory"  # pylint: disable=line-too-long
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-            if not function:
-                return Response(
-                    {
-                        "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
-                    },
-                    status=status.HTTP_404_NOT_FOUND,
-                )
 
-            jobs_queryset = self.jobs_repository.get_program_jobs(function)
-            page = self.paginate_queryset(jobs_queryset)
-            if page is not None:
-                serializer = self.get_serializer_job_without_result(page, many=True)
-                return self.get_paginated_response(serializer.data)
-
-            serializer = self.get_serializer_job_without_result(
-                jobs_queryset, many=True
+        provider = self.provider_repository.get_provider_by_name(name=provider_name)
+        if provider is None:
+            return Response(
+                {"message": f"Provider {provider_name} doesn't exist."},
+                status=status.HTTP_404_NOT_FOUND,
             )
-            return Response(serializer.data)
+        if not ProviderAccessPolicy.can_access(user=request.user, provider=provider):
+            return Response(
+                {"message": f"Provider {provider_name} doesn't exist."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
+        function = self.function_repository.get_function_by_permission(
+            user=request.user,
+            permission_name=VIEW_PROGRAM_PERMISSION,
+            function_title=function_title,
+            provider_name=provider_name,
+        )
+        if not function:
+            return Response(
+                {
+                    "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        jobs_queryset = self.jobs_repository.get_program_jobs(function)
+        page = self.paginate_queryset(jobs_queryset)
+        if page is not None:
+            serializer = self.get_serializer_job_without_result(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer_job_without_result(jobs_queryset, many=True)
+        return Response(serializer.data)
+
+    @_trace
     @action(methods=["POST"], detail=True)
     def result(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Save result of a job."""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.job.result", context=ctx):
-            author = self.request.user
-            job = self.jobs_repository.get_job_by_id(pk)
-            if job is None:
-                return Response(
-                    {"message": f"Job [{pk}] nor found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+        author = self.request.user
+        job = self.jobs_repository.get_job_by_id(pk)
+        if job is None:
+            return Response(
+                {"message": f"Job [{pk}] nor found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-            can_save_result = JobAccessPolicies.can_save_result(author, job)
-            if not can_save_result:
-                return Response(
-                    {"message": f"Job [{job.id}] nor found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+        can_save_result = JobAccessPolicies.can_save_result(author, job)
+        if not can_save_result:
+            return Response(
+                {"message": f"Job [{job.id}] nor found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-            job.result = json.dumps(request.data.get("result"))
-            result_storage = ResultStorage(author.username)
-            result_storage.save(job.id, job.result)
+        job.result = json.dumps(request.data.get("result"))
+        result_storage = ResultStorage(author.username)
+        result_storage.save(job.id, job.result)
 
-            serializer = self.get_serializer(job)
+        serializer = self.get_serializer(job)
         return Response(serializer.data)
 
+    @_trace
     @action(methods=["GET"], detail=True)
     def logs(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Returns logs from job."""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.job.logs", context=ctx):
-            job = Job.objects.filter(pk=pk).first()
-            if job is None:
-                logger.warning("Job [%s] not found", pk)
-                return Response(status=404)
+        job = Job.objects.filter(pk=pk).first()
+        if job is None:
+            logger.warning("Job [%s] not found", pk)
+            return Response(status=404)
 
-            logs = job.logs
-            author = self.request.user
-            if job.program and job.program.provider:
-                provider_groups = job.program.provider.admin_groups.all()
-                author_groups = author.groups.all()
-                has_access = any(group in provider_groups for group in author_groups)
-                if has_access:
-                    return Response({"logs": logs})
-                return Response({"logs": "No available logs"})
-
-            if author == job.author:
+        logs = job.logs
+        author = self.request.user
+        if job.program and job.program.provider:
+            provider_groups = job.program.provider.admin_groups.all()
+            author_groups = author.groups.all()
+            has_access = any(group in provider_groups for group in author_groups)
+            if has_access:
                 return Response({"logs": logs})
             return Response({"logs": "No available logs"})
+
+        if author == job.author:
+            return Response({"logs": logs})
+        return Response({"logs": "No available logs"})
 
     def get_runtime_job(self, job):
         """get runtime job for job"""
         return RuntimeJob.objects.filter(job=job)
 
+    @_trace
     @action(methods=["POST"], detail=True)
     def stop(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Stops job"""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.job.stop", context=ctx):
-            job = self.get_object()
-            if not job.in_terminal_state():
-                job.status = Job.STOPPED
-                job.save(update_fields=["status"])
-            message = "Job has been stopped."
-            runtime_jobs = self.get_runtime_job(job)
-            if runtime_jobs and len(runtime_jobs) != 0:
-                if request.data.get("service"):
-                    service = QiskitRuntimeService(
-                        **json.loads(request.data.get("service"), cls=json.JSONDecoder)[
-                            "__value__"
-                        ]
+        job = self.get_object()
+        if not job.in_terminal_state():
+            job.status = Job.STOPPED
+            job.save(update_fields=["status"])
+        message = "Job has been stopped."
+        runtime_jobs = self.get_runtime_job(job)
+        if runtime_jobs and len(runtime_jobs) != 0:
+            if request.data.get("service"):
+                service = QiskitRuntimeService(
+                    **json.loads(request.data.get("service"), cls=json.JSONDecoder)[
+                        "__value__"
+                    ]
+                )
+                for runtime_job_entry in runtime_jobs:
+                    jobinstance = service.job(runtime_job_entry.runtime_job)
+                    if jobinstance:
+                        try:
+                            logger.info("canceling [%s]", runtime_job_entry.runtime_job)
+                            jobinstance.cancel()
+                        except RuntimeInvalidStateError:
+                            logger.warning("cancel failed")
+
+                        if jobinstance.session_id:
+                            service._api_client.cancel_session(  # pylint: disable=protected-access
+                                jobinstance.session_id
+                            )
+
+        if job.compute_resource:
+            if job.compute_resource.active:
+                job_handler = get_job_handler(job.compute_resource.host)
+                if job_handler is not None:
+                    was_running = job_handler.stop(job.ray_job_id)
+                    if not was_running:
+                        message = "Job was already not running."
+                else:
+                    logger.warning(
+                        "Compute resource is not accessible %s",
+                        job.compute_resource,
                     )
-                    for runtime_job_entry in runtime_jobs:
-                        jobinstance = service.job(runtime_job_entry.runtime_job)
-                        if jobinstance:
-                            try:
-                                logger.info(
-                                    "canceling [%s]", runtime_job_entry.runtime_job
-                                )
-                                jobinstance.cancel()
-                            except RuntimeInvalidStateError:
-                                logger.warning("cancel failed")
-
-                            if jobinstance.session_id:
-                                service._api_client.cancel_session(  # pylint: disable=protected-access
-                                    jobinstance.session_id
-                                )
-
-            if job.compute_resource:
-                if job.compute_resource.active:
-                    job_handler = get_job_handler(job.compute_resource.host)
-                    if job_handler is not None:
-                        was_running = job_handler.stop(job.ray_job_id)
-                        if not was_running:
-                            message = "Job was already not running."
-                    else:
-                        logger.warning(
-                            "Compute resource is not accessible %s",
-                            job.compute_resource,
-                        )
         return Response({"message": message})
 
+    @_trace
     @action(methods=["POST"], detail=True)
     def add_runtimejob(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
         """Add RuntimeJob to job"""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.job.add_runtimejob", context=ctx):
-            if not request.data.get("runtime_job"):
-                return Response(
-                    {
-                        "message": "Got empty `runtime_job` field. Please, specify `runtime_job`."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            job = self.get_object()
-            runtimejob = RuntimeJob(
-                job=job,
-                runtime_job=request.data.get("runtime_job"),
-                runtime_session=request.data.get("runtime_session"),
+        if not request.data.get("runtime_job"):
+            return Response(
+                {
+                    "message": "Got empty `runtime_job` field. Please, specify `runtime_job`."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-            runtimejob.save()
-            message = "RuntimeJob is added."
+        job = self.get_object()
+        runtimejob = RuntimeJob(
+            job=job,
+            runtime_job=request.data.get("runtime_job"),
+            runtime_session=request.data.get("runtime_session"),
+        )
+        runtimejob.save()
+        message = "RuntimeJob is added."
         return Response({"message": message})
 
+    @_trace
     @action(methods=["GET"], detail=True)
     def list_runtimejob(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
         """Add RuntimeJpb to job"""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.job.stop", context=ctx):
-            job = self.get_object()
-            runtimejobs = RuntimeJob.objects.filter(job=job)
-            ids = []
-            for runtimejob in runtimejobs:
-                ids.append(runtimejob.runtime_job)
+        job = self.get_object()
+        runtimejobs = RuntimeJob.objects.filter(job=job)
+        ids = []
+        for runtimejob in runtimejobs:
+            ids.append(runtimejob.runtime_job)
         return Response(json.dumps(ids))
