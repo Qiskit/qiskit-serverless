@@ -306,8 +306,9 @@ class JobViewSet(viewsets.GenericViewSet):
 
                 self.jobs_repository.update_job_sub_status(job, sub_status)
                 job = self.jobs_repository.get_job_by_id(pk)
+                job_serialized = self.get_serializer_job_without_result(job)
 
-                return Response({"job": job})
+                return Response({"job": job_serialized})
 
             result = retry_function(
                 callback=set_sub_status,
