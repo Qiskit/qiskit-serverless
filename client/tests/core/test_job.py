@@ -79,7 +79,7 @@ class TestJob:
             )
             assert result is True
 
-    @patch("requests.post", Mock(return_value=ResponseMock()))
+    @patch("requests.patch", Mock(return_value=ResponseMock()))
     def test_update_sub_status(self, job_env_variables):
         """Tests update sub status."""
         _ = job_env_variables
