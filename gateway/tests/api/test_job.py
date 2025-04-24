@@ -284,8 +284,8 @@ class TestJobApi(APITestCase):
 
         self.assertEqual(response_sub_status.status_code, status.HTTP_200_OK)
         job = response_sub_status.data.get("job")
-        self.assertEqual(job.status, "RUNNING")
-        self.assertEqual(job.sub_status, "MAPPING")
+        self.assertEqual(job.get("status"), "RUNNING")
+        self.assertEqual(job.get("sub_status"), "MAPPING")
 
     def test_job_update_sub_status_wrong_value(self):
         """Test job update sub status with wrong sub-status value"""
