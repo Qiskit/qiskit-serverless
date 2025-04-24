@@ -30,7 +30,7 @@ Qiskit Serverless decorators
     distribute_task
     distribute_program
 """
-from functools import wraps
+import functools
 import inspect
 import os
 import shutil
@@ -467,7 +467,7 @@ def trace_decorator_factory(traced_feature: str):
         def decorator_trace(func: FunctionType):
             """The decorator that python call"""
 
-            @wraps(func)
+            @functools.wraps(func)
             def wrapper(*args, **kwargs):
                 """The wrapper"""
                 tracer = trace.get_tracer("client.tracer")
