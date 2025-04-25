@@ -15,7 +15,7 @@ kubernetes>=30.1.0, <31
 opentelemetry-distro>=0.47b0
 opentelemetry-exporter-otlp>=1.19.0, <2
 django-concurrency>=2.5, <3
-drf-yasg>=1.21.7, <2
+drf-yasg>=1.21.10, <2
 # Django dependency, but we need a newer version (IBMQ#246)
 sqlparse>=0.5.0, <1
 qiskit-ibm-runtime>=0.29.0, <1
