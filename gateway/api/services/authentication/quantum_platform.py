@@ -2,7 +2,7 @@
 
 
 import logging
-from typing import List
+from typing import List, Optional
 from django.conf import settings
 import requests
 from rest_framework import exceptions
@@ -25,7 +25,7 @@ class QuantumPlatformService(AuthenticationBase):
         self.verification_url = f"{settings.QUANTUM_PLATFORM_API_BASE_URL}/users/me"
         self.instances_url = f"{settings.IQP_QCON_API_BASE_URL}/network"
         self.authorization_token = authorization_token
-        self.access_token: str | None = None
+        self.access_token: Optional[str] = None
 
     def _get_network(self, access_token: str):
         """Obtain network configuration for a specific user:
@@ -86,7 +86,7 @@ class QuantumPlatformService(AuthenticationBase):
                                 )
         return instances
 
-    def authenticate(self) -> str | None:
+    def authenticate(self) -> Optional[str]:
         """
         This method authenticates the user with the token provided in the
         instantiation of the class and populates the access_token attribute.

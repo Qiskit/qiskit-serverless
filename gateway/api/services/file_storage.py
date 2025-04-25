@@ -48,7 +48,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         username: str,
         working_dir: WorkingDir,
         function_title: str,
-        provider_name: str | None,
+        provider_name: Optional[str],
     ) -> None:
         self.sub_path = None
         self.absolute_path = None
@@ -62,7 +62,7 @@ class FileStorage:  # pylint: disable=too-few-public-methods
         self.absolute_path = self.__get_absolute_path(self.sub_path)
 
     def __get_user_sub_path(
-        self, function_title: str, provider_name: str | None
+        self, function_title: str, provider_name: Optional[str]
     ) -> str:
         """
         This method returns the sub-path where the user or the function

@@ -11,7 +11,7 @@ import time
 import uuid
 import sys
 import platform
-from typing import Any, Optional, Tuple, Union, Callable, Dict, List
+from typing import Any, Optional, Tuple, Type, Union, Callable, Dict, List
 from django.conf import settings
 
 from cryptography.fernet import Fernet
@@ -48,11 +48,13 @@ def ray_job_status_to_model_job_status(ray_job_status):
     return mapping.get(ray_job_status, Job.FAILED)
 
 
-def retry_function(
+def retry_function(  # pylint:  disable=too-many-positional-arguments
     callback: Callable,
     num_retries: int = 10,
     interval: int = 1,
+    exceptions: Optional[List[Type[Exception]]] = None,
     error_message: Optional[str] = None,
+    error_message_level: int = logging.DEBUG,
     function_name: Optional[str] = None,
 ):
     """Retries to call callback function.
@@ -80,10 +82,19 @@ def retry_function(
         try:
             result = callback()
             success = True
-        except Exception:  # pylint: disable=broad-exception-caught
-            logger.debug("%s Retrying...", error_message)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            if exceptions is None or isinstance(e, tuple(exceptions)):
+                logger.log(
+                    error_message_level,
+                    "%s Retrying (%s/%s)...",
+                    run,
+                    num_retries,
+                    error_message,
+                )
+                time.sleep(interval)
+            else:
+                raise
 
-        time.sleep(interval)
     return result
 
 
@@ -226,7 +237,7 @@ def generate_cluster_name(username: str) -> str:
         generated cluster name
     """
     pattern = re.compile("[^a-zA-Z0-9-.]")
-    cluster_name = f"c-{re.sub(pattern,'-',username)}-{str(uuid.uuid4())[:8]}"
+    cluster_name = f"c-{re.sub(pattern, '-', username)}-{str(uuid.uuid4())[:8]}"
     return cluster_name
 
 
@@ -448,7 +459,7 @@ def create_dependency_allowlist():
     return allowlist
 
 
-def sanitize_name(name: str | None):
+def sanitize_name(name: Optional[str]):
     """Sanitize name"""
     if not name:
         return name
@@ -456,7 +467,7 @@ def sanitize_name(name: str | None):
     return re.sub("[^a-zA-Z0-9_\\-/]", "", name)
 
 
-def sanitize_boolean(value: str | None) -> bool | None:
+def sanitize_boolean(value: Optional[str]) -> Optional[bool]:
     """Sanitize a string into a boolean."""
     if value is None:
         return None
@@ -491,7 +502,7 @@ def create_gpujob_allowlist():
     return gpujobs
 
 
-def sanitize_file_name(name: str | None):
+def sanitize_file_name(name: Optional[str]):
     """Sanitize the name of a file"""
     if not name:
         return name

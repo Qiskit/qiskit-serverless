@@ -172,8 +172,31 @@ class Job(models.Model):
         (FAILED, "Failed"),
     ]
 
-    TERMINAL_STATES = [SUCCEEDED, FAILED, STOPPED]
-    RUNNING_STATES = [RUNNING, PENDING]
+    # RUNNING statuses
+    MAPPING = "MAPPING"
+    OPTIMIZING_HARDWARE = "OPTIMIZING_HARDWARE"
+    WAITING_QPU = "WAITING_QPU"
+    EXECUTING_QPU = "EXECUTING_QPU"
+    POST_PROCESSING = "POST_PROCESSING"
+
+    TERMINAL_STATUSES = [SUCCEEDED, FAILED, STOPPED]
+    RUNNING_STATUSES = [RUNNING, PENDING]
+
+    RUNNING_SUB_STATUSES = [
+        MAPPING,
+        OPTIMIZING_HARDWARE,
+        WAITING_QPU,
+        EXECUTING_QPU,
+        POST_PROCESSING,
+    ]
+
+    SUB_STATUSES = [
+        (MAPPING, "Mapping"),
+        (OPTIMIZING_HARDWARE, "Optimizing for hardware"),
+        (WAITING_QPU, "Waiting for QPU"),
+        (EXECUTING_QPU, "Executing in QPU"),
+        (POST_PROCESSING, "Post-processing"),
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
@@ -189,6 +212,9 @@ class Job(models.Model):
         max_length=10,
         choices=JOB_STATUSES,
         default=QUEUED,
+    )
+    sub_status = models.CharField(
+        max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True
     )
     trial = models.BooleanField(default=False, null=False)
     version = IntegerVersionField()
@@ -214,7 +240,7 @@ class Job(models.Model):
 
     def in_terminal_state(self):
         """Returns true if job is in terminal state."""
-        return self.status in self.TERMINAL_STATES
+        return self.status in self.TERMINAL_STATUSES
 
 
 class RuntimeJob(models.Model):

@@ -310,7 +310,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return response_data.get("status", default_status)
+        status = response_data.get("status", default_status)
+        sub_status = response_data.get("sub_status")
+        if status == Job.RUNNING and sub_status is not None:
+            return sub_status
+
+        return status
 
     @_trace_job
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
