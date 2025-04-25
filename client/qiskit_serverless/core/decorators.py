@@ -467,6 +467,7 @@ def trace_decorator_factory(traced_feature: str):
         def decorator_trace(func: FunctionType):
             """The decorator that python call"""
 
+            @functools.wraps(func)
             def wrapper(*args, **kwargs):
                 """The wrapper"""
                 tracer = trace.get_tracer("client.tracer")
@@ -475,7 +476,7 @@ def trace_decorator_factory(traced_feature: str):
                     if isinstance(traced_function, str)
                     else func.__name__
                 )
-                with tracer.start_as_current_span(f"{traced_feature}.${function_name}"):
+                with tracer.start_as_current_span(f"{traced_feature}.{function_name}"):
                     result = func(*args, **kwargs)
                 return result
 
