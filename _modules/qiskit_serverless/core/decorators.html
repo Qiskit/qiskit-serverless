@@ -775,6 +775,7 @@
         <span class="k">def</span><span class="w"> </span><span class="nf">decorator_trace</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">FunctionType</span><span class="p">):</span>
 <span class="w">            </span><span class="sd">&quot;&quot;&quot;The decorator that python call&quot;&quot;&quot;</span>
 
+            <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
             <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">                </span><span class="sd">&quot;&quot;&quot;The wrapper&quot;&quot;&quot;</span>
                 <span class="n">tracer</span> <span class="o">=</span> <span class="n">trace</span><span class="o">.</span><span class="n">get_tracer</span><span class="p">(</span><span class="s2">&quot;client.tracer&quot;</span><span class="p">)</span>
@@ -783,7 +784,7 @@
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">traced_function</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
                     <span class="k">else</span> <span class="n">func</span><span class="o">.</span><span class="vm">__name__</span>
                 <span class="p">)</span>
-                <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">traced_feature</span><span class="si">}</span><span class="s2">.$</span><span class="si">{</span><span class="n">function_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">):</span>
+                <span class="k">with</span> <span class="n">tracer</span><span class="o">.</span><span class="n">start_as_current_span</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">traced_feature</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">function_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">):</span>
                     <span class="n">result</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">result</span>
 
