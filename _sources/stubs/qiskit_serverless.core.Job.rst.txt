@@ -27,4 +27,20 @@
 
    
    
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Job.EXECUTING_QPU
+      ~Job.FAILED
+      ~Job.MAPPING
+      ~Job.OPTIMIZING_HARDWARE
+      ~Job.PENDING
+      ~Job.POST_PROCESSING
+      ~Job.QUEUED
+      ~Job.RUNNING
+      ~Job.STOPPED
+      ~Job.SUCCEEDED
+      ~Job.WAITING_QPU
+   
    

@@ -422,6 +422,19 @@
 <div class="viewcode-block" id="Job"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">Job</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Job.&quot;&quot;&quot;</span>
 
+    <span class="n">PENDING</span> <span class="o">=</span> <span class="s2">&quot;PENDING&quot;</span>
+    <span class="n">RUNNING</span> <span class="o">=</span> <span class="s2">&quot;RUNNING&quot;</span>
+    <span class="n">STOPPED</span> <span class="o">=</span> <span class="s2">&quot;STOPPED&quot;</span>
+    <span class="n">SUCCEEDED</span> <span class="o">=</span> <span class="s2">&quot;SUCCEEDED&quot;</span>
+    <span class="n">FAILED</span> <span class="o">=</span> <span class="s2">&quot;FAILED&quot;</span>
+    <span class="n">QUEUED</span> <span class="o">=</span> <span class="s2">&quot;QUEUED&quot;</span>
+    <span class="c1"># RUNNING statuses</span>
+    <span class="n">MAPPING</span> <span class="o">=</span> <span class="s2">&quot;MAPPING&quot;</span>
+    <span class="n">OPTIMIZING_HARDWARE</span> <span class="o">=</span> <span class="s2">&quot;OPTIMIZING_HARDWARE&quot;</span>
+    <span class="n">WAITING_QPU</span> <span class="o">=</span> <span class="s2">&quot;WAITING_QPU&quot;</span>
+    <span class="n">EXECUTING_QPU</span> <span class="o">=</span> <span class="s2">&quot;EXECUTING_QPU&quot;</span>
+    <span class="n">POST_PROCESSING</span> <span class="o">=</span> <span class="s2">&quot;POST_PROCESSING&quot;</span>
+
 <div class="viewcode-block" id="Job.__init__"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job.__init__">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -508,8 +521,8 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">in_terminal_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Checks if job is in terminal state&quot;&quot;&quot;</span>
-        <span class="n">terminal_states</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CANCELED&quot;</span><span class="p">,</span> <span class="s2">&quot;DONE&quot;</span><span class="p">,</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">]</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">()</span> <span class="ow">in</span> <span class="n">terminal_states</span>
+        <span class="n">terminal_status</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CANCELED&quot;</span><span class="p">,</span> <span class="s2">&quot;DONE&quot;</span><span class="p">,</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">()</span> <span class="ow">in</span> <span class="n">terminal_status</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;Job | </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&gt;&quot;</span></div>
@@ -585,15 +598,55 @@
     <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span></div>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">update_status</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Update sub status.&quot;&quot;&quot;</span>
+
+    <span class="n">version</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_GATEWAY_PROVIDER_VERSION</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">GATEWAY_PROVIDER_VERSION_DEFAULT</span>
+
+    <span class="n">token</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_GATEWAY_TOKEN</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">token</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;&#39;sub_status&#39; cannot be updated since&quot;</span>
+            <span class="s2">&quot;there is no information about the&quot;</span>
+            <span class="s2">&quot;authorization token in the environment.&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="n">instance</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_GATEWAY_INSTANCE</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="n">url</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_GATEWAY_HOST</span><span class="p">)</span><span class="si">}</span><span class="s2">/&quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;api/</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_ID_GATEWAY</span><span class="p">)</span><span class="si">}</span><span class="s2">/sub_status/&quot;</span>
+    <span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span>
+        <span class="n">url</span><span class="p">,</span>
+        <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;sub_status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">},</span>
+        <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">),</span>
+        <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+        <span class="n">sanitized</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Something went wrong: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">sanitized</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span>
+
+
 <span class="k">def</span><span class="w"> </span><span class="nf">_map_status_to_serverless</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Map a status string from job client to the Qiskit terminology.&quot;&quot;&quot;</span>
     <span class="n">status_map</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;PENDING&quot;</span><span class="p">:</span> <span class="s2">&quot;INITIALIZING&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;RUNNING&quot;</span><span class="p">:</span> <span class="s2">&quot;RUNNING&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;STOPPED&quot;</span><span class="p">:</span> <span class="s2">&quot;CANCELED&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;SUCCEEDED&quot;</span><span class="p">:</span> <span class="s2">&quot;DONE&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;FAILED&quot;</span><span class="p">:</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;QUEUED&quot;</span><span class="p">:</span> <span class="s2">&quot;QUEUED&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">PENDING</span><span class="p">:</span> <span class="s2">&quot;INITIALIZING&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">:</span> <span class="s2">&quot;RUNNING&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">STOPPED</span><span class="p">:</span> <span class="s2">&quot;CANCELED&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">SUCCEEDED</span><span class="p">:</span> <span class="s2">&quot;DONE&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">QUEUED</span><span class="p">:</span> <span class="s2">&quot;QUEUED&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">MAPPING</span><span class="p">:</span> <span class="s2">&quot;RUNNING: MAPPING&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">OPTIMIZING_HARDWARE</span><span class="p">:</span> <span class="s2">&quot;RUNNING: OPTIMIZING_FOR_HARDWARE&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">WAITING_QPU</span><span class="p">:</span> <span class="s2">&quot;RUNNING: WAITING_FOR_QPU&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">EXECUTING_QPU</span><span class="p">:</span> <span class="s2">&quot;RUNNING: EXECUTING_QPU&quot;</span><span class="p">,</span>
+        <span class="n">Job</span><span class="o">.</span><span class="n">POST_PROCESSING</span><span class="p">:</span> <span class="s2">&quot;RUNNING: POST_PROCESSING&quot;</span><span class="p">,</span>
     <span class="p">}</span>
 
     <span class="k">try</span><span class="p">:</span>
