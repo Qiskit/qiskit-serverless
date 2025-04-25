@@ -1,7 +1,7 @@
 """This service will manage the access to the 3rd party end-points in IBM Cloud."""
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from django.conf import settings
 from ibm_cloud_sdk_core import ApiException
@@ -28,10 +28,10 @@ class IBMCloudService(AuthenticationBase):
         self.api_key = api_key
         self.crn = crn
         self.authenticator = IAMAuthenticator(apikey=self.api_key, url=self.iam_url)
-        self.account_id: str | None = None
-        self.iam_id: str | None = None
+        self.account_id: Optional[str] = None
+        self.iam_id: Optional[str] = None
 
-    def authenticate(self) -> str | None:
+    def authenticate(self) -> Optional[str]:
         """
         This method authenticates the user with the token provided in the
         instantiation of the class and populates the account_id and

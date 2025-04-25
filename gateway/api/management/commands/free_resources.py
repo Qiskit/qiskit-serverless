@@ -24,7 +24,7 @@ class Command(BaseCommand):
 
         for compute_resource in compute_resources:
             alive_jobs = Job.objects.filter(
-                status__in=Job.RUNNING_STATES, compute_resource=compute_resource
+                status__in=Job.RUNNING_STATUSES, compute_resource=compute_resource
             )
 
             # only kill cluster if not in local mode and no jobs are running there
