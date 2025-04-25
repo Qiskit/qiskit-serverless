@@ -37,7 +37,7 @@ def trace_decorator_factory(traced_feature: str):
             @wraps(func)
             def wrapper(*args, **kwargs):
                 """The wrapper"""
-                tracer = trace.get_tracer("xxxxxxx")
+                tracer = trace.get_tracer("gateway.tracer")
                 function_name = (
                     traced_function
                     if isinstance(traced_function, str)
@@ -46,7 +46,7 @@ def trace_decorator_factory(traced_feature: str):
                 request = args[0]
                 ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
                 with tracer.start_as_current_span(
-                    f"xxxxxx.{traced_feature}.{function_name}", context=ctx
+                    f"gateway.{traced_feature}.{function_name}", context=ctx
                 ):
                     result = func(*args, **kwargs)
                 return result
