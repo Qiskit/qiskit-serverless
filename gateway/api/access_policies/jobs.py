@@ -11,7 +11,7 @@ from api.access_policies.providers import ProviderAccessPolicy
 logger = logging.getLogger("gateway")
 
 
-class JobAccessPolocies:
+class JobAccessPolicies:
     """
     The main objective of this class is to manage the access for the user
     to the Job entities.
@@ -87,5 +87,27 @@ class JobAccessPolocies:
                 "User [%s] has no access to save the result of the job [%s].",
                 user.username,
                 job.author,
+            )
+        return has_access
+
+    @staticmethod
+    def can_update_sub_status(user: type[AbstractUser], job: Job) -> bool:
+        """
+        Checks if the user has permissions to update the substatus of a job:
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        has_access = user.id == job.author.id
+        if not has_access:
+            logger.warning(
+                "User [%s] has no access to update the sub_status of the job [%s].",
+                user.username,
+                job.id,
             )
         return has_access

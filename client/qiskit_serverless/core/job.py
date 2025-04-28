@@ -114,6 +114,19 @@ class JobService(ABC):
 class Job:
     """Job."""
 
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    STOPPED = "STOPPED"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    QUEUED = "QUEUED"
+    # RUNNING statuses
+    MAPPING = "MAPPING"
+    OPTIMIZING_HARDWARE = "OPTIMIZING_HARDWARE"
+    WAITING_QPU = "WAITING_QPU"
+    EXECUTING_QPU = "EXECUTING_QPU"
+    POST_PROCESSING = "POST_PROCESSING"
+
     def __init__(
         self,
         job_id: str,
@@ -200,8 +213,8 @@ class Job:
 
     def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
-        terminal_states = ["CANCELED", "DONE", "ERROR"]
-        return self.status() in terminal_states
+        terminal_status = ["CANCELED", "DONE", "ERROR"]
+        return self.status() in terminal_status
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"
@@ -277,15 +290,55 @@ def save_result(result: Dict[str, Any]):
     return response.ok
 
 
+def update_status(status: str):
+    """Update sub status."""
+
+    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
+    if version is None:
+        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+
+    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    if token is None:
+        logging.warning(
+            "'sub_status' cannot be updated since"
+            "there is no information about the"
+            "authorization token in the environment."
+        )
+        return False
+
+    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
+
+    url = (
+        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
+        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/sub_status/"
+    )
+    response = requests.patch(
+        url,
+        data={"sub_status": status},
+        headers=get_headers(token=token, instance=instance),
+        timeout=REQUESTS_TIMEOUT,
+    )
+    if not response.ok:
+        sanitized = response.text.replace("\n", "").replace("\r", "")
+        logging.warning("Something went wrong: %s", sanitized)
+
+    return response.ok
+
+
 def _map_status_to_serverless(status: str) -> str:
     """Map a status string from job client to the Qiskit terminology."""
     status_map = {
-        "PENDING": "INITIALIZING",
-        "RUNNING": "RUNNING",
-        "STOPPED": "CANCELED",
-        "SUCCEEDED": "DONE",
-        "FAILED": "ERROR",
-        "QUEUED": "QUEUED",
+        Job.PENDING: "INITIALIZING",
+        Job.RUNNING: "RUNNING",
+        Job.STOPPED: "CANCELED",
+        Job.SUCCEEDED: "DONE",
+        Job.FAILED: "ERROR",
+        Job.QUEUED: "QUEUED",
+        Job.MAPPING: "RUNNING: MAPPING",
+        Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_FOR_HARDWARE",
+        Job.WAITING_QPU: "RUNNING: WAITING_FOR_QPU",
+        Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
+        Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
     }
 
     try:

@@ -1,6 +1,7 @@
 """Authentication use case to manage the authentication process in the api."""
 
 import logging
+from typing import Optional
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from rest_framework import exceptions
@@ -30,7 +31,7 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
         self,
         channel: Channel,
         authorization_token: str,
-        crn: str | None,
+        crn: Optional[str],
         public_access=False,
     ):
         self.channel = channel
@@ -50,7 +51,7 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
         logger.debug("Authentication will be executed with Local service.")
         return LocalAuthenticationService(authorization_token=self.authorization_token)
 
-    def execute(self) -> type[AbstractUser] | None:
+    def execute(self) -> Optional[type[AbstractUser]]:
         """
         This contains the logic to authenticate and validate the user
         that is doing the request.

@@ -1,7 +1,7 @@
 """Interface to implement new services against the user will authenticate"""
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 from api.domain.authentication.authentication_group import AuthenticationGroup
 
@@ -16,7 +16,7 @@ class AuthenticationBase(ABC):
     """
 
     @abstractmethod
-    def authenticate(self) -> str | None:
+    def authenticate(self) -> Optional[str]:
         """This method authenticates the user and returns the user id."""
 
     @abstractmethod
