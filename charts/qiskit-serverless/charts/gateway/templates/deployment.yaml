@@ -191,8 +191,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.servicePsql.name }}
                   key: {{ .Values.secrets.servicePsql.key.databasePassword }}
-            - name: PUBLIC_GROUP_NAME
-              value: {{ .Values.application.publicGroupName }}
             - name: ALLOWED_HOSTS
               value: {{ .Values.application.allowedHosts | quote }}
             - name: CSRF_TRUSTED_ORIGINS
