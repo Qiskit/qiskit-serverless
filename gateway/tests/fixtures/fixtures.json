@@ -73,6 +73,44 @@
   },
   {
     "model": "api.program",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec38",
+    "fields": {
+      "created": "2023-02-01T15:30:43.281796Z",
+      "title": "ProgramLocked",
+      "disabled": true,
+      "disabled_message": "Program is locked",
+      "description": "Program description test",
+      "entrypoint": "program.py",
+      "artifact": "path",
+      "author": 1,
+      "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
+      "instances": [
+        100,
+        101
+      ],
+      "trial_instances": []
+    }
+  },
+  {
+    "model": "api.program",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec76",
+    "fields": {
+      "created": "2023-02-01T15:30:43.281796Z",
+      "title": "ProgramLocked2",
+      "disabled": true,
+      "entrypoint": "program.py",
+      "artifact": "path",
+      "author": 1,
+      "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
+      "instances": [
+        100,
+        101
+      ],
+      "trial_instances": []
+    }
+  },
+  {
+    "model": "api.program",
     "pk": "6160a2ff-e482-443d-af23-15110b646ae2",
     "fields": {
       "created": "2023-02-01T15:30:43.281796Z",

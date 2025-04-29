@@ -183,7 +183,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["POST"], detail=False)
-    def run(self, request):
+    def run(self, request):  # pylint: disable=too-many-locals
         """Enqueues existing program."""
         serializer = self.get_serializer_run_program(data=request.data)
         if not serializer.is_valid():
@@ -192,7 +192,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 serializer.errors,
             )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
         author = request.user
         # The sanitization should happen in the serializer
         # but it's here until we can refactor the /run end-point
@@ -209,6 +208,17 @@ class ProgramViewSet(viewsets.GenericViewSet):
             return Response(
                 {"message": f"Qiskit Pattern [{function_title}] was not found."},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if function.disabled:
+            error_message = (
+                function.disabled_message
+                if function.disabled_message
+                else Program.DEFAULT_DISABLED_MESSAGE
+            )
+            return Response(
+                {"message": error_message},
+                status=status.HTTP_423_LOCKED,
             )
 
         jobconfig = None
