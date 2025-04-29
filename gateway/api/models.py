@@ -85,7 +85,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         max_length=255, null=True, blank=True, default=None
     )
 
-    disabled = models.BooleanField(default=False, null=True)
+    disabled = models.BooleanField(default=False, null=False)
     disabled_message = models.TextField(
         default=DEFAULT_DISABLED_MESSAGE, null=True, blank=True
     )
