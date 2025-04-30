@@ -30,7 +30,7 @@ from abc import ABC, abstractmethod
 import dataclasses
 import warnings
 from dataclasses import dataclass
-from typing import Literal, Optional, Dict, List, Any, Tuple, Union
+from typing import ClassVar, Literal, Optional, Dict, List, Any, Tuple, Union
 
 from qiskit_serverless.core.job import (
     Job,
@@ -57,13 +57,10 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         description: description of a program
         version: version of a program
     """
-
-    # pylint: disable=invalid-name
-    GENERIC: GenericType = "GENERIC"
-    # pylint: disable=invalid-name
-    APPLICATION: ApplicationType = "APPLICATION"
-    # pylint: disable=invalid-name
-    CIRCUIT: CircuitType = "CIRCUIT"
+    
+    GENERIC: ClassVar[GenericType] = "GENERIC"
+    APPLICATION: ClassVar[ApplicationType] = "APPLICATION"
+    CIRCUIT: ClassVar[CircuitType] = "CIRCUIT"
 
     title: str
     provider: Optional[str] = None
