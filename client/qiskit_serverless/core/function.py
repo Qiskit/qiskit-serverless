@@ -37,6 +37,10 @@ from qiskit_serverless.core.job import (
     Configuration,
 )
 
+GenericType = Literal["GENERIC"]
+ApplicationType = Literal["APPLICATION"]
+CircuitType = Literal["CIRCUIT"]
+
 
 @dataclass
 class QiskitFunction:  # pylint: disable=too-many-instance-attributes
@@ -54,6 +58,10 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         version: version of a program
     """
 
+    GENERIC: GenericType = "GENERIC"
+    APPLICATION: ApplicationType = "APPLICATION"
+    CIRCUIT: CircuitType = "CIRCUIT"
+
     title: str
     provider: Optional[str] = None
     entrypoint: Optional[str] = None
@@ -67,9 +75,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     image: Optional[str] = None
     validate: bool = True
     schema: Optional[str] = None
-    type: Union[
-        Literal["GENERIC"], Literal["APPLICATION"], Literal["CIRCUIT"]
-    ] = "GENERIC"
+    type: Union[GenericType, ApplicationType, CircuitType] = GENERIC
 
     def __post_init__(self):
         title_has_provider = "/" in self.title
