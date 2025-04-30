@@ -49,7 +49,7 @@ jobs:
             --set gateway.image.tag=test \
             --set gateway.application.ray.nodeImage=ray:test \
             --set gateway.application.ray.cpu=1 \
-            --set gateway.application.ray.memory=2 \
+            --set gateway.application.ray.memory=3 \
             --set gateway.application.debug=1 \
             --set gateway.application.authMockproviderRegistry=test \
             .
