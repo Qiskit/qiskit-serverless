@@ -74,7 +74,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             raise ValidationError(
                 "Qiskit Function title is malformed. It can only contain one slash."
             )
-            
+
         type = attrs.get("type", None)
         if type and type not in dict(Program.PROGRAM_TYPES):
             raise ValidationError(f"{type} is not a valid type.")
@@ -95,7 +95,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 raise ValidationError(
                     f"Custom images must be in {provider_instance.registry}."
                 )
-        
+
         return super().validate(attrs)
 
     class Meta(serializers.UploadProgramSerializer.Meta):
