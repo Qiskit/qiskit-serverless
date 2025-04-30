@@ -75,9 +75,9 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 "Qiskit Function title is malformed. It can only contain one slash."
             )
 
-        type = attrs.get("type", None)
-        if type and type not in dict(Program.PROGRAM_TYPES):
-            raise ValidationError(f"{type} is not a valid type.")
+        program_type = attrs.get("type", None)
+        if program_type and program_type not in dict(Program.PROGRAM_TYPES):
+            raise ValidationError(f"{program_type} is not a valid type.")
 
         if image is not None:
             if provider is None and len(title_split) != 2:
