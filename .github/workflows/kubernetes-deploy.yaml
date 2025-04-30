@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
+      - uses: actions/checkout@v4.2.2
       - name: Install Kind
         run: |
           curl -Lo ./kind "https://github.com/kubernetes-sigs/kind/releases/download/v0.27.0/kind-$(uname)-amd64"
@@ -44,7 +44,6 @@ jobs:
           helm dependency build
           helm install qs \
             --set platform=kind \
-            --set repositoryEnable=false \
             --set nginxIngressControllerEnable=false \
             --set gateway.image.repository=gateway \
             --set gateway.image.tag=test \
@@ -52,7 +51,6 @@ jobs:
             --set gateway.application.ray.cpu=1 \
             --set gateway.application.ray.memory=3 \
             --set gateway.application.debug=1 \
-            --set gateway.application.limits.keepClusterOnComplete=false \
             --set gateway.application.authMockproviderRegistry=test \
             .
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
