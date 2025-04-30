@@ -36,10 +36,12 @@ class TestFunctionsDocker:
         runnable_function = base_client.upload(simple_function)
 
         assert runnable_function is not None
+        assert runnable_function.type == "GENERIC"
 
         runnable_function = base_client.function(simple_function.title)
 
         assert runnable_function is not None
+        assert runnable_function.type == "GENERIC"
 
         job = runnable_function.run()
 

@@ -30,7 +30,7 @@ from abc import ABC, abstractmethod
 import dataclasses
 import warnings
 from dataclasses import dataclass
-from typing import Optional, Dict, List, Any, Tuple, Union
+from typing import Literal, Optional, Dict, List, Any, Tuple, Union
 
 from qiskit_serverless.core.job import (
     Job,
@@ -67,7 +67,9 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     image: Optional[str] = None
     validate: bool = True
     schema: Optional[str] = None
-    type: Optional[str] = None
+    type: Union[
+        Literal["GENERIC"], Literal["APPLICATION"], Literal["CIRCUIT"]
+    ] = "GENERIC"
 
     def __post_init__(self):
         title_has_provider = "/" in self.title
@@ -155,7 +157,7 @@ class RunnableQiskitFunction(QiskitFunction):
     @classmethod
     def from_json(cls, data: Dict[str, Any]):
         """Reconstructs QiskitPattern from dictionary."""
-        field_names = set(f.name for f in dataclasses.fields(QiskitFunction))
+        field_names = set(f.name for f in dataclasses.fields(RunnableQiskitFunction))
         client = data["client"]
         return RunnableQiskitFunction(
             client, **{k: v for k, v in data.items() if k in field_names}
