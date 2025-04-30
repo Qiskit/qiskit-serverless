@@ -58,8 +58,11 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         version: version of a program
     """
 
+    # pylint: disable=invalid-name
     GENERIC: GenericType = "GENERIC"
+    # pylint: disable=invalid-name
     APPLICATION: ApplicationType = "APPLICATION"
+    # pylint: disable=invalid-name
     CIRCUIT: CircuitType = "CIRCUIT"
 
     title: str
