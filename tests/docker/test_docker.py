@@ -143,11 +143,7 @@ class TestFunctionsDocker:
         assert isinstance(retrieved_job1.logs(), str)
         assert isinstance(retrieved_job2.logs(), str)
 
-    @mark.skip(
-        reason="Images are not working in tests jet and "
-        + "LocalClient does not manage image instead of working_dir+entrypoint"
-    )
-    def test_error(self, base_client: BaseClient):
+    def test_custom_image(self, serverless_client: BaseClient):
         """Integration test to force an error."""
 
         description = """
@@ -166,7 +162,7 @@ class TestFunctionsDocker:
             description=description,
         )
 
-        runnable_function = base_client.upload(function_with_custom_image)
+        runnable_function = serverless_client.upload(function_with_custom_image)
 
         job = runnable_function.run(message="Argument for the custum function")
 
