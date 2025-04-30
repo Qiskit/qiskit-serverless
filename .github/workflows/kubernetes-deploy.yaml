@@ -15,14 +15,14 @@ jobs:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
       - name: Install Kind
         run: |
-          curl -Lo ./kind "https://github.com/kubernetes-sigs/kind/releases/download/v0.27.0/kind-$(uname)-amd64"
+          curl -Lo ./kind "https://github.com/kubernetes-sigs/kind/releases/download/v0.20.0/kind-$(uname)-amd64"
           chmod +x ./kind
           sudo mv kind /usr/local/bin
           which kind
       - name: Create Kind cluster
         uses: chainguard-dev/actions/setup-kind@main
         with:
-          k8s-version: 1.31.7
+          k8s-version: 1.31.x
           kind-worker-count: 0
       - name: Label nodes
         run: kubectl label node kind-control-plane has-gpu=gpu has-cpu=cpu
