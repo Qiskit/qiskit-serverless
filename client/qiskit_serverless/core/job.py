@@ -34,7 +34,7 @@ import logging
 import os
 import time
 import warnings
-from typing import Dict, Any, Optional, Union
+from typing import ClassVar, Dict, Any, Literal, Optional, Union
 from dataclasses import dataclass
 
 import ray.runtime_env
@@ -111,21 +111,35 @@ class JobService(ABC):
         """
 
 
+PendingType = Literal["PENDING"]
+RunningType = Literal["RUNNING"]
+StoppedType = Literal["STOPPED"]
+SucceededType = Literal["SUCCEEDED"]
+FailedType = Literal["FAILED"]
+QueuedType = Literal["QUEUED"]
+# RUNNING statuses
+MappingType = Literal["MAPPING"]
+OptimizingHardwareType = Literal["OPTIMIZING_HARDWARE"]
+WaitingQpuType = Literal["WAITING_QPU"]
+ExecutingQpuType = Literal["EXECUTING_QPU"]
+PostProcessingType = Literal["POST_PROCESSING"]
+
+
 class Job:
     """Job."""
 
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    STOPPED = "STOPPED"
-    SUCCEEDED = "SUCCEEDED"
-    FAILED = "FAILED"
-    QUEUED = "QUEUED"
+    PENDING: ClassVar[PendingType] = "PENDING"
+    RUNNING: ClassVar[RunningType] = "RUNNING"
+    STOPPED: ClassVar[StoppedType] = "STOPPED"
+    SUCCEEDED: ClassVar[SucceededType] = "SUCCEEDED"
+    FAILED: ClassVar[FailedType] = "FAILED"
+    QUEUED: ClassVar[QueuedType] = "QUEUED"
     # RUNNING statuses
-    MAPPING = "MAPPING"
-    OPTIMIZING_HARDWARE = "OPTIMIZING_HARDWARE"
-    WAITING_QPU = "WAITING_QPU"
-    EXECUTING_QPU = "EXECUTING_QPU"
-    POST_PROCESSING = "POST_PROCESSING"
+    MAPPING: ClassVar[MappingType] = "MAPPING"
+    OPTIMIZING_HARDWARE: ClassVar[OptimizingHardwareType] = "OPTIMIZING_HARDWARE"
+    WAITING_QPU: ClassVar[WaitingQpuType] = "WAITING_QPU"
+    EXECUTING_QPU: ClassVar[ExecutingQpuType] = "EXECUTING_QPU"
+    POST_PROCESSING: ClassVar[PostProcessingType] = "POST_PROCESSING"
 
     def __init__(
         self,

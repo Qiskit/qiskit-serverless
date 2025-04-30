@@ -31,6 +31,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "provider",
             "description",
             "documentation_url",
+            "type",
         ]
 
 
@@ -91,6 +92,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 raise ValidationError(
                     f"Custom images must be in {provider_instance.registry}."
                 )
+
         return super().validate(attrs)
 
     class Meta(serializers.UploadProgramSerializer.Meta):
@@ -103,12 +105,13 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "image",
             "provider",
             "description",
+            "type",
         ]
 
 
 class RunProgramSerializer(serializers.RunProgramSerializer):
     """
-    RunExistingProgramSerializer is used by the /upload end-point
+    RunExistingProgramSerializer is used by the /run end-point
     """
 
 
