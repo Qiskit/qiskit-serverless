@@ -57,7 +57,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
         description: description of a program
         version: version of a program
     """
-    
+
     GENERIC: ClassVar[GenericType] = "GENERIC"
     APPLICATION: ClassVar[ApplicationType] = "APPLICATION"
     CIRCUIT: ClassVar[CircuitType] = "CIRCUIT"
