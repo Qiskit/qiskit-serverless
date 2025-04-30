@@ -342,7 +342,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">ray.runtime_env</span>
@@ -419,21 +419,35 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
 
+<span class="n">PendingType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;PENDING&quot;</span><span class="p">]</span>
+<span class="n">RunningType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;RUNNING&quot;</span><span class="p">]</span>
+<span class="n">StoppedType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;STOPPED&quot;</span><span class="p">]</span>
+<span class="n">SucceededType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;SUCCEEDED&quot;</span><span class="p">]</span>
+<span class="n">FailedType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;FAILED&quot;</span><span class="p">]</span>
+<span class="n">QueuedType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;QUEUED&quot;</span><span class="p">]</span>
+<span class="c1"># RUNNING statuses</span>
+<span class="n">MappingType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;MAPPING&quot;</span><span class="p">]</span>
+<span class="n">OptimizingHardwareType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;OPTIMIZING_HARDWARE&quot;</span><span class="p">]</span>
+<span class="n">WaitingQpuType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;WAITING_QPU&quot;</span><span class="p">]</span>
+<span class="n">ExecutingQpuType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;EXECUTING_QPU&quot;</span><span class="p">]</span>
+<span class="n">PostProcessingType</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;POST_PROCESSING&quot;</span><span class="p">]</span>
+
+
 <div class="viewcode-block" id="Job"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job">[docs]</a><span class="k">class</span><span class="w"> </span><span class="nc">Job</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Job.&quot;&quot;&quot;</span>
 
-    <span class="n">PENDING</span> <span class="o">=</span> <span class="s2">&quot;PENDING&quot;</span>
-    <span class="n">RUNNING</span> <span class="o">=</span> <span class="s2">&quot;RUNNING&quot;</span>
-    <span class="n">STOPPED</span> <span class="o">=</span> <span class="s2">&quot;STOPPED&quot;</span>
-    <span class="n">SUCCEEDED</span> <span class="o">=</span> <span class="s2">&quot;SUCCEEDED&quot;</span>
-    <span class="n">FAILED</span> <span class="o">=</span> <span class="s2">&quot;FAILED&quot;</span>
-    <span class="n">QUEUED</span> <span class="o">=</span> <span class="s2">&quot;QUEUED&quot;</span>
+    <span class="n">PENDING</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">PendingType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;PENDING&quot;</span>
+    <span class="n">RUNNING</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">RunningType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;RUNNING&quot;</span>
+    <span class="n">STOPPED</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">StoppedType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;STOPPED&quot;</span>
+    <span class="n">SUCCEEDED</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">SucceededType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;SUCCEEDED&quot;</span>
+    <span class="n">FAILED</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">FailedType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;FAILED&quot;</span>
+    <span class="n">QUEUED</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">QueuedType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;QUEUED&quot;</span>
     <span class="c1"># RUNNING statuses</span>
-    <span class="n">MAPPING</span> <span class="o">=</span> <span class="s2">&quot;MAPPING&quot;</span>
-    <span class="n">OPTIMIZING_HARDWARE</span> <span class="o">=</span> <span class="s2">&quot;OPTIMIZING_HARDWARE&quot;</span>
-    <span class="n">WAITING_QPU</span> <span class="o">=</span> <span class="s2">&quot;WAITING_QPU&quot;</span>
-    <span class="n">EXECUTING_QPU</span> <span class="o">=</span> <span class="s2">&quot;EXECUTING_QPU&quot;</span>
-    <span class="n">POST_PROCESSING</span> <span class="o">=</span> <span class="s2">&quot;POST_PROCESSING&quot;</span>
+    <span class="n">MAPPING</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">MappingType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;MAPPING&quot;</span>
+    <span class="n">OPTIMIZING_HARDWARE</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">OptimizingHardwareType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;OPTIMIZING_HARDWARE&quot;</span>
+    <span class="n">WAITING_QPU</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">WaitingQpuType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;WAITING_QPU&quot;</span>
+    <span class="n">EXECUTING_QPU</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">ExecutingQpuType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;EXECUTING_QPU&quot;</span>
+    <span class="n">POST_PROCESSING</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">PostProcessingType</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;POST_PROCESSING&quot;</span>
 
 <div class="viewcode-block" id="Job.__init__"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job.__init__">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>

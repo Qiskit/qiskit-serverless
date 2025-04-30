@@ -24,6 +24,9 @@
 
    .. autosummary::
    
+      ~QiskitFunction.APPLICATION
+      ~QiskitFunction.CIRCUIT
+      ~QiskitFunction.GENERIC
       ~QiskitFunction.dependencies
       ~QiskitFunction.description
       ~QiskitFunction.entrypoint
@@ -33,6 +36,7 @@
       ~QiskitFunction.raw_data
       ~QiskitFunction.schema
       ~QiskitFunction.tags
+      ~QiskitFunction.type
       ~QiskitFunction.validate
       ~QiskitFunction.version
       ~QiskitFunction.working_dir
