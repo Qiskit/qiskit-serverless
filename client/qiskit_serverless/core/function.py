@@ -67,6 +67,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
     image: Optional[str] = None
     validate: bool = True
     schema: Optional[str] = None
+    type: Optional[str] = None
 
     def __post_init__(self):
         title_has_provider = "/" in self.title
