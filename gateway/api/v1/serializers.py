@@ -6,7 +6,7 @@ import json
 import logging
 from rest_framework.serializers import ValidationError
 from api import serializers
-from api.models import Provider
+from api.models import Program, Provider
 from api.utils import (
     create_dependency_allowlist,
     create_dependency_grammar,
@@ -74,6 +74,10 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             raise ValidationError(
                 "Qiskit Function title is malformed. It can only contain one slash."
             )
+            
+        type = attrs.get("type", None)
+        if type and type not in dict(Program.PROGRAM_TYPES):
+            raise ValidationError(f"{type} is not a valid type.")
 
         if image is not None:
             if provider is None and len(title_split) != 2:
@@ -91,6 +95,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 raise ValidationError(
                     f"Custom images must be in {provider_instance.registry}."
                 )
+        
         return super().validate(attrs)
 
     class Meta(serializers.UploadProgramSerializer.Meta):
@@ -103,6 +108,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "image",
             "provider",
             "description",
+            "type",
         ]
 
 

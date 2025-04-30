@@ -162,6 +162,7 @@ class ProgramSerializer(serializers.ModelSerializer):
     """
 
     provider = serializers.CharField(source="provider.name", read_only=True)
+    type = serializers.CharField()
 
     class Meta:
         model = Program
@@ -194,6 +195,7 @@ class RunProgramSerializer(serializers.Serializer):
     arguments = serializers.CharField()
     config = serializers.JSONField()
     provider = serializers.CharField(required=False, allow_null=True)
+    type = serializers.CharField(required=False, allow_null=False)
 
     def retrieve_one_by_title(self, title, author):
         """

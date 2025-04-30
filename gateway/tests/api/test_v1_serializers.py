@@ -61,12 +61,14 @@ class SerializerTest(APITestCase):
 
         title = "Hello world"
         entrypoint = "pattern.py"
+        type = Program.CIRCUIT
         arguments = "{}"
         dependencies = "[]"
 
         data = {}
         data["title"] = title
         data["entrypoint"] = entrypoint
+        data["type"] = type
         data["arguments"] = arguments
         data["dependencies"] = dependencies
         data["artifact"] = upload_file
@@ -76,6 +78,7 @@ class SerializerTest(APITestCase):
 
         program: Program = serializer.save(author=user)
         self.assertEqual(title, program.title)
+        self.assertEqual(type, program.type)
         self.assertEqual(entrypoint, program.entrypoint)
         self.assertEqual(dependencies, program.dependencies)
 
