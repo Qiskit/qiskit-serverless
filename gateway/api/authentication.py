@@ -9,6 +9,7 @@ from api.domain.authentication.channel import Channel
 
 
 logger = logging.getLogger("gateway.authentication")
+PUBLIC_ENDPOINTS = ["catalog", "swagger"]
 
 
 class CustomTokenBackend(authentication.BaseAuthentication):
@@ -19,9 +20,9 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         quantum_user = None
         authorization_token = None
 
-        # Specific logic to guarantee access to catalog end-points
+        # Specific logic to guarantee access to public end-points
         public_access = False
-        if "catalog" in request.path:
+        if any(path in request.path for path in PUBLIC_ENDPOINTS):
             public_access = True
 
         crn = request.META.get("HTTP_SERVICE_CRN", None)
@@ -70,9 +71,9 @@ class MockTokenBackend(authentication.BaseAuthentication):
         quantum_user = None
         authorization_token = None
 
-        # Specific logic to guarantee access to catalog end-points
+        # Specific logic to guarantee access to public end-points
         public_access = False
-        if "catalog" in request.path:
+        if any(path in request.path for path in PUBLIC_ENDPOINTS):
             public_access = True
 
         auth_header = request.META.get("HTTP_AUTHORIZATION")
