@@ -1,20 +1,17 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
-- family-names: "Sitdikov"
-  given-names: "Iskandar"
-  orcid: "https://orcid.org/0000-0002-6809-8943"
-- family-names: "Garcia Valinas"
+- family-names: "Aragón Moreno"
+  given-names: "Pablo"
+- family-names: "García Valiñas"
   given-names: "David"
-- family-names: "Martin Fernandez"
-  given-names: "Francisco"
-- family-names: "Zidaru"
-  given-names: "Iulia"
-- family-names: "Schweigert"
-  given-names: "Paul"
-- family-names: "Kuroda"
-  given-names: "Akihiko"
+- family-names: "Iniesta Ovejero"
+  given-names: "Gregorio"
+- family-names: "Panda"
+  given-names: "Sanket"
+- family-names: "Peña Tapia"
+  given-names: "Elena"
 title: "Qiskit Serverless"
-version: 0.0.3
+version: 0.21.1
 date-released: 2023-02-14
 url: "https://github.com/Qiskit/qiskit-serverless"
