@@ -11,6 +11,21 @@ from api.domain.authentication.channel import Channel
 logger = logging.getLogger("gateway.authentication")
 PUBLIC_ENDPOINTS = ["catalog", "swagger"]
 
+# This logic needs to be reviewed as it can be simplified
+# maybe with isAuthenticatedOrReadOnly permission
+def is_public_endpoint(path: str) -> bool:
+    """
+    This method checks if the path from the request is considered
+    a valid public path or it requires authentication.
+
+    Args:
+        path (str): path from the request being processed
+
+    Returns:
+        bool: if the path is considered public or not
+    """
+    return any(public_path in path for public_path in PUBLIC_ENDPOINTS)
+
 
 class CustomTokenBackend(authentication.BaseAuthentication):
     """Custom token backend for authentication against 3rd party auth service."""
@@ -22,7 +37,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         # Specific logic to guarantee access to public end-points
         public_access = False
-        if any(path in request.path for path in PUBLIC_ENDPOINTS):
+        if is_public_endpoint(request.path):
             public_access = True
 
         crn = request.META.get("HTTP_SERVICE_CRN", None)
@@ -73,7 +88,7 @@ class MockTokenBackend(authentication.BaseAuthentication):
 
         # Specific logic to guarantee access to public end-points
         public_access = False
-        if any(path in request.path for path in PUBLIC_ENDPOINTS):
+        if is_public_endpoint(request.path):
             public_access = True
 
         auth_header = request.META.get("HTTP_AUTHORIZATION")
