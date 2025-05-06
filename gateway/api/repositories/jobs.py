@@ -112,9 +112,17 @@ class JobsRepository:  # pylint: disable=too-few-public-methods
         updated = Job.objects.filter(id=job.id, status=Job.RUNNING).update(
             sub_status=sub_status
         )
-        if not updated:
+        if updated:
+            logger.info(
+                "Job [%s] of [%s] changed sub_status from [%s] to [%s]",
+                job.id,
+                job.author,
+                job.sub_status,
+                sub_status,
+            )
+        else:
             logger.warning(
-                "Job[%s].sub_status cannot be updated because "
+                "Job [%s] sub_status cannot be updated because "
                 "it is not in RUNNING state or id doesn't exist",
                 job.id,
             )
