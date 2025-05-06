@@ -25,7 +25,7 @@ dependencies:
     repository: https://ray-project.github.io/kuberay-helm
 
 maintainers:
-  - name: akihikokuroda
-  - name: IceKhan13
-  - name: psschwei
+  - name: ElePT
+  - name: korgan00
+  - name: paaragon
   - name: Tansito
