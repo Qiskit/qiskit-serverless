@@ -3,7 +3,7 @@
 import os
 from time import sleep
 
-from pytest import raises, mark
+from pytest import mark
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
@@ -12,7 +12,6 @@ from qiskit_serverless import (
     QiskitFunction,
     BaseClient,
     ServerlessClient,
-    QiskitServerlessException,
 )
 
 
@@ -162,7 +161,9 @@ class TestFunctionsDocker:
             description=description,
         )
 
-        runnable_function = serverless_custom_image_yaml_client.upload(function_with_custom_image)
+        runnable_function = serverless_custom_image_yaml_client.upload(
+            function_with_custom_image
+        )
 
         job = runnable_function.run(message="Argument for the custum function")
 

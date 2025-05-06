@@ -3,7 +3,7 @@ from qiskit.primitives import StatevectorSampler as Sampler
 
 
 def custom_function(arguments):
-    import pendulum # type: ignore
+    import pendulum  # type: ignore
 
     dt_toronto = pendulum.datetime(2012, 1, 1, tz="America/Toronto")
     dt_vancouver = pendulum.datetime(2012, 1, 1, tz="America/Vancouver")

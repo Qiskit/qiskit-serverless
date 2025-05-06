@@ -66,10 +66,13 @@ def serverless_client():
 
     compose.stop()
 
+
 @fixture(scope="module")
 def serverless_custom_image_yaml_client():
     """Fixture for testing files with serverless client."""
-    [compose, serverless] = set_up_serverless_client(compose_file_name="../docker-compose-test.yaml")
+    [compose, serverless] = set_up_serverless_client(
+        compose_file_name="../docker-compose-test.yaml"
+    )
 
     yield serverless
 
