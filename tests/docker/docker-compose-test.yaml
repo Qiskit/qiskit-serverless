@@ -1,0 +1,115 @@
+# compose config for running images based on local files
+services:
+  ray-head:
+    user: "0"
+    container_name: ray-head
+    image: test_function
+    build:
+      context: ./
+      dockerfile: function/Sample-Docker
+    entrypoint: [
+      "env", "RAY_LOG_TO_STDERR=1", "ray", "start", "--head", "--port=6379",
+      "--dashboard-host=0.0.0.0", "--block"
+    ]
+    ports:
+      - 8265:8265
+    volumes:
+      - host-shm:/dev/shm
+    networks:
+      - safe-tier
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: serverlessdb
+      POSTGRES_USER: serverlessuser
+      POSTGRES_PASSWORD: serverlesspassword
+    networks:
+      - safe-tier
+    ports:
+      - 5432:5432
+    restart:
+      always
+  gateway:
+    container_name: gateway
+    build:
+      context: ../../
+      dockerfile: gateway/Dockerfile
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=1 --threads=1 --max-requests=1200 --max-requests-jitter=50 --timeout=25
+    ports:
+      - 8000:8000
+    user: "root" # we use the root user here so the docker-compose watch can sync files into the container
+    environment:
+      - DEBUG=1
+      - RAY_HOST=http://ray-head:8265
+      - DJANGO_SUPERUSER_USERNAME=admin
+      - DJANGO_SUPERUSER_PASSWORD=123
+      - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
+      - SITE_HOST=http://gateway:8000
+      - SETTINGS_AUTH_MECHANISM=mock_token
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=serverlessdb
+      - DATABASE_USER=serverlessuser
+      - DATABASE_PASSWORD=serverlesspassword
+    networks:
+      - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
+    depends_on:
+      - postgres
+  scheduler:
+    container_name: scheduler
+    build:
+      context: ../../
+      dockerfile: gateway/Dockerfile
+    entrypoint: "./scripts/scheduler.sh"
+    environment:
+      - DEBUG=1
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=serverlessdb
+      - DATABASE_USER=serverlessuser
+      - DATABASE_PASSWORD=serverlesspassword
+      - RAY_CLUSTER_MODE_LOCAL_HOST=http://ray-head:8265
+      - RAY_CLUSTER_MODE_LOCAL=1
+      - SETTINGS_AUTH_MECHANISM=mock_token
+    networks:
+      - safe-tier
+    volumes:
+      - program-artifacts:/usr/src/app/media/
+    depends_on:
+      - postgres
+  prometheus:
+    image: prom/prometheus:v2.44.0
+    profiles: [ "full" ]
+    ports:
+      - 9000:9090
+  loki:
+    image: grafana/loki:2.8.4
+    profiles: [ "full" ]
+    ports:
+      - 3100:3100
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - safe-tier
+  promtail:
+    image: grafana/promtail:2.8.4
+    profiles: [ "full" ]
+    volumes:
+      - host-log:/var/log
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - safe-tier
+  grafana:
+    image: grafana/grafana:latest
+    profiles: [ "full" ]
+    ports:
+      - 3000:3000
+    networks:
+      - safe-tier
+networks:
+  safe-tier:
+volumes:
+  program-artifacts:
+  host-shm:
+  host-log:

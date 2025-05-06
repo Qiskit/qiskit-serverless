@@ -143,7 +143,7 @@ class TestFunctionsDocker:
         assert isinstance(retrieved_job1.logs(), str)
         assert isinstance(retrieved_job2.logs(), str)
 
-    def test_custom_image(self, serverless_client: BaseClient):
+    def test_custom_image(self, serverless_custom_image_yaml_client: BaseClient):
         """Integration test to force an error."""
 
         description = """
@@ -162,12 +162,11 @@ class TestFunctionsDocker:
             description=description,
         )
 
-        runnable_function = serverless_client.upload(function_with_custom_image)
+        runnable_function = serverless_custom_image_yaml_client.upload(function_with_custom_image)
 
         job = runnable_function.run(message="Argument for the custum function")
 
-        with raises(QiskitServerlessException):
-            job.result()
+        job.result()
 
     def test_update_sub_status(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""

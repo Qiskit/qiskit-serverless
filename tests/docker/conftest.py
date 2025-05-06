@@ -29,12 +29,12 @@ def local_client():
     return LocalClient()
 
 
-def set_up_serverless_client():
+def set_up_serverless_client(compose_file_name="../../../docker-compose-dev.yaml"):
     """Auxiliar fixture function to create a serverless client"""
     compose = DockerCompose(
         resources_path,
-        compose_file_name="../../../docker-compose-dev.yaml",
-        pull=True,
+        compose_file_name=compose_file_name,
+        pull=False,
     )
     compose.start()
 
@@ -61,6 +61,15 @@ def set_up_serverless_client():
 def serverless_client():
     """Fixture for testing files with serverless client."""
     [compose, serverless] = set_up_serverless_client()
+
+    yield serverless
+
+    compose.stop()
+
+@fixture(scope="module")
+def serverless_custom_image_yaml_client():
+    """Fixture for testing files with serverless client."""
+    [compose, serverless] = set_up_serverless_client(compose_file_name="../docker-compose-test.yaml")
 
     yield serverless
 
