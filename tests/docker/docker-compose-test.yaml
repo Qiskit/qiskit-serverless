@@ -2,7 +2,7 @@
 services:
   ray-head:
     user: "0"
-    container_name: ray-head
+    container_name: ray-head-test
     image: test_function
     build:
       context: ./
@@ -12,7 +12,7 @@ services:
       "--dashboard-host=0.0.0.0", "--block"
     ]
     ports:
-      - 8265:8265
+      - 8266:8266
     volumes:
       - host-shm:/dev/shm
     networks:
@@ -26,17 +26,17 @@ services:
     networks:
       - safe-tier
     ports:
-      - 5432:5432
+      - 5433:5433
     restart:
       always
   gateway:
-    container_name: gateway
+    container_name: gateway-test
     build:
       context: ../../
       dockerfile: gateway/Dockerfile
-    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=1 --threads=1 --max-requests=1200 --max-requests-jitter=50 --timeout=25
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8001 --workers=1 --threads=1 --max-requests=1200 --max-requests-jitter=50 --timeout=25
     ports:
-      - 8000:8000
+      - 8001:8001
     user: "root" # we use the root user here so the docker-compose watch can sync files into the container
     environment:
       - DEBUG=1
@@ -44,7 +44,7 @@ services:
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
-      - SITE_HOST=http://gateway:8000
+      - SITE_HOST=http://gateway:8001
       - SETTINGS_AUTH_MECHANISM=mock_token
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
@@ -58,7 +58,7 @@ services:
     depends_on:
       - postgres
   scheduler:
-    container_name: scheduler
+    container_name: scheduler-test
     build:
       context: ../../
       dockerfile: gateway/Dockerfile
@@ -66,7 +66,7 @@ services:
     environment:
       - DEBUG=1
       - DATABASE_HOST=postgres
-      - DATABASE_PORT=5432
+      - DATABASE_PORT=5433
       - DATABASE_NAME=serverlessdb
       - DATABASE_USER=serverlessuser
       - DATABASE_PASSWORD=serverlesspassword

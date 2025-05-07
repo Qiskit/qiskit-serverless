@@ -1,10 +1,10 @@
 FROM icr.io/quantum-public/qiskit-serverless/ray-node:latest
 
 # install all necessary dependencies for your custom image
+RUN pip install pendulum
 
 # copy our function implementation in `/runner.py` of the docker image
 USER 0
-RUN pip install pendulum
 RUN mkdir /runner
 WORKDIR /runner
 COPY function/runner.py .

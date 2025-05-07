@@ -161,13 +161,20 @@ class TestFunctionsDocker:
             description=description,
         )
 
+        print("Uploading function...")
         runnable_function = serverless_custom_image_yaml_client.upload(
             function_with_custom_image
         )
 
+        print("Running...")
         job = runnable_function.run(message="Argument for the custum function")
 
-        job.result()
+
+        print("Job:")
+        print(job)
+        
+        print("Result:")
+        print(job.result())
 
     def test_update_sub_status(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
