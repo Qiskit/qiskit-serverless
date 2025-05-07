@@ -21,19 +21,12 @@ function_with_custom_image = QiskitFunction(
     provider=os.environ.get("PROVIDER_ID", "mockprovider"),
     description=help,
 )
-serverless.upload(function_with_custom_image)
+runnable_function = serverless.upload(function_with_custom_image)
 
-my_functions = serverless.list()
-for function in my_functions:
-    print("Name: " + function.title)
-    print(function.description)
-    print()
-
-my_function = serverless.get("custom-image-function")
-job = my_function.run(message="Argument for the custum function")
+job = runnable_function.run(message="Argument for the custum function")
 
 print(job.result())
 print(job.logs())
 
-jobs = my_function.jobs()
+jobs = runnable_function.jobs()
 print(jobs)
