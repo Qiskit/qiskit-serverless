@@ -169,10 +169,9 @@ class TestFunctionsDocker:
         print("Running...")
         job = runnable_function.run(message="Argument for the custum function")
 
-
         print("Job:")
         print(job)
-        
+
         print("Result:")
         print(job.result())
 

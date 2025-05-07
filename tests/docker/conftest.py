@@ -30,15 +30,15 @@ def local_client():
     return LocalClient()
 
 
-def set_up_serverless_client(compose_file_name="../../../docker-compose-dev.yaml", backoffice_port=8000):
+def set_up_serverless_client(
+    compose_file_name="../../../docker-compose-dev.yaml", backoffice_port=8000
+):
     """Auxiliar fixture function to create a serverless client"""
     compose = DockerCompose(
-        resources_path,
-        compose_file_name=compose_file_name,
-        pull=False
+        resources_path, compose_file_name=compose_file_name, pull=False
     )
     try:
-      compose.start()
+        compose.start()
     except CalledProcessError as error:
         print("COMPOSE START ERROR")
         print("STDOUT:")
@@ -84,8 +84,7 @@ def serverless_client():
 def serverless_custom_image_yaml_client():
     """Fixture for testing files with serverless client."""
     [compose, serverless] = set_up_serverless_client(
-        compose_file_name="../docker-compose-test.yaml",
-        backoffice_port=8001
+        compose_file_name="../docker-compose-test.yaml", backoffice_port=8001
     )
 
     yield serverless
