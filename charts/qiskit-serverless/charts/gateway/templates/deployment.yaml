@@ -133,8 +133,6 @@ spec:
               value: {{ .Values.application.ray.gpu | quote }}
             - name: LIMITS_MEMORY_PER_TASK
               value: {{ .Values.application.ray.memory | quote }}
-            - name: MAINTENANCE
-              value: {{ .Values.application.maintenance | quote }}
 {{- if .Values.application.superuser.enable }}
             - name: DJANGO_SUPERUSER_USERNAME
               valueFrom:

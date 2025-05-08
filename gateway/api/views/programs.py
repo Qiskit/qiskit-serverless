@@ -206,13 +206,6 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            if settings.MAINTENANCE:
-                logger.warning("System in maintenance mode.")
-                return Response(
-                    {"message": "System in maintenance mode."},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                )
-
             author = request.user
             # The sanitization should happen in the serializer
             # but it's here until we can refactor the /run end-point
