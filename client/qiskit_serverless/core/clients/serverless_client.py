@@ -310,7 +310,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return response_data.get("status", default_status)
+        status = response_data.get("status", default_status)
+        sub_status = response_data.get("sub_status")
+        if status == Job.RUNNING and sub_status is not None:
+            return sub_status
+
+        return status
 
     @_trace_job
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
@@ -427,15 +432,12 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
+        for program_data in response_data:
+            program_data["client"] = self
+
         return [
-            RunnableQiskitFunction(
-                client=self,
-                title=program.get("title"),
-                provider=program.get("provider", None),
-                raw_data=program,
-                description=program.get("description"),
-            )
-            for program in response_data
+            RunnableQiskitFunction.from_json(program_data)
+            for program_data in response_data
         ]
 
     @_trace_functions("get_by_title")
@@ -456,12 +458,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return RunnableQiskitFunction(
-            client=self,
-            title=response_data.get("title"),
-            provider=response_data.get("provider", None),
-            raw_data=response_data,
-        )
+        response_data["client"] = self
+        the_function = RunnableQiskitFunction.from_json(response_data)
+        return the_function
 
     #####################
     ####### FILES #######

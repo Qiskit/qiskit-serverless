@@ -111,7 +111,7 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
     # maybe refactor this using big SQL query :thinking:
 
     running_jobs_per_user = (
-        Job.objects.filter(status__in=Job.RUNNING_STATES)
+        Job.objects.filter(status__in=Job.RUNNING_STATUSES)
         .values("author")
         .annotate(running_jobs_count=Count("id"))
     )

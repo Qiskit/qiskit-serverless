@@ -2,7 +2,7 @@
 Repository implementation for Job model
 """
 import logging
-from typing import List
+from typing import List, Optional
 from django.db.models import Q
 from api.models import Job
 from api.models import Program as Function
@@ -94,3 +94,37 @@ class JobsRepository:  # pylint: disable=too-few-public-methods
         return Job.objects.filter(
             user_criteria & provider_not_exists_criteria
         ).order_by(ordering)
+
+    def update_job_sub_status(self, job: Job, sub_status: Optional[str]) -> bool:
+        """
+        Updates the sub-status of a running job.
+
+        Args:
+            job (Job): The job to be updated
+            sub_status (str, optional): The new sub-status.
+
+        Returns:
+            bool: If the status has been changed properly
+        """
+        if sub_status and sub_status not in Job.RUNNING_SUB_STATUSES:
+            return False
+
+        updated = Job.objects.filter(id=job.id, status=Job.RUNNING).update(
+            sub_status=sub_status
+        )
+        if updated:
+            logger.info(
+                "Job [%s] of [%s] changed sub_status from [%s] to [%s]",
+                job.id,
+                job.author,
+                job.sub_status,
+                sub_status,
+            )
+        else:
+            logger.warning(
+                "Job [%s] sub_status cannot be updated because "
+                "it is not in RUNNING state or id doesn't exist",
+                job.id,
+            )
+
+        return updated == 1
