@@ -31,6 +31,12 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
+        maintenance = settings.MAINTENANCE
+
+        if maintenance:
+            logger.warning("System in maintenance mode. Skipping new jobs schedule.")
+            return
+
         number_of_clusters_running = ComputeResource.objects.filter(
             active=True, gpu=False
         ).count()
