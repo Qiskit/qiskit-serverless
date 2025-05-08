@@ -17,7 +17,6 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
-from django.conf import settings
 from api.repositories.functions import FunctionRepository
 from api.domain.authentication.channel import Channel
 from api.utils import sanitize_name
