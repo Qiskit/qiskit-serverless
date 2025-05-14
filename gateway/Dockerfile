@@ -15,8 +15,8 @@ COPY --from=base / ${MICRO_IMAGE_DIR}
 
 # Install Python inside the BASE image
 RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
-    python3.11-3.11.9 \
-    python3.11-devel-3.11.9 \
+    python3.11-3.11.11 \
+    python3.11-devel-3.11.11 \
     libstdc++ &&\
     dnf upgrade --installroot ${MICRO_IMAGE_DIR} --nodocs -y && \
     dnf clean all --installroot ${MICRO_IMAGE_DIR}
