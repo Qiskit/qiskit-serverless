@@ -8,7 +8,6 @@ from django.core.files.base import ContentFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from django.test import override_settings
 
 from api.models import Job, Program
 
