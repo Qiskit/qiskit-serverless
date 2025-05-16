@@ -31,6 +31,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "provider",
             "description",
             "documentation_url",
+            "type",
         ]
 
 
@@ -91,6 +92,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 raise ValidationError(
                     f"Custom images must be in {provider_instance.registry}."
                 )
+
         return super().validate(attrs)
 
     class Meta(serializers.UploadProgramSerializer.Meta):
@@ -103,12 +105,13 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "image",
             "provider",
             "description",
+            "type",
         ]
 
 
 class RunProgramSerializer(serializers.RunProgramSerializer):
     """
-    RunExistingProgramSerializer is used by the /upload end-point
+    RunExistingProgramSerializer is used by the /run end-point
     """
 
 
@@ -143,7 +146,7 @@ class JobSerializer(serializers.JobSerializer):
     program = ProgramSerializer(many=False)
 
     class Meta(serializers.JobSerializer.Meta):
-        fields = ["id", "result", "status", "program", "created"]
+        fields = ["id", "result", "status", "program", "created", "sub_status"]
 
 
 class JobSerializerWithoutResult(serializers.JobSerializer):
@@ -154,7 +157,7 @@ class JobSerializerWithoutResult(serializers.JobSerializer):
     program = ProgramSerializer(many=False)
 
     class Meta(serializers.JobSerializer.Meta):
-        fields = ["id", "status", "program", "created"]
+        fields = ["id", "status", "program", "created", "sub_status"]
 
 
 class RuntimeJobSerializer(serializers.RuntimeJobSerializer):

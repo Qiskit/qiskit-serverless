@@ -319,6 +319,7 @@ LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
+MAINTENANCE = os.environ.get("MAINTENANCE", "false") == "true"
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
@@ -329,7 +330,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.21.1"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.22.0"
 )
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(

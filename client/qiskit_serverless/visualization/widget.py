@@ -31,6 +31,7 @@ from datetime import datetime
 from IPython.display import display, clear_output
 from ipywidgets import GridspecLayout, widgets, Layout
 
+from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.exception import QiskitServerlessException
 
 TABLE_STYLE = """
@@ -53,7 +54,7 @@ TABLE_STYLE = """
 class Widget:  # pylint: disable=too-many-instance-attributes
     """Widget for displaying information related to provider."""
 
-    def __init__(self, provider):
+    def __init__(self, provider: BaseClient):
         """Constructor for widget.
 
         Args:
@@ -67,7 +68,7 @@ class Widget:  # pylint: disable=too-many-instance-attributes
 
         self.job_offset = 0
         self.job_limit = 10
-        self.jobs = self.provider.get_jobs()
+        self.jobs = self.provider.jobs()
 
         self.job_list_view = widgets.Output()
         with self.job_list_view:
@@ -79,7 +80,7 @@ class Widget:  # pylint: disable=too-many-instance-attributes
 
         self.program_offset = 0
         self.program_limit = 10
-        self.programs = self.provider.get_programs()
+        self.programs = self.provider.functions()
 
         self.program_list_view = widgets.Output()
         with self.program_list_view:
@@ -166,12 +167,12 @@ class Widget:  # pylint: disable=too-many-instance-attributes
         def paginate(page_button):
             """Handles pagination callback logic."""
             if page_button.tooltip == "prev":
-                self.jobs = self.provider.get_jobs(
+                self.jobs = self.provider.jobs(
                     limit=self.job_limit, offset=self.job_offset - self.job_limit
                 )
                 self.job_offset = self.job_offset - self.job_limit
             elif page_button.tooltip == "next":
-                self.jobs = self.provider.get_jobs(
+                self.jobs = self.provider.jobs(
                     limit=self.job_limit, offset=self.job_offset + self.job_limit
                 )
                 self.job_offset = self.job_offset + self.job_limit
@@ -219,13 +220,13 @@ class Widget:  # pylint: disable=too-many-instance-attributes
         def paginate(page_button):
             """Handles pagination callback logic."""
             if page_button.tooltip == "prev":
-                self.programs = self.provider.get_programs(
+                self.programs = self.provider.functions(
                     limit=self.program_limit,
                     offset=self.program_offset - self.program_limit,
                 )
                 self.job_offset = self.program_offset - self.job_limit
             elif page_button.tooltip == "next":
-                self.jobs = self.provider.get_jobs(
+                self.jobs = self.provider.jobs(
                     limit=self.program_limit,
                     offset=self.program_offset + self.program_limit,
                 )

@@ -34,7 +34,7 @@ import logging
 import os
 import time
 import warnings
-from typing import Dict, Any, Optional, Union
+from typing import ClassVar, Dict, Any, Literal, Optional, Union
 from dataclasses import dataclass
 
 import ray.runtime_env
@@ -111,8 +111,35 @@ class JobService(ABC):
         """
 
 
+PendingType = Literal["PENDING"]
+RunningType = Literal["RUNNING"]
+StoppedType = Literal["STOPPED"]
+SucceededType = Literal["SUCCEEDED"]
+FailedType = Literal["FAILED"]
+QueuedType = Literal["QUEUED"]
+# RUNNING statuses
+MappingType = Literal["MAPPING"]
+OptimizingHardwareType = Literal["OPTIMIZING_HARDWARE"]
+WaitingQpuType = Literal["WAITING_QPU"]
+ExecutingQpuType = Literal["EXECUTING_QPU"]
+PostProcessingType = Literal["POST_PROCESSING"]
+
+
 class Job:
     """Job."""
+
+    PENDING: ClassVar[PendingType] = "PENDING"
+    RUNNING: ClassVar[RunningType] = "RUNNING"
+    STOPPED: ClassVar[StoppedType] = "STOPPED"
+    SUCCEEDED: ClassVar[SucceededType] = "SUCCEEDED"
+    FAILED: ClassVar[FailedType] = "FAILED"
+    QUEUED: ClassVar[QueuedType] = "QUEUED"
+    # RUNNING statuses
+    MAPPING: ClassVar[MappingType] = "MAPPING"
+    OPTIMIZING_HARDWARE: ClassVar[OptimizingHardwareType] = "OPTIMIZING_HARDWARE"
+    WAITING_QPU: ClassVar[WaitingQpuType] = "WAITING_QPU"
+    EXECUTING_QPU: ClassVar[ExecutingQpuType] = "EXECUTING_QPU"
+    POST_PROCESSING: ClassVar[PostProcessingType] = "POST_PROCESSING"
 
     def __init__(
         self,
@@ -200,8 +227,8 @@ class Job:
 
     def in_terminal_state(self) -> bool:
         """Checks if job is in terminal state"""
-        terminal_states = ["CANCELED", "DONE", "ERROR"]
-        return self.status() in terminal_states
+        terminal_status = ["CANCELED", "DONE", "ERROR"]
+        return self.status() in terminal_status
 
     def __repr__(self):
         return f"<Job | {self.job_id}>"
@@ -277,15 +304,55 @@ def save_result(result: Dict[str, Any]):
     return response.ok
 
 
+def update_status(status: str):
+    """Update sub status."""
+
+    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
+    if version is None:
+        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+
+    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    if token is None:
+        logging.warning(
+            "'sub_status' cannot be updated since"
+            "there is no information about the"
+            "authorization token in the environment."
+        )
+        return False
+
+    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
+
+    url = (
+        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
+        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/sub_status/"
+    )
+    response = requests.patch(
+        url,
+        data={"sub_status": status},
+        headers=get_headers(token=token, instance=instance),
+        timeout=REQUESTS_TIMEOUT,
+    )
+    if not response.ok:
+        sanitized = response.text.replace("\n", "").replace("\r", "")
+        logging.warning("Something went wrong: %s", sanitized)
+
+    return response.ok
+
+
 def _map_status_to_serverless(status: str) -> str:
     """Map a status string from job client to the Qiskit terminology."""
     status_map = {
-        "PENDING": "INITIALIZING",
-        "RUNNING": "RUNNING",
-        "STOPPED": "CANCELED",
-        "SUCCEEDED": "DONE",
-        "FAILED": "ERROR",
-        "QUEUED": "QUEUED",
+        Job.PENDING: "INITIALIZING",
+        Job.RUNNING: "RUNNING",
+        Job.STOPPED: "CANCELED",
+        Job.SUCCEEDED: "DONE",
+        Job.FAILED: "ERROR",
+        Job.QUEUED: "QUEUED",
+        Job.MAPPING: "RUNNING: MAPPING",
+        Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_FOR_HARDWARE",
+        Job.WAITING_QPU: "RUNNING: WAITING_FOR_QPU",
+        Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
+        Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
     }
 
     try:

@@ -6,7 +6,14 @@ replicaCount: 1
 useCertManager: false
 
 application:
-#  command: [ "gunicorn", "gateway.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=3" ]
+  # Gunicorn configuration
+  httpServer:
+    serverModel: "main.wsgi:application"
+    workers: 1
+    threads: 1
+    maxRequests: 1200
+    jitter: 50
+    timeout: 25
   debug: 0
   siteHost: "http://127.0.0.1:8000"
   rayHost: "http://ray:8265/"
@@ -17,8 +24,9 @@ application:
     authMockproviderRegistry: "icr.io"
   superuser:
     enable: true
+  maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.21.1"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.22.0"
     cpu: 2
     memory: 2
     gpu: 1

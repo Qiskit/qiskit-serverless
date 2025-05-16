@@ -29,6 +29,7 @@ from api.serializers import (
 )
 from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
 from api.views.enums.type_filter import TypeFilter
+from api.decorators.trace_decorator import trace_decorator_factory
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -45,6 +46,8 @@ otel_exporter = BatchSpanProcessor(
 provider.add_span_processor(otel_exporter)
 if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
+
+_trace = trace_decorator_factory("program")
 
 
 class ProgramViewSet(viewsets.GenericViewSet):
@@ -102,175 +105,169 @@ class ProgramViewSet(viewsets.GenericViewSet):
     def get_object(self):
         logger.warning("ProgramViewSet.get_object not implemented")
 
+    @_trace
     def list(self, request):
         """List programs:"""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.program.list", context=ctx):
+        author = self.request.user
+        type_filter = self.request.query_params.get("filter")
 
-            author = self.request.user
-            type_filter = self.request.query_params.get("filter")
+        if type_filter == TypeFilter.SERVERLESS:
+            # Serverless filter only returns functions created by the author
+            # with the next criterias:
+            # - user is the author of the function and there is no provider
+            functions = self.function_repository.get_user_functions(author)
+        elif type_filter == TypeFilter.CATALOG:
+            # Catalog filter only returns providers functions that user has access:
+            # author has view permissions and the function has a provider assigned
+            functions = self.function_repository.get_provider_functions_by_permission(
+                author, permission_name=RUN_PROGRAM_PERMISSION
+            )
+        else:
+            # If filter is not applied we return author and providers functions together
+            functions = self.function_repository.get_functions_by_permission(
+                author, permission_name=VIEW_PROGRAM_PERMISSION
+            )
 
-            if type_filter == TypeFilter.SERVERLESS:
-                # Serverless filter only returns functions created by the author
-                # with the next criterias:
-                # - user is the author of the function and there is no provider
-                functions = self.function_repository.get_user_functions(author)
-            elif type_filter == TypeFilter.CATALOG:
-                # Catalog filter only returns providers functions that user has access:
-                # author has view permissions and the function has a provider assigned
-                functions = (
-                    self.function_repository.get_provider_functions_by_permission(
-                        author, permission_name=RUN_PROGRAM_PERMISSION
-                    )
-                )
-            else:
-                # If filter is not applied we return author and providers functions together
-                functions = self.function_repository.get_functions_by_permission(
-                    author, permission_name=VIEW_PROGRAM_PERMISSION
-                )
-
-            serializer = self.get_serializer(functions, many=True)
+        serializer = self.get_serializer(functions, many=True)
 
         return Response(serializer.data)
 
+    @_trace
     @action(methods=["POST"], detail=False)
     def upload(self, request):
         """Uploads a program:"""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.program.upload", context=ctx):
-            serializer = self.get_serializer_upload_program(data=request.data)
-            if not serializer.is_valid():
-                logger.error(
-                    "UploadProgramSerializer validation failed:\n %s",
-                    serializer.errors,
-                )
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            title = serializer.validated_data.get("title")
-            request_provider = serializer.validated_data.get("provider", None)
-            author = request.user
-            provider_name, title = serializer.get_provider_name_and_title(
-                request_provider, title
+        serializer = self.get_serializer_upload_program(data=request.data)
+        if not serializer.is_valid():
+            logger.error(
+                "UploadProgramSerializer validation failed:\n %s",
+                serializer.errors,
             )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            if provider_name:
-                user_has_access = serializer.check_provider_access(
-                    provider_name=provider_name, author=author
-                )
-                if not user_has_access:
-                    # For security we just return a 404 not a 401
-                    return Response(
-                        {"message": f"Provider [{provider_name}] was not found."},
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
-                program = serializer.retrieve_provider_function(
-                    title=title, provider_name=provider_name
-                )
-            else:
-                program = serializer.retrieve_private_function(
-                    title=title, author=author
-                )
+        title = serializer.validated_data.get("title")
+        request_provider = serializer.validated_data.get("provider", None)
+        author = request.user
+        provider_name, title = serializer.get_provider_name_and_title(
+            request_provider, title
+        )
 
-            if program is not None:
-                logger.info("Program found. [%s] is going to be updated", title)
-                serializer = self.get_serializer_upload_program(
-                    program, data=request.data
-                )
-                if not serializer.is_valid():
-                    logger.error(
-                        "UploadProgramSerializer validation failed with program instance:\n %s",
-                        serializer.errors,
-                    )
-                    return Response(
-                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                    )
-            serializer.save(author=author, title=title, provider=provider_name)
-
-            logger.info("Return response with Program [%s]", title)
-            return Response(serializer.data)
-
-    @action(methods=["POST"], detail=False)
-    def run(self, request):
-        """Enqueues existing program."""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.program.run", context=ctx):
-            serializer = self.get_serializer_run_program(data=request.data)
-            if not serializer.is_valid():
-                logger.error(
-                    "RunProgramSerializer validation failed:\n %s",
-                    serializer.errors,
-                )
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            author = request.user
-            # The sanitization should happen in the serializer
-            # but it's here until we can refactor the /run end-point
-            provider_name = sanitize_name(serializer.data.get("provider"))
-            function_title = sanitize_name(serializer.data.get("title"))
-            function = self.function_repository.get_function_by_permission(
-                user=author,
-                permission_name=RUN_PROGRAM_PERMISSION,
-                function_title=function_title,
-                provider_name=provider_name,
+        if provider_name:
+            user_has_access = serializer.check_provider_access(
+                provider_name=provider_name, author=author
             )
-            if function is None:
-                logger.error("Qiskit Pattern [%s] was not found.", function_title)
+            if not user_has_access:
+                # For security we just return a 404 not a 401
                 return Response(
-                    {"message": f"Qiskit Pattern [{function_title}] was not found."},
+                    {"message": f"Provider [{provider_name}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
+            program = serializer.retrieve_provider_function(
+                title=title, provider_name=provider_name
+            )
+        else:
+            program = serializer.retrieve_private_function(title=title, author=author)
 
-            jobconfig = None
-            config_json = serializer.data.get("config")
-            if config_json:
-                logger.info("Configuration for [%s] was found.", function_title)
-                job_config_serializer = self.get_serializer_job_config(data=config_json)
-                if not job_config_serializer.is_valid():
-                    logger.error(
-                        "JobConfigSerializer validation failed:\n %s",
-                        serializer.errors,
-                    )
-                    return Response(
-                        job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                    )
-                jobconfig = job_config_serializer.save()
-                logger.info("JobConfig [%s] created.", jobconfig.id)
-
-            carrier = {}
-            TraceContextTextMapPropagator().inject(carrier)
-            arguments = serializer.data.get("arguments")
-            channel = Channel.IBM_QUANTUM
-            token = ""
-            instance = None
-            if request.auth:
-                channel = request.auth.channel
-                token = request.auth.token.decode()
-                instance = request.auth.instance
-            job_data = {"arguments": arguments, "program": function.id}
-            job_serializer = self.get_serializer_run_job(data=job_data)
-            if not job_serializer.is_valid():
+        if program is not None:
+            logger.info("Program found. [%s] is going to be updated", title)
+            serializer = self.get_serializer_upload_program(program, data=request.data)
+            if not serializer.is_valid():
                 logger.error(
-                    "RunJobSerializer validation failed:\n %s",
+                    "UploadProgramSerializer validation failed with program instance:\n %s",
+                    serializer.errors,
+                )
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save(author=author, title=title, provider=provider_name)
+
+        logger.info("Return response with Program [%s]", title)
+        return Response(serializer.data)
+
+    @_trace
+    @action(methods=["POST"], detail=False)
+    def run(self, request):  # pylint: disable=too-many-locals
+        """Enqueues existing program."""
+        serializer = self.get_serializer_run_program(data=request.data)
+        if not serializer.is_valid():
+            logger.error(
+                "RunProgramSerializer validation failed:\n %s",
+                serializer.errors,
+            )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        author = request.user
+        # The sanitization should happen in the serializer
+        # but it's here until we can refactor the /run end-point
+        provider_name = sanitize_name(serializer.data.get("provider"))
+        function_title = sanitize_name(serializer.data.get("title"))
+        function = self.function_repository.get_function_by_permission(
+            user=author,
+            permission_name=RUN_PROGRAM_PERMISSION,
+            function_title=function_title,
+            provider_name=provider_name,
+        )
+        if function is None:
+            logger.error("Qiskit Pattern [%s] was not found.", function_title)
+            return Response(
+                {"message": f"Qiskit Pattern [{function_title}] was not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if function.disabled:
+            error_message = (
+                function.disabled_message
+                if function.disabled_message
+                else Program.DEFAULT_DISABLED_MESSAGE
+            )
+            return Response(
+                {"message": error_message},
+                status=status.HTTP_423_LOCKED,
+            )
+
+        jobconfig = None
+        config_json = serializer.data.get("config")
+        if config_json:
+            logger.info("Configuration for [%s] was found.", function_title)
+            job_config_serializer = self.get_serializer_job_config(data=config_json)
+            if not job_config_serializer.is_valid():
+                logger.error(
+                    "JobConfigSerializer validation failed:\n %s",
                     serializer.errors,
                 )
                 return Response(
-                    job_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                 )
-            job = job_serializer.save(
-                author=author,
-                carrier=carrier,
-                channel=channel,
-                token=token,
-                config=jobconfig,
-                instance=instance,
+            jobconfig = job_config_serializer.save()
+            logger.info("JobConfig [%s] created.", jobconfig.id)
+
+        carrier = {}
+        TraceContextTextMapPropagator().inject(carrier)
+        arguments = serializer.data.get("arguments")
+        channel = Channel.IBM_QUANTUM
+        token = ""
+        instance = None
+        if request.auth:
+            channel = request.auth.channel
+            token = request.auth.token.decode()
+            instance = request.auth.instance
+        job_data = {"arguments": arguments, "program": function.id}
+        job_serializer = self.get_serializer_run_job(data=job_data)
+        if not job_serializer.is_valid():
+            logger.error(
+                "RunJobSerializer validation failed:\n %s",
+                serializer.errors,
             )
-            logger.info("Returning Job [%s] created.", job.id)
+            return Response(job_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        job = job_serializer.save(
+            author=author,
+            carrier=carrier,
+            channel=channel,
+            token=token,
+            config=jobconfig,
+            instance=instance,
+        )
+        logger.info("Returning Job [%s] created.", job.id)
 
         return Response(job_serializer.data)
 
+    # is this intentionally not traced?
     @action(methods=["GET"], detail=False, url_path="get_by_title/(?P<title>[^/.]+)")
     def get_by_title(self, request, title):
         """Returns programs by title."""
@@ -301,30 +298,28 @@ class ProgramViewSet(viewsets.GenericViewSet):
         return Response(status=404)
 
     # This end-point is deprecated and we need to confirm if we can remove it
+    @_trace
     @action(methods=["GET"], detail=True)
     def get_jobs(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
         """Returns jobs of the program."""
-        tracer = trace.get_tracer("gateway.tracer")
-        ctx = TraceContextTextMapPropagator().extract(carrier=request.headers)
-        with tracer.start_as_current_span("gateway.program.get_jobs", context=ctx):
-            program = Program.objects.filter(id=pk).first()
-            if not program:
-                return Response(
-                    {"message": f"program [{pk}] was not found."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+        program = Program.objects.filter(id=pk).first()
+        if not program:
+            return Response(
+                {"message": f"program [{pk}] was not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-            user_is_provider = False
-            if program.provider:
-                admin_groups = program.provider.admin_groups.all()
-                user_groups = request.user.groups.all()
-                user_is_provider = any(group in admin_groups for group in user_groups)
+        user_is_provider = False
+        if program.provider:
+            admin_groups = program.provider.admin_groups.all()
+            user_groups = request.user.groups.all()
+            user_is_provider = any(group in admin_groups for group in user_groups)
 
-            if user_is_provider:
-                jobs = Job.objects.filter(program=program)
-            else:
-                jobs = Job.objects.filter(program=program, author=request.user)
-            serializer = self.get_serializer_job(jobs, many=True)
-            return Response(serializer.data)
+        if user_is_provider:
+            jobs = Job.objects.filter(program=program)
+        else:
+            jobs = Job.objects.filter(program=program, author=request.user)
+        serializer = self.get_serializer_job(jobs, many=True)
+        return Response(serializer.data)
