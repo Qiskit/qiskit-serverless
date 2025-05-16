@@ -272,8 +272,8 @@ def save_result(result: Dict[str, Any]):
     token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
     if token is None:
         logging.warning(
-            "Results will be saved as logs since"
-            "there is no information about the"
+            "Results will be saved as logs since "
+            "there is no information about the "
             "authorization token in the environment."
         )
         logging.info("Result: %s", result)
@@ -314,8 +314,8 @@ def update_status(status: str):
     token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
     if token is None:
         logging.warning(
-            "'sub_status' cannot be updated since"
-            "there is no information about the"
+            "'sub_status' cannot be updated since "
+            "there is no information about the "
             "authorization token in the environment."
         )
         return False
