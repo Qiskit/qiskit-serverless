@@ -70,7 +70,7 @@ Security vulnerabilities must be privately reported by following our [Security P
 
 You'll need to install these tools on your development environment:
 
-1. [python](https://www.python.org/): the language qiskit-serverless is written in (Note that we currently support Python >=3.8,<3.11).
+1. [python](https://www.python.org/): the language qiskit-serverless is written in (Note that we currently support Python >=3.9,<=3.13).
 1. [git](https://git-scm.com/): for source control
 1. [docker](https://docs.docker.com/engine/install/) or [podman](https://podman.io/): for building dev environment
 1. [kubectl](https://kubectl.docs.kubernetes.io/): for interacting with Kubernetes clusters

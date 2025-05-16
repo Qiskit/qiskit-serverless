@@ -36,7 +36,7 @@ The command `tox -eblack` will reformat all files in the repository according to
 
 ## Test (py##) environments
 
-The `py##` environments are the main test environments.  tox defines one for each version of Python.  For instance, the following command will run the tests on Python 3.9 and Python 3.10:
+The `py##` environments are the main test environments.  tox defines one for each version of Python.  For instance, the following command will run the tests on Python 3.11:
 
 ```sh
 $ tox -epy311

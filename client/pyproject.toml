@@ -2,5 +2,59 @@
 requires = ["setuptools>=70.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.pytest.ini_options]
-filterwarnings = ["ignore:::.*qiskit.opflow.*", "ignore:::.*qiskit.primitives.*"]
+[project]
+name = "qiskit-serverless"
+description = "An open-source SDK for resource management in quantum computing workflows."
+requires-python = ">=3.9"
+license = {text = "Apache 2.0"}
+authors = [
+    { name = "Qiskit Serverless Team", email = "qiskit@us.ibm.com" },
+]
+keywords = [
+    "qiskit",
+    "serverless",
+    "quantum computing",
+]
+classifiers=[
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+# These are configured in the `tool.setuptools.dynamic` table.
+dynamic = ["version", "readme", "dependencies"]
+
+# If modifying this table, be sure to sync with `requirements-optional.txt`
+[project.optional-dependencies]
+# pip install qiskit-serverless[ray-data]
+ray-data = [
+    "ray[data]>=2.30, <3",
+]
+# pip install qiskit-serverless[ray-default]
+ray-default = [
+    "ray[default]>=2.30, <3",
+]
+# pip install qiskit-serverless[all]
+all = ["qiskit-serverless[ray-default,ray-data]"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { file = "qiskit_serverless/VERSION.txt" }
+readme = { file = "README.md", content-type = "text/markdown" }
+dependencies = {file = "requirements.txt" }
+
+[tool.setuptools.packages.find]
+include = ["qiskit_serverless"]
