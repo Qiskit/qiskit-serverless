@@ -46,9 +46,10 @@ class ComputeResourceAdmin(admin.ModelAdmin):
 class JobAdmin(admin.ModelAdmin):
     """JobAdmin."""
 
-    search_fields = ["author__username", "program__title"]
+    search_fields = ["id", "author__username", "program__title"]
     list_filter = ["status"]
     exclude = ["arguments", "env_vars", "logs", "result"]
+    ordering = ["-created"]
 
 
 @admin.register(RuntimeJob)
