@@ -48,13 +48,14 @@ ray-default = [
 # pip install qiskit-serverless[all]
 all = ["qiskit-serverless[ray-default,ray-data]"]
 
+[tool.setuptools.package-data]
+qiskit_serverless = ["VERSION.txt"]
+
 [tool.setuptools]
+packages = {find = {}}
 include-package-data = true
 
 [tool.setuptools.dynamic]
-version = { file = "qiskit_serverless/VERSION.txt" }
+version = {attr = "qiskit_serverless.version.__version__"}
 readme = { file = "README.md", content-type = "text/markdown" }
 dependencies = {file = "requirements.txt" }
-
-[tool.setuptools.packages.find]
-include = ["qiskit_serverless"]
