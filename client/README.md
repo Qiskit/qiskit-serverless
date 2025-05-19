@@ -11,8 +11,35 @@
 
 # Installation
 
+To install the latest release of the client, run: 
+
 ```shell
-pip install qiskit_serverless
+pip install qiskit-serverless
+```
+
+To include optional dependencies (additional ray packages), you can run the following commands:
+
+```shell
+pip install qiskit-serverless[ray-data]
+# if using macOS, run this instead:
+pip install 'qiskit-serverless[ray-data]'
+```
+```shell
+pip install qiskit-serverless[ray-default]
+# if using macOS, run this instead:
+pip install 'qiskit-serverless[ray-default]'
+```
+```shell
+pip install qiskit-serverless[ray-all]
+# if using macOS, run this instead:
+pip install 'qiskit-serverless[ray-all]'
+```
+
+To install an editable package from source, run:
+
+```shell
+pip install -r requirements.txt -r requirements-dev.txt
+pip install -e .
 ```
 
 ## Documentation
