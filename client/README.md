@@ -2,7 +2,7 @@
 [![Client verify process](https://github.com/Qiskit/qiskit-serverless/actions/workflows/client-verify.yaml/badge.svg)](https://github.com/Qiskit/qiskit-serverless/actions/workflows/client-verify.yaml)
 [![License](https://img.shields.io/github/license/qiskit-community/quantum-prototype-template?label=License)](https://github.com/qiskit-community/quantum-prototype-template/blob/main/LICENSE.txt)
 [![Code style: Black](https://img.shields.io/badge/Code%20style-Black-000.svg)](https://github.com/psf/black)
-[![Python](https://img.shields.io/badge/Python-3.11-informational)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.9--3.13-informational)](https://www.python.org/)
 [![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A5%200.39.0-6133BD)](https://github.com/Qiskit/qiskit)
 
 # Qiskit Serverless client
@@ -17,28 +17,25 @@ To install the latest release of the client, run:
 pip install qiskit-serverless
 ```
 
-To include optional dependencies (additional ray packages), you can run the following commands:
+To include optional dependencies (additional ray package), you can run the following command:
 
 ```shell
 pip install qiskit-serverless[ray-data]
 # if using macOS, run this instead:
 pip install 'qiskit-serverless[ray-data]'
 ```
-```shell
-pip install qiskit-serverless[ray-default]
-# if using macOS, run this instead:
-pip install 'qiskit-serverless[ray-default]'
-```
-```shell
-pip install qiskit-serverless[ray-all]
-# if using macOS, run this instead:
-pip install 'qiskit-serverless[ray-all]'
-```
 
 To install an editable package from source, run:
 
 ```shell
 pip install -r requirements.txt -r requirements-dev.txt
+pip install -e .
+```
+
+To include optional dependencies:
+
+```shell
+pip install -r requirements.txt -r requirements-dev.txt -r requirements-optional.txt
 pip install -e .
 ```
 
