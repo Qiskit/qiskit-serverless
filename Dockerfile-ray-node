@@ -1,7 +1,7 @@
-FROM registry.access.redhat.com/ubi9-minimal:9.5-1738816775
+FROM registry.access.redhat.com/ubi9-minimal:9.6-1747218906
 RUN microdnf install -y \
-    python3.11-3.11.9 \
-    python3.11-devel-3.11.9 \
+    python3.11-3.11.11 \
+    python3.11-devel-3.11.11 \
     wget-1.21.1
 RUN microdnf clean all
 RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
