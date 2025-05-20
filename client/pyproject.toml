@@ -41,12 +41,6 @@ dynamic = ["version", "readme", "dependencies"]
 ray-data = [
     "ray[data]>=2.30, <3",
 ]
-# pip install qiskit-serverless[ray-default]
-#ray-default = [
-#    "ray[default]>=2.30, <3",
-#]
-# pip install qiskit-serverless[all]
-#all = ["qiskit-serverless[ray-data]"]
 
 [tool.setuptools.package-data]
 qiskit_serverless = ["VERSION.txt"]
