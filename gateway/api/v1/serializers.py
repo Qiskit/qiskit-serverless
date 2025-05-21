@@ -4,12 +4,14 @@ Serializers api for V1.
 
 import json
 import logging
+from packaging.requirements import Requirement
 from rest_framework.serializers import ValidationError
 from api import serializers
 from api.models import Provider
 from api.utils import (
     create_dependency_allowlist,
     create_dependency_grammar,
+    create_dynamic_deps_whitelist,
     parse_dependency,
 )
 
@@ -55,15 +57,36 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             )
 
         # validate dependencies
-        dependency_grammar = create_dependency_grammar()
-        deps = json.loads(attrs.get("dependencies", None))
-        allowlist = create_dependency_allowlist()
-        if len(allowlist.keys()) > 0:  # If no allowlist, all dependencies allowed
-            for d in deps:
-                dep, _ = parse_dependency(d, dependency_grammar)
-                # Determine if a dependency is allowed
-                if dep not in allowlist:
-                    raise ValidationError(f"Dependency {dep} is not allowed")
+        # dependency_grammar = create_dependency_grammar()
+        # deps = json.loads(attrs.get("dependencies", None))
+        # allowlist = create_dependency_allowlist()
+        # if len(allowlist.keys()) > 0:  # If no allowlist, all dependencies allowed
+        #     for d in deps:
+        #         dep, _ = parse_dependency(d, dependency_grammar)
+        #         # Determine if a dependency is allowed
+        #         if dep not in allowlist:
+        #             raise ValidationError(f"Dependency {dep} is not allowed")
+
+        # validate dependencies
+        deps = attrs.get("dependencies", None)
+        deps = filter(lambda dep: not dep.startswith("#") and dep, deps.splitlines())
+        if len(list(deps)):
+            whitelist_deps = create_dynamic_deps_whitelist()
+            required_deps = [
+                Requirement(dep)
+                for dep in deps
+            ]
+            # can we improve this?
+            if any(len(req.specifier) > 1 or list(req.specifier)[0].operator == "==" for req in required_deps):
+                raise ValidationError("Dependencies needs a fixed version using the '==' operator.")
+            
+            for req in required_deps:
+              any(
+                  req.name == white.name 
+                  and list(req.specifier)[0].version in white.specifier 
+                  for white in whitelist_deps
+              )
+
 
         title = attrs.get("title")
         provider = attrs.get("provider", None)

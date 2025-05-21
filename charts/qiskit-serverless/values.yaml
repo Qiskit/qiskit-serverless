@@ -63,6 +63,7 @@ gateway:
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.9-13
       kubectlImage: alpine/k8s:1.29.13
       gpuJobsConfig: "/tmp/gpujobs/gpu-jobs.json"
+      gpuJobsConfig: "/tmp/dynamicdeps/dynamic-deps.json"
     limits:
       maxJobsPerUser: 2
       maxComputeResources: 4
