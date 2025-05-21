@@ -4,6 +4,7 @@ Serializers api for V1.
 
 import json
 import logging
+from typing import List
 from packaging.requirements import Requirement
 from rest_framework.serializers import ValidationError
 from api import serializers
@@ -68,24 +69,29 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         #             raise ValidationError(f"Dependency {dep} is not allowed")
 
         # validate dependencies
-        deps = attrs.get("dependencies", None)
-        deps = filter(lambda dep: not dep.startswith("#") and dep, deps.splitlines())
-        if len(list(deps)):
-            whitelist_deps = create_dynamic_deps_whitelist()
-            required_deps = [
-                Requirement(dep)
-                for dep in deps
-            ]
-            # can we improve this?
-            if any(len(req.specifier) > 1 or list(req.specifier)[0].operator == "==" for req in required_deps):
-                raise ValidationError("Dependencies needs a fixed version using the '==' operator.")
+        # deps = json.loads(attrs.get("dependencies", None))
+
+        # if isinstance(deps, list):
+        #     deps = {dep: None for dep in enumerate(deps)}
             
-            for req in required_deps:
-              any(
-                  req.name == white.name 
-                  and list(req.specifier)[0].version in white.specifier 
-                  for white in whitelist_deps
-              )
+
+        # if len(deps.keys()):
+        #     whitelist_deps = create_dynamic_deps_whitelist()
+        #     required_deps = [
+        #         Requirement(dep)
+        #         for dep in deps
+        #     ]
+        #     # can we improve this?
+        #     if any(len(req.specifier) > 1 or list(req.specifier)[0].operator == "==" for req in required_deps):
+        #         raise ValidationError("Dependencies needs one fixed version using the '==' operator.")
+            
+        #     for req in required_deps:
+        #       if not any(
+        #               req.name == white.name 
+        #               and list(req.specifier)[0].version in white.specifier 
+        #               for white in whitelist_deps
+        #           ):
+        #           raise ValidationError(f"Dependency {dep} is not allowed")
 
 
         title = attrs.get("title")

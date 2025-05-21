@@ -4,4 +4,4 @@ metadata:
   name: dynamicdeps
 data:
   requirements-dynamic-deps.txt: |-
-    {{ .Files.Get "files/requirements-dynamic-deps.txt" | indent 4 }}
+{{ .Files.Get "files/requirements-dynamic-deps.txt" | indent 4 }}

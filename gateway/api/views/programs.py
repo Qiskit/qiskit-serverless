@@ -150,6 +150,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         provider_name, title = serializer.get_provider_name_and_title(
             request_provider, title
         )
+        request_provider = serializer.validated_data.get("dependencies", None)
 
         if provider_name:
             user_has_access = serializer.check_provider_access(
@@ -176,6 +177,9 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     serializer.errors,
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+
+        
         serializer.save(author=author, title=title, provider=provider_name)
 
         logger.info("Return response with Program [%s]", title)
