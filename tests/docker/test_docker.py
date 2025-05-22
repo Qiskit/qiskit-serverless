@@ -84,7 +84,7 @@ class TestFunctionsDocker:
             dependencies=["pendulum"],
         )
 
-        runnable_function = base_client.upload(function)
+        runnable_function = serverless_client.upload(function)
 
         job = runnable_function.run()
 
@@ -106,7 +106,7 @@ class TestFunctionsDocker:
             dependencies=["pendulum==3.0.0"],
         )
 
-        runnable_function = base_client.upload(function)
+        runnable_function = serverless_client.upload(function)
 
         assert runnable_function is not None
 
@@ -122,7 +122,7 @@ class TestFunctionsDocker:
         )
 
         with raises(QiskitServerlessException):
-            base_client.upload(function)
+            serverless_client.upload(function)
 
     def test_distributed_workloads(self, base_client: BaseClient):
         """Integration test for Functions for distributed workloads."""
