@@ -73,7 +73,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    # local client doesn't make sense here 
+    # local client doesn't make sense here
     # since all dependencies are in the user computer
     def test_function_dependencies_basic(self, base_client: ServerlessClient):
         """Integration test for Functions with dependencies."""
@@ -93,7 +93,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    # local client doesn't make sense here 
+    # local client doesn't make sense here
     # since all dependencies are in the user computer
     def test_function_dependencies_with_version(self, base_client: ServerlessClient):
         """Integration test for Functions with dependencies."""
@@ -108,7 +108,7 @@ class TestFunctionsDocker:
 
         assert runnable_function is not None
 
-    # local client doesn't make sense here 
+    # local client doesn't make sense here
     # since all dependencies are in the user computer
     def test_function_blocked_dependency(self, base_client: ServerlessClient):
         """Integration test for Functions with blocked dependencies."""
