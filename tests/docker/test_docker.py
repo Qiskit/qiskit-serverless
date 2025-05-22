@@ -75,7 +75,7 @@ class TestFunctionsDocker:
 
     # local client doesn't make sense here
     # since all dependencies are in the user computer
-    def test_function_dependencies_basic(self, base_client: ServerlessClient):
+    def test_function_dependencies_basic(self, serverless_client: ServerlessClient):
         """Integration test for Functions with dependencies."""
         function = QiskitFunction(
             title="pattern-with-dependencies-1",
@@ -95,7 +95,7 @@ class TestFunctionsDocker:
 
     # local client doesn't make sense here
     # since all dependencies are in the user computer
-    def test_function_dependencies_with_version(self, base_client: ServerlessClient):
+    def test_function_dependencies_with_version(self, serverless_client: ServerlessClient):
         """Integration test for Functions with dependencies."""
         function = QiskitFunction(
             title="pattern-with-dependencies-2",
@@ -110,7 +110,7 @@ class TestFunctionsDocker:
 
     # local client doesn't make sense here
     # since all dependencies are in the user computer
-    def test_function_blocked_dependency(self, base_client: ServerlessClient):
+    def test_function_blocked_dependency(self, serverless_client: ServerlessClient):
         """Integration test for Functions with blocked dependencies."""
         function = QiskitFunction(
             title="pattern-with-dependencies-3",

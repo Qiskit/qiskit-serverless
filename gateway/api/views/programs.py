@@ -150,7 +150,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         provider_name, title = serializer.get_provider_name_and_title(
             request_provider, title
         )
-        request_provider = serializer.validated_data.get("dependencies", None)
+        dependencies = serializer.validated_data.get("dependencies", None)
 
         if provider_name:
             user_has_access = serializer.check_provider_access(
