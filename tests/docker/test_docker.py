@@ -95,7 +95,9 @@ class TestFunctionsDocker:
 
     # local client doesn't make sense here
     # since all dependencies are in the user computer
-    def test_function_dependencies_with_version(self, serverless_client: ServerlessClient):
+    def test_function_dependencies_with_version(
+        self, serverless_client: ServerlessClient
+    ):
         """Integration test for Functions with dependencies."""
         function = QiskitFunction(
             title="pattern-with-dependencies-2",
