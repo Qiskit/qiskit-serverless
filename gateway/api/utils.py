@@ -11,10 +11,9 @@ import time
 import uuid
 import sys
 import platform
-from numpy import empty
-from packaging.requirements import Requirement
 from typing import Any, Optional, Tuple, Type, Union, Callable, Dict, List
 from django.conf import settings
+from packaging.requirements import Requirement
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
@@ -520,10 +519,7 @@ def create_dynamic_deps_whitelist() -> List[Requirement]:
 
     deps = filter(lambda dep: not dep.startswith("#") and dep, deps)
 
-    return [
-        Requirement(dep)
-        for dep in deps
-    ]
+    return [Requirement(dep) for dep in deps]
 
 
 def sanitize_file_name(name: Optional[str]):
