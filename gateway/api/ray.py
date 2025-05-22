@@ -7,8 +7,9 @@ import shutil
 import tarfile
 import time
 import uuid
-from typing import Optional
+from typing import List, Optional
 
+from pkg_resources import Requirement
 import requests
 import yaml
 from django.template.loader import get_template
@@ -24,10 +25,10 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from api.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
 from api.services.file_storage import FileStorage, WorkingDir
 from api.utils import (
-    try_json_loads,
     retry_function,
     decrypt_env_vars,
     generate_cluster_name,
+    create_dynamic_deps_whitelist,
 )
 from utils import sanitize_file_path
 from main import settings
@@ -82,7 +83,9 @@ class JobHandler:
             program = job.program
 
             # get dependencies
-            _, dependencies = try_json_loads(program.dependencies)
+            dependencies = json.loads(program.dependencies)
+            dependencies = [Requirement(dep) for dep in dependencies]
+            dependencies = _prepare_dependencies(dependencies)
 
             # get artifact
             working_directory_for_upload = os.path.join(
@@ -164,6 +167,36 @@ class JobHandler:
             span.set_attribute("job.rayjobid", job.ray_job_id)
 
         return ray_job_id
+
+
+def _prepare_dependencies(dependencies: List[Requirement]):
+    """
+    Check if a dependency has a version set,
+    if not, it gets the version from the whitelist.
+    """
+    whitelist_deps = create_dynamic_deps_whitelist()
+
+    for dependency in dependencies:
+        white_dep = next(
+            # pylint: disable-next=cell-var-from-loop
+            filter(lambda dep: dep.name == dependency.name, whitelist_deps),
+            None,
+        )
+        if not white_dep:
+            raise ValueError(f"Dependency {dependency.name} is not allowed")
+
+        req_version_list = list(dependency.specifier)
+        if len(req_version_list) == 0:
+            dependency.specifier = white_dep.specifier
+            continue
+
+        req_version = list(dependency.specifier)[0].version
+        if not white_dep.specifier.contains(req_version):
+            raise ValueError(
+                f"Dependency ({dependency.name}) version ({req_version})"
+                f" is not allowed. Valid versions: {white_dep}"
+            )
+    return dependencies
 
 
 def get_job_handler(host: str) -> Optional[JobHandler]:

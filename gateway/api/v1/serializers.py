@@ -130,7 +130,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             )
 
         # validate dependencies
-        deps = json.loads(attrs.get("dependencies", None))
+        deps = json.loads(attrs.get("dependencies", "[]"))
         self._validate_deps(deps)
 
         title = attrs.get("title")

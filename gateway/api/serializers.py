@@ -42,6 +42,22 @@ class UploadProgramSerializer(serializers.ModelSerializer):
     class Meta:
         model = Program
 
+    def _normalize_dependency(self, raw_dependency):
+        if isinstance(raw_dependency, str):
+            return raw_dependency
+
+        dependency_name = list(raw_dependency.keys())[0]
+        dependency_version = str(list(raw_dependency.values())[0])
+
+        # if starts with a number then prefix ==
+        try:
+            if int(dependency_version[0]) >= 0:
+                dependency_version = f"=={dependency_version}"
+        except ValueError:
+            pass
+
+        return dependency_name + dependency_version
+
     def get_provider_name_and_title(
         self, request_provider, title
     ) -> Tuple[Union[str, None], str]:
@@ -105,6 +121,13 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         if env_vars:
             encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
             validated_data["env_vars"] = json.dumps(encrypted_env_vars)
+
+        raw_dependencies = validated_data.get("dependencies", "[]")
+        normalized_dependencies = [
+            self._normalize_dependency(dep) for dep in raw_dependencies
+        ]
+        validated_data["dependencies"] = json.dumps(normalized_dependencies)
+
         return Program.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
@@ -114,7 +137,11 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         instance.entrypoint = validated_data.get(
             "entrypoint", DEFAULT_PROGRAM_ENTRYPOINT
         )
-        instance.dependencies = validated_data.get("dependencies", "[]")
+        raw_dependencies = validated_data.get("dependencies", "[]")
+        normalized_dependencies = [
+            self._normalize_dependency(dep) for dep in raw_dependencies
+        ]
+        instance.dependencies = json.dumps(normalized_dependencies)
         instance.env_vars = validated_data.get("env_vars", {})
         instance.artifact = validated_data.get("artifact")
         instance.author = validated_data.get("author")
