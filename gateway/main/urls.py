@@ -18,7 +18,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include, re_path
-from rest_framework import routers, permissions
+from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 import probes.views
@@ -40,8 +40,6 @@ schema = get_schema_view(  # pylint: disable=invalid-name
         # Add other included patterns if necessary
     ],
 )
-
-router = routers.DefaultRouter()
 
 urlpatterns = [
     path("readiness/", probes.views.readiness, name="readiness"),

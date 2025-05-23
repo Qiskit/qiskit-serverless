@@ -2,10 +2,10 @@
 URL Patterns for V1 api application.
 """
 
-from api.qiskit_serverless_router import QiskitServerlessRouter
+from rest_framework.routers import SimpleRouter
 from api.v1 import views as v1_views
 
-router = QiskitServerlessRouter()
+router = SimpleRouter()
 router.register(
     r"programs",
     v1_views.ProgramViewSet,
