@@ -7,7 +7,7 @@ from qiskit import QuantumCircuit
 from qiskit.circuit.library import QAOAAnsatz
 from qiskit.quantum_info import SparsePauliOp
 
-from qiskit.primitives import BaseEstimator
+from qiskit.primitives import BaseEstimatorV1 as BaseEstimator
 from qiskit_ibm_runtime import QiskitRuntimeService, Session
 from qiskit_ibm_runtime import EstimatorV2 as Estimator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
@@ -80,8 +80,8 @@ if __name__ == "__main__":
         estimator = Estimator(session=session)
         sampler = Sampler(session=session)
     else:
-        estimator = Estimator(backend=backend)
-        sampler = Sampler(backend=backend)
+        estimator = Estimator(mode=backend)
+        sampler = Sampler(mode=backend)
 
     estimator.options.default_shots = 10_000
     estimator.options.dynamical_decoupling.enable = True
