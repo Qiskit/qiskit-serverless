@@ -417,5 +417,3 @@ SESSION_COOKIE_AGE = 3600
 
 # Public group name
 PUBLIC_GROUP_NAME = os.environ.get("PUBLIC_GROUP_NAME", "ibm-q/open/main")
-
-APPEND_SLASH=False
