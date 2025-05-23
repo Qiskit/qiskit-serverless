@@ -196,7 +196,6 @@ def _prepare_dependencies(dependencies: List[Requirement]):
                 f"Dependency ({dependency.name}) version ({req_version})"
                 f" is not allowed. Valid versions: {white_dep}"
             )
-    
     return [dep.name + str(dep.specifier) for dep in dependencies]
 
 
