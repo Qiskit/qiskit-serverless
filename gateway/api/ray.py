@@ -9,7 +9,7 @@ import time
 import uuid
 from typing import List, Optional
 
-from pkg_resources import Requirement
+from packaging.requirements import Requirement
 import requests
 import yaml
 from django.template.loader import get_template
@@ -196,7 +196,8 @@ def _prepare_dependencies(dependencies: List[Requirement]):
                 f"Dependency ({dependency.name}) version ({req_version})"
                 f" is not allowed. Valid versions: {white_dep}"
             )
-    return dependencies
+    
+    return [dep.name + str(dep.specifier) for dep in dependencies]
 
 
 def get_job_handler(host: str) -> Optional[JobHandler]:
