@@ -122,7 +122,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
             encrypted_env_vars = encrypt_env_vars(json.loads(env_vars))
             validated_data["env_vars"] = json.dumps(encrypted_env_vars)
 
-        raw_dependencies = validated_data.get("dependencies", "[]")
+        raw_dependencies = json.loads(validated_data.get("dependencies", "[]"))
         normalized_dependencies = [
             self._normalize_dependency(dep) for dep in raw_dependencies
         ]
@@ -137,7 +137,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         instance.entrypoint = validated_data.get(
             "entrypoint", DEFAULT_PROGRAM_ENTRYPOINT
         )
-        raw_dependencies = validated_data.get("dependencies", "[]")
+        raw_dependencies = json.loads(validated_data.get("dependencies", "[]"))
         normalized_dependencies = [
             self._normalize_dependency(dep) for dep in raw_dependencies
         ]
