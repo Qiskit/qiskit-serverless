@@ -505,10 +505,9 @@ def create_gpujob_allowlist():
 
 def create_dynamic_deps_whitelist() -> List[Requirement]:
     """
-    Create dictionary of jobs allowed to run on gpu nodes.
+    Create dictionary of allowed additional dependences for function providers.
 
-    Sample format of json:
-        { "gpu-functions": { "mockprovider": [ "my-first-pattern" ] } }
+    The format of the readed file should be a requirements.txt file.
     """
     try:
         with open(settings.GATEWAY_DYNAMIC_DEPS, encoding="utf-8", mode="r") as f:
