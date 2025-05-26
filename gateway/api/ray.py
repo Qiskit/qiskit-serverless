@@ -28,7 +28,7 @@ from api.utils import (
     retry_function,
     decrypt_env_vars,
     generate_cluster_name,
-    create_dynamic_deps_whitelist,
+    check_whitelisted,
 )
 from utils import sanitize_file_path
 from main import settings
@@ -174,28 +174,7 @@ def _prepare_dependencies(dependencies: List[Requirement]):
     Check if a dependency has a version set,
     if not, it gets the version from the whitelist.
     """
-    whitelist_deps = create_dynamic_deps_whitelist()
-
-    for dependency in dependencies:
-        white_dep = next(
-            # pylint: disable-next=cell-var-from-loop
-            filter(lambda dep: dep.name == dependency.name, whitelist_deps),
-            None,
-        )
-        if not white_dep:
-            raise ValueError(f"Dependency {dependency.name} is not allowed")
-
-        req_version_list = list(dependency.specifier)
-        if len(req_version_list) == 0:
-            dependency.specifier = white_dep.specifier
-            continue
-
-        req_version = list(dependency.specifier)[0].version
-        if not white_dep.specifier.contains(req_version):
-            raise ValueError(
-                f"Dependency ({dependency.name}) version ({req_version})"
-                f" is not allowed. Valid versions: {white_dep}"
-            )
+    dependencies = check_whitelisted(dependencies, inject_version_if_missing=True)
     return [dep.name + str(dep.specifier) for dep in dependencies]
 
 

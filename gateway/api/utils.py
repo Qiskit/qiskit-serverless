@@ -351,3 +351,39 @@ def create_dynamic_deps_whitelist() -> List[Requirement]:
     deps = filter(lambda dep: not dep.startswith("#") and dep, deps)
 
     return [Requirement(dep) for dep in deps]
+
+
+def check_whitelisted(
+    dependencies: List[Requirement], inject_version_if_missing=False
+) -> List[Requirement]:
+    """
+    check if a list of dependencies are whitelisted.
+
+    if "inject_version_if_missing" is True, the dependencies that has an empty version,
+    will recieve the version of the whitelist.
+    """
+    whitelist_deps = create_dynamic_deps_whitelist()
+
+    for dependency in dependencies:
+        white_dep = next(
+            # pylint: disable-next=cell-var-from-loop
+            filter(lambda dep: dep.name == dependency.name, whitelist_deps),
+            None,
+        )
+        if not white_dep:
+            raise ValueError(f"Dependency {dependency.name} is not allowed")
+
+        req_version_list = list(dependency.specifier)
+        if len(req_version_list) == 0:
+            if inject_version_if_missing:
+                dependency.specifier = white_dep.specifier
+            continue
+
+        req_version = list(dependency.specifier)[0].version
+        if not white_dep.specifier.contains(req_version):
+            raise ValueError(
+                f"Dependency ({dependency.name}) version ({req_version})"
+                f" is not allowed. Valid versions: {white_dep}"
+            )
+
+    return dependencies

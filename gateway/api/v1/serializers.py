@@ -9,9 +9,7 @@ from packaging.requirements import Requirement, InvalidRequirement
 from rest_framework.serializers import ValidationError
 from api import serializers
 from api.models import Provider
-from api.utils import (
-    create_dynamic_deps_whitelist,
-)
+from api.utils import check_whitelisted
 
 logger = logging.getLogger("gateway.serializers")
 
@@ -98,27 +96,10 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 "Error while parsing dependencies."
             ) from invalid_requirement
 
-        whitelist_deps = create_dynamic_deps_whitelist()
-
-        for req in required_deps:
-            white_dep = next(
-                # pylint: disable-next=cell-var-from-loop
-                filter(lambda dep: dep.name == req.name, whitelist_deps),
-                None,
-            )
-            if not white_dep:
-                raise ValidationError(f"Dependency {req.name} is not allowed")
-
-            req_version_list = list(req.specifier)
-            if len(req_version_list) == 0:
-                continue
-
-            req_version = list(req.specifier)[0].version
-            if not white_dep.specifier.contains(req_version):
-                raise ValidationError(
-                    f"Dependency ({req.name}) version ({req_version})"
-                    f" is not allowed. Valid versions: {white_dep}"
-                )
+        try:
+            check_whitelisted(required_deps)
+        except ValueError as value_error:
+            raise ValidationError(value_error.args[0]) from value_error
 
     def validate(self, attrs):  # pylint: disable=too-many-branches
         """Validates serializer data."""
