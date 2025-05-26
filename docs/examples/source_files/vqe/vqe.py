@@ -1,24 +1,19 @@
 from qiskit_aer import AerSimulator
-import logging
-from typing import Optional
 import time
 import numpy as np
 from scipy.optimize import minimize
 
-from qiskit import QuantumCircuit
 from qiskit_ibm_runtime import (
-    EstimatorV2 as Estimator,
-    SamplerV2 as Sampler,
-    QiskitRuntimeService,
+    EstimatorV2,
+    SamplerV2,
     Session,
 )
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_serverless import (
-    distribute_task,
     get_arguments,
-    get,
     save_result,
 )
+
 
 def build_callback(ansatz, hamiltonian, estimator, callback_dict):
     """Return callback function that uses Estimator instance,
@@ -51,8 +46,7 @@ def build_callback(ansatz, hamiltonian, estimator, callback_dict):
         callback_dict["prev_vector"] = current_vector
         # Compute the value of the cost function at the current vector
         callback_dict["cost_history"].append(
-            estimator.run([(ansatz, hamiltonian, current_vector)])
-            .result()[0]
+            estimator.run([(ansatz, hamiltonian, current_vector)]).result()[0]
         )
         # Grab the current time
         current_time = time.perf_counter()
@@ -91,9 +85,7 @@ def cost_func(params, ansatz, hamiltonian, estimator):
     Returns:
         float: Energy estimate
     """
-    energy = (
-        estimator.run([(ansatz, hamiltonian, params)]).result()[0].data.evs
-    )
+    energy = estimator.run([(ansatz, hamiltonian, params)]).result()[0].data.evs
     return energy
 
 
@@ -137,7 +129,7 @@ if __name__ == "__main__":
 
     if service:
         with Session(service=service, backend=backend) as session:
-            estimator = Estimator(session=session)
+            estimator = EstimatorV2(session=session)
             vqe_result, callback_dict = run_vqe(
                 initial_parameters=initial_parameters,
                 ansatz=ansatz_isa,
@@ -146,7 +138,7 @@ if __name__ == "__main__":
                 method=method,
             )
     else:
-        estimator = Estimator(backend=backend)
+        estimator = EstimatorV2(backend=backend)
         vqe_result, callback_dict = run_vqe(
             initial_parameters=initial_parameters,
             ansatz=ansatz_isa,
@@ -155,18 +147,21 @@ if __name__ == "__main__":
             method=method,
         )
 
-
     qc = ansatz.assign_parameters(vqe_result.x)
     qc.measure_all()
     qc_isa = pm.run(qc)
 
     if service:
         with Session(service=service, backend=backend) as session:
-            sampler = Sampler(session=session)
-            samp_dist = sampler.run([qc_isa], shots=int(1e4)).result()[0].data.meas.get_counts()
+            sampler = SamplerV2(mode=session)
+            samp_dist = (
+                sampler.run([qc_isa], shots=int(1e4)).result()[0].data.meas.get_counts()
+            )
     else:
-        sampler = Sampler(backend=backend)
-        samp_dist = sampler.run([qc_isa], shots=int(1e4)).result()[0].data.meas.get_counts()
+        sampler = SamplerV2(mode=backend)
+        samp_dist = (
+            sampler.run([qc_isa], shots=int(1e4)).result()[0].data.meas.get_counts()
+        )
 
     save_result(
         {

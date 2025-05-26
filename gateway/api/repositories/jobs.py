@@ -1,6 +1,7 @@
 """
 Repository implementation for Job model
 """
+
 import logging
 from typing import List, Optional
 from django.db.models import Q

@@ -3,6 +3,7 @@ Django Rest framework Catalog views for api application:
 
 Version views inherit from the different views.
 """
+
 import logging
 import os
 

@@ -1,6 +1,7 @@
 """
 Repository implementation for Provider model
 """
+
 import logging
 from typing import List, Optional
 from django.contrib.auth.models import Group
