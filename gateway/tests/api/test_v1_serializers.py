@@ -348,6 +348,15 @@ class SerializerTest(APITestCase):
         serializer = UploadProgramSerializer(data=data)
         self.assertFalse(serializer.is_valid(), serializer.errors)
 
+    def test_upload_program_serializer_malformed_dependency(self):
+        data = {}
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '{"pendulum": ">=3.0.0"}'
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid(), serializer.errors)
+
     def test_upload_program_serializer_updates_program_without_description(self):
         path_to_resource_artifact = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
