@@ -128,9 +128,15 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             raise ValidationError(
                 "At least one of attributes (entrypoint, image) is required."
             )
+        try:
+            # validate dependencies
+            deps = json.loads(attrs.get("dependencies", "[]"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ValidationError(
+                "'dependencies' should be an array of strings or objects: "
+                "`['pendulum==3.0.0', '...'] or [{'pendulum':'3.0.0'}, {...}]`"
+            ) from exc
 
-        # validate dependencies
-        deps = json.loads(attrs.get("dependencies", "[]"))
         self._validate_deps(deps)
 
         title = attrs.get("title")
