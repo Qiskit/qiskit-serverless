@@ -381,8 +381,10 @@ GATEWAY_GPU_JOBS_CONFIG = str(
     os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json")
 )
 
-GATEWAY_DYNAMIC_DEPS = str(
-    os.environ.get("GATEWAY_DYNAMIC_DEPS", "api/v1/requirements-dynamic-deps.txt")
+GATEWAY_DYNAMIC_DEPENDENCIES = str(
+    os.environ.get(
+        "GATEWAY_DYNAMIC_DEPENDENCIES", "api/v1/requirements-dynamic-dependencies.txt"
+    )
 )
 
 # qiskit runtime

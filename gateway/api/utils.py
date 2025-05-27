@@ -335,18 +335,20 @@ def sanitize_file_name(name: Optional[str]):
     return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)
 
 
-def create_dynamic_deps_whitelist() -> Dict[str, Requirement]:
+def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     """
     Create dictionary of allowed additional dependences for function providers.
 
     The format of the readed file should be a requirements.txt file.
     """
     try:
-        with open(settings.GATEWAY_DYNAMIC_DEPS, encoding="utf-8", mode="r") as f:
+        with open(
+            settings.GATEWAY_DYNAMIC_DEPENDENCIES, encoding="utf-8", mode="r"
+        ) as f:
             dependencies = f.readlines()
     except IOError as e:
-        logger.error("Unable to open dynamic deps requirements file: %s", e)
-        raise ValueError("Unable to open dynamic deps requirements file") from e
+        logger.error("Unable to open dynamic dependencies requirements file: %s", e)
+        raise ValueError("Unable to open dynamic dependencies requirements file") from e
 
     dependencies = filter(lambda dep: not dep.startswith("#") and dep, dependencies)
     dependencies = [Requirement(dep) for dep in dependencies]
@@ -363,7 +365,7 @@ def check_whitelisted(
     if "inject_version_if_missing" is True, the dependencies that has an empty version,
     will recieve the version of the whitelist.
     """
-    whitelist_deps = create_dynamic_deps_whitelist()
+    whitelist_deps = create_dynamic_dependencies_whitelist()
 
     for dependency in dependencies:
         whitelisted_dependency = whitelist_deps.get(dependency.name)

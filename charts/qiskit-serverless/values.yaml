@@ -70,7 +70,7 @@ gateway:
       cpu: "has-cpu: cpu"
       gpu: "has-gpu: gpu"
     dependencies:
-      dynamicDeps: "/tmp/dynamicdeps/requirements-dynamic-deps.txt"
+      dynamicDependencies: "/tmp/dynamicdependencies/requirements-dynamic-dependencies.txt"
   cos:
     claimName: gateway-claim
 

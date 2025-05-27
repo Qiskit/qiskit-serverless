@@ -59,9 +59,9 @@ spec:
         - name: gateway-pv-storage
           persistentVolumeClaim:
             claimName: {{ .Values.cos.claimName }}
-        - name: dynamic-deps
+        - name: dynamic-dependencies
           configMap:
-            name: dynamicdeps
+            name: dynamicdependencies
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -97,8 +97,8 @@ spec:
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
-            - mountPath: "/tmp/dynamicdeps/"
-              name: dynamic-deps
+            - mountPath: "/tmp/dynamicdependencies/"
+              name: dynamic-dependencies
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
@@ -213,8 +213,8 @@ spec:
               value: {{ .Values.application.trustedOrigins | quote }}
             - name: CORS_ALLOWED_ORIGIN_REGEXES
               value: {{ .Values.application.corsOrigins | quote }}
-            - name: GATEWAY_DYNAMIC_DEPS
-              value: {{ .Values.application.dependencies.dynamicDeps | quote }}
+            - name: GATEWAY_DYNAMIC_DEPENDENCIES
+              value: {{ .Values.application.dependencies.dynamicDependencies | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
