@@ -335,7 +335,7 @@ def sanitize_file_name(name: Optional[str]):
     return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)
 
 
-def create_dynamic_deps_whitelist() -> List[Requirement]:
+def create_dynamic_deps_whitelist() -> Dict[str, Requirement]:
     """
     Create dictionary of allowed additional dependences for function providers.
 
@@ -343,14 +343,15 @@ def create_dynamic_deps_whitelist() -> List[Requirement]:
     """
     try:
         with open(settings.GATEWAY_DYNAMIC_DEPS, encoding="utf-8", mode="r") as f:
-            deps = f.readlines()
+            dependencies = f.readlines()
     except IOError as e:
         logger.error("Unable to open dynamic deps requirements file: %s", e)
         raise ValueError("Unable to open dynamic deps requirements file") from e
 
-    deps = filter(lambda dep: not dep.startswith("#") and dep, deps)
+    dependencies = filter(lambda dep: not dep.startswith("#") and dep, dependencies)
+    dependencies = [Requirement(dep) for dep in dependencies]
 
-    return [Requirement(dep) for dep in deps]
+    return {dep.name: dep for dep in dependencies}
 
 
 def check_whitelisted(
@@ -365,25 +366,21 @@ def check_whitelisted(
     whitelist_deps = create_dynamic_deps_whitelist()
 
     for dependency in dependencies:
-        white_dep = next(
-            # pylint: disable-next=cell-var-from-loop
-            filter(lambda dep: dep.name == dependency.name, whitelist_deps),
-            None,
-        )
-        if not white_dep:
+        whitelisted_dependency = whitelist_deps.get(dependency.name)
+        if not whitelisted_dependency:
             raise ValueError(f"Dependency {dependency.name} is not allowed")
 
         req_version_list = list(dependency.specifier)
         if len(req_version_list) == 0:
             if inject_version_if_missing:
-                dependency.specifier = white_dep.specifier
+                dependency.specifier = whitelisted_dependency.specifier
             continue
 
         req_version = list(dependency.specifier)[0].version
-        if not white_dep.specifier.contains(req_version):
+        if not whitelisted_dependency.specifier.contains(req_version):
             raise ValueError(
                 f"Dependency ({dependency.name}) version ({req_version})"
-                f" is not allowed. Valid versions: {white_dep}"
+                f" is not allowed. Valid versions: {whitelisted_dependency}"
             )
 
     return dependencies
