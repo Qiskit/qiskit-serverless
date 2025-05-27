@@ -54,7 +54,12 @@ class UploadProgramSerializer(serializers.ModelSerializer):
             if int(dependency_version[0]) >= 0:
                 dependency_version = f"=={dependency_version}"
         except ValueError:
-            pass
+            logger.debug(
+                "Dependency (%s) version (%s) does not starts with a number, "
+                "assuming an operator (==, >=, ~=...) or empty",
+                dependency_name,
+                dependency_version,
+            )
 
         return dependency_name + dependency_version
 
