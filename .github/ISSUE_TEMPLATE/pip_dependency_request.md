@@ -1,0 +1,30 @@
+name: Pip Dependency Request
+description: Use this template in case your project requires a Pip dependency and we don't support it in our whitelist.
+title: '[Pip]: '
+assignees:
+  - Qiskit/qiskit-serverless-team
+body:
+  - type: input
+    id: package-name
+    attributes:
+      label: Package Name
+      description: Name of the package we need to support
+      placeholder: qiskit-serverless
+    validations:
+      required: true
+  - type: input
+    id: package-version
+    attributes:
+      label: Package Version
+      description: Minimum version of the package we need to support in case you need a minimum version
+      placeholder: 0.22.0
+    validations:
+      required: false
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Provide a reason for what you need to install this dependency and if a specific version is needed
+      placeholder: Business Reason
+    validations:
+      required: true
