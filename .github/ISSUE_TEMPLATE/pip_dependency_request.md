@@ -25,6 +25,6 @@ body:
     attributes:
       label: Use Case
       description: Provide a reason for what you need to install this dependency and if a specific version is needed
-      placeholder: Business Reason
+      placeholder: Research experiment details
     validations:
       required: true
