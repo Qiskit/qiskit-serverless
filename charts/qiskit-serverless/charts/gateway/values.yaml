@@ -9,7 +9,7 @@ application:
   # Gunicorn configuration
   httpServer:
     serverModel: "main.wsgi:application"
-    workers: 1
+    workers: 2
     threads: 1
     maxRequests: 1200
     jitter: 50
