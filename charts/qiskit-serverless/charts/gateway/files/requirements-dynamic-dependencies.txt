@@ -1,2 +1,8 @@
-# this is an example
-pendulum>=3.0.0
+ffsim~=0.0.54
+mergedeep~=1.3.4
+pyscf~=2.9.0
+
+qiskit-addon-aqc-tensor[quimb-jax]~=0.1.2
+qiskit-addon-obp~=0.3.0
+qiskit-addon-sqd~=0.10.0
+qiskit-addon-utils~=0.1.0
