@@ -50,6 +50,7 @@ services:
       - DATABASE_NAME=serverlessdb
       - DATABASE_USER=serverlessuser
       - DATABASE_PASSWORD=serverlesspassword
+      - GATEWAY_DYNAMIC_DEPENDENCIES=tests/api/test-requirements-dynamic-dependencies.txt
     networks:
       - safe-tier
     volumes:

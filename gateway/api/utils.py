@@ -347,8 +347,9 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
         ) as f:
             dependencies = f.readlines()
     except IOError as e:
-        logger.error("Unable to open dynamic dependencies requirements file: %s", e)
-        raise ValueError("Unable to open dynamic dependencies requirements file") from e
+        if settings.GATEWAY_DYNAMIC_DEPENDENCIES != "":
+            logger.error("Unable to open dynamic dependencies requirements file: %s", e)
+        return {}
 
     dependencies = filter(lambda dep: not dep.startswith("#") and dep, dependencies)
     dependencies = [Requirement(dep) for dep in dependencies]
