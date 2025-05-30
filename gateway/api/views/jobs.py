@@ -357,7 +357,7 @@ class JobViewSet(viewsets.GenericViewSet):
                             logger.warning("cancel failed")
 
                         if jobinstance.session_id:
-                            service._api_client.cancel_session(  # pylint: disable=protected-access
+                            service._get_api_client().cancel_session(  # pylint: disable=protected-access
                                 jobinstance.session_id
                             )
 
