@@ -59,9 +59,6 @@ spec:
         - name: gateway-pv-storage
           persistentVolumeClaim:
             claimName: {{ .Values.cos.claimName }}
-        - name: dynamic-dependencies
-          configMap:
-            name: dynamicdependencies
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -97,8 +94,6 @@ spec:
           volumeMounts:
             - mountPath: "/usr/src/app/media/"
               name: gateway-pv-storage
-            - mountPath: "/tmp/dynamicdependencies/"
-              name: dynamic-dependencies
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:

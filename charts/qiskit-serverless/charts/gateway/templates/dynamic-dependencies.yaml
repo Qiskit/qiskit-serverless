@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: dynamicdependencies
-data:
-  requirements-dynamic-dependencies.txt: |-
-{{ .Files.Get "files/requirements-dynamic-dependencies.txt" | indent 4 }}

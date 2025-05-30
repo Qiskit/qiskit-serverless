@@ -59,6 +59,8 @@ application:
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"
+  dependencies:
+      dynamicDependencies: "requirements-dynamic-dependencies.txt"
 
 cos:
   claimName: gateway-claim
