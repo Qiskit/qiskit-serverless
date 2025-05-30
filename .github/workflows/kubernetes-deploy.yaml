@@ -52,7 +52,6 @@ jobs:
             --set gateway.application.ray.memory=3 \
             --set gateway.application.debug=1 \
             --set gateway.application.authMockproviderRegistry=test \
-            --set gateway.application.dependencies.dynamicDependencies=tests/api/test-requirements-dynamic-dependencies.txt \
             .
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
           kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
