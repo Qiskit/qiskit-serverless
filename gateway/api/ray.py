@@ -82,11 +82,6 @@ class JobHandler:
             # get program
             program = job.program
 
-            # get dependencies
-            dependencies = json.loads(program.dependencies)
-            dependencies = [Requirement(dep) for dep in dependencies]
-            dependencies = _prepare_dependencies(dependencies)
-
             # get artifact
             working_directory_for_upload = os.path.join(
                 sanitize_file_path(str(settings.MEDIA_ROOT)),
@@ -155,7 +150,6 @@ class JobHandler:
                     runtime_env={
                         "working_dir": working_directory_for_upload,
                         "env_vars": env,
-                        "pip": dependencies or [],
                     },
                 ),
                 num_retries=settings.RAY_SETUP_MAX_RETRIES,
@@ -167,15 +161,6 @@ class JobHandler:
             span.set_attribute("job.rayjobid", job.ray_job_id)
 
         return ray_job_id
-
-
-def _prepare_dependencies(dependencies: List[Requirement]):
-    """
-    Check if a dependency has a version set,
-    if not, it gets the version from the whitelist.
-    """
-    dependencies = check_whitelisted(dependencies, inject_version_if_missing=True)
-    return [dep.name + str(dep.specifier) for dep in dependencies]
 
 
 def get_job_handler(host: str) -> Optional[JobHandler]:

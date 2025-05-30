@@ -26,6 +26,7 @@ RUN python3.11 -m ensurepip --upgrade
 RUN pip install --upgrade --no-cache-dir pip>=24.2
 
 RUN pip install -r requirements.txt --no-cache-dir &&\
+    pip install -r requirements-dynamic-dependencies.txt --no-cache-dir &&\
     pip install . --no-cache-dir &&\
     cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages &&\
     cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages
