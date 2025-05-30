@@ -24,7 +24,6 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from api.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
 from api.services.file_storage import FileStorage, WorkingDir
 from api.utils import (
-    try_json_loads,
     retry_function,
     decrypt_env_vars,
     generate_cluster_name,
@@ -80,9 +79,6 @@ class JobHandler:
         with tracer.start_as_current_span("submit.job") as span:
             # get program
             program = job.program
-
-            # get dependencies
-            _, dependencies = try_json_loads(program.dependencies)
 
             # get artifact
             working_directory_for_upload = os.path.join(
@@ -152,7 +148,6 @@ class JobHandler:
                     runtime_env={
                         "working_dir": working_directory_for_upload,
                         "env_vars": env,
-                        "pip": dependencies or [],
                     },
                 ),
                 num_retries=settings.RAY_SETUP_MAX_RETRIES,
