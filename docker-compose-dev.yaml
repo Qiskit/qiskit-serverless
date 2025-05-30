@@ -6,6 +6,8 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile-ray-node
+      args:
+        DYNAMIC_DEPENDENCIES_FILE: requirements-test-dynamic-dependencies.txt
     entrypoint: [
       "env", "RAY_LOG_TO_STDERR=1", "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
