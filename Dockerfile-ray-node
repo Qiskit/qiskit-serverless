@@ -18,6 +18,7 @@ USER 0
 RUN mkdir /data && chown 1000:1000 /data
 RUN mkdir /function_data && chown 1000:1000 /function_data
 COPY client ./qs
+COPY gateway/requirements-dynamic-dependencies.txt ./qs
 WORKDIR /qs
 
 # Need versions of pip more recent than provided by UBI image
