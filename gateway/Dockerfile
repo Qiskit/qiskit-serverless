@@ -42,6 +42,7 @@ ENV SCARF_ANALYTICS=false \
     DO_NOT_TRACK=1
 
 COPY gateway/requirements.txt .
+COPY gateway/requirements-dynamic-dependencies.txt .
 # Install pip
 RUN python3.11 -m ensurepip --upgrade
 # Install dependencies and update then uninstall pip (not needed in final image)
