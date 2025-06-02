@@ -357,6 +357,9 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     return {dep.name: dep for dep in dependencies}
 
 
+DEPENDENCY_REQUEST_URL = "https://github.com/Qiskit/qiskit-serverless/issues/new?template=pip_dependency_request.yaml"  # pylint: disable=line-too-long
+
+
 def check_whitelisted(
     dependencies: List[Requirement], inject_version_if_missing=False
 ) -> List[Requirement]:
@@ -371,7 +374,10 @@ def check_whitelisted(
     for dependency in dependencies:
         whitelisted_dependency = whitelist_deps.get(dependency.name)
         if not whitelisted_dependency:
-            raise ValueError(f"Dependency {dependency.name} is not allowed")
+            raise ValueError(
+                f"Dependency {dependency.name} is not allowed. "
+                f"You can request the dependency here: {DEPENDENCY_REQUEST_URL}"
+            )
 
         req_version_list = list(dependency.specifier)
         if len(req_version_list) == 0:
