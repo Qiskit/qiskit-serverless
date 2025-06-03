@@ -72,8 +72,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "rest_framework_simplejwt",
-    "allauth",
-    "allauth.socialaccount",
     "api",
     "psycopg2",
     "drf_yasg",
@@ -197,10 +195,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-AUTHENTICATION_BACKENDS = [
-    # `allauth` specific authentication methods, such as login by e-mail
-    "allauth.account.auth_backends.AuthenticationBackend",
-]
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
