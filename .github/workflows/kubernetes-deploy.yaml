@@ -33,7 +33,7 @@ jobs:
           docker image rm gateway:test
       - name: Build and load ray node
         run: |
-          docker build -t ray:test -f ./Dockerfile-ray-node .
+          docker build --build-arg DYNAMIC_DEPENDENCIES_FILE=requirements-test-dynamic-dependencies.txt -t ray:test -f ./Dockerfile-ray-node .
           kind load docker-image ray:test
           docker image rm ray:test
       - name: Install helm chart
@@ -52,6 +52,7 @@ jobs:
             --set gateway.application.ray.memory=3 \
             --set gateway.application.debug=1 \
             --set gateway.application.authMockproviderRegistry=test \
+            --set gateway.application.dependencies.dynamicDependencies=requirements-test-dynamic-dependencies.txt \
             .
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
           kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m

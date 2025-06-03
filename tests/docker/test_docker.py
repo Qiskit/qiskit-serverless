@@ -73,16 +73,18 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_dependencies_function(self, base_client: BaseClient):
+    # local client doesn't make sense here
+    # since all dependencies are in the user computer
+    def test_function_dependencies_basic(self, serverless_client: ServerlessClient):
         """Integration test for Functions with dependencies."""
         function = QiskitFunction(
-            title="pattern-with-dependencies",
+            title="pattern-with-dependencies-1",
             entrypoint="pattern_with_dependencies.py",
             working_dir=resources_path,
             dependencies=["pendulum"],
         )
 
-        runnable_function = base_client.upload(function)
+        runnable_function = serverless_client.upload(function)
 
         job = runnable_function.run()
 
@@ -90,6 +92,37 @@ class TestFunctionsDocker:
         assert job.result() is not None
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
+
+    # local client doesn't make sense here
+    # since all dependencies are in the user computer
+    def test_function_dependencies_with_version(
+        self, serverless_client: ServerlessClient
+    ):
+        """Integration test for Functions with dependencies."""
+        function = QiskitFunction(
+            title="pattern-with-dependencies-2",
+            entrypoint="pattern_with_dependencies.py",
+            working_dir=resources_path,
+            dependencies=["pendulum==3.0.0"],
+        )
+
+        runnable_function = serverless_client.upload(function)
+
+        assert runnable_function is not None
+
+    # local client doesn't make sense here
+    # since all dependencies are in the user computer
+    def test_function_blocked_dependency(self, serverless_client: ServerlessClient):
+        """Integration test for Functions with blocked dependencies."""
+        function = QiskitFunction(
+            title="pattern-with-dependencies-3",
+            entrypoint="pattern_with_dependencies.py",
+            working_dir=resources_path,
+            dependencies=["notallowedone"],
+        )
+
+        with raises(QiskitServerlessException):
+            serverless_client.upload(function)
 
     def test_distributed_workloads(self, base_client: BaseClient):
         """Integration test for Functions for distributed workloads."""

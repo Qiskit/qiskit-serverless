@@ -29,7 +29,7 @@ services:
   gateway:
     container_name: gateway
     image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.22.0}
-    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=1 --threads=1 --max-requests=1200 --max-requests-jitter=50 --timeout=25
+    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=2 --threads=1 --max-requests=1200 --max-requests-jitter=50 --timeout=25
     ports:
       - 8000:8000
     environment:
