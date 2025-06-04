@@ -1,5 +1,5 @@
 # pylint: disable=import-error, invalid-name
-""" Fixtures for tests """
+"""Fixtures for tests"""
 import os
 
 from pytest import fixture

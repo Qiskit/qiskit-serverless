@@ -11,6 +11,7 @@ from api.domain.authentication.channel import Channel
 logger = logging.getLogger("gateway.authentication")
 PUBLIC_ENDPOINTS = ["catalog", "swagger"]
 
+
 # This logic needs to be reviewed as it can be simplified
 # maybe with isAuthenticatedOrReadOnly permission
 def is_public_endpoint(path: str) -> bool:
