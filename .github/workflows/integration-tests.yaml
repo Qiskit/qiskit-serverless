@@ -22,28 +22,23 @@ jobs:
         working-directory: ./tests
 
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
+      - uses: actions/checkout@4.2.2
       - name: Build the containers
         run: docker compose -f ../docker-compose-dev.yaml build
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Set up tox environment
         run: |
           pver=${{ matrix.python-version }}
           tox_env="-epy${pver/./}"
           echo tox_env
           echo TOX_ENV=$tox_env >> $GITHUB_ENV
-
       - name: Install tox
         run: |
           pip install tox==4.16.0
-
       - name: Run styles check
         run: tox -elint
-
       - name: Test using tox environment
         run: |
           tox ${{ env.TOX_ENV }}
