@@ -9,7 +9,7 @@ application:
   # Gunicorn configuration
   httpServer:
     serverModel: "main.wsgi:application"
-    workers: 1
+    workers: 2
     threads: 1
     maxRequests: 1200
     jitter: 50
@@ -26,7 +26,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.22.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.23.0"
     cpu: 2
     memory: 2
     gpu: 1
@@ -59,6 +59,8 @@ application:
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"
+  dependencies:
+      dynamicDependencies: "requirements-dynamic-dependencies.txt"
 
 cos:
   claimName: gateway-claim

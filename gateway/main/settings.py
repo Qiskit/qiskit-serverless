@@ -331,7 +331,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.22.0"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.23.0"
 )
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
@@ -380,6 +380,12 @@ GATEWAY_ALLOWLIST_CONFIG = str(
 
 GATEWAY_GPU_JOBS_CONFIG = str(
     os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json")
+)
+
+GATEWAY_DYNAMIC_DEPENDENCIES = str(
+    os.environ.get(
+        "GATEWAY_DYNAMIC_DEPENDENCIES", "requirements-dynamic-dependencies.txt"
+    )
 )
 
 # qiskit runtime

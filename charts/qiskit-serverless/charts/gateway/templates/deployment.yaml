@@ -208,6 +208,8 @@ spec:
               value: {{ .Values.application.trustedOrigins | quote }}
             - name: CORS_ALLOWED_ORIGIN_REGEXES
               value: {{ .Values.application.corsOrigins | quote }}
+            - name: GATEWAY_DYNAMIC_DEPENDENCIES
+              value: {{ .Values.application.dependencies.dynamicDependencies | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

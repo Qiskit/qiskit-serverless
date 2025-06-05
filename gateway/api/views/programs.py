@@ -176,6 +176,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     serializer.errors,
                 )
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
         serializer.save(author=author, title=title, provider=provider_name)
 
         logger.info("Return response with Program [%s]", title)
