@@ -45,7 +45,6 @@ urlpatterns = [
     path("readiness/", probes.views.readiness, name="readiness"),
     path("liveness/", probes.views.liveness, name="liveness"),
     path("version/", version.views.version, name="version"),
-    path("", include("django_prometheus.urls")),
     path("backoffice/", admin.site.urls),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
 ]
@@ -64,4 +63,5 @@ urlpatterns += [
     re_path(r"^redoc/$", schema.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
 ]
 if settings.DEBUG:
+    urlpatterns += path("", include("django_prometheus.urls")),
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
