@@ -70,7 +70,6 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     "django_prometheus",
     "rest_framework",
-    "rest_framework.authtoken",
     "api",
     "psycopg2",
     "drf_yasg",
@@ -169,7 +168,7 @@ DATABASES = {
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
     },
     "test": {
-        "ENGINE": "django_prometheus.db.backends.sqlite3",
+        'ENGINE': 'django.db.backends.sqlite3',
         "NAME": BASE_DIR / "db.sqlite3",
     },
 }
@@ -226,7 +225,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============
 SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "default")
 SETTINGS_DEFAULT_AUTH_CLASSES = [
-    "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+    'rest_framework.authentication.SessionAuthentication',
+    'rest_framework.authentication.BasicAuthentication',
 ]
 ALL_AUTH_CLASSES_CONFIGURATION = {
     "default": SETTINGS_DEFAULT_AUTH_CLASSES,
