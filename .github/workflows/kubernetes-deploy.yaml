@@ -57,7 +57,7 @@ jobs:
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
           kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
       - name: setup python
-        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f #5.1.1
+        uses: actions/setup-python@5.3.0
         with:
           python-version: "3.11"
       - name: Install dependencies
