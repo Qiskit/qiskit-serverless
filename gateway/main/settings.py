@@ -82,6 +82,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "main.middleware.add_slash",
     "corsheaders.middleware.CorsMiddleware",
     "csp.middleware.CSPMiddleware",
     "allow_cidr.middleware.AllowCIDRMiddleware",
