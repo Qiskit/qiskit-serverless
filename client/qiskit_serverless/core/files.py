@@ -26,7 +26,6 @@ Qiskit Serverless files
 
 """
 import os.path
-import posixpath
 import uuid
 from typing import List, Optional
 
@@ -66,9 +65,7 @@ class GatewayFilesClient:
         self.version = version
         self._token = token
         self._instance = instance
-        # TODO I don't think we should use os.path or posixpath here.
-        # We are building a URL not a file path
-        self._files_url = posixpath.join(self.host, "api", self.version, "files")
+        self._files_url = url_path_join(self.host, "api", self.version, "files")
 
     def _download_with_url(  # pylint:  disable=too-many-positional-arguments
         self,
@@ -116,7 +113,7 @@ class GatewayFilesClient:
             file,
             download_location,
             function,
-            url_path_join(self._files_url, "download"),
+            os.path.join(self._files_url, "download"),
             target_name,
         )
 
