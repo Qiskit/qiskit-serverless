@@ -70,10 +70,6 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     "django_prometheus",
     "rest_framework",
-    "rest_framework.authtoken",
-    "rest_framework_simplejwt",
-    "allauth",
-    "allauth.socialaccount",
     "api",
     "psycopg2",
     "drf_yasg",
@@ -172,7 +168,7 @@ DATABASES = {
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
     },
     "test": {
-        "ENGINE": "django_prometheus.db.backends.sqlite3",
+        'ENGINE': 'django.db.backends.sqlite3',
         "NAME": BASE_DIR / "db.sqlite3",
     },
 }
@@ -197,10 +193,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-AUTHENTICATION_BACKENDS = [
-    # `allauth` specific authentication methods, such as login by e-mail
-    "allauth.account.auth_backends.AuthenticationBackend",
-]
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
@@ -233,8 +225,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============
 SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "default")
 SETTINGS_DEFAULT_AUTH_CLASSES = [
-    "rest_framework_simplejwt.authentication.JWTAuthentication",
-    "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+    'rest_framework.authentication.SessionAuthentication',
+    'rest_framework.authentication.BasicAuthentication',
 ]
 ALL_AUTH_CLASSES_CONFIGURATION = {
     "default": SETTINGS_DEFAULT_AUTH_CLASSES,
