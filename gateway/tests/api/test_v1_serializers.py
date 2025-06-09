@@ -267,70 +267,95 @@ class SerializerTest(APITestCase):
             [value[0] for value in errors.values()],
         )
 
-    def test_upload_program_serializer_allowed_dependencies(self):
-        """Tests dependency allowlist."""
-        path_to_resource_artifact = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "artifact.tar",
-        )
-        file_data = File(open(path_to_resource_artifact, "rb"))
-        upload_file = SimpleUploadedFile(
-            "artifact.tar", file_data.read(), content_type="multipart/form-data"
-        )
-
-        user = models.User.objects.get(username="test_user")
-
-        title = "Hello world"
-        entrypoint = "pattern.py"
-        arguments = "{}"
-        dependencies = '["wheel==1.0.0","pendulum==1.2.3"]'
-
+    def test_upload_program_serializer_allowed_dependencies_basic(self):
         data = {}
-        data["title"] = title
-        data["entrypoint"] = entrypoint
-        data["arguments"] = arguments
-        data["dependencies"] = dependencies
-        data["artifact"] = upload_file
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '["pendulum"]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertTrue(serializer.is_valid())
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
-        program: Program = serializer.save(author=user)
-        self.assertEqual(title, program.title)
-        self.assertEqual(entrypoint, program.entrypoint)
-        self.assertEqual(dependencies, program.dependencies)
+    def test_upload_program_serializer_allowed_dependencies_multi(self):
+        data = {}
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '["pendulum", "wheel"]'
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_upload_program_serializer_allowed_dependencies_versions(self):
+        data = {}
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '["wheel==3.0.0","pendulum==3.0.0"]'
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_upload_program_serializer_allowed_dependencies_objects(self):
+        data = {}
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '[{"wheel":"3.0.0"},{"pendulum":"==3.0.0"}]'
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_upload_program_serializer_allowed_dependencies_mixed(self):
+        data = {}
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '[{"wheel":"3.0.0"},"pendulum==3.0.0"]'
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
     def test_upload_program_serializer_blocked_dependency(self):
-        """Tests dependency allowlist."""
-        path_to_resource_artifact = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "artifact.tar",
-        )
-        file_data = File(open(path_to_resource_artifact, "rb"))
-        upload_file = SimpleUploadedFile(
-            "artifact.tar", file_data.read(), content_type="multipart/form-data"
-        )
-
-        user = models.User.objects.get(username="test_user")
-
-        title = "Hello world"
-        entrypoint = "pattern.py"
-        arguments = "{}"
-        dependencies = '["setuptools==0.4.1"]'
-
         data = {}
-        data["title"] = title
-        data["entrypoint"] = entrypoint
-        data["arguments"] = arguments
-        data["dependencies"] = dependencies
-        data["artifact"] = upload_file
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '["notavailableone"]'
 
         serializer = UploadProgramSerializer(data=data)
-        self.assertFalse(serializer.is_valid())
+        self.assertFalse(serializer.is_valid(), serializer.errors)
+
+    def test_upload_program_serializer_blocked_dependency_version(self):
+        data = {}
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '["pendulum==2.0.0"]'
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid(), serializer.errors)
+
+    def test_upload_program_serializer_blocked_dependency_object_version(self):
+        data = {}
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '[{"wheel":"0.1.0"},{"pendulum":"==1.0.0"}]'
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid(), serializer.errors)
+
+    def test_upload_program_serializer_blocked_dependency_operator(self):
+        data = {}
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '["pendulum>=3.0.0"]'
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid(), serializer.errors)
+
+    def test_upload_program_serializer_malformed_dependency(self):
+        data = {}
+        data["title"] = "Hello world"
+        data["entrypoint"] = "pattern.py"
+        data["dependencies"] = '{"pendulum": ">=3.0.0"}'
+
+        serializer = UploadProgramSerializer(data=data)
+        self.assertFalse(serializer.is_valid(), serializer.errors)
 
     def test_upload_program_serializer_updates_program_without_description(self):
         path_to_resource_artifact = os.path.join(

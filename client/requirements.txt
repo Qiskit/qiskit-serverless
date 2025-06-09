@@ -7,9 +7,9 @@ qiskit-ibm-runtime>=0.29.0, <1
 cloudpickle==2.2.1
 tqdm>=4.66.3, <5
 # opentelemetry
-opentelemetry-api>=1.18.0, <2
-opentelemetry-sdk>=1.18.0, <2
-opentelemetry-exporter-otlp-proto-grpc>=1.18.0, <2
+opentelemetry-api>=1.18.0, <1.33.1
+opentelemetry-sdk>=1.18.0, <1.33.1
+opentelemetry-exporter-otlp-proto-grpc>=1.18.0, <1.33.1
 s3fs>=2023.6.0
 opentelemetry-instrumentation-requests>=0.40b0
 ipywidgets>=8.1.6, <9

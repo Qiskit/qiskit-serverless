@@ -4,14 +4,12 @@ Serializers api for V1.
 
 import json
 import logging
+from typing import Any
+from packaging.requirements import Requirement, InvalidRequirement
 from rest_framework.serializers import ValidationError
 from api import serializers
 from api.models import Provider
-from api.utils import (
-    create_dependency_allowlist,
-    create_dependency_grammar,
-    parse_dependency,
-)
+from api.utils import check_whitelisted
 
 logger = logging.getLogger("gateway.serializers")
 
@@ -45,6 +43,64 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         # place to add image validation
         return value
 
+    def _parse_dependency(self, dep: Any):
+        if not isinstance(dep, dict) and not isinstance(dep, str):
+            raise ValidationError(
+                "'dependencies' should be an array with strings or dict."
+            )
+
+        if isinstance(dep, str):
+            dep_string = dep
+        else:
+            dep_name = list(dep.keys())
+            if len(dep_name) > 1 or len(dep_name) == 0:
+                raise ValidationError(
+                    "'dependencies' should be an array with dict containing one depencency only."
+                )
+            dep_name = str(dep_name[0])
+            dep_version = str(list(dep.values())[0])
+
+            # if starts with a number then prefix ==
+            try:
+                if int(dep_version[0]) >= 0:
+                    dep_version = f"=={dep_version}"
+            except ValueError:
+                pass
+
+            dep_string = dep_name + dep_version
+
+        requirement = Requirement(dep_string)
+        req_specifier_list = list(requirement.specifier)
+        req_specifier_first = next(iter(req_specifier_list), None)
+
+        if len(req_specifier_list) > 1 or (
+            req_specifier_first and req_specifier_first.operator != "=="
+        ):
+            raise ValidationError(
+                "'dependencies' needs one fixed version using the '==' operator."
+            )
+
+        return requirement
+
+    def _validate_deps(self, deps):
+        if not isinstance(deps, list):
+            raise ValidationError("'dependencies' should be an array.")
+
+        if len(deps) == 0:
+            return
+
+        try:
+            required_deps = [self._parse_dependency(dep) for dep in deps]
+        except InvalidRequirement as invalid_requirement:
+            raise ValidationError(
+                "Error while parsing dependencies."
+            ) from invalid_requirement
+
+        try:
+            check_whitelisted(required_deps)
+        except ValueError as value_error:
+            raise ValidationError(value_error.args[0]) from value_error
+
     def validate(self, attrs):  # pylint: disable=too-many-branches
         """Validates serializer data."""
         entrypoint = attrs.get("entrypoint", None)
@@ -53,17 +109,16 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             raise ValidationError(
                 "At least one of attributes (entrypoint, image) is required."
             )
+        try:
+            # validate dependencies
+            deps = json.loads(attrs.get("dependencies", "[]"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ValidationError(
+                "'dependencies' should be an array of strings or objects: "
+                "`['pendulum==3.0.0', '...'] or [{'pendulum':'3.0.0'}, {...}]`"
+            ) from exc
 
-        # validate dependencies
-        dependency_grammar = create_dependency_grammar()
-        deps = json.loads(attrs.get("dependencies", None))
-        allowlist = create_dependency_allowlist()
-        if len(allowlist.keys()) > 0:  # If no allowlist, all dependencies allowed
-            for d in deps:
-                dep, _ = parse_dependency(d, dependency_grammar)
-                # Determine if a dependency is allowed
-                if dep not in allowlist:
-                    raise ValidationError(f"Dependency {dep} is not allowed")
+        self._validate_deps(deps)
 
         title = attrs.get("title")
         provider = attrs.get("provider", None)

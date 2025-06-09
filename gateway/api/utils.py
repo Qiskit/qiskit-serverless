@@ -5,18 +5,15 @@ from collections import OrderedDict
 import inspect
 import json
 import logging
-import os
 import re
 import time
 import uuid
-import sys
-import platform
 from typing import Any, Optional, Tuple, Type, Union, Callable, Dict, List
 from django.conf import settings
+from packaging.requirements import Requirement
 
 from cryptography.fernet import Fernet
 from ray.dashboard.modules.job.common import JobStatus
-from parsley import makeGrammar
 import objsize
 
 from api.domain.authentication.channel import Channel
@@ -287,178 +284,6 @@ def remove_duplicates_from_list(original_list: List[Any]) -> List[Any]:
     return list(OrderedDict.fromkeys(original_list))
 
 
-# Utilities for parsing python dependency information
-# source: https://peps.python.org/pep-0508/#complete-grammar
-RAW_DEPENDENCY_GRAMMAR = """
-    wsp           = ' ' | '\t'
-    version_cmp   = wsp* <'<=' | '<' | '!=' | '==' | '>=' | '>' | '~=' | '==='>
-    version       = wsp* <( letterOrDigit | '-' | '_' | '.' | '*' | '+' | '!' )+>
-    version_one   = version_cmp:op version:v wsp* -> (op, v)
-    version_many  = version_one:v1 (wsp* ',' version_one)*:v2 -> [v1] + v2
-    versionspec   = ('(' version_many:v ')' ->v) | version_many
-    urlspec       = '@' wsp* <URI_reference>
-    marker_op     = version_cmp | (wsp* 'in') | (wsp* 'not' wsp+ 'in')
-    python_str_c  = (wsp | letter | digit | '(' | ')' | '.' | '{' | '}' |
-                     '-' | '_' | '*' | '#' | ':' | ';' | ',' | '/' | '?' |
-                     '[' | ']' | '!' | '~' | '`' | '@' | '$' | '%' | '^' |
-                     '&' | '=' | '+' | '|' | '<' | '>' )
-    dquote        = '"'
-    squote        = '\\''
-    python_str    = (squote <(python_str_c | dquote)*>:s squote |
-                     dquote <(python_str_c | squote)*>:s dquote) -> s
-    env_var       = ('python_version' | 'python_full_version' |
-                     'os_name' | 'sys_platform' | 'platform_release' |
-                     'platform_system' | 'platform_version' |
-                     'platform_machine' | 'platform_python_implementation' |
-                     'implementation_name' | 'implementation_version' |
-                     'extra' # ONLY when defined by a containing layer
-                     ):varname -> lookup(varname)
-    marker_var    = wsp* (env_var | python_str)
-    marker_expr   = marker_var:l marker_op:o marker_var:r -> (o, l, r)
-                  | wsp* '(' marker:m wsp* ')' -> m
-    marker_and    = marker_expr:l wsp* 'and' marker_expr:r -> ('and', l, r)
-                  | marker_expr:m -> m
-    marker_or     = marker_and:l wsp* 'or' marker_and:r -> ('or', l, r)
-                      | marker_and:m -> m
-    marker        = marker_or
-    quoted_marker = ';' wsp* marker
-    identifier_end = letterOrDigit | (('-' | '_' | '.' )* letterOrDigit)
-    identifier    = < letterOrDigit identifier_end* >
-    name          = identifier
-    extras_list   = identifier:i (wsp* ',' wsp* identifier)*:ids -> [i] + ids
-    extras        = '[' wsp* extras_list?:e wsp* ']' -> e
-    name_req      = (name:n wsp* extras?:e wsp* versionspec?:v wsp* quoted_marker?:m
-                     -> (n, e or [], v or [], m))
-    url_req       = (name:n wsp* extras?:e wsp* urlspec:v (wsp+ | end) quoted_marker?:m
-                     -> (n, e or [], v, m))
-    specification = wsp* ( url_req | name_req ):s wsp* -> s
-    # The result is a tuple - name, list-of-extras,
-    # list-of-version-constraints-or-a-url, marker-ast or None
-
-
-    URI_reference = <URI | relative_ref>
-    URI           = scheme ':' hier_part ('?' query )? ( '#' fragment)?
-    hier_part     = ('//' authority path_abempty) | path_absolute | path_rootless | path_empty
-    absolute_URI  = scheme ':' hier_part ( '?' query )?
-    relative_ref  = relative_part ( '?' query )? ( '#' fragment )?
-    relative_part = '//' authority path_abempty | path_absolute | path_noscheme | path_empty
-    scheme        = letter ( letter | digit | '+' | '-' | '.')*
-    authority     = ( userinfo '@' )? host ( ':' port )?
-    userinfo      = ( unreserved | pct_encoded | sub_delims | ':')*
-    host          = IP_literal | IPv4address | reg_name
-    port          = digit*
-    IP_literal    = '[' ( IPv6address | IPvFuture) ']'
-    IPvFuture     = 'v' hexdig+ '.' ( unreserved | sub_delims | ':')+
-    IPv6address   = (
-                      ( h16 ':'){6} ls32
-                      | '::' ( h16 ':'){5} ls32
-                      | ( h16 )?  '::' ( h16 ':'){4} ls32
-                      | ( ( h16 ':')? h16 )? '::' ( h16 ':'){3} ls32
-                      | ( ( h16 ':'){0,2} h16 )? '::' ( h16 ':'){2} ls32
-                      | ( ( h16 ':'){0,3} h16 )? '::' h16 ':' ls32
-                      | ( ( h16 ':'){0,4} h16 )? '::' ls32
-                      | ( ( h16 ':'){0,5} h16 )? '::' h16
-                      | ( ( h16 ':'){0,6} h16 )? '::' )
-    h16           = hexdig{1,4}
-    ls32          = ( h16 ':' h16) | IPv4address
-    IPv4address   = dec_octet '.' dec_octet '.' dec_octet '.' dec_octet
-    nz            = ~'0' digit
-    dec_octet     = (
-                      digit # 0-9
-                      | nz digit # 10-99
-                      | '1' digit{2} # 100-199
-                      | '2' ('0' | '1' | '2' | '3' | '4') digit # 200-249
-                      | '25' ('0' | '1' | '2' | '3' | '4' | '5') )# %250-255
-    reg_name = ( unreserved | pct_encoded | sub_delims)*
-    path = (
-            path_abempty # begins with '/' or is empty
-            | path_absolute # begins with '/' but not '//'
-            | path_noscheme # begins with a non-colon segment
-            | path_rootless # begins with a segment
-            | path_empty ) # zero characters
-    path_abempty  = ( '/' segment)*
-    path_absolute = '/' ( segment_nz ( '/' segment)* )?
-    path_noscheme = segment_nz_nc ( '/' segment)*
-    path_rootless = segment_nz ( '/' segment)*
-    path_empty    = pchar{0}
-    segment       = pchar*
-    segment_nz    = pchar+
-    segment_nz_nc = ( unreserved | pct_encoded | sub_delims | '@')+
-                    # non-zero-length segment without any colon ':'
-    pchar         = unreserved | pct_encoded | sub_delims | ':' | '@'
-    query         = ( pchar | '/' | '?')*
-    fragment      = ( pchar | '/' | '?')*
-    pct_encoded   = '%' hexdig
-    unreserved    = letter | digit | '-' | '.' | '_' | '~'
-    reserved      = gen_delims | sub_delims
-    gen_delims    = ':' | '/' | '?' | '#' | '(' | ')?' | '@'
-    sub_delims    = '!' | '$' | '&' | '\\'' | '(' | ')' | '*' | '+' | ',' | ';' | '='
-    hexdig        = digit | 'a' | 'A' | 'b' | 'B' | 'c' | 'C' | 'd' | 'D' | 'e' | 'E' | 'f' | 'F'
-"""
-
-
-def create_dependency_grammar(grammar=RAW_DEPENDENCY_GRAMMAR):
-    """Create dependency grammar."""
-
-    if hasattr(sys, "implementation"):
-        sys_version = sys.implementation.version
-        version = f"{sys_version.major}.{sys_version.minor}.{sys_version.micro}"
-        kind = sys.implementation.version.releaselevel
-        if kind != "final":
-            version += kind[0] + str(sys.implementation.version.serial)
-        implementation_version = version
-        implementation_name = sys.implementation.name
-    else:
-        implementation_version = "0"
-        implementation_name = ""
-    bindings = {
-        "implementation_name": implementation_name,
-        "implementation_version": implementation_version,
-        "os_name": os.name,
-        "platform_machine": platform.machine(),
-        "platform_python_implementation": platform.python_implementation(),
-        "platform_release": platform.release(),
-        "platform_system": platform.system(),
-        "platform_version": platform.version(),
-        "python_full_version": platform.python_version(),
-        "python_version": ".".join(platform.python_version_tuple()[:2]),
-        "sys_platform": sys.platform,
-    }
-
-    dependency_grammar = makeGrammar(grammar, {"lookup": bindings.__getitem__})
-    return dependency_grammar
-
-
-def parse_dependency(dep, grammar):
-    """Parse dependency."""
-    parsed = grammar(dep).specification()
-    dep_name = parsed[0]
-    dep_ver = parsed[2]
-
-    return dep_name, dep_ver
-
-
-def create_dependency_allowlist():
-    """
-    Create dictionary with allowed dependencies and versions.
-
-    Sample format:
-        allowlist = { "wheel": ["0.44.0", "0.43.2"] }
-    where the values for each key are allowed versions of dependency.
-    """
-    try:
-        with open(settings.GATEWAY_ALLOWLIST_CONFIG, encoding="utf-8", mode="r") as f:
-            allowlist = json.load(f)
-    except IOError as e:
-        logger.error("Unable to open allowlist config file: %s", e)
-        raise ValueError("Unable to open allowlist config file") from e
-    except ValueError as e:
-        logger.error("Unable to decode dependency allowlist: %s", e)
-        raise ValueError("Unable to decode dependency allowlist") from e
-
-    return allowlist
-
-
 def sanitize_name(name: Optional[str]):
     """Sanitize name"""
     if not name:
@@ -508,3 +333,64 @@ def sanitize_file_name(name: Optional[str]):
         return name
     # Remove all characters except alphanumeric, _, ., -
     return re.sub("[^a-zA-Z0-9_\\.\\-]", "", name)
+
+
+def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
+    """
+    Create dictionary of allowed additional dependences for function providers.
+
+    The format of the readed file should be a requirements.txt file.
+    """
+    try:
+        with open(
+            settings.GATEWAY_DYNAMIC_DEPENDENCIES, encoding="utf-8", mode="r"
+        ) as f:
+            dependencies = f.readlines()
+    except IOError as e:
+        if settings.GATEWAY_DYNAMIC_DEPENDENCIES != "":
+            logger.error("Unable to open dynamic dependencies requirements file: %s", e)
+        return {}
+
+    dependencies = [dep.replace("\n", "") for dep in dependencies]
+    dependencies = filter(lambda dep: not dep.startswith("#") and dep, dependencies)
+    dependencies = [Requirement(dep) for dep in dependencies]
+
+    return {dep.name: dep for dep in dependencies}
+
+
+DEPENDENCY_REQUEST_URL = "https://github.com/Qiskit/qiskit-serverless/issues/new?template=pip_dependency_request.yaml"  # pylint: disable=line-too-long
+
+
+def check_whitelisted(
+    dependencies: List[Requirement], inject_version_if_missing=False
+) -> List[Requirement]:
+    """
+    check if a list of dependencies are whitelisted.
+
+    if "inject_version_if_missing" is True, the dependencies that has an empty version,
+    will recieve the version of the whitelist.
+    """
+    whitelist_deps = create_dynamic_dependencies_whitelist()
+
+    for dependency in dependencies:
+        whitelisted_dependency = whitelist_deps.get(dependency.name)
+        if not whitelisted_dependency:
+            raise ValueError(
+                f"Dependency {dependency.name} is not allowed. "
+                f"You can request the dependency here: {DEPENDENCY_REQUEST_URL}"
+            )
+
+        req_version_list = list(dependency.specifier)
+        if len(req_version_list) == 0:
+            if inject_version_if_missing:
+                dependency.specifier = whitelisted_dependency.specifier
+            continue
+
+        req_version = list(dependency.specifier)[0].version
+        if not whitelisted_dependency.specifier.contains(req_version):
+            raise ValueError(
+                f"Dependency ({dependency.name}) version ({req_version})"
+                f" is not allowed. Valid versions: {whitelisted_dependency}"
+            )
+
+    return dependencies
