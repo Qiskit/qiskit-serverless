@@ -140,6 +140,11 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "Authentication with IBM Cloud requires to pass the CRN as an instance."
             )
 
+        if channel_enum is Channel.QUANTUM_PLATFORM and instance is None:
+            raise QiskitServerlessException(
+                "Authentication with IBM Quantum Platform requires to pass the CRN as an instance."
+            )
+
         super().__init__(name, host, token, instance)
         self.verbose = verbose
         self.version = version
@@ -569,7 +574,13 @@ class IBMServerlessClient(ServerlessClient):
             instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
+        channel = token or QiskitRuntimeService(name=name).active_account().get(
+            "channel"
+        )
         token = token or QiskitRuntimeService(name=name).active_account().get("token")
+        instance = token or QiskitRuntimeService(name=name).active_account().get(
+            "instance"
+        )
         super().__init__(
             channel=channel,
             token=token,
