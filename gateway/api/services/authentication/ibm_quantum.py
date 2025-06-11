@@ -116,18 +116,16 @@ class IBMQuantum(AuthenticationBase):
 
         user_id = auth_data.get("userId")
         if user_id is None:
-            logger.warning("Quantum Platform didn't return the id for the user.")
+            logger.warning("IBM Quantum didn't return the id for the user.")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the autentication process with Quantum Platform, please try later."  # pylint: disable=line-too-long
+                "There was a problem in the autentication process with IBM Quantum, please try later."  # pylint: disable=line-too-long
             )
 
         self.access_token = auth_data.get("id")
         if self.access_token is None:
-            logger.warning(
-                "Quantum Platform didn't return the access token for the user"
-            )
+            logger.warning("IBM Quantum didn't return the access token for the user")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the autentication process with Quantum Platform, please try later."  # pylint: disable=line-too-long
+                "There was a problem in the autentication process with IBM Quantum, please try later."  # pylint: disable=line-too-long
             )
 
         return user_id
@@ -149,9 +147,9 @@ class IBMQuantum(AuthenticationBase):
             )
         )
         if verification_data is None:
-            logger.warning("Quantum Platform didn't return user data to verify.")
+            logger.warning("IBM Quantum didn't return user data to verify.")
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the autentication process with Quantum Platform, please try later."  # pylint: disable=line-too-long
+                "There was a problem in the autentication process with IBM Quantum, please try later."  # pylint: disable=line-too-long
             )
 
         verifications = []
@@ -164,7 +162,7 @@ class IBMQuantum(AuthenticationBase):
 
         verified = all(verifications)
         if verified is False:
-            logger.warning("User has no access to the service using Quantum Platform.")
+            logger.warning("User has no access to the service using IBM Quantum.")
 
         return verified
 
