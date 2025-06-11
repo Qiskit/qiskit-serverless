@@ -52,17 +52,17 @@ def format_err_msg(code: ErrorCodeType, details: Optional[str] = None):
         result += f"\n| Code: {code}"
     if details:
 
-        result += f"\n| Details:"
-        detailsJson = None
+        result += "\n| Details:"
+        details_json = None
         try:
-            detailsJson = json.loads(details)
+            details_json = json.loads(details)
         except json.JSONDecodeError:
             pass
 
-        if detailsJson and isinstance(detailsJson, Dict):
-            for key in detailsJson:
-                if len(detailsJson[key]) > 0:
-                    result += f"\n|   - {key}: {detailsJson[key][0]}"
+        if details_json and isinstance(details_json, Dict):
+            for key in details_json:
+                if len(details_json[key]) > 0:
+                    result += f"\n|   - {key}: {details_json[key][0]}"
         else:
             result += f"{details}"
 
