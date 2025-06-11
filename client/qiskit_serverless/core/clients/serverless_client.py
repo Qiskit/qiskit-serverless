@@ -590,12 +590,12 @@ class IBMServerlessClient(ServerlessClient):
                 "Your channel value is not correct. Use one of the available channels: "
                 f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, {Channel.IBM_CLOUD.value}"
             ) from error
-        
+
         if channel_enum is not Channel.IBM_QUANTUM:
             instance = instance or QiskitRuntimeService(name=name).active_account().get(
                 "instance"
             )
-        
+
         super().__init__(
             channel=channel,
             token=token,
