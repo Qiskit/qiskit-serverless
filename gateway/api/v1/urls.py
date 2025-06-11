@@ -2,10 +2,10 @@
 URL Patterns for V1 api application.
 """
 
-from rest_framework import routers
+from rest_framework.routers import SimpleRouter
 from api.v1 import views as v1_views
 
-router = routers.DefaultRouter()
+router = SimpleRouter()
 router.register(
     r"programs",
     v1_views.ProgramViewSet,
