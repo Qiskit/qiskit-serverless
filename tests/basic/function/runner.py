@@ -16,7 +16,7 @@ def custom_function(arguments):
 
     # running Sampler primitive
     sampler = Sampler()
-    quasi_dists = sampler.run([(circuit)]).result()[0].data.meas.get_counts()
+    quasi_dists = sampler.run([circuit]).result()[0].data.meas.get_counts()
 
     print("Completed running pattern.")
     return quasi_dists

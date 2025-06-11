@@ -14,7 +14,7 @@ circuit.measure_all()
 
 # running Sampler primitive
 sampler = Sampler()
-quasi_dists = sampler.run([(circuit)]).result()[0].data.meas.get_counts()
+quasi_dists = sampler.run([circuit]).result()[0].data.meas.get_counts()
 
 # saves results of function execution,
 # which will be accessible by calling `.result()`

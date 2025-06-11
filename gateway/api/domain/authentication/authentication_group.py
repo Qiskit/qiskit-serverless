@@ -1,5 +1,5 @@
 """
-Class used by the authentication process to store the information of 
+Class used by the authentication process to store the information of
 the groups from 3rd party services.
 """
 

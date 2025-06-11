@@ -1,6 +1,5 @@
 """This file contains e2e tests for Quantum Platform authentication process."""
 
-
 from unittest.mock import MagicMock, patch
 import responses
 from rest_framework import exceptions

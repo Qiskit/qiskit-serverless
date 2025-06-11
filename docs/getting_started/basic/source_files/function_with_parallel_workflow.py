@@ -7,7 +7,7 @@ from qiskit.primitives import StatevectorSampler as Sampler
 @distribute_task()
 def distributed_sample(circuit: QuantumCircuit):
     """Distributed task that returns quasi distribution for given circuit."""
-    return Sampler().run([(circuit)]).result()[0].data.meas.get_counts()
+    return Sampler().run([circuit]).result()[0].data.meas.get_counts()
 
 
 arguments = get_arguments()
