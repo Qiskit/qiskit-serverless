@@ -99,7 +99,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         token: Optional[str] = None,
         instance: Optional[str] = None,
         channel: str = Channel.IBM_QUANTUM.value,
-        verbose: bool = False,
     ):
         """
         Initializes the ServerlessClient instance.
@@ -141,7 +140,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
 
         super().__init__(name, host, token, instance)
-        self.verbose = verbose
         self.version = version
         self._verify_credentials()
 
@@ -161,8 +159,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     url=f"{self.host}/api/v1/programs/",
                     headers=get_headers(token=self.token, instance=self.instance),
                     timeout=REQUESTS_TIMEOUT,
-                ),
-                verbose=self.verbose,
+                )
             )
         except QiskitServerlessException as reason:
             raise QiskitServerlessException(
@@ -720,6 +717,8 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments
             span.set_attribute("function.provider", response_data.get("provider", "na"))
             response_data["client"] = client
             response_function = RunnableQiskitFunction.from_json(response_data)
+    except QiskitServerlessException as error:  # pylint: disable=broad-exception-caught
+        raise error
     except Exception as error:  # pylint: disable=broad-exception-caught
         raise QiskitServerlessException from error
     finally:

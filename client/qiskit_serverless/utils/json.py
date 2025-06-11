@@ -74,12 +74,11 @@ def is_jsonable(data, cls: Optional[Type[JSONEncoder]] = None):
         return False
 
 
-def safe_json_request_as_list(request: Callable, verbose: bool = False) -> List[Any]:
+def safe_json_request_as_list(request: Callable[..., requests.Response]) -> List[Any]:
     """Returns parsed json data from request.
 
     Args:
         request: callable for request.
-        verbose: post reason in error message
 
     Example:
         >>> safe_json_request(request=lambda: requests.get("https://ibm.com"))
@@ -87,20 +86,19 @@ def safe_json_request_as_list(request: Callable, verbose: bool = False) -> List[
     Returns:
         parsed json response as list structure
     """
-    response = safe_json_request(request, verbose)
+    response = safe_json_request(request)
     if isinstance(response, List):
         return response
     raise TypeError("JSON is not a List")
 
 
 def safe_json_request_as_dict(
-    request: Callable, verbose: bool = False
+    request: Callable[..., requests.Response]
 ) -> Dict[str, Any]:
     """Returns parsed json data from request.
 
     Args:
         request: callable for request.
-        verbose: post reason in error message
 
     Example:
         >>> safe_json_request(request=lambda: requests.get("https://ibm.com"))
@@ -108,20 +106,19 @@ def safe_json_request_as_dict(
     Returns:
         parsed json response as dict structure
     """
-    response = safe_json_request(request, verbose)
+    response = safe_json_request(request)
     if isinstance(response, Dict):
         return response
     raise TypeError("JSON is not a Dict")
 
 
 def safe_json_request(
-    request: Callable, verbose: bool = False
+    request: Callable[..., requests.Response]
 ) -> Union[Dict[str, Any], List[Any]]:
     """Returns parsed json data from request.
 
     Args:
         request: callable for request.
-        verbose: post reason in error message
 
     Example:
         >>> safe_json_request(request=lambda: requests.get("https://ibm.com"))
@@ -135,7 +132,7 @@ def safe_json_request(
     except requests.exceptions.RequestException as request_exception:
         error_message = format_err_msg(
             ErrorCodes.AUTH1001,
-            str(request_exception.args) if verbose else None,
+            str(request_exception.args),
         )
         response = None
 
@@ -146,7 +143,7 @@ def safe_json_request(
         raise QiskitServerlessException(
             format_err_msg(
                 response.status_code,
-                str(response.text) if verbose else None,
+                str(response.text),
             )
         )
 
@@ -156,7 +153,7 @@ def safe_json_request(
     except json.JSONDecodeError as json_error:
         decoding_error_message = format_err_msg(
             ErrorCodes.JSON1001,
-            str(json_error.args) if verbose else None,
+            str(json_error.args),
         )
         json_data = {}
 

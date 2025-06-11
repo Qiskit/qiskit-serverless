@@ -1,5 +1,6 @@
 """Errors utilities."""
 
+import json
 from typing import Optional, Dict, Union
 
 ErrorCodeType = Union[int, str]
@@ -50,5 +51,19 @@ def format_err_msg(code: ErrorCodeType, details: Optional[str] = None):
     if code:
         result += f"\n| Code: {code}"
     if details:
-        result += f"\n| Details: {details}"
+
+        result += f"\n| Details:"
+        detailsJson = None
+        try:
+            detailsJson = json.loads(details)
+        except json.JSONDecodeError:
+            pass
+
+        if detailsJson and isinstance(detailsJson, Dict):
+            for key in detailsJson:
+                if len(detailsJson[key]) > 0:
+                    result += f"\n|   - {key}: {detailsJson[key][0]}"
+        else:
+            result += f"{details}"
+
     return result
