@@ -135,6 +135,11 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, {Channel.IBM_CLOUD.value}"
             ) from error
 
+        if channel_enum is Channel.IBM_QUANTUM and instance is not None:
+            raise QiskitServerlessException(
+                "Authentication with IBM Quantum doesn't support the instance parameter."
+            )
+
         if channel_enum is Channel.IBM_CLOUD and instance is None:
             raise QiskitServerlessException(
                 "Authentication with IBM Cloud requires to pass the CRN as an instance."
@@ -574,13 +579,23 @@ class IBMServerlessClient(ServerlessClient):
             instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
-        channel = token or QiskitRuntimeService(name=name).active_account().get(
+        token = token or QiskitRuntimeService(name=name).active_account().get("token")
+        channel = channel or QiskitRuntimeService(name=name).active_account().get(
             "channel"
         )
-        token = token or QiskitRuntimeService(name=name).active_account().get("token")
-        instance = token or QiskitRuntimeService(name=name).active_account().get(
-            "instance"
-        )
+        try:
+            channel_enum = Channel(channel)
+        except ValueError as error:
+            raise QiskitServerlessException(
+                "Your channel value is not correct. Use one of the available channels: "
+                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, {Channel.IBM_CLOUD.value}"
+            ) from error
+        
+        if channel_enum is not Channel.IBM_QUANTUM:
+            instance = instance or QiskitRuntimeService(name=name).active_account().get(
+                "instance"
+            )
+        
         super().__init__(
             channel=channel,
             token=token,
