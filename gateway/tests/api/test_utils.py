@@ -58,7 +58,7 @@ class TestUtils(APITestCase):
         """This test is to test the env_vars for an IBM Cloud authentication process."""
 
         with self.settings(SETTINGS_AUTH_MECHANISM="custom_token"):
-            channel = Channel.IBM_CLOUD
+            channel = Channel.IBM_QUANTUM_PLATFORM
             token = "an_awesome_api_key"
             job = MagicMock()
             job.id = "42"
@@ -85,7 +85,7 @@ class TestUtils(APITestCase):
                     "ENV_JOB_ARGUMENTS": "{}",
                     "ENV_ACCESS_TRIAL": "False",
                     "QISKIT_IBM_TOKEN": "an_awesome_api_key",
-                    "QISKIT_IBM_CHANNEL": "ibm_cloud",
+                    "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
                     "QISKIT_IBM_INSTANCE": "an_awesome_crn",
                     "QISKIT_IBM_URL": "https://auth.quantum-computing.ibm.com/api",
                 },

@@ -1,4 +1,4 @@
-"""This file contains e2e tests for IBM Cloud authentication process."""
+"""This file contains e2e tests for IBM Quantum Platform authentication process."""
 
 
 from unittest.mock import MagicMock, patch
@@ -12,8 +12,8 @@ from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.models import VIEW_PROGRAM_PERMISSION
 
 
-class TestIBMCloudAuthentication(APITestCase):
-    """This class contains e2e tests for Quantum Platform authentication process."""
+class TestIBMQuantumPlatformAuthentication(APITestCase):
+    """This class contains e2e tests for IBM Quantum Platform authentication process."""
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
@@ -83,7 +83,7 @@ class TestIBMCloudAuthentication(APITestCase):
 
             self.assertEqual(user.username, "IBMid-0000000ABC")
             self.assertIsInstance(authentication, CustomAuthentication)
-            self.assertEqual(authentication.channel, "ibm_cloud")
+            self.assertEqual(authentication.channel, "ibm_quantum_platform")
             self.assertEqual(authentication.token, b"AWESOME_TOKEN")
             self.assertEqual(authentication.instance, "AWESOME_CRN")
 

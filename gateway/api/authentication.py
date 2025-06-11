@@ -42,7 +42,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         crn = request.META.get("HTTP_SERVICE_CRN", None)
         if crn is not None:
-            channel = Channel.IBM_CLOUD
+            channel = Channel.IBM_QUANTUM_PLATFORM
 
         auth_header = request.META.get("HTTP_AUTHORIZATION")
         if auth_header is None:

@@ -1,4 +1,4 @@
-"""This service will manage the access to the 3rd party end-points in Quantum platform."""
+"""This service will manage the access to the 3rd party end-points in IBM Quantum."""
 
 
 import logging
@@ -11,10 +11,10 @@ from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.services.authentication.authentication_base import AuthenticationBase
 from api.utils import remove_duplicates_from_list, safe_request
 
-logger = logging.getLogger("gateway.services.authentication.quantum_platform")
+logger = logging.getLogger("gateway.services.authentication.ibm_quantum")
 
 
-class QuantumPlatformService(AuthenticationBase):
+class IBMQuantum(AuthenticationBase):
     """
     This class will manage the different access to the different
     end-points that we will make use of them in this service.
