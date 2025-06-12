@@ -1,7 +1,10 @@
-FROM registry.access.redhat.com/ubi9-minimal:9.5-1738816775
+FROM registry.access.redhat.com/ubi9-minimal:9.6-1747218906
+
+ARG DYNAMIC_DEPENDENCIES_FILE
+
 RUN microdnf install -y \
-    python3.11-3.11.9 \
-    python3.11-devel-3.11.9 \
+    python3.11-3.11.11 \
+    python3.11-devel-3.11.11 \
     wget-1.21.1
 RUN microdnf clean all
 RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
@@ -18,6 +21,8 @@ USER 0
 RUN mkdir /data && chown 1000:1000 /data
 RUN mkdir /function_data && chown 1000:1000 /function_data
 COPY client ./qs
+COPY gateway/requirements-dynamic-dependencies.txt ./qs
+COPY gateway/requirements-test-dynamic-dependencies.txt ./qs
 WORKDIR /qs
 
 # Need versions of pip more recent than provided by UBI image
@@ -29,6 +34,10 @@ RUN pip install -r requirements.txt --no-cache-dir &&\
     pip install . --no-cache-dir &&\
     cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages &&\
     cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages
+
+RUN if [ -n "${DYNAMIC_DEPENDENCIES_FILE}" ]; then \
+        pip install -r ${DYNAMIC_DEPENDENCIES_FILE} --no-cache-dir; \
+    fi
 
 WORKDIR /
 RUN rm -r ./qs

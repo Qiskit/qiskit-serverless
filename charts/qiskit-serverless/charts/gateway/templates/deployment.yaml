@@ -65,7 +65,16 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args: [ "gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:{{ .Values.service.port }}", "--workers=4" ]
+          args: [ 
+            "gunicorn", 
+            {{ .Values.application.httpServer.serverModel }}, 
+            "--bind", "0.0.0.0:{{ .Values.service.port }}", 
+            "--workers={{ .Values.application.httpServer.workers }}",
+            "--threads={{ .Values.application.httpServer.threads }}", 
+            "--max-requests={{ .Values.application.httpServer.threads }}",
+            "--max-requests-jitter={{ .Values.application.httpServer.jitter }}",
+            "--timeout={{ .Values.application.httpServer.timeout }}"
+            ]
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
@@ -199,6 +208,8 @@ spec:
               value: {{ .Values.application.trustedOrigins | quote }}
             - name: CORS_ALLOWED_ORIGIN_REGEXES
               value: {{ .Values.application.corsOrigins | quote }}
+            - name: GATEWAY_DYNAMIC_DEPENDENCIES
+              value: {{ .Values.application.dependencies.dynamicDependencies | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -335,6 +346,8 @@ spec:
               value: {{ .Values.application.limits.maxGpuResources | quote }}
             - name: GATEWAY_GPU_JOBS_CONFIG
               value: {{ .Values.application.ray.gpuJobsConfig | quote }}
+            - name: MAINTENANCE
+              value: {{ .Values.application.maintenance | quote }}
 {{- if .Values.application.limits.keepClusterOnComplete }}
             - name: RAY_CLUSTER_NO_DELETE_ON_COMPLETE
               value: "True"

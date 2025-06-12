@@ -1,15 +1,19 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
 import os
+from time import sleep
 
 from pytest import raises, mark
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 
-from qiskit_serverless import QiskitFunction
-from qiskit_serverless.core.client import BaseClient
-from qiskit_serverless.exception import QiskitServerlessException
+from qiskit_serverless import (
+    QiskitFunction,
+    BaseClient,
+    ServerlessClient,
+    QiskitServerlessException,
+)
 
 
 resources_path = os.path.join(
@@ -32,10 +36,12 @@ class TestFunctionsDocker:
         runnable_function = base_client.upload(simple_function)
 
         assert runnable_function is not None
+        assert runnable_function.type == "GENERIC"
 
         runnable_function = base_client.function(simple_function.title)
 
         assert runnable_function is not None
+        assert runnable_function.type == "GENERIC"
 
         job = runnable_function.run()
 
@@ -67,16 +73,18 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_dependencies_function(self, base_client: BaseClient):
+    # local client doesn't make sense here
+    # since all dependencies are in the user computer
+    def test_function_dependencies_basic(self, serverless_client: ServerlessClient):
         """Integration test for Functions with dependencies."""
         function = QiskitFunction(
-            title="pattern-with-dependencies",
+            title="pattern-with-dependencies-1",
             entrypoint="pattern_with_dependencies.py",
             working_dir=resources_path,
             dependencies=["pendulum"],
         )
 
-        runnable_function = base_client.upload(function)
+        runnable_function = serverless_client.upload(function)
 
         job = runnable_function.run()
 
@@ -84,6 +92,37 @@ class TestFunctionsDocker:
         assert job.result() is not None
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
+
+    # local client doesn't make sense here
+    # since all dependencies are in the user computer
+    def test_function_dependencies_with_version(
+        self, serverless_client: ServerlessClient
+    ):
+        """Integration test for Functions with dependencies."""
+        function = QiskitFunction(
+            title="pattern-with-dependencies-2",
+            entrypoint="pattern_with_dependencies.py",
+            working_dir=resources_path,
+            dependencies=["pendulum==3.0.0"],
+        )
+
+        runnable_function = serverless_client.upload(function)
+
+        assert runnable_function is not None
+
+    # local client doesn't make sense here
+    # since all dependencies are in the user computer
+    def test_function_blocked_dependency(self, serverless_client: ServerlessClient):
+        """Integration test for Functions with blocked dependencies."""
+        function = QiskitFunction(
+            title="pattern-with-dependencies-3",
+            entrypoint="pattern_with_dependencies.py",
+            working_dir=resources_path,
+            dependencies=["notallowedone"],
+        )
+
+        with raises(QiskitServerlessException):
+            serverless_client.upload(function)
 
     def test_distributed_workloads(self, base_client: BaseClient):
         """Integration test for Functions for distributed workloads."""
@@ -166,3 +205,20 @@ class TestFunctionsDocker:
 
         with raises(QiskitServerlessException):
             job.result()
+
+    def test_update_sub_status(self, serverless_client: ServerlessClient):
+        """Integration test for run functions multiple times."""
+
+        function = QiskitFunction(
+            title="pattern-with-sub-status",
+            entrypoint="pattern_with_sub_status_and_wait.py",
+            working_dir=resources_path,
+        )
+        runnable_function = serverless_client.upload(function)
+
+        job = runnable_function.run()
+
+        while job.status() == "QUEUED" or job.status() == "INITIALIZING":
+            sleep(1)
+
+        assert job.status() == "RUNNING: MAPPING"

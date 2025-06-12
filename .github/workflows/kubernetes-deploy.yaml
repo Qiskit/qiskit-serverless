@@ -12,17 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #4.1.7
+      - uses: actions/checkout@v4.2.2
       - name: Install Kind
         run: |
-          curl -Lo ./kind "https://github.com/kubernetes-sigs/kind/releases/download/v0.20.0/kind-$(uname)-amd64"
+          curl -Lo ./kind "https://github.com/kubernetes-sigs/kind/releases/download/v0.27.0/kind-$(uname)-amd64"
           chmod +x ./kind
           sudo mv kind /usr/local/bin
           which kind
       - name: Create Kind cluster
         uses: chainguard-dev/actions/setup-kind@main
         with:
-          k8s-version: 1.29.x
+          k8s-version: 1.31.x
           kind-worker-count: 0
       - name: Label nodes
         run: kubectl label node kind-control-plane has-gpu=gpu has-cpu=cpu
@@ -33,7 +33,7 @@ jobs:
           docker image rm gateway:test
       - name: Build and load ray node
         run: |
-          docker build -t ray:test -f ./Dockerfile-ray-node .
+          docker build --build-arg DYNAMIC_DEPENDENCIES_FILE=requirements-test-dynamic-dependencies.txt -t ray:test -f ./Dockerfile-ray-node .
           kind load docker-image ray:test
           docker image rm ray:test
       - name: Install helm chart
@@ -44,37 +44,27 @@ jobs:
           helm dependency build
           helm install qs \
             --set platform=kind \
-            --set repositoryEnable=false \
             --set nginxIngressControllerEnable=false \
             --set gateway.image.repository=gateway \
             --set gateway.image.tag=test \
             --set gateway.application.ray.nodeImage=ray:test \
             --set gateway.application.ray.cpu=1 \
+            --set gateway.application.ray.memory=3 \
             --set gateway.application.debug=1 \
-            --set gateway.application.limits.keepClusterOnComplete=false \
             --set gateway.application.authMockproviderRegistry=test \
+            --set gateway.application.dependencies.dynamicDependencies=requirements-test-dynamic-dependencies.txt \
             .
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
           kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
       - name: setup python
-        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f #5.1.1
+        uses: actions/setup-python@5.3.0
         with:
           python-version: "3.11"
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip==24.2
+          python -m pip install --upgrade pip>=24.2
           cd client
           pip install . --no-cache-dir
-          pip install --no-cache-dir \
-            ipywidgets==8.1.1 \
-            circuit-knitting-toolbox>=0.6.0 \
-            matplotlib==3.7.1 \
-            pyscf==2.2.1 \
-            scipy==1.10 \
-            qiskit-ibm-provider>=0.9.0 \
-            qiskit-aer>=0.13.3 \
-            certifi==2024.7.4
-          pip install nbmake==1.5.4 pytest==8.3.2
       - name: Run tests
         run: |
           kubectl patch svc gateway -p '{"spec": {"type": "LoadBalancer"}}'

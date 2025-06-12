@@ -29,7 +29,7 @@ class ProgramAdmin(admin.ModelAdmin):
     """ProgramAdmin."""
 
     search_fields = ["title", "author__username"]
-    list_filter = ["provider", "type"]
+    list_filter = ["provider", "type", "disabled"]
     exclude = ["env_vars"]
     filter_horizontal = ["instances", "trial_instances"]
 
@@ -46,9 +46,10 @@ class ComputeResourceAdmin(admin.ModelAdmin):
 class JobAdmin(admin.ModelAdmin):
     """JobAdmin."""
 
-    search_fields = ["author__username", "program__title"]
+    search_fields = ["id", "author__username", "program__title"]
     list_filter = ["status"]
     exclude = ["arguments", "env_vars", "logs", "result"]
+    ordering = ["-created"]
 
 
 @admin.register(RuntimeJob)

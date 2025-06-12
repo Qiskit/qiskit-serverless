@@ -32,10 +32,10 @@ class TestProgramApi(APITestCase):
         programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(programs_response.data), 1)
+        self.assertEqual(len(programs_response.data), 3)
         self.assertEqual(
             programs_response.data[0].get("title"),
-            "Program",
+            "ProgramLocked",
         )
 
     def test_provider_programs_list(self):
@@ -136,6 +136,58 @@ class TestProgramApi(APITestCase):
         self.assertEqual(job.config.max_workers, 5)
         self.assertEqual(job.config.workers, None)
         self.assertEqual(job.config.auto_scaling, True)
+
+    def test_run_locked(self):
+        """Tests run disabled program."""
+
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
+        programs_response = self.client.post(
+            "/api/v1/programs/run/",
+            data={
+                "title": "ProgramLocked",
+                "arguments": arguments,
+                "config": {
+                    "workers": None,
+                    "min_workers": 1,
+                    "max_workers": 5,
+                    "auto_scaling": True,
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(programs_response.status_code, status.HTTP_423_LOCKED)
+        self.assertEqual(programs_response.data.get("message"), "Program is locked")
+
+    def test_run_locked_default_msg(self):
+        """Tests run disabled program."""
+
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+
+        arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
+        programs_response = self.client.post(
+            "/api/v1/programs/run/",
+            data={
+                "title": "ProgramLocked2",
+                "arguments": arguments,
+                "config": {
+                    "workers": None,
+                    "min_workers": 1,
+                    "max_workers": 5,
+                    "auto_scaling": True,
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(programs_response.status_code, status.HTTP_423_LOCKED)
+        self.assertEqual(
+            programs_response.data.get("message"), Program.DEFAULT_DISABLED_MESSAGE
+        )
 
     def test_upload_private_function(self):
         """Tests upload end-point authorized."""

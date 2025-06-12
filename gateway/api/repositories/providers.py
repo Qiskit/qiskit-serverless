@@ -2,7 +2,7 @@
 Repository implementation for Provider model
 """
 import logging
-from typing import List
+from typing import List, Optional
 from django.contrib.auth.models import Group
 
 from api.models import Provider
@@ -16,7 +16,7 @@ class ProviderRepository:  # pylint: disable=too-few-public-methods
     The main objective of this class is to manage the access to the model
     """
 
-    def get_provider_by_name(self, name: str) -> Provider | None:
+    def get_provider_by_name(self, name: str) -> Optional[Provider]:
         """
         Returns the provider associated with a name.
 
@@ -35,7 +35,7 @@ class ProviderRepository:  # pylint: disable=too-few-public-methods
 
     def get_or_create_by_name(
         self, name: str, registry: str, admin_groups: List[Group]
-    ) -> Provider | None:
+    ) -> Optional[Provider]:
         """
         Creates a new provider with a given name and registry.
 

@@ -18,8 +18,6 @@
 
     QiskitServerlessException
 """
-# pylint: disable=W0404
-from importlib_metadata import version as metadata_version, PackageNotFoundError
 
 from .core import (
     BaseClient,
@@ -33,6 +31,8 @@ from .core import (
     RayClient,
     LocalClient,
     save_result,
+    update_status,
+    Job,
     Configuration,
     is_running_in_serverless,
     is_trial,
@@ -41,9 +41,4 @@ from .exception import QiskitServerlessException
 from .core.function import QiskitPattern, QiskitFunction
 from .serializers import get_arguments
 from .utils import ServerlessRuntimeService
-
-try:
-    __version__ = metadata_version("qiskit_serverless")
-except PackageNotFoundError:  # pragma: no cover
-    # package is not installed
-    pass
+from .version import __version__
