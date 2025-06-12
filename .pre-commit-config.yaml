@@ -1,11 +1,13 @@
 repos:
   - repo: local
     hooks:
-      - id: gateway-black
-        name: "[gateway] Run black"
+      - id: black
+        name: "Run black"
         language: system
         entry: "./.pre-commit-scripts.sh black gateway client"
-      - id: gateway-lint
-        name: "[gateway] Run lint"
+        pass_filenames: false
+      - id: lint
+        name: "Run lint"
         language: system
         entry: "./.pre-commit-scripts.sh lint gateway client"
+        pass_filenames: false
