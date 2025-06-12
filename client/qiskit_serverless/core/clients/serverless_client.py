@@ -132,7 +132,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         except ValueError as error:
             raise QiskitServerlessException(
                 "Your channel value is not correct. Use one of the available channels: "
-                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, {Channel.IBM_CLOUD.value}"
+                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, "
+                f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
             ) from error
 
         if channel_enum is Channel.IBM_QUANTUM and instance is not None:
@@ -145,7 +146,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "Authentication with IBM Cloud requires to pass the CRN as an instance."
             )
 
-        if channel_enum is Channel.QUANTUM_PLATFORM and instance is None:
+        if channel_enum is Channel.IBM_QUANTUM_PLATFORM and instance is None:
             raise QiskitServerlessException(
                 "Authentication with IBM Quantum Platform requires to pass the CRN as an instance."
             )
@@ -588,7 +589,8 @@ class IBMServerlessClient(ServerlessClient):
         except ValueError as error:
             raise QiskitServerlessException(
                 "Your channel value is not correct. Use one of the available channels: "
-                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, {Channel.IBM_CLOUD.value}"
+                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, "
+                f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
             ) from error
 
         if channel_enum is not Channel.IBM_QUANTUM:
