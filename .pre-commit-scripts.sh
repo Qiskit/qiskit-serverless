@@ -10,10 +10,9 @@ activate_venv() {
     if [ -n "$found_venv" ]; then
         local venv_path=$(dirname "$(dirname "$found_venv")")
         local venv_folder=$(basename "$venv_path")
-        echo "🔍 Encontrado entorno virtual: $venv_folder"
         source "$found_venv"
     else
-        echo "❌ No se encontró ningún entorno virtual"
+        echo "❌ No virtual environment found"
         exit 1
     fi
 }
