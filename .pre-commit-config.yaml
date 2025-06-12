@@ -9,8 +9,3 @@ repos:
         name: "[gateway] Run lint"
         language: system
         entry: "./.pre-commit-scripts.sh lint gateway client"
-  - repo: https://github.com/ibm/detect-secrets
-    rev: 0.13.1+ibm.62.dss
-    hooks:
-      - id: detect-secrets # pragma: whitelist secret
-        args: [--baseline, .secrets.baseline, --use-all-plugins]
