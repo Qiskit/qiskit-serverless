@@ -32,6 +32,7 @@ from typing import List, Optional
 import requests
 from tqdm import tqdm
 
+from qiskit_serverless.utils.urls import url_path_join
 from qiskit_serverless.core.constants import (
     REQUESTS_STREAMING_TIMEOUT,
     REQUESTS_TIMEOUT,
@@ -64,7 +65,7 @@ class GatewayFilesClient:
         self.version = version
         self._token = token
         self._instance = instance
-        self._files_url = os.path.join(self.host, "api", self.version, "files")
+        self._files_url = url_path_join(self.host, "api", self.version, "files")
 
     def _download_with_url(  # pylint:  disable=too-many-positional-arguments
         self,
@@ -112,7 +113,7 @@ class GatewayFilesClient:
             file,
             download_location,
             function,
-            os.path.join(self._files_url, "download"),
+            url_path_join(self._files_url, "download"),
             target_name,
         )
 
@@ -132,7 +133,7 @@ class GatewayFilesClient:
             file,
             download_location,
             function,
-            os.path.join(self._files_url, "provider", "download"),
+            url_path_join(self._files_url, "provider", "download"),
             target_name,
         )
 
@@ -141,7 +142,7 @@ class GatewayFilesClient:
         """Uploads a file in the specific user's Qiskit Function folder."""
         with open(file, "rb") as f:
             with requests.post(
-                os.path.join(self._files_url, "upload/"),
+                url_path_join(self._files_url, "upload/"),
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,
@@ -161,7 +162,7 @@ class GatewayFilesClient:
 
         with open(file, "rb") as f:
             with requests.post(
-                os.path.join(self._files_url, "provider", "upload/"),
+                url_path_join(self._files_url, "provider", "upload/"),
                 files={"file": f},
                 params={"provider": function.provider, "function": function.title},
                 stream=True,
@@ -194,7 +195,7 @@ class GatewayFilesClient:
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
-                os.path.join(self._files_url, "provider"),
+                url_path_join(self._files_url, "provider"),
                 params={"function": function.title, "provider": function.provider},
                 headers=get_headers(token=self._token, instance=self._instance),
                 timeout=REQUESTS_TIMEOUT,
@@ -209,7 +210,7 @@ class GatewayFilesClient:
         headers["format"] = "json"
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
-                os.path.join(self._files_url, "delete"),
+                url_path_join(self._files_url, "delete"),
                 params={
                     "file": file,
                     "function": function.title,
@@ -231,7 +232,7 @@ class GatewayFilesClient:
         headers["format"] = "json"
         response_data = safe_json_request_as_dict(
             request=lambda: requests.delete(
-                os.path.join(self._files_url, "provider", "delete"),
+                url_path_join(self._files_url, "provider", "delete"),
                 params={
                     "file": file,
                     "function": function.title,
