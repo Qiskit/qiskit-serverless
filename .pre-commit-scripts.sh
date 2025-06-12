@@ -4,9 +4,7 @@ set -e
 
 cd "$(dirname "$0")"
 
-# Función para encontrar y activar automáticamente el entorno virtual
-activate_venv() {    
-    # Buscar archivo activate en bin/ (Linux/Mac)
+activate_venv() {
     local found_venv=$(find . -maxdepth 3 -name "activate")
     
     if [ -n "$found_venv" ]; then
