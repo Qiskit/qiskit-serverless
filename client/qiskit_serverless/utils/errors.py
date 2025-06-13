@@ -64,6 +64,6 @@ def format_err_msg(code: ErrorCodeType, details: Optional[str] = None):
                 if len(details_json[key]) > 0:
                     result += f"\n|   - {key}: {details_json[key][0]}"
         else:
-            result += f"{details}"
+            result += f" {details}"
 
     return result
