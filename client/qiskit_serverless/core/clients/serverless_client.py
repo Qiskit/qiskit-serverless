@@ -130,7 +130,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         try:
             channel_enum = Channel(channel)
         except ValueError as error:
-            raise QiskitServerlessException(
+            raise ValueError(
                 "Your channel value is not correct. Use one of the available channels: "
                 f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, "
                 f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
@@ -587,7 +587,7 @@ class IBMServerlessClient(ServerlessClient):
         try:
             channel_enum = Channel(channel)
         except ValueError as error:
-            raise QiskitServerlessException(
+            raise ValueError(
                 "Your channel value is not correct. Use one of the available channels: "
                 f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, "
                 f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
