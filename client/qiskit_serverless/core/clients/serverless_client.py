@@ -717,7 +717,7 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments
             span.set_attribute("function.provider", response_data.get("provider", "na"))
             response_data["client"] = client
             response_function = RunnableQiskitFunction.from_json(response_data)
-    except QiskitServerlessException as error:  # pylint: disable=broad-exception-caught
+    except QiskitServerlessException as error:
         raise error
     except Exception as error:  # pylint: disable=broad-exception-caught
         raise QiskitServerlessException from error
