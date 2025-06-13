@@ -1,4 +1,4 @@
-"""This service will manage the access to the 3rd party end-points in IBM Cloud."""
+"""This service will manage the access to the 3rd party end-points in IBM Quantum Platform."""
 
 import logging
 from typing import List, Optional
@@ -13,10 +13,10 @@ from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.services.authentication.authentication_base import AuthenticationBase
 
 
-logger = logging.getLogger("gateway.services.authentication.ibm_cloud")
+logger = logging.getLogger("gateway.services.authentication.ibm_quantum_platform")
 
 
-class IBMCloudService(AuthenticationBase):
+class IBMQuantumPlatform(AuthenticationBase):
     """
     This class will manage the different access to the different
     end-points that we will make use of them in this service.
@@ -54,23 +54,35 @@ class IBMCloudService(AuthenticationBase):
                 iam_api_key=self.api_key, include_history=False
             ).get_result()
         except ApiException as api_exception:
-            logger.warning("IBM Cloud authentication error: %s.", api_exception.message)
+            logger.warning(
+                "IBM Quantum Platform authentication error: %s.", api_exception.message
+            )
             raise exceptions.AuthenticationFailed(
                 "You couldn't be authenticated, please review your API Key."
             )
 
         self.account_id = user_info.get("account_id")
         if self.account_id is None:
-            logger.warning("IBM Cloud didn't return the Account ID for the user.")
+            logger.warning(
+                "IBM Quantum Platform didn't return the Account ID for the user."
+            )
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the autentication process with IBM Cloud, please try later."
+                (
+                    "There was a problem in the autentication process with IBM Quantum Platform, "
+                    "please try later."
+                )
             )
 
         self.iam_id = user_info.get("iam_id")
         if self.iam_id is None:
-            logger.warning("IBM Cloud didn't return the IAM ID for the user.")
+            logger.warning(
+                "IBM Quantum Platform didn't return the IAM ID for the user."
+            )
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the autentication process with IBM Cloud, please try later."
+                (
+                    "There was a problem in the autentication process with IBM Quantum Platform, "
+                    "please try later."
+                )
             )
 
         logger.debug(
@@ -84,7 +96,7 @@ class IBMCloudService(AuthenticationBase):
     def verify_access(self) -> bool:
         """
         This method validates that the user has access to Quantum Functions.
-        For IBM Cloud this means that the CRN is from an allowed resource_plan
+        For IBM Quantum Platform this means that the CRN is from an allowed resource_plan
 
         Returns:
             bool: True or False if the user has or no access
@@ -97,23 +109,28 @@ class IBMCloudService(AuthenticationBase):
                 id=self.crn
             ).get_result()
         except ApiException as api_exception:
-            logger.warning("IBM Cloud verification error: %s.", api_exception.message)
+            logger.warning(
+                "IBM Quantum Platform verification error: %s.", api_exception.message
+            )
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the autentication process with IBM Cloud, please review your CRN."  # pylint: disable=line-too-long
+                "There was a problem in the autentication process with IBM Quantum Platform, please review your CRN."  # pylint: disable=line-too-long
             )
 
         resource_plan_id = instance.get("resource_plan_id")
         if resource_plan_id is None:
             logger.warning(
-                "IBM Cloud didn't return the Resource plan ID for the resource."
+                "IBM Quantum Platform didn't return the Resource plan ID for the resource."
             )
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the autentication process with IBM Cloud, please try later."
+                (
+                    "There was a problem in the autentication process with IBM Quantum Platform, "
+                    "please try later."
+                )
             )
 
         if resource_plan_id not in settings.RESOURCE_PLANS_ID_ALLOWED:
             logger.warning(
-                "User has no access to the service using IBM Cloud, Resource plan ID [%s] is not a valid plan %s.",  # pylint: disable=line-too-long
+                "User has no access to the service using IBM Quantum Platform, Resource plan ID [%s] is not a valid plan %s.",  # pylint: disable=line-too-long
                 resource_plan_id,
                 settings.RESOURCE_PLANS_ID_ALLOWED,
             )
@@ -122,7 +139,7 @@ class IBMCloudService(AuthenticationBase):
 
     def get_groups(self) -> List[AuthenticationGroup]:
         """
-        Returns an array of access groups from the IBM Cloud account.
+        Returns an array of access groups from the IBM Quantum Platform account.
 
         Returns:
             List of groups the user has access with the next format:
@@ -137,7 +154,9 @@ class IBMCloudService(AuthenticationBase):
                 account_id=self.account_id
             ).get_result()
         except ApiException as api_exception:
-            logger.warning("IBM Cloud authentication error: %s.", api_exception.message)
+            logger.warning(
+                "IBM Quantum Platform authentication error: %s.", api_exception.message
+            )
             return []
 
         access_groups = access_groups_response.get("groups", [])

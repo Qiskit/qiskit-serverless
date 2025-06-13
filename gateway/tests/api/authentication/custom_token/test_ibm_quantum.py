@@ -1,4 +1,4 @@
-"""This file contains e2e tests for Quantum Platform authentication process."""
+"""This file contains e2e tests for IBM Quantum authentication process."""
 
 
 from unittest.mock import MagicMock, patch
@@ -9,11 +9,11 @@ from rest_framework.test import APITestCase
 from api.authentication import CustomTokenBackend
 from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.models import VIEW_PROGRAM_PERMISSION
-from api.services.authentication.quantum_platform import QuantumPlatformService
+from api.services.authentication.ibm_quantum import IBMQuantum
 
 
-class TestQuantumPlatformAuthentication(APITestCase):
-    """This class contains e2e tests for Quantum Platform authentication process."""
+class TestIBMQuantumAuthentication(APITestCase):
+    """This class contains e2e tests for IBM QUantum authentication process."""
 
     network_configuration_without_project = [
         {
@@ -27,7 +27,7 @@ class TestQuantumPlatformAuthentication(APITestCase):
     ]
 
     @responses.activate
-    @patch.object(QuantumPlatformService, "_get_network")
+    @patch.object(IBMQuantum, "_get_network")
     def test_custom_token_authentication(self, get_network_mock: MagicMock):
         """This test verifies the entire flow of the custom token authentication"""
 
