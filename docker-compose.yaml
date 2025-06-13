@@ -14,6 +14,13 @@ services:
       - host-shm:/dev/shm
     networks:
       - safe-tier
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
   postgres:
     image: postgres
     environment:
