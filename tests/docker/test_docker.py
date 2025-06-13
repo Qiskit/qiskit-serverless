@@ -114,14 +114,22 @@ class TestFunctionsDocker:
     # since all dependencies are in the user computer
     def test_function_blocked_dependency(self, serverless_client: ServerlessClient):
         """Integration test for Functions with blocked dependencies."""
+        dependency = "notallowedone"
         function = QiskitFunction(
             title="pattern-with-dependencies-3",
             entrypoint="pattern_with_dependencies.py",
             working_dir=resources_path,
-            dependencies=["notallowedone"],
+            dependencies=[dependency],
         )
 
-        with raises(QiskitServerlessException):
+        def exceptionCheck(e: QiskitServerlessException):
+            code_index = str(e).find("Code: 400")
+            details_index = str(e).find(
+                f"non_field_errors: Dependency `{dependency}` is not allowed"
+            )
+            return code_index > 0 and details_index > 0
+
+        with raises(QiskitServerlessException, check=exceptionCheck):
             serverless_client.upload(function)
 
     def test_distributed_workloads(self, base_client: BaseClient):

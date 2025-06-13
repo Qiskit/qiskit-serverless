@@ -376,7 +376,7 @@ def check_whitelisted(
         whitelisted_dependency = whitelist_deps.get(dependency.name)
         if not whitelisted_dependency:
             raise ValueError(
-                f"Dependency {dependency.name} is not allowed. "
+                f"Dependency `{dependency.name}` is not allowed. "
                 f"You can request the dependency here: {DEPENDENCY_REQUEST_URL}"
             )
 
