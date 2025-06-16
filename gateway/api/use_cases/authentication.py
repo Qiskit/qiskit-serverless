@@ -10,9 +10,9 @@ from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 from api.repositories.providers import ProviderRepository
 from api.repositories.users import UserRepository
 from api.services.authentication.authentication_base import AuthenticationBase
-from api.services.authentication.ibm_cloud import IBMCloudService
+from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
-from api.services.authentication.quantum_platform import QuantumPlatformService
+from api.services.authentication.ibm_quantum import IBMQuantum
 from api.domain.authentication.channel import Channel
 
 
@@ -40,13 +40,13 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
         self.public_access = public_access
 
     def _get_authentication_service_instance(self) -> AuthenticationBase:
-        if self.channel == Channel.IBM_CLOUD:
+        if self.channel == Channel.IBM_QUANTUM_PLATFORM:
             logger.debug("Authentication will be executed with IBM Cloud.")
-            return IBMCloudService(api_key=self.authorization_token, crn=self.crn)
+            return IBMQuantumPlatform(api_key=self.authorization_token, crn=self.crn)
 
         if self.channel == Channel.IBM_QUANTUM:
             logger.debug("Authentication will be executed with Quantum Platform.")
-            return QuantumPlatformService(authorization_token=self.authorization_token)
+            return IBMQuantum(authorization_token=self.authorization_token)
 
         logger.debug("Authentication will be executed with Local service.")
         return LocalAuthenticationService(authorization_token=self.authorization_token)

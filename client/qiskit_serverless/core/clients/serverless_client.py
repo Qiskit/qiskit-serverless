@@ -129,14 +129,25 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         try:
             channel_enum = Channel(channel)
         except ValueError as error:
-            raise QiskitServerlessException(
+            raise ValueError(
                 "Your channel value is not correct. Use one of the available channels: "
-                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, {Channel.IBM_CLOUD.value}"
+                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, "
+                f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
             ) from error
+
+        if channel_enum is Channel.IBM_QUANTUM and instance is not None:
+            raise QiskitServerlessException(
+                "Authentication with IBM Quantum doesn't support the instance parameter."
+            )
 
         if channel_enum is Channel.IBM_CLOUD and instance is None:
             raise QiskitServerlessException(
                 "Authentication with IBM Cloud requires to pass the CRN as an instance."
+            )
+
+        if channel_enum is Channel.IBM_QUANTUM_PLATFORM and instance is None:
+            raise QiskitServerlessException(
+                "Authentication with IBM Quantum Platform requires to pass the CRN as an instance."
             )
 
         super().__init__(name, host, token, instance)
@@ -567,6 +578,23 @@ class IBMServerlessClient(ServerlessClient):
             channel: identifies the method to use to authenticate the user
         """
         token = token or QiskitRuntimeService(name=name).active_account().get("token")
+        channel = channel or QiskitRuntimeService(name=name).active_account().get(
+            "channel"
+        )
+        try:
+            channel_enum = Channel(channel)
+        except ValueError as error:
+            raise ValueError(
+                "Your channel value is not correct. Use one of the available channels: "
+                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, "
+                f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
+            ) from error
+
+        if channel_enum is not Channel.IBM_QUANTUM:
+            instance = instance or QiskitRuntimeService(name=name).active_account().get(
+                "instance"
+            )
+
         super().__init__(
             channel=channel,
             token=token,
