@@ -18,6 +18,7 @@ from qiskit_serverless.core.constants import (
     ENV_ACCESS_TRIAL,
 )
 from qiskit_serverless.core.job import (
+    Job,
     is_running_in_serverless,
     save_result,
     is_trial,
@@ -103,6 +104,30 @@ class TestJob:
         assert "This is the line 1\n" == client.filtered_logs(
             "id", include="This is the l.+", exclude="the.+a.+l"
         )
+
+    @patch("requests.get", Mock(return_value=ResponseMock()))
+    def test_error_message(self):
+        """Tests job filtered log."""
+        client = ServerlessClient(host="host", token="token", version="version")
+        client.status = MagicMock(
+            return_value="ERROR",
+        )
+        client.result = MagicMock(
+            return_value=(
+                '"This is the line \\"1\\"\\n'
+                "This is the second line\\n"
+                'OK.  This is the last line.\\n"'
+            ),
+        )
+        job = Job(
+            job_id="job_id",
+            job_service=client,
+        )
+        assert (
+            'This is the line "1"\n'
+            "This is the second line\n"
+            "OK.  This is the last line.\n"
+        ) == job.error_message()
 
 
 class TestRunningAsServerlessProgram:
