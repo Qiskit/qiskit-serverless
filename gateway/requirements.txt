@@ -18,6 +18,7 @@ django-concurrency>=2.5, <3
 drf-yasg>=1.21.10, <2
 # Django dependency, but we need a newer version (IBMQ#246)
 sqlparse>=0.5.0, <1
+qiskit[qpy-compat]>=1.4, <3
 qiskit-ibm-runtime>=0.29.0, <1
 tzdata>=2024.1
 django-cors-headers>=4.4.0, <5
