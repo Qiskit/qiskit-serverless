@@ -28,4 +28,3 @@ class TestScheduleApi(APITestCase):
         self.assertEqual(len(jobs), 2)
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids)
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids)
-
