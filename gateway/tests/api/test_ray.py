@@ -15,7 +15,7 @@ from rest_framework.test import APITestCase
 
 from api.models import ComputeResource, Job
 from api.ray import (
-    create_ray_cluster,
+    create_compute_resource,
     kill_ray_cluster,
     JobHandler,
 )
@@ -55,7 +55,7 @@ class TestRayUtils(APITestCase):
         job = Job.objects.first()
         with requests_mock.Mocker() as mocker:
             mocker.get(head_node_url, status_code=200)
-            compute_resource = create_ray_cluster(
+            compute_resource = create_compute_resource(
                 job, "test_user", "dummy yaml file contents"
             )
             self.assertIsInstance(compute_resource, ComputeResource)

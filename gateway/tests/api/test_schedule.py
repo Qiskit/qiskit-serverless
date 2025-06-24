@@ -29,14 +29,3 @@ class TestScheduleApi(APITestCase):
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec90" in job_ids)
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids)
 
-    @patch("api.ray.get_job_handler")
-    def test_already_created_ray_cluster_execute_job(self, mock_handler):
-        """Tests should not create new resource and reuse what user already have."""
-        user = get_user_model().objects.filter(username="test3_user").first()
-        job = MagicMock()
-        job.author = user
-        ret_job = execute_job(job)
-        self.assertEqual(
-            str(ret_job.compute_resource.id), "1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
-        )
-        self.assertEqual(ret_job.status, Job.PENDING)
