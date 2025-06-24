@@ -189,7 +189,16 @@ class Job:
 
     def error_message(self):
         """Returns the execution error message."""
-        return self._job_service.result(self.job_id) if self.status() == "ERROR" else ""
+        error = (
+            self._job_service.result(self.job_id) if self.status() == "ERROR" else ""
+        )
+        try:
+            pretty_error = error.strip('"').encode().decode("unicode_escape")
+        except UnicodeDecodeError:
+            logging.warning("Error decoding error message, returning raw message.")
+            return error
+
+        return pretty_error
 
     def result(self, wait=True, cadence=30, verbose=False, maxwait=0):
         """Return results of the job.
