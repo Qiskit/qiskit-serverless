@@ -41,7 +41,9 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
 
     def _get_authentication_service_instance(self) -> AuthenticationBase:
         if self.channel in (Channel.IBM_CLOUD, Channel.IBM_QUANTUM_PLATFORM):
-            logger.debug("Authentication will be executed with IBM Cloud Quantum Platform.")
+            logger.debug(
+                "Authentication will be executed with IBM Cloud Quantum Platform."
+            )
             return IBMQuantumPlatform(api_key=self.authorization_token, crn=self.crn)
 
         if self.channel == Channel.IBM_QUANTUM:
