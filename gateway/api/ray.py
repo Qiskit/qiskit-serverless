@@ -334,7 +334,7 @@ def _create_k8s_cluster(
         raise RuntimeError("Something went wrong during cluster creation")
 
     # wait for cluster to be up and running
-    host, cluster_is_ready = wait_for_cluster_ready(cluster_name)
+    host, cluster_is_ready = _wait_for_cluster_ready(cluster_name)
 
     if not cluster_is_ready:
         raise RuntimeError("Something went wrong during cluster creation: Timeout")
@@ -375,7 +375,7 @@ def create_compute_resource(  # pylint: disable=too-many-branches,too-many-local
     )
 
 
-def wait_for_cluster_ready(cluster_name: str):
+def _wait_for_cluster_ready(cluster_name: str):
     """Waits for cluster to became available."""
     url = f"http://{cluster_name}-head-svc:8265/"
     success = False
@@ -410,6 +410,9 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     Returns:
         number of killed clusters
     """
+    if _is_local_mode():
+        return True
+    
     success = False
     namespace = settings.RAY_KUBERAY_NAMESPACE
 
