@@ -62,7 +62,7 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
         host: Optional[str] = None,
         token: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: str = Channel.IBM_QUANTUM.value,
+        channel: Optional[str] = None,
     ):
         """
         Initialize a BaseClient instance.

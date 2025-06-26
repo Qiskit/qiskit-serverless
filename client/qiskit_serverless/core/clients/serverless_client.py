@@ -145,7 +145,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "Authentication with IBM Quantum Platform requires to pass the CRN as an instance."
             )
 
-        super().__init__(name, host, token, instance)
+        super().__init__(name, host, token, instance, channel)
         self.version = version
         self._verify_credentials()
 
