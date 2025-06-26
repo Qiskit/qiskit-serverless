@@ -30,7 +30,6 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
-from qiskit_serverless.core.enums import Channel
 from qiskit_serverless.core.job import Job, JobService
 from qiskit_serverless.core.function import (
     QiskitFunction,
