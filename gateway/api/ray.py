@@ -412,7 +412,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     """
     if _is_local_mode():
         return True
-    
+
     success = False
     namespace = settings.RAY_KUBERAY_NAMESPACE
 
