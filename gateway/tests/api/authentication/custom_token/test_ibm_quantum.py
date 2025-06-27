@@ -77,6 +77,60 @@ class TestIBMQuantumAuthentication(APITestCase):
                 self.assertEqual(permissions, [VIEW_PROGRAM_PERMISSION])
 
     @responses.activate
+    @patch.object(IBMQuantum, "_get_network")
+    def test_ibm_quantum_full_headers(self, get_network_mock: MagicMock):
+        """This test verifies the entire flow of the custom token authentication"""
+
+        get_network_mock.return_value = self.network_configuration_without_project
+
+        responses.add(
+            responses.POST,
+            "http://token_auth_url/api/users/loginWithToken",
+            json={"userId": "AwesomeUser", "id": "requestId"},
+            status=200,
+        )
+
+        responses.add(
+            responses.GET,
+            "http://token_auth_url/api/users/me",
+            json={"is_valid": True},
+            status=200,
+        )
+
+        custom_auth = CustomTokenBackend()
+        request = MagicMock()
+        request.META = {
+            "HTTP_SERVICE_CHANNEL": "ibm_quantum",
+            "HTTP_AUTHORIZATION": "Bearer AWESOME_TOKEN",
+            "HTTP_SERVICE_CRN": "hub/group/project",
+        }
+
+        with self.settings(
+            QUANTUM_PLATFORM_API_BASE_URL="http://token_auth_url/api",
+            SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD="is_valid",
+        ):
+            user, authentication = custom_auth.authenticate(request)
+            groups_names = user.groups.values_list("name", flat=True).distinct()
+            groups_names_list = list(groups_names)
+
+            self.assertIsInstance(authentication, CustomAuthentication)
+            self.assertEqual(authentication.channel, "ibm_quantum")
+            self.assertEqual(authentication.token, b"AWESOME_TOKEN")
+            self.assertEqual(authentication.instance, "hub/group/project")
+
+            self.assertEqual(user.username, "AwesomeUser")
+            self.assertListEqual(groups_names_list, ["ibm-q", "ibm-q/open"])
+
+            groups = user.groups.all()
+            for group in groups:
+                metadata = getattr(groups, "metadata", None)
+                self.assertIsNone(metadata)
+
+            for group in user.groups.all():
+                permissions = list(group.permissions.values_list("codename", flat=True))
+                self.assertEqual(permissions, [VIEW_PROGRAM_PERMISSION])
+
+    @responses.activate
     def test_with_nested_verification_fields(self):
         """
         This test verifies the entire flow of the custom token authentication

@@ -3,7 +3,11 @@
 from typing import Dict, Optional
 
 
-def get_headers(token: str, instance: Optional[str] = None) -> Dict[str, str]:
+def get_headers(
+    token: str,
+    instance: Optional[str] = None,
+    channel: Optional[str] = None,
+) -> Dict[str, str]:
     """
     Returns the headers to make the calls to the API
 
@@ -18,6 +22,8 @@ def get_headers(token: str, instance: Optional[str] = None) -> Dict[str, str]:
     headers = {
         "Authorization": f"Bearer {token}",
     }
+    if channel is not None:
+        headers["Service-Channel"] = channel
     if instance is not None:
         headers["Service-CRN"] = instance
 

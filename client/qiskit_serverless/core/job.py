@@ -44,6 +44,7 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_INSTANCE,
+    QISKIT_IBM_CHANNEL,
     REQUESTS_TIMEOUT,
     ENV_JOB_GATEWAY_TOKEN,
     ENV_JOB_GATEWAY_HOST,
@@ -292,6 +293,7 @@ def save_result(result: Dict[str, Any]):
         return False
 
     instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
+    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
 
     if not is_jsonable(result, cls=QiskitObjectsEncoder):
         logging.warning("Object passed is not json serializable.")
@@ -304,7 +306,7 @@ def save_result(result: Dict[str, Any]):
     response = requests.post(
         url,
         data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
-        headers=get_headers(token=token, instance=instance),
+        headers=get_headers(token=token, instance=instance, channel=channel),
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:
@@ -331,6 +333,7 @@ def update_status(status: str):
         return False
 
     instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
+    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
 
     url = (
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
@@ -339,7 +342,7 @@ def update_status(status: str):
     response = requests.patch(
         url,
         data={"sub_status": status},
-        headers=get_headers(token=token, instance=instance),
+        headers=get_headers(token=token, instance=instance, channel=channel),
         timeout=REQUESTS_TIMEOUT,
     )
     if not response.ok:
