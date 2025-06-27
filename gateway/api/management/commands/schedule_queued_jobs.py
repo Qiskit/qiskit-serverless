@@ -68,70 +68,54 @@ class Command(BaseCommand):
                 number_of_clusters_running,
                 max_ray_clusters_possible,
             )
-        else:
-            # we have available resources
-            jobs = get_jobs_to_schedule_fair_share(slots=free_clusters_slots)
+            return
 
-            # only process jobs of the appropriate compute type
-            jobs = [job for job in jobs if job.gpu is gpu_job]
+        # we have available resources
+        jobs = get_jobs_to_schedule_fair_share(slots=free_clusters_slots)
 
-            for job in jobs:
-                # only for local mode
-                if settings.RAY_CLUSTER_MODE.get(
-                    "local"
-                ) and settings.RAY_CLUSTER_MODE.get("ray_local_host"):
-                    logger.info("Running in local mode")
-                    compute_resource = ComputeResource.objects.filter(
-                        host=settings.RAY_CLUSTER_MODE.get("ray_local_host")
-                    ).first()
-                    if compute_resource is None:
-                        compute_resource = ComputeResource(
-                            host=settings.RAY_CLUSTER_MODE.get("ray_local_host"),
-                            title="Local compute resource",
-                            owner=job.author,
+        # only process jobs of the appropriate compute type
+        jobs = [job for job in jobs if job.gpu is gpu_job]
+
+        for job in jobs:
+
+            env = json.loads(job.env_vars)
+            ctx = TraceContextTextMapPropagator().extract(carrier=env)
+
+            tracer = trace.get_tracer("scheduler.tracer")
+            with tracer.start_as_current_span("scheduler.handle", context=ctx):
+                job = execute_job(job)
+                job_id = job.id
+                backup_status = job.status
+                backup_logs = job.logs
+                backup_resource = job.compute_resource
+                backup_ray_job_id = job.ray_job_id
+
+                succeed = False
+                attempts = settings.RAY_SETUP_MAX_RETRIES
+
+                while not succeed and attempts > 0:
+                    attempts -= 1
+
+                    try:
+                        job.save()
+                        # # remove artifact after successful submission and save
+                        # if os.path.exists(job.program.artifact.path):
+                        #     os.remove(job.program.artifact.path)
+
+                        succeed = True
+                    except RecordModifiedError:
+                        logger.warning(
+                            "Schedule: Job [%s] record has not been updated due to lock.",
+                            job.id,
                         )
-                        compute_resource.save()
-                    job.compute_resource = compute_resource
-                    job.save()
 
-                env = json.loads(job.env_vars)
-                ctx = TraceContextTextMapPropagator().extract(carrier=env)
+                        time.sleep(1)
 
-                tracer = trace.get_tracer("scheduler.tracer")
-                with tracer.start_as_current_span("scheduler.handle", context=ctx):
-                    job = execute_job(job)
-                    job_id = job.id
-                    backup_status = job.status
-                    backup_logs = job.logs
-                    backup_resource = job.compute_resource
-                    backup_ray_job_id = job.ray_job_id
+                        job = Job.objects.get(id=job_id)
+                        job.status = backup_status
+                        job.logs = backup_logs
+                        job.compute_resource = backup_resource
+                        job.ray_job_id = backup_ray_job_id
 
-                    succeed = False
-                    attempts = settings.RAY_SETUP_MAX_RETRIES
-
-                    while not succeed and attempts > 0:
-                        attempts -= 1
-
-                        try:
-                            job.save()
-                            # # remove artifact after successful submission and save
-                            # if os.path.exists(job.program.artifact.path):
-                            #     os.remove(job.program.artifact.path)
-
-                            succeed = True
-                        except RecordModifiedError:
-                            logger.warning(
-                                "Schedule: Job [%s] record has not been updated due to lock.",
-                                job.id,
-                            )
-
-                            time.sleep(1)
-
-                            job = Job.objects.get(id=job_id)
-                            job.status = backup_status
-                            job.logs = backup_logs
-                            job.compute_resource = backup_resource
-                            job.ray_job_id = backup_ray_job_id
-
-                    logger.info("Executing %s of %s", job, job.author)
-            logger.info("%s are scheduled for execution.", len(jobs))
+                logger.info("Executing %s of %s", job, job.author)
+        logger.info("%s are scheduled for execution.", len(jobs))
