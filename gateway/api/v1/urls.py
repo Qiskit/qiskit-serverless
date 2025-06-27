@@ -2,6 +2,7 @@
 URL Patterns for V1 api application.
 """
 
+from django.urls import path
 from rest_framework.routers import SimpleRouter
 from api.v1 import views as v1_views
 
@@ -25,4 +26,10 @@ router.register(
     basename=v1_views.CatalogViewSet.BASE_NAME,
 )
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    path(
+        "dependencies-versions/",
+        v1_views.dependencies_versions,
+        name="available-dependencies-versions",
+    )
+]
