@@ -1,11 +1,9 @@
-from django.http import HttpResponse
-import os
-import requests
+from django.http import JsonResponse
 
 
 def readiness(request):
-    return HttpResponse("Hi! I'm ready.")
+    return JsonResponse({"status": "alive"})
 
 
 def liveness(request):
-    return HttpResponse("Hi! I'm alive.")
+    return JsonResponse({"status": "ready"})
