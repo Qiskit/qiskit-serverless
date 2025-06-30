@@ -31,7 +31,6 @@ def _configure_job_to_use_gpu(job: Job):
     ):
         logger.debug("Job [%s] will be run on GPU nodes", job.id)
         job.gpu = True
-        job.save()
 
     return job
 

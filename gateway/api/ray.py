@@ -296,8 +296,7 @@ def _create_local_compute_resource(job: Job) -> ComputeResource:
             owner=job.author,
         )
         compute_resource.save()
-    job.compute_resource = compute_resource
-    job.save()
+
     return compute_resource
 
 
