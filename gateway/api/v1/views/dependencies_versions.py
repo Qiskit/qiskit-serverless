@@ -35,7 +35,7 @@ def serialize_output(data: Dict[str, Requirement]):
 )
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
-def available_dependencies_versions(_):
+def dependencies_versions(_):
     """
     Available dependencies versions end-point
     """
