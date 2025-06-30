@@ -5,4 +5,4 @@ from qiskit_serverless import update_status, Job
 
 print("RUNNING...")
 
-sleep(5)
+sleep(10)
