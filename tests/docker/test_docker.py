@@ -230,3 +230,10 @@ class TestFunctionsDocker:
             sleep(1)
 
         assert job.status() == "RUNNING: MAPPING"
+
+    def test_dependencies_versions(self, serverless_client: ServerlessClient):
+        """Integration test for run functions multiple times."""
+
+        deps = serverless_client.dependencies_versions()
+
+        assert deps == ["pendulum>=3.0.0", "wheel>=0.45.1"]

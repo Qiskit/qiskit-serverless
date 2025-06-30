@@ -177,6 +177,16 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "Credentials couldn't be verified."
             ) from reason
 
+
+    def dependencies_versions(self):
+        return safe_json_request_as_list(
+            request=lambda: requests.get(
+                url=f"{self.host}/api/{self.version}/dependencies-versions/",
+                headers=get_headers(token=self.token, instance=self.instance),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
     ####################
     ####### JOBS #######
     ####################
@@ -521,6 +531,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     def provider_file_upload(self, file: str, function: QiskitFunction):
         """Uploads a file in the specific provider's Qiskit Function folder."""
         return self._files_client.provider_upload(file, function)
+    
 
 
 class IBMServerlessClient(ServerlessClient):
