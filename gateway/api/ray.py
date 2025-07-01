@@ -124,7 +124,6 @@ class JobHandler:
             # arguments.serverless is going to be deprecated
             with open(arguments_file, "w", encoding="utf-8") as f:
                 if arguments:
-                    print(arguments_file)
                     logger.debug("uploading arguments for job [%s]", job.id)
                     f.write(arguments)
                 else:
