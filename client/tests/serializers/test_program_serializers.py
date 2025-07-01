@@ -15,6 +15,8 @@ import json
 import os
 from unittest import TestCase, skip
 
+import shutil
+import tempfile
 import numpy as np
 from qiskit.circuit.random import random_circuit
 from qiskit_ibm_runtime import QiskitRuntimeService
@@ -56,13 +58,34 @@ class TestProgramSerializers(TestCase):
 class TestArgParsing(TestCase):
     """Tests argument parsing,"""
 
+    def setUp(self):
+        # Crear directorio temporal para tests
+        self.test_data_dir = tempfile.mkdtemp()
+        self.arguments_dir = os.path.join(self.test_data_dir, "arguments")
+        os.makedirs(self.arguments_dir, exist_ok=True)
+
+        # Guardar el valor original y configurar para test
+        self.original_data_path = os.environ.get("DATA_PATH")
+        os.environ["DATA_PATH"] = self.test_data_dir
+
+    def tearDown(self):
+        # Restaurar valor original
+        if self.original_data_path is not None:
+            os.environ["DATA_PATH"] = self.original_data_path
+        elif "DATA_PATH" in os.environ:
+            del os.environ["DATA_PATH"]
+
+        # Limpiar directorio temporal
+        shutil.rmtree(self.test_data_dir)
+
     def test_argument_parsing(self):
         """Tests argument parsing."""
         circuit = random_circuit(4, 2)
         array = np.array([[42.0], [0.0]])
 
         job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
-        arguments_file_path = f"/data/arguments/{job_id_gateway}.json"
+        arguments_file_path = f"{self.test_data_dir}/arguments/{job_id_gateway}.json"
+
         with open(arguments_file_path, "w", encoding="utf-8") as f:
             json.dump({"circuit": circuit, "array": array}, f, cls=QiskitObjectsEncoder)
 

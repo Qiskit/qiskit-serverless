@@ -77,13 +77,13 @@ class QiskitObjectsDecoder(RuntimeDecoder):
 
 def get_arguments() -> Dict[str, Any]:
     """Parses arguments for program and returns them as dict.
-
     Returns:
         Dictionary of arguments.
     """
     arguments = "{}"
     job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
-    arguments_file_path = f"/data/arguments/{job_id_gateway}.json"
+    data_path = os.environ.get("DATA_PATH", "/data")
+    arguments_file_path = f"{data_path}/arguments/{job_id_gateway}.json"
     if os.path.isfile(arguments_file_path):
         with open(arguments_file_path, "r", encoding="utf-8") as f:
             arguments = f.read()
