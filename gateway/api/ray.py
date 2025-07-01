@@ -212,11 +212,99 @@ def submit_job(job: Job) -> Job:
     return job
 
 
-def create_ray_cluster(  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
-    job: Job,
-    cluster_name: Optional[str] = None,
-    cluster_data: Optional[str] = None,
-) -> Optional[ComputeResource]:
+def _create_cluster_data(job: Job, cluster_name: str):
+    user = job.author
+    job_config = job.config
+
+    job_config = job_config or JobConfig()
+
+    # can we remove the job_config in the left operator?
+    job_config.workers = job_config.workers or settings.RAY_CLUSTER_WORKER_REPLICAS
+    job_config.min_workers = (
+        job_config.min_workers or settings.RAY_CLUSTER_WORKER_MIN_REPLICAS
+    )
+    job_config.max_workers = (
+        job_config.max_workers or settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
+    )
+    job_config.auto_scaling = (
+        job_config.auto_scaling or settings.RAY_CLUSTER_WORKER_AUTO_SCALING
+    )
+
+    # cpu job settings
+    node_selector_label = settings.RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL
+
+    # if gpu job, use gpu nodes and resources
+    gpu_request = 0
+    if job.gpu:
+        node_selector_label = settings.RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL
+        gpu_request = settings.LIMITS_GPU_PER_TASK
+
+    # configure provider configuration if needed
+    node_image = settings.RAY_NODE_IMAGE
+    provider_name = None
+    if job.program.provider is not None:
+        node_image = job.program.image
+        provider_name = job.program.provider.name
+
+    user_file_storage = FileStorage(
+        username=user.username,
+        working_dir=WorkingDir.USER_STORAGE,
+        function_title=job.program.title,
+        provider_name=provider_name,
+    )
+    provider_file_storage = user_file_storage
+    if job.program.provider is not None:
+        provider_file_storage = FileStorage(
+            username=user.username,
+            working_dir=WorkingDir.PROVIDER_STORAGE,
+            function_title=job.program.title,
+            provider_name=provider_name,
+        )
+
+    cluster = get_template("rayclustertemplate.yaml")
+    manifest = cluster.render(
+        {
+            "cluster_name": cluster_name,
+            "user_data_folder": user_file_storage.sub_path,
+            "provider_data_folder": provider_file_storage.sub_path,
+            "node_image": node_image,
+            "workers": job_config.workers,
+            "min_workers": job_config.min_workers,
+            "max_workers": job_config.max_workers,
+            "auto_scaling": job_config.auto_scaling,
+            "user": user.username,
+            "node_selector_label": node_selector_label,
+            "gpu_request": gpu_request,
+        }
+    )
+    cluster_data = yaml.safe_load(manifest)
+    return cluster_data
+
+
+def _is_local_mode():
+    local = settings.RAY_CLUSTER_MODE.get("local")
+    ray_local_host = settings.RAY_CLUSTER_MODE.get("ray_local_host")
+    return local and ray_local_host
+
+
+def _create_local_compute_resource(job: Job) -> ComputeResource:
+    compute_resource = ComputeResource.objects.filter(
+        host=settings.RAY_CLUSTER_MODE.get("ray_local_host")
+    ).first()
+    if compute_resource is None:
+        compute_resource = ComputeResource(
+            host=settings.RAY_CLUSTER_MODE.get("ray_local_host"),
+            title="Local compute resource",
+            owner=job.author,
+        )
+        compute_resource.save()
+
+    return compute_resource
+
+
+def _create_k8s_cluster(
+    job: Job, cluster_name: Optional[str] = None, cluster_data: Optional[str] = None
+) -> ComputeResource:
     """Creates ray cluster.
 
     Args:
@@ -230,69 +318,10 @@ def create_ray_cluster(  # pylint: disable=too-many-branches,too-many-locals,too
         or None if something went wrong with cluster creation.
     """
     user = job.author
-    job_config = job.config
 
     namespace = settings.RAY_KUBERAY_NAMESPACE
     cluster_name = cluster_name or generate_cluster_name(user.username)
-    if not cluster_data:
-        if not job_config:
-            job_config = JobConfig()
-        if not job_config.workers:
-            job_config.workers = settings.RAY_CLUSTER_WORKER_REPLICAS
-        if not job_config.min_workers:
-            job_config.min_workers = settings.RAY_CLUSTER_WORKER_MIN_REPLICAS
-        if not job_config.max_workers:
-            job_config.max_workers = settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
-        if not job_config.auto_scaling:
-            job_config.auto_scaling = settings.RAY_CLUSTER_WORKER_AUTO_SCALING
-
-        # cpu job settings
-        node_selector_label = settings.RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL
-        gpu_request = 0
-        # if gpu job, use gpu nodes and resources
-        if job.gpu:
-            node_selector_label = settings.RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL
-            gpu_request = settings.LIMITS_GPU_PER_TASK
-
-        # configure provider configuration if needed
-        node_image = settings.RAY_NODE_IMAGE
-        provider_name = None
-        if job.program.provider is not None:
-            node_image = job.program.image
-            provider_name = job.program.provider.name
-
-        user_file_storage = FileStorage(
-            username=user.username,
-            working_dir=WorkingDir.USER_STORAGE,
-            function_title=job.program.title,
-            provider_name=provider_name,
-        )
-        provider_file_storage = user_file_storage
-        if job.program.provider is not None:
-            provider_file_storage = FileStorage(
-                username=user.username,
-                working_dir=WorkingDir.PROVIDER_STORAGE,
-                function_title=job.program.title,
-                provider_name=provider_name,
-            )
-
-        cluster = get_template("rayclustertemplate.yaml")
-        manifest = cluster.render(
-            {
-                "cluster_name": cluster_name,
-                "user_data_folder": user_file_storage.sub_path,
-                "provider_data_folder": provider_file_storage.sub_path,
-                "node_image": node_image,
-                "workers": job_config.workers,
-                "min_workers": job_config.min_workers,
-                "max_workers": job_config.max_workers,
-                "auto_scaling": job_config.auto_scaling,
-                "user": user.username,
-                "node_selector_label": node_selector_label,
-                "gpu_request": gpu_request,
-            }
-        )
-        cluster_data = yaml.safe_load(manifest)
+    cluster_data = cluster_data or _create_cluster_data(job, cluster_name)
 
     config.load_incluster_config()
     k8s_client = kubernetes_client.api_client.ApiClient()
@@ -306,27 +335,55 @@ def create_ray_cluster(  # pylint: disable=too-many-branches,too-many-locals,too
         raise RuntimeError("Something went wrong during cluster creation")
 
     # wait for cluster to be up and running
-    host, cluster_is_ready = wait_for_cluster_ready(cluster_name)
+    host, cluster_is_ready = _wait_for_cluster_ready(cluster_name)
 
-    resource = None
-    if cluster_is_ready:
-        resource = ComputeResource()
-        resource.owner = user
-        resource.title = cluster_name
-        resource.host = host
-        if job.gpu:
-            resource.gpu = True
-        resource.save()
-    else:
-        raise RuntimeError("Something went wrong during cluster creation")
-    return resource
+    if not cluster_is_ready:
+        raise RuntimeError("Something went wrong during cluster creation: Timeout")
+
+    compute_resource = ComputeResource(
+        owner=user, title=cluster_name, host=host, gpu=job.gpu
+    )
+    compute_resource.save()
+
+    return compute_resource
 
 
-def wait_for_cluster_ready(cluster_name: str):
+def create_compute_resource(  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+    job: Job,
+    cluster_name: Optional[str] = None,
+    cluster_data: Optional[str] = None,
+) -> ComputeResource:
+    """
+    Creates compute resource.
+    If it is localhost, it creates a local compute resource of ray.
+    If not it creates a ray cluster.
+
+    Args:
+        user: user cluster belongs to
+        cluster_name: optional cluster name.
+            by default username+uuid will be used
+        cluster_data: optional cluster data
+
+    Returns:
+        returns compute resource associated with ray cluster.
+    """
+
+    if _is_local_mode():
+        return _create_local_compute_resource(job)
+
+    return _create_k8s_cluster(
+        job, cluster_name=cluster_name, cluster_data=cluster_data
+    )
+
+
+def _wait_for_cluster_ready(cluster_name: str):
     """Waits for cluster to became available."""
     url = f"http://{cluster_name}-head-svc:8265/"
     success = False
     attempts = 0
+    # not sure but readiness_time is not readiness time here,
+    # the request.get has 5 secs of timeout and 1 sec sleeping,
+    # so if max_attempts is 10, we will wait for 60 secs at worst case.
     max_attempts = settings.RAY_CLUSTER_MAX_READINESS_TIME
     while not success:
         attempts += 1
@@ -354,6 +411,9 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     Returns:
         number of killed clusters
     """
+    if _is_local_mode():
+        return True
+
     success = False
     namespace = settings.RAY_KUBERAY_NAMESPACE
 

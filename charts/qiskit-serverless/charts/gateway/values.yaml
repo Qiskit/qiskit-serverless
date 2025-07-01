@@ -26,7 +26,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.23.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.24.0"
     cpu: 2
     memory: 2
     gpu: 1
@@ -173,9 +173,7 @@ scheduler:
 autoscaling:
   enabled: false
   minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  maxReplicas: 2
 
 nodeSelector: {}
 
