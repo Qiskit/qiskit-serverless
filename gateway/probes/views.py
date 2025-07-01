@@ -2,8 +2,8 @@ from django.http import JsonResponse
 
 
 def readiness(request):
-    return JsonResponse({"status": "alive"})
+    return JsonResponse({"status": "ready"})
 
 
 def liveness(request):
-    return JsonResponse({"status": "ready"})
+    return JsonResponse({"status": "alive"})
