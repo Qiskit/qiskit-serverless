@@ -14,13 +14,49 @@ from django.db.models.aggregates import Count, Min
 from opentelemetry import trace
 
 from api.models import Job, ComputeResource
-from api.ray import submit_job, create_ray_cluster, kill_ray_cluster
+from api.ray import submit_job, create_compute_resource, kill_ray_cluster
 from api.utils import generate_cluster_name, create_gpujob_allowlist
 from main import settings as config
 
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
+
+
+def _configure_job_to_use_gpu(job: Job):
+    gpujobs = create_gpujob_allowlist()
+    if (
+        job.program.provider
+        and job.program.provider.name in gpujobs["gpu-functions"].keys()
+    ):
+        logger.debug("Job [%s] will be run on GPU nodes", job.id)
+        job.gpu = True
+
+    return job
+
+
+def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | None:
+    cluster_name = generate_cluster_name(job.author.username)
+    span.set_attribute("job.clustername", cluster_name)
+
+    compute_resource: ComputeResource | None = None
+    try:
+        compute_resource = create_compute_resource(job, cluster_name=cluster_name)
+    except Exception:  # pylint: disable=broad-exception-caught
+        # if something went wrong
+        #   try to kill resource if it was allocated
+        logger.warning(
+            "Compute resource [%s] was not created properly.\n"
+            "Setting job [%s] status to [FAILED].",
+            cluster_name,
+            job,
+        )
+        kill_ray_cluster(cluster_name)
+        job.status = Job.FAILED
+        job.logs += "\nCompute resource was not created properly."
+        span.set_attribute("job.status", job.status)
+
+    return compute_resource
 
 
 def execute_job(job: Job) -> Job:
@@ -42,57 +78,31 @@ def execute_job(job: Job) -> Job:
 
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-        # configure functions to use gpus
-        gpujobs = create_gpujob_allowlist()
-        if (
-            job.program.provider
-            and job.program.provider.name in gpujobs["gpu-functions"].keys()
-        ):
-            logger.debug("Job [%s] will be run on GPU nodes", job.id)
-            job.gpu = True
-            job.save()
+        job = _configure_job_to_use_gpu(job)
 
-        compute_resource = ComputeResource.objects.filter(
-            owner=job.author, active=True
-        ).first()
-
+        compute_resource = _create_ray_cluster_compute_resource(job, span)
         if not compute_resource:
-            cluster_name = generate_cluster_name(job.author.username)
-            span.set_attribute("job.clustername", cluster_name)
-            try:
-                compute_resource = create_ray_cluster(job, cluster_name=cluster_name)
-            except Exception:  # pylint: disable=broad-exception-caught
-                # if something went wrong
-                #   try to kill resource if it was allocated
-                logger.warning(
-                    "Compute resource [%s] was not created properly.\n"
-                    "Setting job [%s] status to [FAILED].",
-                    cluster_name,
-                    job,
-                )
-                kill_ray_cluster(cluster_name)
-                job.status = Job.FAILED
-                job.logs += "\nCompute resource was not created properly."
+            return job
 
-        if compute_resource:
-            try:
-                job.compute_resource = compute_resource
-                job = submit_job(job)
-                job.status = Job.PENDING
-            except Exception:  # pylint: disable=broad-exception-caught:
-                logger.error(
-                    "Exception was caught during scheduling job on user [%s] resource.\n"
-                    "Resource [%s] was in DB records, but address is not reachable.\n"
-                    "Cleaning up db record and setting job [%s] to failed",
-                    job.author,
-                    compute_resource.title,
-                    job.id,
-                )
-                kill_ray_cluster(compute_resource.title)
-                compute_resource.delete()
-                job.status = Job.FAILED
-                job.compute_resource = None
-                job.logs += "\nCompute resource was not found."
+        job.compute_resource = compute_resource
+
+        try:
+            job = submit_job(job)
+            job.status = Job.PENDING
+        except Exception:  # pylint: disable=broad-exception-caught:
+            logger.error(
+                "Exception was caught during scheduling job on user [%s] resource.\n"
+                "Resource [%s] was in DB records, but address is not reachable.\n"
+                "Cleaning up db record and setting job [%s] to failed",
+                job.author,
+                compute_resource.title,
+                job.id,
+            )
+            kill_ray_cluster(compute_resource.title)
+            compute_resource.delete()
+            job.status = Job.FAILED
+            job.compute_resource = None
+            job.logs += "\nCompute resource was not found."
 
         span.set_attribute("job.status", job.status)
     return job
