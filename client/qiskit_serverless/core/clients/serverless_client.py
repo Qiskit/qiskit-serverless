@@ -38,6 +38,7 @@ from typing import Optional, List, Dict, Any, Union
 import requests
 from opentelemetry import trace
 from qiskit_ibm_runtime import QiskitRuntimeService
+from qiskit_ibm_runtime.accounts import AccountManager, Account
 
 from qiskit_serverless.core.constants import (
     REQUESTS_TIMEOUT,
@@ -577,30 +578,74 @@ class IBMServerlessClient(ServerlessClient):
             instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
-        token = token or QiskitRuntimeService(name=name).active_account().get("token")
-        channel = channel or QiskitRuntimeService(name=name).active_account().get(
-            "channel"
-        )
-        try:
-            channel_enum = Channel(channel)
-        except ValueError as error:
-            raise ValueError(
-                "Your channel value is not correct. Use one of the available channels: "
-                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, "
-                f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
-            ) from error
 
-        if channel_enum is not Channel.IBM_QUANTUM:
-            instance = instance or QiskitRuntimeService(name=name).active_account().get(
-                "instance"
-            )
-
-        super().__init__(
-            channel=channel,
+        self._account = self._discover_account(
             token=token,
             instance=instance,
+            channel=channel,
+            name=name,
+        )
+
+        super().__init__(
+            channel=self._account.channel,
+            token=self._account.token,
+            instance=self._account.instance,
             host=IBM_SERVERLESS_HOST_URL,
         )
+
+    def _discover_account(
+        self,
+        token: Optional[str] = None,
+        instance: Optional[str] = None,
+        channel: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> Account:
+        """Discover account for ibm_quantum, ibm_cloud and ibm_quantum_platform channels.
+
+        Args:
+            token: IBM Quantum API token
+            name: Name of the account to load
+            instance: IBM Cloud CRN for ibm_quantum_platform and ibm_cloud
+                channels or hub/group/project for ibm_quantum channel
+            channel: Identifies the method to use to authenticate the user
+        """
+
+        account = None
+        if name:
+            account = AccountManager.get(name=name)
+        elif channel:
+            if channel and channel not in [
+                "ibm_cloud",
+                "ibm_quantum",
+                "ibm_quantum_platform",
+            ]:
+                raise ValueError(
+                    "'channel' can only be 'ibm_cloud', 'ibm_quantum', or 'ibm_quantum_platform"
+                )
+            if token:
+                account = Account.create_account(
+                    channel=channel,
+                    token=token,
+                    instance=instance,
+                )
+            else:
+                account = AccountManager.get(name=name, channel=channel)
+        elif any([token, url]):
+            # Let's not infer based on these attributes as they may change in the future.
+            raise ValueError(
+                "'channel' is required if 'token' is specified but 'name' is not."
+            )
+
+        # channel is not defined yet, get it from the AccountManager
+        if account is None:
+            account = AccountManager.get()
+        if instance:
+            account.instance = instance
+
+        # ensure account is valid, fail early if not
+        account.validate()
+
+        return account
 
     @staticmethod
     def save_account(
