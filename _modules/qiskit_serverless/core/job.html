@@ -352,6 +352,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">ENV_JOB_GATEWAY_INSTANCE</span><span class="p">,</span>
+    <span class="n">QISKIT_IBM_CHANNEL</span><span class="p">,</span>
     <span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
     <span class="n">ENV_JOB_GATEWAY_TOKEN</span><span class="p">,</span>
     <span class="n">ENV_JOB_GATEWAY_HOST</span><span class="p">,</span>
@@ -600,6 +601,7 @@
         <span class="k">return</span> <span class="kc">False</span>
 
     <span class="n">instance</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_GATEWAY_INSTANCE</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">channel</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">QISKIT_IBM_CHANNEL</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">is_jsonable</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">):</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Object passed is not json serializable.&quot;</span><span class="p">)</span>
@@ -612,7 +614,7 @@
     <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
         <span class="n">url</span><span class="p">,</span>
         <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">result</span> <span class="ow">or</span> <span class="p">{},</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsEncoder</span><span class="p">)},</span>
-        <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">),</span>
+        <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">),</span>
         <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
@@ -639,6 +641,7 @@
         <span class="k">return</span> <span class="kc">False</span>
 
     <span class="n">instance</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_GATEWAY_INSTANCE</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">channel</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">QISKIT_IBM_CHANNEL</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
     <span class="n">url</span> <span class="o">=</span> <span class="p">(</span>
         <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_JOB_GATEWAY_HOST</span><span class="p">)</span><span class="si">}</span><span class="s2">/&quot;</span>
@@ -647,7 +650,7 @@
     <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span>
         <span class="n">url</span><span class="p">,</span>
         <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;sub_status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">},</span>
-        <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">),</span>
+        <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">),</span>
         <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
