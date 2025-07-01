@@ -70,6 +70,7 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
         custom_auth = CustomTokenBackend()
         request = MagicMock()
         request.META = {
+            "HTTP_SERVICE_CHANNEL": "ibm_quantum_platform",
             "HTTP_AUTHORIZATION": "Bearer AWESOME_TOKEN",
             "HTTP_SERVICE_CRN": "AWESOME_CRN",
         }
