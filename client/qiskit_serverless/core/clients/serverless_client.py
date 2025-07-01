@@ -630,7 +630,7 @@ class IBMServerlessClient(ServerlessClient):
                 )
             else:
                 account = AccountManager.get(name=name, channel=channel)
-        elif any([token, url]):
+        elif any([token]):
             # Let's not infer based on these attributes as they may change in the future.
             raise ValueError(
                 "'channel' is required if 'token' is specified but 'name' is not."
