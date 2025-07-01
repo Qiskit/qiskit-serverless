@@ -120,6 +120,8 @@ class JobHandler:
                 working_directory_for_upload, "arguments.serverless"
             )
 
+            # DEPRECATED: arguments is now saved in /:username/:jobid,
+            # arguments.serverless is going to be deprecated
             with open(arguments_file, "w", encoding="utf-8") as f:
                 if arguments:
                     print(arguments_file)
