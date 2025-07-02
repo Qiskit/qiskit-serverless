@@ -16,6 +16,7 @@ services:
       - 8265:8265
     volumes:
       - host-shm:/dev/shm
+      - data:/data
     networks:
       - safe-tier
   postgres:
@@ -117,6 +118,7 @@ services:
 networks:
   safe-tier:
 volumes:
+  data:
   program-artifacts:
   host-shm:
   host-log:
