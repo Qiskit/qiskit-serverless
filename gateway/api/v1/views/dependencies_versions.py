@@ -23,7 +23,7 @@ def serialize_output(data: Dict[str, Requirement]):
 @swagger_auto_schema(
     method="get",
     operation_description="Get the list of available "
-    "additional dependencies for creating functions",
+    "dependencies and its versions for creating functions",
     responses={
         status.HTTP_200_OK: openapi.Response(
             description="List of strings",
