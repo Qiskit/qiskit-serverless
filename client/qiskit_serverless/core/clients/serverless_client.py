@@ -178,7 +178,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             ) from reason
 
     def dependencies_versions(self):
-        """Get the allowed additional dependencies and versions."""
+        """Get the list of available dependencies and its versions for creating functions"""
         return safe_json_request_as_list(
             request=lambda: requests.get(
                 url=f"{self.host}/api/{self.version}/dependencies-versions/",
