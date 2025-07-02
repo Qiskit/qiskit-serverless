@@ -12,7 +12,7 @@ logger = logging.getLogger("gateway.use_cases.dependencies_versions")
 
 class AvailableDependenciesVersionsUseCase:  # pylint: disable=too-few-public-methods
     """
-    This class will available dynamic dependencies.
+    This class will return available dynamic dependencies on execute.
     """
 
     def execute(self) -> Dict[str, Requirement]:
