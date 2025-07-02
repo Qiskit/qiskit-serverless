@@ -237,3 +237,31 @@ class TestFunctionsDocker:
         deps = serverless_client.dependencies_versions()
 
         assert deps == ["pendulum>=3.0.0", "wheel>=0.45.1"]
+        
+    def test_execute_functions_in_parallel(self, serverless_client: ServerlessClient):
+        """Integration test for run functions multiple times."""
+
+        function_1 = QiskitFunction(
+            title="parallel-exec-1",
+            entrypoint="pattern_wait.py",
+            working_dir=resources_path,
+        )
+        function_2 = QiskitFunction(
+            title="parallel-exec-2",
+            entrypoint="pattern_wait.py",
+            working_dir=resources_path,
+        )
+        runnable_function_1 = serverless_client.upload(function_1)
+        runnable_function_2 = serverless_client.upload(function_2)
+
+        job_1 = runnable_function_1.run()
+        job_2 = runnable_function_2.run()
+
+        while job_1.status() == "QUEUED" or job_2.status() == "INITIALIZING":
+            sleep(1)
+
+        while job_2.status() == "QUEUED" or job_2.status() == "INITIALIZING":
+            sleep(1)
+
+        assert job_1.status() == "RUNNING"
+        assert job_2.status() == "RUNNING"
