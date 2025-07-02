@@ -15,7 +15,7 @@ from api.use_cases.dependencies_versions import (
 
 def serialize_output(data: Dict[str, Requirement]):
     """
-    Prepare de output for the end-point
+    Prepare the output for the end-point
     """
     return [str(dep) for dep in data.values()]
 
