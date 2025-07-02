@@ -12,7 +12,7 @@ resources_path = os.path.join(
 )
 
 
-@fixture(scope="module", params=["serverless"])
+@fixture(scope="module", params=["serverless", "local"])
 def base_client(request):
     """Fixture for testing files with every client."""
     if request.param == "serverless":
