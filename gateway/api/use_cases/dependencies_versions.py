@@ -7,7 +7,7 @@ from django.contrib.auth.models import AbstractUser
 from api.utils import create_dynamic_dependencies_whitelist
 
 
-logger = logging.getLogger("gateway.use_cases.authentication")
+logger = logging.getLogger("gateway.use_cases.dependencies_versions")
 
 
 class AvailableDynamicDependenciesUseCase:  # pylint: disable=too-few-public-methods
