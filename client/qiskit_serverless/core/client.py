@@ -61,6 +61,7 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
         host: Optional[str] = None,
         token: Optional[str] = None,
         instance: Optional[str] = None,
+        channel: Optional[str] = None,
     ):
         """
         Initialize a BaseClient instance.
@@ -69,12 +70,14 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
             name: name of client
             host: host of client a.k.a managers host
             token: authentication token for manager
-            instance: IBM Cloud CRN
+            instance: IBM Cloud CRN or IQP h/g/p
+            channel: identifies the method to use to authenticate the user
         """
         self.name = name
         self.host = host
         self.token = token
         self.instance = instance
+        self.channel = channel
 
     @classmethod
     @abstractmethod
