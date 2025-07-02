@@ -11,7 +11,7 @@ from api.models import Provider
 logger = logging.getLogger("gateway")
 
 
-class ProviderRepository:  # pylint: disable=too-few-public-methods
+class ProviderRepository:
     """
     The main objective of this class is to manage the access to the model
     """
