@@ -5,6 +5,8 @@ from time import sleep
 
 from pytest import raises, mark
 
+import shutil
+import tempfile
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
 
@@ -25,8 +27,10 @@ class TestFunctionsDocker:
     """Test class for integration testing with docker."""
 
     @mark.order(1)
-    def test_simple_function(self, base_client: BaseClient):
+    def test_simple_function(self, base_client: BaseClient, tmp_path, monkeypatch):
         """Integration test function uploading."""
+        monkeypatch.setenv("DATA_PATH", str(tmp_path))
+
         simple_function = QiskitFunction(
             title="my-first-pattern",
             entrypoint="pattern.py",
@@ -50,8 +54,10 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_function_with_arguments(self, base_client: BaseClient):
+    def test_function_with_arguments(self, base_client: BaseClient, tmp_path, monkeypatch):
         """Integration test for Functions with arguments."""
+        monkeypatch.setenv("DATA_PATH", str(tmp_path))
+
         circuit = QuantumCircuit(2)
         circuit.h(0)
         circuit.cx(0, 1)
@@ -132,8 +138,9 @@ class TestFunctionsDocker:
         with raises(QiskitServerlessException, check=exceptionCheck):
             serverless_client.upload(function)
 
-    def test_distributed_workloads(self, base_client: BaseClient):
+    def test_distributed_workloads(self, base_client: BaseClient, tmp_path, monkeypatch):
         """Integration test for Functions for distributed workloads."""
+        monkeypatch.setenv("DATA_PATH", str(tmp_path))
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
         for circuit in circuits:
@@ -153,8 +160,9 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_multiple_runs(self, base_client: BaseClient):
+    def test_multiple_runs(self, base_client: BaseClient, tmp_path, monkeypatch):
         """Integration test for run functions multiple times."""
+        monkeypatch.setenv("DATA_PATH", str(tmp_path))
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
         for circuit in circuits:
