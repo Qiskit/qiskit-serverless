@@ -9,7 +9,7 @@ from api.models import Provider
 logger = logging.getLogger("gateway")
 
 
-class ProviderAccessPolicy:  # pylint: disable=too-few-public-methods
+class ProviderAccessPolicy:
     """
     The main objective of this class is to manage the access for the user
     to the Provider entities.

@@ -19,7 +19,7 @@ from api.domain.authentication.channel import Channel
 logger = logging.getLogger("gateway.use_cases.authentication")
 
 
-class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
+class AuthenticationUseCase:
     """
     This class will manage the authentication flow for the api.
     """
