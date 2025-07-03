@@ -14,6 +14,7 @@ from django.contrib.auth.models import Group, Permission
 from django.db.models import Q
 from rest_framework import serializers
 
+from api.services.arguments_storage import ArgumentsStorage
 from api.repositories.functions import FunctionRepository
 from api.repositories.users import UserRepository
 from api.utils import build_env_variables, encrypt_env_vars, sanitize_name
@@ -286,10 +287,12 @@ class RunJobSerializer(serializers.ModelSerializer):
             trial=trial,
             status=status,
             program=program,
-            arguments=arguments,
             author=author,
             config=config,
         )
+
+        arguments_store = ArgumentsStorage(author.username)
+        arguments_store.save(job.id, arguments)
 
         env = encrypt_env_vars(
             build_env_variables(
@@ -297,7 +300,6 @@ class RunJobSerializer(serializers.ModelSerializer):
                 token=token,
                 job=job,
                 trial_mode=trial,
-                args=arguments,
                 instance=instance,
             )
         )
