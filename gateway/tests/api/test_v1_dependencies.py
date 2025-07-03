@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 
 class TestAvailableDependenciesVersion(APITestCase):
     """TestProgramApi."""
-    
+
     fixtures = ["tests/fixtures/fixtures.json"]
 
     def test_available_dependencies_version(self):
