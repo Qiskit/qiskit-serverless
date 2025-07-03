@@ -346,6 +346,8 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">opentelemetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">trace</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime.accounts</span><span class="w"> </span><span class="kn">import</span> <span class="n">AccountManager</span><span class="p">,</span> <span class="n">Account</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime.accounts.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">InvalidAccountError</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
@@ -904,28 +906,79 @@
 <span class="sd">            instance: IBM Cloud CRN or IQP h/g/p</span>
 <span class="sd">            channel: identifies the method to use to authenticate the user</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">token</span> <span class="o">=</span> <span class="n">token</span> <span class="ow">or</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">active_account</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;token&quot;</span><span class="p">)</span>
-        <span class="n">instance</span> <span class="o">=</span> <span class="n">instance</span> <span class="ow">or</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">active_account</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-            <span class="s2">&quot;instance&quot;</span>
-        <span class="p">)</span>
-        <span class="n">channel</span> <span class="o">=</span> <span class="n">channel</span> <span class="ow">or</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">active_account</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-            <span class="s2">&quot;channel&quot;</span>
-        <span class="p">)</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">Channel</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
-        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;Your channel value is not correct. Use one of the available channels: &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Channel</span><span class="o">.</span><span class="n">LOCAL</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">Channel</span><span class="o">.</span><span class="n">IBM_QUANTUM</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">, &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Channel</span><span class="o">.</span><span class="n">IBM_CLOUD</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">Channel</span><span class="o">.</span><span class="n">IBM_QUANTUM_PLATFORM</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
-
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
-            <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">account</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_discover_account</span><span class="p">(</span>
             <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
             <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">,</span>
+            <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">account</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+            <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">account</span><span class="o">.</span><span class="n">token</span><span class="p">,</span>
+            <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">account</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span>
             <span class="n">host</span><span class="o">=</span><span class="n">IBM_SERVERLESS_HOST_URL</span><span class="p">,</span>
         <span class="p">)</span></div>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_discover_account</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">token</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">instance</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">channel</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Account</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Discover account for ibm_quantum, ibm_cloud and ibm_quantum_platform channels.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            token: IBM Quantum API token</span>
+<span class="sd">            name: Name of the account to load</span>
+<span class="sd">            instance: IBM Cloud CRN for ibm_quantum_platform and ibm_cloud</span>
+<span class="sd">                channels or hub/group/project for ibm_quantum channel</span>
+<span class="sd">            channel: Identifies the method to use to authenticate the user</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">account</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+            <span class="n">account</span> <span class="o">=</span> <span class="n">AccountManager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">channel</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">Channel</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Your channel value is not correct. Use one of the available channels: &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Channel</span><span class="o">.</span><span class="n">LOCAL</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">Channel</span><span class="o">.</span><span class="n">IBM_QUANTUM</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">, &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Channel</span><span class="o">.</span><span class="n">IBM_CLOUD</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">Channel</span><span class="o">.</span><span class="n">IBM_QUANTUM_PLATFORM</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
+
+            <span class="k">if</span> <span class="n">token</span><span class="p">:</span>
+                <span class="n">account</span> <span class="o">=</span> <span class="n">Account</span><span class="o">.</span><span class="n">create_account</span><span class="p">(</span>
+                    <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span>
+                    <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
+                    <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">account</span> <span class="o">=</span> <span class="n">AccountManager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">any</span><span class="p">([</span><span class="n">token</span><span class="p">]):</span>
+            <span class="c1"># Let&#39;s not infer based on these attributes as they may change in the future.</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;&#39;channel&#39; is required if &#39;token&#39; is specified but &#39;name&#39; is not.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># channel is not defined yet, get it from the AccountManager</span>
+        <span class="k">if</span> <span class="n">account</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">account</span> <span class="o">=</span> <span class="n">AccountManager</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">instance</span><span class="p">:</span>
+            <span class="n">account</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="n">instance</span>
+
+        <span class="c1"># ensure account is valid, fail early if not</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">account</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">InvalidAccountError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Invalid format in account inputs - </span><span class="si">{</span><span class="n">ex</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">ex</span>
+
+        <span class="k">return</span> <span class="n">account</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">save_account</span><span class="p">(</span>
@@ -945,13 +998,18 @@
 <span class="sd">            instance: IBM Cloud CRN</span>
 <span class="sd">            channel: identifies the method to use to authenticate the user</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">QiskitRuntimeService</span><span class="o">.</span><span class="n">save_account</span><span class="p">(</span>
-            <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
-            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
-            <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">,</span>
-            <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">,</span>
-            <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span>
-        <span class="p">)</span></div>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">QiskitRuntimeService</span><span class="o">.</span><span class="n">save_account</span><span class="p">(</span>
+                <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">,</span>
+                <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">,</span>
+                <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">InvalidAccountError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Invalid format in account inputs - </span><span class="si">{</span><span class="n">ex</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">ex</span></div>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_upload_with_docker_image</span><span class="p">(</span>  <span class="c1"># pylint: disable=too-many-positional-arguments</span>
