@@ -39,6 +39,7 @@ import requests
 from opentelemetry import trace
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.accounts import AccountManager, Account
+from qiskit_ibm_runtime.accounts.exceptions import InvalidAccountError
 
 from qiskit_serverless.core.constants import (
     REQUESTS_TIMEOUT,
@@ -662,7 +663,12 @@ class IBMServerlessClient(ServerlessClient):
             account.instance = instance
 
         # ensure account is valid, fail early if not
-        account.validate()
+        try:
+            account.validate()
+        except InvalidAccountError as ex:
+            raise QiskitServerlessException(
+                f"Invalid format in account inputs - {ex}"
+            ) from ex
 
         return account
 
@@ -684,13 +690,18 @@ class IBMServerlessClient(ServerlessClient):
             instance: IBM Cloud CRN
             channel: identifies the method to use to authenticate the user
         """
-        QiskitRuntimeService.save_account(
-            token=token,
-            name=name,
-            overwrite=overwrite,
-            instance=instance,
-            channel=channel,
-        )
+        try:
+            QiskitRuntimeService.save_account(
+                token=token,
+                name=name,
+                overwrite=overwrite,
+                instance=instance,
+                channel=channel,
+            )
+        except InvalidAccountError as ex:
+            raise QiskitServerlessException(
+                f"Invalid format in account inputs - {ex}"
+            ) from ex
 
 
 def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
