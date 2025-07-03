@@ -30,6 +30,6 @@ urlpatterns = router.urls + [
     path(
         "dependencies-versions/",
         v1_views.dependencies_versions,
-        name="available-dependencies-versions",
+        name="dependencies-versions",
     )
 ]
