@@ -36,10 +36,14 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         crn = request.META.get("HTTP_SERVICE_CRN", None)
         channel_header = request.META.get("HTTP_SERVICE_CHANNEL", None)
-        if channel_header is None:
-            # this is to maintain compatibility for older versions
-            # that are not being managing channel
+        # This is to maintain compatibility for older versions:
+        #   - IQP use case: Catalog(token=""")
+        #   - IBM cloud use case: Catalog(channel=", token="", crn="")
+        # Originally we were not sending the channel in <=0.24.0 versions
+        if channel_header is None and crn is None:
             channel_header = Channel.IBM_QUANTUM.value
+        if channel_header is None and crn is not None:
+            channel_header = Channel.IBM_QUANTUM_PLATFORM.value
         try:
             channel = Channel(channel_header)
         except ValueError as error:
