@@ -598,7 +598,7 @@ class IBMServerlessClient(ServerlessClient):
             instance: IBM Cloud CRN or IQP h/g/p
             channel: identifies the method to use to authenticate the user
         """
-        self._account = self._discover_account(
+        self.account = self._discover_account(
             token=token,
             instance=instance,
             channel=channel,
@@ -606,9 +606,9 @@ class IBMServerlessClient(ServerlessClient):
         )
 
         super().__init__(
-            channel=self._account.channel,
-            token=self._account.token,
-            instance=self._account.instance,
+            channel=self.account.channel,
+            token=self.account.token,
+            instance=self.account.instance,
             host=IBM_SERVERLESS_HOST_URL,
         )
 

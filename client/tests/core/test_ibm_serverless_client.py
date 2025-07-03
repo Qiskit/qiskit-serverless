@@ -60,9 +60,9 @@ class TestIBMServerlessClient(unittest.TestCase):
                     channel=use_channel,
                 )
                 client = IBMServerlessClient(name=use_name)
-                self.assertEqual(client._account.channel, use_channel)
-                self.assertEqual(client._account.token, use_token)
-                self.assertEqual(client._account.instance, use_instance)
+                self.assertEqual(client.account.channel, use_channel)
+                self.assertEqual(client.account.token, use_token)
+                self.assertEqual(client.account.instance, use_instance)
 
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_save_wrong_instance(self, mock_file_path):
