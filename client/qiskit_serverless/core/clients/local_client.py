@@ -115,7 +115,19 @@ class LocalClient(BaseClient):
         }
 
         job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
-        arguments_file_path = f"/data/arguments/{job_id_gateway}.json"
+        data_path = os.environ.get("DATA_PATH", "/data")
+
+        if not os.path.exists(data_path):
+            raise QiskitServerlessException(
+                f"Data path '{data_path}' does not exist. "
+                f"Please ensure the DATA_PATH directory is created."
+            )
+
+        arguments_dir = os.path.join(data_path, "arguments")
+        if not os.path.exists(arguments_dir):
+            os.makedirs(arguments_dir)
+
+        arguments_file_path = os.path.join(arguments_dir, f"{job_id_gateway}.json")
         with open(arguments_file_path, "w", encoding="utf-8") as f:
             json.dump(arguments, f, cls=QiskitObjectsEncoder)
 
