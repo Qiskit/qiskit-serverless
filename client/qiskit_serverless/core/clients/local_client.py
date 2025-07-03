@@ -33,6 +33,7 @@ import re
 import sys
 from typing import Optional, List, Dict, Any, Union
 from uuid import uuid4
+import shutil
 
 import subprocess
 from subprocess import Popen
@@ -108,20 +109,16 @@ class LocalClient(BaseClient):
                     [sys.executable, "-m", "pip", "install", dependency]
                 )
         arguments = arguments or {}
+        data_path = "./"
+
         env_vars = {
             **(saved_program.env_vars or {}),
             **{OT_PROGRAM_NAME: saved_program.title},
             **{"PATH": os.environ["PATH"]},
+            **{"DATA_PATH": data_path},
         }
 
         job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
-        data_path = os.environ.get("DATA_PATH", "/data")
-
-        if not os.path.exists(data_path):
-            raise QiskitServerlessException(
-                f"Data path '{data_path}' does not exist. "
-                f"Please ensure the DATA_PATH directory is created."
-            )
 
         arguments_dir = os.path.join(data_path, "arguments")
         if not os.path.exists(arguments_dir):
@@ -145,6 +142,9 @@ class LocalClient(BaseClient):
             if pipe.wait():
                 status = "FAILED"
             output, _ = pipe.communicate()
+
+        if os.path.exists(arguments_dir):
+            shutil.rmtree(arguments_dir)
 
         results = re.search("\nSaved Result:(.+?):End Saved Result\n", output)
         result = ""
