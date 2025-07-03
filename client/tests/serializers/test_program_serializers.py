@@ -59,23 +59,19 @@ class TestArgParsing(TestCase):
     """Tests argument parsing,"""
 
     def setUp(self):
-        # Crear directorio temporal para tests
         self.test_data_dir = tempfile.mkdtemp()
         self.arguments_dir = os.path.join(self.test_data_dir, "arguments")
         os.makedirs(self.arguments_dir, exist_ok=True)
 
-        # Guardar el valor original y configurar para test
         self.original_data_path = os.environ.get("DATA_PATH")
         os.environ["DATA_PATH"] = self.test_data_dir
 
     def tearDown(self):
-        # Restaurar valor original
         if self.original_data_path is not None:
             os.environ["DATA_PATH"] = self.original_data_path
         elif "DATA_PATH" in os.environ:
             del os.environ["DATA_PATH"]
 
-        # Limpiar directorio temporal
         shutil.rmtree(self.test_data_dir)
 
     def test_argument_parsing(self):
