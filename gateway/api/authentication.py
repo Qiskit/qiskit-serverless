@@ -36,10 +36,12 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         crn = request.META.get("HTTP_SERVICE_CRN", None)
         channel_header = request.META.get("HTTP_SERVICE_CHANNEL", None)
-        # This is to maintain compatibility for older versions:
+        # This is to maintain backwards compatibility with previous user patterns.
+        # In qiskit-serverless <=0.24.0 , the channel input was not provided to the 
+        # authenticator, but inferred from other inputs:
         #   - IQP use case: Catalog(token=""")
         #   - IBM cloud use case: Catalog(channel=", token="", crn="")
-        # Originally we were not sending the channel in <=0.24.0 versions
+        
         if channel_header is None and crn is None:
             channel_header = Channel.IBM_QUANTUM.value
         if channel_header is None and crn is not None:
