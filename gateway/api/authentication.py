@@ -11,6 +11,7 @@ from api.domain.authentication.channel import Channel
 logger = logging.getLogger("gateway.authentication")
 PUBLIC_ENDPOINTS = ["catalog", "swagger"]
 
+
 # This logic needs to be reviewed as it can be simplified
 # maybe with isAuthenticatedOrReadOnly permission
 def is_public_endpoint(path: str) -> bool:
@@ -36,10 +37,16 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         crn = request.META.get("HTTP_SERVICE_CRN", None)
         channel_header = request.META.get("HTTP_SERVICE_CHANNEL", None)
-        if channel_header is None:
-            # this is to maintain compatibility for older versions
-            # that are not being managing channel
+        # This is to maintain backwards compatibility with previous user patterns.
+        # In qiskit-serverless <=0.24.0 , the channel input was not provided to the
+        # authenticator, but inferred from other inputs:
+        #   - IQP use case: Catalog(token=""")
+        #   - IBM cloud use case: Catalog(channel=", token="", crn="")
+
+        if channel_header is None and crn is None:
             channel_header = Channel.IBM_QUANTUM.value
+        if channel_header is None and crn is not None:
+            channel_header = Channel.IBM_QUANTUM_PLATFORM.value
         try:
             channel = Channel(channel_header)
         except ValueError as error:
