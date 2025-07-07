@@ -4,13 +4,13 @@ description: Qiskit-Serverless helm chart that contains different dependencies.
 
 type: application
 
-version: 0.24.0
-appVersion: "0.24.0"
+version: 0.25.0
+appVersion: "0.25.0"
 
 dependencies:
   - name: gateway
     condition: gatewayEnable
-    version: 0.24.0
+    version: 0.25.0
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
     version: 9.11.0
