@@ -27,7 +27,6 @@ class TestFunctionsDocker:
     @mark.order(1)
     def test_simple_function(self, base_client: BaseClient):
         """Integration test function uploading."""
-
         simple_function = QiskitFunction(
             title="my-first-pattern",
             entrypoint="pattern.py",
@@ -53,7 +52,6 @@ class TestFunctionsDocker:
 
     def test_function_with_arguments(self, base_client: BaseClient):
         """Integration test for Functions with arguments."""
-
         circuit = QuantumCircuit(2)
         circuit.h(0)
         circuit.cx(0, 1)
