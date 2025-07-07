@@ -83,8 +83,13 @@ def get_arguments() -> Dict[str, Any]:
     arguments = "{}"
     job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
     data_path = os.environ.get("DATA_PATH", "/data")
-    arguments_file_path = f"{data_path}/arguments/{job_id_gateway}.json"
+    arguments_dir = f"{data_path}/arguments"
+    arguments_file_path = f"{arguments_dir}/{job_id_gateway}.json"
+
+    os.makedirs(arguments_dir, exist_ok=True)
+
     if os.path.isfile(arguments_file_path):
         with open(arguments_file_path, "r", encoding="utf-8") as f:
             arguments = f.read()
+
     return json.loads(arguments, cls=QiskitObjectsDecoder)
