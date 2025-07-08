@@ -21,7 +21,7 @@ class ArgumentsStorage:
         )
         os.makedirs(self.user_arguments_directory, exist_ok=True)
 
-    def __get_arguments_path(self, job_id: str) -> str:
+    def _get_arguments_path(self, job_id: str) -> str:
         """Construct the full path for a arguments file."""
         return os.path.join(
             self.user_arguments_directory, f"{job_id}{self.ARGUMENTS_FILE_EXTENSION}"
@@ -47,7 +47,7 @@ class ArgumentsStorage:
             return None
 
         try:
-            with open(arguments_path, "r", encoding="utf-8") as arguments_file:
+            with open(arguments_path, "r", encoding=self.ENCODING) as arguments_file:
                 return arguments_file.read()
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
