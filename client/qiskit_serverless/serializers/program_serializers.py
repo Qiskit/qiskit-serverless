@@ -33,7 +33,7 @@ from qiskit.primitives import SamplerResult, EstimatorResult
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.utils.json import RuntimeDecoder, RuntimeEncoder
 
-from qiskit_serverless.core.constants import ENV_JOB_ID_GATEWAY
+from qiskit_serverless.core.constants import ENV_JOB_ID_GATEWAY, DATA_PATH
 
 
 class QiskitObjectsEncoder(RuntimeEncoder):
@@ -82,7 +82,7 @@ def get_arguments() -> Dict[str, Any]:
     """
     arguments = "{}"
     job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
-    data_path = os.environ.get("DATA_PATH", "/data")
+    data_path = os.environ.get(DATA_PATH, "/data")
     arguments_dir = f"{data_path}/arguments"
     arguments_file_path = f"{arguments_dir}/{job_id_gateway}.json"
 
