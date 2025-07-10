@@ -1,8 +1,17 @@
+"""
+Endpoint decorator Module
+"""
+
 from functools import wraps
 from typing import Callable
 from api.v1.route_registry import RouteRegistry
 
+
 def endpoint(url_path: str, name: str = None):
+    """
+    endpoint decorator for views
+    """
+
     def decorator(view_func: Callable):
         if name is None:
             module_path = view_func.__module__
@@ -23,5 +32,5 @@ def endpoint(url_path: str, name: str = None):
 
         RouteRegistry.register(url_path, wrapped_view, generated_name)
         return wrapped_view
-    return decorator
 
+    return decorator
