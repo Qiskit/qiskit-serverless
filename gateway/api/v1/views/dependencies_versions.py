@@ -11,6 +11,7 @@ from rest_framework.decorators import api_view, permission_classes
 from api.use_cases.dependencies_versions import (
     AvailableDependenciesVersionsUseCase,
 )
+from api.v1.endpoint_decorator import endpoint
 
 
 def serialize_output(data: Dict[str, Requirement]):
@@ -33,6 +34,7 @@ def serialize_output(data: Dict[str, Requirement]):
         )
     },
 )
+@endpoint("dependencies-versions")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def dependencies_versions(_):
