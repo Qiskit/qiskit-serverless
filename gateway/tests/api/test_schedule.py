@@ -30,11 +30,10 @@ class TestScheduleApi(APITestCase):
         self.assertTrue("1a7947f9-6ae8-4e3d-ac1e-e7d608deec82" in job_ids)
 
     @patch("api.ray.get_job_handler")
-    def test_already_created_ray_cluster_execute_job(self, mock_handler):
+    def test_create_different_compute_resources(self, mock_handler):
         """Tests should create new resource."""
         user = get_user_model().objects.filter(username="test3_user").first()
 
-        print("====!!!!!!==== 1111")
         job_1 = MagicMock()
         job_1.author = user
         ret_job_1 = execute_job(job_1)
