@@ -50,6 +50,44 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
+    def test_function_with_errors(self, base_client: BaseClient):
+        """Integration test for faulty function run."""
+
+        circuit = QuantumCircuit(2)
+        circuit.h(0)
+        circuit.cx(0, 1)
+        circuit.measure_all()
+        circuit.draw()
+
+        function = QiskitFunction(
+            title="pattern-with-errors",
+            entrypoint="pattern_with_errors.py",
+            working_dir=resources_path,
+        )
+
+        runnable_function = base_client.upload(function)
+
+        assert runnable_function is not None
+        assert runnable_function.type == "GENERIC"
+
+        runnable_function = base_client.function(function.title)
+
+        assert runnable_function is not None
+        assert runnable_function.type == "GENERIC"
+
+        job = runnable_function.run(circuit=circuit)
+
+        assert job is not None
+        assert job.status() == "ERROR"
+        assert isinstance(job.logs(), str)
+        expected_message = (
+            "ImportError: attempted relative import with no known parent package"
+        )
+        with self.assertRaises(QiskitServerlessException) as context:
+            job.run()
+
+        self.assertEqual(str(context.exception), expected_message)
+
     def test_function_with_arguments(self, base_client: BaseClient):
         """Integration test for Functions with arguments."""
         circuit = QuantumCircuit(2)
