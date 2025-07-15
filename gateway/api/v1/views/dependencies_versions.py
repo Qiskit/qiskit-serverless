@@ -31,7 +31,15 @@ def serialize_output(data: Dict[str, Requirement]):
             schema=openapi.Schema(
                 type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)
             ),
-        )
+            examples={
+                "application/json": [
+                    "qiskit-aer==0.17.1",
+                ]
+            },
+        ),
+        status.HTTP_401_UNAUTHORIZED: openapi.Response(
+            description="Authentication credentials were not provided or are invalid."
+        ),
     },
 )
 @endpoint("dependencies-versions")
