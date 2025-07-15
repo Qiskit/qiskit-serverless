@@ -228,12 +228,12 @@ class Job:
         if self.status() == "ERROR":
             if results:
                 raise QiskitServerlessException(results)
-            else:
-                # If no result returned (common with import errors),
-                # try to match on error trace in logs to point to source of error
-                raise QiskitServerlessException(
-                    self.filtered_logs(include=r"(?i)error|exception")
-                )
+
+            # If no result returned (common with import errors),
+            # try to match on error trace in logs to point to source of error
+            raise QiskitServerlessException(
+                self.filtered_logs(include=r"(?i)error|exception")
+            )
 
         if isinstance(results, str):
             try:
