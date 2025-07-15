@@ -83,10 +83,13 @@ class TestFunctionsDocker:
         expected_message = (
             "ImportError: attempted relative import with no known parent package"
         )
-        with self.assertRaises(QiskitServerlessException) as context:
-            job.run()
 
-        self.assertEqual(str(context.exception), expected_message)
+        def exceptionCheck(e: QiskitServerlessException):
+            details_index = str(e).find(expected_message)
+            return details_index > 0
+
+        with raises(QiskitServerlessException, check=exceptionCheck):
+            job.run()
 
     def test_function_with_arguments(self, base_client: BaseClient):
         """Integration test for Functions with arguments."""
