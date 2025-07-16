@@ -14,6 +14,7 @@
    .. autosummary::
    
       ~ServerlessClient.__init__
+      ~ServerlessClient.dependencies_versions
       ~ServerlessClient.file_delete
       ~ServerlessClient.file_download
       ~ServerlessClient.file_upload

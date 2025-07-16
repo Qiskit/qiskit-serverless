@@ -484,6 +484,16 @@
                 <span class="s2">&quot;Credentials couldn&#39;t be verified.&quot;</span>
             <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">reason</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">dependencies_versions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the list of available dependencies and its versions for creating functions&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">safe_json_request_as_list</span><span class="p">(</span>
+            <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/dependencies-versions/&quot;</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">),</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
     <span class="c1">####################</span>
     <span class="c1">####### JOBS #######</span>
     <span class="c1">####################</span>
