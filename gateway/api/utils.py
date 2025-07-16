@@ -163,6 +163,7 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
             extra = {
                 "QISKIT_IBM_INSTANCE": str(instance),
             }
+        # pylint: disable=fixme
         # TODO: remove this path once iqp classic is sunset for all users
         if channel.value == Channel.IBM_QUANTUM.value:
             url = "https://auth.quantum.ibm.com/api"
