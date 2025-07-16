@@ -176,6 +176,16 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "Credentials couldn't be verified."
             ) from reason
 
+    def dependencies_versions(self):
+        """Get the list of available dependencies and its versions for creating functions"""
+        return safe_json_request_as_list(
+            request=lambda: requests.get(
+                url=f"{self.host}/api/{self.version}/dependencies-versions/",
+                headers=get_headers(token=self.token, instance=self.instance),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
     ####################
     ####### JOBS #######
     ####################
