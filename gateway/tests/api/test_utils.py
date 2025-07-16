@@ -50,7 +50,7 @@ class TestUtils(APITestCase):
                     "ENV_ACCESS_TRIAL": "False",
                     "QISKIT_IBM_TOKEN": "an_awesome_token",
                     "QISKIT_IBM_CHANNEL": "ibm_quantum",
-                    "QISKIT_IBM_URL": "https://auth.quantum-computing.ibm.com/api",
+                    "QISKIT_IBM_URL": "https://auth.quantum.ibm.com/api",
                 },
             )
 
@@ -87,7 +87,7 @@ class TestUtils(APITestCase):
                     "QISKIT_IBM_TOKEN": "an_awesome_api_key",
                     "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
                     "QISKIT_IBM_INSTANCE": "an_awesome_crn",
-                    "QISKIT_IBM_URL": "https://auth.quantum-computing.ibm.com/api",
+                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
                 },
             )
 
@@ -122,7 +122,7 @@ class TestUtils(APITestCase):
                     "ENV_ACCESS_TRIAL": "False",
                     "QISKIT_IBM_TOKEN": "mock_token",
                     "QISKIT_IBM_CHANNEL": "local",
-                    "QISKIT_IBM_URL": "https://auth.quantum-computing.ibm.com/api",
+                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
                 },
             )
 
@@ -157,7 +157,7 @@ class TestUtils(APITestCase):
                     "ENV_ACCESS_TRIAL": "True",
                     "QISKIT_IBM_TOKEN": "mock_token",
                     "QISKIT_IBM_CHANNEL": "local",
-                    "QISKIT_IBM_URL": "https://auth.quantum-computing.ibm.com/api",
+                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
                 },
             )
 
@@ -179,7 +179,7 @@ class TestUtils(APITestCase):
                 "ENV_JOB_ARGUMENTS": {"answer": 42},
                 "QISKIT_IBM_TOKEN": "42",
                 "QISKIT_IBM_CHANNEL": "ibm_quantum",
-                "QISKIT_IBM_URL": "https://auth.quantum-computing.ibm.com/api",
+                "QISKIT_IBM_URL": "https://cloud.ibm.com",
             }
             encrypted_env_vars = encrypt_env_vars(env_vars_with_qiskit_runtime)
             self.assertFalse(encrypted_env_vars["QISKIT_IBM_TOKEN"] == "42")
