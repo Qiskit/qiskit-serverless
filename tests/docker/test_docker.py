@@ -50,9 +50,10 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_function_with_errors(self, base_client: BaseClient):
+    # local client doesn't make sense here
+    # since it follows a different logging mechanism
+    def test_function_with_errors(self, serverless_client: ServerlessClient):
         """Integration test for faulty function run."""
-
         circuit = QuantumCircuit(2)
         circuit.h(0)
         circuit.cx(0, 1)
@@ -65,12 +66,12 @@ class TestFunctionsDocker:
             working_dir=resources_path,
         )
 
-        runnable_function = base_client.upload(function)
+        runnable_function = serverless_client.upload(function)
 
         assert runnable_function is not None
         assert runnable_function.type == "GENERIC"
 
-        runnable_function = base_client.function(function.title)
+        runnable_function = serverless_client.function(function.title)
 
         assert runnable_function is not None
         assert runnable_function.type == "GENERIC"
