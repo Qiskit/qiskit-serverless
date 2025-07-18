@@ -52,7 +52,7 @@ application:
     keepClusterOnComplete: False
     programTimeoutDays: 14
   qiskitRuntime:
-    url: "https://auth.quantum-computing.ibm.com/api"
+    url: "https://cloud.ibm.com"
   iqpQcon:
     url: "https://api-qcon.quantum.ibm.com/api"
   publicGroupName: "ibm-q/open/main"
