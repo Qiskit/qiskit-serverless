@@ -491,8 +491,8 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">filtered_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns logs of the job.</span>
 <span class="sd">        Args:</span>
-<span class="sd">            include: rex expression finds match in the log line to be included</span>
-<span class="sd">            exclude: rex expression finds match in the log line to be excluded</span>
+<span class="sd">            include: regex expression finds matching line in the log to be included</span>
+<span class="sd">            exclude: regex expression finds matching line in the log to be excluded</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_service</span><span class="o">.</span><span class="n">filtered_logs</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -534,7 +534,14 @@
         <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_service</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">results</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+
+            <span class="c1"># If no result returned (common with import errors),</span>
+            <span class="c1"># try to match on error trace in logs to point to source of error</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">filtered_logs</span><span class="p">(</span><span class="n">include</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;(?i)error|exception&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
