@@ -33,7 +33,7 @@ from qiskit.primitives import SamplerResult, EstimatorResult
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.utils.json import RuntimeDecoder, RuntimeEncoder
 
-from qiskit_serverless.core.constants import JOB_ARGUMENTS_FILE
+from qiskit_serverless.core.constants import ENV_JOB_ID_GATEWAY, DATA_PATH
 
 
 class QiskitObjectsEncoder(RuntimeEncoder):
@@ -77,12 +77,19 @@ class QiskitObjectsDecoder(RuntimeDecoder):
 
 def get_arguments() -> Dict[str, Any]:
     """Parses arguments for program and returns them as dict.
-
     Returns:
         Dictionary of arguments.
     """
     arguments = "{}"
-    if os.path.isfile(JOB_ARGUMENTS_FILE):
-        with open(JOB_ARGUMENTS_FILE, "r", encoding="utf-8") as f:
+    job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
+    data_path = os.environ.get(DATA_PATH, "/data")
+    arguments_dir = f"{data_path}/arguments"
+    arguments_file_path = f"{arguments_dir}/{job_id_gateway}.json"
+
+    os.makedirs(arguments_dir, exist_ok=True)
+
+    if os.path.isfile(arguments_file_path):
+        with open(arguments_file_path, "r", encoding="utf-8") as f:
             arguments = f.read()
+
     return json.loads(arguments, cls=QiskitObjectsDecoder)
