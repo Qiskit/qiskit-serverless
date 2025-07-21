@@ -15,15 +15,14 @@ class RouteRegistry:
     _routes: List[URLPattern] = []
 
     @classmethod
-    def register(cls, url_path: str, view_func: Callable, name: Optional[str] = None):
+    def register(cls, url_path: str, view_func: Callable, name: str):
         """
         register a route to serve as endpoint.
         """
-        route_name = name or view_func.__name__.replace("_", "-")
         if not url_path.endswith("/"):
             url_path += "/"
 
-        route = path(url_path, view_func, name=route_name)
+        route = path(url_path, view_func, name=name)
         cls._routes.append(route)
 
     @classmethod
