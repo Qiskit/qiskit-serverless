@@ -41,6 +41,7 @@ from subprocess import Popen
 from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_serverless.core.constants import (
+    DATA_PATH,
     ENV_JOB_ID_GATEWAY,
     OT_PROGRAM_NAME,
 )
@@ -115,10 +116,15 @@ class LocalClient(BaseClient):
             **(saved_program.env_vars or {}),
             **{OT_PROGRAM_NAME: saved_program.title},
             **{"PATH": os.environ["PATH"]},
-            **{"DATA_PATH": data_path},
+            **{DATA_PATH: data_path},
         }
 
         job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
+
+        if not job_id_gateway:
+            raise QiskitServerlessException(
+                "JOB_ID_GATEWAY environment variable is missing or empty"
+            )
 
         arguments_dir = os.path.join(data_path, "arguments")
         if not os.path.exists(arguments_dir):

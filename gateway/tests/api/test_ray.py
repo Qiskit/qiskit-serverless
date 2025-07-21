@@ -6,7 +6,7 @@ import shutil
 from unittest.mock import MagicMock
 
 import requests_mock
-from main import settings
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from kubernetes import client, config
 from kubernetes.dynamic.client import DynamicClient

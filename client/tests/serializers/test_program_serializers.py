@@ -21,7 +21,7 @@ import numpy as np
 from qiskit.circuit.random import random_circuit
 from qiskit_ibm_runtime import QiskitRuntimeService
 
-from qiskit_serverless.core.constants import ENV_JOB_ID_GATEWAY
+from qiskit_serverless.core.constants import DATA_PATH, ENV_JOB_ID_GATEWAY
 from qiskit_serverless.serializers.program_serializers import (
     QiskitObjectsDecoder,
     QiskitObjectsEncoder,
@@ -63,14 +63,14 @@ class TestArgParsing(TestCase):
         self.arguments_dir = os.path.join(self.test_data_dir, "arguments")
         os.makedirs(self.arguments_dir, exist_ok=True)
 
-        self.original_data_path = os.environ.get("DATA_PATH")
-        os.environ["DATA_PATH"] = self.test_data_dir
+        self.original_data_path = os.environ.get(DATA_PATH)
+        os.environ[DATA_PATH] = self.test_data_dir
 
     def tearDown(self):
         if self.original_data_path is not None:
-            os.environ["DATA_PATH"] = self.original_data_path
-        elif "DATA_PATH" in os.environ:
-            del os.environ["DATA_PATH"]
+            os.environ[DATA_PATH] = self.original_data_path
+        elif DATA_PATH in os.environ:
+            del os.environ[DATA_PATH]
 
         shutil.rmtree(self.test_data_dir)
 
