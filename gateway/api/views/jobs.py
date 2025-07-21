@@ -22,7 +22,6 @@ from api.utils import retry_function, sanitize_name, sanitize_boolean
 from api.access_policies.providers import ProviderAccessPolicy
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
-from api.views.enums.type_filter import TypeFilter
 from api.services.result_storage import ResultStorage
 from api.access_policies.jobs import JobAccessPolicies
 from api.repositories.jobs import JobsRepository
@@ -84,29 +83,6 @@ class JobViewSet(viewsets.GenericViewSet):
         """
         return JobSerializerWithoutResult(*args, **kwargs)
 
-    def get_queryset(self):
-        """
-        Returns a filtered queryset of `Job` objects based on the `filter` query parameter.
-
-        - If `filter=catalog`, returns jobs authored by the user with an existing provider.
-        - If `filter=serverless`, returns jobs authored by the user without a provider.
-        - Otherwise, returns all jobs authored by the user.
-
-        Returns:
-            QuerySet: A filtered queryset of `Job` objects ordered by creation date (descending).
-        """
-        type_filter = self.request.query_params.get("filter")
-        if type_filter:
-            if type_filter == TypeFilter.CATALOG:
-                return self.jobs_repository.get_user_jobs_with_provider(
-                    self.request.user
-                )
-            if type_filter == TypeFilter.SERVERLESS:
-                return self.jobs_repository.get_user_jobs_without_provider(
-                    self.request.user
-                )
-        return self.jobs_repository.get_user_jobs(self.request.user)
-
     @_trace
     def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
         """Get job:"""
@@ -145,19 +121,6 @@ class JobViewSet(viewsets.GenericViewSet):
         serialized = serializer(job)
 
         return Response(serialized.data)
-
-    @_trace
-    def list(self, request):
-        """List jobs:"""
-        queryset = self.get_queryset()
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer_job_without_result(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer_job_without_result(queryset, many=True)
-        return Response(serializer.data)
 
     @_trace
     @action(methods=["GET"], detail=False, url_path="provider")

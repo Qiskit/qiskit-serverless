@@ -1,3 +1,4 @@
+"""This module contains the usecase get_jos"""
 import logging
 from typing import List
 from api.models import Job
@@ -22,7 +23,7 @@ class GetJobsUseCase:
             TypeFilter.SERVERLESS: self._get_serverless_jobs,
         }
 
-    def execute(self) -> List[Job]:
+    def execute(self) -> tuple[List[Job], int]:
         """
         Returns a paginated list of `Job` objects based on the `filter` query parameter.
 
@@ -31,15 +32,16 @@ class GetJobsUseCase:
         - Otherwise, returns all jobs authored by the user.
 
         Returns:
-            QuerySet: A filtered queryset of `Job` objects ordered by creation date (descending).
+            Tuple[List[Job], int]: A tuple containing:
+                - List of Job objects for the current page (empty list if offset exceeds total)
+                - Total count of jobs matching the criteria (before pagination)
         """
         has_to_filter = self.filter_type in self.filters
-        if has_to_filter:
-            query_set = self.filters[self.filter_type]()
-        else:
-            query_set = self.jobs_repository.get_user_jobs(self.user)
 
-        return query_set
+        if has_to_filter:
+            return self.filters[self.filter_type]()
+
+        return self.jobs_repository.get_user_jobs(self.user, self.limit, self.offset)
 
     def _get_catalog_jobs(self):
         return self.jobs_repository.get_user_jobs_with_provider(
