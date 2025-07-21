@@ -61,7 +61,9 @@ class JobsRepository:
         user_criteria = Q(author=user)
         return Job.objects.filter(user_criteria).order_by(ordering)
 
-    def get_user_jobs_with_provider(self, user, limit: Optional[int], offset: Optional[int], ordering="-created") -> List[Job]:
+    def get_user_jobs_with_provider(
+        self, user, limit: Optional[int], offset: Optional[int], ordering="-created"
+    ) -> List[Job]:
         """
         Retrieves jobs created by a specific user that have an associated provider.
 
@@ -77,7 +79,8 @@ class JobsRepository:
         user_criteria = Q(author=user)
         provider_exists_criteria = ~Q(program__provider=None)
         queryset = Job.objects.filter(
-            user_criteria & provider_exists_criteria).order_by(ordering)
+            user_criteria & provider_exists_criteria
+        ).order_by(ordering)
 
         if offset is not None or limit is not None:
             start = offset if offset is not None else 0
@@ -86,7 +89,9 @@ class JobsRepository:
 
         return queryset
 
-    def get_user_jobs_without_provider(self, user, limit: Optional[int], offset: Optional[int], ordering="-created") -> List[Job]:
+    def get_user_jobs_without_provider(
+        self, user, limit: Optional[int], offset: Optional[int], ordering="-created"
+    ) -> List[Job]:
         """
         Retrieves jobs created by a specific user that do not have an associated provider.
 

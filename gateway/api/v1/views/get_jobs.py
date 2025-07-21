@@ -23,16 +23,13 @@ def serialize_input(request):
     Prepare the input for the end-point
     """
     user = request.user
-    limit = request.query_params.get("limit", 50)  # TODO check what was the previous default limit
+    limit = request.query_params.get(
+        "limit", 50
+    )  # TODO check what was the previous default limit
     offset = request.query_params.get("offset", 0)
     input_filter = request.query_params.get("filter")
 
-    return {
-        "user": user,
-        "limit": limit,
-        "offset": offset,
-        "filter": input_filter
-    }
+    return {"user": user, "limit": limit, "offset": offset, "filter": input_filter}
 
 
 def serialize_output(jobs: List[Job]):

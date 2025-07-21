@@ -1,5 +1,3 @@
-
-
 import logging
 from typing import List
 from api.models import Job
@@ -21,7 +19,7 @@ class GetJobsUseCase:
         self.filter_type = filter_type
         self.filters = {
             TypeFilter.CATALOG: self._get_catalog_jobs,
-            TypeFilter.SERVERLESS: self._get_serverless_jobs
+            TypeFilter.SERVERLESS: self._get_serverless_jobs,
         }
 
     def execute(self) -> List[Job]:
@@ -45,14 +43,10 @@ class GetJobsUseCase:
 
     def _get_catalog_jobs(self):
         return self.jobs_repository.get_user_jobs_with_provider(
-            self.user,
-            limit=self.limit,
-            offset=self.offset
+            self.user, limit=self.limit, offset=self.offset
         )
 
     def _get_serverless_jobs(self):
         return self.jobs_repository.get_user_jobs_without_provider(
-            self.user,
-            limit=self.limit,
-            offset=self.offset
+            self.user, limit=self.limit, offset=self.offset
         )
