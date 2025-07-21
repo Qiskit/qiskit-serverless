@@ -61,12 +61,14 @@ class JobsRepository:
         user_criteria = Q(author=user)
         return Job.objects.filter(user_criteria).order_by(ordering)
 
-    def get_user_jobs_with_provider(self, user, ordering="-created") -> List[Job]:
+    def get_user_jobs_with_provider(self, user, limit: Optional[int], offset: Optional[int], ordering="-created") -> List[Job]:
         """
         Retrieves jobs created by a specific user that have an associated provider.
 
         Args:
             user (User): The user whose jobs are to be retrieved.
+            limit (int, optional): Maximum number of jobs to return. If None, returns all results.
+            offset (int, optional): Number of jobs to skip before returning results. If None, starts from beginning.
             ordering (str, optional): The field to order the results by. Defaults to "-created".
 
         Returns:
@@ -74,26 +76,55 @@ class JobsRepository:
         """
         user_criteria = Q(author=user)
         provider_exists_criteria = ~Q(program__provider=None)
-        return Job.objects.filter(user_criteria & provider_exists_criteria).order_by(
-            ordering
-        )
+        queryset = Job.objects.filter(
+            user_criteria & provider_exists_criteria).order_by(ordering)
 
-    def get_user_jobs_without_provider(self, user, ordering="-created") -> List[Job]:
+        if offset is not None or limit is not None:
+            start = offset if offset is not None else 0
+            end = (start + limit) if limit is not None else None
+            queryset = queryset[start:end]
+
+        return queryset
+
+    def get_user_jobs_without_provider(self, user, limit: Optional[int], offset: Optional[int], ordering="-created") -> List[Job]:
         """
         Retrieves jobs created by a specific user that do not have an associated provider.
 
         Args:
             user (User): The user whose jobs are to be retrieved.
+            limit (int, optional): Maximum number of jobs to return. If None, returns all results.
+            offset (int, optional): Number of jobs to skip before returning results. If None, starts from beginning.
             ordering (str, optional): The field to order the results by. Defaults to "-created".
 
         Returns:
             List[Job]: A queryset of Job objects without a provider.
+
+        Raises:
+            ValueError: If limit or offset are negative values.
         """
+        # Validate pagination parameters
+        if limit is not None and limit < 0:
+            raise ValueError("Limit must be a non-negative integer")
+        if offset is not None and offset < 0:
+            raise ValueError("Offset must be a non-negative integer")
+
         user_criteria = Q(author=user)
         provider_not_exists_criteria = Q(program__provider=None)
-        return Job.objects.filter(
+        queryset = Job.objects.filter(
             user_criteria & provider_not_exists_criteria
         ).order_by(ordering)
+
+        if offset is not None or limit is not None:
+            start = offset if offset is not None else 0
+            end = (start + limit) if limit is not None else None
+
+            total_count = queryset.count()
+            if start >= total_count and total_count > 0:
+                return queryset.none()
+
+            queryset = queryset[start:end]
+
+        return queryset
 
     def update_job_sub_status(self, job: Job, sub_status: Optional[str]) -> bool:
         """
