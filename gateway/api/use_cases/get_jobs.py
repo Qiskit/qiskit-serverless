@@ -22,6 +22,7 @@ class GetJobsUseCase:
         type_filter: Optional[TypeFilter] = None,
         status: Optional[str] = None,
         created_after: Optional[datetime] = None,
+        function_name: Optional[str] = None,
     ):
         self.user = user
         self.limit = limit
@@ -29,6 +30,7 @@ class GetJobsUseCase:
         self.type_filter = type_filter
         self.status = status
         self.created_after = created_after
+        self.function_name = function_name
 
     def execute(self) -> tuple[List[Job], int]:
         """
@@ -40,7 +42,10 @@ class GetJobsUseCase:
                 - Total count of jobs matching filters (before pagination)
         """
         filters = JobFilters(
-            type=self.type_filter, status=self.status, created_after=self.created_after
+            type=self.type_filter,
+            status=self.status,
+            created_after=self.created_after,
+            function=self.function_name,
         )
 
         queryset, total = self.jobs_repository.get_user_jobs(

@@ -56,6 +56,8 @@ def serialize_input(request):
                 "Invalid created_after format. Use ISO 8601 format (e.g., '2024-01-01T00:00:00Z')"
             )
 
+    function_name = request.query_params.get("function")
+
     return {
         "user": user,
         "limit": limit,
@@ -63,6 +65,7 @@ def serialize_input(request):
         "type_filter": type_filter,
         "status": status_filter,
         "created_after": created_after,
+        "function_name": function_name,
     }
 
 
@@ -185,6 +188,7 @@ def get_jobs(request):
         type_filter=input_data["type_filter"],
         status=input_data["status"],
         created_after=input_data["created_after"],
+        function_name=input_data["function_name"],
     ).execute()
 
     return Response(

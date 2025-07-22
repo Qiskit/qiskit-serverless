@@ -1,5 +1,6 @@
 """This module contains the usecase get_jobs"""
 import logging
+from datetime import datetime
 from typing import List, Tuple, Optional
 from api.models import Job, VIEW_PROGRAM_PERMISSION
 from api.access_policies.providers import ProviderAccessPolicy
@@ -29,15 +30,20 @@ class GetProviderJobsUseCase:
         self,
         user,
         provider: str,
-        function: str,
+        function_name: str,
         limit: Optional[int],
         offset: Optional[int],
+        status: Optional[str] = None,
+        created_after: Optional[datetime] = None,
     ):
         self.user = user
         self.provider = provider
-        self.function = function
+        self.function_name = function_name
         self.limit = limit
         self.offset = offset
+        self.status = status
+        self.created_after = created_after
+        self.function_name = function_name
 
     def execute(self) -> Tuple[List[Job], int]:
         """
@@ -62,13 +68,17 @@ class GetProviderJobsUseCase:
         function = self.function_repo.get_function_by_permission(
             user=self.user,
             permission_name=VIEW_PROGRAM_PERMISSION,
-            function_title=self.function,
+            function_title=self.function_name,
             provider_name=self.provider,
         )
         if not function:
             raise FunctionNotFoundException()
 
-        filters = JobFilters(function=self.function)
+        filters = JobFilters(
+            status=self.status,
+            created_after=self.created_after,
+            function=self.function_name,
+        )
         queryset, total = self.jobs_repo.get_user_jobs(
             user=self.user, filters=filters, limit=self.limit, offset=self.offset
         )
