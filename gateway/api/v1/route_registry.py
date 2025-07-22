@@ -2,7 +2,7 @@
 RouteRegistry Module
 """
 
-from typing import Callable, List, Optional
+from typing import Callable, List
 from django.urls import path
 from django.urls.resolvers import URLPattern
 
