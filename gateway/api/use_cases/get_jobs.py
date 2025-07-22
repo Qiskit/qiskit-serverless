@@ -41,7 +41,11 @@ class GetJobsUseCase:
         if has_to_filter:
             return self.filters[self.filter_type]()
 
-        return self.jobs_repository.get_user_jobs(self.user, self.limit, self.offset)
+        queryset, total = self.jobs_repository.get_user_jobs(
+            self.user, self.limit, self.offset
+        )
+
+        return list(queryset), total
 
     def _get_catalog_jobs(self):
         return self.jobs_repository.get_user_jobs_with_provider(

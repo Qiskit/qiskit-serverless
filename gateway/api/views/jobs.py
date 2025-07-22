@@ -90,20 +90,21 @@ class JobViewSet(viewsets.GenericViewSet):
         - If `filter=catalog`, returns jobs authored by the user with an existing provider.
         - If `filter=serverless`, returns jobs authored by the user without a provider.
         - Otherwise, returns all jobs authored by the user.
+
         Returns:
             QuerySet: A filtered queryset of `Job` objects ordered by creation date (descending).
         """
         type_filter = self.request.query_params.get("filter")
-        if type_filter:
-            if type_filter == TypeFilter.CATALOG:
-                return self.jobs_repository.get_user_jobs_with_provider(
-                    self.request.user
-                )
-            if type_filter == TypeFilter.SERVERLESS:
-                return self.jobs_repository.get_user_jobs_without_provider(
-                    self.request.user
-                )
-        return self.jobs_repository.get_user_jobs(self.request.user)
+        user = self.request.user
+
+        if type_filter == TypeFilter.CATALOG:
+            queryset, _ = self.jobs_repository.get_user_jobs_with_provider(user)
+        elif type_filter == TypeFilter.SERVERLESS:
+            queryset, _ = self.jobs_repository.get_user_jobs_without_provider(user)
+        else:
+            queryset, _ = self.jobs_repository.get_user_jobs(user)
+
+        return queryset
 
     @_trace
     def retrieve(self, request, pk=None):  # pylint: disable=unused-argument

@@ -49,8 +49,8 @@ class JobsRepository:
 
     def _paginate_queryset(
         self, queryset: QuerySet, limit: Optional[int], offset: Optional[int]
-    ) -> Tuple[List, int]:
-        """Applies pagination and returns (results, total_count)."""
+    ) -> Tuple[QuerySet, int]:
+        """Applies pagination and returns (queryset, total_count)."""
         if limit is not None and limit < 0:
             raise ValueError("Limit must be non-negative")
         if offset is not None and offset < 0:
@@ -63,11 +63,11 @@ class JobsRepository:
             end = (start + limit) if limit is not None else None
 
             if start >= total_count > 0:
-                return [], total_count
+                return queryset.none(), total_count
 
             queryset = queryset[start:end]
 
-        return list(queryset), total_count
+        return queryset, total_count
 
     def get_user_jobs(
         self,
@@ -75,7 +75,7 @@ class JobsRepository:
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         ordering="-created",
-    ) -> Tuple[List[Job], int]:
+    ) -> Tuple[QuerySet[Job], int]:
         """
         Retrieves jobs created by a specific user.
 
@@ -89,8 +89,8 @@ class JobsRepository:
                 Defaults to "-created".
 
         Returns:
-            Tuple[List[Job], int]: A tuple containing:
-                - List of Job objects for the current page (empty list if offset
+            Tuple[QuerySet[Job], int]: A tuple containing:
+                - QuerySet of Job objects for the current page (empty QuerySet if offset
                   exceeds total)
                 - Total count of jobs matching the criteria (before pagination)
 
@@ -106,7 +106,7 @@ class JobsRepository:
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         ordering="-created",
-    ) -> Tuple[List[Job], int]:
+    ) -> Tuple[QuerySet[Job], int]:
         """
         Retrieves jobs created by a specific user that have an associated provider.
 
@@ -118,8 +118,8 @@ class JobsRepository:
             ordering (str, optional): The field to order the results by. Defaults to "-created".
 
         Returns:
-            Tuple[List[Job], int]: A tuple containing:
-                - List of Job objects for the current page
+            Tuple[QuerySet[Job], int]: A tuple containing:
+                - QuerySet of Job objects for the current page
                 - Total count of jobs matching the criteria (before pagination)
         """
         queryset = Job.objects.filter(
@@ -133,7 +133,7 @@ class JobsRepository:
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         ordering="-created",
-    ) -> Tuple[List[Job], int]:
+    ) -> Tuple[QuerySet[Job], int]:
         """
         Retrieves jobs created by a specific user that do not have an associated provider.
 
@@ -145,8 +145,9 @@ class JobsRepository:
             ordering (str, optional): The field to order the results by. Defaults to "-created".
 
         Returns:
-            Tuple[List[Job], int]: A tuple containing:
-                - List of Job objects for the current page (empty list if offset exceeds total)
+            Tuple[QuerySet[Job], int]: A tuple containing:
+                - QuerySet of Job objects for the current page (empty QuerySet if
+                  offset exceeds total)
                 - Total count of jobs matching the criteria (before pagination)
 
         Raises:
