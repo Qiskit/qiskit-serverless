@@ -23,9 +23,8 @@ from api.access_policies.providers import ProviderAccessPolicy
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
 from api.services.result_storage import ResultStorage
-from api.views.enums.type_filter import TypeFilter
 from api.access_policies.jobs import JobAccessPolicies
-from api.repositories.jobs import JobsRepository
+from api.repositories.jobs import JobsRepository, JobFilters
 from api.models import VIEW_PROGRAM_PERMISSION
 from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
@@ -97,12 +96,11 @@ class JobViewSet(viewsets.GenericViewSet):
         type_filter = self.request.query_params.get("filter")
         user = self.request.user
 
-        if type_filter == TypeFilter.CATALOG:
-            queryset, _ = self.jobs_repository.get_user_jobs_with_provider(user)
-        elif type_filter == TypeFilter.SERVERLESS:
-            queryset, _ = self.jobs_repository.get_user_jobs_without_provider(user)
-        else:
-            queryset, _ = self.jobs_repository.get_user_jobs(user)
+        filters = JobFilters()
+        if type_filter:
+            filters.type = type_filter
+
+        queryset, _ = self.jobs_repository.get_user_jobs(user, filters)
 
         return queryset
 

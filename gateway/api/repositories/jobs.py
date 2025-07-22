@@ -2,12 +2,24 @@
 Repository implementation for Job model
 """
 import logging
+from dataclasses import dataclass
+from datetime import datetime
 from typing import List, Optional, Tuple
 from django.db.models import Q, QuerySet
 from api.models import Job
 from api.models import Program as Function
+from api.views.enums.type_filter import TypeFilter
 
 logger = logging.getLogger("gateway")
+
+
+@dataclass
+class JobFilters:
+    """Simple, type-safe filters for Job queries."""
+
+    type: Optional[TypeFilter] = None
+    status: Optional[str] = None
+    created_after: Optional[datetime] = None
 
 
 class JobsRepository:
@@ -47,117 +59,6 @@ class JobsRepository:
         function_criteria = Q(program=function)
         return Job.objects.filter(function_criteria).order_by(ordering)
 
-    def _paginate_queryset(
-        self, queryset: QuerySet, limit: Optional[int], offset: Optional[int]
-    ) -> Tuple[QuerySet, int]:
-        """Applies pagination and returns (queryset, total_count)."""
-        if limit is not None and limit < 0:
-            raise ValueError("Limit must be non-negative")
-        if offset is not None and offset < 0:
-            raise ValueError("Offset must be non-negative")
-
-        total_count = queryset.count()
-
-        if offset is not None or limit is not None:
-            start = offset or 0
-            end = (start + limit) if limit is not None else None
-
-            if start >= total_count > 0:
-                return queryset.none(), total_count
-
-            queryset = queryset[start:end]
-
-        return queryset, total_count
-
-    def get_user_jobs(
-        self,
-        user,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        ordering="-created",
-    ) -> Tuple[QuerySet[Job], int]:
-        """
-        Retrieves jobs created by a specific user.
-
-        Args:
-            user (User): The user whose jobs are to be retrieved.
-            limit (int, optional): Maximum number of jobs to return.
-                If None, returns all results.
-            offset (int, optional): Number of jobs to skip before returning
-                results. If None, starts from beginning.
-            ordering (str, optional): The field to order the results by.
-                Defaults to "-created".
-
-        Returns:
-            Tuple[QuerySet[Job], int]: A tuple containing:
-                - QuerySet of Job objects for the current page (empty QuerySet if offset
-                  exceeds total)
-                - Total count of jobs matching the criteria (before pagination)
-
-        Raises:
-            ValueError: If limit or offset are negative values.
-        """
-        queryset = Job.objects.filter(author=user).order_by(ordering)
-        return self._paginate_queryset(queryset, limit, offset)
-
-    def get_user_jobs_with_provider(
-        self,
-        user,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        ordering="-created",
-    ) -> Tuple[QuerySet[Job], int]:
-        """
-        Retrieves jobs created by a specific user that have an associated provider.
-
-        Args:
-            user (User): The user whose jobs are to be retrieved.
-            limit (int, optional): Maximum number of jobs to return. If None, returns all results.
-            offset (int, optional): Number of jobs to skip before returning
-                results. If None, starts from beginning.
-            ordering (str, optional): The field to order the results by. Defaults to "-created".
-
-        Returns:
-            Tuple[QuerySet[Job], int]: A tuple containing:
-                - QuerySet of Job objects for the current page
-                - Total count of jobs matching the criteria (before pagination)
-        """
-        queryset = Job.objects.filter(
-            Q(author=user) & ~Q(program__provider=None)
-        ).order_by(ordering)
-        return self._paginate_queryset(queryset, limit, offset)
-
-    def get_user_jobs_without_provider(
-        self,
-        user,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        ordering="-created",
-    ) -> Tuple[QuerySet[Job], int]:
-        """
-        Retrieves jobs created by a specific user that do not have an associated provider.
-
-        Args:
-            user (User): The user whose jobs are to be retrieved.
-            limit (int, optional): Maximum number of jobs to return. If None, returns all results.
-            offset (int, optional): Number of jobs to skip before returning results.
-                If None, starts from beginning.
-            ordering (str, optional): The field to order the results by. Defaults to "-created".
-
-        Returns:
-            Tuple[QuerySet[Job], int]: A tuple containing:
-                - QuerySet of Job objects for the current page (empty QuerySet if
-                  offset exceeds total)
-                - Total count of jobs matching the criteria (before pagination)
-
-        Raises:
-            ValueError: If limit or offset are negative values.
-        """
-        queryset = Job.objects.filter(
-            Q(author=user) & Q(program__provider=None)
-        ).order_by(ordering)
-        return self._paginate_queryset(queryset, limit, offset)
-
     def update_job_sub_status(self, job: Job, sub_status: Optional[str]) -> bool:
         """
         Updates the sub-status of a running job.
@@ -191,3 +92,68 @@ class JobsRepository:
             )
 
         return updated == 1
+
+    def get_user_jobs(  # pylint:  disable=too-many-positional-arguments
+        self,
+        user,
+        filters: Optional[JobFilters] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        ordering: str = "-created",
+    ) -> Tuple[QuerySet[Job], int]:
+        """
+        Get user jobs with optional filters and pagination.
+
+        Args:
+            user: The user whose jobs to retrieve
+            filters: Optional filters to apply
+            limit: Max number of results
+            offset: Number of results to skip
+            ordering: Field to order by (default: newest first)
+
+        Returns:
+            (queryset, total_count): Filtered results and total count
+        """
+        queryset = Job.objects.filter(author=user).order_by(ordering)
+
+        if filters:
+            queryset = self._apply_filters(queryset, filters)
+
+        return self._paginate_queryset(queryset, limit, offset)
+
+    def _apply_filters(self, queryset: QuerySet, filters: JobFilters) -> QuerySet:
+        """Apply filters to queryset in a clean, modular way."""
+        if filters.type == TypeFilter.CATALOG:
+            queryset = queryset.exclude(program__provider=None)
+        elif filters.type == TypeFilter.SERVERLESS:
+            queryset = queryset.filter(program__provider=None)
+
+        if filters.status:
+            queryset = queryset.filter(status=filters.status)
+
+        if filters.created_after:
+            queryset = queryset.filter(created__gte=filters.created_after)
+
+        return queryset
+
+    def _paginate_queryset(
+        self, queryset: QuerySet, limit: Optional[int], offset: Optional[int]
+    ) -> Tuple[QuerySet, int]:
+        """Apply pagination to queryset."""
+        if limit is not None and limit < 0:
+            raise ValueError("Limit must be non-negative")
+        if offset is not None and offset < 0:
+            raise ValueError("Offset must be non-negative")
+
+        total_count = queryset.count()
+
+        if offset or limit:
+            start = offset or 0
+            end = (start + limit) if limit else None
+
+            if start >= total_count > 0:
+                return queryset.none(), total_count
+
+            queryset = queryset[start:end]
+
+        return queryset, total_count
