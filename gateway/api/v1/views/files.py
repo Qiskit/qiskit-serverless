@@ -79,7 +79,7 @@ class FilesViewSet(views.FilesViewSet):
                 description="Qiskit Function title",
                 type=openapi.TYPE_STRING,
                 required=True,
-            ),
+            ),  # pylint: disable=duplicate-code
             openapi.Parameter(
                 "provider",
                 openapi.IN_QUERY,

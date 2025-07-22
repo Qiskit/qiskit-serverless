@@ -46,4 +46,4 @@ router.register(
     basename=v1_views.CatalogViewSet.BASE_NAME,
 )
 
-urlpatterns = router.urls + RouteRegistry.get()
+urlpatterns = RouteRegistry.get() + router.urls

@@ -65,7 +65,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:jobs-provider-list"), {}, format="json"
+            reverse("v1:get-provider-jobs"), {}, format="json"
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
@@ -81,7 +81,7 @@ class TestJobApi(APITestCase):
         function = "Program"
 
         jobs_response = self.client.get(
-            reverse("v1:jobs-provider-list"),
+            reverse("v1:get-provider-jobs"),
             {"provider": provider, "function": function},
             format="json",
         )
@@ -98,7 +98,7 @@ class TestJobApi(APITestCase):
         function = "Program"
 
         jobs_response = self.client.get(
-            reverse("v1:jobs-provider-list"),
+            reverse("v1:get-provider-jobs"),
             {"provider": provider, "function": function},
             format="json",
         )
@@ -115,7 +115,7 @@ class TestJobApi(APITestCase):
         function = "fake_program"
 
         jobs_response = self.client.get(
-            reverse("v1:jobs-provider-list"),
+            reverse("v1:get-provider-jobs"),
             {"provider": provider, "function": function},
             format="json",
         )
@@ -133,7 +133,7 @@ class TestJobApi(APITestCase):
         function = "Docker-Image-Program"
 
         jobs_response = self.client.get(
-            reverse("v1:jobs-provider-list"),
+            reverse("v1:get-provider-jobs"),
             {"provider": provider, "function": function},
             format="json",
         )

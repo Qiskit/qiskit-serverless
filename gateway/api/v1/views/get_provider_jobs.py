@@ -1,8 +1,6 @@
 """
 API V1: list jobs endpoint
 """
-
-# pylint: disable=duplicate-code
 from typing import List, Optional
 from urllib.parse import urlencode
 
@@ -11,14 +9,16 @@ from drf_yasg import openapi
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
-from django.utils.dateparse import parse_datetime
 
 from django.conf import settings
 from api.models import Job
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
-from api.views.enums.type_filter import TypeFilter
-from api.use_cases.get_jobs import GetJobsUseCase
+from api.use_cases.get_provider_jobs import (
+    GetProviderJobsUseCase,
+    ProviderNotFoundException,
+    FunctionNotFoundException,
+)
 
 
 def serialize_input(request):
@@ -35,34 +35,17 @@ def serialize_input(request):
     if offset < 0:
         raise ValueError("Offset must be non-negative")
 
-    type_filter = None
-    type_param = request.query_params.get("filter")
-    if type_param:
-        try:
-            type_filter = TypeFilter(type_param)
-        except ValueError as exc:
-            raise ValueError(
-                f"Invalid type filter. Must be one of: {', '.join([e.value for e in TypeFilter])}"
-            ) from exc
-
-    status_filter = request.query_params.get("status")
-
-    created_after = None
-    created_after_param = request.query_params.get("created_after")
-    if created_after_param:
-        created_after = parse_datetime(created_after_param)
-        if created_after is None:
-            raise ValueError(
-                "Invalid created_after format. Use ISO 8601 format (e.g., '2024-01-01T00:00:00Z')"
-            )
+    provider = request.query_params.get("provider")
+    function = request.query_params.get("function")
+    if not provider or not function:
+        raise ValueError("Qiskit Function title and Provider name are mandatory")
 
     return {
         "user": user,
         "limit": limit,
         "offset": offset,
-        "type_filter": type_filter,
-        "status": status_filter,
-        "created_after": created_after,
+        "provider": provider,
+        "function": function,
     }
 
 
@@ -105,7 +88,7 @@ def serialize_output(
 
 @swagger_auto_schema(
     method="get",
-    operation_description="List author Jobs with filtering support",
+    operation_description="List provider Jobs",
     responses={
         status.HTTP_200_OK: v1_serializers.JobSerializerWithoutResult(many=True),
         status.HTTP_400_BAD_REQUEST: openapi.Response(
@@ -133,59 +116,63 @@ def serialize_output(
             "offset",
             openapi.IN_QUERY,
             description="Number of results to skip before starting to collect results",
-            type=openapi.TYPE_INTEGER,
+            type=openapi.TYPE_INTEGER,  # pylint: disable=duplicate-code
             minimum=0,
         ),
         openapi.Parameter(
-            "type",
+            "provider",
             openapi.IN_QUERY,
-            description="Filter by job type",
-            type=openapi.TYPE_STRING,
-            enum=[e.value for e in TypeFilter],
-        ),
-        openapi.Parameter(
-            "status",
-            openapi.IN_QUERY,
-            description="Filter by job status (e.g., 'running', 'completed', 'failed')",
+            description="Function Provider name",
             type=openapi.TYPE_STRING,
         ),
         openapi.Parameter(
-            "created_after",
+            "function",
             openapi.IN_QUERY,
-            description="Filter jobs created after this datetime. Use ISO 8601"
-            " format (e.g., '2024-01-01T00:00:00Z')",
+            description="Function title",
             type=openapi.TYPE_STRING,
-            format="date-time",
         ),
     ],
 )
-@endpoint("jobs")
+@endpoint("jobs/provider")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
-def get_jobs(request):
+def get_provider_jobs(request):
     """
-    List jobs with optional filtering.
+    It returns a list with the jobs for the provider function:
+        provider_name/function_title
 
     Query parameters:
     - limit: Number of results to return per page
     - offset: Number of results to skip
-    - type: Filter by job type ('catalog' or 'serverless')
-    - status: Filter by job status
-    - created_after: Filter jobs created after this datetime (ISO 8601 format)
+    - provider: provider name
+    - function: function title
     """
     try:
         input_data = serialize_input(request)
     except ValueError as e:
         return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    jobs, total = GetJobsUseCase(
-        user=input_data["user"],
-        limit=input_data["limit"],
-        offset=input_data["offset"],
-        type_filter=input_data["type_filter"],
-        status=input_data["status"],
-        created_after=input_data["created_after"],
-    ).execute()
+    try:
+        jobs, total = GetProviderJobsUseCase(
+            user=input_data["user"],
+            limit=input_data["limit"],
+            offset=input_data["offset"],
+            provider=input_data["provider"],
+            function=input_data["function"],
+        ).execute()
+    except ProviderNotFoundException:
+        return Response(
+            {"message": f"Provider {input_data['provider']} doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except FunctionNotFoundException:
+        return Response(
+            {
+                "message": f"Qiskit Function \
+                    {input_data['provider']}/{input_data['function']} doesn't exist."
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
     return Response(
         serialize_output(

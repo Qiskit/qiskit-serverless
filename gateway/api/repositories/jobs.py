@@ -20,6 +20,8 @@ class JobFilters:
     type: Optional[TypeFilter] = None
     status: Optional[str] = None
     created_after: Optional[datetime] = None
+    provider: Optional[str] = None
+    function: Optional[str] = None
 
 
 class JobsRepository:

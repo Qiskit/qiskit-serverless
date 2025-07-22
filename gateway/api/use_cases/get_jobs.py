@@ -17,7 +17,7 @@ class GetJobsUseCase:
     def __init__(  # pylint:  disable=too-many-positional-arguments
         self,
         user,
-        limit: int = 25,
+        limit: Optional[int],
         offset: int = 0,
         type_filter: Optional[TypeFilter] = None,
         status: Optional[str] = None,
