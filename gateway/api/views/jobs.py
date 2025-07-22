@@ -23,6 +23,7 @@ from api.access_policies.providers import ProviderAccessPolicy
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
 from api.services.result_storage import ResultStorage
+from api.views.enums.type_filter import TypeFilter
 from api.access_policies.jobs import JobAccessPolicies
 from api.repositories.jobs import JobsRepository
 from api.models import VIEW_PROGRAM_PERMISSION
@@ -82,6 +83,27 @@ class JobViewSet(viewsets.GenericViewSet):
         Returns a `JobSerializerWithoutResult` instance
         """
         return JobSerializerWithoutResult(*args, **kwargs)
+
+    def get_queryset(self):
+        """
+        Returns a filtered queryset of `Job` objects based on the `filter` query parameter.
+        - If `filter=catalog`, returns jobs authored by the user with an existing provider.
+        - If `filter=serverless`, returns jobs authored by the user without a provider.
+        - Otherwise, returns all jobs authored by the user.
+        Returns:
+            QuerySet: A filtered queryset of `Job` objects ordered by creation date (descending).
+        """
+        type_filter = self.request.query_params.get("filter")
+        if type_filter:
+            if type_filter == TypeFilter.CATALOG:
+                return self.jobs_repository.get_user_jobs_with_provider(
+                    self.request.user
+                )
+            if type_filter == TypeFilter.SERVERLESS:
+                return self.jobs_repository.get_user_jobs_without_provider(
+                    self.request.user
+                )
+        return self.jobs_repository.get_user_jobs(self.request.user)
 
     @_trace
     def retrieve(self, request, pk=None):  # pylint: disable=unused-argument

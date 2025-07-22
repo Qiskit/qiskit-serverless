@@ -101,7 +101,11 @@ class JobsRepository:
         return self._paginate_queryset(queryset, limit, offset)
 
     def get_user_jobs_with_provider(
-        self, user, limit: Optional[int], offset: Optional[int], ordering="-created"
+        self,
+        user,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        ordering="-created",
     ) -> Tuple[List[Job], int]:
         """
         Retrieves jobs created by a specific user that have an associated provider.
@@ -124,7 +128,11 @@ class JobsRepository:
         return self._paginate_queryset(queryset, limit, offset)
 
     def get_user_jobs_without_provider(
-        self, user, limit: Optional[int], offset: Optional[int], ordering="-created"
+        self,
+        user,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        ordering="-created",
     ) -> Tuple[List[Job], int]:
         """
         Retrieves jobs created by a specific user that do not have an associated provider.
