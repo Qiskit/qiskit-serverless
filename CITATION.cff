@@ -12,6 +12,6 @@ authors:
 - family-names: "Peña Tapia"
   given-names: "Elena"
 title: "Qiskit Serverless"
-version: 0.25.1
+version: 0.25.2
 date-released: 2023-02-14
 url: "https://github.com/Qiskit/qiskit-serverless"
