@@ -1,5 +1,6 @@
 ffsim==0.0.56
 mergedeep==1.3.4
+mthree==3.0.0
 pyscf==2.9.0
 qiskit-addon-aqc-tensor[quimb-jax]==0.2.0
 qiskit-addon-obp==0.3.0
