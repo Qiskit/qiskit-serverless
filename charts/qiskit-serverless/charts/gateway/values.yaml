@@ -26,7 +26,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.25.1"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.25.2"
     cpu: 2
     memory: 2
     gpu: 1
