@@ -58,50 +58,6 @@ class FilesViewSet(viewsets.ViewSet):
     provider_repository = ProviderRepository()
 
     @_trace
-    def list(self, request):
-        """
-        It returns a list with the names of available files for the user directory:
-            it will look under its username or username/provider_name/function_title
-        """
-
-        username = request.user.username
-        provider_name = sanitize_name(request.query_params.get("provider", None))
-        function_title = sanitize_name(request.query_params.get("function", None))
-        working_dir = WorkingDir.USER_STORAGE
-
-        if function_title is None:
-            return Response(
-                {"message": "Qiskit Function title is mandatory"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        function = self.function_repository.get_function_by_permission(
-            user=request.user,
-            permission_name=RUN_PROGRAM_PERMISSION,
-            function_title=function_title,
-            provider_name=provider_name,
-        )
-        if not function:
-            if provider_name:
-                error_message = f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
-            else:
-                error_message = f"Qiskit Function {function_title} doesn't exist."
-            return Response(
-                {"message": error_message},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        file_storage = FileStorage(
-            username=username,
-            working_dir=working_dir,
-            function_title=function_title,
-            provider_name=provider_name,
-        )
-        files = file_storage.get_files()
-
-        return Response({"results": files})
-
-    @_trace
     @action(methods=["GET"], detail=False, url_path="provider")
     def provider_list(self, request):
         """

@@ -19,28 +19,6 @@ class FilesViewSet(views.FilesViewSet):
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
     @swagger_auto_schema(
-        operation_description="List of available files in the user directory",
-        manual_parameters=[
-            openapi.Parameter(
-                "provider",
-                openapi.IN_QUERY,
-                description="provider name",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-            openapi.Parameter(
-                "function",
-                openapi.IN_QUERY,
-                description="function title",
-                type=openapi.TYPE_STRING,
-                required=True,
-            ),
-        ],
-    )
-    def list(self, request):
-        return super().list(request)
-
-    @swagger_auto_schema(
         operation_description="List of available files in the provider directory",
         manual_parameters=[
             openapi.Parameter(
