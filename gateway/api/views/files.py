@@ -58,62 +58,6 @@ class FilesViewSet(viewsets.ViewSet):
     provider_repository = ProviderRepository()
 
     @_trace
-    @action(methods=["GET"], detail=False, url_path="provider")
-    def provider_list(self, request):
-        """
-        It returns a list with the names of available files for the provider working directory:
-            provider_name/function_title
-        """
-        username = request.user.username
-        provider_name = sanitize_name(request.query_params.get("provider"))
-        function_title = sanitize_name(request.query_params.get("function"))
-        working_dir = WorkingDir.PROVIDER_STORAGE
-
-        if function_title is None or provider_name is None:
-            return Response(
-                {
-                    "message": "File name, Qiskit Function title and Provider name are mandatory"  # pylint: disable=line-too-long
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        provider = self.provider_repository.get_provider_by_name(name=provider_name)
-        if provider is None:
-            return Response(
-                {"message": f"Provider {provider_name} doesn't exist."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        if not ProviderAccessPolicy.can_access(user=request.user, provider=provider):
-            return Response(
-                {"message": f"Provider {provider_name} doesn't exist."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        function = self.function_repository.get_function_by_permission(
-            user=request.user,
-            permission_name=RUN_PROGRAM_PERMISSION,
-            function_title=function_title,
-            provider_name=provider_name,
-        )
-        if not function:
-            return Response(
-                {
-                    "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        file_storage = FileStorage(
-            username=username,
-            working_dir=working_dir,
-            function_title=function_title,
-            provider_name=provider_name,
-        )
-        files = file_storage.get_files()
-
-        return Response({"results": files})
-
-    @_trace
     @action(methods=["GET"], detail=False)
     def download(self, request):
         """

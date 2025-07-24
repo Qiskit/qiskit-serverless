@@ -56,5 +56,3 @@ router.register(
 
 urlpatterns = RouteRegistry.get() + router.urls
 
-for urlpattern in urlpatterns:
-    print(urlpattern)
