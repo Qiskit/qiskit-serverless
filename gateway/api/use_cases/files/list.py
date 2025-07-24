@@ -4,6 +4,7 @@ import logging
 from typing import List
 from api.services.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
+from api.domain.exceptions.not_found_error import NotFoundError
 
 from api.models import RUN_PROGRAM_PERMISSION
 
@@ -35,7 +36,7 @@ class FilesListUseCase:
                 error_message = f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
             else:
                 error_message = f"Qiskit Function {function_title} doesn't exist."
-            raise ValueError({"message": error_message})
+            raise NotFoundError(error_message)
 
         file_storage = FileStorage(
             username=user.username,
