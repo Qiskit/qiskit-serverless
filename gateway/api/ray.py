@@ -21,6 +21,7 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+from api.services.arguments_storage import ArgumentsStorage
 from api.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
 from api.services.file_storage import FileStorage, WorkingDir
 from api.utils import (
@@ -112,24 +113,24 @@ class JobHandler:
                     f"Program [{program.title}] has no image or artifact associated."
                 )
 
-            # get entrypoint
-            entrypoint = f"python {program.entrypoint}"
-
             # upload arguments to working directory
-            # if no arguments, write an empty dict to the arguments file
-            with open(
-                working_directory_for_upload + "/arguments.serverless",
-                "w",
-                encoding="utf-8",
-            ) as f:
-                if job.arguments:
+            storage = ArgumentsStorage(job.author.username)
+            arguments = storage.get(job.id) or job.arguments
+            arguments_file = os.path.join(
+                working_directory_for_upload, "arguments.serverless"
+            )
+
+            # DEPRECATED: arguments is now saved in /:username/:jobid,
+            # arguments.serverless is going to be deprecated
+            with open(arguments_file, "w", encoding="utf-8") as f:
+                if arguments:
                     logger.debug("uploading arguments for job [%s]", job.id)
-                    f.write(job.arguments)
+                    f.write(arguments)
                 else:
-                    f.write({})
+                    f.write("{}")
 
             # set tracing
-            carrier = {}
+            carrier: dict[str, str] = {}
             TraceContextTextMapPropagator().inject(carrier)
             env_w_span = json.loads(job.env_vars)
             try:
@@ -144,7 +145,7 @@ class JobHandler:
             )
             ray_job_id = retry_function(
                 callback=lambda: self.client.submit_job(
-                    entrypoint=entrypoint,
+                    entrypoint=f"python {program.entrypoint}",
                     runtime_env={
                         "working_dir": working_directory_for_upload,
                         "env_vars": env,
