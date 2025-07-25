@@ -32,7 +32,7 @@ class WorkingDir(Enum):
 logger = logging.getLogger("gateway")
 
 
-class FileStorage:  # pylint: disable=too-few-public-methods
+class FileStorage:
     """
     The main objective of this class is to manage the access of the users to their storage.
 

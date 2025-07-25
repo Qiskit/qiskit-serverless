@@ -19,7 +19,7 @@ from api.domain.authentication.channel import Channel
 logger = logging.getLogger("gateway.use_cases.authentication")
 
 
-class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
+class AuthenticationUseCase:
     """
     This class will manage the authentication flow for the api.
     """
@@ -40,12 +40,14 @@ class AuthenticationUseCase:  # pylint: disable=too-few-public-methods
         self.public_access = public_access
 
     def _get_authentication_service_instance(self) -> AuthenticationBase:
-        if self.channel == Channel.IBM_QUANTUM_PLATFORM:
-            logger.debug("Authentication will be executed with IBM Cloud.")
+        if self.channel in (Channel.IBM_CLOUD, Channel.IBM_QUANTUM_PLATFORM):
+            logger.debug(
+                "Authentication will be executed with IBM Cloud Quantum Platform."
+            )
             return IBMQuantumPlatform(api_key=self.authorization_token, crn=self.crn)
 
         if self.channel == Channel.IBM_QUANTUM:
-            logger.debug("Authentication will be executed with Quantum Platform.")
+            logger.debug("Authentication will be executed with IQP.")
             return IBMQuantum(authorization_token=self.authorization_token)
 
         logger.debug("Authentication will be executed with Local service.")

@@ -50,6 +50,50 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
+    # local client doesn't make sense here
+    # since it follows a different logging mechanism
+    def test_function_with_errors(self, serverless_client: ServerlessClient):
+        """Integration test for faulty function run."""
+        circuit = QuantumCircuit(2)
+        circuit.h(0)
+        circuit.cx(0, 1)
+        circuit.measure_all()
+        circuit.draw()
+
+        function = QiskitFunction(
+            title="pattern-with-errors",
+            entrypoint="pattern_with_errors.py",
+            working_dir=resources_path,
+        )
+
+        runnable_function = serverless_client.upload(function)
+
+        assert runnable_function is not None
+        assert runnable_function.type == "GENERIC"
+
+        runnable_function = serverless_client.function(function.title)
+
+        assert runnable_function is not None
+        assert runnable_function.type == "GENERIC"
+
+        job = runnable_function.run(circuit=circuit)
+
+        assert job is not None
+        expected_message = (
+            "ImportError: attempted relative import with no known parent package"
+        )
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.result()
+
+        print(str(exc_info.value))
+        assert expected_message in str(exc_info.value)
+
+        assert job.status() == "ERROR"
+        assert isinstance(job.logs(), str)
+
+        print(str(exc_info.value))
+
     def test_function_with_arguments(self, base_client: BaseClient):
         """Integration test for Functions with arguments."""
         circuit = QuantumCircuit(2)
@@ -230,6 +274,13 @@ class TestFunctionsDocker:
             sleep(1)
 
         assert job.status() == "RUNNING: MAPPING"
+
+    def test_dependencies_versions(self, serverless_client: ServerlessClient):
+        """Integration test for run functions multiple times."""
+
+        deps = serverless_client.dependencies_versions()
+
+        assert deps == ["pendulum>=3.0.0", "wheel>=0.45.1"]
 
     def test_execute_functions_in_parallel(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
