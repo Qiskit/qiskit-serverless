@@ -20,6 +20,7 @@ import tempfile
 import numpy as np
 from qiskit.circuit.random import random_circuit
 from qiskit_ibm_runtime import QiskitRuntimeService
+from unittest.mock import patch
 
 from qiskit_serverless.core.constants import DATA_PATH, ENV_JOB_ID_GATEWAY
 from qiskit_serverless.serializers.program_serializers import (
@@ -74,6 +75,7 @@ class TestArgParsing(TestCase):
 
         shutil.rmtree(self.test_data_dir)
 
+    @patch.dict(os.environ, {ENV_JOB_ID_GATEWAY: "0000000000"})
     def test_argument_parsing(self):
         """Tests argument parsing."""
         circuit = random_circuit(4, 2)
