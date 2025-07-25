@@ -15,6 +15,7 @@ import json
 import os
 from unittest import TestCase, skip
 from unittest.mock import patch
+from uuid import uuid4
 
 import shutil
 import tempfile
@@ -75,7 +76,7 @@ class TestArgParsing(TestCase):
 
         shutil.rmtree(self.test_data_dir)
 
-    @patch.dict(os.environ, {ENV_JOB_ID_GATEWAY: "0000000000"})
+    @patch.dict(os.environ, {ENV_JOB_ID_GATEWAY: str(uuid4())})
     def test_argument_parsing(self):
         """Tests argument parsing."""
         circuit = random_circuit(4, 2)

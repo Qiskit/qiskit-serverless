@@ -111,26 +111,21 @@ class LocalClient(BaseClient):
                 )
         arguments = arguments or {}
         data_path = "./"
+        job_id = str(uuid4())
 
         env_vars = {
             **(saved_program.env_vars or {}),
             **{OT_PROGRAM_NAME: saved_program.title},
             **{"PATH": os.environ["PATH"]},
             **{DATA_PATH: data_path},
+            **{ENV_JOB_ID_GATEWAY: job_id},
         }
-
-        job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
-
-        if not job_id_gateway:
-            raise QiskitServerlessException(
-                "JOB_ID_GATEWAY environment variable is missing or empty"
-            )
 
         arguments_dir = os.path.join(data_path, "arguments")
         if not os.path.exists(arguments_dir):
             os.makedirs(arguments_dir)
 
-        arguments_file_path = os.path.join(arguments_dir, f"{job_id_gateway}.json")
+        arguments_file_path = os.path.join(arguments_dir, f"{job_id}.json")
         with open(arguments_file_path, "w", encoding="utf-8") as f:
             json.dump(arguments, f, cls=QiskitObjectsEncoder)
 
@@ -157,7 +152,7 @@ class LocalClient(BaseClient):
         if results:
             result = results.group(1)
 
-        job = Job(job_id=str(uuid4()), job_service=self)
+        job = Job(job_id=job_id, job_service=self)
         self._jobs[job.job_id] = {
             "status": status,
             "logs": output,
