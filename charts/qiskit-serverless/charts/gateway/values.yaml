@@ -26,7 +26,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.25.1"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.25.2"
     cpu: 2
     memory: 2
     gpu: 1
@@ -52,7 +52,7 @@ application:
     keepClusterOnComplete: False
     programTimeoutDays: 14
   qiskitRuntime:
-    url: "https://auth.quantum-computing.ibm.com/api"
+    url: "https://cloud.ibm.com"
   iqpQcon:
     url: "https://api-qcon.quantum.ibm.com/api"
   publicGroupName: "ibm-q/open/main"

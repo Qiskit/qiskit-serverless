@@ -331,7 +331,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.25.1"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.25.2"
 )
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
@@ -388,10 +388,8 @@ GATEWAY_DYNAMIC_DEPENDENCIES = str(
     )
 )
 
-# qiskit runtime
-QISKIT_IBM_URL = os.environ.get(
-    "QISKIT_IBM_URL", "https://auth.quantum-computing.ibm.com/api"
-)
+# authentication base url for qiskit runtime
+QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
 
 # quantum api
 IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)

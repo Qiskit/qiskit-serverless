@@ -163,7 +163,25 @@ class LocalClient(BaseClient):
 
     def filtered_logs(self, job_id: str, **kwargs):
         """Return filtered logs."""
-        raise NotImplementedError
+        all_logs = self.logs(job_id=job_id)
+        included = ""
+        include = kwargs.get("include")
+        if include is not None:
+            for line in all_logs.split("\n"):
+                if re.search(include, line) is not None:
+                    included = included + line + "\n"
+        else:
+            included = all_logs
+
+        excluded = ""
+        exclude = kwargs.get("exclude")
+        if exclude is not None:
+            for line in included.split("\n"):
+                if line != "" and re.search(exclude, line) is None:
+                    excluded = excluded + line + "\n"
+        else:
+            excluded = included
+        return excluded
 
     #########################
     ####### Functions #######
