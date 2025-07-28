@@ -13,7 +13,7 @@ try:
     arguments = get_arguments()
 except Exception:
     save_result(traceback.format_exc())
-    return
+    raise
 
 runner = Runner()
 result = runner.run(arguments)
