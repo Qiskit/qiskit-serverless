@@ -9,7 +9,11 @@ sys.path.append("{{mount_path}}")
 
 from {{package_name}} import Runner
 
-arguments = get_arguments()
+try:
+    arguments = get_arguments()
+except Exception:
+    save_result(traceback.format_exc())
+    return
 
 runner = Runner()
 result = runner.run(arguments)
