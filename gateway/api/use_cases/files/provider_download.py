@@ -3,18 +3,17 @@
 import logging
 from typing import List
 from api.access_policies.providers import ProviderAccessPolicy
+from api.repositories.providers import ProviderRepository
 from api.services.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
-from api.repositories.providers import ProviderRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 
 from api.models import RUN_PROGRAM_PERMISSION
 
-
 logger = logging.getLogger("gateway.use_cases.files")
 
 
-class FilesProviderListUseCase:
+class FilesProviderDownloadUseCase:
     """
     This class will return available dynamic dependencies on execute.
     """
@@ -23,7 +22,9 @@ class FilesProviderListUseCase:
     provider_repository = ProviderRepository()
     working_dir = WorkingDir.PROVIDER_STORAGE
 
-    def execute(self, user, provider_name, function_title) -> List[str]:
+    def execute(
+        self, user, provider_name, function_title, requested_file_name
+    ) -> List[str]:
         """
         Get the dependencies from the whitlist
         """
@@ -52,5 +53,9 @@ class FilesProviderListUseCase:
             function_title=function_title,
             provider_name=provider_name,
         )
+        result = file_storage.get_file(file_name=requested_file_name)
 
-        return file_storage.get_files()
+        if result is None:
+            raise NotFoundError("Requested file was not found.")
+
+        return result

@@ -1,6 +1,7 @@
 """
 API V1: Available dependencies end-point.
 """
+# pylint: disable=duplicate-code
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
@@ -9,7 +10,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
-from api.domain.exceptions.not_found_error import NotFoundError
 from api.use_cases.files.provider_list import FilesProviderListUseCase
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
@@ -90,5 +90,5 @@ def files_provider_list(request: Request) -> Response:
     user = request.user
 
     files = FilesProviderListUseCase().execute(user, provider, function)
-    
+
     return Response({"results": files})

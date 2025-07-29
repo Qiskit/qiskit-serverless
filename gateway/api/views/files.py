@@ -58,61 +58,6 @@ class FilesViewSet(viewsets.ViewSet):
     provider_repository = ProviderRepository()
 
     @_trace
-    @action(methods=["GET"], detail=False)
-    def download(self, request):
-        """
-        It returns a file from user paths:
-            - username/
-            - username/provider_name/function_title
-        """
-        username = request.user.username
-        requested_file_name = sanitize_file_name(request.query_params.get("file", None))
-        provider_name = sanitize_name(request.query_params.get("provider", None))
-        function_title = sanitize_name(request.query_params.get("function", None))
-        working_dir = WorkingDir.USER_STORAGE
-
-        if not all([requested_file_name, function_title]):
-            return Response(
-                {"message": "File name and Qiskit Function title are mandatory"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        function = self.function_repository.get_function_by_permission(
-            user=request.user,
-            permission_name=RUN_PROGRAM_PERMISSION,
-            function_title=function_title,
-            provider_name=provider_name,
-        )
-        if not function:
-            if provider_name:
-                error_message = f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
-            else:
-                error_message = f"Qiskit Function {function_title} doesn't exist."
-            return Response(
-                {"message": error_message},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        file_storage = FileStorage(
-            username=username,
-            working_dir=working_dir,
-            function_title=function_title,
-            provider_name=provider_name,
-        )
-        result = file_storage.get_file(file_name=requested_file_name)
-        if result is None:
-            return Response(
-                {"message": "Requested file was not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        file_wrapper, file_type, file_size = result
-        response = StreamingHttpResponse(file_wrapper, content_type=file_type)
-        response["Content-Length"] = file_size
-        response["Content-Disposition"] = f"attachment; filename={requested_file_name}"
-        return response
-
-    @_trace
     @action(methods=["GET"], detail=False, url_path="provider/download")
     def provider_download(self, request):
         """

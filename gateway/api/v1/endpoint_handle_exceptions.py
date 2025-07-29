@@ -5,7 +5,6 @@ Endpoint decorator Module
 from functools import wraps
 from typing import Callable
 
-from django.http import JsonResponse
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -26,5 +25,5 @@ def endpoint_handle_exceptions(view_func: Callable):
                 {"message": error.message},
                 status=status.HTTP_404_NOT_FOUND,
             )
-    return wrapped_view
 
+    return wrapped_view

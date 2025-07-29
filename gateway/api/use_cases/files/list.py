@@ -1,5 +1,5 @@
 """Authentication use case to manage the authentication process in the api."""
-
+# pylint: disable=duplicate-code
 import logging
 from typing import List
 from api.services.file_storage import FileStorage, WorkingDir
@@ -18,12 +18,12 @@ class FilesListUseCase:
     """
 
     function_repository = FunctionRepository()
+    working_dir = WorkingDir.USER_STORAGE
 
     def execute(self, user, provider_name, function_title) -> List[str]:
         """
         Get the dependencies from the whitlist
         """
-        working_dir = WorkingDir.USER_STORAGE
         function = self.function_repository.get_function_by_permission(
             user=user,
             permission_name=RUN_PROGRAM_PERMISSION,
@@ -40,7 +40,7 @@ class FilesListUseCase:
 
         file_storage = FileStorage(
             username=user.username,
-            working_dir=working_dir,
+            working_dir=self.working_dir,
             function_title=function_title,
             provider_name=provider_name,
         )
