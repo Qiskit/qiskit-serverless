@@ -13,7 +13,7 @@ from api.views.enums.type_filter import TypeFilter
 logger = logging.getLogger("gateway")
 
 
-@dataclass
+@dataclass(slots=True)
 class JobFilters:
     """
     Filters for Job queries.
@@ -54,7 +54,7 @@ class JobsRepository:
         result_queryset = Job.objects.filter(id=job_id).first()
 
         if result_queryset is None:
-            logger.info("Job [%s] was not found", id)
+            logger.info("Job [%s] was not found", job_id)
 
         return result_queryset
 
@@ -137,10 +137,11 @@ class JobsRepository:
         if filters.user:
             queryset = queryset.filter(author=filters.user)
 
-        if filters.type == TypeFilter.CATALOG:
-            queryset = queryset.exclude(program__provider=None)
-        elif filters.type == TypeFilter.SERVERLESS:
-            queryset = queryset.filter(program__provider=None)
+        match filters.type:
+            case TypeFilter.CATALOG:
+                queryset = queryset.exclude(program__provider=None)
+            case TypeFilter.SERVERLESS:
+                queryset = queryset.filter(program__provider=None)
 
         if filters.status:
             queryset = queryset.filter(status=filters.status)
@@ -154,18 +155,15 @@ class JobsRepository:
         return queryset
 
     def _paginate_queryset(
-        self, queryset: QuerySet, limit: Optional[int], offset: Optional[int]
-    ) -> Tuple[QuerySet, int]:
+        self, queryset: QuerySet, limit: int | None, offset: int | None
+    ) -> tuple[QuerySet, int]:
         """Apply pagination to job queryset."""
         total_count = queryset.count()
 
-        if offset or limit:
-            start = offset or 0
-            end = (start + limit) if limit else None
+        start = offset or 0
+        end = start + limit if limit else None
 
-            if start >= total_count > 0:
-                return queryset.none(), total_count
+        if start >= total_count > 0:
+            return queryset.none(), total_count
 
-            queryset = queryset[start:end]
-
-        return queryset, total_count
+        return queryset[start:end], total_count

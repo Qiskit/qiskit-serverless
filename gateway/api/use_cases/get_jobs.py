@@ -12,7 +12,7 @@ logger = logging.getLogger("gateway.use_cases.get_jobs")
 class GetJobsUseCase:
     """Use case for retrieving user jobs with optional filtering and pagination."""
 
-    jobs_repository = JobsRepository()
+    jobs_repository: JobsRepository = JobsRepository()
 
     def __init__(  # pylint:  disable=too-many-positional-arguments
         self,
@@ -34,12 +34,10 @@ class GetJobsUseCase:
 
     def execute(self) -> tuple[List[Job], int]:
         """
-        Retrieve user jobs with optional filtering and pagination.
+        Retrieve user jobs with optional filters and pagination.
 
         Returns:
-            tuple[list[Job], int]: A tuple containing:
-                - List of Job objects matching the criteria (empty if no results)
-                - Total count of jobs matching filters (before pagination)
+            tuple[list[Job], int]: (jobs, total_count)
         """
         filters = JobFilters(
             user=self.user,

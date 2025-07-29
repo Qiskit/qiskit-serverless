@@ -14,7 +14,7 @@ from django.utils.dateparse import parse_datetime
 
 from django.conf import settings
 from api.models import Job
-from api.v1.views.utils import create_paginated_response
+from api.v1.views.utils import create_paginated_response, parse_positive_int
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.views.enums.type_filter import TypeFilter
@@ -22,18 +22,13 @@ from api.use_cases.get_jobs import GetJobsUseCase
 
 
 def serialize_input(request):
-    """
-    Prepare the input for the end-point with validation
-    """
+    """Parse and validate query parameters from the request."""
     user = request.user
 
-    limit = int(request.query_params.get("limit", settings.REST_FRAMEWORK["PAGE_SIZE"]))
-    if limit < 0:
-        raise ValueError("Limit must be non-negative")
-
-    offset = int(request.query_params.get("offset", 0))
-    if offset < 0:
-        raise ValueError("Offset must be non-negative")
+    limit = parse_positive_int(
+        request.query_params.get("limit"), settings.REST_FRAMEWORK["PAGE_SIZE"]
+    )
+    offset = parse_positive_int(request.query_params.get("offset"), 0)
 
     type_filter = None
     type_param = request.query_params.get("filter")
@@ -76,9 +71,7 @@ def serialize_output(
     limit: Optional[int] = None,
     offset: Optional[int] = None,
 ):
-    """
-    Prepare the output for the end-point
-    """
+    """Serialize job list into a paginated API response."""
     serializer = v1_serializers.JobSerializerWithoutResult(jobs, many=True)
     return create_paginated_response(
         data=serializer.data,
@@ -99,7 +92,7 @@ def serialize_output(
             schema=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
-                    "error": openapi.Schema(
+                    "message": openapi.Schema(
                         type=openapi.TYPE_STRING, description="Error message"
                     )
                 },
@@ -123,7 +116,7 @@ def serialize_output(
             minimum=0,
         ),
         openapi.Parameter(
-            "type",
+            "filter",
             openapi.IN_QUERY,
             description="Filter by job type",
             type=openapi.TYPE_STRING,
@@ -164,15 +157,7 @@ def get_jobs(request):
     except ValueError as e:
         return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    jobs, total = GetJobsUseCase(
-        user=input_data["user"],
-        limit=input_data["limit"],
-        offset=input_data["offset"],
-        type_filter=input_data["type_filter"],
-        status=input_data["status"],
-        created_after=input_data["created_after"],
-        function_name=input_data["function_name"],
-    ).execute()
+    jobs, total = GetJobsUseCase(**input_data).execute()
 
     return Response(
         serialize_output(

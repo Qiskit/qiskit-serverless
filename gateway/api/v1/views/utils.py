@@ -67,3 +67,23 @@ def create_paginated_response(
         response_data["previous"] = f"{base_url}?{urlencode(prev_params)}"
 
     return response_data
+
+
+def parse_positive_int(param: str, default: int) -> int:
+    """
+    Convert a string parameter to a non-negative integer.
+
+    Args:
+        param (str): String value to parse. If falsy, the default is used.
+        default (int): Default value if param is None or empty.
+
+    Returns:
+        int: The parsed non-negative integer.
+
+    Raises:
+        ValueError: If the parsed value is negative or not a valid integer.
+    """
+    value = int(param or default)
+    if value < 0:
+        raise ValueError(f"{param} must be non-negative")
+    return value

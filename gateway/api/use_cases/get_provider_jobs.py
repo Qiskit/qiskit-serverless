@@ -22,9 +22,9 @@ class FunctionNotFoundException(Exception):
 class GetProviderJobsUseCase:
     """Use case for retrieving provider jobs with optional filtering and pagination."""
 
-    provider_repo = ProviderRepository()
-    function_repo = FunctionRepository()
-    jobs_repo = JobsRepository()
+    provider_repo: ProviderRepository = ProviderRepository()
+    function_repo: FunctionRepository = FunctionRepository()
+    jobs_repo: JobsRepository = JobsRepository()
 
     def __init__(  # pylint:  disable=too-many-positional-arguments
         self,
@@ -43,28 +43,22 @@ class GetProviderJobsUseCase:
         self.offset = offset
         self.status = status
         self.created_after = created_after
-        self.function_name = function_name
 
     def execute(self) -> Tuple[List[Job], int]:
         """
         Retrieve provider jobs with access validation.
 
         Returns:
-            tuple[list[Job], int]: A tuple containing:
-                - List of Job objects matching the criteria (empty if no results)
-                - Total count of jobs matching filters (before pagination)
+            tuple[list[Job], int]: (jobs, total_count)
 
         Raises:
-            ProviderNotFoundException: If provider doesn't exist or user lacks access.
-            FunctionNotFoundException: If function doesn't exist or user lacks permission.
+            ProviderNotFoundException: If provider doesn't exist or access denied.
+            FunctionNotFoundException: If function doesn't exist or access denied.
         """
-
-        # validate provider access
         provider = self.provider_repo.get_provider_by_name(self.provider)
         if not provider or not ProviderAccessPolicy.can_access(self.user, provider):
             raise ProviderNotFoundException()
 
-        # validate function access
         function = self.function_repo.get_function_by_permission(
             user=self.user,
             permission_name=VIEW_PROGRAM_PERMISSION,

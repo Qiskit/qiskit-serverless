@@ -12,7 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django.conf import settings
 from django.utils.dateparse import parse_datetime
 from api.models import Job
-from api.v1.views.utils import create_paginated_response
+from api.v1.views.utils import create_paginated_response, parse_positive_int
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.use_cases.get_provider_jobs import (
@@ -28,13 +28,10 @@ def serialize_input(request):
     """
     user = request.user
 
-    limit = int(request.query_params.get("limit", settings.REST_FRAMEWORK["PAGE_SIZE"]))
-    if limit < 0:
-        raise ValueError("Limit must be non-negative")
-
-    offset = int(request.query_params.get("offset", 0))
-    if offset < 0:
-        raise ValueError("Offset must be non-negative")
+    limit = parse_positive_int(
+        request.query_params.get("limit"), settings.REST_FRAMEWORK["PAGE_SIZE"]
+    )
+    offset = parse_positive_int(request.query_params.get("offset"), 0)
 
     status_filter = request.query_params.get("status")
 
@@ -93,7 +90,7 @@ def serialize_output(
             schema=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
-                    "error": openapi.Schema(
+                    "message": openapi.Schema(
                         type=openapi.TYPE_STRING, description="Error message"
                     )
                 },
@@ -135,14 +132,13 @@ def serialize_output(
 @permission_classes([permissions.IsAuthenticated])
 def get_provider_jobs(request):
     """
-    It returns a list with the jobs for the provider function:
-        provider_name/function_title
+    Return a list of jobs for a given provider/function.
 
     Query parameters:
-    - limit: Number of results to return per page
-    - offset: Number of results to skip
-    - provider: provider name
-    - function: function title
+    - limit: results per page
+    - offset: results to skip
+    - provider: provider name (required)
+    - function: function title (required)
     """
     try:
         input_data = serialize_input(request)
@@ -150,15 +146,7 @@ def get_provider_jobs(request):
         return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        jobs, total = GetProviderJobsUseCase(
-            user=input_data["user"],
-            limit=input_data["limit"],
-            offset=input_data["offset"],
-            status=input_data["status"],
-            created_after=input_data["created_after"],
-            function_name=input_data["function_name"],
-            provider=input_data["provider"],
-        ).execute()
+        jobs, total = GetProviderJobsUseCase(**input_data).execute()
     except ProviderNotFoundException:
         return Response(
             {"message": f"Provider {input_data['provider']} doesn't exist."},
