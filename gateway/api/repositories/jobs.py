@@ -15,7 +15,17 @@ logger = logging.getLogger("gateway")
 
 @dataclass
 class JobFilters:
-    """Simple, type-safe filters for Job queries."""
+    """
+    Filters for Job queries.
+
+    Attributes:
+        user: Author of the job
+        type: Type of job to filter
+        status: Current job status
+        created_after: Filter jobs created after this date
+        provider: Provider who owns the function
+        function: Function title
+    """
 
     user: Optional[Any] = None
     type: Optional[TypeFilter] = None
@@ -96,7 +106,7 @@ class JobsRepository:
 
         return updated == 1
 
-    def get_user_jobs(  # pylint:  disable=too-many-positional-arguments
+    def get_user_jobs(
         self,
         filters: Optional[JobFilters] = None,
         limit: Optional[int] = None,
@@ -107,11 +117,10 @@ class JobsRepository:
         Get user jobs with optional filters and pagination.
 
         Args:
-            user: The user whose jobs to retrieve
             filters: Optional filters to apply
             limit: Max number of results
             offset: Number of results to skip
-            ordering: Field to order by (default: newest first)
+            ordering: Field to order by. Default: -created (newest first)
 
         Returns:
             (queryset, total_count): Filtered results and total count
@@ -124,7 +133,7 @@ class JobsRepository:
         return self._paginate_queryset(queryset, limit, offset)
 
     def _apply_filters(self, queryset: QuerySet, filters: JobFilters) -> QuerySet:
-        """Apply filters to queryset in a clean, modular way."""
+        """Apply filters to job queryset."""
         if filters.user:
             queryset = queryset.filter(author=filters.user)
 
@@ -147,12 +156,7 @@ class JobsRepository:
     def _paginate_queryset(
         self, queryset: QuerySet, limit: Optional[int], offset: Optional[int]
     ) -> Tuple[QuerySet, int]:
-        """Apply pagination to queryset."""
-        if limit is not None and limit < 0:
-            raise ValueError("Limit must be non-negative")
-        if offset is not None and offset < 0:
-            raise ValueError("Offset must be non-negative")
-
+        """Apply pagination to job queryset."""
         total_count = queryset.count()
 
         if offset or limit:
