@@ -80,6 +80,6 @@ class GetProviderJobsUseCase:
             function=self.function_name,
         )
         queryset, total = self.jobs_repo.get_user_jobs(
-            user=self.user, filters=filters, limit=self.limit, offset=self.offset
+            filters=filters, limit=self.limit, offset=self.offset
         )
         return list(queryset), total

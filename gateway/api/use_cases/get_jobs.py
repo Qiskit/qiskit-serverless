@@ -42,6 +42,7 @@ class GetJobsUseCase:
                 - Total count of jobs matching filters (before pagination)
         """
         filters = JobFilters(
+            user=self.user,
             type=self.type_filter,
             status=self.status,
             created_after=self.created_after,
@@ -49,7 +50,7 @@ class GetJobsUseCase:
         )
 
         queryset, total = self.jobs_repository.get_user_jobs(
-            user=self.user, filters=filters, limit=self.limit, offset=self.offset
+            filters=filters, limit=self.limit, offset=self.offset
         )
 
         return list(queryset), total

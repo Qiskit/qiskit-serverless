@@ -60,6 +60,55 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 3)
 
+    def test_job_list_filter_status(self):
+        """Tests job list filtered by status."""
+        self._authorize()
+
+        jobs_response = self.client.get(
+            reverse("v1:get-jobs"), {"status": "SUCCEEDED"}, format="json"
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("count"), 1)
+        self.assertEqual(jobs_response.data.get("results")[0]["status"], "SUCCEEDED")
+
+    def test_job_list_filter_created_after(self):
+        """Tests job list filtered by created_after."""
+        self._authorize()
+        created_after = "2023-02-02T00:00:00.000000Z"
+
+        jobs_response = self.client.get(
+            reverse("v1:get-jobs"), {"created_after": created_after}, format="json"
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("count"), 3)
+        for job in jobs_response.data.get("results"):
+            self.assertGreater(job["created"], created_after)
+
+    def test_job_list_filter_function_name(self):
+        """Tests job list filtered by function."""
+        self._authorize()
+
+        jobs_response = self.client.get(
+            reverse("v1:get-jobs"), {"function": "Docker-Image-Program"}, format="json"
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("count"), 1)
+
+    def test_job_list_filter_pagination(self):
+        """Tests job list pagination."""
+        self._authorize()
+
+        jobs_response = self.client.get(
+            reverse("v1:get-jobs"), {"offset": 0, "limit": 2}, format="json"
+        )
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("count"), 5)
+        self.assertEqual(len(jobs_response.data.get("results")), 2)
+        self.assertRegex(
+            jobs_response.data.get("next"), r"/api/v1/jobs/\?limit=2&offset=2$"
+        )
+        self.assertEqual(jobs_response.data.get("previous"), None)
+
     def test_job_provider_list_wrong_params(self):
         """Tests job provider list wrong params."""
         self._authorize()
@@ -137,8 +186,70 @@ class TestJobApi(APITestCase):
             {"provider": provider, "function": function},
             format="json",
         )
+        print(jobs_response.data.get("results"))
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 2)
+
+    def test_job_provider_list_filter_status(self):
+        """Tests job provider list filtered by status."""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+        provider = "default"
+        function = "Docker-Image-Program"
+
+        jobs_response = self.client.get(
+            reverse("v1:get-provider-jobs"),
+            {"provider": provider, "function": function, "status": "SUCCEEDED"},
+            format="json",
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("count"), 1)
+        self.assertEqual(jobs_response.data.get("results")[0]["status"], "SUCCEEDED")
+
+    def test_job_provider_list_created_after(self):
+        """Tests job provider list filtered by created_after."""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+        provider = "default"
+        function = "Docker-Image-Program"
+        created_after = "2023-02-02T00:00:00.000000Z"
+
+        jobs_response = self.client.get(
+            reverse("v1:get-provider-jobs"),
+            {
+                "provider": provider,
+                "function": function,
+                "created_after": created_after,
+            },
+            format="json",
+        )
+
+        created_response = jobs_response.data.get("results")[0]["created"]
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("count"), 1)
+        self.assertGreater(created_response, created_after)
+
+    def test_job_provider_list_pagination(self):
+        """Tests job provider list pagination."""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+        provider = "default"
+        function = "Docker-Image-Program"
+
+        jobs_response = self.client.get(
+            reverse("v1:get-provider-jobs"),
+            {"provider": provider, "function": function, "limit": 1, "offset": 1},
+            format="json",
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(jobs_response.data.get("results")), 1)
+        self.assertEqual(jobs_response.data.get("next"), None)
+        self.assertRegex(
+            jobs_response.data.get("previous"),
+            r"/api/v1/jobs/provider/\?limit=1&offset=0$",
+        )
 
     def test_job_detail(self):
         """Tests job detail authorized."""

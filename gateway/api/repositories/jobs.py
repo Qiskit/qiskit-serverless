@@ -4,7 +4,7 @@ Repository implementation for Job model
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
 from django.db.models import Q, QuerySet
 from api.models import Job
 from api.models import Program as Function
@@ -17,6 +17,7 @@ logger = logging.getLogger("gateway")
 class JobFilters:
     """Simple, type-safe filters for Job queries."""
 
+    user: Optional[Any] = None
     type: Optional[TypeFilter] = None
     status: Optional[str] = None
     created_after: Optional[datetime] = None
@@ -97,7 +98,6 @@ class JobsRepository:
 
     def get_user_jobs(  # pylint:  disable=too-many-positional-arguments
         self,
-        user,
         filters: Optional[JobFilters] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
@@ -116,7 +116,7 @@ class JobsRepository:
         Returns:
             (queryset, total_count): Filtered results and total count
         """
-        queryset = Job.objects.filter(author=user).order_by(ordering)
+        queryset = Job.objects.order_by(ordering)
 
         if filters:
             queryset = self._apply_filters(queryset, filters)
@@ -125,6 +125,9 @@ class JobsRepository:
 
     def _apply_filters(self, queryset: QuerySet, filters: JobFilters) -> QuerySet:
         """Apply filters to queryset in a clean, modular way."""
+        if filters.user:
+            queryset = queryset.filter(author=filters.user)
+
         if filters.type == TypeFilter.CATALOG:
             queryset = queryset.exclude(program__provider=None)
         elif filters.type == TypeFilter.SERVERLESS:
@@ -135,6 +138,9 @@ class JobsRepository:
 
         if filters.created_after:
             queryset = queryset.filter(created__gte=filters.created_after)
+
+        if filters.function:
+            queryset = queryset.filter(program__title=filters.function)
 
         return queryset
 

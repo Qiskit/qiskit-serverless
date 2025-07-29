@@ -94,11 +94,11 @@ class JobViewSet(viewsets.GenericViewSet):
         type_filter = self.request.query_params.get("filter")
         user = self.request.user
 
-        filters = JobFilters()
+        filters = JobFilters(user=user)
         if type_filter:
             filters.type = type_filter
 
-        queryset, _ = self.jobs_repository.get_user_jobs(user, filters)
+        queryset, _ = self.jobs_repository.get_user_jobs(filters)
 
         return queryset
 
