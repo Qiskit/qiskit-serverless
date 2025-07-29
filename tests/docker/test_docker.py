@@ -3,7 +3,7 @@
 import os
 from time import sleep
 
-from pytest import raises, mark
+from pytest import mark
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.random import random_circuit
@@ -12,7 +12,6 @@ from qiskit_serverless import (
     QiskitFunction,
     BaseClient,
     ServerlessClient,
-    QiskitServerlessException,
 )
 
 
@@ -228,11 +227,7 @@ class TestFunctionsDocker:
         assert isinstance(retrieved_job1.logs(), str)
         assert isinstance(retrieved_job2.logs(), str)
 
-    @mark.skip(
-        reason="Images are not working in tests jet and "
-        + "LocalClient does not manage image instead of working_dir+entrypoint"
-    )
-    def test_error(self, base_client: BaseClient):
+    def test_custom_image(self, serverless_custom_image_yaml_client: BaseClient):
         """Integration test to force an error."""
 
         description = """
@@ -251,12 +246,19 @@ class TestFunctionsDocker:
             description=description,
         )
 
-        runnable_function = base_client.upload(function_with_custom_image)
+        print("Uploading function...")
+        runnable_function = serverless_custom_image_yaml_client.upload(
+            function_with_custom_image
+        )
 
+        print("Running...")
         job = runnable_function.run(message="Argument for the custum function")
 
-        with raises(QiskitServerlessException):
-            job.result()
+        print("Job:")
+        print(job)
+
+        print("Result:")
+        print(job.result())
 
     def test_update_sub_status(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
