@@ -15,8 +15,12 @@ except Exception:
     save_result(traceback.format_exc())
     raise
 
-runner = Runner()
-result = runner.run(arguments)
+try:
+    runner = Runner()
+    result = runner.run(arguments)
 
-if result is not None:
-    save_result(result)
+    if result is not None:
+        save_result(result)
+except Exception:
+    save_result(traceback.format_exception_only())
+    raise
