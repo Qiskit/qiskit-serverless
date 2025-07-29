@@ -2,7 +2,6 @@
 API V1: list jobs endpoint
 """
 from typing import List, Optional
-from urllib.parse import urlencode
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -13,6 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django.conf import settings
 from django.utils.dateparse import parse_datetime
 from api.models import Job
+from api.v1.views.utils import create_paginated_response
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.use_cases.get_provider_jobs import (
@@ -74,30 +74,13 @@ def serialize_output(
     Prepare the output for the end-point
     """
     serializer = v1_serializers.JobSerializerWithoutResult(jobs, many=True)
-    response_data = {
-        "count": total_count,
-        "next": None,
-        "previous": None,
-        "results": serializer.data,
-    }
-
-    if limit is None:
-        return response_data
-
-    offset = offset or 0
-    base_url = request.build_absolute_uri(request.path)
-
-    # Calculate next URL
-    if offset + limit < total_count:
-        next_params = {"limit": limit, "offset": offset + limit}
-        response_data["next"] = f"{base_url}?{urlencode(next_params)}"
-
-    # Calculate previous URL
-    if offset > 0:
-        prev_params = {"limit": limit, "offset": max(0, offset - limit)}
-        response_data["previous"] = f"{base_url}?{urlencode(prev_params)}"
-
-    return response_data
+    return create_paginated_response(
+        data=serializer.data,
+        total_count=total_count,
+        request=request,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @swagger_auto_schema(

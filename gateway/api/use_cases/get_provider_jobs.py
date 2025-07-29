@@ -20,7 +20,7 @@ class FunctionNotFoundException(Exception):
 
 
 class GetProviderJobsUseCase:
-    """Use case for retrieving user jobs with optional filtering and pagination."""
+    """Use case for retrieving provider jobs with optional filtering and pagination."""
 
     provider_repo = ProviderRepository()
     function_repo = FunctionRepository()
