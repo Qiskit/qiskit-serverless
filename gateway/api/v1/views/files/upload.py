@@ -2,7 +2,6 @@
 API V1: Available dependencies end-point.
 """
 # pylint: disable=duplicate-code
-from django.http import StreamingHttpResponse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
@@ -11,7 +10,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
-from api.use_cases.files.provider_download import FilesProviderDownloadUseCase
+from api.use_cases.files.upload import FilesUploadUseCase
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
@@ -24,7 +23,6 @@ class InputSerializer(serializers.Serializer):
 
     function = serializers.CharField(required=True)
     provider = serializers.CharField(required=False, default=None)
-    file = serializers.CharField(required=True)
 
     def validate_function(self, value):
         """
@@ -38,24 +36,20 @@ class InputSerializer(serializers.Serializer):
         """
         return sanitize_name(value)
 
-    def validate_file(self, value):
-        """
-        Validates the file name
-        """
-        return sanitize_file_name(value)
-
 
 @swagger_auto_schema(
-    method="get",
-    operation_description="Download a specific file in the provider directory",
+    method="post",
+    operation_description="Upload selected file",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "file": openapi.Schema(
+                type=openapi.TYPE_FILE, description="File to be uploaded"
+            )
+        },
+        required=["file"],
+    ),
     manual_parameters=[
-        openapi.Parameter(
-            "file",
-            openapi.IN_QUERY,
-            description="File name",
-            type=openapi.TYPE_STRING,
-            required=True,
-        ),
         openapi.Parameter(
             "function",
             openapi.IN_QUERY,
@@ -73,29 +67,22 @@ class InputSerializer(serializers.Serializer):
     ],
     responses={
         status.HTTP_200_OK: openapi.Response(
-            description="Requested file",
-            content_type="application/octet-stream",
-            schema=openapi.Schema(type=openapi.TYPE_FILE),
-            examples={
-                "application/octet-stream": {
-                    "summary": "Example file",
-                    "value": "Example file content",  # o un texto base64 corto si prefieres
-                }
-            },
+            description="The path to file",
+            examples={"application/json": {"message": "path/to/file"}},
         ),
         status.HTTP_404_NOT_FOUND: openapi.Response(
-            description="File not found.",
+            description="Function or provider does not exist",
         ),
         status.HTTP_401_UNAUTHORIZED: openapi.Response(
             description="Authentication credentials were not provided or are invalid."
         ),
     },
 )
-@endpoint("files/provider/download", name="files-provider-download")
-@api_view(["GET"])
+@endpoint("files/upload", name="files-upload")
+@api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def files_list(request: Request) -> Response:
+def files_upload(request: Request) -> Response:
     """
     List user files end-point
     """
@@ -104,14 +91,12 @@ def files_list(request: Request) -> Response:
 
     function = serializer.validated_data.get("function")
     provider = serializer.validated_data.get("provider")
-    file = serializer.validated_data.get("file")
+
+    uploaded_file = request.FILES["file"]
+    uploaded_file.name = sanitize_file_name(uploaded_file.name)
 
     user = request.user
 
-    result = FilesProviderDownloadUseCase().execute(user, provider, function, file)
+    result = FilesUploadUseCase().execute(user, provider, function, uploaded_file)
 
-    file_wrapper, file_type, file_size = result
-    response = StreamingHttpResponse(file_wrapper, content_type=file_type)
-    response["Content-Length"] = file_size
-    response["Content-Disposition"] = f"attachment; filename={file}"
-    return response
+    return Response({"message": result})

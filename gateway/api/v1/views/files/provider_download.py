@@ -2,6 +2,7 @@
 API V1: Available dependencies end-point.
 """
 # pylint: disable=duplicate-code
+from django.http import StreamingHttpResponse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
@@ -10,7 +11,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
-from api.use_cases.files.provider_delete import FilesProviderDeleteUseCase
+from api.use_cases.files.provider_download import FilesProviderDownloadUseCase
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
@@ -22,7 +23,7 @@ class InputSerializer(serializers.Serializer):
     """
 
     function = serializers.CharField(required=True)
-    provider = serializers.CharField(required=False, default=None)
+    provider = serializers.CharField(required=True)
     file = serializers.CharField(required=True)
 
     def validate_function(self, value):
@@ -45,9 +46,8 @@ class InputSerializer(serializers.Serializer):
 
 
 @swagger_auto_schema(
-    method="delete",
-    operation_description="Deletes file uploaded or produced by the programs "
-    "in the provider directory.",
+    method="get",
+    operation_description="Download a specific file in the provider directory",
     manual_parameters=[
         openapi.Parameter(
             "file",
@@ -68,7 +68,7 @@ class InputSerializer(serializers.Serializer):
             openapi.IN_QUERY,
             description="Provider name",
             type=openapi.TYPE_STRING,
-            required=False,
+            required=True,
         ),
     ],
     responses={
@@ -91,8 +91,8 @@ class InputSerializer(serializers.Serializer):
         ),
     },
 )
-@endpoint("files/provider/delete", name="files-provider-delete")
-@api_view(["DELETE"])
+@endpoint("files/provider/download", name="files-provider-download")
+@api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def files_list(request: Request) -> Response:
@@ -108,8 +108,10 @@ def files_list(request: Request) -> Response:
 
     user = request.user
 
-    FilesProviderDeleteUseCase().execute(user, provider, function, file)
+    result = FilesProviderDownloadUseCase().execute(user, provider, function, file)
 
-    return Response(
-        {"message": "Requested file was deleted."}, status=status.HTTP_200_OK
-    )
+    file_wrapper, file_type, file_size = result
+    response = StreamingHttpResponse(file_wrapper, content_type=file_type)
+    response["Content-Length"] = file_size
+    response["Content-Disposition"] = f"attachment; filename={file}"
+    return response

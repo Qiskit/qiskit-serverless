@@ -10,10 +10,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework import serializers
 
-from api.use_cases.files.provider_list import FilesProviderListUseCase
+from api.use_cases.files.provider_upload import FilesProviderUploadUseCase
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
-from api.utils import sanitize_name
+from api.utils import sanitize_file_name, sanitize_name
 
 # pylint: disable=abstract-method
 class InputSerializer(serializers.Serializer):
@@ -22,7 +22,7 @@ class InputSerializer(serializers.Serializer):
     """
 
     function = serializers.CharField(required=True)
-    provider = serializers.CharField(required=False, default=None)
+    provider = serializers.CharField(required=True)
 
     def validate_function(self, value):
         """
@@ -38,48 +38,53 @@ class InputSerializer(serializers.Serializer):
 
 
 @swagger_auto_schema(
-    method="get",
-    operation_description="List of available files in the provider directory",
+    method="post",
+    operation_description="Upload selected file into the provider directory",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "file": openapi.Schema(
+                type=openapi.TYPE_FILE, description="File to be uploaded"
+            )
+        },
+        required=["file"],
+    ),
     manual_parameters=[
-        openapi.Parameter(
-            "provider",
-            openapi.IN_QUERY,
-            description="the provider name",
-            type=openapi.TYPE_STRING,
-            required=False,
-        ),
         openapi.Parameter(
             "function",
             openapi.IN_QUERY,
-            description="the function title",
+            description="Qiskit Function title",
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "provider",
+            openapi.IN_QUERY,
+            description="Provider name",
             type=openapi.TYPE_STRING,
             required=True,
         ),
     ],
     responses={
         status.HTTP_200_OK: openapi.Response(
-            description="List of files",
-            schema=openapi.Schema(
-                type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)
-            ),
-            examples={
-                "application/json": [
-                    "file",
-                ]
-            },
+            description="The path to file",
+            examples={"application/json": {"message": "path/to/file"}},
+        ),
+        status.HTTP_404_NOT_FOUND: openapi.Response(
+            description="File not found.",
         ),
         status.HTTP_401_UNAUTHORIZED: openapi.Response(
             description="Authentication credentials were not provided or are invalid."
         ),
     },
 )
-@endpoint("files/provider", name="files-provider-list")
-@api_view(["GET"])
+@endpoint("files/provider/upload", name="files-provider-upload")
+@api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def files_provider_list(request: Request) -> Response:
+def files_provider_upload(request: Request) -> Response:
     """
-    List provider files end-point
+    List user files end-point
     """
     serializer = InputSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
@@ -87,8 +92,13 @@ def files_provider_list(request: Request) -> Response:
     function = serializer.validated_data.get("function")
     provider = serializer.validated_data.get("provider")
 
+    uploaded_file = request.FILES["file"]
+    uploaded_file.name = sanitize_file_name(uploaded_file.name)
+
     user = request.user
 
-    files = FilesProviderListUseCase().execute(user, provider, function)
+    result = FilesProviderUploadUseCase().execute(
+        user, provider, function, uploaded_file
+    )
 
-    return Response({"results": files})
+    return Response({"message": result})
