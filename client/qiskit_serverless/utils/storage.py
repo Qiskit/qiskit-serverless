@@ -30,7 +30,7 @@ import os
 from typing import Optional
 
 from abc import abstractmethod
-import s3fs
+import s3fs  # pylint: disable=import-error
 
 
 class BaseStorage:
