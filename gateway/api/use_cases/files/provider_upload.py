@@ -1,7 +1,6 @@
-"""Authentication use case to manage the authentication process in the api."""
+"""Upload a file into the provider storage use case."""
 # pylint: disable=duplicate-code
 import logging
-from typing import List
 from django.contrib.auth.models import AbstractBaseUser
 from django.core.files import File
 from api.access_policies.providers import ProviderAccessPolicy
@@ -18,7 +17,7 @@ logger = logging.getLogger("gateway.use_cases.files")
 
 class FilesProviderUploadUseCase:
     """
-    This class will return available dynamic dependencies on execute.
+    Upload a file into the provider storage use case.
     """
 
     function_repository = FunctionRepository()
@@ -31,9 +30,9 @@ class FilesProviderUploadUseCase:
         provider_name: str,
         function_title: str,
         uploaded_file: File,
-    ) -> List[str]:
+    ):
         """
-        Get the dependencies from the whitlist
+        Upload a file into the provider storage.
         """
 
         provider = self.provider_repository.get_provider_by_name(name=provider_name)

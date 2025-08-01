@@ -1,7 +1,6 @@
-"""Authentication use case to manage the authentication process in the api."""
+"""Delete file from user storage use case."""
 # pylint: disable=duplicate-code
 import logging
-from typing import List
 from django.contrib.auth.models import AbstractBaseUser
 from api.services.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
@@ -15,7 +14,7 @@ logger = logging.getLogger("gateway.use_cases.files")
 
 class FilesDeleteUseCase:
     """
-    This class will return the files in the user storage.
+    Delete file from user storage use case.
     """
 
     function_repository = FunctionRepository()
@@ -27,9 +26,9 @@ class FilesDeleteUseCase:
         provider_name: str,
         function_title: str,
         file_name: str,
-    ) -> List[str]:
+    ):
         """
-        Get the files from the user storage
+        Delete file from user storage.
         """
         function = self.function_repository.get_function_by_permission(
             user=user,
@@ -55,5 +54,3 @@ class FilesDeleteUseCase:
 
         if not result:
             raise NotFoundError("Requested file was not found.")
-
-        return result

@@ -1,7 +1,6 @@
-"""Authentication use case to manage the authentication process in the api."""
+"""List all files on user storage use case."""
 # pylint: disable=duplicate-code
 import logging
-from typing import List
 from django.contrib.auth.models import AbstractBaseUser
 from api.services.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
@@ -15,17 +14,15 @@ logger = logging.getLogger("gateway.use_cases.files")
 
 class FilesListUseCase:
     """
-    This class will return available dynamic dependencies on execute.
+    List all files on user storage use case.
     """
 
     function_repository = FunctionRepository()
     working_dir = WorkingDir.USER_STORAGE
 
-    def execute(
-        self, user: AbstractBaseUser, provider_name: str, function_title: str
-    ) -> List[str]:
+    def execute(self, user: AbstractBaseUser, provider_name: str, function_title: str):
         """
-        Get the dependencies from the whitlist
+        List all files on user storage.
         """
         function = self.function_repository.get_function_by_permission(
             user=user,
