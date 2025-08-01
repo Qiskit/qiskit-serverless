@@ -2,6 +2,8 @@
 # pylint: disable=duplicate-code
 import logging
 from typing import List
+from django.core.files import File
+from django.contrib.auth.models import AbstractBaseUser
 from api.services.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
 from api.domain.exceptions.not_found_error import NotFoundError
@@ -20,7 +22,13 @@ class FilesUploadUseCase:
     function_repository = FunctionRepository()
     working_dir = WorkingDir.USER_STORAGE
 
-    def execute(self, user, provider_name, function_title, uploaded_file) -> List[str]:
+    def execute(
+        self,
+        user: AbstractBaseUser,
+        provider_name: str,
+        function_title: str,
+        uploaded_file: File,
+    ) -> List[str]:
         """
         Get the dependencies from the whitlist
         """

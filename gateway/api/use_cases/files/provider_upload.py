@@ -2,6 +2,8 @@
 # pylint: disable=duplicate-code
 import logging
 from typing import List
+from django.contrib.auth.models import AbstractBaseUser
+from django.core.files import File
 from api.access_policies.providers import ProviderAccessPolicy
 from api.repositories.providers import ProviderRepository
 from api.services.file_storage import FileStorage, WorkingDir
@@ -23,7 +25,13 @@ class FilesProviderUploadUseCase:
     provider_repository = ProviderRepository()
     working_dir = WorkingDir.PROVIDER_STORAGE
 
-    def execute(self, user, provider_name, function_title, uploaded_file) -> List[str]:
+    def execute(
+        self,
+        user: AbstractBaseUser,
+        provider_name: str,
+        function_title: str,
+        uploaded_file: File,
+    ) -> List[str]:
         """
         Get the dependencies from the whitlist
         """

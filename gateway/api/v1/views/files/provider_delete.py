@@ -1,9 +1,11 @@
 """
-API V1: Available dependencies end-point.
+API V1: Delete provider file end-point.
 """
 # pylint: disable=duplicate-code
+from typing import cast
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from django.contrib.auth.models import AbstractBaseUser
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
@@ -25,19 +27,19 @@ class InputSerializer(serializers.Serializer):
     provider = serializers.CharField(required=True)
     file = serializers.CharField(required=True)
 
-    def validate_function(self, value):
+    def validate_function(self, value: str):
         """
         Validates the function title
         """
         return sanitize_name(value)
 
-    def validate_provider(self, value):
+    def validate_provider(self, value: str):
         """
         Validates the proivider name
         """
         return sanitize_name(value)
 
-    def validate_file(self, value):
+    def validate_file(self, value: str):
         """
         Validates the file name
         """
@@ -95,9 +97,9 @@ class InputSerializer(serializers.Serializer):
 @api_view(["DELETE"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def files_list(request: Request) -> Response:
+def files_provider_delete(request: Request) -> Response:
     """
-    List user files end-point
+    Delete a file from the provider storage
     """
     serializer = InputSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
@@ -106,7 +108,7 @@ def files_list(request: Request) -> Response:
     provider = serializer.validated_data.get("provider")
     file = serializer.validated_data.get("file")
 
-    user = request.user
+    user = cast(AbstractBaseUser, request.user)
 
     FilesProviderDeleteUseCase().execute(user, provider, function, file)
 

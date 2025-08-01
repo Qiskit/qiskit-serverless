@@ -2,6 +2,7 @@
 # pylint: disable=duplicate-code
 import logging
 from typing import List
+from django.contrib.auth.models import AbstractBaseUser
 from api.services.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
 from api.domain.exceptions.not_found_error import NotFoundError
@@ -14,15 +15,21 @@ logger = logging.getLogger("gateway.use_cases.files")
 
 class FilesDeleteUseCase:
     """
-    This class will return available dynamic dependencies on execute.
+    This class will return the files in the user storage.
     """
 
     function_repository = FunctionRepository()
     working_dir = WorkingDir.USER_STORAGE
 
-    def execute(self, user, provider_name, function_title, file_name) -> List[str]:
+    def execute(
+        self,
+        user: AbstractBaseUser,
+        provider_name: str,
+        function_title: str,
+        file_name: str,
+    ) -> List[str]:
         """
-        Get the dependencies from the whitlist
+        Get the files from the user storage
         """
         function = self.function_repository.get_function_by_permission(
             user=user,

@@ -1,8 +1,10 @@
 """
-API V1: Available dependencies end-point.
+API V1: Download file end-point.
 """
 # pylint: disable=duplicate-code
+from typing import cast
 from django.http import StreamingHttpResponse
+from django.contrib.auth.models import AbstractBaseUser
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
@@ -26,19 +28,19 @@ class InputSerializer(serializers.Serializer):
     provider = serializers.CharField(required=False, default=None)
     file = serializers.CharField(required=True)
 
-    def validate_function(self, value):
+    def validate_function(self, value: str):
         """
         Validates the function title
         """
         return sanitize_name(value)
 
-    def validate_provider(self, value):
+    def validate_provider(self, value: str):
         """
         Validates the proivider name
         """
         return sanitize_name(value)
 
-    def validate_file(self, value):
+    def validate_file(self, value: str):
         """
         Validates the file name
         """
@@ -47,7 +49,7 @@ class InputSerializer(serializers.Serializer):
 
 @swagger_auto_schema(
     method="get",
-    operation_description="Download a specific file in the user directory",
+    operation_description="Download a specific file in the user storage",
     manual_parameters=[
         openapi.Parameter(
             "file",
@@ -95,9 +97,9 @@ class InputSerializer(serializers.Serializer):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def files_list(request: Request) -> Response:
+def files_download(request: Request) -> Response:
     """
-    List user files end-point
+    Download a file from the user storage
     """
     serializer = InputSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
@@ -106,7 +108,7 @@ def files_list(request: Request) -> Response:
     provider = serializer.validated_data.get("provider")
     file = serializer.validated_data.get("file")
 
-    user = request.user
+    user = cast(AbstractBaseUser, request.user)
 
     result = FilesDownloadUseCase().execute(user, provider, function, file)
 

@@ -2,6 +2,7 @@
 # pylint: disable=duplicate-code
 import logging
 from typing import List
+from django.contrib.auth.models import AbstractBaseUser
 from api.services.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
 from api.domain.exceptions.not_found_error import NotFoundError
@@ -20,7 +21,9 @@ class FilesListUseCase:
     function_repository = FunctionRepository()
     working_dir = WorkingDir.USER_STORAGE
 
-    def execute(self, user, provider_name, function_title) -> List[str]:
+    def execute(
+        self, user: AbstractBaseUser, provider_name: str, function_title: str
+    ) -> List[str]:
         """
         Get the dependencies from the whitlist
         """

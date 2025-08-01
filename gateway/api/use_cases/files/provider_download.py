@@ -2,6 +2,7 @@
 # pylint: disable=duplicate-code
 import logging
 from typing import List
+from django.contrib.auth.models import AbstractBaseUser
 from api.access_policies.providers import ProviderAccessPolicy
 from api.repositories.providers import ProviderRepository
 from api.services.file_storage import FileStorage, WorkingDir
@@ -23,7 +24,11 @@ class FilesProviderDownloadUseCase:
     working_dir = WorkingDir.PROVIDER_STORAGE
 
     def execute(
-        self, user, provider_name, function_title, requested_file_name
+        self,
+        user: AbstractBaseUser,
+        provider_name: str,
+        function_title: str,
+        requested_file_name: str,
     ) -> List[str]:
         """
         Get the dependencies from the whitlist
