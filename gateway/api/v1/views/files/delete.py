@@ -85,7 +85,7 @@ class InputSerializer(serializers.Serializer):
         ),
     },
 )
-@endpoint("files/delete", name="files-delete")
+@endpoint("files/delete")
 @api_view(["DELETE"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions

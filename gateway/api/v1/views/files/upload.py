@@ -80,7 +80,7 @@ class InputSerializer(serializers.Serializer):
         ),
     },
 )
-@endpoint("files/upload", name="files-upload")
+@endpoint("files/upload")
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions

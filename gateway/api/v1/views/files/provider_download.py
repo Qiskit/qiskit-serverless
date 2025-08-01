@@ -93,7 +93,7 @@ class InputSerializer(serializers.Serializer):
         ),
     },
 )
-@endpoint("files/provider/download", name="files-provider-download")
+@endpoint("files/provider/download")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions

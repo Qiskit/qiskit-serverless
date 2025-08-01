@@ -75,7 +75,7 @@ class InputSerializer(serializers.Serializer):
         ),
     },
 )
-@endpoint("files/provider", name="files-provider-list")
+@endpoint("files/provider")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
