@@ -2,12 +2,37 @@
 Repository implementation for Job model
 """
 import logging
-from typing import List, Optional
-from django.db.models import Q
+from dataclasses import dataclass
+from datetime import datetime
+from typing import List, Optional, Tuple, Any
+from django.db.models import Q, QuerySet
 from api.models import Job
 from api.models import Program as Function
+from api.views.enums.type_filter import TypeFilter
 
 logger = logging.getLogger("gateway")
+
+
+@dataclass(slots=True)
+class JobFilters:
+    """
+    Filters for Job queries.
+
+    Attributes:
+        user: Author of the job
+        type: Type of job to filter
+        status: Current job status
+        created_after: Filter jobs created after this date
+        provider: Provider who owns the function
+        function: Function title
+    """
+
+    user: Optional[Any] = None
+    type: Optional[TypeFilter] = None
+    status: Optional[str] = None
+    created_after: Optional[datetime] = None
+    provider: Optional[str] = None
+    function: Optional[str] = None
 
 
 class JobsRepository:
@@ -29,7 +54,7 @@ class JobsRepository:
         result_queryset = Job.objects.filter(id=job_id).first()
 
         if result_queryset is None:
-            logger.info("Job [%s] was not found", id)
+            logger.info("Job [%s] was not found", job_id)
 
         return result_queryset
 
@@ -46,54 +71,6 @@ class JobsRepository:
         """
         function_criteria = Q(program=function)
         return Job.objects.filter(function_criteria).order_by(ordering)
-
-    def get_user_jobs(self, user, ordering="-created") -> List[Job]:
-        """
-        Retrieves jobs created by a specific user.
-
-        Args:
-            user (User): The user whose jobs are to be retrieved.
-            ordering (str, optional): The field to order the results by. Defaults to "-created".
-
-        Returns:
-            List[Jobs]: a list of Jobs
-        """
-        user_criteria = Q(author=user)
-        return Job.objects.filter(user_criteria).order_by(ordering)
-
-    def get_user_jobs_with_provider(self, user, ordering="-created") -> List[Job]:
-        """
-        Retrieves jobs created by a specific user that have an associated provider.
-
-        Args:
-            user (User): The user whose jobs are to be retrieved.
-            ordering (str, optional): The field to order the results by. Defaults to "-created".
-
-        Returns:
-            List[Jobs]: a list of Jobs
-        """
-        user_criteria = Q(author=user)
-        provider_exists_criteria = ~Q(program__provider=None)
-        return Job.objects.filter(user_criteria & provider_exists_criteria).order_by(
-            ordering
-        )
-
-    def get_user_jobs_without_provider(self, user, ordering="-created") -> List[Job]:
-        """
-        Retrieves jobs created by a specific user that do not have an associated provider.
-
-        Args:
-            user (User): The user whose jobs are to be retrieved.
-            ordering (str, optional): The field to order the results by. Defaults to "-created".
-
-        Returns:
-            List[Job]: A queryset of Job objects without a provider.
-        """
-        user_criteria = Q(author=user)
-        provider_not_exists_criteria = Q(program__provider=None)
-        return Job.objects.filter(
-            user_criteria & provider_not_exists_criteria
-        ).order_by(ordering)
 
     def update_job_sub_status(self, job: Job, sub_status: Optional[str]) -> bool:
         """
@@ -128,3 +105,65 @@ class JobsRepository:
             )
 
         return updated == 1
+
+    def get_user_jobs(
+        self,
+        filters: Optional[JobFilters] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        ordering: str = "-created",
+    ) -> Tuple[QuerySet[Job], int]:
+        """
+        Get user jobs with optional filters and pagination.
+
+        Args:
+            filters: Optional filters to apply
+            limit: Max number of results
+            offset: Number of results to skip
+            ordering: Field to order by. Default: -created (newest first)
+
+        Returns:
+            (queryset, total_count): Filtered results and total count
+        """
+        queryset = Job.objects.order_by(ordering)
+
+        if filters:
+            queryset = self._apply_filters(queryset, filters)
+
+        return self._paginate_queryset(queryset, limit, offset)
+
+    def _apply_filters(self, queryset: QuerySet, filters: JobFilters) -> QuerySet:
+        """Apply filters to job queryset."""
+        if filters.user:
+            queryset = queryset.filter(author=filters.user)
+
+        match filters.type:
+            case TypeFilter.CATALOG:
+                queryset = queryset.exclude(program__provider=None)
+            case TypeFilter.SERVERLESS:
+                queryset = queryset.filter(program__provider=None)
+
+        if filters.status:
+            queryset = queryset.filter(status=filters.status)
+
+        if filters.created_after:
+            queryset = queryset.filter(created__gte=filters.created_after)
+
+        if filters.function:
+            queryset = queryset.filter(program__title=filters.function)
+
+        return queryset
+
+    def _paginate_queryset(
+        self, queryset: QuerySet, limit: int | None, offset: int | None
+    ) -> tuple[QuerySet, int]:
+        """Apply pagination to job queryset."""
+        total_count = queryset.count()
+
+        start = offset or 0
+        end = start + limit if limit else None
+
+        if start >= total_count > 0:
+            return queryset.none(), total_count
+
+        return queryset[start:end], total_count
