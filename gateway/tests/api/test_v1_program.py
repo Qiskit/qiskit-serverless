@@ -10,6 +10,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from api.models import Job, Program
+from api.services.arguments_storage import ArgumentsStorage
 
 
 class TestProgramApi(APITestCase):
@@ -106,36 +107,49 @@ class TestProgramApi(APITestCase):
     def test_run(self):
         """Tests run existing authorized."""
 
-        user = models.User.objects.get(username="test_user_3")
-        self.client.force_authenticate(user=user)
-
-        arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
-        programs_response = self.client.post(
-            "/api/v1/programs/run/",
-            data={
-                "title": "Program",
-                "arguments": arguments,
-                "config": {
-                    "workers": None,
-                    "min_workers": 1,
-                    "max_workers": 5,
-                    "auto_scaling": True,
-                },
-            },
-            format="json",
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
         )
-        job_id = programs_response.data.get("id")
-        job = Job.objects.get(id=job_id)
-        env_vars = json.loads(job.env_vars)
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
-        self.assertEqual(job.status, Job.QUEUED)
-        self.assertEqual(job.arguments, arguments)
-        self.assertEqual(job.trial, True)
-        self.assertEqual(env_vars["ENV_ACCESS_TRIAL"], "True")
-        self.assertEqual(job.config.min_workers, 1)
-        self.assertEqual(job.config.max_workers, 5)
-        self.assertEqual(job.config.workers, None)
-        self.assertEqual(job.config.auto_scaling, True)
+        with self.settings(MEDIA_ROOT=media_root):
+            user = models.User.objects.get(username="test_user_3")
+            self.client.force_authenticate(user=user)
+
+            arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
+            programs_response = self.client.post(
+                "/api/v1/programs/run/",
+                data={
+                    "title": "Program",
+                    "arguments": arguments,
+                    "config": {
+                        "workers": None,
+                        "min_workers": 1,
+                        "max_workers": 5,
+                        "auto_scaling": True,
+                    },
+                },
+                format="json",
+            )
+            job_id = programs_response.data.get("id")
+            job = Job.objects.get(id=job_id)
+            env_vars = json.loads(job.env_vars)
+
+            self.assertEqual(job.status, Job.QUEUED)
+            self.assertEqual(job.trial, True)
+            self.assertEqual(env_vars["ENV_ACCESS_TRIAL"], "True")
+            self.assertEqual(job.config.min_workers, 1)
+            self.assertEqual(job.config.max_workers, 5)
+            self.assertEqual(job.config.workers, None)
+            self.assertEqual(job.config.auto_scaling, True)
+
+            arguments_storage = ArgumentsStorage(user.username)
+            stored_arguments = arguments_storage.get(job.id)
+
+            self.assertEqual(stored_arguments, arguments)
 
     def test_run_locked(self):
         """Tests run disabled program."""
