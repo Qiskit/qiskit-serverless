@@ -193,7 +193,7 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
 
     def widget(self):
         """Widget for information about provider and jobs."""
-        # prevent ciclic import
+        # prevent cyclic import
         from qiskit_serverless.visualization import (  # pylint: disable=import-outside-toplevel
             Widget,
         )

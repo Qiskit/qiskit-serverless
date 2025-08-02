@@ -102,7 +102,7 @@ def encrypt_string(string: str) -> str:
         string: string to be encrypted
 
     Returns:
-        encrypter string
+        encrypted string
     """
     code_bytes = settings.SECRET_KEY.encode("utf-8")
     fernet = Fernet(base64.urlsafe_b64encode(code_bytes.ljust(32)[:32]))
@@ -241,7 +241,7 @@ def generate_cluster_name(username: str) -> str:
     # Force capital letters to be lowercase
     lowercase_username = username.lower()
 
-    # Substitue any not valid character by "-"
+    # Substitute any not valid character by "-"
     pattern = re.compile("[^a-z0-9-]")
     cluster_name = (
         f"c-{re.sub(pattern, '-', lowercase_username)}-{str(uuid.uuid4())[:8]}"
@@ -250,7 +250,7 @@ def generate_cluster_name(username: str) -> str:
 
 
 def check_logs(logs: Union[str, None], job: Job) -> str:
-    """Add error message to logs for faild jobs with empty logs.
+    """Add error message to logs for failed jobs with empty logs.
     Args:
         logs: logs of the job
         job:  job model
@@ -285,12 +285,12 @@ def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
 
 
 def remove_duplicates_from_list(original_list: List[Any]) -> List[Any]:
-    """Remove duplicates from a list maintining the order.
+    """Remove duplicates from a list maintaining the order.
     Args:
         original_list: list with the original values
 
     Returns:
-        a list without duplicates maintining the order
+        a list without duplicates maintaining the order
     """
     return list(OrderedDict.fromkeys(original_list))
 

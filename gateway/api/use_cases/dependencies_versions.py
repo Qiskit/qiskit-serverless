@@ -17,6 +17,6 @@ class AvailableDependenciesVersionsUseCase:
 
     def execute(self) -> Dict[str, Requirement]:
         """
-        Get the dependencies from the whitlist
+        Get the dependencies from the whitelist
         """
         return create_dynamic_dependencies_whitelist()

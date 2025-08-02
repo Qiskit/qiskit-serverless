@@ -37,7 +37,7 @@ class FileStorage:
     The main objective of this class is to manage the access of the users to their storage.
 
     Attributes:
-        username (str): storgae user's username
+        username (str): storage user's username
         working_dir (WorkingDir(Enum)): working directory
         function_title (str): title of the function in case is needed to build the path
         provider_name (str | None): name of the provider in caseis needed to build the path

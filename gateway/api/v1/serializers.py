@@ -39,7 +39,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
     """
 
     def validate_image(self, value):
-        """Validaes image."""
+        """Validates image."""
         # place to add image validation
         return value
 
@@ -55,7 +55,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             dep_name = list(dep.keys())
             if len(dep_name) > 1 or len(dep_name) == 0:
                 raise ValidationError(
-                    "'dependencies' should be an array with dict containing one depencency only."
+                    "'dependencies' should be an array with dict containing one dependency only."
                 )
             dep_name = str(dep_name[0])
             dep_version = str(list(dep.values())[0])
