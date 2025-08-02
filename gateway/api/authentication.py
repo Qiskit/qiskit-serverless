@@ -88,7 +88,7 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
     def authenticate_header(self, request):
         """
-        This method is needed to returna 401 when the authentication fails.
+        This method is needed to return 401 when the authentication fails.
 
         It setups the WWW-Authenticate header with the value Bearer to identify
         that we are using Bearer <token> as way to authenticate the user.
@@ -135,7 +135,7 @@ class MockTokenBackend(authentication.BaseAuthentication):
 
     def authenticate_header(self, request):
         """
-        This method is needed to returna 401 when the authentication fails.
+        This method is needed to return 401 when the authentication fails.
 
         It setups the WWW-Authenticate header with the value Bearer to identify
         that we are using Bearer <token> as way to authenticate the user.
