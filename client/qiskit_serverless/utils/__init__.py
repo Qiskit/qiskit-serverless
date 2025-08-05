@@ -23,8 +23,6 @@ Qiskit Serverless utilities
 .. autosummary::
     :toctree: ../stubs/
 
-    BaseStorage
-    S3Storage
     ErrorCodes
     JsonSerializable
     format_provider_name_and_title
