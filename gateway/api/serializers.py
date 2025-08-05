@@ -56,7 +56,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
                 dependency_version = f"=={dependency_version}"
         except ValueError:
             logger.debug(
-                "Dependency (%s) version (%s) does not starts with a number, "
+                "Dependency (%s) version (%s) does not start with a number, "
                 "assuming an operator (==, >=, ~=...) or empty",
                 dependency_name,
                 dependency_version,

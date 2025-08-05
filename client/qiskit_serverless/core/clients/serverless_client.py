@@ -438,7 +438,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     channel=self.channel,
                 )
             elif program.entrypoint is not None:
-                # upload funciton with artifact
+                # upload function with artifact
                 function_uploaded = _upload_with_artifact(
                     program=program,
                     url=url,
