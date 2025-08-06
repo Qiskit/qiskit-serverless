@@ -4,6 +4,7 @@ Endpoint decorator Module
 
 from functools import wraps
 from typing import Callable
+
 from api.v1.route_registry import RouteRegistry
 
 
