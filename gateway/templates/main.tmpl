@@ -22,6 +22,6 @@ try:
 
     if result is not None:
         save_result(result)
-except Exception:
-    save_result(traceback.format_exception_only())
+except Exception as e:
+    save_result(traceback.format_exception_only(e))
     raise
