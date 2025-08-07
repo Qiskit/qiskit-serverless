@@ -1,7 +1,7 @@
 # compose config for running images based on local files
 services:
   ray-head:
-    user: "0"
+    user: "root"
     container_name: ray-head
     build:
       context: ./
@@ -16,6 +16,9 @@ services:
       - 8265:8265
     volumes:
       - host-shm:/dev/shm
+      - program-artifacts:/data
+    environment:
+      - DATA_PATH=/data/mockuser
     networks:
       - safe-tier
   postgres:
