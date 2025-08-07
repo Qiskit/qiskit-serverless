@@ -23,8 +23,6 @@ Qiskit Serverless utilities
 .. autosummary::
     :toctree: ../stubs/
 
-    BaseStorage
-    S3Storage
     ErrorCodes
     JsonSerializable
     format_provider_name_and_title
@@ -35,6 +33,3 @@ from .json import JsonSerializable
 from .errors import ErrorCodes
 from .formatting import format_provider_name_and_title
 from .runtime_service_client import ServerlessRuntimeService
-
-if sys.version_info >= (3, 10):
-    from .storage import S3Storage, BaseStorage
