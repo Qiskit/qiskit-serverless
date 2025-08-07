@@ -33,6 +33,15 @@ class ProgramSerializer(serializers.ProgramSerializer):
         ]
 
 
+class ProgramSummarySerializer(serializers.ProgramSerializer):
+    """
+    Program serializer with summary fields for job listings.
+    """
+
+    class Meta(serializers.ProgramSerializer.Meta):
+        fields = ["id", "title", "provider"]
+
+
 class UploadProgramSerializer(serializers.UploadProgramSerializer):
     """
     UploadProgramSerializer is used by the /upload end-point
@@ -209,7 +218,7 @@ class JobSerializerWithoutResult(serializers.JobSerializer):
     Job serializer first version. Include basic fields from the initial model.
     """
 
-    program = ProgramSerializer(many=False)
+    program = ProgramSummarySerializer(many=False)
 
     class Meta(serializers.JobSerializer.Meta):
         fields = ["id", "status", "program", "created", "sub_status"]

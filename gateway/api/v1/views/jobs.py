@@ -47,23 +47,6 @@ class JobViewSet(views.JobViewSet):
         return super().retrieve(request, pk)
 
     @swagger_auto_schema(
-        operation_description="List author Jobs",
-        responses={status.HTTP_200_OK: v1_serializers.JobSerializer(many=True)},
-    )
-    def list(self, request):
-        return super().list(request)
-
-    @swagger_auto_schema(
-        operation_description="List provider Jobs",
-        responses={
-            status.HTTP_200_OK: v1_serializers.JobSerializerWithoutResult(many=True)
-        },
-    )
-    @action(methods=["GET"], detail=False, url_path="provider")
-    def provider_list(self, request):
-        return super().provider_list(request)
-
-    @swagger_auto_schema(
         operation_description="Save the result of a job",
         responses={status.HTTP_200_OK: v1_serializers.JobSerializer(many=False)},
     )
@@ -130,4 +113,4 @@ class JobViewSet(views.JobViewSet):
     def stop(self, request, pk=None):
         return super().stop(request, pk)
 
-    ### We are not returning serializers in the rest of the end-points
+    # We are not returning serializers in the rest of the end-points
