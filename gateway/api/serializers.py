@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group, Permission
 from django.db.models import Q
 from rest_framework import serializers
+from api.services.arguments_storage import ArgumentsStorage
 
 from api.repositories.functions import FunctionRepository
 from api.repositories.users import UserRepository
@@ -55,7 +56,7 @@ class UploadProgramSerializer(serializers.ModelSerializer):
                 dependency_version = f"=={dependency_version}"
         except ValueError:
             logger.debug(
-                "Dependency (%s) version (%s) does not starts with a number, "
+                "Dependency (%s) version (%s) does not start with a number, "
                 "assuming an operator (==, >=, ~=...) or empty",
                 dependency_name,
                 dependency_version,
@@ -297,10 +298,13 @@ class RunJobSerializer(serializers.ModelSerializer):
                 token=token,
                 job=job,
                 trial_mode=trial,
-                args=arguments,
                 instance=instance,
             )
         )
+
+        arguments_storage = ArgumentsStorage(author.username)
+        arguments_storage.save(job.id, arguments)
+
         try:
             env["traceparent"] = carrier["traceparent"]
         except KeyError:

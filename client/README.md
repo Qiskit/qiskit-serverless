@@ -51,7 +51,7 @@ def distributed_sample(circuit: QuantumCircuit):
 # 2. our program will have one arguments
 # `circuits` which will store list of circuits
 # we want to sample in parallel.
-# Let's use `get_arguments` funciton
+# Let's use `get_arguments` function
 # to access all program arguments
 arguments = get_arguments()
 circuits = arguments.get("circuits", [])
