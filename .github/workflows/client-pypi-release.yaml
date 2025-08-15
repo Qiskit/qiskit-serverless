@@ -13,8 +13,8 @@ jobs:
     name: Build and Publish Release Artifacts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@4.2.2
-      - uses: actions/setup-python@5.3.0
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         name: Install Python
         with:
           python-version: '3.11'
@@ -26,7 +26,7 @@ jobs:
           python setup.py sdist
           python setup.py bdist_wheel
         shell: bash
-      - uses: actions/upload-artifact@4.4.3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./client/dist/qiskit_serverless*
       - name: Publish to PyPi
