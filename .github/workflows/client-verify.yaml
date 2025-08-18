@@ -38,9 +38,9 @@ jobs:
           tox_env="-epy${pver/./}"
           echo tox_env
           echo TOX_ENV=$tox_env >> $GITHUB_ENV
-      - name: Install requirements
+      - name: Install tox
         run: |
-          pip install -r requirements.txt -r requirements-dev.txt
+          tox>=4.0.0
       - name: Run styles check
         run: tox -elint
       - name: Test using tox environment
