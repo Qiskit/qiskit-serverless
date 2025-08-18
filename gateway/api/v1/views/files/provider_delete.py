@@ -5,7 +5,7 @@ API V1: Delete provider file end-point.
 from typing import cast
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
@@ -75,15 +75,8 @@ class InputSerializer(serializers.Serializer):
     ],
     responses={
         status.HTTP_200_OK: openapi.Response(
-            description="Requested file",
-            content_type="application/octet-stream",
-            schema=openapi.Schema(type=openapi.TYPE_FILE),
-            examples={
-                "application/octet-stream": {
-                    "summary": "Example file",
-                    "value": "Example file content",  # o un texto base64 corto si prefieres
-                }
-            },
+            description="The ok message",
+            examples={"application/json": {"message": "Requested file was deleted."}},
         ),
         status.HTTP_404_NOT_FOUND: openapi.Response(
             description="File not found.",
@@ -108,7 +101,7 @@ def files_provider_delete(request: Request) -> Response:
     provider = serializer.validated_data.get("provider")
     file = serializer.validated_data.get("file")
 
-    user = cast(AbstractBaseUser, request.user)
+    user = cast(AbstractUser, request.user)
 
     FilesProviderDeleteUseCase().execute(user, provider, function, file)
 

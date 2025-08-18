@@ -1,7 +1,7 @@
 """List all files on user storage use case."""
 # pylint: disable=duplicate-code
 import logging
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from api.services.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
 from api.domain.exceptions.not_found_error import NotFoundError
@@ -20,7 +20,7 @@ class FilesListUseCase:
     function_repository = FunctionRepository()
     working_dir = WorkingDir.USER_STORAGE
 
-    def execute(self, user: AbstractBaseUser, provider_name: str, function_title: str):
+    def execute(self, user: AbstractUser, provider_name: str, function_title: str):
         """
         List all files on user storage.
         """

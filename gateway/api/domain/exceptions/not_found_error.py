@@ -1,8 +1,8 @@
-# myapp/exceptions.py
+"""Base exception for business domain errors."""
 
 
 class NotFoundError(Exception):
-    """Excepción base para errores de dominio de negocio."""
+    """Base exception for business domain errors."""
 
     def __init__(self, message: str):
         self.message = message

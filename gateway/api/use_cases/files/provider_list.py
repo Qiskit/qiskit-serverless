@@ -1,7 +1,7 @@
 """List all files on the provider storage use case."""
 # pylint: disable=duplicate-code
 import logging
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from api.access_policies.providers import ProviderAccessPolicy
 from api.services.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
@@ -22,7 +22,7 @@ class FilesProviderListUseCase:
     provider_repository = ProviderRepository()
     working_dir = WorkingDir.PROVIDER_STORAGE
 
-    def execute(self, user: AbstractBaseUser, provider_name: str, function_title: str):
+    def execute(self, user: AbstractUser, provider_name: str, function_title: str):
         """
         List all files on the provider storage.
         """

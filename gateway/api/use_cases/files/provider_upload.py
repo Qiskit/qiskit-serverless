@@ -1,7 +1,7 @@
 """Upload a file into the provider storage use case."""
 # pylint: disable=duplicate-code
 import logging
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from django.core.files import File
 from api.access_policies.providers import ProviderAccessPolicy
 from api.repositories.providers import ProviderRepository
@@ -26,7 +26,7 @@ class FilesProviderUploadUseCase:
 
     def execute(
         self,
-        user: AbstractBaseUser,
+        user: AbstractUser,
         provider_name: str,
         function_title: str,
         uploaded_file: File,

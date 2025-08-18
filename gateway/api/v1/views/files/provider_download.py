@@ -4,7 +4,7 @@ API V1: Download provider file end-point.
 # pylint: disable=duplicate-code
 from typing import cast
 from django.http import StreamingHttpResponse
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
@@ -77,13 +77,7 @@ class InputSerializer(serializers.Serializer):
         status.HTTP_200_OK: openapi.Response(
             description="Requested file",
             content_type="application/octet-stream",
-            schema=openapi.Schema(type=openapi.TYPE_FILE),
-            examples={
-                "application/octet-stream": {
-                    "summary": "Example file",
-                    "value": "Example file content",  # o un texto base64 corto si prefieres
-                }
-            },
+            schema=openapi.Schema(type=openapi.TYPE_FILE)
         ),
         status.HTTP_404_NOT_FOUND: openapi.Response(
             description="File not found.",
@@ -108,7 +102,7 @@ def files_provider_download(request: Request) -> Response:
     provider = serializer.validated_data.get("provider")
     file = serializer.validated_data.get("file")
 
-    user = cast(AbstractBaseUser, request.user)
+    user = cast(AbstractUser, request.user)
 
     result = FilesProviderDownloadUseCase().execute(user, provider, function, file)
 

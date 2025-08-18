@@ -5,7 +5,7 @@ API V1: List files end-point.
 from typing import cast
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
@@ -89,7 +89,7 @@ def files_list(request: Request) -> Response:
     function = serializer.validated_data.get("function")
     provider = serializer.validated_data.get("provider")
 
-    user = cast(AbstractBaseUser, request.user)
+    user = cast(AbstractUser, request.user)
 
     files = FilesListUseCase().execute(user, provider, function)
 

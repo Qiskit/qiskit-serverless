@@ -1,7 +1,7 @@
 """Download a file from provider storage use case."""
 # pylint: disable=duplicate-code
 import logging
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from api.access_policies.providers import ProviderAccessPolicy
 from api.repositories.providers import ProviderRepository
 from api.services.file_storage import FileStorage, WorkingDir
@@ -24,7 +24,7 @@ class FilesProviderDownloadUseCase:
 
     def execute(
         self,
-        user: AbstractBaseUser,
+        user: AbstractUser,
         provider_name: str,
         function_title: str,
         requested_file_name: str,

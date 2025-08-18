@@ -2,7 +2,7 @@
 # pylint: disable=duplicate-code
 import logging
 from django.core.files import File
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractUser
 from api.services.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
 from api.domain.exceptions.not_found_error import NotFoundError
@@ -23,7 +23,7 @@ class FilesUploadUseCase:
 
     def execute(
         self,
-        user: AbstractBaseUser,
+        user: AbstractUser,
         provider_name: str,
         function_title: str,
         uploaded_file: File,
