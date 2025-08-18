@@ -95,7 +95,6 @@ def files_upload(request: Request) -> Response:
     provider = serializer.validated_data.get("provider")
 
     uploaded_file = request.FILES["file"]
-    uploaded_file.name = sanitize_file_name(uploaded_file.name)
 
     user = cast(AbstractUser, request.user)
 
