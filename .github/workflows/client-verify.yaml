@@ -40,7 +40,7 @@ jobs:
           echo TOX_ENV=$tox_env >> $GITHUB_ENV
       - name: Install tox
         run: |
-          tox>=4.0.0
+          pip install tox>=4.0.0
       - name: Run styles check
         run: tox -elint
       - name: Test using tox environment
