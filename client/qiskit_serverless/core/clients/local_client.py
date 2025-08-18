@@ -33,6 +33,7 @@ import re
 import sys
 from typing import Optional, List, Dict, Any, Union
 from uuid import uuid4
+import shutil
 
 import subprocess
 from subprocess import Popen
@@ -40,7 +41,8 @@ from subprocess import Popen
 from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_serverless.core.constants import (
-    JOB_ARGUMENTS_FILE,
+    DATA_PATH,
+    ENV_JOB_ID_GATEWAY,
     OT_PROGRAM_NAME,
 )
 from qiskit_serverless.core.client import BaseClient
@@ -108,13 +110,23 @@ class LocalClient(BaseClient):
                     [sys.executable, "-m", "pip", "install", dependency]
                 )
         arguments = arguments or {}
+        data_path = "./"
+        job_id = str(uuid4())
+
         env_vars = {
             **(saved_program.env_vars or {}),
             **{OT_PROGRAM_NAME: saved_program.title},
             **{"PATH": os.environ["PATH"]},
+            **{DATA_PATH: data_path},
+            **{ENV_JOB_ID_GATEWAY: job_id},
         }
 
-        with open(JOB_ARGUMENTS_FILE, "w", encoding="utf-8") as f:
+        arguments_dir = os.path.join(data_path, "arguments")
+        if not os.path.exists(arguments_dir):
+            os.makedirs(arguments_dir)
+
+        arguments_file_path = os.path.join(arguments_dir, f"{job_id}.json")
+        with open(arguments_file_path, "w", encoding="utf-8") as f:
             json.dump(arguments, f, cls=QiskitObjectsEncoder)
 
         with Popen(
@@ -132,14 +144,15 @@ class LocalClient(BaseClient):
                 status = "FAILED"
             output, _ = pipe.communicate()
 
-        os.remove(JOB_ARGUMENTS_FILE)
+        if os.path.exists(arguments_dir):
+            shutil.rmtree(arguments_dir)
 
         results = re.search("\nSaved Result:(.+?):End Saved Result\n", output)
         result = ""
         if results:
             result = results.group(1)
 
-        job = Job(job_id=str(uuid4()), job_service=self)
+        job = Job(job_id=job_id, job_service=self)
         self._jobs[job.job_id] = {
             "status": status,
             "logs": output,

@@ -2,7 +2,7 @@
 # Qiskit Serverless Info
 # ===================
 global:
-  version: 0.25.1
+  version: 0.25.4
 
 # ===================
 # Qiskit Serverless configs
@@ -47,7 +47,7 @@ gateway:
   image:
     repository: "icr.io/quantum-public/qiskit-serverless/gateway"
     pullPolicy: IfNotPresent
-    tag: "0.25.1"
+    tag: "0.25.4"
   application:
     siteHost: "http://gateway:8000"
     rayHost: "http://kuberay-head-svc:8265"
@@ -59,7 +59,7 @@ gateway:
       type: ClusterIP
       port: 8000
     ray:
-      nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.25.1"
+      nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.25.4"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.9-13
       kubectlImage: alpine/k8s:1.29.13
       gpuJobsConfig: "/tmp/gpujobs/gpu-jobs.json"

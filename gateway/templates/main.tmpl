@@ -2,6 +2,7 @@
 
 import os
 import sys
+import traceback
 
 from qiskit_serverless import get_arguments, save_result
 
@@ -9,10 +10,18 @@ sys.path.append("{{mount_path}}")
 
 from {{package_name}} import Runner
 
-arguments = get_arguments()
+try:
+    arguments = get_arguments()
+except Exception:
+    save_result(traceback.format_exc())
+    raise
 
-runner = Runner()
-result = runner.run(arguments)
+try:
+    runner = Runner()
+    result = runner.run(arguments)
 
-if result is not None:
-    save_result(result)
+    if result is not None:
+        save_result(result)
+except Exception as e:
+    save_result(traceback.format_exception_only(e))
+    raise

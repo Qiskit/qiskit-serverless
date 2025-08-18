@@ -70,9 +70,9 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
 
     Args:
         workers: number of worker pod when auto scaling is NOT enabled
-        auto_scaling: set True to enable auto scating of the workers
+        auto_scaling: set True to enable auto scaling of the workers
         min_workers: minimum number of workers when auto scaling is enabled
-        max_workers: maxmum number of workers when auto scaling is enabled
+        max_workers: maximum number of workers when auto scaling is enabled
     """
 
     workers: Optional[int] = None
