@@ -73,7 +73,7 @@ class TestIBMServerlessClient(unittest.TestCase):
 
         with self.assertRaisesRegex(
             InvalidAccountError,
-            r"Invalid `channel` value. Expected one of ['ibm_cloud', 'ibm_quantum_platform'], "
+            "Invalid `channel` value. Expected one of ['ibm_cloud', 'ibm_quantum_platform'], "
             "got 'ibm_quantum'.",
         ):
 
