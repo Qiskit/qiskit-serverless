@@ -3,6 +3,7 @@ Django Rest framework Program views for api application:
 
 Version views inherit from the different views.
 """
+
 import logging
 import os
 
@@ -241,7 +242,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         carrier = {}
         TraceContextTextMapPropagator().inject(carrier)
         arguments = serializer.data.get("arguments")
-        channel = Channel.IBM_QUANTUM
+        channel = Channel.IBM_QUANTUM_PLATFORM
         token = ""
         instance = None
         if request.auth:
