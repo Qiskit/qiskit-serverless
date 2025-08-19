@@ -77,17 +77,26 @@ def associate_runtime_job_with_serverless_job(
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
         f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/add_runtimejob/"
     )
-    response = requests.post(
-        url,
-        json={"runtime_job": runtime_job_id, "runtime_session": session_id},
-        headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
-    )
-    if not response.ok:
-        sanitized = response.text.replace("\n", "").replace("\r", "")
-        logging.warning("Something went wrong: %s", sanitized)
-
-    return response.ok
+    try:
+        response = requests.post(
+            url,
+            json={"runtime_job": runtime_job_id, "runtime_session": session_id},
+            headers=get_headers(token=token, instance=instance, channel=channel),
+            timeout=REQUESTS_TIMEOUT,
+        )
+        if response.ok:
+            logging.info("Successfully associated runtime job: %s", runtime_job_id)
+            return True
+        else:
+            logging.warning(
+                "Failed to associate runtime job. Status: %s, Response: %s",
+                response.status_code,
+                response.text.strip().replace("\n", " "),
+            )
+            return False
+    except requests.RequestException as e:
+        logging.error("Request failed: %s", str(e))
+        return False
 
 
 class ServerlessRuntimeService(QiskitRuntimeService):
@@ -99,7 +108,7 @@ class ServerlessRuntimeService(QiskitRuntimeService):
         QiskitRuntimeService (QiskitRuntimeService): Qiskit runtime service object.
     """
 
-    def run(  # pylint:  disable=too-many-positional-arguments
+    def _run(  # pylint:  disable=too-many-positional-arguments
         self,
         program_id: str,
         inputs: Dict,
@@ -121,7 +130,8 @@ class ServerlessRuntimeService(QiskitRuntimeService):
             session_id,
             start_session,
         )
-        associate_runtime_job_with_serverless_job(
+        print(
+            "associate ok??", associate_runtime_job_with_serverless_job(
             runtime_job.job_id(), runtime_job.session_id
-        )
+        ))
         return runtime_job
