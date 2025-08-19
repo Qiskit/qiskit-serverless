@@ -16,29 +16,29 @@ jobs:
           - 'qiskit-serverless'
     steps:
       - name: Set up Helm
-        uses: azure/setup-helm@v4.2.0  #4.2.0
+        uses: azure/setup-helm@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout
-        uses: actions/checkout@4.2.2
+        uses: actions/checkout@v4
       - name: Build Helm Package
         id: package
         run: |
           helm package ./charts/${{ matrix.release }} -u
           echo "VERSION=${GITHUB_REF_NAME/v}" >> $GITHUB_OUTPUT
       - name: Upload Helm Package
-        uses: actions/upload-artifact@4.4.3
+        uses: actions/upload-artifact@v4
         with:
           name: helm-package
           path: ./${{ matrix.release }}-${{ steps.package.outputs.VERSION }}.tgz
       - name: Get release
         id: get_release
-        uses: bruceadams/get-release@74c3d60f5a28f358ccf241a00c9021ea16f0569f #1.3.2
+        uses: bruceadams/get-release@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - name: Upload Release Asset
         id: upload-release-asset
-        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5 #1.0.2
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
