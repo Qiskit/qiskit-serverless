@@ -77,7 +77,7 @@ class InputSerializer(serializers.Serializer):
         status.HTTP_200_OK: openapi.Response(
             description="Requested file",
             content_type="application/octet-stream",
-            schema=openapi.Schema(type=openapi.TYPE_FILE)
+            schema=openapi.Schema(type=openapi.TYPE_FILE),
         ),
         status.HTTP_404_NOT_FOUND: openapi.Response(
             description="File not found.",
