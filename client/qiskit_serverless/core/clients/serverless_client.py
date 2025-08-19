@@ -561,7 +561,7 @@ class IBMServerlessClient(ServerlessClient):
     Credentials can be saved to disk by calling the `save_account()` method::
 
         from qiskit_serverless import IBMServerlessClient
-        IBMServerlessClient.save_account(channel="ibm_quantum_platform", token=<INSERT_IBM_QUANTUM_TOKEN>)
+        IBMServerlessClient.save_account(token=<INSERT_IBM_QUANTUM_TOKEN>)
 
     Once the credentials are saved, you can simply instantiate the client with no
     constructor args, as shown below.
