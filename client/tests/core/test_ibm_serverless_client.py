@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 from qiskit_serverless import IBMServerlessClient
 from qiskit_serverless.core.enums import Channel
-from qiskit_serverless.exception import QiskitServerlessException
+from qiskit_ibm_runtime.accounts.exceptions import InvalidAccountError
 
 
 class TestIBMServerlessClient(unittest.TestCase):
@@ -71,7 +71,7 @@ class TestIBMServerlessClient(unittest.TestCase):
         use_token = "save_token"
 
         with self.assertRaisesRegex(
-            QiskitServerlessException,
+            InvalidAccountError,
             r"Invalid `channel` value. Expected one of ['ibm_cloud', 'ibm_quantum_platform'], "
             "got 'ibm_quantum'.",
         ):
