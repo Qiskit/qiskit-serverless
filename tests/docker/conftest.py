@@ -44,6 +44,7 @@ def set_up_serverless_client():
     serverless = ServerlessClient(
         token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
         host=os.environ.get("GATEWAY_HOST", connection_url),
+        instance=os.environ.get("GATEWAY_INSTANCE", "an_awesome_crn"),
     )
 
     # Initialize serverless folder for current user
