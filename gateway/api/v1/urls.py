@@ -15,16 +15,24 @@ logger = logging.getLogger("gateway.v1.urls")
 
 
 ###
-# Force imports of every vew module
+# Force imports of every view module
 ###
 views_dir = os.path.join(os.path.dirname(__file__), "views")
 BASE_MODULE = "api.v1.views"
 
-for filename in os.listdir(views_dir):
-    if filename.endswith(".py") and not filename.startswith("__"):
-        module_name = filename[:-3]
-        importlib.import_module(f"{BASE_MODULE}.{module_name}")
-        logger.debug("[IMPORT] api.v1.views.%s", module_name)
+
+def import_dir(directory: str, base_module: str):
+    """Force imports of every view module"""
+    for filename in os.listdir(directory):
+        if os.path.isdir(os.path.join(directory, filename)):
+            import_dir(os.path.join(directory, filename), f"{base_module}.{filename}")
+        elif filename.endswith(".py") and not filename.startswith("__"):
+            module_name = filename[:-3]
+            importlib.import_module(f"{base_module}.{module_name}")
+            logger.debug("[IMPORT] api.v1.views.%s", module_name)
+
+
+import_dir(views_dir, BASE_MODULE)
 
 router = SimpleRouter()
 router.register(
@@ -36,9 +44,6 @@ router.register(
     r"jobs",
     v1_views.JobViewSet,
     basename=v1_views.JobViewSet.BASE_NAME,
-)
-router.register(
-    r"files", v1_views.FilesViewSet, basename=v1_views.FilesViewSet.BASE_NAME
 )
 router.register(
     r"catalog",

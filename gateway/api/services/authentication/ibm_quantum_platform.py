@@ -68,7 +68,7 @@ class IBMQuantumPlatform(AuthenticationBase):
             )
             raise exceptions.AuthenticationFailed(
                 (
-                    "There was a problem in the autentication process with IBM Quantum Platform, "
+                    "There was a problem in the authentication process with IBM Quantum Platform, "
                     "please try later."
                 )
             )
@@ -80,7 +80,7 @@ class IBMQuantumPlatform(AuthenticationBase):
             )
             raise exceptions.AuthenticationFailed(
                 (
-                    "There was a problem in the autentication process with IBM Quantum Platform, "
+                    "There was a problem in the authentication process with IBM Quantum Platform, "
                     "please try later."
                 )
             )
@@ -113,7 +113,7 @@ class IBMQuantumPlatform(AuthenticationBase):
                 "IBM Quantum Platform verification error: %s.", api_exception.message
             )
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the autentication process with IBM Quantum Platform, please review your CRN."  # pylint: disable=line-too-long
+                "There was a problem in the authentication process with IBM Quantum Platform, please review your CRN."  # pylint: disable=line-too-long
             )
 
         resource_plan_id = instance.get("resource_plan_id")
@@ -123,7 +123,7 @@ class IBMQuantumPlatform(AuthenticationBase):
             )
             raise exceptions.AuthenticationFailed(
                 (
-                    "There was a problem in the autentication process with IBM Quantum Platform, "
+                    "There was a problem in the authentication process with IBM Quantum Platform, "
                     "please try later."
                 )
             )

@@ -73,7 +73,7 @@ class CatalogViewSet(viewsets.GenericViewSet):
 
     def get_retrieve_queryset(self, pk):
         """
-        QuerySet to retrieve a specifc public programs in the catalog
+        QuerySet to retrieve a specific public programs in the catalog
         """
         public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
 
@@ -85,7 +85,7 @@ class CatalogViewSet(viewsets.GenericViewSet):
 
     def get_by_title_queryset(self, title, provider_name):
         """
-        QuerySet to retrieve a specifc public programs in the catalog
+        QuerySet to retrieve a specific public programs in the catalog
         """
         public_group = Group.objects.filter(name=self.PUBLIC_GROUP_NAME).first()
 

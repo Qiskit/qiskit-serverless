@@ -110,7 +110,7 @@ class QiskitFunction:  # pylint: disable=too-many-instance-attributes
 
         Returns:
             Tuple[bool, List[str]]:
-                boolean specifiying if function arguments are valid
+                boolean specifying if function arguments are valid
                 list of validation errors, if any
         """
         return True, []
