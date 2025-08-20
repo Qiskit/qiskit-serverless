@@ -91,7 +91,9 @@ class TestJob:
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_filtered_logs(self):
         """Tests job filtered log."""
-        client = ServerlessClient(host="host", token="token", version="version")
+        client = ServerlessClient(
+            host="host", token="token", instance="crn", version="version"
+        )
         client.logs = MagicMock(
             return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n",  # pylint: disable=line-too-long
         )
@@ -108,7 +110,9 @@ class TestJob:
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_error_message(self):
         """Tests job filtered log."""
-        client = ServerlessClient(host="host", token="token", version="version")
+        client = ServerlessClient(
+            host="host", token="token", instance="crn", version="version"
+        )
         client.status = MagicMock(
             return_value="ERROR",
         )

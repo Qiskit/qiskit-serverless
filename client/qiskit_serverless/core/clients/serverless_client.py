@@ -100,7 +100,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         version: Optional[str] = None,
         token: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: str = Channel.IBM_QUANTUM.value,
+        channel: str = Channel.IBM_QUANTUM_PLATFORM.value,
     ):
         """
         Initializes the ServerlessClient instance.
@@ -133,7 +133,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         except ValueError as error:
             raise ValueError(
                 "Your channel value is not correct. Use one of the available channels: "
-                f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, "
+                f"{Channel.LOCAL.value}, "
                 f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
             ) from error
 
@@ -587,7 +587,7 @@ class IBMServerlessClient(ServerlessClient):
         token: Optional[str] = None,
         name: Optional[str] = None,
         instance: Optional[str] = None,
-        channel: str = Channel.IBM_QUANTUM.value,
+        channel: str = Channel.IBM_QUANTUM_PLATFORM.value,
     ):
         """
         Initialize a client with access to an IBMQ-provided remote cluster.
@@ -648,7 +648,7 @@ class IBMServerlessClient(ServerlessClient):
             except ValueError as error:
                 raise ValueError(
                     "Your channel value is not correct. Use one of the available channels: "
-                    f"{Channel.LOCAL.value}, {Channel.IBM_QUANTUM.value}, "
+                    f"{Channel.LOCAL.value}, "
                     f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
                 ) from error
 
@@ -688,7 +688,7 @@ class IBMServerlessClient(ServerlessClient):
         name: Optional[str] = None,
         overwrite: Optional[bool] = False,
         instance: Optional[str] = None,
-        channel: str = Channel.IBM_QUANTUM.value,
+        channel: str = Channel.IBM_QUANTUM_PLATFORM.value,
     ) -> None:
         """
         Save the account to disk for future use.
