@@ -3,7 +3,7 @@ services:
   ray-head:
     user: "0"
     container_name: ray-head
-    image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.25.3}
+    image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.25.4}
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
@@ -12,6 +12,9 @@ services:
       - 8265:8265
     volumes:
       - host-shm:/dev/shm
+      - program-artifacts:/data
+    environment:
+      - DATA_PATH=/data/mockuser
     networks:
       - safe-tier
   postgres:
@@ -28,8 +31,8 @@ services:
       always
   gateway:
     container_name: gateway
-    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.25.3}
-    command: gunicorn main.wsgi:application --bind 0.0.0.0:8000 --workers=2 --threads=1 --max-requests=1200 --max-requests-jitter=50 --timeout=25
+    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.25.4}
+    command: python manage.py runserver 0.0.0.0:8000
     ports:
       - 8000:8000
     user: "root" # we use the root user here so the docker-compose watch can sync files into the container
@@ -54,7 +57,7 @@ services:
       - postgres
   scheduler:
     container_name: scheduler
-    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.25.3}
+    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.25.4}
     entrypoint: "./scripts/scheduler.sh"
     environment:
       - DEBUG=0

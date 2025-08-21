@@ -26,9 +26,9 @@ jobs:
         working-directory: ./client
 
     steps:
-      - uses: actions/checkout@4.2.2
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@5.3.0
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
@@ -40,7 +40,7 @@ jobs:
           echo TOX_ENV=$tox_env >> $GITHUB_ENV
       - name: Install tox
         run: |
-          pip install tox==4.16.0
+          pip install tox>=4.0.0
       - name: Run styles check
         run: tox -elint
       - name: Test using tox environment
