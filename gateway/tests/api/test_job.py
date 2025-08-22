@@ -22,7 +22,7 @@ class TestJobApi(APITestCase):
 
     def test_job_non_auth_user(self):
         """Tests job list non-authorized."""
-        url = reverse("v1:get-jobs")
+        url = reverse("v1:jobs-list")
         response = self.client.get(url, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -30,7 +30,7 @@ class TestJobApi(APITestCase):
         """Tests job list authorized."""
         self._authorize()
 
-        jobs_response = self.client.get(reverse("v1:get-jobs"), format="json")
+        jobs_response = self.client.get(reverse("v1:jobs-list"), format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 5)
         self.assertEqual(
@@ -43,7 +43,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:get-jobs"), {"filter": "catalog"}, format="json"
+            reverse("v1:jobs-list"), {"filter": "catalog"}, format="json"
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 2)
@@ -55,7 +55,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:get-jobs"), {"filter": "serverless"}, format="json"
+            reverse("v1:jobs-list"), {"filter": "serverless"}, format="json"
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 3)
@@ -65,7 +65,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:get-jobs"), {"status": "SUCCEEDED"}, format="json"
+            reverse("v1:jobs-list"), {"status": "SUCCEEDED"}, format="json"
         )
 
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -78,7 +78,7 @@ class TestJobApi(APITestCase):
         created_after = "2023-02-02T00:00:00.000000Z"
 
         jobs_response = self.client.get(
-            reverse("v1:get-jobs"), {"created_after": created_after}, format="json"
+            reverse("v1:jobs-list"), {"created_after": created_after}, format="json"
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 3)
@@ -90,7 +90,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:get-jobs"), {"function": "Docker-Image-Program"}, format="json"
+            reverse("v1:jobs-list"), {"function": "Docker-Image-Program"}, format="json"
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 1)
@@ -100,7 +100,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:get-jobs"), {"offset": 0, "limit": 2}, format="json"
+            reverse("v1:jobs-list"), {"offset": 0, "limit": 2}, format="json"
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 5)
@@ -115,7 +115,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:get-provider-jobs"), {}, format="json"
+            reverse("v1:jobs-provider-list"), {}, format="json"
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
@@ -131,7 +131,7 @@ class TestJobApi(APITestCase):
         function = "Program"
 
         jobs_response = self.client.get(
-            reverse("v1:get-provider-jobs"),
+            reverse("v1:jobs-provider-list"),
             {"provider": provider, "function": function},
             format="json",
         )
@@ -148,7 +148,7 @@ class TestJobApi(APITestCase):
         function = "Program"
 
         jobs_response = self.client.get(
-            reverse("v1:get-provider-jobs"),
+            reverse("v1:jobs-provider-list"),
             {"provider": provider, "function": function},
             format="json",
         )
@@ -165,7 +165,7 @@ class TestJobApi(APITestCase):
         function = "fake_program"
 
         jobs_response = self.client.get(
-            reverse("v1:get-provider-jobs"),
+            reverse("v1:jobs-provider-list"),
             {"provider": provider, "function": function},
             format="json",
         )
@@ -183,7 +183,7 @@ class TestJobApi(APITestCase):
         function = "Docker-Image-Program"
 
         jobs_response = self.client.get(
-            reverse("v1:get-provider-jobs"),
+            reverse("v1:jobs-provider-list"),
             {"provider": provider, "function": function},
             format="json",
         )
@@ -199,7 +199,7 @@ class TestJobApi(APITestCase):
         function = "Docker-Image-Program"
 
         jobs_response = self.client.get(
-            reverse("v1:get-provider-jobs"),
+            reverse("v1:jobs-provider-list"),
             {"provider": provider, "function": function, "status": "SUCCEEDED"},
             format="json",
         )
@@ -217,7 +217,7 @@ class TestJobApi(APITestCase):
         created_after = "2023-02-02T00:00:00.000000Z"
 
         jobs_response = self.client.get(
-            reverse("v1:get-provider-jobs"),
+            reverse("v1:jobs-provider-list"),
             {
                 "provider": provider,
                 "function": function,
@@ -239,7 +239,7 @@ class TestJobApi(APITestCase):
         function = "Docker-Image-Program"
 
         jobs_response = self.client.get(
-            reverse("v1:get-provider-jobs"),
+            reverse("v1:jobs-provider-list"),
             {"provider": provider, "function": function, "limit": 1, "offset": 1},
             format="json",
         )

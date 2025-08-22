@@ -20,7 +20,7 @@ from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.views.enums.type_filter import TypeFilter
 from api.utils import sanitize_name
-from api.use_cases.jobs.get_provider_jobs import GetProviderJobsUseCase
+from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.models import Program
 
 # pylint: disable=abstract-method
@@ -160,7 +160,7 @@ def serialize_output(
         ),
     ],
 )
-@endpoint("jobs/provider", name="get-provider-jobs")
+@endpoint("jobs/provider", name="jobs-provider-list")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
@@ -185,7 +185,7 @@ def get_provider_jobs(request):
 
     user = cast(AbstractUser, request.user)
 
-    jobs, total = GetProviderJobsUseCase().execute(user=user, filters=filters)
+    jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters)
 
     return Response(
         serialize_output(jobs, total, request, filters.limit, filters.offset)

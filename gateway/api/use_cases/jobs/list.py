@@ -9,10 +9,10 @@ from api.models import Job
 from api.repositories.functions import FunctionRepository
 from api.repositories.jobs import JobsRepository, JobFilters
 
-logger = logging.getLogger("gateway.use_cases.get_jobs")
+logger = logging.getLogger("gateway.use_cases.jobs")
 
 
-class GetJobsUseCase:
+class JobsListUseCase:
     """Use case for retrieving user jobs with optional filtering and pagination."""
 
     function_repository = FunctionRepository()

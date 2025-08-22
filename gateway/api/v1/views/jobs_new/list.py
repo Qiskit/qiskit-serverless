@@ -20,7 +20,7 @@ from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.views.enums.type_filter import TypeFilter
-from api.use_cases.jobs.get_jobs import GetJobsUseCase
+from api.use_cases.jobs.list import JobsListUseCase
 from api.utils import sanitize_name
 from api.models import Program
 
@@ -171,7 +171,7 @@ def serialize_output(
         ),
     ],
 )
-@endpoint("jobs", name="get-jobs")
+@endpoint("jobs", name="jobs-list")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
@@ -196,7 +196,7 @@ def get_jobs(request):
 
     user = cast(AbstractUser, request.user)
 
-    jobs, total = GetJobsUseCase().execute(user=user, filters=filters)
+    jobs, total = JobsListUseCase().execute(user=user, filters=filters)
 
     return Response(
         serialize_output(jobs, total, request, filters.limit, filters.offset)
