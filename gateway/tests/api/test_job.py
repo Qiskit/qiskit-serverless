@@ -67,6 +67,7 @@ class TestJobApi(APITestCase):
         jobs_response = self.client.get(
             reverse("v1:get-jobs"), {"status": "SUCCEEDED"}, format="json"
         )
+
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 1)
         self.assertEqual(jobs_response.data.get("results")[0]["status"], "SUCCEEDED")
@@ -118,8 +119,8 @@ class TestJobApi(APITestCase):
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
-            jobs_response.data.get("message"),
-            "Qiskit Function title and Provider name are mandatory",
+            jobs_response.content,
+            b'{"provider":["This field is required."]}',
         )
 
     def test_job_provider_list_wrong_provider(self):
@@ -186,7 +187,7 @@ class TestJobApi(APITestCase):
             {"provider": provider, "function": function},
             format="json",
         )
-        print(jobs_response.data.get("results"))
+
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 2)
 

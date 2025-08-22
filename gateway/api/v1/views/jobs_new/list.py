@@ -3,65 +3,73 @@ API V1: list jobs endpoint
 """
 
 # pylint: disable=duplicate-code
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from rest_framework import status, permissions
+from rest_framework import status, permissions, serializers
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
-from django.utils.dateparse import parse_datetime
-
 from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+
 from api.models import Job
-from api.v1.views.utils import create_paginated_response, parse_positive_int
+from api.repositories.jobs import JobFilters
+from api.v1.views.utils import create_paginated_response
 from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
+from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.views.enums.type_filter import TypeFilter
 from api.use_cases.get_jobs import GetJobsUseCase
+from api.utils import sanitize_name
 
 
-def serialize_input(request):
-    """Parse and validate query parameters from the request."""
-    user = request.user
+# pylint: disable=abstract-method
+class InputSerializer(serializers.Serializer):
+    """
+    Validate and sanitize the input
+    """
 
-    limit = parse_positive_int(
-        request.query_params.get("limit"), settings.REST_FRAMEWORK["PAGE_SIZE"]
+    function = serializers.CharField(required=False, default=None)
+    provider = serializers.CharField(required=False, default=None)
+    limit = serializers.IntegerField(
+        required=False, default=settings.REST_FRAMEWORK["PAGE_SIZE"], min_value=0
     )
-    offset = parse_positive_int(request.query_params.get("offset"), 0)
+    offset = serializers.IntegerField(required=False, default=0, min_value=0)
+    filter = serializers.ChoiceField(
+        choices=[TypeFilter.CATALOG, TypeFilter.SERVERLESS],
+        required=False,
+        default=None,
+    )
+    status = serializers.CharField(required=False, default=None)
+    created_after = serializers.DateTimeField(required=False, default=None)
 
-    type_filter = None
-    type_param = request.query_params.get("filter")
-    if type_param:
-        try:
-            type_filter = TypeFilter(type_param)
-        except ValueError as exc:
-            raise ValueError(
-                f"Invalid type filter. Must be one of: {', '.join([e.value for e in TypeFilter])}"
-            ) from exc
+    def create(self, validated_data: dict):
+        return JobFilters(**validated_data)
 
-    status_filter = request.query_params.get("status")
+    def validate_filter(self, value: str):
+        """
+        Validates the type filter and converts it to TypeFilter
+        """
+        return TypeFilter(value) if value else None
 
-    created_after = None
-    created_after_param = request.query_params.get("created_after")
-    if created_after_param:
-        created_after = parse_datetime(created_after_param)
-        if created_after is None:
-            raise ValueError(
-                "Invalid created_after format. Use ISO 8601 format (e.g., '2024-01-01T00:00:00Z')"
-            )
+    def validate_function(self, value: str):
+        """
+        Validates the function title and sanitize it
+        """
+        return sanitize_name(value)
 
-    function_name = request.query_params.get("function")
+    def validate_provider(self, value: str):
+        """
+        Validates the provider and sanitize it
+        """
+        return sanitize_name(value)
 
-    return {
-        "user": user,
-        "limit": limit,
-        "offset": offset,
-        "type_filter": type_filter,
-        "status": status_filter,
-        "created_after": created_after,
-        "function_name": function_name,
-    }
+    def validate_status(self, value: str):
+        """
+        Validates the status and sanitize it
+        """
+        return sanitize_name(value)
 
 
 def serialize_output(
@@ -138,29 +146,33 @@ def serialize_output(
         ),
     ],
 )
-@endpoint("jobs")
+@endpoint("jobs", name="get-jobs")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
+@endpoint_handle_exceptions
 def get_jobs(request):
     """
     List jobs with optional filtering.
 
     Query parameters:
+    - provider: provider name
+    - function: function title
     - limit: Number of results to return per page
     - offset: Number of results to skip
     - type: Filter by job type ('catalog' or 'serverless')
     - status: Filter by job status
     - created_after: Filter jobs created after this datetime (ISO 8601 format)
     """
-    try:
-        input_data = serialize_input(request)
-    except ValueError as e:
-        return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    serializer = InputSerializer(data=request.query_params)
+    serializer.is_valid(raise_exception=True)
+    validated_data = serializer.validated_data
 
-    jobs, total = GetJobsUseCase(**input_data).execute()
+    filters = cast(JobFilters, serializer.create(validated_data))
+
+    user = cast(AbstractUser, request.user)
+
+    jobs, total = GetJobsUseCase().execute(user=user, filters=filters)
 
     return Response(
-        serialize_output(
-            jobs, total, request, input_data["limit"], input_data["offset"]
-        )
+        serialize_output(jobs, total, request, filters.limit, filters.offset)
     )

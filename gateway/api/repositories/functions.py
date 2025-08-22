@@ -222,6 +222,44 @@ class FunctionRepository:
 
         return self.get_user_function(author=user, title=function_title)
 
+    def get_function(
+        self,
+        function_title: str,
+        provider_name: Optional[str],
+    ) -> Optional[Function]:
+        """
+        This method returns the specified function if the user is
+        the author of the function or it has a permission.
+
+        Args:
+            user: Django user of the function that wants to get it
+            permission_name (str): name of the permission. Values accepted
+            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
+            function_title (str): title of the function
+            provider_name (str | None): name of the provider owner of the function
+
+        Returns:
+            Program | None: returns the function if it exists
+        """
+
+        queryset = Function.objects.filter(title=function_title)
+
+        if provider_name:
+            queryset = queryset.filter(provider__name=provider_name)
+
+        result_queryset = queryset.first()
+
+        if result_queryset is None:
+            complete_name = (
+                f"{provider_name}/{function_title}" if provider_name else function_title
+            )
+            logger.warning(
+                "Function [%s] was not found",
+                complete_name,
+            )
+
+        return queryset
+
     def get_trial_instances(self, function: Function) -> List[Group]:
         """
         Returns the details of the function groups from trial_instances field

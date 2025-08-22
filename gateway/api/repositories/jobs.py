@@ -4,8 +4,11 @@ Repository implementation for Job model
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Tuple, Any
+from typing import List, Optional, Tuple
+
 from django.db.models import Q, QuerySet
+from django.contrib.auth.models import AbstractUser
+
 from api.models import Job
 from api.models import Program as Function
 from api.views.enums.type_filter import TypeFilter
@@ -19,20 +22,23 @@ class JobFilters:
     Filters for Job queries.
 
     Attributes:
-        user: Author of the job
+        function: Function title
+        provider: Provider who owns the function
+        limit: Number of results to return per page
+        offset: Number of results to skip
         type: Type of job to filter
         status: Current job status
         created_after: Filter jobs created after this date
-        provider: Provider who owns the function
-        function: Function title
     """
 
-    user: Optional[Any] = None
-    type: Optional[TypeFilter] = None
+    function: Optional[str] = None
+    provider: Optional[str] = None
+
+    limit: Optional[TypeFilter] = None
+    offset: Optional[TypeFilter] = None
+    filter: Optional[TypeFilter] = None
     status: Optional[str] = None
     created_after: Optional[datetime] = None
-    provider: Optional[str] = None
-    function: Optional[str] = None
 
 
 class JobsRepository:
@@ -108,9 +114,8 @@ class JobsRepository:
 
     def get_user_jobs(
         self,
-        filters: Optional[JobFilters] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
+        user: Optional[AbstractUser] = None,
+        filters: JobFilters = None,
         ordering: str = "-created",
     ) -> Tuple[QuerySet[Job], int]:
         """
@@ -128,18 +133,26 @@ class JobsRepository:
         queryset = Job.objects.order_by(ordering)
 
         if filters:
-            queryset = self._apply_filters(queryset, filters)
+            queryset = self._apply_filters(queryset, filters=filters, author=user)
 
-        return self._paginate_queryset(queryset, limit, offset)
+        return self._paginate_queryset(queryset, filters.limit, filters.offset)
 
-    def _apply_filters(self, queryset: QuerySet, filters: JobFilters) -> QuerySet:
+    def _apply_filters(
+        self,
+        queryset: QuerySet,
+        filters: JobFilters,
+        author: Optional[AbstractUser] = None,
+    ) -> QuerySet:
         """Apply filters to job queryset."""
-        if filters.user:
-            queryset = queryset.filter(author=filters.user)
+        if author:
+            queryset = queryset.filter(author=author)
 
-        match filters.type:
+        match filters.filter:
             case TypeFilter.CATALOG:
-                queryset = queryset.exclude(program__provider=None)
+                if filters.provider:
+                    queryset = queryset.filter(program__provider=filters.provider)
+                else:
+                    queryset = queryset.exclude(program__provider=None)
             case TypeFilter.SERVERLESS:
                 queryset = queryset.filter(program__provider=None)
 
