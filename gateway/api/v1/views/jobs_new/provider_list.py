@@ -83,7 +83,7 @@ class ProgramSummarySerializer(serializers.ModelSerializer):
 
 class JobSerializerWithoutResult(serializers.ModelSerializer):
     """
-    Job serializer first version. Include basic fields from the initial model.
+    Job serializer. Include basic fields from the initial model.
     """
 
     program = ProgramSummarySerializer(many=False)
