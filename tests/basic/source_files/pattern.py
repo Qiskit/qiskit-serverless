@@ -1,22 +1,27 @@
-from qiskit import QuantumCircuit
-from qiskit.primitives import StatevectorSampler as Sampler
-
 from qiskit_serverless import save_result
+from qiskit import QuantumCircuit
+from qiskit_ibm_runtime import SamplerV2 as Sampler
+from qiskit_ibm_runtime.fake_provider import FakeAlmadenV2
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
 # all print statement will be available in job logs
-print("Running pattern...")
+print("Running function...")
 
-# creating circuit
-circuit = QuantumCircuit(2)
-circuit.h(0)
-circuit.cx(0, 1)
-circuit.measure_all()
+# Set up a simulated backend and create a Bell state circuit.
+backend = FakeAlmadenV2()
+ideal_qc = QuantumCircuit(2)
+ideal_qc.h(0)
+ideal_qc.cx(0, 1)
+ideal_qc.measure_all()
 
-# running Sampler primitive
-sampler = Sampler()
-quasi_dists = sampler.run([(circuit)]).result()[0].data.meas.get_counts()
+# Transpile the ideal circuit to one optimized for the backend.
+pm = generate_preset_pass_manager(optimization_level=1, backend=backend)
+isa_qc = pm.run(ideal_qc)
 
-# saves results of program execution,
-# which will be accessible by calling `.result()`
-save_result(quasi_dists)
-print("Completed running pattern.")
+# Run the circuit on the sampler and get the measurement counts.
+sampler = Sampler(mode=backend)
+job = sampler.run([isa_qc], shots=1024)
+result = job.result()[0].data.meas.get_counts()
+
+# Save the final result for the serverless job.
+save_result(result)

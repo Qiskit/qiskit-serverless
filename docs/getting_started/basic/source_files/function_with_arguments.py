@@ -1,17 +1,23 @@
 from qiskit_serverless import get_arguments, save_result
-from qiskit.primitives import StatevectorSampler as Sampler
+from qiskit import QuantumCircuit
+from qiskit_ibm_runtime import SamplerV2 as Sampler
+from qiskit_ibm_runtime.fake_provider import FakeAlmadenV2
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
-# get all arguments passed to this function
+# Get the input circuit from arguments and set up a simulated backend.
 arguments = get_arguments()
-
-# get specific argument that we are interested in
 circuit = arguments.get("circuit")
+backend = FakeAlmadenV2()
 
-sampler = Sampler()
+# Transpile the circuit to one optimized for the backend's hardware.
+pm = generate_preset_pass_manager(optimization_level=1, backend=backend)
+isa_qc = pm.run(circuit)
 
-quasi_dists = sampler.run([(circuit)]).result()[0].data.meas.get_counts()
+# Run the transpiled circuit on the sampler and get the measurement counts.
+sampler = Sampler(mode=backend)
+job = sampler.run([isa_qc], shots=1024)
+result = job.result()[0].data.meas.get_counts()
+print("\nMeasurement counts:", result)
 
-print(f"Quasi distribution: {quasi_dists}")
-
-# saving results of the execution
-save_result({"quasi_dists": quasi_dists})
+# Save the final result for the serverless job.
+save_result(result)
