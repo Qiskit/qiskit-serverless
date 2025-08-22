@@ -20,7 +20,7 @@ from api.v1 import serializers as v1_serializers
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.views.enums.type_filter import TypeFilter
-from api.use_cases.get_jobs import GetJobsUseCase
+from api.use_cases.jobs.get_jobs import GetJobsUseCase
 from api.utils import sanitize_name
 
 

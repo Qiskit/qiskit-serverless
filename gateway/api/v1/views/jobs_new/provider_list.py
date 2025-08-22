@@ -20,7 +20,7 @@ from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.views.enums.type_filter import TypeFilter
 from api.utils import sanitize_name
-from api.use_cases.get_provider_jobs import GetProviderJobsUseCase
+from api.use_cases.jobs.get_provider_jobs import GetProviderJobsUseCase
 
 # pylint: disable=abstract-method
 class InputSerializer(serializers.Serializer):
