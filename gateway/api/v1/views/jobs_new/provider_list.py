@@ -21,6 +21,7 @@ from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.views.enums.type_filter import TypeFilter
 from api.utils import sanitize_name
 from api.use_cases.jobs.get_provider_jobs import GetProviderJobsUseCase
+from api.models import Program
 
 # pylint: disable=abstract-method
 class InputSerializer(serializers.Serializer):
@@ -70,6 +71,28 @@ class InputSerializer(serializers.Serializer):
         return sanitize_name(value)
 
 
+class ProgramSummarySerializer(serializers.ModelSerializer):
+    """
+    Program serializer with summary fields for job listings.
+    """
+
+    class Meta:
+        model = Program
+        fields = ["id", "title", "provider"]
+
+
+class JobSerializerWithoutResult(serializers.ModelSerializer):
+    """
+    Job serializer first version. Include basic fields from the initial model.
+    """
+
+    program = ProgramSummarySerializer(many=False)
+
+    class Meta:
+        model = Job
+        fields = ["id", "status", "program", "created", "sub_status"]
+
+
 def serialize_output(
     jobs: List[Job],
     total_count: int,
@@ -80,7 +103,7 @@ def serialize_output(
     """
     Prepare the output for the end-point
     """
-    serializer = v1_serializers.JobSerializerWithoutResult(jobs, many=True)
+    serializer = JobSerializerWithoutResult(jobs, many=True)
     return create_paginated_response(
         data=serializer.data,
         total_count=total_count,
