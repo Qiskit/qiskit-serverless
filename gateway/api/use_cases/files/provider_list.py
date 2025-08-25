@@ -31,7 +31,7 @@ class FilesProviderListUseCase:
         if provider is None or not ProviderAccessPolicy.can_access(
             user=user, provider=provider
         ):
-            raise NotFoundError(f"Provider {provider_name} doesn't exist.")
+            raise NotFoundError(f"Provider {provider} doesn't exist.")
 
         function = self.function_repository.get_function_by_permission(
             user=user,
