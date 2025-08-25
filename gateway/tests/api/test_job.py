@@ -214,7 +214,7 @@ class TestJobApi(APITestCase):
         self.client.force_authenticate(user=user)
         provider = "default"
         function = "Docker-Image-Program"
-        created_after = "2023-02-02T00:00:00.000000Z"
+        created_after = "2023-02-02"
 
         jobs_response = self.client.get(
             reverse("v1:jobs-provider-list"),
