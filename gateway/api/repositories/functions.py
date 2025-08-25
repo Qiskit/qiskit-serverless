@@ -228,13 +228,9 @@ class FunctionRepository:
         provider_name: Optional[str],
     ) -> Optional[Function]:
         """
-        This method returns the specified function if the user is
-        the author of the function or it has a permission.
+        This method returns the specified function unconditionally.
 
         Args:
-            user: Django user of the function that wants to get it
-            permission_name (str): name of the permission. Values accepted
-            RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
             function_title (str): title of the function
             provider_name (str | None): name of the provider owner of the function
 
