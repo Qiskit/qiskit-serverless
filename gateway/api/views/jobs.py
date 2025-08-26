@@ -388,12 +388,15 @@ class JobViewSet(viewsets.GenericViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # recojo objecto del id (la function) -> creo
         job = self.get_object()
+        # crear entrada en DB para runtime job
         runtimejob = RuntimeJob(
             job=job,
             runtime_job=request.data.get("runtime_job"),
-            runtime_session=request.data.get("runtime_session"),
+            runtime_session=request.data.get("runtime_session"), # excepcion?
         )
+        # guardas en base de datos
         runtimejob.save()
         message = "RuntimeJob is added."
         return Response({"message": message})
