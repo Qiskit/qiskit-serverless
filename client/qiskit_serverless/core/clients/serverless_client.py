@@ -192,10 +192,29 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job("list")
     def jobs(self, **kwargs) -> List[Job]:
+        """Retrieve a list of jobs with optional filtering.
+
+        Args:
+            limit (int, optional): Maximum number of jobs to return. Defaults to 10.
+            offset (int, optional): Number of jobs to skip. Defaults to 0.
+            status (str, optional): Filter by job status.
+            created_after (str, optional): Filter jobs created after this timestamp.
+            function_name (str, optional): Filter by function name.
+            **kwargs: Additional query parameters.
+
+        Returns:
+            List[Job]: List of Job objects matching the criteria.
+        """
         limit = kwargs.get("limit", 10)
         kwargs["limit"] = limit
         offset = kwargs.get("offset", 0)
         kwargs["offset"] = offset
+        status = kwargs.get("status", None)
+        kwargs["status"] = status
+        created_after = kwargs.get("created_after", None)
+        kwargs["created_after"] = created_after
+        function_name = kwargs.get("function_name", None)
+        kwargs["function"] = function_name
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
@@ -215,19 +234,22 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job("provider_list")
     def provider_jobs(self, function: QiskitFunction, **kwargs) -> List[Job]:
-        """List of jobs created in this provider and function.
+        """Retrieve jobs for a specific provider and function.
 
         Args:
-            function: QiskitFunction
-            **kwargs: additional parameters for the request
-
-        Raises:
-            QiskitServerlessException: validation exception
+            function (QiskitFunction): Function object.
+            limit (int, optional): Maximum number of jobs to return. Defaults to 10.
+            offset (int, optional): Number of jobs to skip. Defaults to 0.
+            status (str, optional): Filter by job status.
+            created_after (str, optional): Filter jobs created after this timestamp.
+            **kwargs: Additional query parameters.
 
         Returns:
-            [Job] : list of jobs
-        """
+            List[Job]: List of Job objects for the specified provider and function.
 
+        Raises:
+            QiskitServerlessException: If the function doesn't have an associated provider.
+        """
         if not function.provider:
             raise QiskitServerlessException("`function` doesn't have a provider.")
 
@@ -237,6 +259,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         kwargs["offset"] = offset
         kwargs["function"] = function.title
         kwargs["provider"] = function.provider
+        status = kwargs.get("status", None)
+        kwargs["status"] = status
+        created_after = kwargs.get("created_after", None)
+        kwargs["created_after"] = created_after
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
