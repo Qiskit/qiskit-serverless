@@ -72,7 +72,7 @@ class TestIBMServerlessClient(unittest.TestCase):
         use_token = "save_token"
 
         with self.assertRaisesRegex(
-            InvalidAccountError, r"Invalid `channel` value.*got 'ibm_quantum'"
+            ValueError, r"Your channel value is not correct"
         ):
 
             IBMServerlessClient(
