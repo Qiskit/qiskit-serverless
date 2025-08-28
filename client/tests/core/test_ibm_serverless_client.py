@@ -71,9 +71,7 @@ class TestIBMServerlessClient(unittest.TestCase):
         use_instance = "h/g/p"
         use_token = "save_token"
 
-        with self.assertRaisesRegex(
-            ValueError, r"Your channel value is not correct"
-        ):
+        with self.assertRaisesRegex(ValueError, r"Your channel value is not correct"):
 
             IBMServerlessClient(
                 channel=use_channel, instance=use_instance, token=use_token
