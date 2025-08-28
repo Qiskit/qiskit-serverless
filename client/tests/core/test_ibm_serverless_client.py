@@ -67,7 +67,7 @@ class TestIBMServerlessClient(unittest.TestCase):
     def test_ibm_quantum_channel(self):
         """Test error raised when initializing account with `ibm_quantum` channel."""
 
-        use_channel = Channel.IBM_QUANTUM.value
+        use_channel = "ibm_quantum"
         use_instance = "h/g/p"
         use_token = "save_token"
 
