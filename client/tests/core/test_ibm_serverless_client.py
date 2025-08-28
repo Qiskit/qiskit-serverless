@@ -16,8 +16,6 @@ import unittest
 import tempfile
 from unittest.mock import patch
 
-from qiskit_ibm_runtime.accounts.exceptions import InvalidAccountError
-
 from qiskit_serverless import IBMServerlessClient
 from qiskit_serverless.core.enums import Channel
 
