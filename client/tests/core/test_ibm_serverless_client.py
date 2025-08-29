@@ -18,7 +18,6 @@ from unittest.mock import patch
 
 from qiskit_serverless import IBMServerlessClient
 from qiskit_serverless.core.enums import Channel
-from qiskit_serverless.exception import QiskitServerlessException
 
 
 class TestIBMServerlessClient(unittest.TestCase):
@@ -39,7 +38,6 @@ class TestIBMServerlessClient(unittest.TestCase):
             mock_file_path.return_value = temp_file.name
 
         channels_to_test = [
-            Channel.IBM_QUANTUM.value,
             Channel.IBM_CLOUD.value,
             Channel.IBM_QUANTUM_PLATFORM.value,
         ]
@@ -64,44 +62,14 @@ class TestIBMServerlessClient(unittest.TestCase):
                 self.assertEqual(client.account.token, use_token)
                 self.assertEqual(client.account.instance, use_instance)
 
-    @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
-    def test_save_wrong_instance(self, mock_file_path):
-        """Test saving with wrong instance format (ibm_quantum channel)."""
+    def test_ibm_quantum_channel(self):
+        """Test error raised when initializing account with `ibm_quantum` channel."""
 
-        # Save config in a temporary file
-        with tempfile.NamedTemporaryFile() as temp_file:
-            mock_file_path.return_value = temp_file.name
-
-        use_channel = Channel.IBM_QUANTUM.value
-        use_instance = "wrong_ibm_quantum_instance"
-        use_token = "save_token"
-        use_name = f"test_save_account_{uuid.uuid4().hex}"
-
-        with self.assertRaisesRegex(
-            QiskitServerlessException,
-            r"Invalid format in account inputs - 'Invalid `instance` value\. "
-            "Expected hub/group/project format, got wrong_ibm_quantum_instance'",
-        ):
-
-            IBMServerlessClient.save_account(
-                token=use_token,
-                name=use_name,
-                instance=use_instance,
-                channel=use_channel,
-            )
-
-    def test_init_wrong_instance(self):
-        """Test initializing account with wrong instance format (ibm_quantum channel)."""
-
-        use_channel = Channel.IBM_QUANTUM.value
-        use_instance = "wrong_ibm_quantum_instance"
+        use_channel = "ibm_quantum"
+        use_instance = "h/g/p"
         use_token = "save_token"
 
-        with self.assertRaisesRegex(
-            QiskitServerlessException,
-            r"Invalid format in account inputs - 'Invalid `instance` value\. "
-            "Expected hub/group/project format, got wrong_ibm_quantum_instance'",
-        ):
+        with self.assertRaisesRegex(ValueError, r"Your channel value is not correct"):
 
             IBMServerlessClient(
                 channel=use_channel, instance=use_instance, token=use_token

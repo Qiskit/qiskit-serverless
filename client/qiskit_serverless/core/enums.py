@@ -10,6 +10,5 @@ class Channel(str, Enum):
     """
 
     LOCAL = "local"
-    IBM_QUANTUM = "ibm_quantum"
     IBM_CLOUD = "ibm_cloud"
     IBM_QUANTUM_PLATFORM = "ibm_quantum_platform"

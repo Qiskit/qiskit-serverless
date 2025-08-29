@@ -6,6 +6,7 @@ from qiskit_serverless import ServerlessClient, QiskitFunction
 serverless = ServerlessClient(
     token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
     host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
+    instance=os.environ.get("GATEWAY_INSTANCE", "an_awesome_crn"),
 )
 print(serverless)
 
