@@ -2,11 +2,11 @@ ARG MICRO_IMAGE_DIR=/ubi-micro-img
 
 # BASE image using UBI 9 micro where the
 # application and requirements will be installed
-FROM registry.access.redhat.com/ubi9-micro:9.6-1749632992 AS base
+FROM registry.access.redhat.com/ubi9-micro:9.6-1754467928 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed
-FROM registry.access.redhat.com/ubi9:9.6-1749542372 AS build
+FROM registry.access.redhat.com/ubi9:9.6-1755678605 AS build
 ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image

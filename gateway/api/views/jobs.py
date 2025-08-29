@@ -18,15 +18,12 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
-from api.utils import retry_function, sanitize_name, sanitize_boolean
-from api.access_policies.providers import ProviderAccessPolicy
+from api.utils import retry_function, sanitize_boolean
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
-from api.views.enums.type_filter import TypeFilter
 from api.services.result_storage import ResultStorage
 from api.access_policies.jobs import JobAccessPolicies
-from api.repositories.jobs import JobsRepository
-from api.models import VIEW_PROGRAM_PERMISSION
+from api.repositories.jobs import JobsRepository, JobFilters
 from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
 from api.serializers import JobSerializer, JobSerializerWithoutResult
@@ -87,7 +84,6 @@ class JobViewSet(viewsets.GenericViewSet):
     def get_queryset(self):
         """
         Returns a filtered queryset of `Job` objects based on the `filter` query parameter.
-
         - If `filter=catalog`, returns jobs authored by the user with an existing provider.
         - If `filter=serverless`, returns jobs authored by the user without a provider.
         - Otherwise, returns all jobs authored by the user.
@@ -96,16 +92,13 @@ class JobViewSet(viewsets.GenericViewSet):
             QuerySet: A filtered queryset of `Job` objects ordered by creation date (descending).
         """
         type_filter = self.request.query_params.get("filter")
-        if type_filter:
-            if type_filter == TypeFilter.CATALOG:
-                return self.jobs_repository.get_user_jobs_with_provider(
-                    self.request.user
-                )
-            if type_filter == TypeFilter.SERVERLESS:
-                return self.jobs_repository.get_user_jobs_without_provider(
-                    self.request.user
-                )
-        return self.jobs_repository.get_user_jobs(self.request.user)
+        user = self.request.user
+
+        filters = JobFilters(filter=type_filter)
+
+        queryset, _ = self.jobs_repository.get_user_jobs(user=user, filters=filters)
+
+        return queryset
 
     @_trace
     def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
@@ -145,72 +138,6 @@ class JobViewSet(viewsets.GenericViewSet):
         serialized = serializer(job)
 
         return Response(serialized.data)
-
-    @_trace
-    def list(self, request):
-        """List jobs:"""
-        queryset = self.get_queryset()
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer_job_without_result(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer_job_without_result(queryset, many=True)
-        return Response(serializer.data)
-
-    @_trace
-    @action(methods=["GET"], detail=False, url_path="provider")
-    def provider_list(self, request):
-        """
-        It returns a list with the jobs for the provider function:
-            provider_name/function_title
-        """
-        provider_name = sanitize_name(request.query_params.get("provider"))
-        function_title = sanitize_name(request.query_params.get("function"))
-
-        if function_title is None or provider_name is None:
-            return Response(
-                {
-                    "message": "Qiskit Function title and Provider name are mandatory"  # pylint: disable=line-too-long
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        provider = self.provider_repository.get_provider_by_name(name=provider_name)
-        if provider is None:
-            return Response(
-                {"message": f"Provider {provider_name} doesn't exist."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        if not ProviderAccessPolicy.can_access(user=request.user, provider=provider):
-            return Response(
-                {"message": f"Provider {provider_name} doesn't exist."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        function = self.function_repository.get_function_by_permission(
-            user=request.user,
-            permission_name=VIEW_PROGRAM_PERMISSION,
-            function_title=function_title,
-            provider_name=provider_name,
-        )
-        if not function:
-            return Response(
-                {
-                    "message": f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        jobs_queryset = self.jobs_repository.get_program_jobs(function)
-        page = self.paginate_queryset(jobs_queryset)
-        if page is not None:
-            serializer = self.get_serializer_job_without_result(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer_job_without_result(jobs_queryset, many=True)
-        return Response(serializer.data)
 
     @_trace
     @action(methods=["POST"], detail=True)
