@@ -3,7 +3,7 @@ import os
 
 from testcontainers.compose import DockerCompose
 
-from qiskit_serverless import RayClient, QiskitFunction
+from qiskit_serverless import ServerlessClient, QiskitFunction
 from qiskit_serverless.core.job import Job
 from tests.utils import wait_for_ray_ready, wait_for_job_completion
 
@@ -24,7 +24,7 @@ def test_program():
 
         wait_for_ray_ready(connection_url)
 
-        serverless = RayClient(host=connection_url)
+        serverless = ServerlessClient(host=connection_url)
 
         program = QiskitFunction(
             title="simple_job",
