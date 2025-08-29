@@ -24,7 +24,11 @@ def test_program():
 
         wait_for_ray_ready(connection_url)
 
-        serverless = ServerlessClient(host=connection_url)
+        serverless = ServerlessClient(
+            token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
+            instance=os.environ.get("GATEWAY_INSTANCE", "awesome_crn"),
+            host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
+        )
 
         program = QiskitFunction(
             title="simple_job",
