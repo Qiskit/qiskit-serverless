@@ -25,4 +25,3 @@ job_id = job.job_id
 print("Serverless job id", job_id)
 
 print(serverless.runtime_jobs(job_id))
-

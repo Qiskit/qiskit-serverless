@@ -187,7 +187,7 @@ class Job:
     def runtime_jobs(self):
         """Returns associated runtime jobs if any."""
         return self._job_service.runtime_jobs(self.job_id)
-    
+
     def filtered_logs(self, **kwargs) -> str:
         """Returns logs of the job.
         Args:

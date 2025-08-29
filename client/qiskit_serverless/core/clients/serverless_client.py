@@ -436,7 +436,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             print("Failed to retrieve runtime jobs: %s", response.text)
             return []
 
-    
     def filtered_logs(self, job_id: str, **kwargs):
         all_logs = self.logs(job_id=job_id)
         included = ""

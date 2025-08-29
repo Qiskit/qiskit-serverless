@@ -131,7 +131,9 @@ class ServerlessRuntimeService(QiskitRuntimeService):
             start_session,
         )
         print(
-            "associate ok??", associate_runtime_job_with_serverless_job(
-            runtime_job.job_id(), runtime_job.session_id
-        ))
+            "associate ok??",
+            associate_runtime_job_with_serverless_job(
+                runtime_job.job_id(), runtime_job.session_id
+            ),
+        )
         return runtime_job

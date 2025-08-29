@@ -9,10 +9,10 @@ from qiskit.primitives import StatevectorSampler as Sampler
 service = ServerlessRuntimeService(
     channel=os.environ["QISKIT_IBM_CHANNEL"],
     instance=os.environ["QISKIT_IBM_INSTANCE"],
-    token=os.environ["QISKIT_IBM_TOKEN"]
+    token=os.environ["QISKIT_IBM_TOKEN"],
 )
 
-backend = service.backend('test_eagle_us-east')
+backend = service.backend("test_eagle_us-east")
 sampler = Sampler(backend)
 
 qc = QuantumCircuit(1)
