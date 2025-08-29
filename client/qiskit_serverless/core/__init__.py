@@ -29,6 +29,7 @@ Core abstractions
     ServerlessClient
     IBMServerlessClient
     BaseClient
+    RayClient
     LocalClient
     Job
     save_result
@@ -50,6 +51,7 @@ Core abstractions
 from .client import BaseClient
 
 from .clients.local_client import LocalClient
+from .clients.ray_client import RayClient
 from .clients.serverless_client import ServerlessClient, IBMServerlessClient
 
 from .job import (
