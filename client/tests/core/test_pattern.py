@@ -27,7 +27,7 @@ def test_program():
         serverless = ServerlessClient(
             token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
             instance=os.environ.get("GATEWAY_INSTANCE", "awesome_crn"),
-            host=os.environ.get("GATEWAY_HOST", "http://localhost:8000"),
+            host=connection_url,
         )
 
         program = QiskitFunction(
