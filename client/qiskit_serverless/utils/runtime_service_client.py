@@ -87,14 +87,13 @@ def associate_runtime_job_with_serverless_job(
         if response.ok:
             logging.info("Successfully associated runtime job: %s", runtime_job_id)
             return True
-
-        logging.warning(
-            "Failed to associate runtime job. Status: %s, Response: %s",
-            response.status_code,
-            response.text.strip().replace("\n", " "),
-        )
-        return False
-
+        else:
+            logging.warning(
+                "Failed to associate runtime job. Status: %s, Response: %s",
+                response.status_code,
+                response.text.strip().replace("\n", " "),
+            )
+            return False
     except requests.RequestException as e:
         logging.error("Request failed: %s", str(e))
         return False
