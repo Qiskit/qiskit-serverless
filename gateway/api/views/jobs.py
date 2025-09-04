@@ -164,29 +164,6 @@ class JobViewSet(viewsets.GenericViewSet):
 
         return result
 
-    @_trace
-    @action(methods=["GET"], detail=True)
-    def logs(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
-        """Returns logs from job."""
-        job = Job.objects.filter(pk=pk).first()
-        if job is None:
-            logger.warning("Job [%s] not found", pk)
-            return Response(status=404)
-
-        logs = job.logs
-        author = self.request.user
-        if job.program and job.program.provider:
-            provider_groups = job.program.provider.admin_groups.all()
-            author_groups = author.groups.all()
-            has_access = any(group in provider_groups for group in author_groups)
-            if has_access:
-                return Response({"logs": logs})
-            return Response({"logs": "No available logs"})
-
-        if author == job.author:
-            return Response({"logs": logs})
-        return Response({"logs": "No available logs"})
-
     def get_runtime_job(self, job):
         """get runtime job for job"""
         return RuntimeJob.objects.filter(job=job)
