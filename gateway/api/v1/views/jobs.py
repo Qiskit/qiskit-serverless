@@ -40,14 +40,6 @@ class JobViewSet(views.JobViewSet):
         return v1_serializers.JobSerializerWithoutResult(*args, **kwargs)
 
     @swagger_auto_schema(
-        operation_description="Save the result of a job",
-        responses={status.HTTP_200_OK: v1_serializers.JobSerializer(many=False)},
-    )
-    @action(methods=["POST"], detail=True)
-    def result(self, request, pk=None):
-        return super().result(request, pk)
-
-    @swagger_auto_schema(
         operation_description="Update the sub status of a job",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,

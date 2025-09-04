@@ -21,7 +21,6 @@ from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
 from api.utils import retry_function
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
-from api.services.result_storage import ResultStorage
 from api.access_policies.jobs import JobAccessPolicies
 from api.repositories.jobs import JobsRepository, JobFilters
 from api.repositories.functions import FunctionRepository
@@ -99,32 +98,6 @@ class JobViewSet(viewsets.GenericViewSet):
         queryset, _ = self.jobs_repository.get_user_jobs(user=user, filters=filters)
 
         return queryset
-
-    @_trace
-    @action(methods=["POST"], detail=True)
-    def result(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
-        """Save result of a job."""
-        author = self.request.user
-        job = self.jobs_repository.get_job_by_id(pk)
-        if job is None:
-            return Response(
-                {"message": f"Job [{pk}] not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        can_save_result = JobAccessPolicies.can_save_result(author, job)
-        if not can_save_result:
-            return Response(
-                {"message": f"Job [{job.id}] not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        job.result = json.dumps(request.data.get("result"))
-        result_storage = ResultStorage(author.username)
-        result_storage.save(job.id, job.result)
-
-        serializer = self.get_serializer(job)
-        return Response(serializer.data)
 
     @_trace
     @action(methods=["PATCH"], detail=True)

@@ -348,7 +348,6 @@ class TestJobApi(APITestCase):
 
         with self.settings(MEDIA_ROOT=media_root):
             self._authorize()
-
             job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
             jobs_response = self.client.post(
                 reverse("v1:jobs-result", args=[job_id]),
