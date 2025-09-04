@@ -24,13 +24,20 @@ from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.models import Program
 
 # pylint: disable=abstract-method
+
+
 class InputSerializer(serializers.Serializer):
     """
     Validate and sanitize the input
     """
 
     function = serializers.CharField(required=False, default=None)
-    provider = serializers.CharField(required=True)
+    provider = serializers.CharField(
+        required=True,
+        error_messages={
+            "required": "'provider' not provided or is not valid",
+        },
+    )
     limit = serializers.IntegerField(
         required=False, default=settings.REST_FRAMEWORK["PAGE_SIZE"], min_value=0
     )
