@@ -69,7 +69,7 @@ def serialize_output(job: Job):
     return JobSerializer(job).data
 
 
-@endpoint("jobs/<uuid:job_id>/result", name="retrieve")
+@endpoint("jobs/<uuid:job_id>/result", name="jobs-result")
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
