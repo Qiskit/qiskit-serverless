@@ -120,7 +120,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
             jobs_response.content,
-            b'{"provider":["This field is required."]}',
+            b'{"message":"\'provider\' not provided or is not valid"}',
         )
 
     def test_job_provider_list_wrong_provider(self):
@@ -381,7 +381,6 @@ class TestJobApi(APITestCase):
     def test_job_update_sub_status(self):
         """Test job update sub status"""
         self._authorize()
-
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
         response_sub_status = self.client.patch(
             reverse("v1:jobs-sub-status", args=[job_id]),

@@ -7,7 +7,6 @@ import json
 import logging
 import os
 
-# pylint: disable=duplicate-code
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -18,17 +17,14 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
-from api.utils import retry_function
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
-from api.access_policies.jobs import JobAccessPolicies
 from api.repositories.jobs import JobsRepository, JobFilters
 from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
 from api.serializers import JobSerializer, JobSerializerWithoutResult
 from api.decorators.trace_decorator import trace_decorator_factory
 
-# pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 tracer_provider = TracerProvider(resource=resource)
@@ -98,71 +94,6 @@ class JobViewSet(viewsets.GenericViewSet):
         queryset, _ = self.jobs_repository.get_user_jobs(user=user, filters=filters)
 
         return queryset
-
-    @_trace
-    @action(methods=["PATCH"], detail=True)
-    def sub_status(self, request, pk=None):
-        """Update the sub status of a job."""
-        author = self.request.user
-        sub_status = self.request.data.get("sub_status")
-        if sub_status is None or sub_status not in Job.RUNNING_SUB_STATUSES:
-            return Response(
-                {"message": "'sub_status' not provided or is not valid"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        def set_sub_status():
-            job = self.jobs_repository.get_job_by_id(pk)
-
-            if job is None:
-                return Response(
-                    {"message": f"Job [{pk}] not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            # If we import this with the regular imports,
-            # update jobs statuses test command fail.
-            # it should be something related with python import order.
-            from api.management.commands.update_jobs_statuses import (  # pylint: disable=import-outside-toplevel
-                update_job_status,
-            )
-
-            update_job_status(job)
-
-            can_update_sub_status = JobAccessPolicies.can_update_sub_status(author, job)
-            if not can_update_sub_status:
-                return Response(
-                    {"message": f"Job [{job.id}] not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            if job.status != Job.RUNNING:
-                logger.warning(
-                    "'sub_status' cannot change because the job"
-                    " [%s] current status is not Running",
-                    job.id,
-                )
-                return Response(
-                    {
-                        "message": "Cannot update 'sub_status' when is not"
-                        f" in RUNNING status. (Currently {job.status})"
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            self.jobs_repository.update_job_sub_status(job, sub_status)
-            job = self.jobs_repository.get_job_by_id(pk)
-            job_serialized = self.get_serializer_job_without_result(job)
-
-            return Response({"job": job_serialized.data})
-
-        result = retry_function(
-            callback=set_sub_status,
-            error_message=f"Job[{pk}] record has not been updated due to lock.",
-            error_message_level=logging.WARNING,
-        )
-
-        return result
 
     def get_runtime_job(self, job):
         """get runtime job for job"""
