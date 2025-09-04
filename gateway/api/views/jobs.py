@@ -18,7 +18,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 
 from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
-from api.utils import retry_function, sanitize_boolean
+from api.utils import retry_function
 from api.models import Job, RuntimeJob
 from api.ray import get_job_handler
 from api.services.result_storage import ResultStorage
@@ -99,45 +99,6 @@ class JobViewSet(viewsets.GenericViewSet):
         queryset, _ = self.jobs_repository.get_user_jobs(user=user, filters=filters)
 
         return queryset
-
-    @_trace
-    def retrieve(self, request, pk=None):  # pylint: disable=unused-argument
-        """Get job:"""
-        author = self.request.user
-        return_with_result = sanitize_boolean(
-            request.query_params.get("with_result", "true")
-        )
-        job = self.jobs_repository.get_job_by_id(pk)
-        if job is None:
-            return Response(
-                {"message": f"Job [{pk}] not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if not JobAccessPolicies.can_access(author, job):
-            return Response(
-                {"message": f"Job [{pk}] was not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if not JobAccessPolicies.can_read_result(author, job):
-            serializer = self.get_serializer_job_without_result(job)
-            return Response(serializer.data)
-
-        if return_with_result:
-            result_store = ResultStorage(author.username)
-            result = result_store.get(str(job.id))
-            if result is not None:
-                job.result = result
-
-        serializer = (
-            self.get_serializer_job
-            if return_with_result
-            else self.get_serializer_job_without_result
-        )
-        serialized = serializer(job)
-
-        return Response(serialized.data)
 
     @_trace
     @action(methods=["POST"], detail=True)
