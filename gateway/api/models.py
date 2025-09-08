@@ -136,6 +136,32 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         return f"{self.title}"
 
 
+class ProgramStep(models.Model):
+    """Definition of a program step."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+
+    # One to many relationship between Program -> Steps
+    base_function = models.ForeignKey(
+        to=Program,
+        on_delete=models.CASCADE,  # If the base function is removed all the steps are deleted
+        related_name="steps",
+    )
+    function = models.ForeignKey(
+        to=Program,
+        on_delete=models.SET_NULL,  # If the function is removed we set it to NULL
+        null=True,
+        blank=True,
+    )
+    depends_on = models.ManyToManyField(
+        "self",
+        symmetrical=False,  # B depends on A NOT A depends on B
+        blank=True,  # A Step may not have dependencies. For example the first step.
+        related_name="dependents",
+    )
+
+
 class ComputeResource(models.Model):
     """Compute resource model."""
 
@@ -159,6 +185,26 @@ class ComputeResource(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Workflow(models.Model):
+    """
+    Database model to manage Workflows information: set of Jobs
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+
+    function = models.ForeignKey(
+        to=Program,
+        on_delete=models.CASCADE,  # if the function is deleted all its workflows are removed
+        related_name="workflows",
+    )
+
+    user = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,  # If the user is removed its workflows are removed also
+    )
 
 
 class Job(models.Model):
@@ -241,6 +287,19 @@ class Job(models.Model):
         blank=True,
     )
     program = models.ForeignKey(to=Program, on_delete=models.SET_NULL, null=True)
+    workflow = models.ForeignKey(
+        to=Workflow,
+        on_delete=models.SET_NULL,  # If you delete a Workflow the Job is not deleted
+        null=True,
+        blank=True,
+        related_name="jobs",
+    )
+    depends_on = models.ManyToManyField(
+        "self",
+        symmetrical=False,  # B depends on A NOT A depends on B
+        blank=True,  # A Job may not have dependencies
+        related_name="dependents",
+    )
 
     def __str__(self):
         return f"<Job {self.id} | {self.status}>"
