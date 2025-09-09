@@ -16,9 +16,7 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
-from qiskit_ibm_runtime import RuntimeInvalidStateError, QiskitRuntimeService
-from api.models import Job, RuntimeJob
-from api.ray import get_job_handler
+from api.models import RuntimeJob
 from api.repositories.jobs import JobsRepository, JobFilters
 from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
@@ -98,51 +96,6 @@ class JobViewSet(viewsets.GenericViewSet):
     def get_runtime_job(self, job):
         """get runtime job for job"""
         return RuntimeJob.objects.filter(job=job)
-
-    @_trace
-    @action(methods=["POST"], detail=True)
-    def stop(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
-        """Stops job"""
-        job = self.get_object()
-        if not job.in_terminal_state():
-            job.status = Job.STOPPED
-            job.save(update_fields=["status"])
-        message = "Job has been stopped."
-        runtime_jobs = self.get_runtime_job(job)
-        if runtime_jobs and len(runtime_jobs) != 0:
-            if request.data.get("service"):
-                service = QiskitRuntimeService(
-                    **json.loads(request.data.get("service"), cls=json.JSONDecoder)[
-                        "__value__"
-                    ]
-                )
-                for runtime_job_entry in runtime_jobs:
-                    jobinstance = service.job(runtime_job_entry.runtime_job)
-                    if jobinstance:
-                        try:
-                            logger.info("canceling [%s]", runtime_job_entry.runtime_job)
-                            jobinstance.cancel()
-                        except RuntimeInvalidStateError:
-                            logger.warning("cancel failed")
-
-                        if jobinstance.session_id:
-                            service._get_api_client().cancel_session(  # pylint: disable=protected-access
-                                jobinstance.session_id
-                            )
-
-        if job.compute_resource:
-            if job.compute_resource.active:
-                job_handler = get_job_handler(job.compute_resource.host)
-                if job_handler is not None:
-                    was_running = job_handler.stop(job.ray_job_id)
-                    if not was_running:
-                        message = "Job was already not running."
-                else:
-                    logger.warning(
-                        "Compute resource is not accessible %s",
-                        job.compute_resource,
-                    )
-        return Response({"message": message})
 
     @_trace
     @action(methods=["POST"], detail=True)

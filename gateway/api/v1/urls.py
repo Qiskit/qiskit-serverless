@@ -41,11 +41,6 @@ router.register(
     basename=v1_views.ProgramViewSet.BASE_NAME,
 )
 router.register(
-    r"jobs",
-    v1_views.JobViewSet,
-    basename=v1_views.JobViewSet.BASE_NAME,
-)
-router.register(
     r"catalog",
     v1_views.CatalogViewSet,
     basename=v1_views.CatalogViewSet.BASE_NAME,
