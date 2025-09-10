@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from api.v1.views.utils import standard_error_responses
 
 from api.models import Job
 from api.repositories.jobs import JobFilters
@@ -117,59 +118,68 @@ def serialize_output(
 
 @swagger_auto_schema(
     method="get",
-    operation_description="List author Jobs with filtering support",
-    responses={
-        status.HTTP_200_OK: v1_serializers.JobSerializerWithoutResult(many=True),
-        status.HTTP_400_BAD_REQUEST: openapi.Response(
-            description="Bad Request - Invalid parameters",
-            schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "message": openapi.Schema(
-                        type=openapi.TYPE_STRING, description="Error message"
-                    )
-                },
-            ),
-        ),
-    },
+    operation_description="List author jobs. Supports filtering via query params.",
     manual_parameters=[
+        openapi.Parameter(
+            "provider",
+            openapi.IN_QUERY,
+            type=openapi.TYPE_STRING,
+            required=False,
+            description="Provider name.",
+        ),
+        openapi.Parameter(
+            "function",
+            openapi.IN_QUERY,
+            type=openapi.TYPE_STRING,
+            required=False,
+            description="Function title.",
+        ),
         openapi.Parameter(
             "limit",
             openapi.IN_QUERY,
-            description="Number of results to return per page (max: 1000, default: from settings)",
             type=openapi.TYPE_INTEGER,
-            minimum=0,
+            required=False,
             default=settings.REST_FRAMEWORK["PAGE_SIZE"],
+            description="Results per page.",
         ),
         openapi.Parameter(
             "offset",
             openapi.IN_QUERY,
-            description="Number of results to skip before starting to collect results",
             type=openapi.TYPE_INTEGER,
-            minimum=0,
+            required=False,
+            default=0,
+            description="Number of results to skip.",
         ),
         openapi.Parameter(
             "filter",
             openapi.IN_QUERY,
-            description="Filter by job type",
             type=openapi.TYPE_STRING,
-            enum=[e.value for e in TypeFilter],
+            enum=[TypeFilter.CATALOG, TypeFilter.SERVERLESS],
+            required=False,
+            description="Job type: 'catalog' or 'serverless'.",
         ),
         openapi.Parameter(
             "status",
             openapi.IN_QUERY,
-            description="Filter by job status",
             type=openapi.TYPE_STRING,
+            required=False,
+            description="Filter by job status.",
         ),
         openapi.Parameter(
             "created_after",
             openapi.IN_QUERY,
-            description="Filter jobs created after this datetime. Use ISO 8601"
-            " format (e.g., '2024-01-01T00:00:00Z')",
             type=openapi.TYPE_STRING,
             format="date-time",
+            required=False,
+            description="ISO 8601 datetime; only jobs created after this.",
         ),
     ],
+    responses={
+        status.HTTP_200_OK: v1_serializers.JobSerializerWithoutResult(many=True),
+        **standard_error_responses(
+            not_found_example="Qiskit Function XXX doesn't exist.",
+        ),
+    },
 )
 @endpoint("jobs", name="jobs-list")
 @api_view(["GET"])

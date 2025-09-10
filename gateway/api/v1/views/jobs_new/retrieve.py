@@ -2,8 +2,10 @@
 Job retrieval API endpoint
 """
 from typing import cast
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from django.contrib.auth.models import AbstractUser
-from rest_framework import serializers, permissions
+from rest_framework import serializers, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from api import serializers as api_serializers
@@ -12,6 +14,7 @@ from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.utils import sanitize_boolean
 from api.use_cases.jobs.retrieve import JobRetrieveUseCase
 from api.models import Job
+from api.v1.views.utils import standard_error_responses
 
 
 class InputSerializer(serializers.Serializer):
@@ -97,6 +100,31 @@ def serialize_output(job: Job, with_result: bool):
     return JobSerializerWithoutResult(job).data
 
 
+@swagger_auto_schema(
+    method="get",
+    operation_description=(
+        "Retrieve a specific job by ID.\n\n"
+        "Use the `with_result` query parameter to include or exclude the job `result` field. "
+        "Defaults to `true`."
+    ),
+    manual_parameters=[
+        openapi.Parameter(
+            name="with_result",
+            in_=openapi.IN_QUERY,
+            type=openapi.TYPE_STRING,
+            required=False,
+            default="true",
+            enum=["true", "false"],
+            description="Whether to include the `result` field in the response.",
+        ),
+    ],
+    responses={
+        status.HTTP_200_OK: JobSerializer,
+        **standard_error_responses(
+            not_found_example="Job [XXXX] not found",
+        ),
+    },
+)
 @endpoint("jobs/<uuid:job_id>", name="retrieve")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])

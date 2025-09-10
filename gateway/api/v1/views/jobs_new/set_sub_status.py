@@ -2,7 +2,6 @@
 Update sub status endpoint
 """
 from typing import cast
-from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from django.contrib.auth.models import AbstractUser
 from rest_framework import serializers, permissions, status
@@ -13,6 +12,7 @@ from api import serializers as api_serializers
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.models import Job
 from api.use_cases.jobs.set_sub_status import SetJobSubStatusUseCase
+from api.v1.views.utils import standard_error_responses
 
 
 class InputSerializer(serializers.Serializer):
@@ -93,41 +93,11 @@ def serialize_output(job: Job):
     request_body=InputSerializer,
     responses={
         status.HTTP_200_OK: JobSerializerWithoutResult(many=False),
-        status.HTTP_400_BAD_REQUEST: openapi.Response(
-            description="In case your request doesnt have a valid 'sub_status'.",
-            schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "message": openapi.Schema(
-                        type=openapi.TYPE_STRING,
-                        example="'sub_status' not provided or is not valid",
-                    )
-                },
-            ),
-        ),
-        status.HTTP_403_FORBIDDEN: openapi.Response(
-            description="In case you cannot change the sub_status.",
-            schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "message": openapi.Schema(
-                        type=openapi.TYPE_STRING,
-                        example="Cannot update 'sub_status' when is not in RUNNING status. "
-                        "(Currently PENDING",
-                    )
-                },
-            ),
-        ),
-        status.HTTP_404_NOT_FOUND: openapi.Response(
-            description="In case the job doesnt exist or you dont have access to it.",
-            schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "message": openapi.Schema(
-                        type=openapi.TYPE_STRING, example="Job [XXXX] not found"
-                    )
-                },
-            ),
+        **standard_error_responses(
+            bad_request_example="'sub_status' not provided or is not valid",
+            forbidden_example="Cannot update 'sub_status' when job is not RUNNING.",
+            not_found_example="Job [XXXX] not found",
+            unauthorized_example="Authentication credentials were not provided or are invalid.",
         ),
     },
 )
