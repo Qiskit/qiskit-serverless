@@ -43,7 +43,9 @@ ENV SCARF_ANALYTICS=false \
 
 COPY gateway/requirements.txt .
 # Install pip
-RUN python3.11 -m ensurepip --upgrade
+RUN python3.11 -m ensurepip --upgrade &&\
+    python3.11 -m pip install --upgrade --no-cache-dir setuptools>=80.0.0
+    
 # Install dependencies and update then uninstall pip (not needed in final image)
 RUN python3.11 -m pip install -r requirements.txt --no-cache-dir --upgrade && \
     cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages &&\
