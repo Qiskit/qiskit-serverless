@@ -7,6 +7,7 @@ import json
 import logging
 import os
 
+# pylint: disable=duplicate-code
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -23,6 +24,7 @@ from api.repositories.providers import ProviderRepository
 from api.serializers import JobSerializer, JobSerializerWithoutResult
 from api.decorators.trace_decorator import trace_decorator_factory
 
+# pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 tracer_provider = TracerProvider(resource=resource)
