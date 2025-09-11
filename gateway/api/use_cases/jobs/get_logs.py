@@ -1,6 +1,16 @@
+"""
+Use case: retrieve job logs.
+"""
+from typing import Final
+from uuid import UUID
+
 from django.contrib.auth.models import AbstractUser
-from api.repositories.jobs import JobsRepository
+
 from api.domain.exceptions.not_found_error import NotFoundError
+from api.repositories.jobs import JobsRepository
+
+
+NO_LOGS_MSG: Final[str] = "No available logs"
 
 
 class GetJobLogsUseCase:
@@ -8,7 +18,7 @@ class GetJobLogsUseCase:
 
     jobs_repository = JobsRepository()
 
-    def execute(self, job_id: str, user: AbstractUser) -> str:
+    def execute(self, job_id: UUID, user: AbstractUser) -> str:
         """Return the logs of a job if the user has access.
 
         Args:
@@ -30,8 +40,8 @@ class GetJobLogsUseCase:
             user_groups = set(user.groups.all())
             if provider_groups & user_groups:
                 return job.logs
-            return "No available logs"
+            return NO_LOGS_MSG
 
         if user == job.author:
             return job.logs
-        return "No available logs"
+        return NO_LOGS_MSG
