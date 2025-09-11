@@ -2,6 +2,9 @@ FROM registry.access.redhat.com/ubi9-minimal:9.6-1755695350
 
 ARG DYNAMIC_DEPENDENCIES_FILE
 
+# Update internal dependencies
+RUN microdnf update -y && microdnf clean all
+
 RUN microdnf install -y \
     python3.11-3.11.11 \
     python3.11-devel-3.11.11 \

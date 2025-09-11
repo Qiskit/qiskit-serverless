@@ -13,6 +13,9 @@ ARG MICRO_IMAGE_DIR
 RUN mkdir ${MICRO_IMAGE_DIR}
 COPY --from=base / ${MICRO_IMAGE_DIR}
 
+# Update internal dependencies
+RUN dnf update -y && dnf clean all
+
 # Install Python inside the BASE image
 RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
     python3.11-3.11.11 \
