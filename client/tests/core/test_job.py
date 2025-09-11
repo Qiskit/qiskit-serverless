@@ -17,7 +17,7 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_TOKEN,
     ENV_ACCESS_TRIAL,
 )
-from qiskit_serverless.core.job import (
+from qiskit_serverless.core.jobs import (
     Job,
     is_running_in_serverless,
     save_result,
@@ -120,7 +120,7 @@ class TestJob:
             ),
         )
         job = Job(
-            job_id="job_id",
+            id="job_id",
             job_service=client,
         )
         assert (

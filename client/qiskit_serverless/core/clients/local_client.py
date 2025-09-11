@@ -46,11 +46,11 @@ from qiskit_serverless.core.constants import (
     OT_PROGRAM_NAME,
 )
 from qiskit_serverless.core.client import BaseClient
-from qiskit_serverless.core.job import (
+from qiskit_serverless.core.jobs.job import (
     Job,
     Configuration,
 )
-from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
+from qiskit_serverless.core.functions import QiskitFunction, RunnableQiskitFunction
 from qiskit_serverless.core.local_functions_store import LocalFunctionsStore
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
@@ -152,8 +152,8 @@ class LocalClient(BaseClient):
         if results:
             result = results.group(1)
 
-        job = Job(job_id=job_id, job_service=self)
-        self._jobs[job.job_id] = {
+        job = Job(id=job_id, job_service=self)
+        self._jobs[job.id] = {
             "status": status,
             "logs": output,
             "result": result,
