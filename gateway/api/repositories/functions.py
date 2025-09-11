@@ -4,10 +4,11 @@ Repository implementation for Programs model
 
 import logging
 from typing import List, Optional
+from django.contrib.auth.models import AbstractUser
 from django.db.models import Q
 from django.contrib.auth.models import Group
 
-from api.models import Program as Function
+from api.models import LogConsent, Program as Function
 from api.repositories.users import UserRepository
 
 
@@ -195,7 +196,7 @@ class FunctionRepository:
         user,
         permission_name: str,
         function_title: str,
-        provider_name: Optional[str],
+        provider_name: Optional[str] = None,
     ) -> Optional[Function]:
         """
         This method returns the specified function if the user is
@@ -225,7 +226,7 @@ class FunctionRepository:
     def get_function(
         self,
         function_title: str,
-        provider_name: Optional[str],
+        provider_name: Optional[str] = None,
     ) -> Optional[Function]:
         """
         This method returns the specified function unconditionally.
@@ -267,3 +268,19 @@ class FunctionRepository:
             [Group]: list of available groups
         """
         return function.trial_instances.all()
+
+    def add_log_consent_to_function(
+        self, user: AbstractUser, function: Function, accepted: bool
+    ):
+        """
+        Add or update the log consent for an user and function
+        """
+        consent = LogConsent(
+            function=function,
+            accepted=accepted,
+            user=user,
+        )
+
+        consent.save()
+
+        return consent

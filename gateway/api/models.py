@@ -285,3 +285,15 @@ class GroupMetadata(models.Model):
 
     def __str__(self):
         return f"{self.id}"
+
+
+class LogConsent(models.Model):
+    """
+    This model will store end-user consent for logs
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    function = models.ForeignKey(Program, on_delete=models.CASCADE)
+    accepted = models.BooleanField()
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
