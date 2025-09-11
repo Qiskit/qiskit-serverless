@@ -1,4 +1,6 @@
 """This module contains the usecase get_jos"""
+from typing import List
+
 from django.contrib.auth.models import AbstractUser
 
 from api.domain.exceptions.not_found_error import NotFoundError
