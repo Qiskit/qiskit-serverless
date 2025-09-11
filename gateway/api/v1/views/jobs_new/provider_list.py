@@ -56,6 +56,9 @@ class InputSerializer(serializers.Serializer):
     status = SanitizedCharField(required=False, default=None)
     created_after = serializers.DateTimeField(required=False, default=None)
 
+    def create(self, validated_data: dict):
+        return JobFilters(**validated_data)
+
 
 class ProgramSummarySerializer(serializers.ModelSerializer):
     """
