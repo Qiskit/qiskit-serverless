@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 from api.models import Job
 from api.utils import retry_function
@@ -14,7 +15,7 @@ class SetJobSubStatusUseCase:
 
     jobs_repository = JobsRepository()
 
-    def execute(self, job_id: str, user: AbstractUser, sub_status: str) -> Job:
+    def execute(self, job_id: UUID, user: AbstractUser, sub_status: str) -> Job:
 
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:

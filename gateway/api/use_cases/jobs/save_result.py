@@ -1,6 +1,7 @@
 """
 Use case for saving job results.
 """
+from uuid import UUID
 import logging
 import json
 from django.contrib.auth.models import AbstractUser
@@ -20,7 +21,7 @@ class JobSaveResultUseCase:
 
     jobs_repository = JobsRepository()
 
-    def execute(self, job_id: str, user: AbstractUser, result: dict) -> Job:
+    def execute(self, job_id: UUID, user: AbstractUser, result: dict) -> Job:
         """Save a result for a given job.
 
         Args:
