@@ -5,11 +5,13 @@ API endpoint for retrieving job logs.
 # pylint: disable=duplicate-code, abstract-method
 
 from typing import Any, cast
+from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api.use_cases.jobs.get_logs import GetJobLogsUseCase
@@ -51,7 +53,7 @@ def serialize_output(logs: str) -> dict[str, Any]:
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def get_logs(request, job_id) -> Response:
+def get_logs(request: Request, job_id: UUID) -> Response:
     """
     Retrieve logs for a specific job.
 

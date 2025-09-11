@@ -1,5 +1,6 @@
 """This module contains the usecase get_job"""
 import logging
+from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.models import Job
@@ -15,7 +16,7 @@ class JobRetrieveUseCase:
 
     jobs_repository = JobsRepository()
 
-    def execute(self, job_id: str, user: AbstractUser, with_result: bool) -> Job:
+    def execute(self, job_id: UUID, user: AbstractUser, with_result: bool) -> Job:
         """
         Retrieve job.
 

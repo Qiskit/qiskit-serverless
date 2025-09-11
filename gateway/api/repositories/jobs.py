@@ -2,6 +2,7 @@
 Repository implementation for Job model
 """
 import logging
+from uuid import UUID
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Tuple
@@ -46,7 +47,7 @@ class JobsRepository:
     The main objective of this class is to manage the access to the Job model
     """
 
-    def get_job_by_id(self, job_id: str) -> Job:
+    def get_job_by_id(self, job_id: UUID) -> Job:
         """
         Returns the job for the given id:
 
@@ -114,8 +115,8 @@ class JobsRepository:
 
     def get_user_jobs(
         self,
-        user: Optional[AbstractUser] = None,
-        filters: JobFilters = None,
+        user: AbstractUser,
+        filters: JobFilters,
         ordering: str = "-created",
     ) -> Tuple[QuerySet[Job], int]:
         """
