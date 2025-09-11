@@ -2,6 +2,9 @@ FROM registry.access.redhat.com/ubi9-minimal:9.6-1755695350
 
 ARG DYNAMIC_DEPENDENCIES_FILE
 
+# Update internal dependencies
+RUN microdnf update -y && microdnf clean all
+
 RUN microdnf install -y \
     python3.11-3.11.11 \
     python3.11-devel-3.11.11 \
@@ -28,7 +31,8 @@ WORKDIR /qs
 # Need versions of pip more recent than provided by UBI image
 RUN python3.11 -m ensurepip --upgrade
 
-RUN pip install --upgrade --no-cache-dir pip>=24.2
+RUN pip install --upgrade --no-cache-dir pip>=24.2 &&\
+    pip install --upgrade --no-cache-dir setuptools>=80.0.0
 
 RUN pip install -r requirements.txt --no-cache-dir &&\
     pip install . --no-cache-dir &&\
