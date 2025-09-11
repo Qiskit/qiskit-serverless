@@ -28,18 +28,20 @@ Qiskit Serverless provider
 """
 import warnings
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Any, Optional, List, Union
+from qiskit_ibm_runtime import QiskitRuntimeService
 
-from qiskit_serverless.core.job import Job, JobService
-from qiskit_serverless.core.function import (
+from qiskit_serverless.core.jobs import Job, JobService, WorkflowService
+from qiskit_serverless.core.functions import (
     QiskitFunction,
+    RunnableQiskitFunctionWithSteps,
     RunnableQiskitFunction,
     RunService,
 )
 from qiskit_serverless.utils import JsonSerializable
 
 
-class BaseClient(JobService, RunService, JsonSerializable, ABC):
+class BaseClient(JobService, RunService, JsonSerializable, WorkflowService, ABC):
     """
     A client class for specifying custom compute resources.
 
@@ -152,22 +154,26 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
     #########################
 
     @abstractmethod
-    def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
+    def upload(
+        self, program: QiskitFunction
+    ) -> Optional[RunnableQiskitFunction | RunnableQiskitFunctionWithSteps]:
         """Uploads program."""
 
     @abstractmethod
-    def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
+    def functions(
+        self, **kwargs
+    ) -> List[RunnableQiskitFunction | RunnableQiskitFunctionWithSteps]:
         """Returns list of available programs."""
 
     @abstractmethod
     def function(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[RunnableQiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction | RunnableQiskitFunctionWithSteps]:
         """Returns program based on parameters."""
 
     def get(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[RunnableQiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction | RunnableQiskitFunctionWithSteps]:
         """Returns program based on parameters."""
         warnings.warn(
             "`get` method has been deprecated. "
@@ -177,7 +183,9 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
         )
         return self.function(title, provider=provider)
 
-    def list(self, **kwargs) -> List[RunnableQiskitFunction]:
+    def list(
+        self, **kwargs
+    ) -> List[RunnableQiskitFunction | RunnableQiskitFunctionWithSteps]:
         """Returns list of available programs."""
         warnings.warn(
             "`list` method has been deprecated. "
@@ -186,6 +194,40 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
             DeprecationWarning,
         )
         return self.functions(**kwargs)
+
+    ######################
+    ###### Workflows #####
+    ######################
+
+    @abstractmethod
+    def workflow(self, workflow_id: str) -> str:
+        """Get a workflow by id."""
+
+    @abstractmethod
+    def workflows(self, **kwargs) -> str:
+        """Get all the workflows."""
+
+    @abstractmethod
+    def workflow_status(self, workflow_id: str) -> str:
+        """Check status."""
+
+    @abstractmethod
+    def workflow_stop(
+        self, workflow_id: str, service: Optional[QiskitRuntimeService] = None
+    ) -> Union[str, bool]:
+        """Stops all the workflows."""
+
+    @abstractmethod
+    def workflow_result(self, workflow_id: str) -> Any:
+        """Return results."""
+
+    @abstractmethod
+    def workflow_logs(self, workflow_id: str) -> str:
+        """Return logs."""
+
+    @abstractmethod
+    def workflow_filtered_logs(self, workflow_id: str, **kwargs) -> str:
+        """Returns logs filtered"""
 
     ######################
     ####### Widget #######

@@ -25,6 +25,7 @@ Qiskit Serverless provider
 
     ServerlessClient
 """
+# pylint: disable=too-many-lines
 # pylint: disable=duplicate-code
 import json
 import os.path
@@ -54,14 +55,12 @@ from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.enums import Channel
 from qiskit_serverless.core.files import GatewayFilesClient
-from qiskit_serverless.core.job import (
-    Job,
-    Configuration,
-)
-from qiskit_serverless.core.function import (
+from qiskit_serverless.core.jobs import Job, Workflow, Configuration
+from qiskit_serverless.core.functions import (
     QiskitFunction,
     RunService,
     RunnableQiskitFunction,
+    RunnableQiskitFunctionWithSteps,
 )
 
 from qiskit_serverless.exception import QiskitServerlessException
@@ -227,10 +226,11 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return [
-            Job(job.get("id"), job_service=self, raw_data=job)
-            for job in response_data.get("results", [])
-        ]
+        for job in response_data.get("results", []):
+            job["job_service"] = self
+            job["raw_data"] = job
+
+        return [Job.from_json(job) for job in response_data.get("results", [])]
 
     @_trace_job("provider_list")
     def provider_jobs(self, function: QiskitFunction, **kwargs) -> List[Job]:
@@ -275,10 +275,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
 
-        return [
-            Job(job.get("id"), job_service=self, raw_data=job)
-            for job in response_data.get("results", [])
-        ]
+        for job in response_data.get("results", []):
+            job["job_service"] = self
+
+        return [Job.from_json(job) for job in response_data.get("results", [])]
 
     @_trace_job("get")
     def job(self, job_id: str) -> Optional[Job]:
@@ -294,12 +294,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
 
         job = None
-        job_id = response_data.get("id")
-        if job_id is not None:
-            job = Job(
-                job_id=job_id,
-                job_service=self,
-            )
+        if response_data.get("id") is not None:
+            response_data["job_service"] = self
+            job = Job.from_json(response_data)
 
         return job
 
@@ -309,7 +306,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         arguments: Optional[Dict[str, Any]] = None,
         config: Optional[Configuration] = None,
         provider: Optional[str] = None,
-    ) -> Job:
+    ) -> Union[Job, Workflow]:
         if isinstance(program, QiskitFunction):
             title = program.title
             provider = program.provider
@@ -344,10 +341,18 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-            job_id = response_data.get("id")
-            span.set_attribute("job.id", job_id)
+            id = response_data.get("id")
+            is_job = (
+                response_data.get("jobs") is None or len(response_data.get("jobs")) == 0
+            )
+            span.set_attribute("job.id" if is_job else "workflow.id", id)
 
-        return Job(job_id, job_service=self)
+        if is_job:
+            response_data["job_service"] = self
+            return Job.from_json(response_data)
+        else:
+            response_data["service"] = self
+            return Workflow.from_json(response_data)
 
     @_trace_job
     def status(self, job_id: str):
@@ -442,47 +447,177 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             excluded = included
         return excluded
 
+    ######################
+    ###### Workflows #####
+    ######################
+
+    def workflow(self, workflow_id: str) -> Workflow:
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/workflows/{workflow_id}/",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
+        workflow = None
+        workflow_id = response_data.get("id")
+        if workflow_id is not None:
+            workflow["service"] = self
+            workflow = Workflow.from_json(response_data)
+
+        return workflow
+
+    def workflows(self, **kwargs) -> List[Workflow]:
+        limit = kwargs.get("limit", 10)
+        kwargs["limit"] = limit
+        offset = kwargs.get("offset", 0)
+        kwargs["offset"] = offset
+        status = kwargs.get("status", None)
+        kwargs["status"] = status
+        created_after = kwargs.get("created_after", None)
+        kwargs["created_after"] = created_after
+        function_name = kwargs.get("function_name", None)
+        kwargs["function"] = function_name
+
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/",
+                params=kwargs,
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
+        for workflow in response_data.get("results", []):
+            workflow["service"] = self
+
+        return [
+            Workflow.from_json(workflow)
+            for workflow in response_data.get("results", [])
+        ]
+
+    def workflow_status(self, workflow_id: str) -> str:
+        """Check status."""
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                # we dont have an status for job but maybe we have to specify here
+                # to collect all job statuses.
+                f"{self.host}/api/{self.version}/workflows/{workflow_id}/status",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        return json.loads(
+            response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder
+        )
+
+    def workflow_stop(
+        self, workflow_id: str, service: Optional[QiskitRuntimeService] = None
+    ) -> Union[str, bool]:
+        """Stops all the workflows."""
+        if service:
+            data = {
+                "service": json.dumps(service, cls=QiskitObjectsEncoder),
+            }
+        else:
+            data = {
+                "service": None,
+            }
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.post(
+                f"{self.host}/api/{self.version}/workflows/{workflow_id}/stop/",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+                json=data,
+            )
+        )
+
+        return response_data.get("message")
+
+    def workflow_result(self, workflow_id: str) -> Any:
+        """Return results."""
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                # we dont have a result for job but maybe we have to specify here
+                # to collect last job result.
+                f"{self.host}/api/{self.version}/workflows/{workflow_id}/result",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        return json.loads(
+            response_data.get("result", "{}") or "{}", cls=QiskitObjectsDecoder
+        )
+
+    def workflow_logs(self, workflow_id: str) -> str:
+        """Return logs."""
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{workflow_id}/logs/",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        return response_data.get("logs")
+
+    def workflow_filtered_logs(self, workflow_id: str, **kwargs) -> str:
+        """Returns logs filtered"""
+        raise NotImplementedError()
+
     #########################
     ####### Functions #######
     #########################
 
-    def upload(self, program: QiskitFunction) -> Optional[RunnableQiskitFunction]:
+    def upload(
+        self, program: QiskitFunction
+    ) -> Optional[RunnableQiskitFunction | RunnableQiskitFunctionWithSteps]:
         tracer = trace.get_tracer("client.tracer")
         with tracer.start_as_current_span("function.upload") as span:
             span.set_attribute("function", program.title)
             url = f"{self.host}/api/{self.version}/programs/upload/"
 
+            upload_process = None
+
             if program.image is not None:
-                # upload function with custom image
-                function_uploaded = _upload_with_docker_image(
-                    program=program,
-                    url=url,
-                    token=self.token,
-                    span=span,
-                    client=self,
-                    instance=self.instance,
-                    channel=self.channel,
-                )
+                upload_process = _upload_with_docker_image
             elif program.entrypoint is not None:
-                # upload function with artifact
-                function_uploaded = _upload_with_artifact(
-                    program=program,
-                    url=url,
-                    token=self.token,
-                    span=span,
-                    client=self,
-                    instance=self.instance,
-                    channel=self.channel,
-                )
+                upload_process = _upload_with_artifact
+            elif program.steps is not None and len(program.steps) > 0:
+                upload_process = _upload_with_steps
             else:
                 raise QiskitServerlessException(
-                    "Function must either have `entrypoint` or `image` specified."
+                    "Function must either have `entrypoint`, `image` or `steps` specified."
                 )
+
+            function_uploaded = upload_process(
+                program=program,
+                url=url,
+                token=self.token,
+                span=span,
+                client=self,
+                instance=self.instance,
+                channel=self.channel,
+            )
 
         return function_uploaded
 
     @_trace_functions("list")
-    def functions(self, **kwargs) -> List[RunnableQiskitFunction]:
+    def functions(
+        self, **kwargs
+    ) -> List[RunnableQiskitFunction | RunnableQiskitFunctionWithSteps]:
         """Returns list of available functions."""
         response_data = safe_json_request_as_list(
             request=lambda: requests.get(
@@ -500,13 +635,15 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
         return [
             RunnableQiskitFunction.from_json(program_data)
+            if program_data["steps"] is None
+            else RunnableQiskitFunctionWithSteps.from_json(program_data)
             for program_data in response_data
         ]
 
     @_trace_functions("get_by_title")
     def function(
         self, title: str, provider: Optional[str] = None
-    ) -> Optional[RunnableQiskitFunction]:
+    ) -> Optional[RunnableQiskitFunction | RunnableQiskitFunctionWithSteps]:
         """Returns program based on parameters."""
         provider, title = format_provider_name_and_title(
             request_provider=provider, title=title
@@ -524,8 +661,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
 
         response_data["client"] = self
-        the_function = RunnableQiskitFunction.from_json(response_data)
-        return the_function
+        if response_data["steps"] is None:
+            return RunnableQiskitFunction.from_json(response_data)
+
+        return RunnableQiskitFunctionWithSteps.from_json(response_data)
 
     #####################
     ####### FILES #######
@@ -738,6 +877,48 @@ class IBMServerlessClient(ServerlessClient):
             raise QiskitServerlessException(
                 f"Invalid format in account inputs - {ex}"
             ) from ex
+
+
+def _upload_with_steps(  # pylint: disable=too-many-positional-arguments
+    program: QiskitFunction,
+    url: str,
+    token: str,
+    span: Any,
+    client: RunService,
+    instance: Optional[str],
+    channel: Optional[str],
+) -> RunnableQiskitFunctionWithSteps:
+    """Uploads function with custom docker image.
+
+    Args:
+        program (QiskitFunction): function instance
+        url (str): upload gateway url
+        token (str): auth token
+        span (Any): tracing span
+        instance (Optional[str]): IBM Cloud crn
+
+    Returns:
+        str: uploaded function name
+    """
+    response_data = safe_json_request_as_dict(
+        request=lambda: requests.post(
+            url=url,
+            data={
+                "title": program.title,
+                "provider": program.provider,
+                "description": program.description,
+                "steps": json.dumps([asdict(step) for step in program.steps]),
+            },
+            headers=get_headers(token=token, instance=instance, channel=channel),
+            timeout=REQUESTS_TIMEOUT,
+        )
+    )
+    program_title = response_data.get("title", "na")
+    program_provider = response_data.get("provider", "na")
+    span.set_attribute("function.title", program_title)
+    span.set_attribute("function.provider", program_provider)
+    response_data["client"] = client
+    return RunnableQiskitFunctionWithSteps.from_json(response_data)
 
 
 def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments

@@ -38,7 +38,7 @@ from .core import (
     is_trial,
 )
 from .exception import QiskitServerlessException
-from .core.function import QiskitPattern, QiskitFunction
+from .core.functions import QiskitFunction, RunnableQiskitFunction
 from .serializers import get_arguments
 from .utils import ServerlessRuntimeService
 from .version import __version__

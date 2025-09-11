@@ -18,7 +18,7 @@ Core module (:mod:`qiskit_serverless.core`)
 .. currentmodule:: qiskit_serverless.core
 
 Qiskit Serverless core module classes and functions
-====================================================
+===================================================
 
 Core abstractions
 -----------------
@@ -54,7 +54,7 @@ from .clients.local_client import LocalClient
 from .clients.ray_client import RayClient
 from .clients.serverless_client import ServerlessClient, IBMServerlessClient
 
-from .job import (
+from .jobs import (
     Job,
     save_result,
     update_status,
@@ -62,7 +62,8 @@ from .job import (
     is_running_in_serverless,
     is_trial,
 )
-from .function import QiskitPattern, QiskitFunction
+from .functions.qiskit_function import QiskitFunction
+from .functions.runnable_qiskit_function import RunnableQiskitFunction
 from .decorators import (
     remote,
     get,

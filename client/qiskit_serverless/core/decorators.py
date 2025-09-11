@@ -358,7 +358,7 @@ def distribute_qiskit_function(
     """
     # pylint: disable=import-outside-toplevel,cyclic-import
     from qiskit_serverless import QiskitServerlessException
-    from qiskit_serverless.core.function import QiskitFunction
+    from qiskit_serverless.core.functions import QiskitFunction
     from qiskit_serverless import ServerlessClient
 
     # create provider

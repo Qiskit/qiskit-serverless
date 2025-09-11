@@ -3,7 +3,7 @@ import time
 
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
 
-from qiskit_serverless.core.job import Job
+from qiskit_serverless.core.jobs.job import Job
 
 
 def wait_for_ray_ready(connection_url: str, timeout: int = 60):

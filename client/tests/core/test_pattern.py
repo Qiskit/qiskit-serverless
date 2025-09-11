@@ -4,7 +4,7 @@ import os
 from testcontainers.compose import DockerCompose
 
 from qiskit_serverless import RayClient, QiskitFunction
-from qiskit_serverless.core.job import Job
+from qiskit_serverless.core.jobs.job import Job
 from tests.utils import wait_for_ray_ready, wait_for_job_completion
 
 resources_path = os.path.join(
@@ -45,8 +45,8 @@ def test_program():
         assert job.in_terminal_state()
         assert job.status() == "DONE"
 
-        recovered_job = serverless.job(job.job_id)
-        assert recovered_job.job_id == job.job_id
+        recovered_job = serverless.job(job.id)
+        assert recovered_job.id == job.id
         assert "42" in recovered_job.logs()
         assert recovered_job.in_terminal_state()
         assert recovered_job.status() == "DONE"

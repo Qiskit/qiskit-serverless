@@ -37,11 +37,12 @@ from qiskit_serverless.core.constants import (
     OT_PROGRAM_NAME,
     ENV_JOB_ARGUMENTS,
 )
-from qiskit_serverless.core.job import (
+from qiskit_serverless.core.jobs.job import (
     Configuration,
     Job,
 )
-from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
+from qiskit_serverless.core.functions import QiskitFunction, RunnableQiskitFunction
+from qiskit_serverless.core.jobs.workflow import Workflow
 from qiskit_serverless.core.local_functions_store import LocalFunctionsStore
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
@@ -82,7 +83,7 @@ class RayClient(BaseClient):
             list of jobs.
         """
         return [
-            Job(job.job_id, job_service=self)
+            Job(job.id, job_service=self)
             for job in self.job_submission_client.list_jobs()
         ]
 
@@ -135,7 +136,7 @@ class RayClient(BaseClient):
                 "env_vars": env_vars,
             },
         )
-        return Job(job_id=job_id, job_service=self)
+        return Job(id=job_id, job_service=self)
 
     def status(self, job_id: str) -> str:
         """Check status."""
@@ -158,6 +159,33 @@ class RayClient(BaseClient):
     def filtered_logs(self, job_id: str, **kwargs) -> str:
         """Return filtered logs."""
         raise NotImplementedError
+
+    ######################
+    ###### Workflows #####
+    ######################
+
+    def workflow(self, workflow_id: str) -> Workflow:
+        raise NotImplementedError()
+
+    def workflows(self, **kwargs) -> Workflow:
+        raise NotImplementedError()
+
+    def workflow_status(self, workflow_id: str) -> str:
+        raise NotImplementedError()
+
+    def workflow_stop(
+        self, workflow_id: str, service: Optional[QiskitRuntimeService] = None
+    ) -> Union[str, bool]:
+        raise NotImplementedError()
+
+    def workflow_result(self, workflow_id: str) -> Any:
+        raise NotImplementedError()
+
+    def workflow_logs(self, workflow_id: str) -> str:
+        raise NotImplementedError()
+
+    def workflow_filtered_logs(self, workflow_id: str, **kwargs) -> str:
+        raise NotImplementedError()
 
     #########################
     ####### Functions #######
