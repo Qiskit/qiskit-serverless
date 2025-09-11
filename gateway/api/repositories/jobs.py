@@ -34,8 +34,8 @@ class JobFilters:
     function: Optional[str] = None
     provider: Optional[str] = None
 
-    limit: Optional[TypeFilter] = None
-    offset: Optional[TypeFilter] = None
+    limit: Optional[int] = None
+    offset: Optional[int] = None
     filter: Optional[TypeFilter] = None
     status: Optional[str] = None
     created_after: Optional[datetime] = None

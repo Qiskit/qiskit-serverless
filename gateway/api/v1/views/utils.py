@@ -5,7 +5,9 @@ utilities for API.
 from urllib.parse import urlencode
 from typing import List, Optional, Any, TypedDict
 from drf_yasg import openapi
-from rest_framework import status
+from rest_framework import status, serializers
+
+from api.utils import sanitize_name
 
 
 class PaginatedResponse(TypedDict):
@@ -139,3 +141,12 @@ def standard_error_responses(
             conflict_example, "Conflict."
         )
     return responses
+
+
+class SanitizedCharField(serializers.CharField):
+    """CharField that applies sanitize_name to its value."""
+
+    def to_internal_value(self, data):
+        """Method to sanitize the field"""
+        value = super().to_internal_value(data)
+        return sanitize_name(value) if value else None
