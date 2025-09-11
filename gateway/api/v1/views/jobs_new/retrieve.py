@@ -60,16 +60,19 @@ class JobSerializer(api_serializers.JobSerializer):
         fields = ["id", "result", "status", "program", "created", "sub_status"]
 
 
+class ProgramSummary(ProgramSerializer):
+    """Minimal representation of a program"""
+
+    class Meta(api_serializers.ProgramSerializer.Meta):
+        fields = ["id", "title", "provider"]
+
+
 class JobSerializerWithoutResult(api_serializers.JobSerializer):
     """
     Minimal job representation without `result`, keeping nested `program`.
     """
 
-    class _ProgramSummaryInline(api_serializers.ProgramSerializer):
-        class Meta(api_serializers.ProgramSerializer.Meta):
-            fields = ["id", "title", "provider"]
-
-    program = _ProgramSummaryInline(read_only=True)
+    program = ProgramSummary(read_only=True)
 
     class Meta(api_serializers.JobSerializer.Meta):
         fields = ["id", "status", "program", "created", "sub_status"]
