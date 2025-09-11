@@ -341,18 +341,18 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     timeout=REQUESTS_TIMEOUT,
                 )
             )
-            id = response_data.get("id")
+            job_id = response_data.get("id")
             is_job = (
                 response_data.get("jobs") is None or len(response_data.get("jobs")) == 0
             )
-            span.set_attribute("job.id" if is_job else "workflow.id", id)
+            span.set_attribute("job.id" if is_job else "workflow.id", job_id)
 
         if is_job:
             response_data["job_service"] = self
             return Job.from_json(response_data)
-        else:
-            response_data["service"] = self
-            return Workflow.from_json(response_data)
+
+        response_data["service"] = self
+        return Workflow.from_json(response_data)
 
     @_trace_job
     def status(self, job_id: str):

@@ -28,12 +28,14 @@ Qiskit Serverless Runnable Function With Steps
 """
 
 import dataclasses
-from typing import Dict, Any
+from typing import Dict, Any, cast
+
+from qiskit_serverless.core.jobs import Workflow
 from .run_service import QiskitFunction, RunService
 
-
+# pylint: disable=duplicate-code
 class RunnableQiskitFunctionWithSteps(QiskitFunction):
-    """Serverless QiskitPattern.
+    """Serverless QiskitFunctionWithSteps.
 
     Args:
         title: program name
@@ -71,16 +73,19 @@ class RunnableQiskitFunctionWithSteps(QiskitFunction):
             QiskitServerlessException: validation exception
 
         Returns:
-            Job: job handler for function execution
+            Workflow: workflow handler for function with steps execution
         """
         if self._run_service is None:
             raise ValueError("No clients specified for a function.")
 
         config = kwargs.pop("config", None)
-        return self._run_service.run(
-            program=self,
-            arguments=kwargs,
-            config=config,
+        return cast(
+            Workflow,
+            self._run_service.run(
+                program=self,
+                arguments=kwargs,
+                config=config,
+            ),
         )
 
     def jobs(self):

@@ -36,6 +36,7 @@ from qiskit_ibm_runtime.runtime_job_v2 import RuntimeJobV2
 from qiskit_ibm_runtime.runtime_options import RuntimeOptions
 from qiskit_ibm_runtime.utils.result_decoder import ResultDecoder
 
+# pylint: disable=duplicate-code
 from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_INSTANCE,
     QISKIT_IBM_CHANNEL,

@@ -31,9 +31,9 @@ import dataclasses
 from typing import Dict, Any
 from .run_service import QiskitFunction, RunService
 
-
+# pylint: disable=duplicate-code
 class RunnableQiskitFunction(QiskitFunction):
-    """Serverless QiskitPattern.
+    """Serverless QiskitFunction.
 
     Args:
         title: program name

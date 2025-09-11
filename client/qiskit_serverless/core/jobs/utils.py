@@ -38,6 +38,7 @@ from typing import Dict, Any
 import ray.runtime_env
 import requests
 
+# pylint: disable=duplicate-code
 from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_INSTANCE,
     QISKIT_IBM_CHANNEL,

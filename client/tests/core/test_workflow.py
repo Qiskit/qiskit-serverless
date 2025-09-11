@@ -2,33 +2,14 @@
 
 # pylint: disable=too-few-public-methods
 import json
-import os
-from unittest.mock import MagicMock, Mock, patch
-
-import numpy as np
-import pytest
-import requests_mock
-
-from qiskit.circuit.random import random_circuit
+from unittest.mock import Mock, patch
 
 from qiskit_serverless import ServerlessClient
-from qiskit_serverless.core.constants import (
-    ENV_JOB_GATEWAY_HOST,
-    ENV_JOB_ID_GATEWAY,
-    ENV_JOB_GATEWAY_TOKEN,
-    ENV_ACCESS_TRIAL,
-)
 from qiskit_serverless.core.jobs import (
-    Job,
-    is_running_in_serverless,
-    save_result,
-    is_trial,
-    update_status,
     Workflow,
 )
 
 from qiskit_serverless.core.functions import (
-    QiskitFunctionStep,
     QiskitFunction,
     RunnableQiskitFunctionWithSteps,
 )
@@ -128,10 +109,12 @@ class PostWorkflowResponseMock:
 
 
 class TestWorkflow:
+    """Tests for worflows."""
+
     @patch("requests.post", Mock(return_value=PostFunctionResponseMock()))
     @patch("requests.get", Mock(return_value=GetFunctionResponseMock()))
     def test_upload_stepped_function(self):
-        """Tests update sub status."""
+        """Tests upload QiskitFunction with steps."""
 
         client = ServerlessClient(host="host", token="token", version="version")
 
@@ -147,8 +130,8 @@ class TestWorkflow:
 
     @patch("requests.post", Mock(return_value=PostWorkflowResponseMock()))
     @patch("requests.get", Mock(return_value=GetSteppedFunctionResponseMock()))
-    def test_upload_run_stepped_function(self):
-        """Tests update sub status."""
+    def test_run_stepped_function(self):
+        """Tests run QiskitFunction with steps."""
 
         client = ServerlessClient(host="host", token="token", version="version")
 
