@@ -1,6 +1,7 @@
 """
 API V1: Available dependencies end-point.
 """
+
 from typing import Dict
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema

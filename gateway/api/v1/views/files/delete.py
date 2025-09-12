@@ -1,6 +1,7 @@
 """
 API V1: Delete file end-point.
 """
+
 # pylint: disable=duplicate-code
 from typing import cast
 from drf_yasg import openapi
@@ -16,6 +17,7 @@ from api.use_cases.files.delete import FilesDeleteUseCase
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
+
 
 # pylint: disable=abstract-method
 class InputSerializer(serializers.Serializer):

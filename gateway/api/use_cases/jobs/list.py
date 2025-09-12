@@ -1,4 +1,5 @@
 """This module contains the usecase get_jos"""
+
 import logging
 from typing import List
 

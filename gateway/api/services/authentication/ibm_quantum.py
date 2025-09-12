@@ -1,6 +1,5 @@
 """This service will manage the access to the 3rd party end-points in IBM Quantum."""
 
-
 import logging
 from typing import List, Optional
 from django.conf import settings
