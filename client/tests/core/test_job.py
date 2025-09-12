@@ -23,7 +23,7 @@ from qiskit_serverless.core.job import (
     save_result,
     is_trial,
     update_status,
-    associate_runtime_jobs
+    associate_runtime_jobs,
 )
 
 

@@ -1,6 +1,7 @@
 """
 API V1: list jobs endpoint
 """
+
 # pylint: disable=duplicate-code
 from typing import List, Optional, cast
 
@@ -22,6 +23,7 @@ from api.views.enums.type_filter import TypeFilter
 from api.utils import sanitize_name
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.models import Program
+
 
 # pylint: disable=abstract-method
 class InputSerializer(serializers.Serializer):

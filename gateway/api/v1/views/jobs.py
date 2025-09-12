@@ -115,9 +115,9 @@ class JobViewSet(views.JobViewSet):
                 "runtime_jobs": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Items(type=openapi.TYPE_STRING),
-                    description="List of runtime job IDs to associate"
-            )
-        },
+                    description="List of runtime job IDs to associate",
+                )
+            },
             description="Value to populate the sub-status of a Job",
         ),
         responses={
@@ -128,8 +128,8 @@ class JobViewSet(views.JobViewSet):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         "message": openapi.Schema(
-                        type=openapi.TYPE_STRING,
-                        example="'runtime_jobs' must be a list of strings"
+                            type=openapi.TYPE_STRING,
+                            example="'runtime_jobs' must be a list of strings",
                         )
                     },
                 ),
@@ -150,7 +150,7 @@ class JobViewSet(views.JobViewSet):
     @action(methods=["PATCH"], detail=True)
     def runtime_jobs(self, request, pk=None):
         return super().runtime_jobs(request, pk)
-    
+
     @swagger_auto_schema(
         operation_description="Stop a job",
     )

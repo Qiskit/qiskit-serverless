@@ -1,6 +1,7 @@
 """
 Repository implementation for Job model
 """
+
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -112,7 +113,9 @@ class JobsRepository:
 
         return updated == 1
 
-    def associate_runtime_jobs(self, job: Job, runtime_jobs: Optional[List[str]]) -> bool:
+    def associate_runtime_jobs(
+        self, job: Job, runtime_jobs: Optional[List[str]]
+    ) -> bool:
         """
         Updates the sub-status of a running job.
 
@@ -143,7 +146,7 @@ class JobsRepository:
             )
 
         return updated == 1
-    
+
     def get_user_jobs(
         self,
         user: Optional[AbstractUser] = None,

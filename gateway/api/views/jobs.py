@@ -145,7 +145,6 @@ class JobViewSet(viewsets.GenericViewSet):
 
         return Response(data)
 
-
     @_trace
     @action(methods=["POST"], detail=True)
     def result(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument

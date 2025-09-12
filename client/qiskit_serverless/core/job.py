@@ -366,6 +366,7 @@ def update_status(status: str):
 
     return response.ok
 
+
 def associate_runtime_jobs(status: str):
     """Update runtime jobs."""
 
@@ -400,6 +401,7 @@ def associate_runtime_jobs(status: str):
         logging.warning("Something went wrong: %s", sanitized)
 
     return response.ok
+
 
 def _map_status_to_serverless(status: str) -> str:
     """Map a status string from job client to the Qiskit terminology."""
