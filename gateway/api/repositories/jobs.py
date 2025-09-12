@@ -112,6 +112,38 @@ class JobsRepository:
 
         return updated == 1
 
+    def associate_runtime_jobs(self, job: Job, runtime_jobs: Optional[List[str]]) -> bool:
+        """
+        Updates the sub-status of a running job.
+
+        Args:
+            job (Job): The job to be updated
+            sub_status (str, optional): The new sub-status.
+
+        Returns:
+            bool: If the status has been changed properly
+        """
+
+        updated = Job.objects.filter(id=job.id, status=Job.RUNNING).update(
+            runtime_jobs=runtime_jobs
+        )
+        if updated:
+            logger.info(
+                "Job [%s] of [%s] changed runtime_jobs from [%s] to [%s]",
+                job.id,
+                job.author,
+                job.runtime_jobs,
+                runtime_jobs,
+            )
+        else:
+            logger.warning(
+                "Job [%s] runtime_jobs cannot be updated because "
+                "it is not in RUNNING state or id doesn't exist",
+                job.id,
+            )
+
+        return updated == 1
+    
     def get_user_jobs(
         self,
         user: Optional[AbstractUser] = None,

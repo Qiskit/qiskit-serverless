@@ -464,6 +464,87 @@ class TestJobApi(APITestCase):
             "Cannot update 'sub_status' when is not in RUNNING status. (Currently SUCCEEDED)",
         )
 
+    def test_job_associate_runtime_job(self):
+        """Test job associate runtime job"""
+        self._authorize()
+
+        job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
+        response_runtime_job = self.client.patch(
+            reverse("v1:jobs-runtime-jobs", args=[job_id]),
+            format="json",
+            data={"runtime_jobs": ["runtime_job_id"]},
+        )
+
+        self.assertEqual(response_runtime_job.status_code, status.HTTP_200_OK)
+        job = response_runtime_job.data.get("job")
+        self.assertEqual(job.get("runtime_jobs"), "runtime_job_id")
+
+    # TODO:
+    # def test_job_update_sub_status_wrong_value(self):
+    #     """Test job update sub status with wrong sub-status value"""
+    #     self._authorize()
+
+    #     job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
+    #     response_sub_status = self.client.patch(
+    #         reverse("v1:jobs-sub-status", args=[job_id]),
+    #         format="json",
+    #         data={"sub_status": "JUMPING"},
+    #     )
+
+    #     self.assertEqual(response_sub_status.status_code, status.HTTP_400_BAD_REQUEST)
+    #     self.assertEqual(
+    #         response_sub_status.data.get("message"),
+    #         "'sub_status' not provided or is not valid",
+    #     )
+
+    # def test_job_update_sub_status_empty_value(self):
+    #     """Test job update sub status with empty sub-status"""
+    #     self._authorize()
+
+    #     job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
+    #     response_sub_status = self.client.patch(
+    #         reverse("v1:jobs-sub-status", args=[job_id]), format="json"
+    #     )
+
+    #     self.assertEqual(response_sub_status.status_code, status.HTTP_400_BAD_REQUEST)
+    #     self.assertEqual(
+    #         response_sub_status.data.get("message"),
+    #         "'sub_status' not provided or is not valid",
+    #     )
+
+    # def test_job_update_sub_status_wrong_user(self):
+    #     """Test job update sub status with unauthorized user"""
+    #     self._authorize(username="test_user_2")
+
+    #     job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
+    #     response_sub_status = self.client.patch(
+    #         reverse("v1:jobs-sub-status", args=[job_id]),
+    #         format="json",
+    #         data={"sub_status": "MAPPING"},
+    #     )
+
+    #     self.assertEqual(response_sub_status.status_code, status.HTTP_404_NOT_FOUND)
+    #     self.assertEqual(
+    #         response_sub_status.data.get("message"), f"Job [{job_id}] not found"
+    #     )
+
+    # def test_job_update_sub_status_not_running(self):
+    #     """Test job update sub status not in running state"""
+    #     self._authorize()
+
+    #     job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
+    #     response_sub_status = self.client.patch(
+    #         reverse("v1:jobs-sub-status", args=[job_id]),
+    #         format="json",
+    #         data={"sub_status": "MAPPING"},
+    #     )
+
+    #     self.assertEqual(response_sub_status.status_code, status.HTTP_403_FORBIDDEN)
+    #     self.assertEqual(
+    #         response_sub_status.data.get("message"),
+    #         "Cannot update 'sub_status' when is not in RUNNING status. (Currently SUCCEEDED)",
+    #     )
+
     def test_user_has_access_to_job_result_from_provider_function(self):
         """
         User has access to job result from a function provider
