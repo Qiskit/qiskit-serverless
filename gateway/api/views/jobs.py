@@ -3,6 +3,7 @@ Django Rest framework Job views for api application:
 
 Version views inherit from the different views.
 """
+
 import json
 import logging
 import os
@@ -304,7 +305,7 @@ class JobViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["POST"], detail=True)
-    def add_runtimejob(
+    def runtimejob(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
         """Add RuntimeJob to job"""
