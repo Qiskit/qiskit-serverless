@@ -171,9 +171,9 @@ def fetch_execution_meta(*args, **kwargs) -> Dict[str, Sequence[Numeric]]:
         elif isinstance(argument, list):
             for sub_idx, sub_argument in enumerate(argument):
                 if isinstance(sub_argument, QuantumCircuit):
-                    meta[f"{OT_ATTRIBUTE_PREFIX}.args.arg_{idx}.{sub_idx}"] = (
-                        fetch_meta(sub_argument).to_seq()
-                    )
+                    meta[
+                        f"{OT_ATTRIBUTE_PREFIX}.args.arg_{idx}.{sub_idx}"
+                    ] = fetch_meta(sub_argument).to_seq()
     for key, value in kwargs.items():
         if isinstance(value, QuantumCircuit):
             meta[f"{OT_ATTRIBUTE_PREFIX}.kwargs.{key}"] = fetch_meta(value).to_seq()
