@@ -256,22 +256,22 @@ class Job(models.Model):
         return self.status in self.TERMINAL_STATUSES
 
 
-# class RuntimeJob(models.Model):
-#     """Runtime Job model."""
+class RuntimeJob(models.Model):
+    """Runtime Job model."""
 
-#     job = models.ForeignKey(
-#         to=Job,
-#         on_delete=models.SET_NULL,
-#         default=None,
-#         null=True,
-#         blank=True,
-#     )
-#     runtime_job = models.CharField(
-#         primary_key=True, max_length=100, blank=False, null=False
-#     )
-#     runtime_session = models.CharField(
-#         max_length=100, blank=True, null=True, default=None
-#     )
+    job = models.ForeignKey(
+        to=Job,
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+    )
+    runtime_job = models.CharField(
+        primary_key=True, max_length=100, blank=False, null=False
+    )
+    runtime_session = models.CharField(
+        max_length=100, blank=True, null=True, default=None
+    )
 
 
 class GroupMetadata(models.Model):
