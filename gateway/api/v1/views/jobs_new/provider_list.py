@@ -21,8 +21,8 @@ from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.views.utils import (
     SanitizedCharField,
     create_paginated_response,
-    standard_error_responses,
 )
+from api.v1.views.swagger_utils import standard_error_responses
 from api.views.enums.type_filter import TypeFilter
 
 

@@ -24,8 +24,8 @@ from api.v1.views.utils import (
     PaginatedResponse,
     SanitizedCharField,
     create_paginated_response,
-    standard_error_responses,
 )
+from api.v1.views.swagger_utils import standard_error_responses
 from api.views.enums.type_filter import TypeFilter
 
 

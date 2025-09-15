@@ -2,8 +2,6 @@
 # pylint: disable=duplicate-code
 from typing import List, Tuple
 
-from django.contrib.auth.models import AbstractUser
-
 from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.models import Job

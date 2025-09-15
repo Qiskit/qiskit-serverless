@@ -17,7 +17,7 @@ from rest_framework.response import Response
 from api.use_cases.jobs.get_logs import GetJobLogsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
-from api.v1.views.utils import standard_error_responses
+from api.v1.views.swagger_utils import standard_error_responses
 
 
 class JobLogsOutputSerializer(serializers.Serializer):

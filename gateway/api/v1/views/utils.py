@@ -5,7 +5,7 @@ utilities for API.
 from urllib.parse import urlencode
 from typing import List, Optional, Any, TypedDict
 from drf_yasg import openapi
-from rest_framework import status, serializers
+from rest_framework import serializers
 
 from api.utils import sanitize_name
 
@@ -107,40 +107,6 @@ def error_schema(example_msg: str, description: str = "Error response"):
             required=["message"],
         ),
     )
-
-
-def standard_error_responses(
-    bad_request_example: str | None = None,
-    forbidden_example: str | None = None,
-    not_found_example: str | None = None,
-    conflict_example: str | None = None,
-    unauthorized_example: str | None = None,
-):
-    """
-    Utility to generate standard error documentation
-    """
-    responses = {}
-    if bad_request_example:
-        responses[status.HTTP_400_BAD_REQUEST] = error_schema(
-            bad_request_example, "Invalid input."
-        )
-    if unauthorized_example:
-        responses[status.HTTP_401_UNAUTHORIZED] = error_schema(
-            unauthorized_example, "Authentication required."
-        )
-    if forbidden_example:
-        responses[status.HTTP_403_FORBIDDEN] = error_schema(
-            forbidden_example, "Not allowed to perform this action."
-        )
-    if not_found_example:
-        responses[status.HTTP_404_NOT_FOUND] = error_schema(
-            not_found_example, "Resource not found."
-        )
-    if conflict_example:
-        responses[status.HTTP_409_CONFLICT] = error_schema(
-            conflict_example, "Conflict."
-        )
-    return responses
 
 
 class SanitizedCharField(serializers.CharField):

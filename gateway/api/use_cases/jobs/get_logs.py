@@ -7,7 +7,9 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 
 from api.domain.exceptions.not_found_error import NotFoundError
+from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.repositories.jobs import JobsRepository
+from api.access_policies.providers import ProviderAccessPolicy
 
 
 NO_LOGS_MSG: Final[str] = "No available logs"
@@ -35,13 +37,7 @@ class GetJobLogsUseCase:
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        if job.program and job.program.provider:
-            provider_groups = set(job.program.provider.admin_groups.all())
-            user_groups = set(user.groups.all())
-            if provider_groups & user_groups:
-                return job.logs
-            return NO_LOGS_MSG
+        if not ProviderAccessPolicy.can_access(user, job.program.provider):
+            raise NotFoundError(f"Job [{job_id}] not found")
 
-        if user == job.author:
-            return job.logs
-        return NO_LOGS_MSG
+        return job.logs
