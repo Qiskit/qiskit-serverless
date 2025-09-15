@@ -310,7 +310,7 @@ class JobViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["POST"], detail=True)
-    def runtimejob(
+    def runtime_jobs(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
         """Add RuntimeJob to job"""
