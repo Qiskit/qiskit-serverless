@@ -6,12 +6,15 @@ FROM registry.access.redhat.com/ubi9-micro:9.6-1754467928 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed
-FROM registry.access.redhat.com/ubi9:9.6-1755678605 AS build
+FROM registry.access.redhat.com/ubi9:9.6-1756915113 AS build
 ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image
 RUN mkdir ${MICRO_IMAGE_DIR}
 COPY --from=base / ${MICRO_IMAGE_DIR}
+
+# Update internal dependencies
+RUN dnf update -y && dnf clean all
 
 # Install Python inside the BASE image
 RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
@@ -43,7 +46,9 @@ ENV SCARF_ANALYTICS=false \
 
 COPY gateway/requirements.txt .
 # Install pip
-RUN python3.11 -m ensurepip --upgrade
+RUN python3.11 -m ensurepip --upgrade &&\
+    python3.11 -m pip install --upgrade --no-cache-dir setuptools>=80.0.0
+    
 # Install dependencies and update then uninstall pip (not needed in final image)
 RUN python3.11 -m pip install -r requirements.txt --no-cache-dir --upgrade && \
     cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages &&\
