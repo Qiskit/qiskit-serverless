@@ -38,6 +38,6 @@ class GetJobLogsUseCase:
             raise NotFoundError(f"Job [{job_id}] not found")
 
         if not ProviderAccessPolicy.can_access(user, job.program.provider):
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
         return job.logs
