@@ -54,9 +54,10 @@ class StopJobUseCase:
                         logger.warning("cancel failed")
 
                     if job_instance.session_id:
+                        # pylint: disable=protected-access
                         qiskit_service._get_api_client().cancel_session(
                             job_instance.session_id
-                        )  # pylint: disable=protected-access
+                        )
 
         if job.compute_resource and job.compute_resource.active:
             job_handler = get_job_handler(job.compute_resource.host)
