@@ -17,7 +17,7 @@ body:
     attributes:
       label: Package Version
       description: Minimum version of the package we need to support in case you need a minimum version
-      placeholder: 0.25.4
+      placeholder: 0.26.0
     validations:
       required: false
   - type: textarea
