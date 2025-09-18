@@ -1,4 +1,5 @@
 """Upload a file into the provider storage use case."""
+
 # pylint: disable=duplicate-code
 import logging
 from django.core.files import File

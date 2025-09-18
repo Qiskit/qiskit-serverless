@@ -1,4 +1,5 @@
 """Tests jobs."""
+
 import os
 
 from testcontainers.compose import DockerCompose

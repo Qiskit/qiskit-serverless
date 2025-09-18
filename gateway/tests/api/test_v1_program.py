@@ -393,13 +393,13 @@ class TestProgramApi(APITestCase):
                 found = True
         self.assertTrue(found)
 
-    def test_add_runtimejob(self):
+    def test_runtimejob(self):
         """Tests run existing authorized."""
 
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
         programs_response = self.client.post(
-            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/add_runtimejob/",
+            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/runtimejob/",
             data={
                 "runtime_job": "runtime_job_4",
             },
