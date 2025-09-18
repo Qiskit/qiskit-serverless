@@ -8,8 +8,7 @@ permissions:
 
 jobs:
   verify-integration:
-    name: lint, test
-
+    name: lint, local tests (docker)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # keep running if one leg fails
@@ -25,9 +24,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the containers
         run: docker compose -f ../docker-compose-dev.yaml build
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Set up tox environment
         run: |
           pver=${{ matrix.python-version }}
@@ -37,8 +38,51 @@ jobs:
       - name: Install tox
         run: |
           pip install tox>=4.0.0
+
       - name: Run styles check
         run: tox -elint
-      - name: Test using tox environment
+
+      - name: Run tests excluding staging
+        run: tox -elocal-integration
+
+
+  staging-tests:
+    name: staging tests (no docker)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # keep running if one leg fails
+      matrix:
+        python-version:
+          - '3.11'
+
+    defaults:
+      run:
+        working-directory: ./tests
+
+    env:
+      QISKIT_IBM_CHANNEL: "ibm_quantum_platform"
+      QISKIT_IBM_TOKEN: ${{ secrets.QISKIT_IBM_TOKEN }}
+      QISKIT_IBM_INSTANCE: ${{ secrets.QISKIT_IBM_INSTANCE }}
+      QISKIT_IBM_URL_STAGING: "https://test.cloud.ibm.com"
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the containers
+        run: docker compose -f ../docker-compose-dev.yaml build
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up tox environment
         run: |
-          tox ${{ env.TOX_ENV }}
+          pver=${{ matrix.python-version }}
+          tox_env="-epy${pver/./}"
+          echo tox_env
+          echo TOX_ENV=$tox_env >> $GITHUB_ENV
+      - name: Install tox
+        run: |
+          pip install tox>=4.0.0
+
+      - name: Run tests on staging
+        run: tox -estaging-integration
