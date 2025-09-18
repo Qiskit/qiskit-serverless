@@ -1,21 +1,41 @@
+"""Use case: set a Job's sub_status, with access control and safe retries."""
+
 import logging
+from uuid import UUID
+
 from django.contrib.auth.models import AbstractUser
-from api.models import Job
-from api.utils import retry_function
-from api.repositories.jobs import JobsRepository
+
 from api.access_policies.jobs import JobAccessPolicies
-from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
+from api.domain.exceptions.not_found_error import NotFoundError
+from api.models import Job
+from api.repositories.jobs import JobsRepository
+from api.utils import retry_function
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 
 
 class SetJobSubStatusUseCase:
+    """Set a job's sub_status if the user can and the job is RUNNING."""
 
     jobs_repository = JobsRepository()
 
-    def execute(self, job_id: str, user: AbstractUser, sub_status: str) -> Job:
+    def execute(self, job_id: UUID, user: AbstractUser, sub_status: str) -> Job:
+        """
+        Update the sub_status of a job.
 
+        Args:
+            job_id: Target Job ID.
+            user: Requesting user.
+            sub_status: New sub_status value.
+
+        Returns:
+            The updated Job.
+
+        Raises:
+            NotFoundError: If the job does not exist or access is denied.
+            ForbiddenError: If the job is not in RUNNING status.
+        """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")

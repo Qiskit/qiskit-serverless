@@ -1,30 +1,37 @@
 """
 API V1: list jobs endpoint
 """
-# pylint: disable=duplicate-code
-from typing import List, Optional, cast
+# pylint: disable=duplicate-code, disable=abstract-method
+from typing import cast, List, Optional
 
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
-from rest_framework import status, permissions, serializers
-from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from api.v1.views.utils import standard_error_responses
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import permissions, serializers, status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.request import Request
+from rest_framework.response import Response
 
-from api.models import Job
+from api.models import Job, Program
 from api.repositories.jobs import JobFilters
-from api.v1.views.utils import create_paginated_response
-from api.v1 import serializers as v1_serializers
+from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.views.utils import (
+    SanitizedCharField,
+    create_paginated_response,
+)
+from api.v1.views.swagger_utils import standard_error_responses
 from api.views.enums.type_filter import TypeFilter
-from api.utils import sanitize_name
-from api.use_cases.jobs.provider_list import JobsProviderListUseCase
-from api.models import Program
 
-# pylint: disable=abstract-method
+
+class TypeFilterField(serializers.ChoiceField):
+    """ChoiceField that returns a TypeFilter enum (or None)."""
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+        return TypeFilter(value) if value else None
 
 
 class InputSerializer(serializers.Serializer):
@@ -32,51 +39,25 @@ class InputSerializer(serializers.Serializer):
     Validate and sanitize the input
     """
 
-    function = serializers.CharField(required=False, default=None)
-    provider = serializers.CharField(
+    function = SanitizedCharField(required=False, default=None)
+    provider = SanitizedCharField(
         required=True,
-        error_messages={
-            "required": "'provider' not provided or is not valid",
-        },
+        error_messages={"required": "'provider' not provided or is not valid"},
     )
     limit = serializers.IntegerField(
         required=False, default=settings.REST_FRAMEWORK["PAGE_SIZE"], min_value=0
     )
     offset = serializers.IntegerField(required=False, default=0, min_value=0)
-    filter = serializers.ChoiceField(
+    filter = TypeFilterField(
         choices=[TypeFilter.CATALOG, TypeFilter.SERVERLESS],
         required=False,
         default=None,
     )
-    status = serializers.CharField(required=False, default=None)
+    status = SanitizedCharField(required=False, default=None)
     created_after = serializers.DateTimeField(required=False, default=None)
 
-    def create(self, validated_data):
+    def create(self, validated_data: dict):
         return JobFilters(**validated_data)
-
-    def validate_filter(self, value: str):
-        """
-        Validates the type filter and converts it to TypeFilter
-        """
-        return TypeFilter(value) if value else None
-
-    def validate_function(self, value: str):
-        """
-        Validates the function title and sanitize it
-        """
-        return sanitize_name(value)
-
-    def validate_provider(self, value: str):
-        """
-        Validates the provider and sanitize it
-        """
-        return sanitize_name(value)
-
-    def validate_status(self, value: str):
-        """
-        Validates the status and sanitize it
-        """
-        return sanitize_name(value)
 
 
 class ProgramSummarySerializer(serializers.ModelSerializer):
@@ -179,7 +160,7 @@ def serialize_output(
         ),
     ],
     responses={
-        status.HTTP_200_OK: v1_serializers.JobSerializerWithoutResult(many=True),
+        status.HTTP_200_OK: JobSerializerWithoutResult(many=True),
         **standard_error_responses(
             not_found_example="Provider XXX doesn't exist.",
         ),
@@ -189,29 +170,17 @@ def serialize_output(
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def get_provider_jobs(request):
+def get_provider_jobs(request: Request) -> Response:
     """
-    Return a list of jobs for a given provider/function.
-
-    Query parameters:
-    - provider: provider name (required)
-    - function: function title
-    - limit: Number of results to return per page
-    - offset: Number of results to skip
-    - type: Filter by job type ('catalog' or 'serverless')
-    - status: Filter by job status
-    - created_after: Filter jobs created after this datetime (ISO 8601 format)
+    Return a list of jobs for the given provider (and optional filters).
     """
     serializer = InputSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
-    validated_data = serializer.validated_data
 
-    filters = cast(JobFilters, serializer.create(validated_data))
-
+    filters = JobFilters(**serializer.validated_data)
     user = cast(AbstractUser, request.user)
 
     jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters)
-
     return Response(
         serialize_output(jobs, total, request, filters.limit, filters.offset)
     )

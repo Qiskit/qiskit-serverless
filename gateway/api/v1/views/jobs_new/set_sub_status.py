@@ -1,23 +1,29 @@
 """
-Update sub status endpoint
+API endpoint to update a job's sub-status.
 """
-from typing import cast
-from drf_yasg.utils import swagger_auto_schema
+# pylint: disable=abstract-method
+
+from typing import Any, cast
+from uuid import UUID
+
 from django.contrib.auth.models import AbstractUser
-from rest_framework import serializers, permissions, status
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.request import Request
 from rest_framework.response import Response
-from api.v1.endpoint_decorator import endpoint
+
 from api import serializers as api_serializers
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.models import Job
 from api.use_cases.jobs.set_sub_status import SetJobSubStatusUseCase
-from api.v1.views.utils import standard_error_responses
+from api.v1.endpoint_decorator import endpoint
+from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.views.swagger_utils import standard_error_responses
 
 
 class InputSerializer(serializers.Serializer):
     """
-    Serializer for input endpoint
+    Validates the request body for updating the sub-status.
     """
 
     sub_status = serializers.ChoiceField(
@@ -31,34 +37,6 @@ class InputSerializer(serializers.Serializer):
         },
     )
 
-    def create(self, validated_data):
-        """Not implemented - this serializer is for validation only."""
-        raise NotImplementedError
-
-    def update(self, instance, validated_data):
-        """Not implemented - this serializer is for validation only."""
-        raise NotImplementedError
-
-
-class ProgramSerializer(api_serializers.ProgramSerializer):
-    """
-    Program serializer first version. Include basic fields from the initial model.
-    """
-
-    class Meta(api_serializers.ProgramSerializer.Meta):
-        # pylint: disable=duplicate-code
-        fields = [
-            "id",
-            "title",
-            "entrypoint",
-            "artifact",
-            "dependencies",
-            "provider",
-            "description",
-            "documentation_url",
-            "type",
-        ]
-
 
 class ProgramSummarySerializer(api_serializers.ProgramSerializer):
     """
@@ -71,7 +49,7 @@ class ProgramSummarySerializer(api_serializers.ProgramSerializer):
 
 class JobSerializerWithoutResult(api_serializers.JobSerializer):
     """
-    Job serializer first version. Include basic fields from the initial model.
+    Job representation without `result`.
     """
 
     program = ProgramSummarySerializer(many=False)
@@ -80,9 +58,15 @@ class JobSerializerWithoutResult(api_serializers.JobSerializer):
         fields = ["id", "status", "program", "created", "sub_status"]
 
 
-def serialize_output(job: Job):
+def serialize_output(job: Job) -> dict[str, Any]:
     """
-    Prepare the output for the endpoint
+    Build the response payload.
+
+    Args:
+        job: Updated job instance.
+
+    Returns:
+        A dictionary containing the serialized job under the 'job' key.
     """
     return {"job": JobSerializerWithoutResult(job).data}
 
@@ -105,9 +89,16 @@ def serialize_output(job: Job):
 @api_view(["PATCH"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def set_sub_status(request, job_id):
+def set_sub_status(request: Request, job_id: UUID) -> Response:
     """
-    Update job sub status
+    Update the sub-status for the specified job.
+
+    Args:
+        request: The HTTP request.
+        job_id: Job identifier (UUID path parameter).
+
+    Returns:
+        Response containing the updated job under the 'job' key.
     """
     serializer = InputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)

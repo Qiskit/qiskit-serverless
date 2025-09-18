@@ -1,10 +1,12 @@
 import json
 import logging
-from api.models import Job, RuntimeJob
+from uuid import UUID
+from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
+from api.models import Job
 from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.not_found_error import NotFoundError
-from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
+from api.repositories.runtime_job import RuntimeJobRepository
 
 
 logger = logging.getLogger("gateway.use_cases.jobs")
@@ -16,8 +18,9 @@ class StopJobUseCase:
     """
 
     jobs_repository = JobsRepository()
+    runtime_jobs_repository = RuntimeJobRepository()
 
-    def execute(self, job_id: str, service: str) -> str:
+    def execute(self, job_id: UUID, service: str) -> str:
         """
         Stop job.
 
@@ -35,7 +38,7 @@ class StopJobUseCase:
             job.status = Job.STOPPED
             job.save(update_fields=["status"])
 
-        runtime_jobs = self._get_runtime_job(job)
+        runtime_jobs = self.runtime_jobs_repository.get_runtime_job(job)
 
         if runtime_jobs and service:
             service_config = json.loads(service, cls=json.JSONDecoder)["__value__"]
@@ -51,9 +54,10 @@ class StopJobUseCase:
                         logger.warning("cancel failed")
 
                     if job_instance.session_id:
+                        # pylint: disable=protected-access
                         qiskit_service._get_api_client().cancel_session(
                             job_instance.session_id
-                        )  # pylint: disable=protected-access
+                        )
 
         if job.compute_resource and job.compute_resource.active:
             job_handler = get_job_handler(job.compute_resource.host)
@@ -67,7 +71,3 @@ class StopJobUseCase:
                 )
 
         return message
-
-    def _get_runtime_job(self, job):
-        """get runtime job for job"""
-        return RuntimeJob.objects.filter(job=job)

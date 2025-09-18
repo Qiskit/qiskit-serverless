@@ -1,19 +1,24 @@
 """
 Save result for a job API endpoint
 """
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code, abstract-method
+
 from typing import cast
-from drf_yasg.utils import swagger_auto_schema
+from uuid import UUID
+
 from django.contrib.auth.models import AbstractUser
-from rest_framework import serializers, permissions, status
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.request import Request
 from rest_framework.response import Response
+
 from api import serializers as api_serializers
+from api.models import Job
 from api.use_cases.jobs.save_result import JobSaveResultUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
-from api.models import Job
-from api.v1.views.utils import standard_error_responses
+from api.v1.views.swagger_utils import standard_error_responses
 
 
 class InputSerializer(serializers.Serializer):
@@ -23,15 +28,6 @@ class InputSerializer(serializers.Serializer):
 
     result = serializers.DictField(required=True)
 
-    # pylint: disable=duplicate-code
-    def create(self, validated_data):
-        """Not implemented - this serializer is for validation only."""
-        raise NotImplementedError
-
-    def update(self, instance, validated_data):
-        """Not implemented - this serializer is for validation only."""
-        raise NotImplementedError
-
 
 class ProgramSerializer(api_serializers.ProgramSerializer):
     """
@@ -39,7 +35,6 @@ class ProgramSerializer(api_serializers.ProgramSerializer):
     """
 
     class Meta(api_serializers.ProgramSerializer.Meta):
-        # pylint: disable=duplicate-code
         fields = [
             "id",
             "title",
@@ -66,7 +61,13 @@ class JobSerializer(api_serializers.JobSerializer):
 
 def serialize_output(job: Job):
     """
-    Prepare the output for the endpoint
+    Serialize the job for the response.
+
+    Args:
+        job: The updated job instance.
+
+    Returns:
+        Serialized job as a dictionary.
     """
     return JobSerializer(job).data
 
@@ -86,9 +87,16 @@ def serialize_output(job: Job):
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def save_result(request, job_id):
+def save_result(request: Request, job_id: UUID) -> Response:
     """
-    Save result for a job
+    Save a result payload into the specified job.
+
+    Args:
+        request: The HTTP request.
+        job_id: Job identifier (UUID path parameter).
+
+    Returns:
+        Response containing the updated serialized job.
     """
     serializer = InputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)

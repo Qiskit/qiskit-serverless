@@ -542,8 +542,7 @@ class TestJobApi(APITestCase):
             reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
             format="json",
         )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "No available logs")
+        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_job_logs_by_function_provider(self):
         """Tests job log by fuction provider."""
@@ -566,5 +565,4 @@ class TestJobApi(APITestCase):
             reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
             format="json",
         )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "No available logs")
+        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
