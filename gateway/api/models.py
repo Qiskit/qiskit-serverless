@@ -297,3 +297,6 @@ class LogConsent(models.Model):
     accepted = models.BooleanField()
     created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, null=True)
+
+    class Meta:
+        unique_together = ("user", "function")

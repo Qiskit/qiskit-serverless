@@ -275,12 +275,10 @@ class FunctionRepository:
         """
         Add or update the log consent for an user and function
         """
-        consent = LogConsent(
-            function=function,
-            accepted=accepted,
+        consent, _ = LogConsent.objects.update_or_create(
             user=user,
+            function=function,
+            defaults={"accepted": accepted},
         )
-
-        consent.save()
 
         return consent
