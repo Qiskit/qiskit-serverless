@@ -10,7 +10,7 @@ service = ServerlessRuntimeService(
     channel=os.environ["QISKIT_IBM_CHANNEL"],
     instance=os.environ["QISKIT_IBM_INSTANCE"],
     token=os.environ["QISKIT_IBM_TOKEN"],
-    url=os.environ["QISKIT_IBM_URL_STAGING"],
+    url="https://test.cloud.ibm.com",
 )
 
 backend = service.backend("test_eagle")
