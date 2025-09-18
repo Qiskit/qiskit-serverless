@@ -248,10 +248,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             channel = request.auth.channel
             token = request.auth.token.decode()
             instance = request.auth.instance
-        job_data = {
-            "arguments": arguments,
-            "program": function.id
-        }
+        job_data = {"arguments": arguments, "program": function.id}
         job_serializer = self.get_serializer_run_job(data=job_data)
         if not job_serializer.is_valid():
             logger.error(
