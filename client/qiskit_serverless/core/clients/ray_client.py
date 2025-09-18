@@ -158,11 +158,11 @@ class RayClient(BaseClient):
     def filtered_logs(self, job_id: str, **kwargs) -> str:
         """Return filtered logs."""
         raise NotImplementedError
-    
+
     def runtime_jobs(self, job_id: str):
         """Return runtime jobs."""
         raise NotImplementedError
-    
+
     #########################
     ####### Functions #######
     #########################
