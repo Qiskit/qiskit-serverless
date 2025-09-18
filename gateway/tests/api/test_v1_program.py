@@ -146,7 +146,7 @@ class TestProgramApi(APITestCase):
             self.assertEqual(job.config.workers, None)
             self.assertEqual(job.config.auto_scaling, True)
 
-            arguments_storage = ArgumentsStorage(user.username)
+            arguments_storage = ArgumentsStorage(user.username, "Program", None)
             stored_arguments = arguments_storage.get(job.id)
 
             self.assertEqual(stored_arguments, arguments)

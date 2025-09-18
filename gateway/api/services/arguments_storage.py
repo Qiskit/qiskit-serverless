@@ -15,10 +15,24 @@ class ArgumentsStorage:
     ARGUMENTS_FILE_EXTENSION = ".json"
     ENCODING = "utf-8"
 
-    def __init__(self, username: str):
-        self.user_arguments_directory = os.path.join(
-            settings.MEDIA_ROOT, username, "arguments"
-        )
+    def __init__(
+        self, username: str, function_title: str, provider_name: Optional[str]
+    ):
+        # We need to use the same path as the FileStorage here
+        # because it is attached the volume in the docker image
+        if provider_name is None:
+            self.user_arguments_directory = os.path.join(
+                settings.MEDIA_ROOT, username, "arguments"
+            )
+        else:
+            self.user_arguments_directory = os.path.join(
+                settings.MEDIA_ROOT,
+                username,
+                provider_name,
+                function_title,
+                "arguments",
+            )
+
         os.makedirs(self.user_arguments_directory, exist_ok=True)
 
     def _get_arguments_path(self, job_id: str) -> str:
