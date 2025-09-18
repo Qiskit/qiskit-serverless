@@ -24,7 +24,7 @@ out2 = sampler.run([qc])
 
 save_result(
     {
-        "backends": backends,
+        "backends": [back.name for back in backend],
         "results": [out1.job_id, out2.job_id],
     }
 )
