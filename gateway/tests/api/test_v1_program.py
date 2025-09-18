@@ -146,7 +146,58 @@ class TestProgramApi(APITestCase):
             self.assertEqual(job.config.workers, None)
             self.assertEqual(job.config.auto_scaling, True)
 
-            arguments_storage = ArgumentsStorage(user.username)
+            arguments_storage = ArgumentsStorage(user.username, "Program", None)
+            stored_arguments = arguments_storage.get(job.id)
+
+            self.assertEqual(stored_arguments, arguments)
+
+    def test_provider_run(self):
+        """Tests run existing authorized."""
+
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+
+            arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
+            programs_response = self.client.post(
+                "/api/v1/programs/run/",
+                data={
+                    "title": "Docker-Image-Program",
+                    "provider": "default",
+                    "arguments": arguments,
+                    "config": {
+                        "workers": None,
+                        "min_workers": 1,
+                        "max_workers": 5,
+                        "auto_scaling": True,
+                    },
+                },
+                format="json",
+            )
+            job_id = programs_response.data.get("id")
+            job = Job.objects.get(id=job_id)
+            env_vars = json.loads(job.env_vars)
+
+            self.assertEqual(job.status, Job.QUEUED)
+            self.assertEqual(job.trial, False)
+            self.assertEqual(env_vars["PROGRAM_ENV1"], "VALUE1")
+            self.assertEqual(env_vars["PROGRAM_ENV2"], "VALUE2")
+            self.assertEqual(job.config.min_workers, 1)
+            self.assertEqual(job.config.max_workers, 5)
+            self.assertEqual(job.config.workers, None)
+            self.assertEqual(job.config.auto_scaling, True)
+
+            arguments_storage = ArgumentsStorage(
+                user.username, "Docker-Image-Program", "default"
+            )
             stored_arguments = arguments_storage.get(job.id)
 
             self.assertEqual(stored_arguments, arguments)
