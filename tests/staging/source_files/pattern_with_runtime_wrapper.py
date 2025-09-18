@@ -4,7 +4,7 @@ import os
 from qiskit_serverless import save_result, ServerlessRuntimeService
 
 from qiskit import QuantumCircuit
-from qiskit.primitives import StatevectorSampler as Sampler
+from qiskit_ibm_runtime import SamplerV2
 
 service = ServerlessRuntimeService(
     channel=os.environ["QISKIT_IBM_CHANNEL"],
@@ -14,7 +14,7 @@ service = ServerlessRuntimeService(
 )
 
 backend = service.backend("test_eagle")
-sampler = Sampler(backend)
+sampler = SamplerV2(backend)
 
 qc = QuantumCircuit(1)
 qc.measure_all()
