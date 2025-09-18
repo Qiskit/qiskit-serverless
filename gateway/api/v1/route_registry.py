@@ -22,7 +22,9 @@ class RouteRegistry:
         if not url_path.endswith("/"):
             url_path += "/"
 
-        route = path(url_path, view_func, name=name)
+        clean_path = url_path.lstrip("/")
+
+        route = path(clean_path, view_func, name=name)
         cls._routes.append(route)
 
     @classmethod

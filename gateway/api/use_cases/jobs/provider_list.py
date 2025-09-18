@@ -1,16 +1,13 @@
 """This module contains the usecase get_jobs"""
 # pylint: disable=duplicate-code
-import logging
 from typing import List, Tuple
 
+from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.models import Job
-from api.access_policies.providers import ProviderAccessPolicy
-from api.repositories.jobs import JobsRepository, JobFilters
-from api.repositories.providers import ProviderRepository
 from api.repositories.functions import FunctionRepository
-
-logger = logging.getLogger("gateway.use_cases.jobs")
+from api.repositories.jobs import JobFilters, JobsRepository
+from api.repositories.providers import ProviderRepository
 
 
 class JobsProviderListUseCase:
@@ -23,7 +20,7 @@ class JobsProviderListUseCase:
     def execute(
         self,
         user,
-        filters: JobFilters = None,
+        filters: JobFilters,
     ) -> Tuple[List[Job], int]:
         """
         Retrieve provider jobs with access validation.

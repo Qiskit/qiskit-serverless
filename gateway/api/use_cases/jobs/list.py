@@ -1,5 +1,4 @@
 """This module contains the usecase get_jos"""
-import logging
 from typing import List
 
 from django.contrib.auth.models import AbstractUser
@@ -7,9 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.models import Job
 from api.repositories.functions import FunctionRepository
-from api.repositories.jobs import JobsRepository, JobFilters
-
-logger = logging.getLogger("gateway.use_cases.jobs")
+from api.repositories.jobs import JobFilters, JobsRepository
 
 
 class JobsListUseCase:
@@ -25,6 +22,7 @@ class JobsListUseCase:
         Returns:
             tuple[list[Job], int]: (jobs, total_count)
         """
+        # ensure function exists if filtered
         if filters.function:
             function = self.function_repository.get_function(
                 function_title=filters.function,
