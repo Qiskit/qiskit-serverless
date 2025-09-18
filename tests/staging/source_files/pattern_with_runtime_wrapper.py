@@ -13,6 +13,7 @@ service = ServerlessRuntimeService(
     url="https://test.cloud.ibm.com",
 )
 
+backends = service.backends()
 backend = service.backend("test_eagle")
 sampler = SamplerV2(backend)
 
@@ -23,6 +24,7 @@ out2 = sampler.run([qc])
 
 save_result(
     {
+        "backends": backends,
         "results": [out1.job_id, out2.job_id],
     }
 )

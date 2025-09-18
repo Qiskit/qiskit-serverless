@@ -30,6 +30,11 @@ class TestFunctionsStaging:
         job = my_pattern_function.run()
         result = job.result()
 
+        # sanity check:
+        # confirm that test_eagle is found
+        backends = result["backends"]
+        assert "test_eagle" in backends
+        
         reference_ids = result["results"]
         job_id = job.job_id
         runtime_job_ids = staging_client.runtime_jobs(job_id)
