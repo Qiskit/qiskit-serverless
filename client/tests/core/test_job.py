@@ -23,6 +23,7 @@ from qiskit_serverless.core.job import (
     save_result,
     is_trial,
     update_status,
+    associate_runtime_jobs,
 )
 
 
@@ -88,12 +89,18 @@ class TestJob:
         result = update_status("MAPPING")
         assert result is True
 
+    @patch("requests.patch", Mock(return_value=ResponseMock()))
+    def test_associate_runtime_jobs(self, job_env_variables):
+        """Tests associate runtime jobs."""
+        _ = job_env_variables
+
+        result = associate_runtime_jobs("runtime_job_id")
+        assert result is True
+
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_filtered_logs(self):
         """Tests job filtered log."""
-        client = ServerlessClient(
-            host="host", token="token", instance="crn", version="version"
-        )
+        client = ServerlessClient(host="host", token="token", version="version")
         client.logs = MagicMock(
             return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n",  # pylint: disable=line-too-long
         )
@@ -110,9 +117,7 @@ class TestJob:
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_error_message(self):
         """Tests job filtered log."""
-        client = ServerlessClient(
-            host="host", token="token", instance="crn", version="version"
-        )
+        client = ServerlessClient(host="host", token="token", version="version")
         client.status = MagicMock(
             return_value="ERROR",
         )

@@ -1,0 +1,43 @@
+# pylint: disable=import-error, invalid-name
+"""Tests jobs."""
+import os
+
+
+from qiskit_serverless import (
+    QiskitFunction,
+    ServerlessClient,
+)
+
+resources_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "source_files"
+)
+
+
+class TestFunctionsStaging:
+    """Test class for integration testing in staging environment."""
+
+    def test_simple_function(self, staging_client: ServerlessClient):
+        """Integration test for runtime wrapper."""
+
+        function = QiskitFunction(
+            title="test-runtime-wrapper",
+            entrypoint="pattern_with_runtime_wrapper.py",
+            working_dir=resources_path,
+        )
+        staging_client.upload(function)
+        my_pattern_function = staging_client.function("test-runtime-wrapper")
+
+        job = my_pattern_function.run()
+        result = job.result()
+
+        reference_ids = result["results"]
+        job_id = job.job_id
+        runtime_job_ids = staging_client.runtime_jobs(job_id)
+
+        assert isinstance(reference_ids, list)
+        assert len(reference_ids) == 2
+        assert isinstance(runtime_job_ids, list)
+        assert len(runtime_job_ids) == 2
+        for id, ref_id in zip(runtime_job_ids, reference_ids):
+            assert isinstance(id, str)
+            assert id == ref_id

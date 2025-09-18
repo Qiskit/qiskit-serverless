@@ -1,6 +1,8 @@
 # Local .terraform directories
 **/.terraform/*
 
+
+
 # Local helm dependencies
 charts/**/*.tgz
 charts/values/**
@@ -39,7 +41,8 @@ override.tf.json
 __pycache__
 .DS_Store
 
-
+# Virtual environments
+*.venv*
 venv/
 .venv/
 .idea/

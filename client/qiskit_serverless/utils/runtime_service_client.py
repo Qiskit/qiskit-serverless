@@ -99,7 +99,7 @@ class ServerlessRuntimeService(QiskitRuntimeService):
         QiskitRuntimeService (QiskitRuntimeService): Qiskit runtime service object.
     """
 
-    def run(  # pylint:  disable=too-many-positional-arguments
+    def _run(  # pylint:  disable=too-many-positional-arguments
         self,
         program_id: str,
         inputs: Dict,
@@ -121,7 +121,10 @@ class ServerlessRuntimeService(QiskitRuntimeService):
             session_id,
             start_session,
         )
-        associate_runtime_job_with_serverless_job(
-            runtime_job.job_id(), runtime_job.session_id
+        print(
+            "associate ok??",
+            associate_runtime_job_with_serverless_job(
+                runtime_job.job_id(), runtime_job.session_id
+            ),
         )
         return runtime_job
