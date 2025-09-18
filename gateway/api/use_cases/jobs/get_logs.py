@@ -37,7 +37,14 @@ class GetJobLogsUseCase:
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        if not ProviderAccessPolicy.can_access(user, job.program.provider):
-            raise ForbiddenError(f"You don't have access to job [{job_id}]")
+        # Case 1: Provider function - check provider access policy
+        if job.program and job.program.provider:
+            if ProviderAccessPolicy.can_access(user, job.program.provider):
+                return job.logs
 
-        return job.logs
+        # Case 2: User is the author of the job
+        elif user == job.author:
+            return job.logs
+
+        # Access denied for all other cases
+        raise ForbiddenError(f"You don't have access to job [{job_id}]")

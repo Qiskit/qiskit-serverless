@@ -9,6 +9,6 @@ class RuntimeJobRepository:
     RuntimeJob repository
     """
 
-    def get_runtime_job(self, job):
+    def get_runtime_job(self, job) -> RuntimeJob:
         """get runtime job for job"""
         return RuntimeJob.objects.filter(job=job)
