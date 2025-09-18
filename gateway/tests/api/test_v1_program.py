@@ -456,6 +456,34 @@ class TestProgramApi(APITestCase):
         )
         self.assertEqual(programs_response_do_not_have_access.status_code, 404)
 
+    def test_add_log_consent(self):
+        """Test add consent"""
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        # initial user_consent is None
+        programs_response = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            format="json",
+        )
+        self.assertEqual(programs_response.data.get("user_consent"), None)
+
+        # accept log consent
+        programs_response = self.client.post(
+            "/api/v1/programs/Docker-Image-Program/consent",
+            {"accepted": True},
+            format="json",
+        )
+        print(programs_response.data)
+        self.assertEqual(programs_response.data.get("message"), "consent added")
+
+        # check log consent accepted
+        programs_response = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            format="json",
+        )
+        self.assertEqual(programs_response.data.get("user_consent"), True)
+
     def test_get_jobs(self):
         """Tests run existing authorized."""
 
@@ -534,3 +562,19 @@ class TestProgramApi(APITestCase):
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.data.get("description"), description)
+
+    def test_add_log_consent_to_program(self):
+        """Tests upload end-point authorized."""
+
+        user = models.User.objects.get(username="test_user")
+        self.client.force_authenticate(user=user)
+        function_title = "Program"
+
+        programs_response = self.client.post(
+            f"/api/v1/programs/{function_title}/consent/",
+            data={
+                "accepted": True,
+            },
+        )
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)

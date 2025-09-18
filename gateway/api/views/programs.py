@@ -26,6 +26,7 @@ from api.serializers import (
     JobSerializer,
     RunProgramSerializer,
     UploadProgramSerializer,
+    ProgramSerializerWithConsent,
 )
 from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
 from api.views.enums.type_filter import TypeFilter
@@ -82,6 +83,13 @@ class ProgramViewSet(viewsets.GenericViewSet):
         """
 
         return RunProgramSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_serializer_with_consent(*args, **kwargs):
+        """
+        This method returns the program serializer with the user log consent for the run end-point
+        """
+        return ProgramSerializerWithConsent(*args, **kwargs)
 
     @staticmethod
     def get_serializer_run_job(*args, **kwargs):
@@ -294,7 +302,11 @@ class ProgramViewSet(viewsets.GenericViewSet):
             )
 
         if function:
-            return Response(self.get_serializer(function).data)
+            return Response(
+                self.get_serializer_with_consent(
+                    function, context={"user": request.user}
+                ).data
+            )
 
         return Response(status=404)
 
