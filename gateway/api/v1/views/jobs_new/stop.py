@@ -1,6 +1,7 @@
 """
 Stop job endpoint
 """
+# pylint: disable=abstract-method
 from rest_framework import serializers, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -18,14 +19,6 @@ class InputSerializer(serializers.Serializer):
 
     service = serializers.CharField(required=False, default=None)
 
-    def create(self, validated_data):
-        """Not implemented - this serializer is for validation only."""
-        raise NotImplementedError
-
-    def update(self, instance, validated_data):
-        """Not implemented - this serializer is for validation only."""
-        raise NotImplementedError
-
 
 class StopJobOutputSerializer(serializers.Serializer):
     """
@@ -33,12 +26,6 @@ class StopJobOutputSerializer(serializers.Serializer):
     """
 
     message = serializers.CharField()
-
-    def create(self, validated_data):
-        raise NotImplementedError
-
-    def update(self, instance, validated_data):
-        raise NotImplementedError
 
 
 def serialize_output(message: str) -> StopJobOutputSerializer:
