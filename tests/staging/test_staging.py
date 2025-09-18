@@ -29,15 +29,13 @@ class TestFunctionsStaging:
 
         job = my_pattern_function.run()
         result = job.result()
-        backends = result["backends"]
 
-        # reference_ids = result["results"]
-        # job_id = job.job_id
-        # runtime_job_ids = staging_client.runtime_jobs(job_id)
+        reference_ids = result["results"]
+        job_id = job.job_id
+        runtime_job_ids = staging_client.runtime_jobs(job_id)
 
-        assert isinstance(backends, int)
-        # assert isinstance(runtime_job_ids, list)
-        # assert len(runtime_job_ids) == 2
-        # for id, ref_id in zip(runtime_job_ids, reference_ids):
-        #     assert isinstance(id, str)
-        #     assert id == ref_id
+        assert isinstance(runtime_job_ids, list)
+        assert len(runtime_job_ids) == 2
+        for id, ref_id in zip(runtime_job_ids, reference_ids):
+            assert isinstance(id, str)
+            assert id == ref_id

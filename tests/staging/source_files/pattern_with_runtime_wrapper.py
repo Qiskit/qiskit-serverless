@@ -10,20 +10,19 @@ service = ServerlessRuntimeService(
     channel=os.environ["QISKIT_IBM_CHANNEL"],
     instance=os.environ["QISKIT_IBM_INSTANCE"],
     token=os.environ["QISKIT_IBM_TOKEN"],
-    url="https://test.cloud.ibm.com"
+    url=os.environ["QISKIT_IBM_URL_STAGING"],
 )
 
-# backend = service.backend("test_eagle_us-east")
-# sampler = Sampler(backend)
+backend = service.backend("test_eagle")
+sampler = Sampler(backend)
 
-# qc = QuantumCircuit(1)
-# qc.measure_all()
-# out1 = sampler.run([qc])
-# out2 = sampler.run([qc])
+qc = QuantumCircuit(1)
+qc.measure_all()
+out1 = sampler.run([qc])
+out2 = sampler.run([qc])
 
 save_result(
     {
-        # "results": [out1.job_id, out2.job_id],
-        "backends": [backend.name for backend in service.backends()],
+        "results": [out1.job_id, out2.job_id],
     }
 )

@@ -62,6 +62,7 @@ jobs:
     env:
       QISKIT_IBM_TOKEN: ${{ secrets.QISKIT_IBM_TOKEN }}
       QISKIT_IBM_INSTANCE: ${{ secrets.QISKIT_IBM_INSTANCE }}
+      QISKIT_IBM_URL_STAGING: "https://test.cloud.ibm.com"
 
     steps:
       - uses: actions/checkout@v4
