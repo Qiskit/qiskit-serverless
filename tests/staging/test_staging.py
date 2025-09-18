@@ -34,6 +34,8 @@ class TestFunctionsStaging:
         job_id = job.job_id
         runtime_job_ids = staging_client.runtime_jobs(job_id)
 
+        assert isinstance(reference_ids, list)
+        assert len(reference_ids) == 2
         assert isinstance(runtime_job_ids, list)
         assert len(runtime_job_ids) == 2
         for id, ref_id in zip(runtime_job_ids, reference_ids):
