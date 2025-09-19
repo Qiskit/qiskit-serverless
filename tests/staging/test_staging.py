@@ -23,6 +23,11 @@ class TestFunctionsStaging:
             title="test-runtime-wrapper",
             entrypoint="pattern_with_runtime_wrapper.py",
             working_dir=resources_path,
+            env_vars={
+                "QISKIT_IBM_CHANNEL": os.environ["QISKIT_IBM_CHANNEL"],
+                "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
+                "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
+            },
         )
         serverless_client.upload(function)
         my_pattern_function = serverless_client.function("test-runtime-wrapper")
