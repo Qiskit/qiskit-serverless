@@ -33,7 +33,7 @@ jobs:
           path: ./${{ matrix.release }}-${{ steps.package.outputs.VERSION }}.tgz
       - name: Get release
         id: get_release
-        uses: bruceadams/get-release@v1
+        uses: bruceadams/get-release@v1.3.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - name: Upload Release Asset
