@@ -60,6 +60,7 @@ jobs:
         working-directory: ./tests
 
     env:
+      QISKIT_IBM_CHANNEL: "ibm_quantum_platform"
       QISKIT_IBM_TOKEN: ${{ secrets.QISKIT_IBM_TOKEN }}
       QISKIT_IBM_INSTANCE: ${{ secrets.QISKIT_IBM_INSTANCE }}
       QISKIT_IBM_URL_STAGING: "https://test.cloud.ibm.com"
