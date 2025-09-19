@@ -114,7 +114,12 @@ class JobHandler:
                 )
 
             # upload arguments to working directory
-            storage = ArgumentsStorage(job.author.username)
+            provider_name = None
+            if job.program.provider is not None:
+                provider_name = job.program.provider.name
+            storage = ArgumentsStorage(
+                job.author.username, program.title, provider_name
+            )
             arguments = storage.get(job.id) or job.arguments
             arguments_file = os.path.join(
                 working_directory_for_upload, "arguments.serverless"

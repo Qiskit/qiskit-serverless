@@ -273,6 +273,8 @@ class RunJobSerializer(serializers.ModelSerializer):
         logger.info("Creating Job with RunExistingJobSerializer")
         status = Job.QUEUED
         program = validated_data.get("program")
+        function_title = validated_data.get("function_title")
+        provider_name = validated_data.get("provider_name", None)
         arguments = validated_data.get("arguments", "{}")
         author = validated_data.get("author")
         config = validated_data.get("config", None)
@@ -302,7 +304,9 @@ class RunJobSerializer(serializers.ModelSerializer):
             )
         )
 
-        arguments_storage = ArgumentsStorage(author.username)
+        arguments_storage = ArgumentsStorage(
+            author.username, function_title, provider_name
+        )
         arguments_storage.save(job.id, arguments)
 
         try:
