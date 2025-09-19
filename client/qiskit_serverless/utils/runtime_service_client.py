@@ -112,6 +112,8 @@ class ServerlessRuntimeService(QiskitRuntimeService):
         start_session: Optional[bool] = False,
     ) -> Union[RuntimeJob, RuntimeJobV2]:
         """Run a serverless Runtime service job."""
+
+        print("INSIDE SERVERLESS RUNTIME SERVICE")
         runtime_job = super()._run(
             program_id,
             inputs,
@@ -122,7 +124,7 @@ class ServerlessRuntimeService(QiskitRuntimeService):
             start_session,
         )
         print(
-            "associate ok??",
+            "Inside associate ok??",
             associate_runtime_job_with_serverless_job(
                 runtime_job.job_id(), runtime_job.session_id
             ),

@@ -16,7 +16,7 @@ resources_path = os.path.join(
 class TestFunctionsStaging:
     """Test class for integration testing in staging environment."""
 
-    def test_simple_function(self, staging_client: ServerlessClient):
+    def test_simple_function(self, serverless_client: ServerlessClient):
         """Integration test for runtime wrapper."""
 
         function = QiskitFunction(
@@ -24,8 +24,8 @@ class TestFunctionsStaging:
             entrypoint="pattern_with_runtime_wrapper.py",
             working_dir=resources_path,
         )
-        staging_client.upload(function)
-        my_pattern_function = staging_client.function("test-runtime-wrapper")
+        serverless_client.upload(function)
+        my_pattern_function = serverless_client.function("test-runtime-wrapper")
 
         job = my_pattern_function.run()
         result = job.result()
@@ -43,7 +43,7 @@ class TestFunctionsStaging:
 
         # finally, check runtime jobs:
         job_id = job.job_id
-        runtime_job_ids = staging_client.runtime_jobs(job_id)
+        runtime_job_ids = serverless_client.runtime_jobs(job_id)
         assert isinstance(runtime_job_ids, list)
         assert len(runtime_job_ids) == 2
         for id, ref_id in zip(runtime_job_ids, reference_ids):
