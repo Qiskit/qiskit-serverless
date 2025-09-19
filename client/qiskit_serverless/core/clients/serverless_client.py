@@ -421,6 +421,20 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
         return response_data.get("logs")
 
+    @_trace_job
+    def runtime_jobs(self, job_id: str):
+        response = requests.get(
+            f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtimejob/",
+            headers=get_headers(
+                token=self.token, instance=self.instance, channel=self.channel
+            ),
+            timeout=REQUESTS_TIMEOUT,
+        )
+        if response.ok:
+            return json.loads(response.json())  # This will be a list
+        print("Failed to retrieve runtime jobs: %s", response.text)
+        return []
+
     def filtered_logs(self, job_id: str, **kwargs):
         all_logs = self.logs(job_id=job_id)
         included = ""
