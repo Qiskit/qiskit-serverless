@@ -46,15 +46,6 @@ def set_up_serverless_client():
         host=os.environ.get("GATEWAY_HOST", connection_url),
         instance=os.environ.get("GATEWAY_INSTANCE", "an_awesome_crn"),
     )
-
-    # Initialize serverless folder for current user
-    function = QiskitFunction(
-        title="hello-world",
-        entrypoint="hello_world.py",
-        working_dir=resources_path,
-    )
-    serverless.upload(function)
-
     return [compose, serverless]
 
 
