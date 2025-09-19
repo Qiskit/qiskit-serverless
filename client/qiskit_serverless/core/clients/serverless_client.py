@@ -431,7 +431,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             timeout=REQUESTS_TIMEOUT,
         )
         if response.ok:
-            return response.json()  # This will be a list
+            return json.loads(response.json())  # This will be a list
         print("Failed to retrieve runtime jobs: %s", response.text)
         return []
 
