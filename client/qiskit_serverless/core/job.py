@@ -358,25 +358,35 @@ def update_status(status: str):
 
     return response.ok
 
+STATUS_MAP = {
+    Job.PENDING: "INITIALIZING",
+    Job.RUNNING: "RUNNING",
+    Job.STOPPED: "CANCELED",
+    Job.SUCCEEDED: "DONE",
+    Job.FAILED: "ERROR",
+    Job.QUEUED: "QUEUED",
+    Job.MAPPING: "RUNNING: MAPPING",
+    Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_FOR_HARDWARE",
+    Job.WAITING_QPU: "RUNNING: WAITING_FOR_QPU",
+    Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
+    Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
+}
+    
+INVERSE_STATUS_MAP = {value: key for key, value in STATUS_MAP.items()}
 
 def _map_status_to_serverless(status: str) -> str:
     """Map a status string from job client to the Qiskit terminology."""
-    status_map = {
-        Job.PENDING: "INITIALIZING",
-        Job.RUNNING: "RUNNING",
-        Job.STOPPED: "CANCELED",
-        Job.SUCCEEDED: "DONE",
-        Job.FAILED: "ERROR",
-        Job.QUEUED: "QUEUED",
-        Job.MAPPING: "RUNNING: MAPPING",
-        Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_FOR_HARDWARE",
-        Job.WAITING_QPU: "RUNNING: WAITING_FOR_QPU",
-        Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
-        Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
-    }
 
     try:
-        return status_map[status]
+        return STATUS_MAP[status]
+    except KeyError:
+        return status
+    
+def _map_status_from_serverless(status: str) -> str:
+    """Map a status string from Qiskit terminology to the job client."""
+
+    try:
+        return INVERSE_STATUS_MAP[status]
     except KeyError:
         return status
 

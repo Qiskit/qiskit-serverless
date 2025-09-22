@@ -57,6 +57,7 @@ from qiskit_serverless.core.files import GatewayFilesClient
 from qiskit_serverless.core.job import (
     Job,
     Configuration,
+    _map_status_from_serverless,
 )
 from qiskit_serverless.core.function import (
     QiskitFunction,
@@ -210,7 +211,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         offset = kwargs.get("offset", 0)
         kwargs["offset"] = offset
         status = kwargs.get("status", None)
-        kwargs["status"] = status
+        kwargs["status"] = _map_status_from_serverless(status)
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
         function_name = kwargs.get("function_name", None)
