@@ -4,20 +4,20 @@ description: Qiskit-Serverless helm chart that contains different dependencies.
 
 type: application
 
-version: 0.26.0
-appVersion: "0.26.0"
+version: 0.26.1
+appVersion: "0.26.1"
 
 dependencies:
   - name: gateway
     condition: gatewayEnable
-    version: 0.26.0
+    version: 0.26.1
   - name: nginx-ingress-controller
     condition: nginxIngressControllerEnable
     version: 9.11.0
     repository: https://charts.bitnami.com/bitnami
   - name: postgresql
     condition: postgresqlEnable
-    version: 13.4.4
+    version: 16.7.27
     repository: https://charts.bitnami.com/bitnami
   - name: kuberay-operator
     condition: kuberayOperatorEnable

@@ -53,6 +53,9 @@ helm install qs \
 --set ingress.hosts[0].paths[0].pathType=Prefix \
 --set ingress.hosts[0].paths[0].serviceName=gateway \
 --set ingress.hosts[0].paths[0].servicePort=8000 \
+--set postgresql.image.repository=bitnamilegacy/postgresql \
+--set postgresql.volumePermissions.image.repository=bitnamilegacy/os-shell \
+--set postgresql.metrics.image.repository=bitnamilegacy/postgres-exporter \
 .
 
 kubectl wait \
