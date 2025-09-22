@@ -138,4 +138,4 @@ class JobAccessPolicies:
         function_repository = FunctionRepository()
         consent = function_repository.get_log_consent(user, job.function)
 
-        return consent.accepted
+        return consent is not None and consent.accepted

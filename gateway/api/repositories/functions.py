@@ -283,8 +283,13 @@ class FunctionRepository:
 
         return consent
 
-    def get_log_consent(self, user: AbstractUser, function: Function) -> LogConsent:
+    def get_log_consent(
+        self, user: AbstractUser, function: Function
+    ) -> Optional[LogConsent]:
         """
         Returns the log consent for an user and function
         """
-        return LogConsent.objects.get(user=user, function=function)
+        try:
+            return LogConsent.objects.get(user=user, function=function)
+        except LogConsent.DoesNotExist:
+            return None

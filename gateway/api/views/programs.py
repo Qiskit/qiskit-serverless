@@ -312,9 +312,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
         if function:
             return Response(
-                self.get_serializer_with_consent(
-                    function, context={"user": request.user, "warning": warning}
-                ).data
+                {
+                    **self.get_serializer_with_consent(
+                        function, context={"user": request.user}
+                    ).data,
+                    "warning": warning,
+                }
             )
 
         return Response(status=404)

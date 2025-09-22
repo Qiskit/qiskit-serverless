@@ -511,6 +511,7 @@ class TestProgramApi(APITestCase):
         """Test add consent"""
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
+        warn_message = "You have not accepted or declined the Terms and Conditions regarding log access. Please review and provide your response."
 
         # initial user_consent is None
         programs_response = self.client.get(
@@ -518,6 +519,7 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(programs_response.data.get("user_consent"), None)
+        self.assertEqual(programs_response.data.get("warning"), warn_message)
 
         # accept log consent
         programs_response = self.client.post(
