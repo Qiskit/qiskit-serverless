@@ -34,7 +34,7 @@ import logging
 import os
 import time
 import warnings
-from typing import ClassVar, Dict, Any, Literal, Optional, Union
+from typing import ClassVar, Dict, Any, Literal, Optional, Tuple, Union
 from dataclasses import dataclass
 
 import ray.runtime_env
@@ -382,13 +382,17 @@ def _map_status_to_serverless(status: str) -> str:
     except KeyError:
         return status
     
-def _map_status_from_serverless(status: str) -> str:
+def _map_status_from_serverless(status: str) -> Tuple[str, Union[str, None]]:
     """Map a status string from Qiskit terminology to the job client."""
-
     try:
-        return INVERSE_STATUS_MAP[status]
+        status_translation = INVERSE_STATUS_MAP[status] 
     except KeyError:
-        return status
+        return status, None
+    
+    if status.startswith("RUNNING:"):
+        return Job.RUNNING, status_translation
+    return status_translation, None
+    
 
 
 def is_running_in_serverless() -> bool:
