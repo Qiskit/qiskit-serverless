@@ -17,9 +17,10 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
-from api.repositories.functions import FunctionRepository
+from api.decorators.trace_decorator import trace_decorator_factory
 from api.domain.authentication.channel import Channel
-from api.utils import sanitize_name
+from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
+from api.repositories.functions import FunctionRepository
 from api.serializers import (
     JobConfigSerializer,
     RunJobSerializer,
@@ -28,11 +29,9 @@ from api.serializers import (
     UploadProgramSerializer,
     ProgramSerializerWithConsent,
 )
-from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
+from api.utils import sanitize_name
 from api.views.enums.type_filter import TypeFilter
-from api.decorators.trace_decorator import trace_decorator_factory
 
-# pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)
@@ -303,10 +302,18 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 author=author, title=function_title
             )
 
+        warning = None
+        consent = self.function_repository.get_log_consent(author, function)
+        if consent is None:
+            warning = (
+                "You have not accepted or declined the Terms and Conditions regarding log access. "
+                "Please review and provide your response."
+            )
+
         if function:
             return Response(
                 self.get_serializer_with_consent(
-                    function, context={"user": request.user}
+                    function, context={"user": request.user, "warning": warning}
                 ).data
             )
 

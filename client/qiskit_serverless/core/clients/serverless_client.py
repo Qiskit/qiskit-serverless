@@ -34,6 +34,7 @@ import tarfile
 from pathlib import Path
 from dataclasses import asdict
 from typing import Optional, List, Dict, Any, Union
+import warnings
 
 import requests
 from opentelemetry import trace
@@ -522,6 +523,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 timeout=REQUESTS_TIMEOUT,
             )
         )
+
+        response_warning = response_data["warning"]
+        if response_warning:
+            warnings.warn(response_warning, Warning)
 
         response_data["client"] = self
         the_function = RunnableQiskitFunction.from_json(response_data)
