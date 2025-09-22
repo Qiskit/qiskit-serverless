@@ -282,3 +282,9 @@ class FunctionRepository:
         )
 
         return consent
+
+    def get_log_consent(self, user: AbstractUser, function: Function) -> LogConsent:
+        """
+        Returns the log consent for an user and function
+        """
+        return LogConsent.objects.get(user=user, function=function)

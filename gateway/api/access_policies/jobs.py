@@ -6,6 +6,7 @@ from django.contrib.auth.models import AbstractUser
 
 from api.models import Job
 from api.access_policies.providers import ProviderAccessPolicy
+from api.repositories.functions import FunctionRepository
 
 
 logger = logging.getLogger("gateway")
@@ -111,3 +112,30 @@ class JobAccessPolicies:
                 job.id,
             )
         return has_access
+
+    @staticmethod
+    def can_read_logs(user: type[AbstractUser], job: Job) -> bool:
+        """
+        Checks if the user has permissions to read the logs of a job.
+
+        Access is granted if:
+        - The user is the author of the job
+        - The user has access to the provider and has consent to view logs for the function
+
+        Args:
+            user: Django user from the request
+            job: Job instance against which to check the permission
+
+        Returns:
+            bool: True if the user has permission to read logs, False otherwise
+        """
+        if user.id == job.author.id:
+            return True
+
+        if not ProviderAccessPolicy.can_access(user, job.provider):
+            return False
+
+        function_repository = FunctionRepository()
+        consent = function_repository.get_log_consent(user, job.function)
+
+        return consent.accepted

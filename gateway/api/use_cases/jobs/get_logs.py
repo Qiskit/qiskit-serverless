@@ -10,6 +10,7 @@ from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.repositories.jobs import JobsRepository
 from api.access_policies.providers import ProviderAccessPolicy
+from api.access_policies.jobs import JobAccessPolicies
 
 
 NO_LOGS_MSG: Final[str] = "No available logs"
@@ -38,13 +39,7 @@ class GetJobLogsUseCase:
             raise NotFoundError(f"Job [{job_id}] not found")
 
         # Case 1: Provider function - check provider access policy
-        if job.program and job.program.provider:
-            if ProviderAccessPolicy.can_access(user, job.program.provider):
-                return job.logs
+        if not JobAccessPolicies.can_read_logs(user, job):
+            raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
-        # Case 2: User is the author of the job
-        elif user == job.author:
-            return job.logs
-
-        # Access denied for all other cases
-        raise ForbiddenError(f"You don't have access to job [{job_id}]")
+        return job.logs
