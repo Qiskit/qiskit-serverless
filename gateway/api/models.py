@@ -223,6 +223,12 @@ class Job(models.Model):
     sub_status = models.CharField(
         max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True
     )
+    runtime_jobs = models.JSONField(
+        blank=False,
+        null=False,
+        default=list,
+    )
+
     trial = models.BooleanField(default=False, null=False)
     version = IntegerVersionField()
 

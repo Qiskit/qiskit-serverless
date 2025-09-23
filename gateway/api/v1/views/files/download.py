@@ -1,6 +1,7 @@
 """
 API V1: Download file end-point.
 """
+
 # pylint: disable=duplicate-code
 from typing import cast
 from django.http import StreamingHttpResponse
@@ -17,6 +18,7 @@ from api.use_cases.files.download import FilesDownloadUseCase
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
+
 
 # pylint: disable=abstract-method
 class InputSerializer(serializers.Serializer):
