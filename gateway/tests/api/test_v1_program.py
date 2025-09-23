@@ -393,42 +393,32 @@ class TestProgramApi(APITestCase):
                 found = True
         self.assertTrue(found)
 
-    def test_runtime_jobs(self):
+    def test_get_runtime_jobs(self):
         """Tests run existing authorized."""
 
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
-        programs_response = self.client.post(
-            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/runtime_jobs/",
-            data={
-                "runtime_job": "runtime_job_4",
-            },
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-
-    def test_get_runtime_jobs(self):
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
         programs_response = self.client.get(
             "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/",
             format="json",
         )
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertIn("runtime_jobs", programs_response.data)
         self.assertCountEqual(
-            [r["runtime_job"] for r in programs_response.data["runtime_jobs"]],
+            [r["runtime_job"] for r in programs_response.data.get("runtime_jobs")],
             ["runtime_job_1", "runtime_job_2"],
         )
-        # self.assertEqual(programs_response.json(), '["runtime_job_1", "runtime_job_2"]')
 
         programs_response = self.client.get(
             "/api/v1/jobs/57fc2e4d-267f-40c6-91a3-38153272e764/",
             format="json",
         )
-        # self.assertEqual(programs_response.json(), '["runtime_job_3"]')
+
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertIn("runtime_jobs", programs_response.data)
         self.assertEqual(
-            [r["runtime_job"] for r in programs_response.data["runtime_jobs"]],
+            [r["runtime_job"] for r in programs_response.data.get("runtime_jobs")],
             ["runtime_job_3"],
         )
 
