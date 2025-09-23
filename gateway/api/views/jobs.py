@@ -137,10 +137,12 @@ class JobViewSet(viewsets.GenericViewSet):
             )
             data = serializer(job).data
 
-        # Retrieve runtime job objects filtering by job id
-        runtimejobs = RuntimeJob.objects.filter(job=job)
-        # runtime_ids us the new name, not sure
-        data["runtime_jobs"] = [r.runtime_job for r in runtimejobs]
+        # Retrieve runtime jobs via reverse relation
+        runtime_jobs_qs = job.runtime_jobs.all()
+        data["runtime_jobs"] = [
+            {"runtime_job": r.runtime_job, "runtime_session": r.runtime_session}
+            for r in runtime_jobs_qs
+        ]
 
         return Response(data)
 
