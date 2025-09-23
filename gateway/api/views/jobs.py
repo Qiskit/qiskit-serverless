@@ -122,22 +122,27 @@ class JobViewSet(viewsets.GenericViewSet):
 
         if not JobAccessPolicies.can_read_result(author, job):
             serializer = self.get_serializer_job_without_result(job)
-            return Response(serializer.data)
+            data = serializer.data
+        else:
+            if return_with_result:
+                result_store = ResultStorage(author.username)
+                result = result_store.get(str(job.id))
+                if result is not None:
+                    job.result = result
 
-        if return_with_result:
-            result_store = ResultStorage(author.username)
-            result = result_store.get(str(job.id))
-            if result is not None:
-                job.result = result
+            serializer = (
+                self.get_serializer_job
+                if return_with_result
+                else self.get_serializer_job_without_result
+            )
+            data = serializer(job).data
 
-        serializer = (
-            self.get_serializer_job
-            if return_with_result
-            else self.get_serializer_job_without_result
-        )
-        serialized = serializer(job)
+        # Retrieve runtime job objects filtering by job id
+        runtimejobs = RuntimeJob.objects.filter(job=job)
+        # runtime_ids us the new name, not sure
+        data["runtime_jobs"] = [r.runtime_job for r in runtimejobs]
 
-        return Response(serialized.data)
+        return Response(data)
 
     @_trace
     @action(methods=["POST"], detail=True)
