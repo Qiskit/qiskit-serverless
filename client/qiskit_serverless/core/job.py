@@ -367,42 +367,6 @@ def update_status(status: str):
     return response.ok
 
 
-def associate_runtime_jobs(status: str):
-    """Update runtime jobs."""
-
-    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-    if version is None:
-        version = GATEWAY_PROVIDER_VERSION_DEFAULT
-
-    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
-    if token is None:
-        logging.warning(
-            "'runtime_job' cannot be updated since "
-            "there is no information about the "
-            "authorization token in the environment."
-        )
-        return False
-
-    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
-    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
-
-    url = (
-        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/runtime_jobs/"
-    )
-    response = requests.patch(
-        url,
-        data={"runtime_jobs": status},
-        headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
-    )
-    if not response.ok:
-        sanitized = response.text.replace("\n", "").replace("\r", "")
-        logging.warning("Something went wrong: %s", sanitized)
-
-    return response.ok
-
-
 def _map_status_to_serverless(status: str) -> str:
     """Map a status string from job client to the Qiskit terminology."""
     status_map = {
