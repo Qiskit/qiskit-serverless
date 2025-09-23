@@ -107,6 +107,51 @@ class JobViewSet(views.JobViewSet):
         return super().sub_status(request, pk)
 
     @swagger_auto_schema(
+        operation_description="Associate runtime job ids to a serverless job",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["runtime_jobs"],
+            properties={
+                "runtime_jobs": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Items(type=openapi.TYPE_STRING),
+                    description="List of runtime job IDs to associate",
+                )
+            },
+            description="Value to populate the sub-status of a Job",
+        ),
+        responses={
+            status.HTTP_200_OK: v1_serializers.JobSerializerWithoutResult(many=False),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description="In case your request doesnt have a valid 'runtime_jobs'.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "message": openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="'runtime_jobs' must be a list of strings",
+                        )
+                    },
+                ),
+            ),
+            status.HTTP_404_NOT_FOUND: openapi.Response(
+                description="In case the job doesnt exist or you dont have access to it.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "message": openapi.Schema(
+                            type=openapi.TYPE_STRING, example="Job [XXXX] not found"
+                        )
+                    },
+                ),
+            ),
+        },
+    )
+    @action(methods=["PATCH"], detail=True)
+    def runtime_jobs(self, request, pk=None):
+        return super().runtime_jobs(request, pk)
+
+    @swagger_auto_schema(
         operation_description="Stop a job",
     )
     @action(methods=["POST"], detail=True)
