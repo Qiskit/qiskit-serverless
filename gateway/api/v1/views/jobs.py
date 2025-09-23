@@ -147,7 +147,7 @@ class JobViewSet(views.JobViewSet):
             ),
         },
     )
-    @action(methods=["PATCH"], detail=True)
+    @action(methods=["POST"], detail=True)
     def runtime_jobs(self, request, pk=None):
         return super().runtime_jobs(request, pk)
 
