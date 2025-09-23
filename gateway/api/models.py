@@ -259,6 +259,7 @@ class RuntimeJob(models.Model):
         default=None,
         null=True,
         blank=True,
+        related_name="runtime_jobs",
     )
     runtime_job = models.CharField(
         primary_key=True, max_length=100, blank=False, null=False
