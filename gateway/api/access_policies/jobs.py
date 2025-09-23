@@ -132,7 +132,9 @@ class JobAccessPolicies:
         if user.id == job.author.id:
             return True
 
-        if not ProviderAccessPolicy.can_access(user, job.provider):
+        if not job.program.provider or not ProviderAccessPolicy.can_access(
+            user, job.program.provider
+        ):
             return False
 
         function_repository = FunctionRepository()

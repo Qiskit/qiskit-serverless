@@ -207,6 +207,7 @@ class ProgramSerializerWithConsent(serializers.ModelSerializer):
     """
 
     user_consent = serializers.SerializerMethodField()
+    provider = serializers.CharField(source="provider.name", read_only=True)
 
     class Meta:
         model = Program
