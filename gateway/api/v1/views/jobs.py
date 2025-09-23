@@ -107,35 +107,38 @@ class JobViewSet(views.JobViewSet):
         return super().sub_status(request, pk)
 
     @swagger_auto_schema(
-        operation_description="Associate runtime job ids to a serverless job",
+        operation_description="Associate a runtime job and session to a serverless job",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["runtime_jobs"],
+            required=["runtime_job", "runtime_session"],
             properties={
-                "runtime_jobs": openapi.Schema(
-                    type=openapi.TYPE_ARRAY,
-                    items=openapi.Items(type=openapi.TYPE_STRING),
-                    description="List of runtime job IDs to associate",
-                )
+                "runtime_job": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Runtime job ID to associate",
+                ),
+                "runtime_session": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Runtime session ID to associate",
+                ),
             },
-            description="Value to populate the sub-status of a Job",
+            description="Values to populate the runtime_jobs of a Job",
         ),
         responses={
             status.HTTP_200_OK: v1_serializers.JobSerializerWithoutResult(many=False),
             status.HTTP_400_BAD_REQUEST: openapi.Response(
-                description="In case your request doesnt have a valid 'runtime_jobs'.",
+                description="Invalid request format or missing fields.",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
                         "message": openapi.Schema(
                             type=openapi.TYPE_STRING,
-                            example="'runtime_jobs' must be a list of strings",
+                            example="'runtime_job' and 'runtime_session' must be strings",
                         )
                     },
                 ),
             ),
             status.HTTP_404_NOT_FOUND: openapi.Response(
-                description="In case the job doesnt exist or you dont have access to it.",
+                description="Job not found or access denied.",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
