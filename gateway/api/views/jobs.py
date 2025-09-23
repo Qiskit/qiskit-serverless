@@ -137,13 +137,6 @@ class JobViewSet(viewsets.GenericViewSet):
             )
             data = serializer(job).data
 
-        # # Retrieve runtime jobs via reverse relation
-        # runtime_jobs_qs = job.runtime_jobs.all()
-        # data["runtime_jobs"] = [
-        #     {"runtime_job": r.runtime_job, "runtime_session": r.runtime_session}
-        #     for r in runtime_jobs_qs
-        # ]
-
         return Response(data)
 
     @_trace
@@ -331,16 +324,3 @@ class JobViewSet(viewsets.GenericViewSet):
         runtimejob.save()
         message = "RuntimeJob is added."
         return Response({"message": message})
-
-    # @_trace
-    # @action(methods=["GET"], detail=True)
-    # def list_runtimejob(
-    #     self, request, pk=None
-    # ):  # pylint: disable=invalid-name,unused-argument
-    #     """Add RuntimeJpb to job"""
-    #     job = self.get_object()
-    #     runtimejobs = RuntimeJob.objects.filter(job=job)
-    #     ids = []
-    #     for runtimejob in runtimejobs:
-    #         ids.append(runtimejob.runtime_job)
-    #     return Response(json.dumps(ids))

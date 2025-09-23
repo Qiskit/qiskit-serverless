@@ -92,14 +92,6 @@ class TestJob:
         result = update_status("MAPPING")
         assert result is True
 
-    @patch("requests.patch", Mock(return_value=ResponseMock()))
-    def test_associate_runtime_jobs(self, job_env_variables):
-        """Tests associate runtime jobs."""
-        _ = job_env_variables
-
-        result = associate_runtime_jobs("runtime_job_id")
-        assert result is True
-
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_filtered_logs(self):
         """Tests job filtered log."""

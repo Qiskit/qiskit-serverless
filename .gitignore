@@ -1,8 +1,6 @@
 # Local .terraform directories
 **/.terraform/*
 
-
-
 # Local helm dependencies
 charts/**/*.tgz
 charts/values/**
