@@ -4,10 +4,6 @@ utilities for API.
 
 from urllib.parse import urlencode
 from typing import List, Optional, Any, TypedDict
-from drf_yasg import openapi
-from rest_framework import serializers
-
-from api.utils import sanitize_name
 
 
 class PaginatedResponse(TypedDict):
@@ -91,28 +87,3 @@ def parse_positive_int(param: str, default: int) -> int:
     if value < 0:
         raise ValueError(f"{param} must be non-negative")
     return value
-
-
-def error_schema(example_msg: str, description: str = "Error response"):
-    """
-    Openapi reuse utility
-    """
-    return openapi.Response(
-        description=description,
-        schema=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "message": openapi.Schema(type=openapi.TYPE_STRING, example=example_msg)
-            },
-            required=["message"],
-        ),
-    )
-
-
-class SanitizedCharField(serializers.CharField):
-    """CharField that applies sanitize_name to its value."""
-
-    def to_internal_value(self, data):
-        """Method to sanitize the field"""
-        value = super().to_internal_value(data)
-        return sanitize_name(value) if value else None

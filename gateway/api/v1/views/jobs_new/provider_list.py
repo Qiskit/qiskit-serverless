@@ -18,11 +18,9 @@ from api.repositories.jobs import JobFilters
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
-from api.v1.views.utils import (
-    SanitizedCharField,
-    create_paginated_response,
-)
+from api.v1.views.utils import create_paginated_response
 from api.v1.views.swagger_utils import standard_error_responses
+from api.v1.views.serializer_utils import SanitizedCharField
 from api.views.enums.type_filter import TypeFilter
 
 
