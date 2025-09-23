@@ -263,6 +263,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
             token=token,
             config=jobconfig,
             instance=instance,
+            function_title=function.title,
+            provider_name=provider_name,
         )
         logger.info("Returning Job [%s] created.", job.id)
 

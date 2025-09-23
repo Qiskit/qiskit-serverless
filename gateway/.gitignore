@@ -137,4 +137,4 @@ GitHub.sublime-settings
 !.vscode/extensions.json
 .history
 
-tests/resources/fake_media/*/arguments/*
+tests/resources/fake_media/*
