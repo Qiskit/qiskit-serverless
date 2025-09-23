@@ -122,22 +122,22 @@ class JobViewSet(viewsets.GenericViewSet):
 
         if not JobAccessPolicies.can_read_result(author, job):
             serializer = self.get_serializer_job_without_result(job)
-            return Response(serializer.data)
+            data = serializer.data
+        else:
+            if return_with_result:
+                result_store = ResultStorage(author.username)
+                result = result_store.get(str(job.id))
+                if result is not None:
+                    job.result = result
 
-        if return_with_result:
-            result_store = ResultStorage(author.username)
-            result = result_store.get(str(job.id))
-            if result is not None:
-                job.result = result
+            serializer = (
+                self.get_serializer_job
+                if return_with_result
+                else self.get_serializer_job_without_result
+            )
+            data = serializer(job).data
 
-        serializer = (
-            self.get_serializer_job
-            if return_with_result
-            else self.get_serializer_job_without_result
-        )
-        serialized = serializer(job)
-
-        return Response(serialized.data)
+        return Response(data)
 
     @_trace
     @action(methods=["POST"], detail=True)
@@ -304,7 +304,7 @@ class JobViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["POST"], detail=True)
-    def add_runtimejob(
+    def runtime_jobs(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
         """Add RuntimeJob to job"""
@@ -324,16 +324,3 @@ class JobViewSet(viewsets.GenericViewSet):
         runtimejob.save()
         message = "RuntimeJob is added."
         return Response({"message": message})
-
-    @_trace
-    @action(methods=["GET"], detail=True)
-    def list_runtimejob(
-        self, request, pk=None
-    ):  # pylint: disable=invalid-name,unused-argument
-        """Add RuntimeJpb to job"""
-        job = self.get_object()
-        runtimejobs = RuntimeJob.objects.filter(job=job)
-        ids = []
-        for runtimejob in runtimejobs:
-            ids.append(runtimejob.runtime_job)
-        return Response(json.dumps(ids))

@@ -107,6 +107,54 @@ class JobViewSet(views.JobViewSet):
         return super().sub_status(request, pk)
 
     @swagger_auto_schema(
+        operation_description="Associate a runtime job and session to a serverless job",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["runtime_job", "runtime_session"],
+            properties={
+                "runtime_job": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Runtime job ID to associate",
+                ),
+                "runtime_session": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Runtime session ID to associate",
+                ),
+            },
+            description="Values to populate the runtime_jobs of a Job",
+        ),
+        responses={
+            status.HTTP_200_OK: v1_serializers.JobSerializerWithoutResult(many=False),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description="Invalid request format or missing fields.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "message": openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example="'runtime_job' and 'runtime_session' must be strings",
+                        )
+                    },
+                ),
+            ),
+            status.HTTP_404_NOT_FOUND: openapi.Response(
+                description="Job not found or access denied.",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "message": openapi.Schema(
+                            type=openapi.TYPE_STRING, example="Job [XXXX] not found"
+                        )
+                    },
+                ),
+            ),
+        },
+    )
+    @action(methods=["POST"], detail=True)
+    def runtime_jobs(self, request, pk=None):
+        return super().runtime_jobs(request, pk)
+
+    @swagger_auto_schema(
         operation_description="Stop a job",
     )
     @action(methods=["POST"], detail=True)

@@ -103,6 +103,10 @@ class JobService(ABC):
         """Return logs."""
 
     @abstractmethod
+    def runtime_jobs(self, job_id: str):
+        """Return associated runtime jobs"""
+
+    @abstractmethod
     def filtered_logs(self, job_id: str, **kwargs) -> str:
         """Returns logs of the job.
         Args:
@@ -179,6 +183,10 @@ class Job:
     def logs(self) -> str:
         """Returns logs of the job."""
         return self._job_service.logs(self.job_id)
+
+    def runtime_jobs(self):
+        """Returns associated runtime jobs if any."""
+        return json.loads(self._job_service.runtime_jobs(self.job_id))
 
     def filtered_logs(self, **kwargs) -> str:
         """Returns logs of the job.

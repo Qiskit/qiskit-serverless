@@ -15,6 +15,7 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
     ENV_JOB_GATEWAY_TOKEN,
+    ENV_JOB_GATEWAY_INSTANCE,
     ENV_ACCESS_TRIAL,
 )
 from qiskit_serverless.core.job import (
@@ -35,6 +36,7 @@ def job_env_variables(monkeypatch):
         monkeypatch.setenv(ENV_JOB_GATEWAY_HOST, "https://awesome-tests.com/")
         monkeypatch.setenv(ENV_JOB_ID_GATEWAY, "42")
         monkeypatch.setenv(ENV_JOB_GATEWAY_TOKEN, "awesome-token")
+        monkeypatch.setenv(ENV_JOB_GATEWAY_INSTANCE, "awesome-instance")
         monkeypatch.setenv(ENV_ACCESS_TRIAL, "False")
         yield  # Restore the environment after the test runs
 
@@ -48,6 +50,7 @@ def trial_job_env_variables(monkeypatch):
         monkeypatch.setenv(ENV_JOB_GATEWAY_HOST, "https://awesome-tests.com/")
         monkeypatch.setenv(ENV_JOB_ID_GATEWAY, "42")
         monkeypatch.setenv(ENV_JOB_GATEWAY_TOKEN, "awesome-token")
+        monkeypatch.setenv(ENV_JOB_GATEWAY_INSTANCE, "awesome-instance")
         monkeypatch.setenv(ENV_ACCESS_TRIAL, "True")
         yield  # Restore the environment after the test runs
 
@@ -92,7 +95,7 @@ class TestJob:
     def test_filtered_logs(self):
         """Tests job filtered log."""
         client = ServerlessClient(
-            host="host", token="token", instance="crn", version="version"
+            host="host", token="token", instance="instance", version="version"
         )
         client.logs = MagicMock(
             return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n",  # pylint: disable=line-too-long
@@ -111,7 +114,7 @@ class TestJob:
     def test_error_message(self):
         """Tests job filtered log."""
         client = ServerlessClient(
-            host="host", token="token", instance="crn", version="version"
+            host="host", token="token", instance="instance", version="version"
         )
         client.status = MagicMock(
             return_value="ERROR",
