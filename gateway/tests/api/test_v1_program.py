@@ -457,7 +457,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertIn("runtime_jobs", programs_response.data)
         self.assertCountEqual(
-            [r["runtime_job"] for r in programs_response.data.get("runtime_jobs")],
+            [r for r in programs_response.data.get("runtime_jobs")],
             ["runtime_job_1", "runtime_job_2"],
         )
 
@@ -469,7 +469,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertIn("runtime_jobs", programs_response.data)
         self.assertEqual(
-            [r["runtime_job"] for r in programs_response.data.get("runtime_jobs")],
+            [r for r in programs_response.data.get("runtime_jobs")],
             ["runtime_job_3"],
         )
 
