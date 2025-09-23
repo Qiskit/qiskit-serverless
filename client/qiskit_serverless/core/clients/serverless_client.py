@@ -423,17 +423,30 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job
     def runtime_jobs(self, job_id: str):
-        response = requests.get(
-            f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtimejob/",
-            headers=get_headers(
-                token=self.token, instance=self.instance, channel=self.channel
-            ),
-            timeout=REQUESTS_TIMEOUT,
+        # response = requests.get(
+        #     f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtimejob/",
+        #     headers=get_headers(
+        #         token=self.token, instance=self.instance, channel=self.channel
+        #     ),
+        #     timeout=REQUESTS_TIMEOUT,
+        # )
+        # if response.ok:
+        #     return json.loads(response.json())  # This will be a list
+        # print("Failed to retrieve runtime jobs: %s", response.text)
+        # return []
+
+        # use jobs endpoint directly instead of list_runtimejob
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/",
+                params={"with_result": "false"},
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
         )
-        if response.ok:
-            return json.loads(response.json())  # This will be a list
-        print("Failed to retrieve runtime jobs: %s", response.text)
-        return []
+        return response_data.get("runtime_jobs")
 
     def filtered_logs(self, job_id: str, **kwargs):
         all_logs = self.logs(job_id=job_id)

@@ -309,7 +309,7 @@ class JobViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["POST"], detail=True)
-    def add_runtimejob(
+    def runtime_jobs(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
         """Add RuntimeJob to job"""
@@ -330,15 +330,15 @@ class JobViewSet(viewsets.GenericViewSet):
         message = "RuntimeJob is added."
         return Response({"message": message})
 
-    @_trace
-    @action(methods=["GET"], detail=True)
-    def list_runtimejob(
-        self, request, pk=None
-    ):  # pylint: disable=invalid-name,unused-argument
-        """Add RuntimeJpb to job"""
-        job = self.get_object()
-        runtimejobs = RuntimeJob.objects.filter(job=job)
-        ids = []
-        for runtimejob in runtimejobs:
-            ids.append(runtimejob.runtime_job)
-        return Response(json.dumps(ids))
+    # @_trace
+    # @action(methods=["GET"], detail=True)
+    # def list_runtimejob(
+    #     self, request, pk=None
+    # ):  # pylint: disable=invalid-name,unused-argument
+    #     """Add RuntimeJpb to job"""
+    #     job = self.get_object()
+    #     runtimejobs = RuntimeJob.objects.filter(job=job)
+    #     ids = []
+    #     for runtimejob in runtimejobs:
+    #         ids.append(runtimejob.runtime_job)
+    #     return Response(json.dumps(ids))
