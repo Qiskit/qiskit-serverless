@@ -358,6 +358,7 @@ def update_status(status: str):
 
     return response.ok
 
+
 STATUS_MAP = {
     Job.PENDING: "INITIALIZING",
     Job.RUNNING: "RUNNING",
@@ -371,8 +372,9 @@ STATUS_MAP = {
     Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
     Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
 }
-    
+
 INVERSE_STATUS_MAP = {value: key for key, value in STATUS_MAP.items()}
+
 
 def _map_status_to_serverless(status: str) -> str:
     """Map a status string from job client to the Qiskit terminology."""
@@ -381,18 +383,18 @@ def _map_status_to_serverless(status: str) -> str:
         return STATUS_MAP[status]
     except KeyError:
         return status
-    
+
+
 def _map_status_from_serverless(status: str) -> Tuple[str, Union[str, None]]:
     """Map a status string from Qiskit terminology to the job client."""
     try:
-        status_translation = INVERSE_STATUS_MAP[status] 
+        status_translation = INVERSE_STATUS_MAP[status]
     except KeyError:
         return status, None
-    
+
     if status.startswith("RUNNING:"):
         return Job.RUNNING, status_translation
     return status_translation, None
-    
 
 
 def is_running_in_serverless() -> bool:
