@@ -262,6 +262,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         kwargs["function"] = function.title
         kwargs["provider"] = function.provider
         status = kwargs.get("status", None)
+        status, _ = _map_status_from_serverless(status)
         kwargs["status"] = status
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
