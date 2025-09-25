@@ -37,7 +37,6 @@ def add_consent(request, title):
     serializer = InputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     validated_data = serializer.validated_data
-
     accepted = validated_data["accepted"]
     user = cast(AbstractUser, request.user)
 

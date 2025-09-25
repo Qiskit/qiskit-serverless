@@ -126,6 +126,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         null=True,
         blank=True,
     )
+    eula_link = models.CharField(null=True)
 
     class Meta:
         permissions = ((RUN_PROGRAM_PERMISSION, "Can run function"),)
@@ -134,6 +135,27 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         if self.provider:
             return f"{self.provider.name}/{self.title}"
         return f"{self.title}"
+
+
+class LogConsent(models.Model):
+    """
+    Model to track user consent for logging function.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    function = models.ForeignKey(Program, on_delete=models.CASCADE)
+    accepted = models.BooleanField()
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    def __str__(self):
+        """Return a string representation of the LogConsent object."""
+        status = "accepted" if self.accepted else "rejected"
+        return f"Consent {status} by {self.user} for {self.function}"
+
+    def is_valid(self):
+        """Check if the consent is valid and accepted."""
+        return self.accepted
 
 
 class ComputeResource(models.Model):
@@ -285,18 +307,3 @@ class GroupMetadata(models.Model):
 
     def __str__(self):
         return f"{self.id}"
-
-
-class LogConsent(models.Model):
-    """
-    This model will store end-user consent for logs
-    """
-
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    function = models.ForeignKey(Program, on_delete=models.CASCADE)
-    accepted = models.BooleanField()
-    created = models.DateTimeField(auto_now_add=True, editable=False)
-    updated = models.DateTimeField(auto_now=True, null=True)
-
-    class Meta:
-        unique_together = ("user", "function")

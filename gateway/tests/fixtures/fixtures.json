@@ -35,8 +35,8 @@
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
       "is_active": true,
       "groups": [
-          100,
-          101
+        100,
+        101
       ]
     }
   },
@@ -49,7 +49,7 @@
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
       "is_active": true,
       "groups": [
-          100
+        100
       ]
     }
   },
@@ -63,6 +63,7 @@
       "entrypoint": "program.py",
       "artifact": "path",
       "author": 1,
+      "eula_link": "https://fake.asdf/eula",
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "instances": [
         100,
@@ -117,6 +118,7 @@
       "title": "Docker-Image-Program",
       "image": "icr.io/awesome-namespace/awesome-title",
       "author": 2,
+      "eula_link": "https://fake.asdf/eula",
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea"
     }
@@ -292,25 +294,29 @@
   },
   {
     "model": "auth.group",
-      "pk": 100,
-      "fields": {
-        "name": "runner",
-	      "permissions": [65]
-      }
+    "pk": 100,
+    "fields": {
+      "name": "runner",
+      "permissions": [
+        65
+      ]
+    }
   },
   {
     "model": "auth.group",
     "pk": 101,
     "fields": {
       "name": "viewer",
-      "permissions": [64]
+      "permissions": [
+        64
+      ]
     }
   },
   {
     "model": "auth.group",
     "pk": 105,
     "fields": {
-        "name": "default-group"
+      "name": "default-group"
     }
   },
   {
@@ -319,7 +325,9 @@
     "fields": {
       "name": "default",
       "created": "2023-02-01T15:30:43.281796Z",
-      "admin_groups": [105],
+      "admin_groups": [
+        105
+      ],
       "registry": "docker.io/awesome"
     }
   },
@@ -329,9 +337,21 @@
     "fields": {
       "name": "ibm",
       "created": "2023-02-01T15:30:43.281796Z",
-      "admin_groups": [101],
+      "admin_groups": [
+        101
+      ],
       "registry": "docker.io/awesome"
+    }
+  },
+  {
+    "model": "api.logConsent",
+    "pk": 2,
+    "fields": {
+      "user": 3,
+      "function": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+      "accepted": true,
+      "created": "2023-02-01T15:30:43.281796Z",
+      "updated": "2023-02-01T15:30:43.281796Z"
     }
   }
 ]
-

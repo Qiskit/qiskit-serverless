@@ -6,7 +6,7 @@ Version views inherit from the different views.
 import logging
 import os
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code, too-many-return-statements
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -16,6 +16,8 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+
+from api.access_policies.functions import FunctionAccessPolicy, RunReason
 
 from api.decorators.trace_decorator import trace_decorator_factory
 from api.domain.authentication.channel import Channel
@@ -218,16 +220,26 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if function.disabled:
-            error_message = (
-                function.disabled_message
-                if function.disabled_message
-                else Program.DEFAULT_DISABLED_MESSAGE
-            )
-            return Response(
-                {"message": error_message},
-                status=status.HTTP_423_LOCKED,
-            )
+        can_run, reason = FunctionAccessPolicy.can_run(author, function)
+        if not can_run:
+            if reason == RunReason.FUNCTION_DISABLED:
+                error_message = (
+                    function.disabled_message
+                    if function.disabled_message
+                    else Program.DEFAULT_DISABLED_MESSAGE
+                )
+                return Response(
+                    {"message": error_message},
+                    status=status.HTTP_423_LOCKED,
+                )
+
+            if reason == RunReason.CONSENT_NOT_ACCEPTED:
+                return Response(
+                    {
+                        "message": "You must accept the terms and conditions to use this function."
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         jobconfig = None
         config_json = serializer.data.get("config")
@@ -302,25 +314,31 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 author=author, title=function_title
             )
 
+        if not function:
+            return Response(status=404)
+
         warning = None
-        consent = self.function_repository.get_log_consent(author, function)
-        if consent is None:
+        _, reason = FunctionAccessPolicy.can_run(author, function)
+        if reason == RunReason.CONSENT_NOT_ACCEPTED:
+            eula_link_message = (
+                " You can read those terms and conditions here: " + function.eula_link
+                if function and function.eula_link
+                else ""
+            )
             warning = (
-                "You have not accepted or declined the Terms and Conditions regarding log access. "
-                "Please review and provide your response."
+                "You have not accepted the Terms and Conditions regarding log access. "
+                "Please review and provide your response before running a job."
+                + eula_link_message
             )
 
-        if function:
-            return Response(
-                {
-                    **self.get_serializer_with_consent(
-                        function, context={"user": request.user}
-                    ).data,
-                    "warning": warning,
-                }
-            )
-
-        return Response(status=404)
+        return Response(
+            {
+                **self.get_serializer_with_consent(
+                    function, context={"user": request.user}
+                ).data,
+                "warning": warning,
+            }
+        )
 
     # This end-point is deprecated and we need to confirm if we can remove it
     @_trace
