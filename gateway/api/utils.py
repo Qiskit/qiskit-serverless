@@ -2,7 +2,6 @@
 
 import base64
 from collections import OrderedDict
-import inspect
 import json
 import logging
 import re
@@ -66,33 +65,32 @@ def retry_function(  # pylint:  disable=too-many-positional-arguments
     Returns:
         function result of None
     """
-    success = False
-    run = 0
-    result = None
-    name = function_name or inspect.stack()[1].function
+    name = function_name or getattr(callback, "__name__", "<callback>")
 
-    while run < num_retries and not success:
-        run += 1
-
-        logger.debug("[%s] attempt %d", name, run)
-
+    for attempt in range(1, num_retries + 1):
         try:
-            result = callback()
-            success = True
+            return callback()
         except Exception as e:  # pylint: disable=broad-exception-caught
-            if exceptions is None or isinstance(e, tuple(exceptions)):
-                logger.log(
-                    error_message_level,
-                    "%s Retrying (%s/%s)...",
-                    run,
-                    num_retries,
-                    error_message,
-                )
-                time.sleep(interval)
-            else:
+            if exceptions is not None and not isinstance(e, tuple(exceptions)):
                 raise
 
-    return result
+            # If it's the last allowed attempt, propagate the original exception.
+            if attempt == num_retries:
+                raise
+
+            # Log and wait before next attempt.
+            logger.log(
+                error_message_level,
+                "[%s] attempt %d/%d failed%s%s",
+                name,
+                attempt,
+                num_retries,
+                ": " if error_message else "",
+                error_message or str(e),
+            )
+            time.sleep(interval)
+
+    return None
 
 
 def encrypt_string(string: str) -> str:

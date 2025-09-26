@@ -6,7 +6,7 @@ Version views inherit from the different views.
 import logging
 import os
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code, too-many-return-statements
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -17,21 +17,23 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
-from api.repositories.functions import FunctionRepository
+from api.access_policies.functions import FunctionAccessPolicy, RunReason
+
+from api.decorators.trace_decorator import trace_decorator_factory
 from api.domain.authentication.channel import Channel
-from api.utils import sanitize_name
+from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
+from api.repositories.functions import FunctionRepository
 from api.serializers import (
     JobConfigSerializer,
     RunJobSerializer,
     JobSerializer,
     RunProgramSerializer,
     UploadProgramSerializer,
+    ProgramSerializerWithConsent,
 )
-from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
+from api.utils import sanitize_name
 from api.views.enums.type_filter import TypeFilter
-from api.decorators.trace_decorator import trace_decorator_factory
 
-# pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
 resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)
@@ -82,6 +84,13 @@ class ProgramViewSet(viewsets.GenericViewSet):
         """
 
         return RunProgramSerializer(*args, **kwargs)
+
+    @staticmethod
+    def get_serializer_with_consent(*args, **kwargs):
+        """
+        This method returns the program serializer with the user log consent for the run end-point
+        """
+        return ProgramSerializerWithConsent(*args, **kwargs)
 
     @staticmethod
     def get_serializer_run_job(*args, **kwargs):
@@ -211,16 +220,26 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if function.disabled:
-            error_message = (
-                function.disabled_message
-                if function.disabled_message
-                else Program.DEFAULT_DISABLED_MESSAGE
-            )
-            return Response(
-                {"message": error_message},
-                status=status.HTTP_423_LOCKED,
-            )
+        can_run, reason = FunctionAccessPolicy.can_run(author, function)
+        if not can_run:
+            if reason == RunReason.FUNCTION_DISABLED:
+                error_message = (
+                    function.disabled_message
+                    if function.disabled_message
+                    else Program.DEFAULT_DISABLED_MESSAGE
+                )
+                return Response(
+                    {"message": error_message},
+                    status=status.HTTP_423_LOCKED,
+                )
+
+            if reason == RunReason.CONSENT_NOT_ACCEPTED:
+                return Response(
+                    {
+                        "message": "You must accept the terms and conditions to use this function."
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         jobconfig = None
         config_json = serializer.data.get("config")
@@ -295,10 +314,31 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 author=author, title=function_title
             )
 
-        if function:
-            return Response(self.get_serializer(function).data)
+        if not function:
+            return Response(status=404)
 
-        return Response(status=404)
+        warning = None
+        _, reason = FunctionAccessPolicy.can_run(author, function)
+        if reason == RunReason.CONSENT_NOT_ACCEPTED:
+            eula_link_message = (
+                " You can read those terms and conditions here: " + function.eula_link
+                if function and function.eula_link
+                else ""
+            )
+            warning = (
+                "You have not accepted the Terms and Conditions regarding log access. "
+                "Please review and provide your response before running a job."
+                + eula_link_message
+            )
+
+        return Response(
+            {
+                **self.get_serializer_with_consent(
+                    function, context={"user": request.user}
+                ).data,
+                "warning": warning,
+            }
+        )
 
     # This end-point is deprecated and we need to confirm if we can remove it
     @_trace
