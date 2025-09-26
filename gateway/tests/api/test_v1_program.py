@@ -216,15 +216,15 @@ class TestProgramApi(APITestCase):
         media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
         with self.settings(MEDIA_ROOT=media_root):
-            user = models.User.objects.get(username="test_user_2")
+            user = models.User.objects.get(username="test_user_5")
             self.client.force_authenticate(user=user)
 
             arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
             programs_response = self.client.post(
                 "/api/v1/programs/run/",
                 data={
-                    "title": "Docker-Image-Program-2",
-                    "provider": "default",
+                    "title": "Docker-Image-Program-3",
+                    "provider": "ibm",
                     "arguments": arguments,
                     "config": {
                         "workers": None,
@@ -236,7 +236,10 @@ class TestProgramApi(APITestCase):
                 format="json",
             )
             self.assertEqual(programs_response.status_code, status.HTTP_403_FORBIDDEN)
-            self.assertEqual(programs_response.data.get("message"), "Program is locked")
+            self.assertEqual(
+                programs_response.data.get("message"),
+                "You must accept the terms and conditions to use this function.",
+            )
 
     def test_run_locked(self):
         """Tests run disabled program."""
@@ -545,13 +548,13 @@ class TestProgramApi(APITestCase):
 
     def test_add_log_consent(self):
         """Test add consent"""
-        user = models.User.objects.get(username="test_user_2")
+        user = models.User.objects.get(username="test_user_5")
         self.client.force_authenticate(user=user)
         warn_message = "You have not accepted the Terms and Conditions regarding log access. Please review and provide your response before running a job. You can read those terms and conditions here: https://fake.asdf/eula"
 
         # initial user_consent is None
         programs_response = self.client.get(
-            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            "/api/v1/programs/get_by_title/Docker-Image-Program-3/?provider=ibm",
             format="json",
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
@@ -560,16 +563,17 @@ class TestProgramApi(APITestCase):
 
         # accept log consent
         programs_response = self.client.post(
-            "/api/v1/programs/Docker-Image-Program/consent/",
-            {"accepted": True},
+            "/api/v1/programs/Docker-Image-Program-3/consent/",
+            {"accepted": True, "provider": "ibm"},
             format="json",
         )
+        print(programs_response.data)
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.data.get("message"), "consent added")
 
         # check log consent accepted
         programs_response = self.client.get(
-            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            "/api/v1/programs/get_by_title/Docker-Image-Program-3/?provider=ibm",
             format="json",
         )
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
@@ -653,19 +657,3 @@ class TestProgramApi(APITestCase):
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.data.get("description"), description)
-
-    def test_add_log_consent_to_program(self):
-        """Tests upload end-point authorized."""
-
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
-        function_title = "Program"
-
-        programs_response = self.client.post(
-            f"/api/v1/programs/{function_title}/consent/",
-            data={
-                "accepted": True,
-            },
-        )
-
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)

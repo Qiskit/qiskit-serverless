@@ -6,6 +6,7 @@ import logging
 from django.contrib.auth.models import AbstractUser
 from api.repositories.functions import FunctionRepository
 from api.v1.endpoint_handle_exceptions import NotFoundError
+from api.models import VIEW_PROGRAM_PERMISSION
 
 logger = logging.getLogger("gateway.use_cases.functions")
 
@@ -17,7 +18,13 @@ class AddLogConsentUseCase:
 
     function_repository = FunctionRepository()
 
-    def execute(self, user: AbstractUser, function_title: str, accepted: bool):
+    def execute(
+        self,
+        user: AbstractUser,
+        function_title: str,
+        provider_name: str,
+        accepted: bool,
+    ):
         """
         Add log consent for a user to a specific function.
 
@@ -29,10 +36,11 @@ class AddLogConsentUseCase:
         Raises:
             NotFoundError: If the function with the given title is not found
         """
-        function = self.function_repository.get_function_by_permission(
-            user=user,
-            permission_name="RUN_PROGRAM_PERMISSION",
-            function_title=function_title,
+        function = self.function_repository.get_provider_function_by_permission(
+            author=user,
+            permission_name=VIEW_PROGRAM_PERMISSION,
+            title=function_title,
+            provider_name=provider_name,
         )
         if function is None:
             raise NotFoundError(f"Function [{function_title}] not found")

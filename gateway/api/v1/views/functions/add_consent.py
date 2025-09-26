@@ -15,6 +15,7 @@ class InputSerializer(serializers.Serializer):
     """
 
     accepted = serializers.BooleanField(required=True)
+    provider = serializers.CharField(required=True)
 
 
 @endpoint("programs/<str:title>/consent", name="add_consent")
@@ -38,8 +39,9 @@ def add_consent(request, title):
     serializer.is_valid(raise_exception=True)
     validated_data = serializer.validated_data
     accepted = validated_data["accepted"]
+    provider = validated_data["provider"]
     user = cast(AbstractUser, request.user)
 
-    AddLogConsentUseCase().execute(user, title, accepted)
+    AddLogConsentUseCase().execute(user, title, provider, accepted)
 
     return Response({"message": "consent added"})

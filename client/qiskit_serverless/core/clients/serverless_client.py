@@ -532,6 +532,34 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         the_function = RunnableQiskitFunction.from_json(response_data)
         return the_function
 
+    @_trace_functions("submit_logs_terms_and_conditions")
+    def submit_logs_terms_and_conditions(
+        self, title: str, provider: str
+    ) -> Optional[RunnableQiskitFunction]:
+        """Returns program based on parameters."""
+        provider, title = format_provider_name_and_title(
+            request_provider=provider, title=title
+        )
+
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/programs/{title}/consent/",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                params={"provider": provider},
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
+        response_warning = response_data["warning"]
+        if response_warning:
+            warnings.warn(response_warning, Warning)
+
+        response_data["client"] = self
+        the_function = RunnableQiskitFunction.from_json(response_data)
+        return the_function
+
     #####################
     ####### FILES #######
     #####################
