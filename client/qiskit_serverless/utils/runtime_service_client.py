@@ -27,13 +27,11 @@ Qiskit Serverless runtime client wrapper
 """
 import os
 import logging
-from typing import Callable, Dict, Sequence, Type, Union, Optional
+from typing import Dict, Sequence, Type, Union, Optional
 
 import requests
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_ibm_runtime.runtime_job import RuntimeJob
 from qiskit_ibm_runtime.runtime_job_v2 import RuntimeJobV2
-from qiskit_ibm_runtime.runtime_options import RuntimeOptions
 from qiskit_ibm_runtime.utils.result_decoder import ResultDecoder
 
 from qiskit_serverless.core.constants import (
@@ -77,7 +75,6 @@ def associate_runtime_job_with_serverless_job(
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
         f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/runtime_jobs/"
     )
-    message_1 = f"Inside associate {runtime_job_id} with serverless job. {url}"
 
     response = requests.post(
         url,
@@ -85,47 +82,36 @@ def associate_runtime_job_with_serverless_job(
         headers=get_headers(token=token, instance=instance, channel=channel),
         timeout=REQUESTS_TIMEOUT,
     )
-    print(f"RESPONSE: {response.ok}")
     if not response.ok:
         sanitized = response.text.replace("\n", "").replace("\r", "")
         logging.warning("Something went wrong: %s", sanitized)
-    print(f"SUCCESS!! Runtime job {runtime_job_id} associated with serverless job.")
-    message_2 = (
-        f"SUCCESS!! Runtime job {runtime_job_id} associated with serverless job."
-    )
 
-    return [response.ok, message_1, message_2]
+    return response.ok
 
 
 class ServerlessRuntimeService(QiskitRuntimeService):
     """Serverless wrapper for QiskitRuntimeService.
 
     Used for associating runtime jobs with serverless jobs.
-
-    Args:
-        QiskitRuntimeService (QiskitRuntimeService): Qiskit runtime service object.
     """
 
     def _run(  # pylint:  disable=too-many-positional-arguments
         self,
         program_id: str,
         inputs: Dict,
-        options: Optional[Union[RuntimeOptions, Dict]] = None,
-        callback: Optional[Callable] = None,
+        options: Optional[Dict] = None,
         result_decoder: Optional[
             Union[Type[ResultDecoder], Sequence[Type[ResultDecoder]]]
         ] = None,
         session_id: Optional[str] = None,
         start_session: Optional[bool] = False,
-    ) -> Union[RuntimeJob, RuntimeJobV2]:
+    ) -> RuntimeJobV2:
         """Run a serverless Runtime service job."""
 
-        print("INSIDE SERVERLESS RUNTIME SERVICE")
         runtime_job = super()._run(
             program_id,
             inputs,
             options,
-            callback,
             result_decoder,
             session_id,
             start_session,
@@ -133,5 +119,4 @@ class ServerlessRuntimeService(QiskitRuntimeService):
         out = associate_runtime_job_with_serverless_job(
             runtime_job.job_id(), runtime_job.session_id
         )
-        print("Inside associate ok??", out)
         return runtime_job
