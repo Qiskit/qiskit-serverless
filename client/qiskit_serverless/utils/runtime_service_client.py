@@ -116,7 +116,7 @@ class ServerlessRuntimeService(QiskitRuntimeService):
             session_id,
             start_session,
         )
-        out = associate_runtime_job_with_serverless_job(
+        associate_runtime_job_with_serverless_job(
             runtime_job.job_id(), runtime_job.session_id
         )
         return runtime_job
