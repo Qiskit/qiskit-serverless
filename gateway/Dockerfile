@@ -6,7 +6,7 @@ FROM registry.access.redhat.com/ubi9-micro:9.6-1754467928 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed
-FROM registry.access.redhat.com/ubi9:9.6-1756915113 AS build
+FROM registry.access.redhat.com/ubi9:9.6-1758184894 AS build
 ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image
