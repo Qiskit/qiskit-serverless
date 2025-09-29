@@ -6,7 +6,7 @@ from api.domain.exceptions.not_found_error import NotFoundError
 from api.models import Job
 from api.repositories.jobs import JobsRepository
 from api.access_policies.jobs import JobAccessPolicies
-from api.services.result_storage import ResultStorage
+from api.services.storage.result_storage import ResultStorage
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 
