@@ -101,7 +101,7 @@ class ServerlessRuntimeService(QiskitRuntimeService):
         *args,
         **kwargs,
     ) -> RuntimeJobV2:
-        """Run a serverless Runtime service job."""
+        """Run a job on the associated QiskitRuntimeService."""
         runtime_job = super()._run(
             program_id,
             inputs,
