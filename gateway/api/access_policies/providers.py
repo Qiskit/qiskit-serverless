@@ -29,7 +29,7 @@ class ProviderAccessPolicy:
         """
 
         user_groups = user.groups.all()
-        admin_groups = provider.admin_groups.all() if provider is not None else []
+        admin_groups = provider.admin_groups.all() if provider else []
         user_is_admin = any(group in admin_groups for group in user_groups)
         if not user_is_admin:
             logger.warning(
