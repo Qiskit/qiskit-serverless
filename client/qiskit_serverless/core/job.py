@@ -369,10 +369,10 @@ def update_status(status: str):
 
 
 def get_runtime_service(
-    channel: Optional[str],
-    token: Optional[str],
-    instance: Optional[str],
-    url: Optional[str],
+    channel: Optional[str] = None,
+    token: Optional[str] = None,
+    instance: Optional[str] = None,
+    url: Optional[str] = None,
 ) -> ServerlessRuntimeService:
     """Get an instance of ServerlessRuntimeService, a subclass of QiskitRuntimeService
     that allows to associate runtime job ids to serverless job ids."""
