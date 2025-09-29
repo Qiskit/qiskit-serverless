@@ -5,28 +5,14 @@ import glob
 import logging
 import mimetypes
 import os
-from enum import Enum
 from typing import Optional, Tuple
 from wsgiref.util import FileWrapper
 
 from django.conf import settings
 from django.core.files import File
 
+from api.services.storage.enums.working_dir import WorkingDir
 from utils import sanitize_file_path
-
-
-class WorkingDir(Enum):
-    """
-    This Enum has the values:
-        USER_STORAGE
-        PROVIDER_STORAGE
-
-    Both values are being used to identify in
-        FileStorage service the path to be used
-    """
-
-    USER_STORAGE = 1
-    PROVIDER_STORAGE = 2
 
 
 logger = logging.getLogger("gateway")

@@ -3,25 +3,11 @@ This module handle the access to the logs store
 """
 import logging
 import os
-from enum import Enum
 from typing import Optional
 from django.conf import settings
 
+from api.services.storage.enums.working_dir import WorkingDir
 from utils import sanitize_file_path
-
-
-class WorkingDir(Enum):
-    """
-    This Enum has the values:
-        USER_STORAGE
-        PROVIDER_STORAGE
-
-    Both values are being used to identify in
-        LogsStorage service the path to be used
-    """
-
-    USER_STORAGE = 1
-    PROVIDER_STORAGE = 2
 
 
 logger = logging.getLogger("gateway")
