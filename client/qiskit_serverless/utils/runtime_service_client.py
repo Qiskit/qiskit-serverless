@@ -77,17 +77,24 @@ def associate_runtime_job_with_serverless_job(
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
         f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/runtime_jobs/"
     )
+    message_1 = f"Inside associate {runtime_job_id} with serverless job. {url}"
+
     response = requests.post(
         url,
         json={"runtime_job": runtime_job_id, "runtime_session": session_id},
         headers=get_headers(token=token, instance=instance, channel=channel),
         timeout=REQUESTS_TIMEOUT,
     )
+    print(f"RESPONSE: {response.ok}")
     if not response.ok:
         sanitized = response.text.replace("\n", "").replace("\r", "")
         logging.warning("Something went wrong: %s", sanitized)
+    print(f"SUCCESS!! Runtime job {runtime_job_id} associated with serverless job.")
+    message_2 = (
+        f"SUCCESS!! Runtime job {runtime_job_id} associated with serverless job."
+    )
 
-    return response.ok
+    return [response.ok, message_1, message_2]
 
 
 class ServerlessRuntimeService(QiskitRuntimeService):
@@ -123,10 +130,8 @@ class ServerlessRuntimeService(QiskitRuntimeService):
             session_id,
             start_session,
         )
-        print(
-            "Inside associate ok??",
-            associate_runtime_job_with_serverless_job(
-                runtime_job.job_id(), runtime_job.session_id
-            ),
+        out = associate_runtime_job_with_serverless_job(
+            runtime_job.job_id(), runtime_job.session_id
         )
+        print("Inside associate ok??", out)
         return runtime_job

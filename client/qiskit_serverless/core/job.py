@@ -60,6 +60,7 @@ from qiskit_serverless.serializers.program_serializers import (
 )
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
+from qiskit_serverless.utils import ServerlessRuntimeService
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
@@ -365,6 +366,23 @@ def update_status(status: str):
         logging.warning("Something went wrong: %s", sanitized)
 
     return response.ok
+
+
+def get_runtime_service(
+    channel: Optional[str],
+    token: Optional[str],
+    instance: Optional[str],
+    url: Optional[str],
+) -> ServerlessRuntimeService:
+    """Get an instance of ServerlessRuntimeService, a subclass of QiskitRuntimeService
+    that allows to associate runtime job ids to serverless job ids."""
+
+    return ServerlessRuntimeService(
+        channel=channel or os.environ["QISKIT_IBM_CHANNEL"],
+        instance=instance or os.environ["QISKIT_IBM_INSTANCE"],
+        token=token or os.environ["QISKIT_IBM_TOKEN"],
+        url=url or None,
+    )
 
 
 def _map_status_to_serverless(status: str) -> str:
