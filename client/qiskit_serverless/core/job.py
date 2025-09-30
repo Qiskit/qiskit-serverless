@@ -160,7 +160,7 @@ class Job:
 
     def status(self):
         """Returns status of the job."""
-        return _map_status_to_serverless(self._job_service.status(self.job_id))
+        return _map_status_from_serveless(self._job_service.status(self.job_id))
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
@@ -376,8 +376,8 @@ STATUS_MAP = {
 INVERSE_STATUS_MAP = {value: key for key, value in STATUS_MAP.items()}
 
 
-def _map_status_to_serverless(status: str) -> str:
-    """Map a status string from job client to the Qiskit terminology."""
+def _map_status_from_serveless(status: str) -> str:
+    """Map a status string from serverless terminology to the Qiskit terminology."""
 
     try:
         return STATUS_MAP[status]
@@ -385,8 +385,8 @@ def _map_status_to_serverless(status: str) -> str:
         return status
 
 
-def _map_status_from_serverless(status: str) -> Tuple[str, Union[str, None]]:
-    """Map a status string from Qiskit terminology to the job client."""
+def _map_status_to_serverless(status: str) -> Tuple[str, Union[str, None]]:
+    """Map a status string from Qiskit terminology to the serverless terminology."""
     try:
         status_translation = INVERSE_STATUS_MAP[status]
     except KeyError:
