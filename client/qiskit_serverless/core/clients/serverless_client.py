@@ -217,9 +217,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         function = kwargs.get("function", None)
         provider = kwargs.get("provider", None)
         if function:
-            provider, function = format_provider_name_and_title(
-                provider, function
-            )
+            provider, function = format_provider_name_and_title(provider, function)
 
         kwargs["function"] = function
         kwargs["provider"] = provider
