@@ -214,14 +214,14 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
 
-        function_name = kwargs.get("function_name", None)
+        function = kwargs.get("function", None)
         provider = kwargs.get("provider", None)
-        if function_name:
-            provider, function_name = format_provider_name_and_title(
-                provider, function_name
+        if function:
+            provider, function = format_provider_name_and_title(
+                provider, function
             )
 
-        kwargs["function"] = function_name
+        kwargs["function"] = function
         kwargs["provider"] = provider
 
         response_data = safe_json_request_as_dict(
