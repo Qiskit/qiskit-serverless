@@ -9,7 +9,7 @@ from api.domain.authentication.channel import Channel
 
 
 logger = logging.getLogger("gateway.authentication")
-PUBLIC_ENDPOINTS = ["catalog", "swagger"]
+PUBLIC_ENDPOINTS = ["swagger"]
 
 
 # This logic needs to be reviewed as it can be simplified
