@@ -2,6 +2,7 @@
 
 # pylint: disable=too-few-public-methods
 import os
+import json
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
@@ -60,6 +61,32 @@ class ResponseMock:
 
     ok = True
     text = "{}"
+
+
+class ResponseMockWithRuntimeJobs:
+    """Mocked response for runtime_jobs endpoint."""
+
+    ok = True
+
+    def json(self):
+        "Serialize mock response"
+        return {
+            "runtime_jobs": [
+                {
+                    "runtime_job": "runtime_job_1",
+                    "runtime_session": "session_id_1",
+                },
+                {
+                    "runtime_job": "runtime_job_2",
+                    "runtime_session": "session_id_2",
+                },
+            ]
+        }
+
+    @property
+    def text(self):
+        "Response text"
+        return json.dumps(self.json())
 
 
 class TestJob:
@@ -135,6 +162,26 @@ class TestJob:
             "This is the second line\n"
             "OK.  This is the last line.\n"
         ) == job.error_message()
+
+    @patch("requests.get", Mock(return_value=ResponseMockWithRuntimeJobs()))
+    @patch(
+        "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials",
+        Mock(),
+    )
+    def test_runtime_jobs(self):
+        """Tests job runtime_jobs retrieval."""
+        client = ServerlessClient(
+            host="host", token="token", instance="instance", version="v1"
+        )
+
+        job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
+        result = client.runtime_jobs(job_id)
+
+        assert len(result) == 2
+        assert result[0]["runtime_job"] == "runtime_job_1"
+        assert result[0]["runtime_session"] == "session_id_1"
+        assert result[1]["runtime_job"] == "runtime_job_2"
+        assert result[1]["runtime_session"] == "session_id_2"
 
 
 class TestRunningAsServerlessProgram:
