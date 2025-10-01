@@ -21,7 +21,7 @@ from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 
 
-class InputSerializer(serializers.Serializer):
+class SaveResultInputSerializer(serializers.Serializer):
     """
     Validate and sanitize the input
     """
@@ -29,7 +29,7 @@ class InputSerializer(serializers.Serializer):
     result = serializers.DictField(required=True)
 
 
-class ProgramSerializer(api_serializers.ProgramSerializer):
+class SaveResultProgramSerializer(api_serializers.ProgramSerializer):
     """
     Program serializer first version. Include basic fields from the initial model.
     """
@@ -48,12 +48,12 @@ class ProgramSerializer(api_serializers.ProgramSerializer):
         ]
 
 
-class JobSerializer(api_serializers.JobSerializer):
+class SaveResultJobSerializer(api_serializers.JobSerializer):
     """
     Job serializer first version. Include basic fields from the initial model.
     """
 
-    program = ProgramSerializer(many=False)
+    program = SaveResultProgramSerializer(many=False)
 
     class Meta(api_serializers.JobSerializer.Meta):
         fields = ["id", "result", "status", "program", "created", "sub_status"]
@@ -69,15 +69,15 @@ def serialize_output(job: Job):
     Returns:
         Serialized job as a dictionary.
     """
-    return JobSerializer(job).data
+    return SaveResultJobSerializer(job).data
 
 
 @swagger_auto_schema(
     method="post",
     operation_description="Save the result for a job.",
-    request_body=InputSerializer,
+    request_body=SaveResultInputSerializer,
     responses={
-        status.HTTP_200_OK: JobSerializer(many=False),
+        status.HTTP_200_OK: SaveResultJobSerializer(many=False),
         **standard_error_responses(
             not_found_example="Job [XXXX] not found",
         ),
@@ -98,7 +98,7 @@ def save_result(request: Request, job_id: UUID) -> Response:
     Returns:
         Response containing the updated serialized job.
     """
-    serializer = InputSerializer(data=request.data)
+    serializer = SaveResultInputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
     result = serializer.validated_data["result"]

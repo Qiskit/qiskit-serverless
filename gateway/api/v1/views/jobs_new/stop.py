@@ -12,7 +12,7 @@ from api.use_cases.jobs.stop import StopJobUseCase
 from api.v1.views.swagger_utils import standard_error_responses
 
 
-class InputSerializer(serializers.Serializer):
+class StopInputSerializer(serializers.Serializer):
     """
     Validate and sanitize the input
     """
@@ -38,7 +38,7 @@ def serialize_output(message: str) -> StopJobOutputSerializer:
 @swagger_auto_schema(
     method="post",
     operation_description="Stop a job.",
-    request_body=InputSerializer,
+    request_body=StopInputSerializer,
     responses={
         status.HTTP_200_OK: StopJobOutputSerializer,
         **standard_error_responses(
@@ -55,7 +55,7 @@ def stop(request, job_id):
     """
     Stop job
     """
-    serializer = InputSerializer(data=request.data)
+    serializer = StopInputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     validated_data = serializer.validated_data
     service = validated_data["service"]

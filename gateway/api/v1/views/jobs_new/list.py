@@ -29,7 +29,7 @@ from api.v1.views.serializer_utils import SanitizedCharField
 from api.views.enums.type_filter import TypeFilter
 
 
-class InputSerializer(serializers.Serializer):
+class ListInputSerializer(serializers.Serializer):
     """
     Validates and sanitizes query parameters for the jobs list endpoint.
     """
@@ -56,7 +56,7 @@ class InputSerializer(serializers.Serializer):
         return JobFilters(**validated_data)
 
 
-class ProgramSummarySerializer(serializers.ModelSerializer):
+class ListProgramSummarySerializer(serializers.ModelSerializer):
     """
     Summary fields for the related program.
     """
@@ -66,12 +66,12 @@ class ProgramSummarySerializer(serializers.ModelSerializer):
         fields = ["id", "title", "provider"]
 
 
-class JobSerializerWithoutResult(serializers.ModelSerializer):
+class ListJobSerializerWithoutResult(serializers.ModelSerializer):
     """
     Minimal job representation for listings.
     """
 
-    program = ProgramSummarySerializer(many=False)
+    program = ListProgramSummarySerializer(many=False)
 
     class Meta:
         model = Job
@@ -98,7 +98,7 @@ def serialize_output(
     Returns:
         A dictionary with pagination metadata and serialized items.
     """
-    serializer = JobSerializerWithoutResult(jobs, many=True)
+    serializer = ListJobSerializerWithoutResult(jobs, many=True)
     return create_paginated_response(
         data=serializer.data,
         total_count=total_count,
@@ -167,7 +167,7 @@ def serialize_output(
         ),
     ],
     responses={
-        status.HTTP_200_OK: JobSerializerWithoutResult(many=True),
+        status.HTTP_200_OK: ListJobSerializerWithoutResult(many=True),
         **standard_error_responses(
             not_found_example="Qiskit Function XXX doesn't exist.",
         ),
@@ -193,7 +193,7 @@ def get_jobs(request: Request) -> Response:
     Returns:
         A paginated list of jobs matching the filters.
     """
-    serializer = InputSerializer(data=request.query_params)
+    serializer = ListInputSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
 
     filters = cast(JobFilters, serializer.create(serializer.validated_data))

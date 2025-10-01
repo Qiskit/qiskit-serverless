@@ -21,7 +21,7 @@ from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 
 
-class InputSerializer(serializers.Serializer):
+class SetSubStatusInputSerializer(serializers.Serializer):
     """
     Validates the request body for updating the sub-status.
     """
@@ -38,7 +38,7 @@ class InputSerializer(serializers.Serializer):
     )
 
 
-class ProgramSummarySerializer(api_serializers.ProgramSerializer):
+class SetSubStatusProgramSummarySerializer(api_serializers.ProgramSerializer):
     """
     Program serializer with summary fields for job listings.
     """
@@ -47,12 +47,12 @@ class ProgramSummarySerializer(api_serializers.ProgramSerializer):
         fields = ["id", "title", "provider"]
 
 
-class JobSerializerWithoutResult(api_serializers.JobSerializer):
+class SetSubstatusJobSerializerWithoutResult(api_serializers.JobSerializer):
     """
     Job representation without `result`.
     """
 
-    program = ProgramSummarySerializer(many=False)
+    program = SetSubStatusProgramSummarySerializer(many=False)
 
     class Meta(api_serializers.JobSerializer.Meta):
         fields = ["id", "status", "program", "created", "sub_status"]
@@ -68,15 +68,15 @@ def serialize_output(job: Job) -> dict[str, Any]:
     Returns:
         A dictionary containing the serialized job under the 'job' key.
     """
-    return {"job": JobSerializerWithoutResult(job).data}
+    return {"job": SetSubstatusJobSerializerWithoutResult(job).data}
 
 
 @swagger_auto_schema(
     method="patch",
     operation_description="Update the sub status of a job",
-    request_body=InputSerializer,
+    request_body=SetSubStatusInputSerializer,
     responses={
-        status.HTTP_200_OK: JobSerializerWithoutResult(many=False),
+        status.HTTP_200_OK: SetSubstatusJobSerializerWithoutResult(many=False),
         **standard_error_responses(
             bad_request_example="'sub_status' not provided or is not valid",
             forbidden_example="Cannot update 'sub_status' when job is not RUNNING.",
@@ -100,7 +100,7 @@ def set_sub_status(request: Request, job_id: UUID) -> Response:
     Returns:
         Response containing the updated job under the 'job' key.
     """
-    serializer = InputSerializer(data=request.data)
+    serializer = SetSubStatusInputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
     sub_status = serializer.validated_data["sub_status"]
