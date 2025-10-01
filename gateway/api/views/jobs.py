@@ -3,7 +3,6 @@ Django Rest framework Job views for api application:
 
 Version views inherit from the different views.
 """
-import json
 import logging
 import os
 
