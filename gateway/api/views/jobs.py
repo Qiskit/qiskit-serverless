@@ -165,3 +165,10 @@ class JobViewSet(viewsets.GenericViewSet):
         runtimejob.save()
         message = "RuntimeJob is added."
         return Response({"message": message})
+
+    @action(methods=["GET"], detail=True)
+    def runtime_jobs(self, request, pk=None):
+        job = self.get_object()
+        runtime_jobs = RuntimeJob.objects.filter(job=job)
+        serializer = RuntimeJobSerializer(runtime_jobs, many=True)
+        return Response({"runtime_jobs": serializer.data})

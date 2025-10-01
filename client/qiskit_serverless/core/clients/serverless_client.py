@@ -423,11 +423,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job
     def runtime_jobs(self, job_id: str):
-        # use jobs endpoint directly instead of list_runtimejob
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/",
-                params={"with_result": "false"},
+                f"{self.host}/api/{self.version}/jobs/{job_id}/runtime_jobs/",
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),

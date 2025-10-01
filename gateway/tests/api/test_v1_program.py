@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job, Program
+from api.models import Job, Program, RuntimeJob
 from api.services.arguments_storage import ArgumentsStorage
 
 
@@ -464,7 +464,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data.get("message"), "RuntimeJob is added.")
 
-        runtime_job = models.RuntimeJob.objects.get(runtime_job="runtime_job_new")
+        runtime_job = RuntimeJob.objects.get(runtime_job="runtime_job_new")
         self.assertEqual(str(runtime_job.job.id), job_id)
         self.assertEqual(runtime_job.runtime_session, "session_id_new")
 
