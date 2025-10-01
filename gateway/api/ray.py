@@ -21,9 +21,9 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from api.services.arguments_storage import ArgumentsStorage
+from api.services.storage.arguments_storage import ArgumentsStorage
 from api.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
-from api.services.file_storage import FileStorage, WorkingDir
+from api.services.storage.file_storage import FileStorage, WorkingDir
 from api.utils import (
     retry_function,
     decrypt_env_vars,

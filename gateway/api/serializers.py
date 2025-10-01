@@ -13,7 +13,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group, Permission
 from django.db.models import Q
 from rest_framework import serializers
-from api.services.arguments_storage import ArgumentsStorage
+from api.services.storage.arguments_storage import ArgumentsStorage
 
 from api.repositories.functions import FunctionRepository
 from api.repositories.users import UserRepository
