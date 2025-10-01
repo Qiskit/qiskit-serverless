@@ -208,7 +208,7 @@ class JobSerializer(serializers.JobSerializer):
     """
 
     program = ProgramSerializer(many=False)
-    
+
     class Meta(serializers.JobSerializer.Meta):
         fields = [
             "id",
