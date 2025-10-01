@@ -22,7 +22,7 @@ from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 
 
-class InputSerializer(serializers.Serializer):
+class RetrieveInputSerializer(serializers.Serializer):
     """
     Validates query parameters for job retrieval.
     """
@@ -30,7 +30,7 @@ class InputSerializer(serializers.Serializer):
     with_result = serializers.BooleanField(required=False, default=True)
 
 
-class ProgramSerializer(api_serializers.ProgramSerializer):
+class RetrieveProgramSerializer(api_serializers.ProgramSerializer):
     """
     Program fields for detailed job responses.
     """
@@ -49,30 +49,30 @@ class ProgramSerializer(api_serializers.ProgramSerializer):
         ]
 
 
-class JobSerializer(api_serializers.JobSerializer):
+class RetrieveJobSerializer(api_serializers.JobSerializer):
     """
     Job representation including the `result` and full `program`.
     """
 
-    program = ProgramSerializer(many=False)
+    program = RetrieveProgramSerializer(many=False)
 
     class Meta(api_serializers.JobSerializer.Meta):
         fields = ["id", "result", "status", "program", "created", "sub_status"]
 
 
-class ProgramSummary(ProgramSerializer):
+class RetrieveProgramSummarySerializer(RetrieveProgramSerializer):
     """Minimal representation of a program"""
 
     class Meta(api_serializers.ProgramSerializer.Meta):
         fields = ["id", "title", "provider"]
 
 
-class JobSerializerWithoutResult(api_serializers.JobSerializer):
+class RetrieveJobSerializerWithoutResult(api_serializers.JobSerializer):
     """
     Minimal job representation without `result`, keeping nested `program`.
     """
 
-    program = ProgramSummary(read_only=True)
+    program = RetrieveProgramSummarySerializer(read_only=True)
 
     class Meta(api_serializers.JobSerializer.Meta):
         fields = ["id", "status", "program", "created", "sub_status"]
@@ -90,8 +90,8 @@ def serialize_output(job: Job, with_result: bool) -> Job:
         Serialized job as a dict.
     """
     if with_result:
-        return JobSerializer(job).data
-    return JobSerializerWithoutResult(job).data
+        return RetrieveJobSerializer(job).data
+    return RetrieveJobSerializerWithoutResult(job).data
 
 
 @swagger_auto_schema(
@@ -113,7 +113,7 @@ def serialize_output(job: Job, with_result: bool) -> Job:
         ),
     ],
     responses={
-        status.HTTP_200_OK: JobSerializer,
+        status.HTTP_200_OK: RetrieveJobSerializer,
         **standard_error_responses(not_found_example="Job [XXXX] not found"),
     },
 )
@@ -132,7 +132,7 @@ def retrieve(request: Request, job_id: UUID) -> Response:
     Returns:
         A serialized job, optionally including `result`.
     """
-    params = InputSerializer(data=request.query_params)
+    params = RetrieveInputSerializer(data=request.query_params)
     params.is_valid(raise_exception=True)
     with_result: bool = params.validated_data["with_result"]
 

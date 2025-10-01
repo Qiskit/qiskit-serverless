@@ -32,7 +32,7 @@ class TypeFilterField(serializers.ChoiceField):
         return TypeFilter(value) if value else None
 
 
-class InputSerializer(serializers.Serializer):
+class ProviderListInputSerializer(serializers.Serializer):
     """
     Validate and sanitize the input
     """
@@ -58,7 +58,7 @@ class InputSerializer(serializers.Serializer):
         return JobFilters(**validated_data)
 
 
-class ProgramSummarySerializer(serializers.ModelSerializer):
+class ProviderListProviderProgramSummarySerializer(serializers.ModelSerializer):
     """
     Program serializer with summary fields for job listings.
     """
@@ -68,12 +68,12 @@ class ProgramSummarySerializer(serializers.ModelSerializer):
         fields = ["id", "title", "provider"]
 
 
-class JobSerializerWithoutResult(serializers.ModelSerializer):
+class ProviderListJobSerializerWithoutResult(serializers.ModelSerializer):
     """
     Job serializer. Include basic fields from the initial model.
     """
 
-    program = ProgramSummarySerializer(many=False)
+    program = ProviderListProviderProgramSummarySerializer(many=False)
 
     class Meta:
         model = Job
@@ -90,7 +90,7 @@ def serialize_output(
     """
     Prepare the output for the end-point
     """
-    serializer = JobSerializerWithoutResult(jobs, many=True)
+    serializer = ProviderListJobSerializerWithoutResult(jobs, many=True)
     return create_paginated_response(
         data=serializer.data,
         total_count=total_count,
@@ -158,7 +158,7 @@ def serialize_output(
         ),
     ],
     responses={
-        status.HTTP_200_OK: JobSerializerWithoutResult(many=True),
+        status.HTTP_200_OK: ProviderListJobSerializerWithoutResult(many=True),
         **standard_error_responses(
             not_found_example="Provider XXX doesn't exist.",
         ),
@@ -172,7 +172,7 @@ def get_provider_jobs(request: Request) -> Response:
     """
     Return a list of jobs for the given provider (and optional filters).
     """
-    serializer = InputSerializer(data=request.query_params)
+    serializer = ProviderListInputSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
 
     filters = JobFilters(**serializer.validated_data)
