@@ -7,6 +7,7 @@ from typing import Optional
 from django.conf import settings
 
 from api.services.storage.enums.working_dir import WorkingDir
+from api.services.storage.path_builder import PathBuilder
 from utils import sanitize_file_path
 
 
@@ -35,82 +36,20 @@ class LogsStorage:
         function_title: str,
         provider_name: Optional[str],
     ) -> None:
-        self.sub_path = None
-        self.absolute_path = None
-        self.username = username
-
-        if working_dir is WorkingDir.USER_STORAGE:
-            self.sub_path = self.__get_user_sub_path(function_title, provider_name)
-        elif working_dir is WorkingDir.PROVIDER_STORAGE:
-            self.sub_path = self.__get_provider_sub_path(function_title, provider_name)
-
-        self.absolute_path = self.__get_absolute_path(self.sub_path)
-
-    def __get_user_sub_path(
-        self, function_title: str, provider_name: Optional[str]
-    ) -> str:
-        """
-        This method returns the sub-path where the logs for the user will
-        be stored
-
-        Args:
-            function_title (str): in case the function is from a
-                provider it will identify the function folder
-            provider_name (str | None): in case a provider is provided it will
-                identify the folder for the specific function
-
-        Returns:
-            str: storage sub-path.
-                - In case the function is from a provider that sub-path would
-                    be: username/provider_name/function_title/logs
-                - In case the function is from a user that path would
-                    be: username/logs
-        """
-        if provider_name is None:
-            path = os.path.join(self.username, self.PATH)
-        else:
-            path = os.path.join(self.username, provider_name, function_title, self.PATH)
-
-        return sanitize_file_path(path)
-
-    def __get_provider_sub_path(self, function_title: str, provider_name: str) -> str:
-        """
-        This method returns the provider sub-path where the logs for the partner will
-        be stored
-
-        Args:
-            function_title (str): in case the function is from a provider
-                it will identify the function folder
-            provider_name (str): in case a provider is provided
-                it will identify the folder for the specific function
-
-        Returns:
-            str: storage sub-path following the format provider_name/function_title/logs
-        """
-        path = os.path.join(provider_name, function_title, self.PATH)
-
-        return sanitize_file_path(path)
-
-    def __get_absolute_path(self, sub_path: str) -> str:
-        """
-        This method returns the absolute path where logs will be stored
-
-        Args:
-            sub_path (str): the sub-path that we will use to build
-                the absolute path
-
-        Returns:
-            str: storage path.
-        """
-        path = os.path.join(settings.MEDIA_ROOT, sub_path)
-        sanitized_path = sanitize_file_path(path)
-
-        # Create directory if it doesn't exist
-        if not os.path.exists(sanitized_path):
-            os.makedirs(sanitized_path, exist_ok=True)
-            logger.debug("Path %s was created.", sanitized_path)
-
-        return sanitized_path
+        self.sub_path = PathBuilder.get_sub_path(
+            working_dir=working_dir,
+            username=username,
+            function_title=function_title,
+            provider_name=provider_name,
+            extra_sub_path=self.PATH,
+        )
+        self.absolute_path = PathBuilder.get_absolute_path(
+            working_dir=working_dir,
+            username=username,
+            function_title=function_title,
+            provider_name=provider_name,
+            extra_sub_path=self.PATH,
+        )
 
     def _get_log_path(self, job_id: str) -> str:
         """
