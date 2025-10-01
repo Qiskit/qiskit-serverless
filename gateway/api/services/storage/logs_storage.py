@@ -4,11 +4,9 @@ This module handle the access to the logs store
 import logging
 import os
 from typing import Optional
-from django.conf import settings
 
 from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.path_builder import PathBuilder
-from utils import sanitize_file_path
 
 
 logger = logging.getLogger("gateway")
