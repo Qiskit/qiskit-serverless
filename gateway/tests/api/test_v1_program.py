@@ -510,8 +510,10 @@ class TestProgramApi(APITestCase):
             "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec86/list_runtime_jobs",
             format="json",
         )
+        runtime_jobs = response.data["runtime_jobs"]
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, [])
+        self.assertEqual(runtime_jobs, [])
 
     def test_get_by_title(self):
         user = models.User.objects.get(username="test_user_2")
