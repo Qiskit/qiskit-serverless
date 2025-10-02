@@ -83,4 +83,4 @@ class TestFunctionsStaging:
 
         # Validate the response
         assert isinstance(stop_response, str)
-        assert job.status() == "STOPPED"
+        assert job.status() == "CANCELED"

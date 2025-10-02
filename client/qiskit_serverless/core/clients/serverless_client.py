@@ -381,9 +381,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             token = os.environ["QISKIT_IBM_TOKEN"]
         else:
             token = self.token
-        print("CHANNEL", self.channel)
-        print("INSTANCE", instance)
-        print("TOKEN", token)
 
         if service:
             data = {
@@ -399,13 +396,6 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 }
             except Exception as e:
                 raise e
-
-            # data = {
-            #     "service": None,
-            # }
-
-        print("Payload being sent:", data)
-        print("Serialized service:", json.dumps(service, cls=QiskitObjectsEncoder))
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
