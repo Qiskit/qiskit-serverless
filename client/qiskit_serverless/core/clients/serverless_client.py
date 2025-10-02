@@ -191,7 +191,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     ####################
 
     @_trace_job("list")
-    def jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, function: QiskitFunction, **kwargs) -> List[Job]:
         """Retrieve a list of jobs with optional filtering.
 
         Args:
@@ -214,13 +214,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
 
-        function = kwargs.get("function", None)
-        provider = kwargs.get("provider", None)
-        if function:
-            provider, function = format_provider_name_and_title(provider, function)
-
-        kwargs["function"] = function
-        kwargs["provider"] = provider
+        kwargs["function"] = function.title
+        kwargs["provider"] = function.provider
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
