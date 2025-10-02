@@ -432,8 +432,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 timeout=REQUESTS_TIMEOUT,
             )
         )
-        if not include_session:
-            return [job.get("runtime_job") for job in response_data]
+        # if not include_session:
+        #     return [job.get("runtime_job") for job in response_data]
         return response_data
 
     def filtered_logs(self, job_id: str, **kwargs):
