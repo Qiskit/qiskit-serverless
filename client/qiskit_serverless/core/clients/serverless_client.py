@@ -195,11 +195,11 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         """Retrieve a list of jobs with optional filtering.
 
         Args:
+            function (QiskitFunction): The function that created the jobs we want to retrieve.
             limit (int, optional): Maximum number of jobs to return. Defaults to 10.
             offset (int, optional): Number of jobs to skip. Defaults to 0.
             status (str, optional): Filter by job status.
             created_after (str, optional): Filter jobs created after this timestamp.
-            function_name (str, optional): Filter by function name.
             **kwargs: Additional query parameters.
 
         Returns:
