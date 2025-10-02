@@ -5,6 +5,7 @@ Version views inherit from the different views.
 """
 import logging
 import os
+import json
 
 # pylint: disable=duplicate-code
 from opentelemetry import trace
@@ -24,7 +25,6 @@ from api.serializers import (
     JobSerializer,
     JobSerializerWithoutResult,
 )
-from api.v1.serializers import RuntimeJobSerializer
 from api.decorators.trace_decorator import trace_decorator_factory
 
 # pylint: disable=duplicate-code
