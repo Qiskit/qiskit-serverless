@@ -62,8 +62,8 @@ class TestFunctionsStaging:
         """Integration test for stopping a job."""
 
         function = QiskitFunction(
-            title="test-runtime-wrapper-2",
-            entrypoint="pattern_with_runtime_wrapper.py",
+            title="test-runtime-wrapper",
+            entrypoint="pattern_with_runtime_wrapper_1.py",
             working_dir=resources_path,
             env_vars={
                 "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
@@ -73,7 +73,7 @@ class TestFunctionsStaging:
         )
 
         serverless_client.upload(function)
-        my_function = serverless_client.function("test-runtime-wrapper-2")
+        my_function = serverless_client.function("test-runtime-wrapper")
 
         job = my_function.run()
         job_id = job.job_id

@@ -1,4 +1,4 @@
-# source_files/pattern_with_runtime_wrapper.py
+# source_files/pattern_with_runtime_wrapper_2.py
 
 import warnings
 
@@ -28,13 +28,6 @@ out2 = sampler.run([qc])
 job_id_1 = out1.job_id()
 job_id_2 = out2.job_id()
 
-print("JOB IDS: ", out1.job_id(), out2.job_id())
-print("SESSION ID", session.session_id)
-print("BACKENDS: ", [back.name for back in backends])
-print(
-    "RESULTS: ",
-    [[out1.job_id(), session.session_id], [out2.job_id(), session.session_id]],
-)
 
 save_result(
     {
