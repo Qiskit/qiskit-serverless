@@ -191,7 +191,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     ####################
 
     @_trace_job("list")
-    def jobs(self, function: QiskitFunction, **kwargs) -> List[Job]:
+    def jobs(self, function: Optional[QiskitFunction], **kwargs) -> List[Job]:
         """Retrieve a list of jobs with optional filtering.
 
         Args:
@@ -214,8 +214,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
 
-        kwargs["function"] = function.title
-        kwargs["provider"] = function.provider
+        if function:
+            kwargs["function"] = function.title
+            kwargs["provider"] = function.provider
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
@@ -234,7 +235,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         ]
 
     @_trace_job("provider_list")
-    def provider_jobs(self, function: QiskitFunction, **kwargs) -> List[Job]:
+    def provider_jobs(self, function: Optional[QiskitFunction], **kwargs) -> List[Job]:
         """Retrieve jobs for a specific provider and function.
 
         Args:
@@ -258,12 +259,14 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         kwargs["limit"] = limit
         offset = kwargs.get("offset", 0)
         kwargs["offset"] = offset
-        kwargs["function"] = function.title
-        kwargs["provider"] = function.provider
         status = kwargs.get("status", None)
         kwargs["status"] = status
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
+
+        if function:
+            kwargs["function"] = function.title
+            kwargs["provider"] = function.provider
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
