@@ -134,6 +134,7 @@ class TestProgramApi(APITestCase):
                 },
                 format="json",
             )
+            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
             job_id = programs_response.data.get("id")
             job = Job.objects.get(id=job_id)
             env_vars = json.loads(job.env_vars)
@@ -182,6 +183,7 @@ class TestProgramApi(APITestCase):
                 },
                 format="json",
             )
+            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
             job_id = programs_response.data.get("id")
             job = Job.objects.get(id=job_id)
             env_vars = json.loads(job.env_vars)
@@ -201,6 +203,43 @@ class TestProgramApi(APITestCase):
             stored_arguments = arguments_storage.get(job.id)
 
             self.assertEqual(stored_arguments, arguments)
+
+    def test_provider_run_without_log_consent(self):
+        """Tests run existing authorized."""
+
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            user = models.User.objects.get(username="test_user_5")
+            self.client.force_authenticate(user=user)
+
+            arguments = json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"})
+            programs_response = self.client.post(
+                "/api/v1/programs/run/",
+                data={
+                    "title": "Docker-Image-Program-3",
+                    "provider": "ibm",
+                    "arguments": arguments,
+                    "config": {
+                        "workers": None,
+                        "min_workers": 1,
+                        "max_workers": 5,
+                        "auto_scaling": True,
+                    },
+                },
+                format="json",
+            )
+            self.assertEqual(programs_response.status_code, status.HTTP_403_FORBIDDEN)
+            self.assertEqual(
+                programs_response.data.get("message"),
+                "You must accept the terms and conditions to use this function.",
+            )
 
     def test_run_locked(self):
         """Tests run disabled program."""
@@ -506,6 +545,39 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(programs_response_do_not_have_access.status_code, 404)
+
+    def test_add_log_consent(self):
+        """Test add consent"""
+        user = models.User.objects.get(username="test_user_5")
+        self.client.force_authenticate(user=user)
+        warn_message = "You have not accepted the Terms and Conditions regarding log access. Please review and provide your response before running a job. You can read those terms and conditions here: https://fake.asdf/eula"
+
+        # initial user_consent is None
+        programs_response = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program-3/?provider=ibm",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.data.get("user_consent"), None)
+        self.assertEqual(programs_response.data.get("warning"), warn_message)
+
+        # accept log consent
+        programs_response = self.client.post(
+            "/api/v1/programs/Docker-Image-Program-3/consent/",
+            {"accepted": True, "provider": "ibm"},
+            format="json",
+        )
+        print(programs_response.data)
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.data.get("message"), "consent added")
+
+        # check log consent accepted
+        programs_response = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program-3/?provider=ibm",
+            format="json",
+        )
+        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(programs_response.data.get("user_consent"), True)
 
     def test_get_jobs(self):
         """Tests run existing authorized."""
