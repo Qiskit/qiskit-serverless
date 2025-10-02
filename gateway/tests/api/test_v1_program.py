@@ -480,14 +480,14 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        runtime_jobs = response.data["runtime_jobs"]
+        self.assertEqual(len(runtime_jobs), 2)
 
         expected = [
             {"runtime_job": "runtime_job_1", "runtime_session": "session_id_1"},
             {"runtime_job": "runtime_job_2", "runtime_session": "session_id_2"},
         ]
 
-        runtime_jobs = response.data
         for job in runtime_jobs:
             self.assertIn(job, expected)
 
@@ -497,9 +497,11 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        runtime_jobs = response.data["runtime_jobs"]
 
-        runtime_job = response.data[0]
+        self.assertEqual(len(runtime_jobs), 1)
+
+        runtime_job = runtime_jobs[0]
         self.assertEqual(runtime_job.get("runtime_job"), "runtime_job_3")
         self.assertEqual(runtime_job.get("runtime_session"), "session_id_3")
 
