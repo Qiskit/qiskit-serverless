@@ -421,6 +421,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
+                params={"with_result": "true"},
                 timeout=REQUESTS_TIMEOUT,
             )
         )
