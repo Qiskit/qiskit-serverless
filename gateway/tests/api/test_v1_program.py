@@ -480,10 +480,7 @@ class TestProgramApi(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("runtime_jobs", response.data)
-
-        runtime_jobs = response.data.get("runtime_jobs")
-        self.assertEqual(len(runtime_jobs), 2)
+        self.assertEqual(len(response.data), 2)
 
         expected = {
             "runtime_job_1": {
