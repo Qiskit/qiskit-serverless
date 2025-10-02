@@ -37,6 +37,7 @@ class TestFunctionsStaging:
 
         # sanity check:
         # confirm that test_eagle is found
+        assert len(result) > 0
         backends = result["backends"]
         assert "test_eagle" in backends
 
