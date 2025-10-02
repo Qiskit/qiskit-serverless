@@ -168,9 +168,13 @@ class JobViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["GET"], detail=True)
-    def list_runtime_jobs(self, job, pk=None):
-        """Get runtime jobs for serverless job"""
+    def list_runtime_jobs(
+        self, request, pk=None
+    ):  # pylint: disable=invalid-name,unused-argument
+        """Add RuntimeJpb to job"""
         job = self.get_object()
-        runtime_jobs = RuntimeJob.objects.filter(job=job)
-        serializer = RuntimeJobSerializer(runtime_jobs, many=True)
-        return Response({"runtime_jobs": serializer.data})
+        runtimejobs = RuntimeJob.objects.filter(job=job)
+        # ids = []
+        # for runtimejob in runtimejobs:
+        #     ids.append(runtimejob.runtime_job)
+        return Response(json.dumps(runtimejobs))
