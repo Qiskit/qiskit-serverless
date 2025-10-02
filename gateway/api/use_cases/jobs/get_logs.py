@@ -9,7 +9,6 @@ from django.contrib.auth.models import AbstractUser
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.repositories.jobs import JobsRepository
-from api.access_policies.providers import ProviderAccessPolicy
 from api.access_policies.jobs import JobAccessPolicies
 
 

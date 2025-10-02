@@ -20,12 +20,9 @@ from api.repositories.jobs import JobFilters
 from api.use_cases.jobs.list import JobsListUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
-from api.v1.views.utils import (
-    PaginatedResponse,
-    SanitizedCharField,
-    create_paginated_response,
-)
+from api.v1.views.utils import PaginatedResponse, create_paginated_response
 from api.v1.views.swagger_utils import standard_error_responses
+from api.v1.views.serializer_utils import SanitizedCharField
 from api.views.enums.type_filter import TypeFilter
 
 
@@ -98,7 +95,7 @@ def serialize_output(
     Returns:
         A dictionary with pagination metadata and serialized items.
     """
-    serializer = JobSerializerWithoutResult(jobs, many=True)
+    serializer: JobSerializerWithoutResult = JobSerializerWithoutResult(jobs, many=True)
     return create_paginated_response(
         data=serializer.data,
         total_count=total_count,
