@@ -422,7 +422,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         return response_data.get("logs")
 
     @_trace_job
-    def runtime_jobs(self, job_id: str, include_session=False):
+    def runtime_jobs(self, job_id: str):
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtime_jobs/",
