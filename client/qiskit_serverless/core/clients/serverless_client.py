@@ -434,8 +434,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         )
         if not include_session:
             return [job.get("runtime_job") for job in response_data]
-        else:
-            return response_data
+        return response_data
 
     def filtered_logs(self, job_id: str, **kwargs):
         all_logs = self.logs(job_id=job_id)
