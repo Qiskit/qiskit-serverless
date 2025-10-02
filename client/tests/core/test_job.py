@@ -70,16 +70,12 @@ class ResponseMockWithRuntimeJobs:
 
     def json(self):
         "Serialize mock response"
-        return [
-            {
-                "runtime_job": "runtime_job_1",
-                "runtime_session": "session_id_1",
-            },
-            {
-                "runtime_job": "runtime_job_2",
-                "runtime_session": "session_id_2",
-            },
-        ]
+        return {
+            "runtime_jobs": [
+                {"runtime_job": "runtime_job_1", "runtime_session": "session_id_1"},
+                {"runtime_job": "runtime_job_2", "runtime_session": "session_id_2"},
+            ]
+        }
 
     @property
     def text(self):
