@@ -14,14 +14,14 @@ resources_path = os.path.join(
 
 
 class TestFunctionsStaging:
-    """Test class for integration testing in staging environment."""
+    """Integration tests for runtime wrapper with and without session."""
 
-    def test_simple_function(self, serverless_client: ServerlessClient):
-        """Integration test for runtime wrapper."""
-
+    def _run_and_validate_function(
+        self, serverless_client: ServerlessClient, entrypoint: str
+    ):
         function = QiskitFunction(
             title="test-runtime-wrapper",
-            entrypoint="pattern_with_runtime_wrapper.py",
+            entrypoint=entrypoint,
             working_dir=resources_path,
             env_vars={
                 "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
@@ -30,31 +30,33 @@ class TestFunctionsStaging:
             },
         )
         serverless_client.upload(function)
-        my_pattern_function = serverless_client.function("test-runtime-wrapper")
+        my_function = serverless_client.function("test-runtime-wrapper")
 
-        job = my_pattern_function.run()
+        job = my_function.run()
         result = job.result()
 
-        # sanity check:
-        # confirm that test_eagle is found
-        assert len(result) > 0
-        backends = result["backends"]
-        assert "test_eagle" in backends
+        assert result and "test_eagle" in result["backends"]
 
-        # second sanity check:
-        # confirm that job ids exist
-        reference_ids = result["results"]
-        assert isinstance(reference_ids, list)
-        assert len(reference_ids) == 2
+        reference_job_ids = [res[0] for res in result["results"]]
+        reference_session_ids = [res[1] for res in result["results"]]
+        assert len(reference_job_ids) == 2
 
-        # finally, check runtime jobs:
-        job_id = job.job_id
-        runtime_job_ids = serverless_client.runtime_jobs(job_id)
-        assert isinstance(runtime_job_ids, list)
-        assert len(runtime_job_ids) == 2
-        for id, ref_id in zip(runtime_job_ids, reference_ids):
-            assert isinstance(id, str)
-            assert id == ref_id
+        runtime_jobs = serverless_client.runtime_jobs(job.job_id)["runtime_jobs"]
+        runtime_job_ids = [job["runtime_job"] for job in runtime_jobs]
+        session_ids = [job["runtime_session"] for job in runtime_jobs]
+
+        assert runtime_job_ids == reference_job_ids
+        assert session_ids == reference_session_ids
+
+    def test_jobs_no_session(self, serverless_client: ServerlessClient):
+        self._run_and_validate_function(
+            serverless_client, "pattern_with_runtime_wrapper_1.py"
+        )
+
+    def test_jobs_with_session(self, serverless_client: ServerlessClient):
+        self._run_and_validate_function(
+            serverless_client, "pattern_with_runtime_wrapper_2.py"
+        )
 
     def test_stop_job(self, serverless_client: ServerlessClient):
         """Integration test for stopping a job."""
@@ -81,4 +83,4 @@ class TestFunctionsStaging:
 
         # Validate the response
         assert isinstance(stop_response, dict)
-        assert stop_response.get("status") in ["STOPPED", "CANCELLED", "SUCCEEDED"]
+        assert stop_response.get("status") in ["STOPPED"]
