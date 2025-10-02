@@ -75,7 +75,7 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = ["id", "status", "program", "created", "sub_status", "runtime_jobs"]
+        fields = ["id", "status", "program", "created", "sub_status"]
 
 
 def serialize_output(

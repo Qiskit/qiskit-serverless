@@ -181,4 +181,4 @@ class JobViewSet(viewsets.GenericViewSet):
                     "runtime_session": runtimejob.runtime_session,
                 }
             )
-        return Response(results)
+        return Response({"runtime_jobs": results})
