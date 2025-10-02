@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job, Program
+from api.models import Job, Program, RuntimeJob
 from api.services.arguments_storage import ArgumentsStorage
 
 
@@ -444,34 +444,76 @@ class TestProgramApi(APITestCase):
                 found = True
         self.assertTrue(found)
 
-    def test_add_runtimejob(self):
-        """Tests run existing authorized."""
+    def test_add_runtime_jobs(self):
+        """Tests add runtime jobs authorized."""
 
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
-        programs_response = self.client.post(
-            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/add_runtimejob/",
+
+        job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
+
+        response = self.client.post(
+            f"/api/v1/jobs/{job_id}/runtime_jobs/",
             data={
-                "runtime_job": "runtime_job_4",
+                "runtime_job": "runtime_job_new",
+                "runtime_session": "session_id_new",
             },
             format="json",
         )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
 
-    def test_list_runtimejob(self):
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get("message"), "RuntimeJob is added.")
+
+        runtime_job = RuntimeJob.objects.get(runtime_job="runtime_job_new")
+        self.assertEqual(str(runtime_job.job.id), job_id)
+        self.assertEqual(runtime_job.runtime_session, "session_id_new")
+
+    def test_get_runtime_jobs(self):
+        """Tests retrieve runtime jobs authorized."""
+
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
-        programs_response = self.client.get(
-            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/list_runtimejob/",
-            format="json",
-        )
-        self.assertEqual(programs_response.json(), '["runtime_job_1", "runtime_job_2"]')
 
-        programs_response = self.client.get(
-            "/api/v1/jobs/57fc2e4d-267f-40c6-91a3-38153272e764/list_runtimejob/",
+        # Job with multiple runtime jobs
+        response = self.client.get(
+            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/list_runtime_jobs",
             format="json",
         )
-        self.assertEqual(programs_response.json(), '["runtime_job_3"]')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        runtime_jobs = response.data["runtime_jobs"]
+        self.assertEqual(len(runtime_jobs), 2)
+
+        expected = [
+            {"runtime_job": "runtime_job_1", "runtime_session": "session_id_1"},
+            {"runtime_job": "runtime_job_2", "runtime_session": "session_id_2"},
+        ]
+
+        for job in runtime_jobs:
+            self.assertIn(job, expected)
+
+        # Job with a single runtime job
+        response = self.client.get(
+            "/api/v1/jobs/57fc2e4d-267f-40c6-91a3-38153272e764/list_runtime_jobs",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        runtime_jobs = response.data["runtime_jobs"]
+
+        self.assertEqual(len(runtime_jobs), 1)
+
+        runtime_job = runtime_jobs[0]
+        self.assertEqual(runtime_job.get("runtime_job"), "runtime_job_3")
+        self.assertEqual(runtime_job.get("runtime_session"), "session_id_3")
+
+        # Job with no runtime jobs
+        response = self.client.get(
+            "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec86/list_runtime_jobs",
+            format="json",
+        )
+        runtime_jobs = response.data["runtime_jobs"]
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(runtime_jobs, [])
 
     def test_get_by_title(self):
         user = models.User.objects.get(username="test_user_2")

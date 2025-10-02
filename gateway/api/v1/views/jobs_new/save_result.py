@@ -26,7 +26,7 @@ class InputSerializer(serializers.Serializer):
     Validate and sanitize the input
     """
 
-    result = serializers.DictField(required=True)
+    result = serializers.CharField(required=True)
 
 
 class ProgramSerializer(api_serializers.ProgramSerializer):

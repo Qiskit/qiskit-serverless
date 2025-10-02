@@ -232,7 +232,7 @@ class RuntimeJobSerializer(serializers.RuntimeJobSerializer):
     job = JobSerializer(many=False)
 
     class Meta(serializers.RuntimeJobSerializer.Meta):
-        fields = ["job", "runtime_job"]
+        fields = ["job", "runtime_job", "runtime_session"]
 
 
 class CatalogProviderSerializer(serializers.CatalogProviderSerializer):

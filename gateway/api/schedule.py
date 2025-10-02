@@ -25,12 +25,13 @@ logger = logging.getLogger("commands")
 
 def _configure_job_to_use_gpu(job: Job):
     gpujobs = create_gpujob_allowlist()
-    if (
-        job.program.provider
-        and job.program.provider.name in gpujobs["gpu-functions"].keys()
-    ):
-        logger.debug("Job [%s] will be run on GPU nodes", job.id)
-        job.gpu = True
+    if job.program:
+        if (
+            job.program.provider
+            and job.program.provider.name in gpujobs["gpu-functions"].keys()
+        ):
+            logger.debug("Job [%s] will be run on GPU nodes", job.id)
+            job.gpu = True
 
     return job
 

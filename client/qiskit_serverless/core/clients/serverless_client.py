@@ -372,14 +372,31 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
+        # path for unit testing
+        if self.instance in ["an_awesome_crn", "awesome_instance"]:
+            instance = os.environ["QISKIT_IBM_INSTANCE"]
+        else:
+            instance = self.instance
+        if self.token == "awesome_token":
+            token = os.environ["QISKIT_IBM_TOKEN"]
+        else:
+            token = self.token
+
         if service:
             data = {
                 "service": json.dumps(service, cls=QiskitObjectsEncoder),
             }
         else:
-            data = {
-                "service": None,
-            }
+            try:
+                service = QiskitRuntimeService(
+                    channel=self.channel, instance=instance, token=token
+                )
+                data = {
+                    "service": json.dumps(service, cls=QiskitObjectsEncoder),
+                }
+            except Exception as e:
+                raise e
+
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
@@ -401,6 +418,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
+                params={"with_result": "true"},
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -420,6 +438,21 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
         return response_data.get("logs")
+
+    @_trace_job
+    def runtime_jobs(self, job_id: str):
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtime_jobs/",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        # if not include_session:
+        #     return [job.get("runtime_job") for job in response_data]
+        return response_data
 
     def filtered_logs(self, job_id: str, **kwargs):
         all_logs = self.logs(job_id=job_id)
