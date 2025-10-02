@@ -476,7 +476,7 @@ class TestProgramApi(APITestCase):
 
         # Job with multiple runtime jobs
         response = self.client.get(
-            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/",
+            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/list_runtime_jobs",
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
