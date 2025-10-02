@@ -177,9 +177,8 @@ class JobViewSet(viewsets.GenericViewSet):
         for runtimejob in runtimejobs:
             results.append(
                 {
-                    runtimejob.runtime_job: {
-                        "runtime_session": runtimejob.runtime_session
-                    }
+                    "runtime_job": runtimejob.runtime_job,
+                    "runtime_session": runtimejob.runtime_session,
                 }
             )
         return Response(results)
