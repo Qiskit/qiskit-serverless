@@ -174,7 +174,12 @@ class JobViewSet(viewsets.GenericViewSet):
         """Add RuntimeJpb to job"""
         job = self.get_object()
         runtimejobs = RuntimeJob.objects.filter(job=job)
-        # ids = []
-        # for runtimejob in runtimejobs:
-        #     ids.append(runtimejob.runtime_job)
-        return Response(json.dumps(runtimejobs))
+        results = []
+        for runtimejob in runtimejobs:
+            results.append(
+                {
+                    "runtime_job": runtimejob.runtime_job,
+                    "runtime_session": runtimejob.runtime_session,
+                }
+            )
+        return Response(results)
