@@ -23,8 +23,8 @@ from api.repositories.providers import ProviderRepository
 from api.serializers import (
     JobSerializer,
     JobSerializerWithoutResult,
-    RuntimeJobSerializer,
 )
+from api.v1.serializers import RuntimeJobSerializer
 from api.decorators.trace_decorator import trace_decorator_factory
 
 # pylint: disable=duplicate-code
