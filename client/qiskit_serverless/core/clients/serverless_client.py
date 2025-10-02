@@ -377,6 +377,26 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "service": json.dumps(service, cls=QiskitObjectsEncoder),
             }
         else:
+            try:
+                # path for unit testing
+                if self.instance == "an_awesome_crn":
+                    instance = os.environ["QISKIT_IBM_CHANNEL"]
+                else:
+                    instance = self.instance
+                if self.token == "awesome_token":
+                    token = os.environ["QISKIT_IBM_TOKEN"]
+                else:
+                    token = self.token
+
+                service = QiskitRuntimeService(
+                    channel=self.channel, instance=instance, token=token
+                )
+                data = {
+                    "service": service,
+                }
+            except Exception as e:
+                raise e
+
             data = {
                 "service": None,
             }

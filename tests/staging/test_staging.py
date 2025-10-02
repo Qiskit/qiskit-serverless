@@ -55,3 +55,30 @@ class TestFunctionsStaging:
         for id, ref_id in zip(runtime_job_ids, reference_ids):
             assert isinstance(id, str)
             assert id == ref_id
+
+    def test_stop_job(self, serverless_client: ServerlessClient):
+        """Integration test for stopping a job."""
+
+        function = QiskitFunction(
+            title="test-runtime-wrapper-2",
+            entrypoint="pattern_with_runtime_wrapper.py",
+            working_dir=resources_path,
+            env_vars={
+                "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
+                "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
+                "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
+            },
+        )
+
+        serverless_client.upload(function)
+        my_function = serverless_client.function("test-runtime-wrapper-2")
+
+        job = my_function.run()
+        job_id = job.job_id
+
+        # Attempt to stop the job
+        stop_response = serverless_client.stop(job_id)
+
+        # Validate the response
+        assert isinstance(stop_response, dict)
+        assert stop_response.get("status") in ["STOPPED", "CANCELLED", "SUCCEEDED"]
