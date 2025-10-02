@@ -5,7 +5,6 @@ Version views inherit from the different views.
 """
 import logging
 import os
-import json
 
 # pylint: disable=duplicate-code
 from opentelemetry import trace
