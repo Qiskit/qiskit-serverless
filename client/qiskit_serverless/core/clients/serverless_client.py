@@ -211,7 +211,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         offset = kwargs.get("offset", 0)
         kwargs["offset"] = offset
         status = kwargs.get("status", None)
-        status, _ = _map_status_to_serverless(status)
+        if status:
+            status, _ = _map_status_to_serverless(status)
         kwargs["status"] = status
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
