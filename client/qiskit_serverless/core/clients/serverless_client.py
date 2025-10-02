@@ -372,34 +372,41 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
+        # path for unit testing
+        if self.instance in ["an_awesome_crn", "awesome_instance"]:
+            instance = os.environ["QISKIT_IBM_INSTANCE"]
+        else:
+            instance = self.instance
+        if self.token == "awesome_token":
+            token = os.environ["QISKIT_IBM_TOKEN"]
+        else:
+            token = self.token
+        print("CHANNEL", self.channel)
+        print("INSTANCE", instance)
+        print("TOKEN", token)
+
         if service:
             data = {
                 "service": json.dumps(service, cls=QiskitObjectsEncoder),
             }
         else:
             try:
-                # path for unit testing
-                if self.instance == "an_awesome_crn":
-                    instance = os.environ["QISKIT_IBM_INSTANCE"]
-                else:
-                    instance = self.instance
-                if self.token == "awesome_token":
-                    token = os.environ["QISKIT_IBM_TOKEN"]
-                else:
-                    token = self.token
-
                 service = QiskitRuntimeService(
                     channel=self.channel, instance=instance, token=token
                 )
                 data = {
-                    "service": service,
+                    "service": json.dumps(service, cls=QiskitObjectsEncoder),
                 }
             except Exception as e:
                 raise e
 
-            data = {
-                "service": None,
-            }
+            # data = {
+            #     "service": None,
+            # }
+
+        print("Payload being sent:", data)
+        print("Serialized service:", json.dumps(service, cls=QiskitObjectsEncoder))
+
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",

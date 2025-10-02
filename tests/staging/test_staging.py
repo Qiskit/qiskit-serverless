@@ -63,7 +63,7 @@ class TestFunctionsStaging:
 
         function = QiskitFunction(
             title="test-runtime-wrapper",
-            entrypoint="pattern_with_runtime_wrapper_1.py",
+            entrypoint="pattern_with_stop.py",
             working_dir=resources_path,
             env_vars={
                 "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
@@ -82,5 +82,5 @@ class TestFunctionsStaging:
         stop_response = serverless_client.stop(job_id)
 
         # Validate the response
-        assert isinstance(stop_response, dict)
-        assert stop_response.get("status") in ["STOPPED"]
+        assert isinstance(stop_response, str)
+        assert job.status() == "STOPPED"

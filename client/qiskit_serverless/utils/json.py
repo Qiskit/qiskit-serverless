@@ -106,7 +106,9 @@ def safe_json_request_as_dict(
     Returns:
         parsed json response as dict structure
     """
+    print("SAFE JSON REQUEST AS DICT", request)
     response = safe_json_request(request)
+    print("RESPONSE", response)
     if isinstance(response, Dict):
         return response
     raise TypeError("JSON is not a Dict")
@@ -126,10 +128,14 @@ def safe_json_request(
     Returns:
         parsed json response
     """
+    print("SAFE JSON REQUEST AS DICT", request)
+
     error_message: Optional[str] = None
     try:
         response = request()
+        print("RESPONSE INSIDE", response)
     except requests.exceptions.RequestException as request_exception:
+        print("EXCEPTION:", request_exception)
         error_message = format_err_msg(
             ErrorCodes.AUTH1001,
             str(request_exception.args),
@@ -140,6 +146,7 @@ def safe_json_request(
         raise QiskitServerlessException(error_message)
 
     if response is not None and not response.ok:
+        print("EXCEPTION RESPONSE TEXT", response.text)
         raise QiskitServerlessException(
             format_err_msg(
                 response.status_code,
