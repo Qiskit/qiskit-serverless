@@ -171,11 +171,12 @@ class TestJob:
         job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
         result = client.runtime_jobs(job_id)
 
-        assert len(result) == 2
-        assert result[0]["runtime_job"] == "runtime_job_1"
-        assert result[0]["runtime_session"] == "session_id_1"
-        assert result[1]["runtime_job"] == "runtime_job_2"
-        assert result[1]["runtime_session"] == "session_id_2"
+        runtime_jobs = result.get("runtime_jobs", [])
+        assert len(runtime_jobs) == 2
+        assert runtime_jobs[0]["runtime_job"] == "runtime_job_1"
+        assert runtime_jobs[0]["runtime_session"] == "session_id_1"
+        assert runtime_jobs[1]["runtime_job"] == "runtime_job_2"
+        assert runtime_jobs[1]["runtime_session"] == "session_id_2"
 
 
 class TestRunningAsServerlessProgram:
