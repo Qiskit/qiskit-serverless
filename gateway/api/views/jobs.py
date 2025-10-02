@@ -168,7 +168,7 @@ class JobViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["GET"], detail=True)
-    def list_runtime_jobs(self, job):
+    def list_runtime_jobs(self, job, pk=None):
         """Get runtime jobs for serverless job"""
         job = self.get_object()
         runtime_jobs = RuntimeJob.objects.filter(job=job)
