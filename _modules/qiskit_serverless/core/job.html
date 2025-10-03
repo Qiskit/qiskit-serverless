@@ -340,7 +340,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">ray.runtime_env</span>
@@ -466,7 +466,7 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns status of the job.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">_map_status_to_serverless</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_service</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">_map_status_from_serveless</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_service</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitRuntimeService</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Stops the job from running.&quot;&quot;&quot;</span>
@@ -665,26 +665,42 @@
     <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_map_status_to_serverless</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map a status string from job client to the Qiskit terminology.&quot;&quot;&quot;</span>
-    <span class="n">status_map</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">PENDING</span><span class="p">:</span> <span class="s2">&quot;INITIALIZING&quot;</span><span class="p">,</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">:</span> <span class="s2">&quot;RUNNING&quot;</span><span class="p">,</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">STOPPED</span><span class="p">:</span> <span class="s2">&quot;CANCELED&quot;</span><span class="p">,</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">SUCCEEDED</span><span class="p">:</span> <span class="s2">&quot;DONE&quot;</span><span class="p">,</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">,</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">QUEUED</span><span class="p">:</span> <span class="s2">&quot;QUEUED&quot;</span><span class="p">,</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">MAPPING</span><span class="p">:</span> <span class="s2">&quot;RUNNING: MAPPING&quot;</span><span class="p">,</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">OPTIMIZING_HARDWARE</span><span class="p">:</span> <span class="s2">&quot;RUNNING: OPTIMIZING_FOR_HARDWARE&quot;</span><span class="p">,</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">WAITING_QPU</span><span class="p">:</span> <span class="s2">&quot;RUNNING: WAITING_FOR_QPU&quot;</span><span class="p">,</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">EXECUTING_QPU</span><span class="p">:</span> <span class="s2">&quot;RUNNING: EXECUTING_QPU&quot;</span><span class="p">,</span>
-        <span class="n">Job</span><span class="o">.</span><span class="n">POST_PROCESSING</span><span class="p">:</span> <span class="s2">&quot;RUNNING: POST_PROCESSING&quot;</span><span class="p">,</span>
-    <span class="p">}</span>
+<span class="n">STATUS_MAP</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">PENDING</span><span class="p">:</span> <span class="s2">&quot;INITIALIZING&quot;</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">:</span> <span class="s2">&quot;RUNNING&quot;</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">STOPPED</span><span class="p">:</span> <span class="s2">&quot;CANCELED&quot;</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">SUCCEEDED</span><span class="p">:</span> <span class="s2">&quot;DONE&quot;</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">QUEUED</span><span class="p">:</span> <span class="s2">&quot;QUEUED&quot;</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">MAPPING</span><span class="p">:</span> <span class="s2">&quot;RUNNING: MAPPING&quot;</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">OPTIMIZING_HARDWARE</span><span class="p">:</span> <span class="s2">&quot;RUNNING: OPTIMIZING_FOR_HARDWARE&quot;</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">WAITING_QPU</span><span class="p">:</span> <span class="s2">&quot;RUNNING: WAITING_FOR_QPU&quot;</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">EXECUTING_QPU</span><span class="p">:</span> <span class="s2">&quot;RUNNING: EXECUTING_QPU&quot;</span><span class="p">,</span>
+    <span class="n">Job</span><span class="o">.</span><span class="n">POST_PROCESSING</span><span class="p">:</span> <span class="s2">&quot;RUNNING: POST_PROCESSING&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">INVERSE_STATUS_MAP</span> <span class="o">=</span> <span class="p">{</span><span class="n">value</span><span class="p">:</span> <span class="n">key</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">STATUS_MAP</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_map_status_from_serveless</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map a status string from serverless terminology to the Qiskit terminology.&quot;&quot;&quot;</span>
 
     <span class="k">try</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">status_map</span><span class="p">[</span><span class="n">status</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">STATUS_MAP</span><span class="p">[</span><span class="n">status</span><span class="p">]</span>
     <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">status</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_map_status_to_serverless</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map a status string from Qiskit terminology to the serverless terminology.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">status_translation</span> <span class="o">=</span> <span class="n">INVERSE_STATUS_MAP</span><span class="p">[</span><span class="n">status</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">status</span><span class="p">,</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;RUNNING:&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Job</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">,</span> <span class="n">status_translation</span>
+    <span class="k">return</span> <span class="n">status_translation</span><span class="p">,</span> <span class="kc">None</span>
 
 
 <div class="viewcode-block" id="is_running_in_serverless"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.is_running_in_serverless.html#qiskit_serverless.core.is_running_in_serverless">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">is_running_in_serverless</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
