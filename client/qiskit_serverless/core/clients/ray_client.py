@@ -75,7 +75,7 @@ class RayClient(BaseClient):
     ####### JOBS #######
     ####################
 
-    def jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, function: QiskitFunction, **kwargs) -> List[Job]:
         """Return list of jobs.
 
         Returns:
