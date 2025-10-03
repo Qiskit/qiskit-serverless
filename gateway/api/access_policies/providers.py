@@ -28,11 +28,11 @@ class ProviderAccessPolicy:
             bool: True or False in case the user has access
         """
 
-        user_groups = user.groups.all()
-        admin_groups = provider.admin_groups.all()
-        has_access = any(group in admin_groups for group in user_groups)
-        if not has_access:
+        user_groups = set(user.groups.all())
+        admin_groups = set(provider.admin_groups.all() if provider else [])
+        user_is_admin = bool(user_groups.intersection(admin_groups))
+        if not user_is_admin:
             logger.warning(
                 "User [%s] has no access to provider [%s].", user.id, provider.name
             )
-        return has_access
+        return user_is_admin
