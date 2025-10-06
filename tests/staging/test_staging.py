@@ -78,6 +78,10 @@ class TestFunctionsStaging:
         job = my_function.run()
         job_id = job.job_id
 
+        while True:
+            if "JOB IDS" in job.logs():
+                break
+
         # Attempt to stop the job
         stop_response = serverless_client.stop(job_id)
 
