@@ -3,7 +3,6 @@ Django Rest framework Job views for api application:
 
 Version views inherit from the different views.
 """
-import json
 import logging
 import os
 
@@ -21,7 +20,10 @@ from api.models import RuntimeJob
 from api.repositories.jobs import JobsRepository, JobFilters
 from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
-from api.serializers import JobSerializer, JobSerializerWithoutResult
+from api.serializers import (
+    JobSerializer,
+    JobSerializerWithoutResult,
+)
 from api.decorators.trace_decorator import trace_decorator_factory
 
 # pylint: disable=duplicate-code
@@ -95,13 +97,9 @@ class JobViewSet(viewsets.GenericViewSet):
 
         return queryset
 
-    def get_runtime_job(self, job):
-        """get runtime job for job"""
-        return RuntimeJob.objects.filter(job=job)
-
     @_trace
     @action(methods=["POST"], detail=True)
-    def add_runtimejob(
+    def runtime_jobs(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
         """Add RuntimeJob to job"""
@@ -124,13 +122,18 @@ class JobViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["GET"], detail=True)
-    def list_runtimejob(
+    def list_runtime_jobs(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
         """Add RuntimeJpb to job"""
         job = self.get_object()
         runtimejobs = RuntimeJob.objects.filter(job=job)
-        ids = []
+        results = []
         for runtimejob in runtimejobs:
-            ids.append(runtimejob.runtime_job)
-        return Response(json.dumps(ids))
+            results.append(
+                {
+                    "runtime_job": runtimejob.runtime_job,
+                    "runtime_session": runtimejob.runtime_session,
+                }
+            )
+        return Response({"runtime_jobs": results})

@@ -31,6 +31,7 @@ import os.path
 import os
 import re
 import tarfile
+import warnings
 from pathlib import Path
 from dataclasses import asdict
 from typing import Optional, List, Dict, Any, Union
@@ -57,6 +58,7 @@ from qiskit_serverless.core.files import GatewayFilesClient
 from qiskit_serverless.core.job import (
     Job,
     Configuration,
+    _map_status_to_serverless,
 )
 from qiskit_serverless.core.function import (
     QiskitFunction,
@@ -210,6 +212,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         offset = kwargs.get("offset", 0)
         kwargs["offset"] = offset
         status = kwargs.get("status", None)
+        if status:
+            status, _ = _map_status_to_serverless(status)
         kwargs["status"] = status
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
@@ -260,6 +264,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         kwargs["function"] = function.title
         kwargs["provider"] = function.provider
         status = kwargs.get("status", None)
+        if status:
+            status, _ = _map_status_to_serverless(status)
         kwargs["status"] = status
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
@@ -377,9 +383,20 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 "service": json.dumps(service, cls=QiskitObjectsEncoder),
             }
         else:
-            data = {
-                "service": None,
-            }
+            try:
+                service = QiskitRuntimeService(
+                    channel=self.channel, instance=self.instance, token=self.token
+                )
+                data = {
+                    "service": json.dumps(service, cls=QiskitObjectsEncoder),
+                }
+            except InvalidAccountError:
+                warnings.warn(
+                    "No QiskitRuntimeService can be associated to the given token and instance. "
+                    "Continuing without a QiskitRuntimeService."
+                )
+                data = {"service": json.dumps(None, cls=QiskitObjectsEncoder)}
+
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
@@ -401,6 +418,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
+                params={"with_result": "true"},
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -420,6 +438,21 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
         return response_data.get("logs")
+
+    @_trace_job
+    def runtime_jobs(self, job_id: str):
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtime_jobs/",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        # if not include_session:
+        #     return [job.get("runtime_job") for job in response_data]
+        return response_data
 
     def filtered_logs(self, job_id: str, **kwargs):
         all_logs = self.logs(job_id=job_id)

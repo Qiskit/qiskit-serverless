@@ -34,7 +34,7 @@ import logging
 import os
 import time
 import warnings
-from typing import ClassVar, Dict, Any, Literal, Optional, Union
+from typing import ClassVar, Dict, Any, Literal, Optional, Tuple, Union
 from dataclasses import dataclass
 
 import ray.runtime_env
@@ -60,6 +60,7 @@ from qiskit_serverless.serializers.program_serializers import (
 )
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
+from qiskit_serverless.utils import ServerlessRuntimeService
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
@@ -101,6 +102,10 @@ class JobService(ABC):
     @abstractmethod
     def logs(self, job_id: str) -> str:
         """Return logs."""
+
+    @abstractmethod
+    def runtime_jobs(self, job_id: str):
+        """Return associated runtime jobs"""
 
     @abstractmethod
     def filtered_logs(self, job_id: str, **kwargs) -> str:
@@ -160,7 +165,7 @@ class Job:
 
     def status(self):
         """Returns status of the job."""
-        return _map_status_to_serverless(self._job_service.status(self.job_id))
+        return _map_status_from_serveless(self._job_service.status(self.job_id))
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
@@ -179,6 +184,10 @@ class Job:
     def logs(self) -> str:
         """Returns logs of the job."""
         return self._job_service.logs(self.job_id)
+
+    def runtime_jobs(self):
+        """Returns associated runtime jobs if any."""
+        return self._job_service.runtime_jobs(self.job_id)
 
     def filtered_logs(self, **kwargs) -> str:
         """Returns logs of the job.
@@ -359,26 +368,59 @@ def update_status(status: str):
     return response.ok
 
 
-def _map_status_to_serverless(status: str) -> str:
-    """Map a status string from job client to the Qiskit terminology."""
-    status_map = {
-        Job.PENDING: "INITIALIZING",
-        Job.RUNNING: "RUNNING",
-        Job.STOPPED: "CANCELED",
-        Job.SUCCEEDED: "DONE",
-        Job.FAILED: "ERROR",
-        Job.QUEUED: "QUEUED",
-        Job.MAPPING: "RUNNING: MAPPING",
-        Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_FOR_HARDWARE",
-        Job.WAITING_QPU: "RUNNING: WAITING_FOR_QPU",
-        Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
-        Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
-    }
+STATUS_MAP = {
+    Job.PENDING: "INITIALIZING",
+    Job.RUNNING: "RUNNING",
+    Job.STOPPED: "CANCELED",
+    Job.SUCCEEDED: "DONE",
+    Job.FAILED: "ERROR",
+    Job.QUEUED: "QUEUED",
+    Job.MAPPING: "RUNNING: MAPPING",
+    Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_FOR_HARDWARE",
+    Job.WAITING_QPU: "RUNNING: WAITING_FOR_QPU",
+    Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
+    Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
+}
+
+INVERSE_STATUS_MAP = {value: key for key, value in STATUS_MAP.items()}
+
+
+def _map_status_from_serveless(status: str) -> str:
+    """Map a status string from serverless terminology to the Qiskit terminology."""
 
     try:
-        return status_map[status]
+        return STATUS_MAP[status]
     except KeyError:
         return status
+
+
+def _map_status_to_serverless(status: str) -> Tuple[str, Union[str, None]]:
+    """Map a status string from Qiskit terminology to the serverless terminology."""
+    try:
+        status_translation = INVERSE_STATUS_MAP[status]
+    except KeyError:
+        return status, None
+
+    if status.startswith("RUNNING:"):
+        return Job.RUNNING, status_translation
+    return status_translation, None
+
+
+def get_runtime_service(
+    channel: Optional[str] = None,
+    token: Optional[str] = None,
+    instance: Optional[str] = None,
+    url: Optional[str] = None,
+) -> ServerlessRuntimeService:
+    """Get an instance of ServerlessRuntimeService, a subclass of QiskitRuntimeService
+    that allows to associate runtime job ids to serverless job ids."""
+
+    return ServerlessRuntimeService(
+        channel=channel or os.environ["QISKIT_IBM_CHANNEL"],
+        instance=instance or os.environ["QISKIT_IBM_INSTANCE"],
+        token=token or os.environ["QISKIT_IBM_TOKEN"],
+        url=url or None,
+    )
 
 
 def is_running_in_serverless() -> bool:

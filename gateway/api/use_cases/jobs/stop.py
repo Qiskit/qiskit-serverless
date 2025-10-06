@@ -20,7 +20,7 @@ class StopJobUseCase:
     jobs_repository = JobsRepository()
     runtime_jobs_repository = RuntimeJobRepository()
 
-    def execute(self, job_id: UUID, service: str) -> str:
+    def execute(self, job_id: UUID, service_str: str) -> str:
         """
         Stop job.
 
@@ -29,45 +29,102 @@ class StopJobUseCase:
             service: service of the job
         """
         job = self.jobs_repository.get_job_by_id(job_id)
+
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        message = "Job has been stopped."
+        logger.debug("STOP JOB")
+        status_messages = []
 
         if not job.in_terminal_state():
+            logger.debug("JOB NOT IN TERMINAL STATE")
             job.status = Job.STOPPED
             job.save(update_fields=["status"])
+            # Keep original message for sort of backwards compatibility
+            status_messages.append("Job has been stopped.")
+        else:
+            status_messages.append("Job already in terminal state.")
+
+        # Unit tests send a None directly, but the client sends a serialized None
+        if service_str:
+            service = json.loads(service_str, cls=json.JSONDecoder)
+        else:
+            service = None
+        print("DECODED SERVICE %s", service)
 
         runtime_jobs = self.runtime_jobs_repository.get_runtime_job(job)
+        logger.debug("SERVICE INSIDE STOP: %s, %s", service, type(service))
+        logger.debug("RUNTIME JOBS INSIDE STOP: %s", runtime_jobs)
+
+        if not service:
+            status_messages.append(
+                f"QiskitRuntimeService not found. Cannot stop runtime jobs."
+            )
+        elif not runtime_jobs:
+            status_messages.append(
+                f"No active runtime job ID associated with this job ID."
+            )
 
         if runtime_jobs and service:
-            service_config = json.loads(service, cls=json.JSONDecoder)["__value__"]
+            service_config = service["__value__"]
             qiskit_service = QiskitRuntimeService(**service_config)
+            logger.debug("QISKIT SERVICE: %s", qiskit_service)
 
+            stopped_sessions = []
             for runtime_job_entry in runtime_jobs:
-                job_instance = qiskit_service.job(runtime_job_entry.runtime_job)
-                if job_instance:
-                    try:
-                        logger.info("canceling [%s]", runtime_job_entry.runtime_job)
-                        job_instance.cancel()
-                    except RuntimeInvalidStateError:
-                        logger.warning("cancel failed")
+                job_id_str = runtime_job_entry.runtime_job
+                session_id_str = runtime_job_entry.runtime_session
+                logger.debug("RUNTIME JOB: %s", job_id_str)
+                logger.debug("RUNTIME SESSION: %s", session_id_str)
 
-                    if job_instance.session_id:
-                        # pylint: disable=protected-access
-                        qiskit_service._get_api_client().cancel_session(
-                            job_instance.session_id
-                        )
+                job_instance = qiskit_service.job(job_id_str)
+
+                if job_instance:
+                    if session_id_str:
+                        if session_id_str in stopped_sessions:
+                            continue
+                        try:
+                            qiskit_service._get_api_client().cancel_session(
+                                session_id_str
+                            )
+                            status_messages.append(
+                                f"Cancelled runtime session: {session_id_str} and associated runtime jobs."
+                            )
+                            stopped_sessions.append(session_id_str)
+                        except Exception as e:
+                            status_messages.append(
+                                f"Runtime session {session_id_str} could not be cancelled. Exception: {e}"
+                            )
+                    else:
+                        # status_messages.append(f"Found runtime job ID: {job_id_str}")
+                        try:
+                            job_instance.cancel()
+                            # logger.info("Cancelled runtime job: [%s]", job_id_str)
+                            status_messages.append(
+                                f"Cancelled runtime job [{job_id_str}]."
+                            )
+                        except RuntimeInvalidStateError:
+                            # logger.warning("Failed to cancel runtime job: [%s]", job_id_str)
+                            status_messages.append(
+                                f"Runtime job {job_id_str} could not be cancelled (invalid state)."
+                            )
+                else:
+                    status_messages.append(
+                        f"Runtime job {job_id_str} not found in runtime service. Check your credentials."
+                    )
 
         if job.compute_resource and job.compute_resource.active:
             job_handler = get_job_handler(job.compute_resource.host)
             if job_handler is not None:
                 was_running = job_handler.stop(job.ray_job_id)
-                if not was_running:
-                    message = "Job was already not running."
+                if was_running:
+                    status_messages.append("Ray job was running and has been stopped.")
+                else:
+                    status_messages.append("Ray job was already not running.")
             else:
                 logger.warning(
-                    "Compute resource is not accessible %s", job.compute_resource
+                    "Ray compute resource is not accessible %s", job.compute_resource
                 )
+                status_messages.append("Ray compute resource not accessible.")
 
-        return message
+        return " ".join(status_messages)

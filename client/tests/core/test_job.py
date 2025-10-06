@@ -2,6 +2,7 @@
 
 # pylint: disable=too-few-public-methods
 import os
+import json
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
@@ -15,6 +16,7 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
     ENV_JOB_GATEWAY_TOKEN,
+    ENV_JOB_GATEWAY_INSTANCE,
     ENV_ACCESS_TRIAL,
 )
 from qiskit_serverless.core.job import (
@@ -35,6 +37,7 @@ def job_env_variables(monkeypatch):
         monkeypatch.setenv(ENV_JOB_GATEWAY_HOST, "https://awesome-tests.com/")
         monkeypatch.setenv(ENV_JOB_ID_GATEWAY, "42")
         monkeypatch.setenv(ENV_JOB_GATEWAY_TOKEN, "awesome-token")
+        monkeypatch.setenv(ENV_JOB_GATEWAY_INSTANCE, "awesome-instance")
         monkeypatch.setenv(ENV_ACCESS_TRIAL, "False")
         yield  # Restore the environment after the test runs
 
@@ -48,6 +51,7 @@ def trial_job_env_variables(monkeypatch):
         monkeypatch.setenv(ENV_JOB_GATEWAY_HOST, "https://awesome-tests.com/")
         monkeypatch.setenv(ENV_JOB_ID_GATEWAY, "42")
         monkeypatch.setenv(ENV_JOB_GATEWAY_TOKEN, "awesome-token")
+        monkeypatch.setenv(ENV_JOB_GATEWAY_INSTANCE, "awesome-instance")
         monkeypatch.setenv(ENV_ACCESS_TRIAL, "True")
         yield  # Restore the environment after the test runs
 
@@ -57,6 +61,26 @@ class ResponseMock:
 
     ok = True
     text = "{}"
+
+
+class ResponseMockWithRuntimeJobs:
+    """Mocked response for runtime_jobs endpoint."""
+
+    ok = True
+
+    def json(self):
+        "Serialize mock response"
+        return {
+            "runtime_jobs": [
+                {"runtime_job": "runtime_job_1", "runtime_session": "session_id_1"},
+                {"runtime_job": "runtime_job_2", "runtime_session": "session_id_2"},
+            ]
+        }
+
+    @property
+    def text(self):
+        "Response text"
+        return json.dumps(self.json())
 
 
 class TestJob:
@@ -92,7 +116,7 @@ class TestJob:
     def test_filtered_logs(self):
         """Tests job filtered log."""
         client = ServerlessClient(
-            host="host", token="token", instance="crn", version="version"
+            host="host", token="token", instance="instance", version="version"
         )
         client.logs = MagicMock(
             return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n",  # pylint: disable=line-too-long
@@ -111,7 +135,7 @@ class TestJob:
     def test_error_message(self):
         """Tests job filtered log."""
         client = ServerlessClient(
-            host="host", token="token", instance="crn", version="version"
+            host="host", token="token", instance="instance", version="version"
         )
         client.status = MagicMock(
             return_value="ERROR",
@@ -132,6 +156,27 @@ class TestJob:
             "This is the second line\n"
             "OK.  This is the last line.\n"
         ) == job.error_message()
+
+    @patch("requests.get", Mock(return_value=ResponseMockWithRuntimeJobs()))
+    @patch(
+        "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials",
+        Mock(),
+    )
+    def test_runtime_jobs(self):
+        """Tests job runtime_jobs retrieval."""
+        client = ServerlessClient(
+            host="host", token="token", instance="instance", version="v1"
+        )
+
+        job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
+        result = client.runtime_jobs(job_id)
+
+        runtime_jobs = result.get("runtime_jobs", [])
+        assert len(runtime_jobs) == 2
+        assert runtime_jobs[0]["runtime_job"] == "runtime_job_1"
+        assert runtime_jobs[0]["runtime_session"] == "session_id_1"
+        assert runtime_jobs[1]["runtime_job"] == "runtime_job_2"
+        assert runtime_jobs[1]["runtime_session"] == "session_id_2"
 
 
 class TestRunningAsServerlessProgram:
