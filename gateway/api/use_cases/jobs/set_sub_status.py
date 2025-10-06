@@ -44,27 +44,27 @@ class SetJobSubStatusUseCase:
         if not can_update_sub_status:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        def set_sub_status():
-            # If we import this with the regular imports,
-            # update jobs statuses test command fail.
-            # it should be something related with python import order.
-            from api.management.commands.update_jobs_statuses import (  # pylint: disable=import-outside-toplevel
-                update_job_status,
+        # If we import this with the regular imports,
+        # update jobs statuses test command fail.
+        # it should be something related with python import order.
+        from api.management.commands.update_jobs_statuses import (  # pylint: disable=import-outside-toplevel
+            update_job_status,
+        )
+
+        update_job_status(job)
+
+        if job.status != Job.RUNNING:
+            logger.warning(
+                "'sub_status' cannot change because the job"
+                " [%s] current status is not Running",
+                job.id,
+            )
+            raise ForbiddenError(
+                "Cannot update 'sub_status' when is not"
+                f" in RUNNING status. (Currently {job.status})"
             )
 
-            update_job_status(job)
-
-            if job.status != Job.RUNNING:
-                logger.warning(
-                    "'sub_status' cannot change because the job"
-                    " [%s] current status is not Running",
-                    job.id,
-                )
-                raise ForbiddenError(
-                    "Cannot update 'sub_status' when is not"
-                    f" in RUNNING status. (Currently {job.status})"
-                )
-
+        def set_sub_status():
             self.jobs_repository.update_job_sub_status(job, sub_status)
             return self.jobs_repository.get_job_by_id(job_id)
 
