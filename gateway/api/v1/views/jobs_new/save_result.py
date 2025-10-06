@@ -28,6 +28,11 @@ class InputSerializer(serializers.Serializer):
 
     result = serializers.DictField(required=True)
 
+    class Meta:
+        """Meta class to define input serializer name"""
+
+        ref_name = "JobsSaveResultInputSerializer"
+
 
 class ProgramSerializer(api_serializers.ProgramSerializer):
     """
@@ -46,6 +51,7 @@ class ProgramSerializer(api_serializers.ProgramSerializer):
             "documentation_url",
             "type",
         ]
+        ref_name = "JobsSaveResultProgramSerializer"
 
 
 class JobSerializer(api_serializers.JobSerializer):
@@ -57,6 +63,7 @@ class JobSerializer(api_serializers.JobSerializer):
 
     class Meta(api_serializers.JobSerializer.Meta):
         fields = ["id", "result", "status", "program", "created", "sub_status"]
+        ref_name = "JobsSaveResultJobSerializer"
 
 
 def serialize_output(job: Job):
