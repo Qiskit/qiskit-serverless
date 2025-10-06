@@ -45,7 +45,11 @@ class StopJobUseCase:
         else:
             status_messages.append("Job already in terminal state.")
 
-        service = json.loads(service_str, cls=json.JSONDecoder)
+        # Unit tests send a None directly, but the client sends a serialized None
+        if service_str:
+            service = json.loads(service_str, cls=json.JSONDecoder)
+        else:
+            service = None
         print("DECODED SERVICE %s", service)
 
         runtime_jobs = self.runtime_jobs_repository.get_runtime_job(job)
