@@ -368,40 +368,6 @@ def update_status(status: str):
     return response.ok
 
 
-def get_runtime_service(
-    channel: Optional[str] = None,
-    token: Optional[str] = None,
-    instance: Optional[str] = None,
-    url: Optional[str] = None,
-) -> ServerlessRuntimeService:
-    """Get an instance of ServerlessRuntimeService, a subclass of QiskitRuntimeService
-    that allows to associate runtime job ids to serverless job ids."""
-
-    return ServerlessRuntimeService(
-        channel=channel or os.environ["QISKIT_IBM_CHANNEL"],
-        instance=instance or os.environ["QISKIT_IBM_INSTANCE"],
-        token=token or os.environ["QISKIT_IBM_TOKEN"],
-        url=url or None,
-    )
-
-
-def _map_status_to_serverless(status: str) -> str:
-    """Map a status string from job client to the Qiskit terminology."""
-    status_map = {
-        Job.PENDING: "INITIALIZING",
-        Job.RUNNING: "RUNNING",
-        Job.STOPPED: "CANCELED",
-        Job.SUCCEEDED: "DONE",
-        Job.FAILED: "ERROR",
-        Job.QUEUED: "QUEUED",
-        Job.MAPPING: "RUNNING: MAPPING",
-        Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_FOR_HARDWARE",
-        Job.WAITING_QPU: "RUNNING: WAITING_FOR_QPU",
-        Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
-        Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
-    }
-
-
 STATUS_MAP = {
     Job.PENDING: "INITIALIZING",
     Job.RUNNING: "RUNNING",
@@ -438,6 +404,23 @@ def _map_status_to_serverless(status: str) -> Tuple[str, Union[str, None]]:
     if status.startswith("RUNNING:"):
         return Job.RUNNING, status_translation
     return status_translation, None
+
+
+def get_runtime_service(
+    channel: Optional[str] = None,
+    token: Optional[str] = None,
+    instance: Optional[str] = None,
+    url: Optional[str] = None,
+) -> ServerlessRuntimeService:
+    """Get an instance of ServerlessRuntimeService, a subclass of QiskitRuntimeService
+    that allows to associate runtime job ids to serverless job ids."""
+
+    return ServerlessRuntimeService(
+        channel=channel or os.environ["QISKIT_IBM_CHANNEL"],
+        instance=instance or os.environ["QISKIT_IBM_INSTANCE"],
+        token=token or os.environ["QISKIT_IBM_TOKEN"],
+        url=url or None,
+    )
 
 
 def is_running_in_serverless() -> bool:
