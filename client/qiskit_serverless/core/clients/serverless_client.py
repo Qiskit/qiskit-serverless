@@ -31,6 +31,7 @@ import os.path
 import os
 import re
 import tarfile
+import warnings
 from pathlib import Path
 from dataclasses import asdict
 from typing import Optional, List, Dict, Any, Union
@@ -377,42 +378,25 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
-        # path for unit testing
-
         if service:
-            print("IF SERVICE", service)
             data = {
                 "service": json.dumps(service, cls=QiskitObjectsEncoder),
             }
         else:
-
             try:
-                if self.instance in ["an_awesome_crn", "awesome_instance"]:
-                    instance = os.environ["QISKIT_IBM_INSTANCE"]
-                else:
-                    instance = self.instance
-
-                if self.token == "awesome_token":
-                    token = os.environ["QISKIT_IBM_TOKEN"]
-                else:
-                    token = self.token
-
                 service = QiskitRuntimeService(
-                    channel=self.channel, instance=instance, token=token
+                    channel=self.channel, instance=self.instance, token=self.token
                 )
                 data = {
                     "service": json.dumps(service, cls=QiskitObjectsEncoder),
                 }
-
-            except KeyError:
-                print(
+            except InvalidAccountError:
+                warnings.warn(
                     "No QiskitRuntimeService can be associated to the given token and instance. "
                     "Continuing without a QiskitRuntimeService."
                 )
-
                 data = {"service": json.dumps(None, cls=QiskitObjectsEncoder)}
 
-        print("DATA", data)
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
