@@ -404,7 +404,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     "service": json.dumps(service, cls=QiskitObjectsEncoder),
                 }
 
-            except KeyError as e:
+            except KeyError:
                 print(
                     "No QiskitRuntimeService can be associated to the given token and instance. "
                     "Continuing without a QiskitRuntimeService."
