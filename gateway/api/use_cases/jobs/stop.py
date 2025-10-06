@@ -53,9 +53,13 @@ class StopJobUseCase:
         logger.debug("RUNTIME JOBS INSIDE STOP: %s", runtime_jobs)
 
         if not service:
-            status_messages.append(f"QiskitRuntimeService not found. Cannot stop runtime jobs.")
+            status_messages.append(
+                f"QiskitRuntimeService not found. Cannot stop runtime jobs."
+            )
         elif not runtime_jobs:
-            status_messages.append(f"No active runtime job ID associated with this job ID.")
+            status_messages.append(
+                f"No active runtime job ID associated with this job ID."
+            )
 
         if runtime_jobs and service:
             service_config = service["__value__"]
@@ -76,22 +80,34 @@ class StopJobUseCase:
                         if session_id_str in stopped_sessions:
                             continue
                         try:
-                            qiskit_service._get_api_client().cancel_session(session_id_str)
-                            status_messages.append(f"Cancelled runtime session: {session_id_str} and associated runtime jobs.")
+                            qiskit_service._get_api_client().cancel_session(
+                                session_id_str
+                            )
+                            status_messages.append(
+                                f"Cancelled runtime session: {session_id_str} and associated runtime jobs."
+                            )
                             stopped_sessions.append(session_id_str)
                         except Exception as e:
-                            status_messages.append(f"Runtime session {session_id_str} could not be cancelled. Exception: {e}")
+                            status_messages.append(
+                                f"Runtime session {session_id_str} could not be cancelled. Exception: {e}"
+                            )
                     else:
                         # status_messages.append(f"Found runtime job ID: {job_id_str}")
                         try:
                             job_instance.cancel()
                             # logger.info("Cancelled runtime job: [%s]", job_id_str)
-                            status_messages.append(f"Cancelled runtime job [{job_id_str}].")
+                            status_messages.append(
+                                f"Cancelled runtime job [{job_id_str}]."
+                            )
                         except RuntimeInvalidStateError:
                             # logger.warning("Failed to cancel runtime job: [%s]", job_id_str)
-                            status_messages.append(f"Runtime job {job_id_str} could not be cancelled (invalid state).")
+                            status_messages.append(
+                                f"Runtime job {job_id_str} could not be cancelled (invalid state)."
+                            )
                 else:
-                    status_messages.append(f"Runtime job {job_id_str} not found in runtime service. Check your credentials.")
+                    status_messages.append(
+                        f"Runtime job {job_id_str} not found in runtime service. Check your credentials."
+                    )
 
         if job.compute_resource and job.compute_resource.active:
             job_handler = get_job_handler(job.compute_resource.host)
@@ -102,7 +118,9 @@ class StopJobUseCase:
                 else:
                     status_messages.append("Ray job was already not running.")
             else:
-                logger.warning("Ray compute resource is not accessible %s", job.compute_resource)
+                logger.warning(
+                    "Ray compute resource is not accessible %s", job.compute_resource
+                )
                 status_messages.append("Ray compute resource not accessible.")
 
         return " ".join(status_messages)

@@ -400,6 +400,8 @@ def _map_status_to_serverless(status: str) -> str:
         Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
         Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
     }
+
+
 STATUS_MAP = {
     Job.PENDING: "INITIALIZING",
     Job.RUNNING: "RUNNING",
