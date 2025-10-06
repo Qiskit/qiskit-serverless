@@ -83,4 +83,7 @@ class TestFunctionsStaging:
 
         # Validate the response
         assert isinstance(stop_response, str)
+        assert "Job has been stopped" in stop_response
+        assert "QiskitRuntimeService not found" in stop_response
         assert job.status() == "CANCELED"
+

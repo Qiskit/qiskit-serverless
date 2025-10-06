@@ -6,7 +6,7 @@ import os
 from qiskit import QuantumCircuit
 from qiskit_ibm_runtime import SamplerV2, Session, QiskitRuntimeService
 
-from qiskit_serverless import save_result
+from qiskit_serverless import save_result, ServerlessRuntimeService
 
 warnings.filterwarnings(
     "ignore",
@@ -14,7 +14,7 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
-service = QiskitRuntimeService(
+service = ServerlessRuntimeService(
     channel=os.environ["QISKIT_IBM_CHANNEL"],
     instance=os.environ["QISKIT_IBM_INSTANCE"],
     token=os.environ["QISKIT_IBM_TOKEN"],
@@ -22,7 +22,7 @@ service = QiskitRuntimeService(
 )
 
 backends = service.backends()
-backend = service.backend("ibm_genova")
+backend = service.backend("test_eagle2")
 session = Session(backend=backend)
 sampler = SamplerV2(mode=session)
 
@@ -34,7 +34,9 @@ out2 = sampler.run([qc])
 job_id_1 = out1.job_id()
 job_id_2 = out2.job_id()
 
-
+print("JOB IDS", job_id_1, job_id_2)
+out1.result()
+out2.result()
 save_result(
     {
         "backends": [back.name for back in backends],

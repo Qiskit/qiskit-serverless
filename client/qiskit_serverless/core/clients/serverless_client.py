@@ -373,30 +373,41 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     @_trace_job
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
         # path for unit testing
-        if self.instance in ["an_awesome_crn", "awesome_instance"]:
-            instance = os.environ["QISKIT_IBM_INSTANCE"]
-        else:
-            instance = self.instance
-        if self.token == "awesome_token":
-            token = os.environ["QISKIT_IBM_TOKEN"]
-        else:
-            token = self.token
 
         if service:
+            print("IF SERVICE", service)
             data = {
                 "service": json.dumps(service, cls=QiskitObjectsEncoder),
             }
         else:
+
             try:
+                if self.instance in ["an_awesome_crn", "awesome_instance"]:
+                    instance = os.environ["QISKIT_IBM_INSTANCE"]
+                else:
+                    instance = self.instance
+
+                if self.token == "awesome_token":
+                    token = os.environ["QISKIT_IBM_TOKEN"]
+                else:
+                    token = self.token
+
                 service = QiskitRuntimeService(
                     channel=self.channel, instance=instance, token=token
                 )
                 data = {
                     "service": json.dumps(service, cls=QiskitObjectsEncoder),
                 }
-            except Exception as e:
-                raise e
 
+            except KeyError as e:
+                print("No QiskitRuntimeService can be associated to the given token and instance. " \
+                "Continuing without a QiskitRuntimeService.")
+
+                data = {
+                    "service": json.dumps(None, cls=QiskitObjectsEncoder)
+                }
+
+        print("DATA", data)
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
