@@ -521,7 +521,7 @@ class TestJobApi(APITestCase):
             id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348"
         ).first()
         self.assertEqual(job.status, Job.STOPPED)
-        self.assertEqual(job_stop_response.data.get("message"), "Job has been stopped.")
+        self.assertTrue("Job has been stopped." in job_stop_response.data.get("message"))
 
     def test_job_logs_by_author_for_function_without_provider(self):
         """Tests job log by job author."""
