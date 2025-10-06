@@ -34,7 +34,7 @@ import logging
 import os
 import time
 import warnings
-from typing import ClassVar, Dict, Any, Literal, Optional, Union
+from typing import ClassVar, Dict, Any, Literal, Optional, Tuple, Union
 from dataclasses import dataclass
 
 import ray.runtime_env
@@ -165,7 +165,7 @@ class Job:
 
     def status(self):
         """Returns status of the job."""
-        return _map_status_to_serverless(self._job_service.status(self.job_id))
+        return _map_status_from_serveless(self._job_service.status(self.job_id))
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
@@ -400,11 +400,42 @@ def _map_status_to_serverless(status: str) -> str:
         Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
         Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
     }
+STATUS_MAP = {
+    Job.PENDING: "INITIALIZING",
+    Job.RUNNING: "RUNNING",
+    Job.STOPPED: "CANCELED",
+    Job.SUCCEEDED: "DONE",
+    Job.FAILED: "ERROR",
+    Job.QUEUED: "QUEUED",
+    Job.MAPPING: "RUNNING: MAPPING",
+    Job.OPTIMIZING_HARDWARE: "RUNNING: OPTIMIZING_FOR_HARDWARE",
+    Job.WAITING_QPU: "RUNNING: WAITING_FOR_QPU",
+    Job.EXECUTING_QPU: "RUNNING: EXECUTING_QPU",
+    Job.POST_PROCESSING: "RUNNING: POST_PROCESSING",
+}
+
+INVERSE_STATUS_MAP = {value: key for key, value in STATUS_MAP.items()}
+
+
+def _map_status_from_serveless(status: str) -> str:
+    """Map a status string from serverless terminology to the Qiskit terminology."""
 
     try:
-        return status_map[status]
+        return STATUS_MAP[status]
     except KeyError:
         return status
+
+
+def _map_status_to_serverless(status: str) -> Tuple[str, Union[str, None]]:
+    """Map a status string from Qiskit terminology to the serverless terminology."""
+    try:
+        status_translation = INVERSE_STATUS_MAP[status]
+    except KeyError:
+        return status, None
+
+    if status.startswith("RUNNING:"):
+        return Job.RUNNING, status_translation
+    return status_translation, None
 
 
 def is_running_in_serverless() -> bool:
