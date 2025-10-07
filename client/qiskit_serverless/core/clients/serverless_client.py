@@ -192,7 +192,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     ####################
 
     @_trace_job("list")
-    def jobs(self, function: Optional[QiskitFunction], **kwargs) -> List[Job]:
+    def jobs(self, function: Optional[QiskitFunction] = None, **kwargs) -> List[Job]:
         """Retrieve a list of jobs with optional filtering.
 
         Args:

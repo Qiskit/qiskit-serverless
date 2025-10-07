@@ -97,7 +97,7 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
     ####### JOBS #######
     ####################
     @abstractmethod
-    def jobs(self, function: QiskitFunction, **kwargs) -> List[Job]:
+    def jobs(self, function: Optional[QiskitFunction] = None, **kwargs) -> List[Job]:
         """Return list of jobs.
 
         Returns:
