@@ -461,6 +461,8 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job
     def runtime_sessions(self, job_id: str):
+        """Retrieve Qiskit IBM Runtime session ids that correspond to a
+        given serverless job_id execution."""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtime_jobs/",

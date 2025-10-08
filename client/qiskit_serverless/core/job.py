@@ -104,7 +104,7 @@ class JobService(ABC):
         """Return logs."""
 
     @abstractmethod
-    def runtime_jobs(self, job_id: str):
+    def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None):
         """Return associated runtime jobs"""
 
     @abstractmethod

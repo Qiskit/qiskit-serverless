@@ -1,6 +1,10 @@
-# source_files/pattern_with_runtime_wrapper_2.py
+"""Qiskit Function code that instantiates a service with 
+get_runtime_service and submits 2 jobs within 2 sessions."""
+
+# pylint: disable=duplicate-code
 
 import warnings
+import os
 
 from qiskit import QuantumCircuit
 from qiskit_ibm_runtime import SamplerV2, Session
@@ -13,7 +17,7 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
-service = get_runtime_service(url="https://test.cloud.ibm.com")
+service = get_runtime_service(url=os.environ["QISKIT_IBM_URL_STAGING"])
 
 backends = service.backends()
 backend1 = service.backend("test_eagle")

@@ -159,7 +159,7 @@ class RayClient(BaseClient):
         """Return filtered logs."""
         raise NotImplementedError
 
-    def runtime_jobs(self, job_id: str):
+    def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None):
         """Return runtime jobs."""
         raise NotImplementedError
 

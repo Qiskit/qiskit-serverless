@@ -1,5 +1,5 @@
 # pylint: disable=import-error, invalid-name
-"""Tests jobs."""
+"""Tests jobs using Qiskit Runtime's staging resources."""
 import os
 
 from qiskit_ibm_runtime import QiskitRuntimeService
@@ -17,8 +17,11 @@ class TestFunctionsStaging:
     """Integration tests for runtime wrapper with and without session."""
 
     def _run_and_validate_function(
-        self, serverless_client: ServerlessClient, entrypoint: str
+        self, serverless_client: ServerlessClient, entrypoint: str, num_jobs: int
     ):
+        """Run function with given entrypoint and check that runtime job ids and
+        session ids reported by the serverless API match those stored at job submission
+        time."""
         function = QiskitFunction(
             title="test-runtime-wrapper",
             entrypoint=entrypoint,
@@ -27,6 +30,7 @@ class TestFunctionsStaging:
                 "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
                 "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
                 "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
+                "QISKIT_IBM_URL_STAGING": os.environ["QISKIT_IBM_URL_STAGING"],
             },
         )
         serverless_client.upload(function)
@@ -39,7 +43,7 @@ class TestFunctionsStaging:
 
         reference_job_ids = result["results"][0]
         reference_session_ids = result["results"][1]
-        assert len(reference_job_ids) == 2
+        assert len(reference_job_ids) == num_jobs
 
         runtime_job_ids = serverless_client.runtime_jobs(job.job_id)
         session_ids = serverless_client.runtime_sessions(job.job_id)
@@ -47,24 +51,15 @@ class TestFunctionsStaging:
         assert runtime_job_ids == reference_job_ids
         assert session_ids == reference_session_ids
 
+        # stop runtime jobs after running to avoid wasting resources
         service = QiskitRuntimeService(
             channel="ibm_quantum_platform",
             token=os.environ["QISKIT_IBM_TOKEN"],
             instance=os.environ["QISKIT_IBM_INSTANCE"],
-            url="https://test.cloud.ibm.com",
+            url=os.environ["QISKIT_IBM_URL_STAGING"],
         )
 
         job.stop(service)
-
-    def test_jobs_no_session(self, serverless_client: ServerlessClient):
-        self._run_and_validate_function(
-            serverless_client, "pattern_with_runtime_wrapper_1.py"
-        )
-
-    def test_jobs_with_session(self, serverless_client: ServerlessClient):
-        self._run_and_validate_function(
-            serverless_client, "pattern_with_runtime_wrapper_2.py"
-        )
 
     def test_stop_job(self, serverless_client: ServerlessClient):
         """Integration test for stopping a job."""
@@ -77,6 +72,7 @@ class TestFunctionsStaging:
                 "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
                 "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
                 "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
+                "QISKIT_IBM_URL_STAGING": os.environ["QISKIT_IBM_URL_STAGING"],
             },
         )
 
@@ -110,6 +106,7 @@ class TestFunctionsStaging:
                 "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
                 "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
                 "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
+                "QISKIT_IBM_URL_STAGING": os.environ["QISKIT_IBM_URL_STAGING"],
             },
         )
 
@@ -127,7 +124,7 @@ class TestFunctionsStaging:
             channel="ibm_quantum_platform",
             token=os.environ["QISKIT_IBM_TOKEN"],
             instance=os.environ["QISKIT_IBM_INSTANCE"],
-            url="https://test.cloud.ibm.com",
+            url=os.environ["QISKIT_IBM_URL_STAGING"],
         )
 
         # Attempt to stop the job
@@ -136,5 +133,17 @@ class TestFunctionsStaging:
         # Validate the response
         assert isinstance(stop_response, str)
         assert "Job has been stopped" in stop_response
-        assert "Cancelled runtime session" in stop_response
+        assert "Canceled runtime session" in stop_response
         assert job.status() == "CANCELED"
+
+    def test_jobs_no_session(self, serverless_client: ServerlessClient):
+        """Test job submission with get_runtime_service without sessions."""
+        self._run_and_validate_function(
+            serverless_client, "pattern_with_runtime_wrapper_1.py", num_jobs=2
+        )
+
+    def test_jobs_with_session(self, serverless_client: ServerlessClient):
+        """Test job submission with get_runtime_service with sessions."""
+        self._run_and_validate_function(
+            serverless_client, "pattern_with_runtime_wrapper_2.py", num_jobs=4
+        )

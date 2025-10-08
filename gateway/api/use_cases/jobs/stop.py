@@ -33,14 +33,11 @@ class StopJobUseCase:
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        logger.debug("STOP JOB")
         status_messages = []
 
         if not job.in_terminal_state():
-            logger.debug("JOB NOT IN TERMINAL STATE")
             job.status = Job.STOPPED
             job.save(update_fields=["status"])
-            # Keep original message for sort of backwards compatibility
             status_messages.append("Job has been stopped.")
         else:
             status_messages.append("Job already in terminal state.")
@@ -50,15 +47,10 @@ class StopJobUseCase:
             service = json.loads(service_str, cls=json.JSONDecoder)
         else:
             service = None
-        print("DECODED SERVICE %s", service)
-
         runtime_jobs = self.runtime_jobs_repository.get_runtime_job(job)
-        logger.debug("SERVICE INSIDE STOP: %s, %s", service, type(service))
-        logger.debug("RUNTIME JOBS INSIDE STOP: %s", runtime_jobs)
-
         if not service:
             status_messages.append(
-                f"QiskitRuntimeService not found. Cannot stop runtime jobs."
+                f"QiskitRuntimeService not found, cannot stop runtime jobs."
             )
         elif not runtime_jobs:
             status_messages.append(
@@ -68,15 +60,11 @@ class StopJobUseCase:
         if runtime_jobs and service:
             service_config = service["__value__"]
             qiskit_service = QiskitRuntimeService(**service_config)
-            logger.debug("QISKIT SERVICE: %s", qiskit_service)
 
             stopped_sessions = []
             for runtime_job_entry in runtime_jobs:
                 job_id_str = runtime_job_entry.runtime_job
                 session_id_str = runtime_job_entry.runtime_session
-                logger.debug("RUNTIME JOB: %s", job_id_str)
-                logger.debug("RUNTIME SESSION: %s", session_id_str)
-
                 job_instance = qiskit_service.job(job_id_str)
 
                 if job_instance:
@@ -88,29 +76,27 @@ class StopJobUseCase:
                                 session_id_str
                             )
                             status_messages.append(
-                                f"Cancelled runtime session: {session_id_str} and associated runtime jobs."
+                                f"Canceled runtime session: {session_id_str} and associated runtime jobs."
                             )
                             stopped_sessions.append(session_id_str)
                         except Exception as e:
                             status_messages.append(
-                                f"Runtime session {session_id_str} could not be cancelled. Exception: {e}"
+                                f"Runtime session {session_id_str} could not be canceled. Exception: {e}"
                             )
                     else:
-                        # status_messages.append(f"Found runtime job ID: {job_id_str}")
                         try:
                             job_instance.cancel()
-                            # logger.info("Cancelled runtime job: [%s]", job_id_str)
                             status_messages.append(
-                                f"Cancelled runtime job [{job_id_str}]."
+                                f"Canceled runtime job [{job_id_str}]."
                             )
                         except RuntimeInvalidStateError:
-                            # logger.warning("Failed to cancel runtime job: [%s]", job_id_str)
                             status_messages.append(
-                                f"Runtime job {job_id_str} could not be cancelled (invalid state)."
+                                f"Runtime job {job_id_str} could not be canceled (invalid state)."
                             )
                 else:
                     status_messages.append(
-                        f"Runtime job {job_id_str} not found in runtime service. Check your credentials."
+                        f"Runtime job {job_id_str} not found in runtime service. "
+                        "Check that credentials used to authenticate match."
                     )
 
         if job.compute_resource and job.compute_resource.active:

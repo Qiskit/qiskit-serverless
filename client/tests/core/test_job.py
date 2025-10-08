@@ -172,7 +172,7 @@ class TestJob:
         runtime_sessions = client.runtime_sessions(job_id)
 
         assert len(runtime_sessions) == 2
-        assert runtime_sessions == ["runtime_session_1", "runtime_session_2"]
+        assert runtime_sessions == ["session_id_1", "session_id_2"]
 
     @patch("requests.get", Mock(return_value=ResponseMockWithRuntimeJobs()))
     @patch(

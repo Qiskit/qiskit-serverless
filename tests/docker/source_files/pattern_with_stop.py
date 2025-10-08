@@ -1,12 +1,15 @@
-# source_files/pattern_with_runtime_wrapper_2.py
+"""Qiskit Function code that instantiates a service with 
+get_runtime_service and submits 2 jobs within a session."""
+
+# pylint: disable=duplicate-code
 
 import warnings
 import os
 
 from qiskit import QuantumCircuit
-from qiskit_ibm_runtime import SamplerV2, Session, QiskitRuntimeService
+from qiskit_ibm_runtime import SamplerV2, Session
 
-from qiskit_serverless import save_result, ServerlessRuntimeService
+from qiskit_serverless import save_result, get_runtime_service
 
 warnings.filterwarnings(
     "ignore",
@@ -14,12 +17,7 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
-service = ServerlessRuntimeService(
-    channel=os.environ["QISKIT_IBM_CHANNEL"],
-    instance=os.environ["QISKIT_IBM_INSTANCE"],
-    token=os.environ["QISKIT_IBM_TOKEN"],
-    url="https://test.cloud.ibm.com",
-)
+service = get_runtime_service(url=os.environ["QISKIT_IBM_URL_STAGING"])
 
 backends = service.backends()
 backend = service.backend("test_eagle2")
@@ -34,6 +32,9 @@ out2 = sampler.run([qc])
 job_id_1 = out1.job_id()
 job_id_2 = out2.job_id()
 
+# This print is saved in the logs and used in the
+# test to determine that the jobs have been submitted
+# before stopping them
 print("JOB IDS", job_id_1, job_id_2)
 out1.result()
 out2.result()
