@@ -31,8 +31,8 @@ save_result(
     {
         "backends": [back.name for back in backends],
         "results": [
-            [out1.job_id(), None],
-            [out2.job_id(), None],
+            [out1.job_id(), out1.job_id()],
+            [],
         ],
     }
 )

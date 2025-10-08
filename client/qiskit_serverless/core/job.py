@@ -185,9 +185,15 @@ class Job:
         """Returns logs of the job."""
         return self._job_service.logs(self.job_id)
 
-    def runtime_jobs(self):
+    def runtime_jobs(self, runtime_session: Optional[str] = None):
         """Returns associated runtime jobs if any."""
-        return self._job_service.runtime_jobs(self.job_id)
+        return self._job_service.runtime_jobs(
+            self.job_id, runtime_session=runtime_session
+        )
+
+    def runtime_sessions(self):
+        """Returns associated runtime sessions if any."""
+        return self._job_service.runtime_sessions(self.job_id)
 
     def filtered_logs(self, **kwargs) -> str:
         """Returns logs of the job.

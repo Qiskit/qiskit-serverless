@@ -440,7 +440,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         return response_data.get("logs")
 
     @_trace_job
-    def runtime_jobs(self, job_id: str):
+    def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None):
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtime_jobs/",
@@ -450,9 +450,32 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 timeout=REQUESTS_TIMEOUT,
             )
         )
-        # if not include_session:
-        #     return [job.get("runtime_job") for job in response_data]
-        return response_data
+
+        if runtime_session:
+            return [
+                job.get("runtime_job")
+                for job in response_data.get("runtime_jobs", [])
+                if job.get("runtime_session") == runtime_session
+            ]
+        return [job.get("runtime_job") for job in response_data.get("runtime_jobs", [])]
+
+    @_trace_job
+    def runtime_sessions(self, job_id: str):
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtime_jobs/",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        out_sessions = []
+        for job in response_data.get("runtime_jobs", []):
+            session = job.get("runtime_session")
+            if session and not session in out_sessions:
+                out_sessions.append(session)
+        return out_sessions
 
     def filtered_logs(self, job_id: str, **kwargs):
         all_logs = self.logs(job_id=job_id)

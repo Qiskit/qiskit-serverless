@@ -37,13 +37,12 @@ class TestFunctionsStaging:
 
         assert result and "test_eagle" in result["backends"]
 
-        reference_job_ids = [res[0] for res in result["results"]]
-        reference_session_ids = [res[1] for res in result["results"]]
+        reference_job_ids = result["results"][0]
+        reference_session_ids = result["results"][1]
         assert len(reference_job_ids) == 2
 
-        runtime_jobs = serverless_client.runtime_jobs(job.job_id)["runtime_jobs"]
-        runtime_job_ids = [job["runtime_job"] for job in runtime_jobs]
-        session_ids = [job["runtime_session"] for job in runtime_jobs]
+        runtime_job_ids = serverless_client.runtime_jobs(job.job_id)
+        session_ids = serverless_client.runtime_sessions(job.job_id)
 
         assert runtime_job_ids == reference_job_ids
         assert session_ids == reference_session_ids

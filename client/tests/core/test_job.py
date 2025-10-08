@@ -162,21 +162,38 @@ class TestJob:
         "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials",
         Mock(),
     )
-    def test_runtime_jobs(self):
-        """Tests job runtime_jobs retrieval."""
+    def test_runtime_sessions(self):
+        """Tests runtime session ids retrieval for serverless job."""
         client = ServerlessClient(
             host="host", token="token", instance="instance", version="v1"
         )
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
-        result = client.runtime_jobs(job_id)
+        runtime_sessions = client.runtime_sessions(job_id)
 
-        runtime_jobs = result.get("runtime_jobs", [])
+        assert len(runtime_sessions) == 2
+        assert runtime_sessions == ["runtime_session_1", "runtime_session_2"]
+
+    @patch("requests.get", Mock(return_value=ResponseMockWithRuntimeJobs()))
+    @patch(
+        "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials",
+        Mock(),
+    )
+    def test_runtime_jobs(self):
+        """Tests runtime job ids retrieval for serverless job."""
+        client = ServerlessClient(
+            host="host", token="token", instance="instance", version="v1"
+        )
+
+        job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
+        runtime_jobs = client.runtime_jobs(job_id)
+
         assert len(runtime_jobs) == 2
-        assert runtime_jobs[0]["runtime_job"] == "runtime_job_1"
-        assert runtime_jobs[0]["runtime_session"] == "session_id_1"
-        assert runtime_jobs[1]["runtime_job"] == "runtime_job_2"
-        assert runtime_jobs[1]["runtime_session"] == "session_id_2"
+        assert runtime_jobs == ["runtime_job_1", "runtime_job_2"]
+
+        runtime_sessions = client.runtime_sessions(job_id)
+        session_job = client.runtime_jobs(job_id, runtime_sessions[0])
+        assert session_job == ["runtime_job_1"]
 
 
 class TestRunningAsServerlessProgram:
