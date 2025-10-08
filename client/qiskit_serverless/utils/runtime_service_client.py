@@ -27,14 +27,11 @@ Qiskit Serverless runtime client wrapper
 """
 import os
 import logging
-from typing import Callable, Dict, Sequence, Type, Union, Optional
+from typing import Dict, Optional
 
 import requests
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_ibm_runtime.runtime_job import RuntimeJob
 from qiskit_ibm_runtime.runtime_job_v2 import RuntimeJobV2
-from qiskit_ibm_runtime.runtime_options import RuntimeOptions
-from qiskit_ibm_runtime.utils.result_decoder import ResultDecoder
 
 from qiskit_serverless.core.constants import (
     ENV_JOB_GATEWAY_INSTANCE,
@@ -99,27 +96,19 @@ class ServerlessRuntimeService(QiskitRuntimeService):
         QiskitRuntimeService (QiskitRuntimeService): Qiskit runtime service object.
     """
 
-    def run(  # pylint:  disable=too-many-positional-arguments
+    def _run(
         self,
         program_id: str,
         inputs: Dict,
-        options: Optional[Union[RuntimeOptions, Dict]] = None,
-        callback: Optional[Callable] = None,
-        result_decoder: Optional[
-            Union[Type[ResultDecoder], Sequence[Type[ResultDecoder]]]
-        ] = None,
-        session_id: Optional[str] = None,
-        start_session: Optional[bool] = False,
-    ) -> Union[RuntimeJob, RuntimeJobV2]:
-        """Run a serverless Runtime service job."""
+        *args,
+        **kwargs,
+    ) -> RuntimeJobV2:
+        """Run a job on the associated QiskitRuntimeService."""
         runtime_job = super()._run(
             program_id,
             inputs,
-            options,
-            callback,
-            result_decoder,
-            session_id,
-            start_session,
+            *args,
+            **kwargs,
         )
         associate_runtime_job_with_serverless_job(
             runtime_job.job_id(), runtime_job.session_id
