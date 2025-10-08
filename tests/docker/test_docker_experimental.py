@@ -35,8 +35,10 @@ class TestDockerExperimental:
 
         job = file_producer_function.run()
 
+        # pylint: disable=duplicate-code
         assert job is not None
         assert job.result() is not None
+        assert job.result() == {"Message": "my_file.txt archived into my_file.tar"}
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
@@ -60,7 +62,8 @@ class TestDockerExperimental:
 
         job = file_consumer_function.run()
         assert job is not None
-        assert job.result() is not None
+        assert job.result()
+        assert job.result() == {"Message": "Hello"}
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
