@@ -12,7 +12,7 @@ circuit = arguments.get("circuit")
 
 sampler = Sampler()
 
-quasi_dists = sampler.run([(circuit)]).result()[0].data.meas.get_counts()
+quasi_dists = sampler.run([circuit]).result()[0].data.meas.get_counts()
 
 print(f"Quasi distribution: {quasi_dists}")
 
