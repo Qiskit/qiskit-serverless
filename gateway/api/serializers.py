@@ -207,6 +207,8 @@ class RuntimeJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RuntimeJob
+        # This is needed even if overidden in the v1 implementation
+        fields = "__all__"
 
 
 class JobSerializer(serializers.ModelSerializer):
@@ -214,7 +216,7 @@ class JobSerializer(serializers.ModelSerializer):
     Serializer for the job model.
     """
 
-    runtime_jobs = RuntimeJobSerializer(many=True, read_only=True)
+    program = ProgramSerializer(many=False)
 
     class Meta:
         model = Job
@@ -227,7 +229,6 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = ["runtime_job", "runtime_session"]
 
 
 class RunProgramSerializer(serializers.Serializer):
