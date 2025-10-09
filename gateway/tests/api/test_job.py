@@ -1,6 +1,7 @@
 """Tests jobs APIs."""
 
 import os
+import json
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -352,15 +353,15 @@ class TestJobApi(APITestCase):
             jobs_response = self.client.post(
                 reverse("v1:jobs-result", args=[job_id]),
                 format="json",
-                data={"result": {"ultimate": 42}},
+                data={"result": json.dumps({"ultimate": 42})},
             )
-            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-            self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
             result_path = os.path.join(
                 settings.MEDIA_ROOT, "test_user", "results", f"{job_id}.json"
             )
             self.assertTrue(os.path.exists(result_path))
             os.remove(result_path)
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
 
     def test_not_authorized_job_save_result(self):
         """Tests job results save."""
@@ -369,7 +370,7 @@ class TestJobApi(APITestCase):
         jobs_response = self.client.post(
             reverse("v1:jobs-result", args=[job_id]),
             format="json",
-            data={"result": {"ultimate": 42}},
+            data={"result": json.dumps({"ultimate": 42})},
         )
 
         self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)

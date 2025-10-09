@@ -30,7 +30,7 @@ def hello_qiskit():
     circuit.draw()
 
     sampler = Sampler()
-    quasi_dists = sampler.run([(circuit)]).result()[0].data.meas.get_counts()
+    quasi_dists = sampler.run([circuit]).result()[0].data.meas.get_counts()
 
     return quasi_dists
 
@@ -49,12 +49,12 @@ print(job.logs())
 @distribute_task(target={"cpu": 1})
 def distributed_sample(circuit: QuantumCircuit):
     """Distributed task that returns quasi distribution for given circuit."""
-    return Sampler().run([(circuit)]).result()[0].data.meas.get_counts()
+    return Sampler().run([circuit]).result()[0].data.meas.get_counts()
 
 
 @distribute_qiskit_function(provider)
 def function_with_distributed_tasks(circuits):
-    sample_task_references = [distributed_sample([(circuit)]) for circuit in circuits]
+    sample_task_references = [distributed_sample([circuit]) for circuit in circuits]
     results = get(sample_task_references)
     print(results)
 
@@ -79,10 +79,7 @@ print(job.logs())
 @distribute_qiskit_function(provider, working_dir="./")
 def my_function_with_modules():
     quasi_dists = (
-        Sampler()
-        .run([(create_hello_world_circuit())])
-        .result()[0]
-        .data.meas.get_counts()
+        Sampler().run([create_hello_world_circuit()]).result()[0].data.meas.get_counts()
     )
     return {"quasi_dists": quasi_dists}
 
