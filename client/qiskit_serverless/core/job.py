@@ -105,7 +105,7 @@ class JobService(ABC):
 
     @abstractmethod
     def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None):
-        """Return associated runtime jobs"""
+        """Return associated runtime jobs."""
 
     @abstractmethod
     def filtered_logs(self, job_id: str, **kwargs) -> str:
@@ -418,8 +418,22 @@ def get_runtime_service(
     instance: Optional[str] = None,
     url: Optional[str] = None,
 ) -> ServerlessRuntimeService:
-    """Get an instance of ServerlessRuntimeService, a subclass of QiskitRuntimeService
-    that allows to associate runtime job ids to serverless job ids."""
+    """Get a QiskitRuntimeService wrapped into a ServerlessRuntimeService instance
+    that allows to associate runtime job ids to serverless job ids. All input arguments
+    are optional, and the recommended usage within a QiskitFunction source code is
+    ``get_runtime_service()``, which will automatically pull authentication data from the
+    environment variables.
+
+    Args:
+        channel: Optional QiskitRuntimeService channel argument
+        token: Optional QiskitRuntimeService authorization token
+        instance: Optional QiskitRuntimeService instance (CRN or name)
+        url: Optional QiskitRuntimeService url
+
+    Returns:
+        QiskitRuntimeService wrapped into a ServerlessRuntimeService instance that allows
+        to associate serverless job ids to runtime job and sesison ids.
+    """
 
     return ServerlessRuntimeService(
         channel=channel or os.environ["QISKIT_IBM_CHANNEL"],

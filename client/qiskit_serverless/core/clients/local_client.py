@@ -89,6 +89,7 @@ class LocalClient(BaseClient):
         return [job["job"] for job in list(self._jobs.values())]
 
     def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None):
+        """Return associated runtime jobs."""
         raise NotImplementedError
 
     def run(

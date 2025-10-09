@@ -126,7 +126,6 @@ def safe_json_request(
     Returns:
         parsed json response
     """
-
     error_message: Optional[str] = None
     try:
         response = request()

@@ -160,7 +160,7 @@ class RayClient(BaseClient):
         raise NotImplementedError
 
     def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None):
-        """Return runtime jobs."""
+        """Return associated runtime jobs."""
         raise NotImplementedError
 
     #########################

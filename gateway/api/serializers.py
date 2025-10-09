@@ -200,17 +200,6 @@ class ProgramSerializer(serializers.ModelSerializer):
         model = Program
 
 
-class RuntimeJobSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the runtime job model.
-    """
-
-    class Meta:
-        model = RuntimeJob
-        # This is needed even if overidden in the v1 implementation
-        fields = "__all__"
-
-
 class JobSerializer(serializers.ModelSerializer):
     """
     Serializer for the job model.
@@ -332,6 +321,17 @@ class RunJobSerializer(serializers.ModelSerializer):
         job.save()
 
         return job
+
+
+class RuntimeJobSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the runtime job model.
+    """
+
+    class Meta:
+        model = RuntimeJob
+        # This is needed even if overidden in the v1 implementation
+        fields = "__all__"
 
 
 class CatalogProviderSerializer(serializers.ModelSerializer):

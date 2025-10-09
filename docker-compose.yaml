@@ -3,7 +3,6 @@ services:
   ray-head:
     user: "0"
     container_name: ray-head
-    platform: linux/amd64
     image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.26.1}
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
@@ -32,7 +31,6 @@ services:
       always
   gateway:
     container_name: gateway
-    platform: linux/amd64
     image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.26.1}
     command: python manage.py runserver 0.0.0.0:8000
     ports:
@@ -59,7 +57,6 @@ services:
       - postgres
   scheduler:
     container_name: scheduler
-    platform: linux/amd64
     image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.26.1}
     entrypoint: "./scripts/scheduler.sh"
     environment:

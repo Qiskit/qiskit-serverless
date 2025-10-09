@@ -1,5 +1,4 @@
 """Test utils."""
-
 import time
 
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
