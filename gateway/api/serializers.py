@@ -200,10 +200,21 @@ class ProgramSerializer(serializers.ModelSerializer):
         model = Program
 
 
+class RuntimeJobSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the runtime job model.
+    """
+
+    class Meta:
+        model = RuntimeJob
+
+
 class JobSerializer(serializers.ModelSerializer):
     """
     Serializer for the job model.
     """
+
+    runtime_jobs = RuntimeJobSerializer(many=True, read_only=True)
 
     class Meta:
         model = Job
@@ -216,6 +227,7 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
 
     class Meta:
         model = Job
+        fields = ["runtime_job", "runtime_session"]
 
 
 class RunProgramSerializer(serializers.Serializer):
@@ -321,15 +333,6 @@ class RunJobSerializer(serializers.ModelSerializer):
         job.save()
 
         return job
-
-
-class RuntimeJobSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the runtime job model.
-    """
-
-    class Meta:
-        model = RuntimeJob
 
 
 class CatalogProviderSerializer(serializers.ModelSerializer):
