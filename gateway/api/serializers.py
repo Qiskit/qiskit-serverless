@@ -331,7 +331,7 @@ class RuntimeJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = RuntimeJob
         # This is needed even if overidden in the v1 implementation
-        fields = "__all__"
+        fields = ["runtime_job", "runtime_session"]
 
 
 class CatalogProviderSerializer(serializers.ModelSerializer):
