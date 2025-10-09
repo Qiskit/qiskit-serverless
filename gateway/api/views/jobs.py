@@ -23,6 +23,7 @@ from api.repositories.providers import ProviderRepository
 from api.serializers import (
     JobSerializer,
     JobSerializerWithoutResult,
+    RuntimeJobSerializer,
 )
 from api.decorators.trace_decorator import trace_decorator_factory
 
@@ -127,6 +128,6 @@ class JobViewSet(viewsets.GenericViewSet):
     ):  # pylint: disable=invalid-name,unused-argument
         """List RuntimeJob objects associated to Job"""
         job = self.get_object()
-        runtimejobs = RuntimeJob.objects.filter(job=job)
+        runtimejobs = job.runtime_jobs.all()
         serializer = RuntimeJobSerializer(runtimejobs, many=True)
         return Response({"runtime_jobs": serializer.data})
