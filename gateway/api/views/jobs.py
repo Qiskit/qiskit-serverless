@@ -125,15 +125,8 @@ class JobViewSet(viewsets.GenericViewSet):
     def list_runtime_jobs(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
-        """Add RuntimeJpb to job"""
+        """List RuntimeJob objects associated to Job"""
         job = self.get_object()
         runtimejobs = RuntimeJob.objects.filter(job=job)
-        results = []
-        for runtimejob in runtimejobs:
-            results.append(
-                {
-                    "runtime_job": runtimejob.runtime_job,
-                    "runtime_session": runtimejob.runtime_session,
-                }
-            )
-        return Response({"runtime_jobs": results})
+        serializer = RuntimeJobSerializer(runtimejobs, many=True)
+        return Response({"runtime_jobs": serializer.data})

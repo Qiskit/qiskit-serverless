@@ -163,7 +163,7 @@ class TestJob:
         Mock(),
     )
     def test_runtime_sessions(self):
-        """Tests runtime session ids retrieval for serverless job."""
+        """Tests runtime session id retrieval for serverless job."""
         client = ServerlessClient(
             host="host", token="token", instance="instance", version="v1"
         )
@@ -180,7 +180,7 @@ class TestJob:
         Mock(),
     )
     def test_runtime_jobs(self):
-        """Tests runtime job ids retrieval for serverless job."""
+        """Tests runtime job id retrieval for serverless job."""
         client = ServerlessClient(
             host="host", token="token", instance="instance", version="v1"
         )

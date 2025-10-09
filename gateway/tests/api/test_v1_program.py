@@ -445,7 +445,7 @@ class TestProgramApi(APITestCase):
         self.assertTrue(found)
 
     def test_add_runtime_jobs(self):
-        """Tests add runtime jobs authorized."""
+        """Tests runtime jobs end-point."""
 
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
@@ -468,8 +468,8 @@ class TestProgramApi(APITestCase):
         self.assertEqual(str(runtime_job.job.id), job_id)
         self.assertEqual(runtime_job.runtime_session, "session_id_new")
 
-    def test_get_runtime_jobs(self):
-        """Tests retrieve runtime jobs authorized."""
+    def test_list_runtime_jobs(self):
+        """Tests list runtime jobs endpoint."""
 
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
