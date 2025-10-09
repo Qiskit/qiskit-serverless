@@ -216,8 +216,6 @@ class JobSerializer(serializers.ModelSerializer):
     Serializer for the job model.
     """
 
-    program = ProgramSerializer(many=False)
-
     class Meta:
         model = Job
 
