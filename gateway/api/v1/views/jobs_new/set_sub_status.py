@@ -37,6 +37,11 @@ class InputSerializer(serializers.Serializer):
         },
     )
 
+    class Meta:
+        """Meta class to define input serializer name"""
+
+        ref_name = "JobsSetSubStatusInputSerializer"
+
 
 class ProgramSummarySerializer(api_serializers.ProgramSerializer):
     """
