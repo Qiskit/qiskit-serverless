@@ -88,6 +88,10 @@ class LocalClient(BaseClient):
     def jobs(self, **kwargs) -> List[Job]:
         return [job["job"] for job in list(self._jobs.values())]
 
+    def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None):
+        """Return associated runtime jobs."""
+        raise NotImplementedError
+
     def run(
         self,
         program: Union[QiskitFunction, str],

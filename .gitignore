@@ -39,7 +39,8 @@ override.tf.json
 __pycache__
 .DS_Store
 
-
+# Virtual environments
+*.venv*
 venv/
 .venv/
 .idea/
