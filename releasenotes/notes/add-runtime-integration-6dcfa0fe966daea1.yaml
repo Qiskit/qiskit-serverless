@@ -63,15 +63,15 @@ features:
 
 upgrade:
   - |
-    Enhanced ``job.stop()`` behavior to use the newly introduced features. ``job.stop()`` now attempts 
+    Enhanced ``job.cancel()`` behavior to use the newly introduced features. ``job.cancel()`` now attempts 
     to instantiate a ``QiskitRuntimeService`` using the credentials from the ``ServerlessClient``, 
-    allowing automatic stopping of associated runtime jobs. This works when the credentials used in 
+    allowing automatic canceling of associated runtime jobs. This works when the credentials used in 
     the function match those in the client, which happens by default when using ``get_runtime_service()``
     with no additional inputs. 
 
     To support local testing or non-standard runtime URLs (e.g., staging environments), where the 
     ``ServerlessClient`` don't match those in the ``QiskitRuntimeService`` used to submit the jobs,
-    ``job.stop()`` accepts a service parameter::
+    ``job.cancel()`` accepts a service parameter::
 
         service = QiskitRuntimeService(
           channel="ibm_quantum_platform",
@@ -79,4 +79,4 @@ upgrade:
           instance="MY_CRN",
           url="my.staging.url.com"
         )
-        job.stop(service)
+        job.cancel(service)
