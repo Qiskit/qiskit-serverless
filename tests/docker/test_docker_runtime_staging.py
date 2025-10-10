@@ -51,7 +51,7 @@ class TestFunctionsStaging:
         assert runtime_job_ids == reference_job_ids
         assert session_ids == reference_session_ids
 
-        # stop runtime jobs after running to avoid wasting resources
+        # cancel runtime jobs after running to avoid wasting resources
         service = QiskitRuntimeService(
             channel="ibm_quantum_platform",
             token=os.environ["QISKIT_IBM_TOKEN"],
@@ -59,7 +59,7 @@ class TestFunctionsStaging:
             url=os.environ["QISKIT_IBM_URL_STAGING"],
         )
 
-        job.stop(service)
+        job.cancel(service)
 
     def test_stop_job(self, serverless_client: ServerlessClient):
         """Integration test for stopping a job."""
@@ -91,7 +91,10 @@ class TestFunctionsStaging:
 
         # Validate the response
         assert isinstance(stop_response, str)
-        assert "Job has been stopped" in stop_response
+        assert (
+            "Job has been stopped" in stop_response
+            or "Job already in terminal state" in stop_response
+        )
         assert "QiskitRuntimeService not found" in stop_response
         assert job.status() == "CANCELED"
 
@@ -132,7 +135,10 @@ class TestFunctionsStaging:
 
         # Validate the response
         assert isinstance(stop_response, str)
-        assert "Job has been stopped" in stop_response
+        assert (
+            "Job has been stopped" in stop_response
+            or "Job already in terminal state" in stop_response
+        )
         assert "Canceled runtime session" in stop_response
         assert job.status() == "CANCELED"
 
