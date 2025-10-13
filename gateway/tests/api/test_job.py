@@ -1,6 +1,7 @@
 """Tests jobs APIs."""
 
 import os
+import json
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -120,7 +121,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
             jobs_response.content,
-            b'{"provider":["This field is required."]}',
+            b'{"message":"\'provider\' not provided or is not valid"}',
         )
 
     def test_job_provider_list_wrong_provider(self):
@@ -266,15 +267,13 @@ class TestJobApi(APITestCase):
             self._authorize()
 
             jobs_response = self.client.get(
-                reverse(
-                    "v1:jobs-detail", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]
-                ),
+                reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]),
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
 
-    def test_job_detail_with_with_result_param(self):
+    def test_job_detail_without_result_param(self):
         """Tests job detail authorized."""
         media_root = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
@@ -288,7 +287,7 @@ class TestJobApi(APITestCase):
             self._authorize()
 
             jobs_response = self.client.get(
-                reverse("v1:jobs-detail", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"])
+                reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"])
                 + "?with_result=false",
                 format="json",
             )
@@ -309,9 +308,7 @@ class TestJobApi(APITestCase):
             self._authorize()
 
             jobs_response = self.client.get(
-                reverse(
-                    "v1:jobs-detail", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]
-                ),
+                reverse("v1:retrieve", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -323,7 +320,7 @@ class TestJobApi(APITestCase):
         self.client.force_authenticate(user=user)
 
         jobs_response = self.client.get(
-            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec86"]),
+            reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec86"]),
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -335,7 +332,7 @@ class TestJobApi(APITestCase):
         self._authorize()
 
         jobs_response = self.client.get(
-            reverse("v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec84"]),
+            reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec84"]),
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
@@ -352,20 +349,19 @@ class TestJobApi(APITestCase):
 
         with self.settings(MEDIA_ROOT=media_root):
             self._authorize()
-
             job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
             jobs_response = self.client.post(
                 reverse("v1:jobs-result", args=[job_id]),
                 format="json",
-                data={"result": {"ultimate": 42}},
+                data={"result": json.dumps({"ultimate": 42})},
             )
-            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-            self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
             result_path = os.path.join(
                 settings.MEDIA_ROOT, "test_user", "results", f"{job_id}.json"
             )
             self.assertTrue(os.path.exists(result_path))
             os.remove(result_path)
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
 
     def test_not_authorized_job_save_result(self):
         """Tests job results save."""
@@ -374,7 +370,7 @@ class TestJobApi(APITestCase):
         jobs_response = self.client.post(
             reverse("v1:jobs-result", args=[job_id]),
             format="json",
-            data={"result": {"ultimate": 42}},
+            data={"result": json.dumps({"ultimate": 42})},
         )
 
         self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
@@ -386,7 +382,6 @@ class TestJobApi(APITestCase):
     def test_job_update_sub_status(self):
         """Test job update sub status"""
         self._authorize()
-
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
         response_sub_status = self.client.patch(
             reverse("v1:jobs-sub-status", args=[job_id]),
@@ -481,9 +476,7 @@ class TestJobApi(APITestCase):
             self._authorize()
 
             jobs_response = self.client.get(
-                reverse(
-                    "v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"]
-                ),
+                reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"]),
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -507,9 +500,7 @@ class TestJobApi(APITestCase):
             self.client.force_authenticate(user=user)
 
             jobs_response = self.client.get(
-                reverse(
-                    "v1:jobs-detail", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"]
-                ),
+                reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"]),
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -552,8 +543,7 @@ class TestJobApi(APITestCase):
             reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
             format="json",
         )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "No available logs")
+        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_job_logs_by_function_provider(self):
         """Tests job log by fuction provider."""
@@ -576,5 +566,4 @@ class TestJobApi(APITestCase):
             reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
             format="json",
         )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "No available logs")
+        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
