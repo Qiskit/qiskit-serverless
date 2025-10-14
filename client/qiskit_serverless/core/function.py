@@ -214,7 +214,7 @@ class RunnableQiskitFunction(QiskitFunction):
         )
         return self.jobs()
 
-    def jobs(self):
+    def jobs(self, **kwargs):
         """List of jobs created in this function.
 
         Raises:
@@ -235,7 +235,7 @@ class RunnableQiskitFunction(QiskitFunction):
                     f"Function validation failed. Validation errors:\n {error_string}",
                 )
 
-        jobs = self._run_service.jobs(function=self)
+        jobs = self._run_service.jobs(function=self, **kwargs)
         return jobs
 
 
