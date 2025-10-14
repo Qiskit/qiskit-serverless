@@ -378,24 +378,21 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
-        if service:
-            data = {
-                "service": json.dumps(service, cls=QiskitObjectsEncoder),
-            }
-        else:
+
+        if not service:
             try:
                 service = QiskitRuntimeService(
                     channel=self.channel, instance=self.instance, token=self.token
                 )
-                data = {
-                    "service": json.dumps(service, cls=QiskitObjectsEncoder),
-                }
             except InvalidAccountError:
                 warnings.warn(
                     "No QiskitRuntimeService can be associated to the given token and instance. "
                     "Continuing without a QiskitRuntimeService."
                 )
-                data = {"service": json.dumps(None, cls=QiskitObjectsEncoder)}
+                service = None
+        data = {
+            "service": json.dumps(service, cls=QiskitObjectsEncoder),
+        }
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
@@ -440,7 +437,9 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         return response_data.get("logs")
 
     @_trace_job
-    def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None):
+    def runtime_jobs(
+        self, job_id: str, runtime_session: Optional[str] = None
+    ) -> list[str]:
         """Retrieve Qiskit IBM Runtime job ids that correspond to a
         given serverless job_id execution and, optionally, filtered by session id."""
         response_data = safe_json_request_as_dict(

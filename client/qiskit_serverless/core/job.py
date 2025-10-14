@@ -104,7 +104,9 @@ class JobService(ABC):
         """Return logs."""
 
     @abstractmethod
-    def runtime_jobs(self, job_id: str, runtime_session: Optional[str] = None):
+    def runtime_jobs(
+        self, job_id: str, runtime_session: Optional[str] = None
+    ) -> list[str]:
         """Return associated runtime jobs."""
 
     @abstractmethod
@@ -185,13 +187,13 @@ class Job:
         """Returns logs of the job."""
         return self._job_service.logs(self.job_id)
 
-    def runtime_jobs(self, runtime_session: Optional[str] = None):
+    def runtime_jobs(self, runtime_session: Optional[str] = None) -> list[str]:
         """Returns associated runtime jobs if any."""
         return self._job_service.runtime_jobs(
             self.job_id, runtime_session=runtime_session
         )
 
-    def runtime_sessions(self):
+    def runtime_sessions(self) -> list[str]:
         """Returns associated runtime sessions if any."""
         return self._job_service.runtime_sessions(self.job_id)
 
