@@ -94,6 +94,10 @@ class LocalClient(BaseClient):
         """Return associated runtime jobs."""
         raise NotImplementedError
 
+    def runtime_sessions(self) -> list[str]:
+        """Returns associated runtime sessions if any."""
+        raise NotImplementedError
+
     def run(
         self,
         program: Union[QiskitFunction, str],

@@ -110,6 +110,10 @@ class JobService(ABC):
         """Return associated runtime jobs."""
 
     @abstractmethod
+    def runtime_sessions(self) -> list[str]:
+        """Returns associated runtime sessions if any."""
+
+    @abstractmethod
     def filtered_logs(self, job_id: str, **kwargs) -> str:
         """Returns logs of the job.
         Args:
