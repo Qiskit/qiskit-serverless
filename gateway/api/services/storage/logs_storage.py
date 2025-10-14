@@ -49,7 +49,7 @@ class LogsStorage:
             extra_sub_path=self.PATH,
         )
 
-    def _get_log_path(self, job_id: str) -> str:
+    def _get_logs_path(self, job_id: str) -> str:
         """
         Return the path to a log file from the id of a Job
 
@@ -71,7 +71,7 @@ class LogsStorage:
         Returns:
             Optional[str]: content of the file
         """
-        log_path = self._get_log_path(job_id)
+        log_path = self._get_logs_path(job_id)
         if not os.path.exists(log_path):
             logger.info(
                 "Log file for job ID '%s' not found in directory '%s'.",
