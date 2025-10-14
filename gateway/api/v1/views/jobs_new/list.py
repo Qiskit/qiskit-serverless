@@ -52,6 +52,11 @@ class InputSerializer(serializers.Serializer):
     )
     created_after = serializers.DateTimeField(required=False, default=None)
 
+    class Meta:
+        """Meta class to define input serializer name"""
+
+        ref_name = "JobsListInputSerializer"
+
     def create(self, validated_data: dict):
         return JobFilters(**validated_data)
 
@@ -64,6 +69,7 @@ class ProgramSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Program
         fields = ["id", "title", "provider"]
+        ref_name = "JobsListProgramSummaryInputSerializer"
 
 
 class JobSerializerWithoutResult(serializers.ModelSerializer):
@@ -76,6 +82,7 @@ class JobSerializerWithoutResult(serializers.ModelSerializer):
     class Meta:
         model = Job
         fields = ["id", "status", "program", "created", "sub_status"]
+        ref_name = "JobsListWithoutResultInputSerializer"
 
 
 def serialize_output(
