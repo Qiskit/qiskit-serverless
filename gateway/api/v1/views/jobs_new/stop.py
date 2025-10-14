@@ -19,6 +19,11 @@ class InputSerializer(serializers.Serializer):
 
     service = serializers.CharField(required=False, default=None)
 
+    class Meta:
+        """Meta class to define input serializer name"""
+
+        ref_name = "JobsStopInputSerializer"
+
 
 class StopJobOutputSerializer(serializers.Serializer):
     """

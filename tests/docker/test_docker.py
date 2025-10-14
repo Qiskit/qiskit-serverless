@@ -45,8 +45,13 @@ class TestFunctionsDocker:
 
         job = runnable_function.run()
 
+        # pylint: disable=duplicate-code
         assert job is not None
         assert job.result() is not None
+        allowed_keys = {"00", "11"}
+        for entry in job.result().get("results", []):
+            assert set(entry.keys()).issubset(allowed_keys)
+
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
@@ -114,6 +119,9 @@ class TestFunctionsDocker:
 
         assert job is not None
         assert job.result() is not None
+        allowed_keys = {"00", "11"}
+        for entry in job.result().get("results", []):
+            assert set(entry.keys()).issubset(allowed_keys)
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
@@ -134,6 +142,7 @@ class TestFunctionsDocker:
 
         assert job is not None
         assert job.result() is not None
+        assert job.result() == {"hours": 3}
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
@@ -194,6 +203,9 @@ class TestFunctionsDocker:
 
         assert job is not None
         assert job.result() is not None
+        allowed_keys = {"00", "11", "01", "10"}
+        for entry in job.result().get("results", []):
+            assert set(entry.keys()).issubset(allowed_keys)
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
