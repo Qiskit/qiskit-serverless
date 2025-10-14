@@ -21,7 +21,7 @@ class JobSaveResultUseCase:
 
     jobs_repository = JobsRepository()
 
-    def execute(self, job_id: UUID, user: AbstractUser, result: dict) -> Job:
+    def execute(self, job_id: UUID, user: AbstractUser, result: str) -> Job:
         """Save a result for a given job.
 
         Args:
@@ -43,8 +43,8 @@ class JobSaveResultUseCase:
         if not can_save_result:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        job.result = json.dumps(result)
         result_storage = ResultStorage(user.username)
-        result_storage.save(job.id, job.result)
+        result_storage.save(job.id, result)
+        job.result = result
 
         return job

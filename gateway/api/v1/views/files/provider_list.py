@@ -18,6 +18,8 @@ from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
 
 # pylint: disable=abstract-method
+
+
 class InputSerializer(serializers.Serializer):
     """
     Validate and sanitize the input
@@ -25,6 +27,11 @@ class InputSerializer(serializers.Serializer):
 
     function = serializers.CharField(required=True)
     provider = serializers.CharField(required=True)
+
+    class Meta:
+        """Meta class to define input serializer name"""
+
+        ref_name = "FilesProviderListInputSerializer"
 
     def validate_function(self, value: str):
         """
