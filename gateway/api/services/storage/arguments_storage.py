@@ -22,14 +22,14 @@ class ArgumentsStorage:
         self, username: str, function_title: str, provider_name: Optional[str]
     ):
         ### In this case arguments are always stored in user folder
-        self.sub_path = PathBuilder.get_sub_path(
+        self.sub_path = PathBuilder.sub_path(
             working_dir=WorkingDir.USER_STORAGE,
             username=username,
             function_title=function_title,
             provider_name=provider_name,
             extra_sub_path=self.PATH,
         )
-        self.absolute_path = PathBuilder.get_absolute_path(
+        self.absolute_path = PathBuilder.absolute_path(
             working_dir=WorkingDir.USER_STORAGE,
             username=username,
             function_title=function_title,

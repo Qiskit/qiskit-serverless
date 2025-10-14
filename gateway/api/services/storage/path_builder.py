@@ -83,7 +83,7 @@ class PathBuilder:
         return sanitize_file_path(path)
 
     @staticmethod
-    def get_sub_path(
+    def sub_path(
         working_dir: WorkingDir,
         username: str,
         function_title: str,
@@ -126,7 +126,7 @@ class PathBuilder:
         return sub_path
 
     @staticmethod
-    def get_absolute_path(
+    def absolute_path(
         working_dir: WorkingDir,
         username: str,
         function_title: str,
@@ -134,7 +134,8 @@ class PathBuilder:
         extra_sub_path: Optional[str],
     ) -> str:
         """
-        This method returns the aboslute path for the required interaction.
+        This method returns the aboslute path for the required interaction
+        and it creates it if it doesn't exist.
 
         Args:
             working_dir (WorkingDir): configuration for the generation of
@@ -151,7 +152,7 @@ class PathBuilder:
             str: storage relative path.
         """
 
-        sub_path = PathBuilder.get_sub_path(
+        sub_path = PathBuilder.sub_path(
             working_dir=working_dir,
             username=username,
             function_title=function_title,
