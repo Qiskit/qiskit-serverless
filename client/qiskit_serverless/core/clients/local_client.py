@@ -94,7 +94,7 @@ class LocalClient(BaseClient):
         """Return associated runtime jobs."""
         raise NotImplementedError
 
-    def runtime_sessions(self) -> list[str]:
+    def runtime_sessions(self, job_id: str):
         """Returns associated runtime sessions if any."""
         raise NotImplementedError
 
