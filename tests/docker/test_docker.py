@@ -25,7 +25,7 @@ class TestFunctionsDocker:
     """Test class for integration testing with docker."""
 
     @mark.order(1)
-    def test_simple_function(self, base_client: BaseClient):
+    def test_simple_function(self, base_client: ServerlessClient):
         """Integration test function uploading."""
         simple_function = QiskitFunction(
             title="my-first-pattern",
@@ -99,7 +99,7 @@ class TestFunctionsDocker:
 
         print(str(exc_info.value))
 
-    def test_function_with_arguments(self, base_client: BaseClient):
+    def test_function_with_arguments(self, base_client: ServerlessClient):
         """Integration test for Functions with arguments."""
         circuit = QuantumCircuit(2)
         circuit.h(0)
@@ -185,7 +185,7 @@ class TestFunctionsDocker:
         with raises(QiskitServerlessException, check=exceptionCheck):
             serverless_client.upload(function)
 
-    def test_distributed_workloads(self, base_client: BaseClient):
+    def test_distributed_workloads(self, base_client: ServerlessClient):
         """Integration test for Functions for distributed workloads."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
@@ -209,7 +209,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_multiple_runs(self, base_client: BaseClient):
+    def test_multiple_runs(self, base_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
@@ -244,7 +244,7 @@ class TestFunctionsDocker:
         reason="Images are not working in tests jet and "
         + "LocalClient does not manage image instead of working_dir+entrypoint"
     )
-    def test_error(self, base_client: BaseClient):
+    def test_error(self, base_client: ServerlessClient):
         """Integration test to force an error."""
 
         description = """
@@ -355,11 +355,11 @@ class TestFunctionsDocker:
 
         assert len(limit_jobs) == 1
         if len(limit_jobs) == 1:
-            assert limit_jobs[0].job_id == job_1_1.job_id
+            assert limit_jobs[0].job_id == job_1_2.job_id
 
-        assert len(limit_jobs) == 1
+        assert len(offset_jobs) == 1
         if len(offset_jobs) == 1:
-            assert offset_jobs[0].job_id == job_1_2.job_id
+            assert offset_jobs[0].job_id == job_1_1.job_id
 
         if len(non_filtered_jobs_2) == 1:
             assert non_filtered_jobs_2[0].job_id == job_2.job_id
