@@ -13,6 +13,7 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
@@ -124,7 +125,9 @@ class JobViewSet(viewsets.GenericViewSet):
             return Response({"message": "RuntimeJob is added."})
 
         # GET: retrieve runtime jobs associated to serverless job
-        elif request.method == "GET":
+        if request.method == "GET":
             runtimejobs = job.runtime_jobs.all()
             serializer = RuntimeJobSerializer(runtimejobs, many=True)
             return Response({"runtime_jobs": serializer.data})
+
+        raise MethodNotAllowed(request.method)
