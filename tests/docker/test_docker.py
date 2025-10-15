@@ -10,7 +10,6 @@ from qiskit.circuit.random import random_circuit
 
 from qiskit_serverless import (
     QiskitFunction,
-    BaseClient,
     ServerlessClient,
     QiskitServerlessException,
 )
