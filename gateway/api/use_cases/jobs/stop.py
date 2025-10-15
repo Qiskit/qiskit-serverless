@@ -21,8 +21,10 @@ class StopJobUseCase:
 
     jobs_repository = JobsRepository()
     runtime_jobs_repository = RuntimeJobRepository()
-    status_messages = []
-    stopped_sessions = []
+
+    def __init__(self) -> None:
+        self.status_messages = []
+        self.stopped_sessions = []
 
     def execute(self, job_id: UUID, service_str: str) -> str:
         job = self.jobs_repository.get_job_by_id(job_id)
@@ -63,7 +65,7 @@ class StopJobUseCase:
                     runtime_job_entry, qiskit_service, qiskit_api_client
                 )
 
-        self._stop_ray_job_if_active(job, self.status_messages)
+        self._stop_ray_job_if_active(job)
 
         return " ".join(self.status_messages)
 
@@ -119,12 +121,14 @@ class StopJobUseCase:
                 was_running = job_handler.stop(job.ray_job_id)
                 if was_running:
                     self.status_messages.append(
-                        "Ray job was running and has been stopped."
+                        "Serverless job was running and has been stopped."
                     )
                 else:
-                    self.status_messages.append("Ray job was already not running.")
+                    self.status_messages.append(
+                        "Serverless job was already not running."
+                    )
             else:
                 logger.warning(
-                    "Ray compute resource is not accessible %s", job.compute_resource
+                    "Serverless job was not accessible from: %s", job.compute_resource
                 )
-                self.status_messages.append("Ray compute resource not accessible.")
+                self.status_messages.append("Serverless job was not accessible.")
