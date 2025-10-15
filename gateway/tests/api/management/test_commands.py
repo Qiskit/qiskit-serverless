@@ -55,7 +55,35 @@ class TestCommands(APITestCase):
         job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
         self.assertEqual(
             job.logs,
-            "Job 1a7947f9-6ae8-4e3d-ac1e-e7d608deec84 failed due to an internal error.",
+            "No logs yet.",
+        )
+
+    @patch("api.ray.get_job_handler")
+    def test_update_jobs_statuses_from_partner(self, get_job_handler):
+        """Tests update of job statuses from a partner function."""
+        # Test status change from PENDING to FAILED
+        ray_client = MagicMock()
+        ray_client.get_job_status.return_value = JobStatus.RUNNING
+        ray_client.get_job_logs.return_value = "No logs yet."
+        ray_client.stop_job.return_value = True
+        ray_client.submit_job.return_value = "AwesomeJobId"
+        get_job_handler.return_value = JobHandler(ray_client)
+
+        call_command("update_jobs_statuses")
+
+        job = Job.objects.get(id__exact="93a9e9b8-eed0-4cb4-9e91-ced88417aba7")
+        self.assertEqual(job.status, "FAILED")
+
+        # Test job logs for FAILED job with empty logs
+        ray_client.get_job_status.return_value = JobStatus.FAILED
+        ray_client.get_job_logs.return_value = ""
+
+        call_command("update_jobs_statuses")
+
+        job = Job.objects.get(id__exact="93a9e9b8-eed0-4cb4-9e91-ced88417aba7")
+        self.assertEqual(
+            job.logs,
+            "Job 93a9e9b8-eed0-4cb4-9e91-ced88417aba7 failed due to an internal error.",
         )
 
     @patch("api.schedule.execute_job")
@@ -72,4 +100,4 @@ class TestCommands(APITestCase):
         call_command("schedule_queued_jobs")
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
-        self.assertEqual(job_count, 7)
+        self.assertEqual(job_count, 8)

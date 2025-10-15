@@ -55,7 +55,10 @@ def update_job_status(job: Job):
             job.sub_status = None
             job.env_vars = "{}"
 
-    if job_handler:
+    if job_handler and job.program.provider is not None:
+        # let's store logs only for Functions from providers
+        logs = job_handler.logs(job.ray_job_id)
+        job.logs = check_logs(logs, job)
         # check if job is resource constrained
         no_resources_log = "No available node types can fulfill resource request"
         if no_resources_log in job.logs:
@@ -63,11 +66,6 @@ def update_job_status(job: Job):
             job.status = job_new_status
             # cleanup env vars
             job.env_vars = "{}"
-    
-    if job_handler and job.program.provider is not None:
-        # let's store logs only for Functions from providers
-        logs = job_handler.logs(job.ray_job_id)
-        job.logs = check_logs(logs, job)
 
     try:
         job.save()
