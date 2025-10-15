@@ -72,7 +72,7 @@ def associate_runtime_job_with_serverless_job(
 
     url = (
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/add_runtime_jobs/"
+        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/runtime_jobs/"
     )
 
     response = requests.post(

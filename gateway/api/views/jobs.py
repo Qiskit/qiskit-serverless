@@ -99,35 +99,32 @@ class JobViewSet(viewsets.GenericViewSet):
         return queryset
 
     @_trace
-    @action(methods=["POST"], detail=True)
-    def add_runtime_jobs(
+    @action(methods=["GET", "POST"], detail=True)
+    def runtime_jobs(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
-        """Add RuntimeJob to Job"""
-        if not request.data.get("runtime_job"):
-            return Response(
-                {
-                    "message": "Got empty `runtime_job` field. Please, specify `runtime_job`."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        """Handle RuntimeJob objects associated to Job"""
         job = self.get_object()
-        runtimejob = RuntimeJob(
-            job=job,
-            runtime_job=request.data.get("runtime_job"),
-            runtime_session=request.data.get("runtime_session"),
-        )
-        runtimejob.save()
-        message = "RuntimeJob is added."
-        return Response({"message": message})
 
-    @_trace
-    @action(methods=["GET"], detail=True)
-    def list_runtime_jobs(
-        self, request, pk=None
-    ):  # pylint: disable=invalid-name,unused-argument
-        """List RuntimeJob objects associated to Job"""
-        job = self.get_object()
-        runtimejobs = job.runtime_jobs.all()
-        serializer = RuntimeJobSerializer(runtimejobs, many=True)
-        return Response({"runtime_jobs": serializer.data})
+        # POST: associate runtime jobs to serverless job
+        if request.method == "POST":
+            if not request.data.get("runtime_job"):
+                return Response(
+                    {
+                        "message": "Got empty `runtime_job` field. Please, specify `runtime_job`."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            runtimejob = RuntimeJob(
+                job=job,
+                runtime_job=request.data.get("runtime_job"),
+                runtime_session=request.data.get("runtime_session"),
+            )
+            runtimejob.save()
+            return Response({"message": "RuntimeJob is added."})
+
+        # GET: retrieve runtime jobs associated to serverless job
+        elif request.method == "GET":
+            runtimejobs = job.runtime_jobs.all()
+            serializer = RuntimeJobSerializer(runtimejobs, many=True)
+            return Response({"runtime_jobs": serializer.data})

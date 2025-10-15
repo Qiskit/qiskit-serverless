@@ -444,7 +444,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         given serverless job_id execution and, optionally, filtered by session id."""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtime_jobs/",
+                f"{self.host}/api/{self.version}/jobs/{job_id}/runtime_jobs/",
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
@@ -466,7 +466,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         given serverless job_id execution."""
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/list_runtime_jobs/",
+                f"{self.host}/api/{self.version}/jobs/{job_id}/runtime_jobs/",
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),

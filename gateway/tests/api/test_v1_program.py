@@ -444,8 +444,8 @@ class TestProgramApi(APITestCase):
                 found = True
         self.assertTrue(found)
 
-    def test_add_runtime_jobs(self):
-        """Tests runtime jobs end-point."""
+    def test_runtime_jobs_post(self):
+        """Tests runtime jobs POST endpoint."""
 
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
@@ -453,7 +453,7 @@ class TestProgramApi(APITestCase):
         job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
 
         response = self.client.post(
-            f"/api/v1/jobs/{job_id}/add_runtime_jobs/",
+            f"/api/v1/jobs/{job_id}/runtime_jobs/",
             data={
                 "runtime_job": "runtime_job_new",
                 "runtime_session": "session_id_new",
@@ -468,15 +468,15 @@ class TestProgramApi(APITestCase):
         self.assertEqual(str(runtime_job.job.id), job_id)
         self.assertEqual(runtime_job.runtime_session, "session_id_new")
 
-    def test_list_runtime_jobs(self):
-        """Tests list runtime jobs endpoint."""
+    def test_runtime_jobs_get(self):
+        """Tests list runtime jobs GET endpoint."""
 
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
 
         # Job with multiple runtime jobs
         response = self.client.get(
-            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/list_runtime_jobs",
+            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/",
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -493,7 +493,7 @@ class TestProgramApi(APITestCase):
 
         # Job with a single runtime job
         response = self.client.get(
-            "/api/v1/jobs/57fc2e4d-267f-40c6-91a3-38153272e764/list_runtime_jobs",
+            "/api/v1/jobs/57fc2e4d-267f-40c6-91a3-38153272e764/",
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -507,7 +507,7 @@ class TestProgramApi(APITestCase):
 
         # Job with no runtime jobs
         response = self.client.get(
-            "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec86/list_runtime_jobs",
+            "/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec86/",
             format="json",
         )
         runtime_jobs = response.data["runtime_jobs"]
