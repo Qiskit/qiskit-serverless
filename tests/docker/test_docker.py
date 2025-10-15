@@ -313,7 +313,7 @@ class TestFunctionsDocker:
         job_1 = runnable_function_1.run()
         job_2 = runnable_function_2.run()
 
-        while job_1.status() == "QUEUED" or job_2.status() == "INITIALIZING":
+        while job_1.status() == "QUEUED" or job_1.status() == "INITIALIZING":
             sleep(1)
 
         while job_2.status() == "QUEUED" or job_2.status() == "INITIALIZING":
@@ -321,3 +321,45 @@ class TestFunctionsDocker:
 
         assert job_1.status() == "RUNNING"
         assert job_2.status() == "RUNNING"
+
+    def test_get_filtered_jobs(self, serverless_client: ServerlessClient):
+        """Integration test for filtering jobs."""
+
+        function_1 = QiskitFunction(
+            title="test-exec-1",
+            entrypoint="pattern_wait.py",
+            working_dir=resources_path,
+        )
+        function_2 = QiskitFunction(
+            title="test-exec-2",
+            entrypoint="pattern_wait.py",
+            working_dir=resources_path,
+        )
+        runnable_function_1 = serverless_client.upload(function_1)
+        runnable_function_2 = serverless_client.upload(function_2)
+
+        job_1_1 = runnable_function_1.run()
+        job_1_2 = runnable_function_1.run()
+        job_2 = runnable_function_2.run()
+
+        non_filtered_jobs = serverless_client.jobs()
+        non_filtered_jobs_1 = runnable_function_1.jobs()
+        non_filtered_jobs_2 = runnable_function_2.jobs()
+
+        limit_jobs = runnable_function_1.jobs(limit=1)
+        offset_jobs = runnable_function_1.jobs(offset=1)
+
+        assert len(non_filtered_jobs) == 3
+        assert len(non_filtered_jobs_1) == 2
+        assert len(non_filtered_jobs_2) == 1
+
+        assert len(limit_jobs) == 1
+        if len(limit_jobs) == 1:
+            assert limit_jobs[0].job_id == job_1_1.job_id
+
+        assert len(limit_jobs) == 1
+        if len(offset_jobs) == 1:
+            assert offset_jobs[0].job_id == job_1_2.job_id
+
+        if len(non_filtered_jobs_2) == 1:
+            assert non_filtered_jobs_2[0].job_id == job_2.job_id
