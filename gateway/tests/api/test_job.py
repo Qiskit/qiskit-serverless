@@ -636,7 +636,7 @@ class TestJobApi(APITestCase):
         response = self.client.get(
             reverse(
                 "v1:jobs-runtime-jobs",
-                args=["/api/v1/jobs/1a7947f9-6ae8-4e3d-ac1e-e7d608deec86"],
+                args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec86"],
             ),
             format="json",
         )
