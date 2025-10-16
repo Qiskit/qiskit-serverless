@@ -140,7 +140,10 @@ class TestFunctionsStaging:
             or "Job already in terminal state" in stop_response
         )
         assert "Canceled runtime session" in stop_response
-        assert job.status() == "CANCELED"
+        if "Job has been stopped" in stop_response:
+            assert job.status() == "CANCELED"
+        else:
+            assert job.status() == "DONE"
 
     def test_jobs_no_session(self, serverless_client: ServerlessClient):
         """Test job submission with get_runtime_service without sessions."""
