@@ -51,18 +51,6 @@
     }
   },
   {
-    "model": "api.program",
-    "pk": "6160a2ff-e482-443d-af23-15110b646ae2",
-    "fields": {
-      "created": "2023-02-01T15:30:43.281796Z",
-      "title": "Docker-Image-Program",
-      "image": "icr.io/awesome-namespace/awesome-title",
-      "author": 2,
-      "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
-      "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea"
-    }
-  },
-  {
     "model": "api.job",
     "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
     "fields": {
@@ -148,35 +136,6 @@
       "result": "{\"somekey\":1}",
       "status": "QUEUED",
       "author": 4
-    }
-  },
-  {
-    "model": "api.job",
-    "pk": "93a9e9b8-eed0-4cb4-9e91-ced88417aba7",
-    "fields": {
-      "program": "6160a2ff-e482-443d-af23-15110b646ae2",
-      "created": "2024-02-01T15:35:43.281796Z",
-      "result": "{\"somekey\":1}",
-      "status": "PENDING",
-      "author": 3,
-      "compute_resource": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
-    }
-  },
-  {
-    "model": "auth.group",
-    "pk": 105,
-    "fields": {
-        "name": "default-group"
-    }
-  },
-  {
-    "model": "api.provider",
-    "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
-    "fields": {
-      "name": "default",
-      "created": "2023-02-01T15:30:43.281796Z",
-      "admin_groups": [105],
-      "registry": "icr.io/awesome-namespace"
     }
   }
 ]
