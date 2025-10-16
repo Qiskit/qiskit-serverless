@@ -217,7 +217,6 @@ class JobSerializer(serializers.JobSerializer):
     """
 
     program = ProgramSerializer(many=False)
-    runtime_jobs = RuntimeJobSerializer(many=True, read_only=True)
 
     class Meta(serializers.JobSerializer.Meta):
         fields = [
@@ -227,7 +226,6 @@ class JobSerializer(serializers.JobSerializer):
             "program",
             "created",
             "sub_status",
-            "runtime_jobs",
         ]
 
 
