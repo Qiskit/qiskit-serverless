@@ -30,7 +30,7 @@ class TestFunctionsStaging:
                 "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
                 "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
                 "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
-                "QISKIT_IBM_URL_STAGING": os.environ["QISKIT_IBM_URL_STAGING"],
+                "QISKIT_IBM_URL": os.environ["QISKIT_IBM_URL"],
             },
         )
         serverless_client.upload(function)
@@ -56,7 +56,7 @@ class TestFunctionsStaging:
             channel="ibm_quantum_platform",
             token=os.environ["QISKIT_IBM_TOKEN"],
             instance=os.environ["QISKIT_IBM_INSTANCE"],
-            url=os.environ["QISKIT_IBM_URL_STAGING"],
+            url=os.environ["QISKIT_IBM_URL"],
         )
 
         job.cancel(service)
@@ -72,7 +72,7 @@ class TestFunctionsStaging:
                 "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
                 "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
                 "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
-                "QISKIT_IBM_URL_STAGING": os.environ["QISKIT_IBM_URL_STAGING"],
+                "QISKIT_IBM_URL": os.environ["QISKIT_IBM_URL"],
             },
         )
 
@@ -109,7 +109,7 @@ class TestFunctionsStaging:
                 "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
                 "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
                 "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
-                "QISKIT_IBM_URL_STAGING": os.environ["QISKIT_IBM_URL_STAGING"],
+                "QISKIT_IBM_URL": os.environ["QISKIT_IBM_URL"],
             },
         )
 
@@ -127,7 +127,7 @@ class TestFunctionsStaging:
             channel="ibm_quantum_platform",
             token=os.environ["QISKIT_IBM_TOKEN"],
             instance=os.environ["QISKIT_IBM_INSTANCE"],
-            url=os.environ["QISKIT_IBM_URL_STAGING"],
+            url=os.environ["QISKIT_IBM_URL"],
         )
 
         # Attempt to stop the job
