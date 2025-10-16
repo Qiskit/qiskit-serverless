@@ -474,7 +474,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
         runtime_jobs = response_data.get("runtime_jobs", [])
-        out_sessions = list(
+        out_sessions = sorted(
             {
                 job["runtime_session"]
                 for job in runtime_jobs
