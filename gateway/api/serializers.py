@@ -17,6 +17,7 @@ from api.repositories.functions import FunctionRepository
 from api.repositories.users import UserRepository
 from api.utils import build_env_variables, encrypt_env_vars, sanitize_name
 from .models import (
+    LogConsent,
     Provider,
     Program,
     Job,
@@ -196,6 +197,32 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
+
+
+class ProgramSerializerWithConsent(serializers.ModelSerializer):
+    """
+    Program serializer that includes user consent information.
+    """
+
+    user_consent = serializers.SerializerMethodField()
+    provider = serializers.CharField(source="provider.name", read_only=True)
+
+    class Meta:
+        model = Program
+        fields = "__all__"
+
+    def get_user_consent(self, obj):
+        """
+        Get the user consent for the program.
+        Returns True if the user has accepted, False if rejected, None if not set.
+        """
+        user = self.context.get("user")
+        if not user or user.is_anonymous:
+            return None
+
+        consent = LogConsent.objects.filter(user=user, function=obj).first()
+
+        return consent.accepted if consent is not None else None
 
 
 class JobSerializer(serializers.ModelSerializer):
