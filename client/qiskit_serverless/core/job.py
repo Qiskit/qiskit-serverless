@@ -445,7 +445,7 @@ def get_runtime_service(
         channel=channel or os.environ["QISKIT_IBM_CHANNEL"],
         instance=instance or os.environ["QISKIT_IBM_INSTANCE"],
         token=token or os.environ["QISKIT_IBM_TOKEN"],
-        url=url or None,
+        url=url or os.environ.get("QISKIT_IBM_URL", None),
     )
 
 
