@@ -28,38 +28,24 @@ Qiskit Serverless job
     Job
 """
 # pylint: disable=duplicate-code
-from abc import ABC, abstractmethod
+import dataclasses
 import json
 import logging
-import os
 import time
 import warnings
-from typing import ClassVar, Dict, Any, Literal, Optional, Union
+from typing import ClassVar, Dict, Any, Literal, Optional
 from dataclasses import dataclass
 
 import ray.runtime_env
-import requests
 
 from qiskit_ibm_runtime import QiskitRuntimeService
 
-from qiskit_serverless.core.constants import (
-    ENV_JOB_GATEWAY_INSTANCE,
-    QISKIT_IBM_CHANNEL,
-    REQUESTS_TIMEOUT,
-    ENV_JOB_GATEWAY_TOKEN,
-    ENV_JOB_GATEWAY_HOST,
-    ENV_JOB_ID_GATEWAY,
-    ENV_GATEWAY_PROVIDER_VERSION,
-    GATEWAY_PROVIDER_VERSION_DEFAULT,
-    ENV_ACCESS_TRIAL,
-)
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
-    QiskitObjectsEncoder,
     QiskitObjectsDecoder,
 )
-from qiskit_serverless.utils.http import get_headers
-from qiskit_serverless.utils.json import is_jsonable
+
+from .job_service import JobService
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
@@ -81,37 +67,6 @@ class Configuration:  # pylint: disable=too-many-instance-attributes
     auto_scaling: Optional[bool] = False
 
 
-class JobService(ABC):
-    """Provide access to job information"""
-
-    @abstractmethod
-    def status(self, job_id: str) -> str:
-        """Check status."""
-
-    @abstractmethod
-    def stop(
-        self, job_id: str, service: Optional[QiskitRuntimeService] = None
-    ) -> Union[str, bool]:
-        """Stops job/program."""
-
-    @abstractmethod
-    def result(self, job_id: str) -> Any:
-        """Return results."""
-
-    @abstractmethod
-    def logs(self, job_id: str) -> str:
-        """Return logs."""
-
-    @abstractmethod
-    def filtered_logs(self, job_id: str, **kwargs) -> str:
-        """Returns logs of the job.
-        Args:
-            job_id: The job's logs
-            include: rex expression finds match in the log line to be included
-            exclude: rex expression finds match in the log line to be excluded
-        """
-
-
 PendingType = Literal["PENDING"]
 RunningType = Literal["RUNNING"]
 StoppedType = Literal["STOPPED"]
@@ -126,8 +81,18 @@ ExecutingQpuType = Literal["EXECUTING_QPU"]
 PostProcessingType = Literal["POST_PROCESSING"]
 
 
+@dataclass
 class Job:
-    """Job."""
+    """Job
+
+    Args:
+        id: database identifier
+        job_service: service that provide access to API
+        raw_data: any
+        workflow_job_id: the workflow that contains this job.
+        workflow_function: the function that generated the workflow.
+        depends_on: the job that should finish before this starts
+    """
 
     PENDING: ClassVar[PendingType] = "PENDING"
     RUNNING: ClassVar[RunningType] = "RUNNING"
@@ -142,25 +107,23 @@ class Job:
     EXECUTING_QPU: ClassVar[ExecutingQpuType] = "EXECUTING_QPU"
     POST_PROCESSING: ClassVar[PostProcessingType] = "POST_PROCESSING"
 
-    def __init__(
-        self,
-        job_id: str,
-        job_service: JobService,
-        raw_data: Optional[Dict[str, Any]] = None,
-    ):
-        """Job class for async script execution.
+    id: str
+    job_service: JobService
+    raw_data: Optional[Dict[str, Any]] = None
+    workflow_id: Optional[str] = None
+    workflow_function: Optional[str] = None
+    depends_on: Optional[str] = None
 
-        Args:
-            job_id: if of the job
-            client: client
-        """
-        self.job_id = job_id
-        self._job_service = job_service
-        self.raw_data = raw_data or {}
+    @classmethod
+    def from_json(cls, data: Dict[str, Any]):
+        """Reconstructs QiskitPattern from dictionary."""
+        field_names = set(f.name for f in dataclasses.fields(Job))
+        data["raw_data"] = data
+        return Job(**{k: v for k, v in data.items() if k in field_names})
 
     def status(self):
         """Returns status of the job."""
-        return _map_status_to_serverless(self._job_service.status(self.job_id))
+        return _map_status_to_serverless(self.job_service.status(self.id))
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
@@ -174,11 +137,11 @@ class Job:
 
     def cancel(self, service: Optional[QiskitRuntimeService] = None):
         """Cancels the job."""
-        return self._job_service.stop(self.job_id, service=service)
+        return self.job_service.stop(self.id, service=service)
 
     def logs(self) -> str:
         """Returns logs of the job."""
-        return self._job_service.logs(self.job_id)
+        return self.job_service.logs(self.id)
 
     def filtered_logs(self, **kwargs) -> str:
         """Returns logs of the job.
@@ -186,13 +149,11 @@ class Job:
             include: regex expression finds matching line in the log to be included
             exclude: regex expression finds matching line in the log to be excluded
         """
-        return self._job_service.filtered_logs(job_id=self.job_id, **kwargs)
+        return self.job_service.filtered_logs(job_id=self.id, **kwargs)
 
     def error_message(self):
         """Returns the execution error message."""
-        error = (
-            self._job_service.result(self.job_id) if self.status() == "ERROR" else ""
-        )
+        error = self.job_service.result(self.id) if self.status() == "ERROR" else ""
 
         if isinstance(error, str):
             try:
@@ -223,7 +184,7 @@ class Job:
                     logging.info(count)
 
         # Retrieve the results. If they're string format, try to decode to a dictionary.
-        results = self._job_service.result(self.job_id)
+        results = self.job_service.result(self.id)
 
         if self.status() == "ERROR":
             if results:
@@ -249,114 +210,7 @@ class Job:
         return self.status() in terminal_status
 
     def __repr__(self):
-        return f"<Job | {self.job_id}>"
-
-
-def save_result(result: Dict[str, Any]):
-    """Saves job results.
-
-    Note:
-        data passed to save_result function
-        must be json serializable (use dictionaries).
-        Default serializer is compatible with
-        IBM QiskitRuntime provider serializer.
-        List of supported types
-        [ndarray, QuantumCircuit, Parameter, ParameterExpression,
-        NoiseModel, Instruction]. See full list via link.
-
-    Links:
-        Source of serializer:
-        https://github.com/Qiskit/qiskit-ibm-runtime/blob/0.14.0/qiskit_ibm_runtime/utils/json.py#L197
-
-    Example:
-        >>> # save dictionary
-        >>> save_result({"key": "value"})
-        >>> # save circuit
-        >>> circuit: QuantumCircuit = ...
-        >>> save_result({"circuit": circuit})
-        >>> # save primitives data
-        >>> quasi_dists = Sampler.run(circuit).result().quasi_dists
-        >>> # {"1x0": 0.1, ...}
-        >>> save_result(quasi_dists)
-
-    Args:
-        result: data that will be accessible from job handler `.result()` method.
-    """
-
-    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-    if version is None:
-        version = GATEWAY_PROVIDER_VERSION_DEFAULT
-
-    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
-    if token is None:
-        logging.warning(
-            "Results will be saved as logs since "
-            "there is no information about the "
-            "authorization token in the environment."
-        )
-        logging.info("Result: %s", result)
-        result_record = json.dumps(result or {}, cls=QiskitObjectsEncoder)
-        print(f"\nSaved Result:{result_record}:End Saved Result\n")
-        return False
-
-    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
-    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
-
-    if not is_jsonable(result, cls=QiskitObjectsEncoder):
-        logging.warning("Object passed is not json serializable.")
-        return False
-
-    url = (
-        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
-    )
-    response = requests.post(
-        url,
-        data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
-        headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
-    )
-    if not response.ok:
-        sanitized = response.text.replace("\n", "").replace("\r", "")
-        logging.warning("Something went wrong: %s", sanitized)
-
-    return response.ok
-
-
-def update_status(status: str):
-    """Update sub status."""
-
-    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-    if version is None:
-        version = GATEWAY_PROVIDER_VERSION_DEFAULT
-
-    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
-    if token is None:
-        logging.warning(
-            "'sub_status' cannot be updated since "
-            "there is no information about the "
-            "authorization token in the environment."
-        )
-        return False
-
-    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
-    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
-
-    url = (
-        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/sub_status/"
-    )
-    response = requests.patch(
-        url,
-        data={"sub_status": status},
-        headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
-    )
-    if not response.ok:
-        sanitized = response.text.replace("\n", "").replace("\r", "")
-        logging.warning("Something went wrong: %s", sanitized)
-
-    return response.ok
+        return f"<Job | {self.id}>"
 
 
 def _map_status_to_serverless(status: str) -> str:
@@ -379,13 +233,3 @@ def _map_status_to_serverless(status: str) -> str:
         return status_map[status]
     except KeyError:
         return status
-
-
-def is_running_in_serverless() -> bool:
-    """Return ``True`` if running as a Qiskit serverless program, ``False`` otherwise."""
-    return ENV_JOB_ID_GATEWAY in os.environ
-
-
-def is_trial() -> bool:
-    """Return ``True`` if Job is running in trial mode, ``False`` otherwise."""
-    return os.getenv(ENV_ACCESS_TRIAL) == "True"

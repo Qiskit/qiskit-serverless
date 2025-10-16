@@ -38,7 +38,7 @@ from qiskit_serverless.core.constants import (
     REQUESTS_TIMEOUT,
 )
 from qiskit_serverless.core.decorators import trace_decorator_factory
-from qiskit_serverless.core.function import QiskitFunction
+from qiskit_serverless.core.functions import QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import safe_json_request_as_dict

@@ -30,7 +30,7 @@ import os.path
 import os
 from typing import Optional, List
 from qiskit_serverless.core.client import BaseClient
-from qiskit_serverless.core.function import QiskitFunction, RunnableQiskitFunction
+from qiskit_serverless.core.functions import QiskitFunction, RunnableQiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 
 
