@@ -36,6 +36,7 @@ from .core import (
     Configuration,
     is_running_in_serverless,
     is_trial,
+    get_runtime_service,
 )
 from .exception import QiskitServerlessException
 from .core.function import QiskitPattern, QiskitFunction

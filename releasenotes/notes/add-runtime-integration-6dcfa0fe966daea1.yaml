@@ -1,0 +1,82 @@
+---
+features:
+  - |
+    A new utility ``get_runtime_service()`` is now available to simplify the instantiation of 
+    a ``QiskitRuntimeService`` within a function. It automatically pulls credentials from environment 
+    variables, reducing boilerplate code and improving usability for function developers.
+
+    Example usage::
+
+        from qiskit_serverless import get_runtime_service
+        service = get_runtime_service()
+        backend = service.backend("ibm_fez")
+
+    This is equivalent to::
+
+        import os
+        from qiskit_serverless import get_arguments, save_result
+        from qiskit_ibm_runtime import QiskitRuntimeService
+        service = QiskitRuntimeService(
+          channel=os.environ["QISKIT_IBM_CHANNEL"],
+          instance=os.environ["QISKIT_IBM_INSTANCE"],
+          token=os.environ["QISKIT_IBM_TOKEN"],
+        )
+        backend = service.backend("ibm_fez")
+
+    This function also enables automatic tracking of runtime job and session IDs created during function 
+    execution. It's important to note that tracking will only be possible if the function runtime jobs
+    are submitted through a service instantiated with this function.
+
+    On top of the default credentials, function developers can customize the call to ``get_runtime_service()``
+    with custom input parameters, including ``token``, ``instance``, ``channel`` and ``url``. For example::
+  
+        from qiskit_serverless import get_runtime_service
+        service = get_runtime_service(channel="ibm_quantum_platform", 
+                                      token="staging_token", 
+                                      instance="staging_crn", 
+                                      url="staging_url")
+        backend = service.backend("staging_backend")
+      
+  - |
+    When using ``get_runtime_service()`` inside a serverless function, the resulting job object now 
+    supports two new methods: ``job.runtime_jobs()`` and ``job.runtime_sessions()``. 
+    These methods return lists of job/session IDs that can be used to fetch job objects from a 
+    ``QiskitRuntimeService`` or access IQP dashboards. ``job.runtime_jobs()`` accepts an optional
+    ``runtime_session`` parameter that allows to filter the returned jobs by associated session id.
+    For example::
+
+      job = function.run(...)
+
+      runtime_ids = job.runtime_jobs()
+      # out = ["job_id_1", "job_id_2", "job_id_3"...]
+      runtime_sessions =  job.runtime_sessions()
+      # out = ["session_id_1", "session_id_2"]
+
+      # a specific session id can be passed to the runtime_jobs() method to filter by session:
+
+      session_id = job.runtime_sessions()[0]
+      # out = "session_id_1"
+      session_job_ids =  job.runtime_jobs(session_id)
+      # in this example, only job ids 1 and 3 correspond to session_id_1:
+      # out = ["job_id_1", "job_id_3"]
+
+
+upgrade:
+  - |
+    Enhanced ``job.cancel()`` behavior to use the newly introduced features. ``job.cancel()`` now attempts 
+    to instantiate a ``QiskitRuntimeService`` using the credentials from the ``ServerlessClient``, 
+    allowing automatic canceling of associated runtime jobs. This works when the credentials used in 
+    the function match those in the client, which happens by default when using ``get_runtime_service()``
+    with no additional inputs. 
+
+    To support local testing or non-standard runtime URLs (e.g., staging environments), where the 
+    ``ServerlessClient`` don't match those in the ``QiskitRuntimeService`` used to submit the jobs,
+    ``job.cancel()`` accepts a service parameter::
+
+        service = QiskitRuntimeService(
+          channel="ibm_quantum_platform",
+          token="MY_TOKEN",
+          instance="MY_CRN",
+          url="my.staging.url.com"
+        )
+        job.cancel(service)
