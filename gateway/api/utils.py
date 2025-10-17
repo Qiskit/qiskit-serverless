@@ -19,7 +19,7 @@ from api.domain.authentication.channel import Channel
 
 from .models import Job
 
-logger = logging.getLogger("commands")
+logger = logging.getLogger("utils")
 
 
 def try_json_loads(data: str) -> Tuple[bool, Optional[dict]]:

@@ -7,6 +7,7 @@ from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
 from django.contrib.sites.models import Site
 
+from api.domain.function import check_logs
 from api.models import ComputeResource, Job
 from api.ray import JobHandler
 
@@ -73,3 +74,29 @@ class TestCommands(APITestCase):
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
         self.assertEqual(job_count, 7)
+
+    def test_check_empty_logs(self):
+        """Test error notification for failed and empty logs."""
+        job = MagicMock()
+        job.id = "42"
+        job.status = "FAILED"
+        logs = check_logs(logs="", job=job)
+        self.assertEqual(logs, "Job 42 failed due to an internal error.")
+
+    def test_check_non_empty_logs(self):
+        """Test logs checker for non empty logs."""
+        job = MagicMock()
+        job.id = "42"
+        job.status = "FAILED"
+        logs = check_logs(logs="awsome logs", job=job)
+        self.assertEqual(logs, "awsome logs")
+
+    def test_check_long_logs(self):
+        """Test logs checker for very long logs."""
+        job = MagicMock()
+        job.id = "42"
+        job.status = "RUNNING"
+        logs = check_logs(logs=("A" * (1_200_000)), job=job)
+        self.assertIn(
+            "Logs exceeded maximum allowed size (1 MB) and could not be stored.", logs
+        )
