@@ -37,6 +37,8 @@
       ~IBMServerlessClient.provider_jobs
       ~IBMServerlessClient.result
       ~IBMServerlessClient.run
+      ~IBMServerlessClient.runtime_jobs
+      ~IBMServerlessClient.runtime_sessions
       ~IBMServerlessClient.save_account
       ~IBMServerlessClient.status
       ~IBMServerlessClient.stop

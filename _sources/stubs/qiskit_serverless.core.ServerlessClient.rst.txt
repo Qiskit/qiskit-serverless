@@ -37,6 +37,8 @@
       ~ServerlessClient.provider_jobs
       ~ServerlessClient.result
       ~ServerlessClient.run
+      ~ServerlessClient.runtime_jobs
+      ~ServerlessClient.runtime_sessions
       ~ServerlessClient.status
       ~ServerlessClient.stop
       ~ServerlessClient.to_dict

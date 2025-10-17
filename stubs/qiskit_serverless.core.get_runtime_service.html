@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="qiskit_serverless.core.RayClient" href="qiskit_serverless.core.RayClient.html" /><link rel="prev" title="qiskit_serverless.core.IBMServerlessClient" href="qiskit_serverless.core.IBMServerlessClient.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Serializers (qiskit_serverless.serializers)" href="../apidocs/serializers.html" /><link rel="prev" title="qiskit_serverless.core.is_running_in_serverless" href="qiskit_serverless.core.is_running_in_serverless.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>qiskit_serverless.core.BaseClient - Qiskit Serverless 0.26.1</title>
+        <title>qiskit_serverless.core.get_runtime_service - Qiskit Serverless 0.26.1</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=3ee1c6c6" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -235,7 +235,7 @@
 <li class="toctree-l2 current has-children"><a class="reference internal" href="../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.core</span></code>)</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (qiskit_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.ServerlessClient.html">qiskit_serverless.core.ServerlessClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.IBMServerlessClient.html">qiskit_serverless.core.IBMServerlessClient</a></li>
-<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">qiskit_serverless.core.BaseClient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.BaseClient.html">qiskit_serverless.core.BaseClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.RayClient.html">qiskit_serverless.core.RayClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.LocalClient.html">qiskit_serverless.core.LocalClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.Job.html">qiskit_serverless.core.Job</a></li>
@@ -252,7 +252,7 @@
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.get_refs_by_status.html">qiskit_serverless.core.get_refs_by_status</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
-<li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
 </li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (qiskit_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -290,7 +290,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/stubs/qiskit_serverless.core.BaseClient.rst.txt" title="View this page">
+  <a class="muted-link" href="../_sources/stubs/qiskit_serverless.core.get_runtime_service.rst.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -310,123 +310,33 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="qiskit-serverless-core-baseclient">
-<h1>qiskit_serverless.core.BaseClient<a class="headerlink" href="#qiskit-serverless-core-baseclient" title="Permalink to this heading">¶</a></h1>
-<dl class="py class">
-<dt class="sig sig-object py" id="qiskit_serverless.core.BaseClient">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BaseClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qiskit_serverless/core/client.html#BaseClient"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qiskit_serverless.core.BaseClient" title="Permalink to this definition">¶</a></dt>
-<dd><p>A client class for specifying custom compute resources.</p>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">client</span> <span class="o">=</span> <span class="n">BaseClient</span><span class="p">(</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&lt;NAME&gt;&quot;</span><span class="p">,</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;HOST&gt;&quot;</span><span class="p">,</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="n">token</span><span class="o">=</span><span class="s2">&quot;&lt;TOKEN&gt;&quot;</span><span class="p">,</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="n">compute_resource</span><span class="o">=</span><span class="n">ComputeResource</span><span class="p">(</span>
-<span class="gp">&gt;&gt;&gt; </span>       <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&lt;COMPUTE_RESOURCE_NAME&gt;&quot;</span><span class="p">,</span>
-<span class="gp">&gt;&gt;&gt; </span>       <span class="n">host</span><span class="o">=</span><span class="s2">&quot;&lt;COMPUTE_RESOURCE_HOST&gt;&quot;</span>
-<span class="gp">&gt;&gt;&gt; </span>   <span class="p">),</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="p">)</span>
-</pre></div>
-</div>
-<p>Initialize a BaseClient instance.</p>
+          <section id="qiskit-serverless-core-get-runtime-service">
+<h1>qiskit_serverless.core.get_runtime_service<a class="headerlink" href="#qiskit-serverless-core-get-runtime-service" title="Permalink to this heading">¶</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="qiskit_serverless.core.get_runtime_service">
+<span class="sig-name descname"><span class="pre">get_runtime_service</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">channel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qiskit_serverless/core/job.html#get_runtime_service"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qiskit_serverless.core.get_runtime_service" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a QiskitRuntimeService wrapped into a ServerlessRuntimeService instance
+that allows to associate runtime job ids to serverless job ids. All input arguments
+are optional, and the recommended usage within a QiskitFunction source code is
+<code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code>, which will automatically pull authentication data from the
+environment variables.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – name of client</p></li>
-<li><p><strong>host</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – host of client a.k.a managers host</p></li>
-<li><p><strong>token</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – authentication token for manager</p></li>
-<li><p><strong>instance</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – IBM Cloud CRN or IQP h/g/p</p></li>
-<li><p><strong>channel</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – identifies the method to use to authenticate the user</p></li>
+<li><p><strong>channel</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Optional QiskitRuntimeService channel argument</p></li>
+<li><p><strong>token</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Optional QiskitRuntimeService authorization token</p></li>
+<li><p><strong>instance</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Optional QiskitRuntimeService instance (CRN or name)</p></li>
+<li><p><strong>url</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Optional QiskitRuntimeService url</p></li>
 </ul>
 </dd>
-</dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="qiskit_serverless.core.BaseClient.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qiskit_serverless/core/client.html#BaseClient.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qiskit_serverless.core.BaseClient.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initialize a BaseClient instance.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – name of client</p></li>
-<li><p><strong>host</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – host of client a.k.a managers host</p></li>
-<li><p><strong>token</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – authentication token for manager</p></li>
-<li><p><strong>instance</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – IBM Cloud CRN or IQP h/g/p</p></li>
-<li><p><strong>channel</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – identifies the method to use to authenticate the user</p></li>
-</ul>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">ServerlessRuntimeService</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>QiskitRuntimeService wrapped into a ServerlessRuntimeService instance that allows
+to associate serverless job ids to runtime job and sesison ids.</p>
 </dd>
 </dl>
-</dd></dl>
-
-<p class="rubric">Methods</p>
-<div class="table-wrapper autosummary longtable docutils container">
-<table class="autosummary longtable docutils align-default">
-<tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#qiskit_serverless.core.BaseClient.__init__" title="qiskit_serverless.core.BaseClient.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(name[, host, token, instance, channel])</p></td>
-<td><p>Initialize a BaseClient instance.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">filtered_logs</span></code>(job_id, **kwargs)</p></td>
-<td><p>Returns logs of the job.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_dict</span></code>(dictionary)</p></td>
-<td><p>Converts dict to object.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">function</span></code>(title[, provider])</p></td>
-<td><p>Returns program based on parameters.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">functions</span></code>(**kwargs)</p></td>
-<td><p>Returns list of available programs.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get</span></code>(title[, provider])</p></td>
-<td><p>Returns program based on parameters.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_job_by_id</span></code>(job_id)</p></td>
-<td><p>Returns job by job id.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_jobs</span></code>(**kwargs)</p></td>
-<td><p>Return list of jobs.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job</span></code>(job_id)</p></td>
-<td><p>Returns job by job id.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">jobs</span></code>(**kwargs)</p></td>
-<td><p>Return list of jobs.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code>(**kwargs)</p></td>
-<td><p>Returns list of available programs.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">logs</span></code>(job_id)</p></td>
-<td><p>Return logs.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">result</span></code>(job_id)</p></td>
-<td><p>Return results.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments, config])</p></td>
-<td><p>Run a function and return its job.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">runtime_jobs</span></code>(job_id[, runtime_session])</p></td>
-<td><p>Return associated runtime jobs.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">runtime_sessions</span></code>(job_id)</p></td>
-<td><p>Returns associated runtime sessions if any.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">status</span></code>(job_id)</p></td>
-<td><p>Check status.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code>(job_id[, service])</p></td>
-<td><p>Stops job/program.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code>()</p></td>
-<td><p>Converts class to dict.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">upload</span></code>(program)</p></td>
-<td><p>Uploads program.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">widget</span></code>()</p></td>
-<td><p>Widget for information about provider and jobs.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
 </dd></dl>
 
 </section>
@@ -436,23 +346,23 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="qiskit_serverless.core.RayClient.html">
+          <a class="next-page" href="../apidocs/serializers.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">qiskit_serverless.core.RayClient</div>
+                <div class="title">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="qiskit_serverless.core.IBMServerlessClient.html">
+          <a class="prev-page" href="qiskit_serverless.core.is_running_in_serverless.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">qiskit_serverless.core.IBMServerlessClient</div>
+                <div class="title">qiskit_serverless.core.is_running_in_serverless</div>
                 
               </div>
             </a>
@@ -486,11 +396,8 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">qiskit_serverless.core.BaseClient</a><ul>
-<li><a class="reference internal" href="#qiskit_serverless.core.BaseClient"><code class="docutils literal notranslate"><span class="pre">BaseClient</span></code></a><ul>
-<li><a class="reference internal" href="#qiskit_serverless.core.BaseClient.__init__"><code class="docutils literal notranslate"><span class="pre">BaseClient.__init__()</span></code></a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#">qiskit_serverless.core.get_runtime_service</a><ul>
+<li><a class="reference internal" href="#qiskit_serverless.core.get_runtime_service"><code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code></a></li>
 </ul>
 </li>
 </ul>

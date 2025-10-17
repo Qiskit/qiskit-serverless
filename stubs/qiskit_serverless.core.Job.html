@@ -252,6 +252,7 @@
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.get_refs_by_status.html">qiskit_serverless.core.get_refs_by_status</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.is_running_in_serverless.html">qiskit_serverless.core.is_running_in_serverless</a></li>
+<li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
 </li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (qiskit_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
@@ -362,6 +363,12 @@
 </tr>
 <tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">result</span></code>([wait, cadence, verbose, maxwait])</p></td>
 <td><p>Return results of the job. :type wait:  :param wait: flag denoting whether to wait for the              job result to be populated before returning :type cadence:  :param cadence: time to wait between checking if job has                 been terminated :type verbose:  :param verbose: flag denoting whether to log a heartbeat                 while waiting for job result to populate.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">runtime_jobs</span></code>([runtime_session])</p></td>
+<td><p>Returns associated runtime jobs if any.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">runtime_sessions</span></code>()</p></td>
+<td><p>Returns associated runtime sessions if any.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">status</span></code>()</p></td>
 <td><p>Returns status of the job.</p></td>

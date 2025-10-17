@@ -27,6 +27,8 @@
       ~LocalClient.logs
       ~LocalClient.result
       ~LocalClient.run
+      ~LocalClient.runtime_jobs
+      ~LocalClient.runtime_sessions
       ~LocalClient.status
       ~LocalClient.stop
       ~LocalClient.to_dict

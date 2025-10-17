@@ -27,6 +27,8 @@
       ~BaseClient.logs
       ~BaseClient.result
       ~BaseClient.run
+      ~BaseClient.runtime_jobs
+      ~BaseClient.runtime_sessions
       ~BaseClient.status
       ~BaseClient.stop
       ~BaseClient.to_dict

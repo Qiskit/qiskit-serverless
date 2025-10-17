@@ -27,6 +27,8 @@
       ~RayClient.logs
       ~RayClient.result
       ~RayClient.run
+      ~RayClient.runtime_jobs
+      ~RayClient.runtime_sessions
       ~RayClient.status
       ~RayClient.stop
       ~RayClient.to_dict

@@ -20,6 +20,8 @@
       ~Job.in_terminal_state
       ~Job.logs
       ~Job.result
+      ~Job.runtime_jobs
+      ~Job.runtime_sessions
       ~Job.status
       ~Job.stop
    
