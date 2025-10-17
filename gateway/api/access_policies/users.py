@@ -19,7 +19,7 @@ class UserAccessPolicies:
     def can_access(user: type[AbstractUser]) -> bool:
         """
         Checks if the user has access to the application.
-        For that it will need to be active.
+        For that, the user will need to be active.
 
         Args:
             user: Django user from the request
