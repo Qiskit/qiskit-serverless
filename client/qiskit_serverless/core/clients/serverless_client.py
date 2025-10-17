@@ -193,15 +193,15 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     ####################
 
     @_trace_job("list")
-    def jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, function: Optional[QiskitFunction] = None, **kwargs) -> List[Job]:
         """Retrieve a list of jobs with optional filtering.
 
         Args:
+            function (QiskitFunction): The function that created the jobs we want to retrieve.
             limit (int, optional): Maximum number of jobs to return. Defaults to 10.
             offset (int, optional): Number of jobs to skip. Defaults to 0.
             status (str, optional): Filter by job status.
             created_after (str, optional): Filter jobs created after this timestamp.
-            function_name (str, optional): Filter by function name.
             **kwargs: Additional query parameters.
 
         Returns:
@@ -217,8 +217,10 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         kwargs["status"] = status
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
-        function_name = kwargs.get("function_name", None)
-        kwargs["function"] = function_name
+
+        if function:
+            kwargs["function"] = function.title
+            kwargs["provider"] = function.provider
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
@@ -237,7 +239,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         ]
 
     @_trace_job("provider_list")
-    def provider_jobs(self, function: QiskitFunction, **kwargs) -> List[Job]:
+    def provider_jobs(self, function: Optional[QiskitFunction], **kwargs) -> List[Job]:
         """Retrieve jobs for a specific provider and function.
 
         Args:
@@ -261,14 +263,16 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         kwargs["limit"] = limit
         offset = kwargs.get("offset", 0)
         kwargs["offset"] = offset
-        kwargs["function"] = function.title
-        kwargs["provider"] = function.provider
         status = kwargs.get("status", None)
         if status:
             status, _ = _map_status_to_serverless(status)
         kwargs["status"] = status
         created_after = kwargs.get("created_after", None)
         kwargs["created_after"] = created_after
+
+        if function:
+            kwargs["function"] = function.title
+            kwargs["provider"] = function.provider
 
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(

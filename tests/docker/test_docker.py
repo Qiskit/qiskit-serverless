@@ -1,7 +1,7 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
 import os
-from time import sleep
+from time import sleep, time
 
 from pytest import raises, mark
 
@@ -10,7 +10,6 @@ from qiskit.circuit.random import random_circuit
 
 from qiskit_serverless import (
     QiskitFunction,
-    BaseClient,
     ServerlessClient,
     QiskitServerlessException,
 )
@@ -25,7 +24,7 @@ class TestFunctionsDocker:
     """Test class for integration testing with docker."""
 
     @mark.order(1)
-    def test_simple_function(self, base_client: BaseClient):
+    def test_simple_function(self, base_client: ServerlessClient):
         """Integration test function uploading."""
         simple_function = QiskitFunction(
             title="my-first-pattern",
@@ -99,7 +98,7 @@ class TestFunctionsDocker:
 
         print(str(exc_info.value))
 
-    def test_function_with_arguments(self, base_client: BaseClient):
+    def test_function_with_arguments(self, base_client: ServerlessClient):
         """Integration test for Functions with arguments."""
         circuit = QuantumCircuit(2)
         circuit.h(0)
@@ -185,7 +184,7 @@ class TestFunctionsDocker:
         with raises(QiskitServerlessException, check=exceptionCheck):
             serverless_client.upload(function)
 
-    def test_distributed_workloads(self, base_client: BaseClient):
+    def test_distributed_workloads(self, base_client: ServerlessClient):
         """Integration test for Functions for distributed workloads."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
@@ -209,7 +208,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_multiple_runs(self, base_client: BaseClient):
+    def test_multiple_runs(self, base_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
@@ -244,7 +243,7 @@ class TestFunctionsDocker:
         reason="Images are not working in tests jet and "
         + "LocalClient does not manage image instead of working_dir+entrypoint"
     )
-    def test_error(self, base_client: BaseClient):
+    def test_error(self, base_client: ServerlessClient):
         """Integration test to force an error."""
 
         description = """
@@ -313,7 +312,7 @@ class TestFunctionsDocker:
         job_1 = runnable_function_1.run()
         job_2 = runnable_function_2.run()
 
-        while job_1.status() == "QUEUED" or job_2.status() == "INITIALIZING":
+        while job_1.status() == "QUEUED" or job_1.status() == "INITIALIZING":
             sleep(1)
 
         while job_2.status() == "QUEUED" or job_2.status() == "INITIALIZING":
@@ -321,3 +320,66 @@ class TestFunctionsDocker:
 
         assert job_1.status() == "RUNNING"
         assert job_2.status() == "RUNNING"
+
+    # pylint: disable=too-many-locals
+    def test_get_filtered_jobs(self, serverless_client: ServerlessClient):
+        """Integration test for filtering jobs."""
+
+        function_1 = QiskitFunction(
+            title="test-exec-1",
+            entrypoint="pattern_wait.py",
+            working_dir=resources_path,
+        )
+        function_2 = QiskitFunction(
+            title="test-exec-2",
+            entrypoint="pattern_wait.py",
+            working_dir=resources_path,
+        )
+        runnable_function_1 = serverless_client.upload(function_1)
+        runnable_function_2 = serverless_client.upload(function_2)
+
+        job_1_1 = runnable_function_1.run()
+        job_1_2 = runnable_function_1.run()
+        job_2 = runnable_function_2.run()
+
+        before_create = time.time()
+        sleep(0.1)
+        non_filtered_jobs = serverless_client.jobs()
+        non_filtered_jobs_1 = runnable_function_1.jobs()
+        sleep(0.1)
+        before_last = time.time()
+        sleep(0.1)
+        non_filtered_jobs_2 = runnable_function_2.jobs()
+        sleep(0.1)
+        after_last = time.time()
+
+        limit_jobs = runnable_function_1.jobs(limit=1)
+        offset_jobs = runnable_function_1.jobs(offset=1)
+        date_before_jobs = serverless_client.jobs(created_after=before_create)
+        date_middle_jobs = serverless_client.jobs(created_after=before_last)
+        date_after_jobs = serverless_client.jobs(created_after=after_last)
+
+        while job_1_1.status() == "QUEUED" or job_1_1.status() == "INITIALIZING":
+            sleep(0.5)
+        running_jobs = serverless_client.jobs(status="RUNNING")
+
+        assert len(non_filtered_jobs) >= 3
+        assert len(non_filtered_jobs_1) == 2
+        assert len(non_filtered_jobs_2) == 1
+
+        assert len(running_jobs) >= 1
+
+        assert len(date_before_jobs) == 3
+        assert len(date_middle_jobs) == 1
+        assert len(date_after_jobs) == 0
+
+        assert len(limit_jobs) == 1
+        if len(limit_jobs) == 1:
+            assert limit_jobs[0].job_id == job_1_2.job_id
+
+        assert len(offset_jobs) == 1
+        if len(offset_jobs) == 1:
+            assert offset_jobs[0].job_id == job_1_1.job_id
+
+        if len(non_filtered_jobs_2) == 1:
+            assert non_filtered_jobs_2[0].job_id == job_2.job_id
