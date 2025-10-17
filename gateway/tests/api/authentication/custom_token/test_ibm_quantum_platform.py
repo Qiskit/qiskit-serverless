@@ -178,7 +178,7 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
         ):
             self.assertRaisesMessage(
                 AuthenticationFailed,
-                "Your user was deactivated. Please contact to support for reactivaton.",
+                "Your user was deactivated. Please contact to IBM support for reactivaton.",
                 custom_auth.authenticate,
                 request,
             )

@@ -74,7 +74,7 @@ class AuthenticationUseCase:
         quantum_user = self.user_repository.get_or_create_by_id(user_id=user_id)
         if not UserAccessPolicies.can_access(quantum_user):
             raise exceptions.AuthenticationFailed(
-                "Your user was deactivated. Please contact to support for reactivaton."
+                "Your user was deactivated. Please contact to IBM support for reactivaton."
             )
 
         if self.channel == Channel.LOCAL:
