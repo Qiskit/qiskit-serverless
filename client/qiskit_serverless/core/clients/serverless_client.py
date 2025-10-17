@@ -31,6 +31,7 @@ import os.path
 import os
 import re
 import tarfile
+import warnings
 from pathlib import Path
 from dataclasses import asdict
 from typing import Optional, List, Dict, Any, Union
@@ -381,14 +382,22 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
     @_trace_job
     def stop(self, job_id: str, service: Optional[QiskitRuntimeService] = None):
-        if service:
-            data = {
-                "service": json.dumps(service, cls=QiskitObjectsEncoder),
-            }
-        else:
-            data = {
-                "service": None,
-            }
+
+        if not service:
+            try:
+                service = QiskitRuntimeService(
+                    channel=self.channel, instance=self.instance, token=self.token
+                )
+            except InvalidAccountError:
+                warnings.warn(
+                    "No QiskitRuntimeService can be associated to the given token and instance. "
+                    "Continuing without a QiskitRuntimeService."
+                )
+                service = None
+        data = {
+            "service": json.dumps(service, cls=QiskitObjectsEncoder),
+        }
+
         response_data = safe_json_request_as_dict(
             request=lambda: requests.post(
                 f"{self.host}/api/{self.version}/jobs/{job_id}/stop/",
@@ -410,6 +419,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
+                params={"with_result": "true"},
                 timeout=REQUESTS_TIMEOUT,
             )
         )
@@ -429,6 +439,53 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             )
         )
         return response_data.get("logs")
+
+    @_trace_job
+    def runtime_jobs(
+        self, job_id: str, runtime_session: Optional[str] = None
+    ) -> list[str]:
+        """Retrieve Qiskit IBM Runtime job ids that correspond to a
+        given serverless job_id execution and, optionally, filtered by session id."""
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/runtime_jobs/",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+
+        if runtime_session:
+            return [
+                job.get("runtime_job")
+                for job in response_data.get("runtime_jobs", [])
+                if job.get("runtime_session") == runtime_session
+            ]
+        return [job.get("runtime_job") for job in response_data.get("runtime_jobs", [])]
+
+    @_trace_job
+    def runtime_sessions(self, job_id: str):
+        """Retrieve Qiskit IBM Runtime session ids that correspond to a
+        given serverless job_id execution."""
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/jobs/{job_id}/runtime_jobs/",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                timeout=REQUESTS_TIMEOUT,
+            )
+        )
+        runtime_jobs = response_data.get("runtime_jobs", [])
+        out_sessions = sorted(
+            {
+                job["runtime_session"]
+                for job in runtime_jobs
+                if job.get("runtime_session")
+            }
+        )
+        return out_sessions
 
     def filtered_logs(self, job_id: str, **kwargs):
         all_logs = self.logs(job_id=job_id)
