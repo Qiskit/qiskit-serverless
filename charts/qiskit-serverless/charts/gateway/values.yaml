@@ -61,6 +61,7 @@ application:
   corsOrigins: "http://localhost"
   dependencies:
       dynamicDependencies: "requirements-dynamic-dependencies.txt"
+  logsMaximumSize: 50 # in MB
 
 cos:
   claimName: gateway-claim
