@@ -13,7 +13,12 @@ logger = logging.getLogger("utils")
 
 
 def check_logs(logs: Union[str, None], job: Job) -> str:
-    """Add error message to logs for failed jobs with empty logs.
+    """
+    This method verifies the integrity of logs to be able
+    to save them:
+        - We write a feedback for Failed jobs without logs
+        - Limited to max_mb the logs from a Function
+
     Args:
         logs: logs of the job
         job:  job model
