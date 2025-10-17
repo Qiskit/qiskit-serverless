@@ -120,7 +120,7 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
     ):
         """
         This test verifies the entire flow of the custom token authentication
-        for a not verified user.
+        for a deactivated user.
         """
 
         mock_get_api_keys_details.return_value = DetailedResponse(
