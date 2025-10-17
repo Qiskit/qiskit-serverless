@@ -92,11 +92,16 @@ class TestCommands(APITestCase):
         self.assertEqual(logs, "awsome logs")
 
     def test_check_long_logs(self):
-        """Test logs checker for very long logs."""
-        job = MagicMock()
-        job.id = "42"
-        job.status = "RUNNING"
-        logs = check_logs(logs=("A" * (1_200_000)), job=job)
-        self.assertIn(
-            "Logs exceeded maximum allowed size (1 MB) and could not be stored.", logs
-        )
+        """Test logs checker for very long logs in this case more than 1MB."""
+
+        with self.settings(
+            FUNCTIONS_LOGS_SIZE_LIMIT="1",
+        ):
+            job = MagicMock()
+            job.id = "42"
+            job.status = "RUNNING"
+            logs = check_logs(logs=("A" * (1_200_000)), job=job)
+            self.assertIn(
+                "Logs exceeded maximum allowed size (1 MB) and could not be stored.",
+                logs,
+            )

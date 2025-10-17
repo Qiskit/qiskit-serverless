@@ -4,6 +4,8 @@ import logging
 import sys
 from typing import Union
 
+from django.conf import settings
+
 from api.models import Job
 
 
@@ -20,7 +22,7 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
         logs with error message and metadata.
     """
 
-    max_mb = 1
+    max_mb = int(settings.FUNCTIONS_LOGS_SIZE_LIMIT)
     max_bytes = max_mb * 1024**2
 
     if job.status == Job.FAILED and logs in ["", None]:
