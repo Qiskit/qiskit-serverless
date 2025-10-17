@@ -57,7 +57,6 @@ def update_job_status(job: Job):
             job.env_vars = "{}"
 
     if job_handler:
-        # let's store logs only for Functions from providers
         logs = job_handler.logs(job.ray_job_id)
         job.logs = check_logs(logs, job)
         # check if job is resource constrained
