@@ -1,0 +1,5 @@
+---
+upgrade:
+  - |
+    Added a new AccessPolicy for User model to be able to allow or
+    not the access to the service by the `is_active` parameter.

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from rest_framework import exceptions
 
+from api.access_policies.users import UserAccessPolicies
 from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 from api.repositories.providers import ProviderRepository
 from api.repositories.users import UserRepository
@@ -71,6 +72,10 @@ class AuthenticationUseCase:
 
         access_groups = authentication_service.get_groups()
         quantum_user = self.user_repository.get_or_create_by_id(user_id=user_id)
+        if not UserAccessPolicies.can_access(quantum_user):
+            raise exceptions.AuthenticationFailed(
+                "Your user was deactivated. Please contact to IBM support for reactivaton."
+            )
 
         if self.channel == Channel.LOCAL:
             permission_names = [VIEW_PROGRAM_PERMISSION, RUN_PROGRAM_PERMISSION]
