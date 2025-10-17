@@ -321,6 +321,7 @@ class TestFunctionsDocker:
         assert job_1.status() == "RUNNING"
         assert job_2.status() == "RUNNING"
 
+    # pylint: disable=too-many-locals
     def test_get_filtered_jobs(self, serverless_client: ServerlessClient):
         """Integration test for filtering jobs."""
 
