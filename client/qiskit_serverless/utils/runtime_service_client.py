@@ -72,8 +72,9 @@ def associate_runtime_job_with_serverless_job(
 
     url = (
         f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/add_runtimejob/"
+        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/runtime_jobs/"
     )
+
     response = requests.post(
         url,
         json={"runtime_job": runtime_job_id, "runtime_session": session_id},
@@ -91,9 +92,6 @@ class ServerlessRuntimeService(QiskitRuntimeService):
     """Serverless wrapper for QiskitRuntimeService.
 
     Used for associating runtime jobs with serverless jobs.
-
-    Args:
-        QiskitRuntimeService (QiskitRuntimeService): Qiskit runtime service object.
     """
 
     def _run(

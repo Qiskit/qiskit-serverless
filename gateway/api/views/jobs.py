@@ -3,7 +3,6 @@ Django Rest framework Job views for api application:
 
 Version views inherit from the different views.
 """
-import json
 import logging
 import os
 
@@ -14,6 +13,7 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 
@@ -21,7 +21,11 @@ from api.models import RuntimeJob
 from api.repositories.jobs import JobsRepository, JobFilters
 from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
-from api.serializers import JobSerializer, JobSerializerWithoutResult
+from api.serializers import (
+    JobSerializer,
+    JobSerializerWithoutResult,
+    RuntimeJobSerializer,
+)
 from api.decorators.trace_decorator import trace_decorator_factory
 
 # pylint: disable=duplicate-code
@@ -95,42 +99,35 @@ class JobViewSet(viewsets.GenericViewSet):
 
         return queryset
 
-    def get_runtime_job(self, job):
-        """get runtime job for job"""
-        return RuntimeJob.objects.filter(job=job)
-
     @_trace
-    @action(methods=["POST"], detail=True)
-    def add_runtimejob(
+    @action(methods=["GET", "POST"], detail=True)
+    def runtime_jobs(
         self, request, pk=None
     ):  # pylint: disable=invalid-name,unused-argument
-        """Add RuntimeJob to job"""
-        if not request.data.get("runtime_job"):
-            return Response(
-                {
-                    "message": "Got empty `runtime_job` field. Please, specify `runtime_job`."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+        """Handle RuntimeJob objects associated to Job"""
+        job = self.get_object()
+
+        # POST: associate runtime jobs to serverless job
+        if request.method == "POST":
+            if not request.data.get("runtime_job"):
+                return Response(
+                    {
+                        "message": "Got empty `runtime_job` field. Please, specify `runtime_job`."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            runtimejob = RuntimeJob(
+                job=job,
+                runtime_job=request.data.get("runtime_job"),
+                runtime_session=request.data.get("runtime_session"),
             )
-        job = self.get_object()
-        runtimejob = RuntimeJob(
-            job=job,
-            runtime_job=request.data.get("runtime_job"),
-            runtime_session=request.data.get("runtime_session"),
-        )
-        runtimejob.save()
-        message = "RuntimeJob is added."
-        return Response({"message": message})
+            runtimejob.save()
+            return Response({"message": "RuntimeJob is added."})
 
-    @_trace
-    @action(methods=["GET"], detail=True)
-    def list_runtimejob(
-        self, request, pk=None
-    ):  # pylint: disable=invalid-name,unused-argument
-        """Add RuntimeJpb to job"""
-        job = self.get_object()
-        runtimejobs = RuntimeJob.objects.filter(job=job)
-        ids = []
-        for runtimejob in runtimejobs:
-            ids.append(runtimejob.runtime_job)
-        return Response(json.dumps(ids))
+        # GET: retrieve runtime jobs associated to serverless job
+        if request.method == "GET":
+            runtimejobs = job.runtime_jobs.all()
+            serializer = RuntimeJobSerializer(runtimejobs, many=True)
+            return Response({"runtime_jobs": serializer.data})
+
+        raise MethodNotAllowed(request.method)

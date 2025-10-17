@@ -328,3 +328,5 @@ class RuntimeJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RuntimeJob
+        # This is needed even if overidden in the v1 implementation
+        fields = ["runtime_job", "runtime_session"]
