@@ -60,6 +60,7 @@ from qiskit_serverless.serializers.program_serializers import (
 )
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import is_jsonable
+from qiskit_serverless.utils import ServerlessRuntimeService
 
 RuntimeEnv = ray.runtime_env.RuntimeEnv
 
@@ -101,6 +102,16 @@ class JobService(ABC):
     @abstractmethod
     def logs(self, job_id: str) -> str:
         """Return logs."""
+
+    @abstractmethod
+    def runtime_jobs(
+        self, job_id: str, runtime_session: Optional[str] = None
+    ) -> list[str]:
+        """Return associated runtime jobs."""
+
+    @abstractmethod
+    def runtime_sessions(self, job_id: str):
+        """Returns associated runtime sessions if any."""
 
     @abstractmethod
     def filtered_logs(self, job_id: str, **kwargs) -> str:
@@ -179,6 +190,16 @@ class Job:
     def logs(self) -> str:
         """Returns logs of the job."""
         return self._job_service.logs(self.job_id)
+
+    def runtime_jobs(self, runtime_session: Optional[str] = None) -> list[str]:
+        """Returns associated runtime jobs if any."""
+        return self._job_service.runtime_jobs(
+            self.job_id, runtime_session=runtime_session
+        )
+
+    def runtime_sessions(self) -> list[str]:
+        """Returns associated runtime sessions if any."""
+        return self._job_service.runtime_sessions(self.job_id)
 
     def filtered_logs(self, **kwargs) -> str:
         """Returns logs of the job.
@@ -395,6 +416,37 @@ def _map_status_to_serverless(status: str) -> Tuple[str, Union[str, None]]:
     if status.startswith("RUNNING:"):
         return Job.RUNNING, status_translation
     return status_translation, None
+
+
+def get_runtime_service(
+    channel: Optional[str] = None,
+    token: Optional[str] = None,
+    instance: Optional[str] = None,
+    url: Optional[str] = None,
+) -> ServerlessRuntimeService:
+    """Get a QiskitRuntimeService wrapped into a ServerlessRuntimeService instance
+    that allows to associate runtime job ids to serverless job ids. All input arguments
+    are optional, and the recommended usage within a QiskitFunction source code is
+    ``get_runtime_service()``, which will automatically pull authentication data from the
+    environment variables.
+
+    Args:
+        channel: Optional QiskitRuntimeService channel argument
+        token: Optional QiskitRuntimeService authorization token
+        instance: Optional QiskitRuntimeService instance (CRN or name)
+        url: Optional QiskitRuntimeService url
+
+    Returns:
+        QiskitRuntimeService wrapped into a ServerlessRuntimeService instance that allows
+        to associate serverless job ids to runtime job and sesison ids.
+    """
+
+    return ServerlessRuntimeService(
+        channel=channel or os.environ["QISKIT_IBM_CHANNEL"],
+        instance=instance or os.environ["QISKIT_IBM_INSTANCE"],
+        token=token or os.environ["QISKIT_IBM_TOKEN"],
+        url=url or os.environ.get("QISKIT_IBM_URL", None),
+    )
 
 
 def is_running_in_serverless() -> bool:
