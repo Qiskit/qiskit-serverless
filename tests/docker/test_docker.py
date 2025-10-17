@@ -1,7 +1,7 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
 import os
-from time import sleep
+from time import sleep, time
 
 from pytest import raises, mark
 
@@ -341,16 +341,36 @@ class TestFunctionsDocker:
         job_1_2 = runnable_function_1.run()
         job_2 = runnable_function_2.run()
 
+        before_create = time.time()
+        sleep(0.1)
         non_filtered_jobs = serverless_client.jobs()
         non_filtered_jobs_1 = runnable_function_1.jobs()
+        sleep(0.1)
+        before_last = time.time()
+        sleep(0.1)
         non_filtered_jobs_2 = runnable_function_2.jobs()
+        sleep(0.1)
+        after_last = time.time()
 
         limit_jobs = runnable_function_1.jobs(limit=1)
         offset_jobs = runnable_function_1.jobs(offset=1)
+        date_before_jobs = serverless_client.jobs(created_after=before_create)
+        date_middle_jobs = serverless_client.jobs(created_after=before_last)
+        date_after_jobs = serverless_client.jobs(created_after=after_last)
+
+        while job_1_1.status() == "QUEUED" or job_1_1.status() == "INITIALIZING":
+            sleep(0.5)
+        running_jobs = serverless_client.jobs(status="RUNNING")
 
         assert len(non_filtered_jobs) >= 3
         assert len(non_filtered_jobs_1) == 2
         assert len(non_filtered_jobs_2) == 1
+
+        assert len(running_jobs) >= 1
+
+        assert len(date_before_jobs) == 3
+        assert len(date_middle_jobs) == 1
+        assert len(date_after_jobs) == 0
 
         assert len(limit_jobs) == 1
         if len(limit_jobs) == 1:
