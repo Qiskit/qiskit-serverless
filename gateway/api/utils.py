@@ -7,7 +7,7 @@ import logging
 import re
 import time
 import uuid
-from typing import Any, Optional, Tuple, Type, Union, Callable, Dict, List
+from typing import Any, Optional, Tuple, Type, Callable, Dict, List
 from django.conf import settings
 from packaging.requirements import Requirement
 
@@ -245,21 +245,6 @@ def generate_cluster_name(username: str) -> str:
         f"c-{re.sub(pattern, '-', lowercase_username)}-{str(uuid.uuid4())[:8]}"
     )
     return cluster_name
-
-
-def check_logs(logs: Union[str, None], job: Job) -> str:
-    """Add error message to logs for failed jobs with empty logs.
-    Args:
-        logs: logs of the job
-        job:  job model
-
-    Returns:
-        logs with error message and metadata.
-    """
-    if job.status == Job.FAILED and logs in ["", None]:
-        logs = f"Job {job.id} failed due to an internal error."
-        logger.warning("Job %s failed due to an internal error.", job.id)
-    return logs
 
 
 def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
