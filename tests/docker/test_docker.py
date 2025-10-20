@@ -381,3 +381,14 @@ class TestFunctionsDocker:
         assert len(offset_jobs) == 1
         assert offset_jobs[0].job_id == job_1_1.job_id
 
+
+        while job_1_1.status() == "RUNNING":
+            sleep(1)
+        while job_1_2.status() == "RUNNING":
+            sleep(1)
+        while job_2.status() == "RUNNING":
+            sleep(1)
+            
+        succeeded_jobs = serverless_client.jobs(status="SUCCEEDED")
+        assert len(succeeded_jobs) >= 3
+
