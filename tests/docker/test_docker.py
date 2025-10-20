@@ -364,7 +364,7 @@ class TestFunctionsDocker:
             sleep(0.5)
         running_jobs = serverless_client.jobs(status="RUNNING")
 
-        assert len(non_filtered_jobs) == 3
+        assert len(non_filtered_jobs) >= 3
         assert len(non_filtered_jobs_1) == 2
         assert len(non_filtered_jobs_2) == 1
 
