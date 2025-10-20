@@ -1,6 +1,6 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
-from datetime import datetime, timezone
+from datetime import datetime
 import os
 from time import sleep
 
