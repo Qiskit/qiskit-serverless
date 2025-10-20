@@ -24,7 +24,7 @@ class TestFunctionsDocker:
     """Test class for integration testing with docker."""
 
     @mark.order(1)
-    def test_simple_function(self, base_client: ServerlessClient):
+    def test_simple_function(self, serverless_client: ServerlessClient):
         """Integration test function uploading."""
         simple_function = QiskitFunction(
             title="my-first-pattern",
@@ -32,12 +32,12 @@ class TestFunctionsDocker:
             working_dir=resources_path,
         )
 
-        runnable_function = base_client.upload(simple_function)
+        runnable_function = serverless_client.upload(simple_function)
 
         assert runnable_function is not None
         assert runnable_function.type == "GENERIC"
 
-        runnable_function = base_client.function(simple_function.title)
+        runnable_function = serverless_client.function(simple_function.title)
 
         assert runnable_function is not None
         assert runnable_function.type == "GENERIC"
@@ -98,7 +98,7 @@ class TestFunctionsDocker:
 
         print(str(exc_info.value))
 
-    def test_function_with_arguments(self, base_client: ServerlessClient):
+    def test_function_with_arguments(self, serverless_client: ServerlessClient):
         """Integration test for Functions with arguments."""
         circuit = QuantumCircuit(2)
         circuit.h(0)
@@ -112,7 +112,7 @@ class TestFunctionsDocker:
             working_dir=resources_path,
         )
 
-        runnable_function = base_client.upload(arguments_function)
+        runnable_function = serverless_client.upload(arguments_function)
 
         job = runnable_function.run(circuit=circuit)
 
@@ -184,7 +184,7 @@ class TestFunctionsDocker:
         with raises(QiskitServerlessException, check=exceptionCheck):
             serverless_client.upload(function)
 
-    def test_distributed_workloads(self, base_client: ServerlessClient):
+    def test_distributed_workloads(self, serverless_client: ServerlessClient):
         """Integration test for Functions for distributed workloads."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
@@ -196,7 +196,7 @@ class TestFunctionsDocker:
             entrypoint="pattern_with_parallel_workflow.py",
             working_dir=resources_path,
         )
-        runnable_function = base_client.upload(function)
+        runnable_function = serverless_client.upload(function)
 
         job = runnable_function.run(circuits=circuits)
 
@@ -208,7 +208,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_multiple_runs(self, base_client: ServerlessClient):
+    def test_multiple_runs(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
         circuits = [random_circuit(2, 2) for _ in range(3)]
@@ -220,7 +220,7 @@ class TestFunctionsDocker:
             entrypoint="pattern.py",
             working_dir=resources_path,
         )
-        runnable_function = base_client.upload(function)
+        runnable_function = serverless_client.upload(function)
 
         job1 = runnable_function.run()
         job2 = runnable_function.run()
@@ -230,8 +230,8 @@ class TestFunctionsDocker:
 
         assert job1.job_id != job2.job_id
 
-        retrieved_job1 = base_client.job(job1.job_id)
-        retrieved_job2 = base_client.job(job2.job_id)
+        retrieved_job1 = serverless_client.job(job1.job_id)
+        retrieved_job2 = serverless_client.job(job2.job_id)
 
         assert retrieved_job1.result() is not None
         assert retrieved_job2.result() is not None
@@ -243,7 +243,7 @@ class TestFunctionsDocker:
         reason="Images are not working in tests jet and "
         + "LocalClient does not manage image instead of working_dir+entrypoint"
     )
-    def test_error(self, base_client: ServerlessClient):
+    def test_error(self, serverless_client: ServerlessClient):
         """Integration test to force an error."""
 
         description = """
@@ -262,7 +262,7 @@ class TestFunctionsDocker:
             description=description,
         )
 
-        runnable_function = base_client.upload(function_with_custom_image)
+        runnable_function = serverless_client.upload(function_with_custom_image)
 
         job = runnable_function.run(message="Argument for the custum function")
 
