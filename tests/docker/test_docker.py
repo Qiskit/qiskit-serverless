@@ -1,8 +1,9 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from time import sleep
+from uuid import uuid4
 
 from pytest import raises, mark
 
@@ -327,32 +328,31 @@ class TestFunctionsDocker:
         """Integration test for filtering jobs."""
 
         function_1 = QiskitFunction(
-            title="test-exec-1",
+            title=f"test-exec-1-{uuid4()}",
             entrypoint="pattern_wait.py",
             working_dir=resources_path,
         )
         function_2 = QiskitFunction(
-            title="test-exec-2",
+            title=f"test-exec-2-{uuid4()}",
             entrypoint="pattern_wait.py",
             working_dir=resources_path,
         )
         runnable_function_1 = serverless_client.upload(function_1)
         runnable_function_2 = serverless_client.upload(function_2)
 
+        before_create = datetime.now(timezone.utc)
+        sleep(0.1)
         job_1_1 = runnable_function_1.run()
         job_1_2 = runnable_function_1.run()
-        job_2 = runnable_function_2.run()
-
-        before_create = datetime.now()
         sleep(0.1)
+        before_last = datetime.now(timezone.utc)
+        job_2 = runnable_function_2.run()
+        sleep(0.1)
+        after_last = datetime.now(timezone.utc)
+
         non_filtered_jobs = serverless_client.jobs()
         non_filtered_jobs_1 = runnable_function_1.jobs()
-        sleep(0.1)
-        before_last = datetime.now()
-        sleep(0.1)
         non_filtered_jobs_2 = runnable_function_2.jobs()
-        sleep(0.1)
-        after_last = datetime.now()
 
         limit_jobs = runnable_function_1.jobs(limit=1)
         offset_jobs = runnable_function_1.jobs(offset=1)
@@ -364,7 +364,7 @@ class TestFunctionsDocker:
             sleep(0.5)
         running_jobs = serverless_client.jobs(status="RUNNING")
 
-        assert len(non_filtered_jobs) >= 3
+        assert len(non_filtered_jobs) == 3
         assert len(non_filtered_jobs_1) == 2
         assert len(non_filtered_jobs_2) == 1
 
