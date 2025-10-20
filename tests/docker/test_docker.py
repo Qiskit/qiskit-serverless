@@ -367,6 +367,7 @@ class TestFunctionsDocker:
         assert len(non_filtered_jobs) >= 3
         assert len(non_filtered_jobs_1) == 2
         assert len(non_filtered_jobs_2) == 1
+        assert non_filtered_jobs_2[0].job_id == job_2.job_id
 
         assert len(running_jobs) >= 1
 
@@ -375,12 +376,8 @@ class TestFunctionsDocker:
         assert len(date_after_jobs) == 0
 
         assert len(limit_jobs) == 1
-        if len(limit_jobs) == 1:
-            assert limit_jobs[0].job_id == job_1_2.job_id
+        assert limit_jobs[0].job_id == job_1_2.job_id
 
         assert len(offset_jobs) == 1
-        if len(offset_jobs) == 1:
-            assert offset_jobs[0].job_id == job_1_1.job_id
+        assert offset_jobs[0].job_id == job_1_1.job_id
 
-        if len(non_filtered_jobs_2) == 1:
-            assert non_filtered_jobs_2[0].job_id == job_2.job_id
