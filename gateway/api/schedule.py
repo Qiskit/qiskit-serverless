@@ -23,19 +23,6 @@ User: Model = get_user_model()
 logger = logging.getLogger("commands")
 
 
-def _configure_job_to_use_gpu(job: Job):
-    gpujobs = create_gpujob_allowlist()
-    if (
-        job.program
-        and job.program.provider
-        and job.program.provider.name in gpujobs["gpu-functions"].keys()
-    ):
-        logger.debug("Job [%s] will be run on GPU nodes", job.id)
-        job.gpu = True
-
-    return job
-
-
 def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | None:
     cluster_name = generate_cluster_name(job.author.username)
     span.set_attribute("job.clustername", cluster_name)
@@ -60,6 +47,19 @@ def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | No
     return compute_resource
 
 
+def configure_job_to_use_gpu(job: Job):
+    gpujobs = create_gpujob_allowlist()
+    if (
+        job.program
+        and job.program.provider
+        and job.program.provider.name in gpujobs["gpu-functions"].keys()
+    ):
+        logger.debug("Job [%s] will be run on GPU nodes", job.id)
+        job.gpu = True
+
+    return job
+
+
 def execute_job(job: Job) -> Job:
     """Executes program.
 
@@ -79,8 +79,6 @@ def execute_job(job: Job) -> Job:
 
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-        job = _configure_job_to_use_gpu(job)
-
         compute_resource = _create_ray_cluster_compute_resource(job, span)
         if not compute_resource:
             return job

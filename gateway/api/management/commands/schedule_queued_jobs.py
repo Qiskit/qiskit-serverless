@@ -14,7 +14,7 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from api.models import ComputeResource, Job
-from api.schedule import get_jobs_to_schedule_fair_share, execute_job
+from api.schedule import configure_job_to_use_gpu, get_jobs_to_schedule_fair_share, execute_job
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")
@@ -69,6 +69,10 @@ class Command(BaseCommand):
                 max_ray_clusters_possible,
             )
             return
+        
+        # probably this piece of code should go in the logic for job creation
+        # in the run end-point
+        job = configure_job_to_use_gpu(job)
 
         # we have available resources
         jobs = get_jobs_to_schedule_fair_share(slots=free_clusters_slots)
