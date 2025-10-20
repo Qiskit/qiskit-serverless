@@ -85,7 +85,7 @@ class LocalClient(BaseClient):
     def job(self, job_id: str) -> Optional[Job]:
         return self._jobs[job_id]["job"]
 
-    def jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, function: Optional[QiskitFunction] = None, **kwargs) -> List[Job]:
         return [job["job"] for job in list(self._jobs.values())]
 
     def runtime_jobs(
