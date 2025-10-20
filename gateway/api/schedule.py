@@ -48,6 +48,17 @@ def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | No
 
 
 def configure_job_to_use_gpu(job: Job):
+    """
+    Configures the Job if its allowed to use
+    GPU or not.
+
+    Args:
+        job (Job): Job instance
+
+    Returns:
+        Job: the instance with gpu parameter configured
+    """
+
     gpujobs = create_gpujob_allowlist()
     if (
         job.program
