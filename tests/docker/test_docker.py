@@ -1,7 +1,8 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
+from datetime import datetime, timezone
 import os
-from time import sleep, time
+from time import sleep
 
 from pytest import raises, mark
 
@@ -342,16 +343,16 @@ class TestFunctionsDocker:
         job_1_2 = runnable_function_1.run()
         job_2 = runnable_function_2.run()
 
-        before_create = time()
+        before_create = datetime.now(timezone.utc)
         sleep(0.1)
         non_filtered_jobs = serverless_client.jobs()
         non_filtered_jobs_1 = runnable_function_1.jobs()
         sleep(0.1)
-        before_last = time()
+        before_last = datetime.now(timezone.utc)
         sleep(0.1)
         non_filtered_jobs_2 = runnable_function_2.jobs()
         sleep(0.1)
-        after_last = time()
+        after_last = datetime.now(timezone.utc)
 
         limit_jobs = runnable_function_1.jobs(limit=1)
         offset_jobs = runnable_function_1.jobs(offset=1)
