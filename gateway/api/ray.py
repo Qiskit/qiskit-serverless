@@ -120,7 +120,7 @@ class JobHandler:
             storage = ArgumentsStorage(
                 job.author.username, program.title, provider_name
             )
-            arguments = storage.get(job.id) or job.arguments
+            arguments = storage.get(job.id)
             arguments_file = os.path.join(
                 working_directory_for_upload, "arguments.serverless"
             )
