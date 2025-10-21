@@ -287,7 +287,6 @@ class RunJobSerializer(serializers.ModelSerializer):
             trial=trial,
             status=status,
             program=program,
-            arguments=arguments,
             author=author,
             config=config,
         )
