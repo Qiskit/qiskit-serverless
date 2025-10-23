@@ -1,3 +1,4 @@
+"""function for jupyter notebook."""
 from qiskit import QuantumCircuit
 from qiskit.transpiler import generate_preset_pass_manager
 from qiskit_ibm_runtime import SamplerV2 as Sampler
@@ -22,8 +23,7 @@ isa_circuit = pm.run(circuit)
 sampler = Sampler(backend)
 quasi_dists = sampler.run([isa_circuit]).result()[0].data.meas.get_counts()
 
-# save results of function execution, 
+# save results of function execution,
 # which will be accessible by calling `.result()`
 save_result(quasi_dists)
 print("Completed running function.")
-
