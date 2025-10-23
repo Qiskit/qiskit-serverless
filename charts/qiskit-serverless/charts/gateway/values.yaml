@@ -55,12 +55,12 @@ application:
     url: "https://cloud.ibm.com"
   iqpQcon:
     url: "https://api-qcon.quantum.ibm.com/api"
-  publicGroupName: "ibm-q/open/main"
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"
   dependencies:
       dynamicDependencies: "requirements-dynamic-dependencies.txt"
+  logsMaximumSize: 50 # in MB
 
 cos:
   claimName: gateway-claim
