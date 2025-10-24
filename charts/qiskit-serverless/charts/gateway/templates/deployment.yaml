@@ -205,8 +205,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.servicePsql.name }}
                   key: {{ .Values.secrets.servicePsql.key.databasePassword }}
-            - name: PUBLIC_GROUP_NAME
-              value: {{ .Values.application.publicGroupName }}
             - name: ALLOWED_HOSTS
               value: {{ .Values.application.allowedHosts | quote }}
             - name: CSRF_TRUSTED_ORIGINS
@@ -215,6 +213,8 @@ spec:
               value: {{ .Values.application.corsOrigins | quote }}
             - name: GATEWAY_DYNAMIC_DEPENDENCIES
               value: {{ .Values.application.dependencies.dynamicDependencies | quote }}
+            - name: FUNCTIONS_LOGS_SIZE_LIMIT
+              value: {{ .Values.application.logsMaximumSize | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -381,6 +381,8 @@ spec:
               value: {{ .Values.application.ray.openTelemetryCollector.insecure | quote }}
             - name: PROGRAM_TIMEOUT
               value: {{ .Values.application.limits.programTimeoutDays | quote }}
+            - name: FUNCTIONS_LOGS_SIZE_LIMIT
+              value: {{ .Values.application.logsMaximumSize | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
