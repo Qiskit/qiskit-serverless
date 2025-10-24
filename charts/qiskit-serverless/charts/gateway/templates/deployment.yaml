@@ -1,3 +1,4 @@
+{{- if .Values.application.gatewayEnable }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -234,7 +235,9 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}
 ---
+{{- if .Values.application.schedulerEnable }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -354,7 +357,7 @@ spec:
               value: {{ .Values.application.limits.maxJobsPerUser | quote }}
             - name: LIMITS_MAX_CLUSTERS
               value: {{ .Values.application.limits.maxComputeResources | quote }}
-            - name: LIMITS_GPU_CLUSTERS
+            - name: LIMITS_MAX_GPU_CLUSTERS
               value: {{ .Values.application.limits.maxGpuResources | quote }}
             - name: GATEWAY_GPU_JOBS_CONFIG
               value: {{ .Values.application.ray.gpuJobsConfig | quote }}
@@ -392,3 +395,4 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}

@@ -6,6 +6,8 @@ replicaCount: 1
 useCertManager: false
 
 application:
+  gatewayEnable: true
+  schedulerEnable: true
   # Gunicorn configuration
   httpServer:
     serverModel: "main.wsgi:application"
