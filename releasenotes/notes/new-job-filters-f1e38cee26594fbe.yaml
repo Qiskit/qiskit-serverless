@@ -1,0 +1,18 @@
+---
+upgrade:
+  - |
+    Enhanced ``client.jobs()`` and ``function.jobs()`` behavior with
+    new filters to improve the management of the different jobs. Now you
+    can filter by ``status`` and by ``created_after`` to retrieve those
+    specific jobs. For example::
+
+      # Filtering by status it will retrieve all the jobs with that status
+      client.jobs(status="SUCCEEDED")
+
+      # The same it will apply after a specific date
+      time_filter = datetime.now(timezone.utc)
+      client.jobs(created_after=time_filter)
+
+      # And all these new filters can be combined with the Qiskit Function filter
+      # to be able to return running jobs from the specific Qiskit Function
+      function.jobs(status="RUNNING")
