@@ -6,7 +6,7 @@ API endpoint for upload a function.
 
 import json
 import logging
-from typing import cast
+from typing import Any, cast
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
@@ -16,6 +16,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from api.models import Program
 from api.use_cases.functions.upload import UploadFunctionData, FunctionUploadUseCase
 from api.utils import encrypt_env_vars
 from api.v1.endpoint_decorator import endpoint
@@ -92,7 +93,48 @@ class InputSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "'artifact' should be a 'tar' file"
             ) from exc
+
+
         return value
+    
+    def validate(self, attrs):
+        super().validate(attrs)
+
+        title = attrs.get("title")
+        provider = attrs.get("provider")
+
+        image = attrs.get("image")
+
+        env_vars = attrs.get("env_vars")
+
+        title_split = title.split("/")
+        if not provider:
+            # Check if title contains the provider: <provider>/<title>
+            logger.debug("Provider is None, check if it is in the title.")
+            if len(title_split) > 2:
+                raise ValidationError(
+                    "Qiskit Function title is malformed. It can only contain one slash."
+                )
+            if len(title_split) > 1:
+                attrs["provider"] = title_split[0]
+                attrs["title"] = title_split[1]
+
+        else:
+            if len(title_split) > 1:
+                raise ValidationError(
+                    "Qiskit Function title is malformed. It cannot contain title with slash and provider."
+                )
+
+        if env_vars:
+            attrs["env_vars"] = encrypt_env_vars(env_vars)
+
+        if image is not None and attrs["provider"] is None:
+            raise ValidationError(
+                "Custom images are only available if you are a provider."
+            )
+        
+        return attrs
+
 
     def create(self, validated_data):
         title = validated_data.get("title")
@@ -105,24 +147,6 @@ class InputSerializer(serializers.Serializer):
         dependencies = validated_data.get("dependencies")
         env_vars = validated_data.get("env_vars")
         description = validated_data.get("description")
-
-        if not provider:
-            # Check if title contains the provider: <provider>/<title>
-            logger.debug("Provider is None, check if it is in the title.")
-            title_split = title.split("/")
-            if len(title_split) > 1:
-                provider = title_split[0]
-                title = title_split[1]
-
-        # if provider_name:
-        #     validated_data["provider"] = Provider.objects.filter(
-        #         name=provider_name
-        #     ).first()
-
-        if env_vars:
-            validated_data["env_vars"] = encrypt_env_vars(env_vars)
-
-        logger.info("Creating program [%s] with UploadProgramSerializer", title)
 
         return UploadFunctionData(
             function_title=title,
@@ -158,33 +182,32 @@ class InputSerializer(serializers.Serializer):
 #         fields = ["id", "status", "program", "created", "sub_status"]
 
 
-# def serialize_output(
-#     jobs: list[Job],
-#     total_count: int,
-#     request: Request,
-#     limit: int | None = None,
-#     offset: int | None = None,
-# ) -> PaginatedResponse:
-#     """
-#     Build a paginated response with serialized jobs.
+def serialize_output(
+    program: Program
+) -> dict[str, Any]:
+    """
+    Build a paginated response with serialized jobs.
 
-#     Args:
-#         jobs: List of job instances.
-#         total_count: Total number of jobs matching the filters.
-#         request: The HTTP request (used to build pagination links).
-#         limit: Page size used for pagination.
-#         offset: Offset used for pagination.
+    Args:
+        jobs: List of job instances.
+        total_count: Total number of jobs matching the filters.
+        request: The HTTP request (used to build pagination links).
+        limit: Page size used for pagination.
+        offset: Offset used for pagination.
 
-#     Returns:
-#         A dictionary with pagination metadata and serialized items.
-#     """
-#     return create_paginated_response(
-#         data=serializer.data,
-#         total_count=total_count,
-#         request=request,
-#         limit=limit,
-#         offset=offset,
-#     )
+    Returns:
+        A dictionary with pagination metadata and serialized items.
+    """
+    return {
+        "id": program.id,
+        "title": program.title,
+        "type": program.type,
+        "description": program.description,
+        "image": program.image,
+        "env_vars": program.env_vars,
+        "dependencies": program.dependencies,
+        "provider": program.provider.name if program.provider else None,
+    }
 
 
 # @swagger_auto_schema(
@@ -252,7 +275,7 @@ class InputSerializer(serializers.Serializer):
 #         ),
 #     },
 # )
-@endpoint("programs", name="programs-upload")
+@endpoint("programs/upload", name="programs-upload")
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
@@ -272,11 +295,11 @@ def upload(request: Request) -> Response:
     Returns:
         A paginated list of jobs matching the filters.
     """
-    serializer = InputSerializer(data=request.query_params)
+    serializer = InputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
     data = cast(UploadFunctionData, serializer.create(serializer.validated_data))
     user = cast(AbstractUser, request.user)
 
-    program_data = FunctionUploadUseCase().execute(author=user, data=data)
-    return Response(program_data)
+    program = FunctionUploadUseCase().execute(author=user, data=data)
+    return Response(serialize_output(program))

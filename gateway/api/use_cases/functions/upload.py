@@ -1,5 +1,5 @@
 """This module contains the usecase get_jos"""
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import logging
 from typing import Optional
 
@@ -23,7 +23,7 @@ class UploadFunctionData:
     Filters for Job queries.
     """
 
-    function_title: str = None
+    function_title: str
     provider: Optional[str] = None
 
     entrypoint: Optional[str] = None
@@ -34,6 +34,12 @@ class UploadFunctionData:
     env_vars: Optional[str] = None
     description: Optional[str] = None
 
+    def dict(self):
+        the_dict = {k: str(v) for k, v in asdict(self).items() if v}
+        title = the_dict.pop("function_title")
+        the_dict["title"] = title
+        return the_dict
+
 
 class ProgramSerializer(serializers.ModelSerializer):
     """
@@ -42,6 +48,7 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
+        fields = "__all__"
 
 
 class FunctionUploadUseCase:
@@ -50,19 +57,29 @@ class FunctionUploadUseCase:
     provider_repository = ProviderRepository()
     function_repository = FunctionRepository()
 
-    def execute(self, author: AbstractUser, data: UploadFunctionData) -> ReturnDict:
+    def execute(self, author: AbstractUser, data: UploadFunctionData) -> Program:
         """
         Retrieve user jobs with optional filters and pagination.
 
         Returns:
             tuple[list[Job], int]: (jobs, total_count)
         """
+
+        program_data = {**data.dict(), "author": author}
         provider_name = data.provider
+        provider = None
         if provider_name:
             provider = self.provider_repository.get_provider_by_name(provider_name)
             if provider is None:
                 raise NotFoundError(f"Provider [{provider_name}] was not found.")
+            
+            if data.image and provider.registry and not data.image.startswith(provider.registry):
+                raise BadRequest(
+                    f"Custom images must be in {provider.registry}."
+                )
 
+            program_data["provider"] = provider
+            # data.provider = provider
             user_has_access = ProviderAccessPolicy.can_access(
                 user=author, provider=provider
             )
@@ -77,21 +94,11 @@ class FunctionUploadUseCase:
                 author=author, title=data.function_title
             )
 
-        if program is None:
-            serializer: ProgramSerializer = ProgramSerializer(data=data)
+        if program:
+            for key, value in program_data.items():
+                setattr(program, key, value)
+            program.save(update_fields=program_data.keys())
         else:
-            logger.info("Program found. [%s] is going to be updated", program.title)
-            serializer: ProgramSerializer = ProgramSerializer(program, data=data)
+            program = Program.objects.create(**program_data)
 
-        if not serializer.is_valid():
-            logger.error(
-                "UploadProgramSerializer validation failed with program instance:\n %s",
-                serializer.errors,
-            )
-            raise BadRequest(serializer.errors)
-
-        serializer.save(
-            author=author, title=data.function_title, provider=provider_name
-        )
-
-        return serializer.data
+        return program

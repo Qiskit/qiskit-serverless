@@ -47,6 +47,8 @@ class TestProgramApi(APITestCase):
 
         programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
+        print(programs_response)
+        print(programs_response.reason_phrase)
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 1)
         self.assertEqual(
@@ -68,6 +70,8 @@ class TestProgramApi(APITestCase):
             reverse("v1:programs-list"), {"filter": "catalog"}, format="json"
         )
 
+        print(programs_response)
+        print(programs_response.reason_phrase)
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 2)
         self.assertEqual(
@@ -96,6 +100,9 @@ class TestProgramApi(APITestCase):
         programs_response = self.client.get(
             reverse("v1:programs-list"), {"filter": "serverless"}, format="json"
         )
+
+        print(programs_response)
+        print(programs_response.reason_phrase)
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 1)
@@ -435,6 +442,9 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 2)
         found = False
+        
+        print(programs_response.data)
+
         for resp_data in programs_response.data:
             if resp_data.get("title") == "Provider Function":
                 self.assertEqual(
