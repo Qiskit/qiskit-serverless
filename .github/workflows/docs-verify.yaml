@@ -10,20 +10,27 @@ jobs:
   verify_docs_build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensures full git history for Reno
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Install pandoc
         run: |
           sudo apt-get update
           sudo apt-get install -y pandoc
+
       - name: Install tox
-        run: |
-          pip install tox>=4.0.0
+        run: pip install tox>=4.0.0
+
       - name: Build docs
-        run: |
-          tox -edocs
+        run: tox -edocs
+
       - name: Upload docs artifact
         if: always()
         uses: actions/upload-artifact@v4
