@@ -206,6 +206,7 @@ def serialize_output(
         "image": program.image,
         "env_vars": program.env_vars,
         "dependencies": program.dependencies,
+        "entrypoint": program.entrypoint,
         "provider": program.provider.name if program.provider else None,
     }
 
