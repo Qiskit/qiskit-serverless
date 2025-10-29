@@ -10,6 +10,8 @@ from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.repositories.jobs import JobsRepository
 from api.access_policies.providers import ProviderAccessPolicy
+from api.services.storage.enums.working_dir import WorkingDir
+from api.services.storage.logs_storage import LogsStorage
 
 
 NO_LOGS_MSG: Final[str] = "No available logs"
@@ -37,14 +39,22 @@ class GetJobLogsUseCase:
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        # Case 1: Provider function - check provider access policy
-        if job.program and job.program.provider:
-            if ProviderAccessPolicy.can_access(user, job.program.provider):
-                return job.logs
+        if user != job.author:
+            raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
-        # Case 2: User is the author of the job
-        elif user == job.author:
-            return job.logs
+        logs_storage = LogsStorage(
+            username= user.username, 
+            working_dir= WorkingDir.USER_STORAGE,
+            function_title=job.program.title,
+            provider_name=job.program.provider.name if job.program.provider else None
+        )
 
-        # Access denied for all other cases
-        raise ForbiddenError(f"You don't have access to job [{job_id}]")
+        logs = logs_storage.get(job_id)
+
+        if logs is None:
+            raise NotFoundError(f"Logs for job[{job_id}] are not found")
+        
+        if len(logs) == 0:
+            return "No logs available"
+
+        return logs
