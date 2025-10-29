@@ -80,3 +80,7 @@ upgrade:
           url="my.staging.url.com"
         )
         job.cancel(service)
+
+  - |
+    The ``ServerlessRuntimeService`` class has been updated to support changes introduced in 
+    ``qiskit_ibm_runtime>=0.42``, unlocking compatibility.
