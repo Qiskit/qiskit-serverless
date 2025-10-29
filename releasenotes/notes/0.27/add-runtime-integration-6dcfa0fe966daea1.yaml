@@ -83,4 +83,6 @@ upgrade:
 
   - |
     The ``ServerlessRuntimeService`` class has been updated to support changes introduced in 
-    ``qiskit_ibm_runtime>=0.42``, unlocking compatibility.
+    ``qiskit_ibm_runtime>=0.42``, unlocking compatibility of the `qiskit-serverless>=0.27.0` package with
+    ``qiskit_ibm_runtime>=0.42``. For older versions of ``qiskit-serverless``,  ``qiskit_ibm_runtime<0.42``
+    will still be required.
