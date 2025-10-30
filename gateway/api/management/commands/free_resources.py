@@ -38,7 +38,7 @@ class Command(BaseCommand):
                     return
                 success = kill_ray_cluster(compute_resource.title)
                 if success:
-                # deactivate
+                    # deactivate
                     compute_resource.active = False
                     compute_resource.save()
                     counter += 1
