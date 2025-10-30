@@ -36,15 +36,16 @@ class Command(BaseCommand):
                         compute_resource.title,
                     )
                     return
-                kill_ray_cluster(compute_resource.title)
+                success = kill_ray_cluster(compute_resource.title)
+                if success:
                 # deactivate
-                compute_resource.active = False
-                compute_resource.save()
-                counter += 1
-                logger.info(
-                    "Cluster [%s] is free after usage from [%s]",
-                    compute_resource.title,
-                    compute_resource.owner,
-                )
+                    compute_resource.active = False
+                    compute_resource.save()
+                    counter += 1
+                    logger.info(
+                        "Cluster [%s] is free after usage from [%s]",
+                        compute_resource.title,
+                        compute_resource.owner,
+                    )
 
         logger.info("Deallocated %s compute resources.", counter)

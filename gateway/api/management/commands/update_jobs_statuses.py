@@ -3,6 +3,7 @@
 import logging
 
 from concurrency.exceptions import RecordModifiedError
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from api.domain.function import check_logs
@@ -83,10 +84,26 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # update job statuses
         # pylint: disable=too-many-branches
-        updated_jobs_counter = 0
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES)
-        for job in jobs:
-            if update_job_status(job):
-                updated_jobs_counter += 1
+        max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
+        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
 
-        logger.info("Updated %s jobs.", updated_jobs_counter)
+        update_classical_jobs = int(max_ray_clusters_possible) != 0
+        update_gpu_jobs = int(max_gpu_clusters_possible) != 0
+
+        if update_classical_jobs:
+            updated_jobs_counter = 0
+            jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=False)
+            for job in jobs:
+                if update_job_status(job):
+                    updated_jobs_counter += 1
+
+            logger.info("Updated %s classical jobs.", updated_jobs_counter)
+
+        if update_gpu_jobs:
+            updated_jobs_counter = 0
+            jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=True)
+            for job in jobs:
+                if update_job_status(job):
+                    updated_jobs_counter += 1
+
+            logger.info("Updated %s gpu jobs.", updated_jobs_counter)
