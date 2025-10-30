@@ -20,12 +20,19 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         compute_resources = ComputeResource.objects.filter(active=True)
-        counter = 0
 
         for compute_resource in compute_resources:
+            # I think this logic could be reviewed because now each job
+            # would have its own compute resource but let's do that
+            # in an additional iteration
             alive_jobs = Job.objects.filter(
                 status__in=Job.RUNNING_STATUSES, compute_resource=compute_resource
             )
+
+            max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
+            max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
+            remove_classical_jobs = int(max_ray_clusters_possible) != 0
+            remove_gpu_jobs = int(max_gpu_clusters_possible) != 0
 
             # only kill cluster if not in local mode and no jobs are running there
             if len(alive_jobs) == 0 and not settings.RAY_CLUSTER_MODE.get("local"):
@@ -36,16 +43,39 @@ class Command(BaseCommand):
                         compute_resource.title,
                     )
                     return
-                success = kill_ray_cluster(compute_resource.title)
-                if success:
-                    # deactivate
-                    compute_resource.active = False
-                    compute_resource.save()
-                    counter += 1
-                    logger.info(
-                        "Cluster [%s] is free after usage from [%s]",
-                        compute_resource.title,
-                        compute_resource.owner,
-                    )
 
-        logger.info("Deallocated %s compute resources.", counter)
+                terminated_job = Job.objects.filter(
+                    status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource
+                ).first()
+                if terminated_job is None:
+                    logger.error(
+                        "There is no job finished for [%s] compute resource:",
+                        compute_resource.title,
+                    )
+                    return
+
+                # Remove non GPU Compute Resources only if you are managing non GPU jobs
+                if remove_classical_jobs and terminated_job.gpu is False:
+                    success = kill_ray_cluster(compute_resource.title)
+                    if success:
+                        # deactivate
+                        compute_resource.active = False
+                        compute_resource.save()
+                        logger.info(
+                            "Cluster [%s] is free after usage from [%s]",
+                            compute_resource.title,
+                            compute_resource.owner,
+                        )
+
+                # Remove GPU Compute Resources only if you are managing GPU jobs
+                if remove_gpu_jobs and terminated_job.gpu:
+                    success = kill_ray_cluster(compute_resource.title)
+                    if success:
+                        # deactivate
+                        compute_resource.active = False
+                        compute_resource.save()
+                        logger.info(
+                            "Cluster [%s] is free after usage from [%s]",
+                            compute_resource.title,
+                            compute_resource.owner,
+                        )
