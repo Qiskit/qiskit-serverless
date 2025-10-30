@@ -43,17 +43,17 @@ class GetJobLogsUseCase:
             raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
         logs_storage = LogsStorage(
-            username= user.username, 
-            working_dir= WorkingDir.USER_STORAGE,
+            username=user.username,
+            working_dir=WorkingDir.USER_STORAGE,
             function_title=job.program.title,
-            provider_name=job.program.provider.name if job.program.provider else None
+            provider_name=job.program.provider.name if job.program.provider else None,
         )
 
         logs = logs_storage.get(job_id)
 
         if logs is None:
             raise NotFoundError(f"Logs for job[{job_id}] are not found")
-        
+
         if len(logs) == 0:
             return "No logs available"
 
