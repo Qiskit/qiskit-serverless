@@ -437,7 +437,7 @@ class TestProgramApi(APITestCase):
         found = False
 
         for resp_data in programs_response.data:
-            if resp_data.get("title") == "Provider Function":
+            if resp_data.get("title") == "ProviderFunction":
                 self.assertEqual(
                     resp_data.get("description"),
                     description,
