@@ -62,7 +62,7 @@ class Command(BaseCommand):
                         compute_resource.active = False
                         compute_resource.save()
                         logger.info(
-                            "Cluster [%s] is free after usage from [%s]",
+                            "Classical Cluster [%s] is free after usage from [%s]",
                             compute_resource.title,
                             compute_resource.owner,
                         )
@@ -75,7 +75,7 @@ class Command(BaseCommand):
                         compute_resource.active = False
                         compute_resource.save()
                         logger.info(
-                            "Cluster [%s] is free after usage from [%s]",
+                            "GPU Cluster [%s] is free after usage from [%s]",
                             compute_resource.title,
                             compute_resource.owner,
                         )

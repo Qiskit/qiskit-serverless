@@ -106,4 +106,4 @@ class Command(BaseCommand):
                 if update_job_status(job):
                     updated_jobs_counter += 1
 
-            logger.info("Updated %s gpu jobs.", updated_jobs_counter)
+            logger.info("Updated %s GPU jobs.", updated_jobs_counter)
