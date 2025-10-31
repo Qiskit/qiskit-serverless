@@ -374,7 +374,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(
             programs_response.data.get("entrypoint"), "test_user_3_program.py"
         )
-        self.assertEqual(programs_response.data.get("title"), "Provider Function")
+        self.assertEqual(programs_response.data.get("title"), "ProviderFunction")
         self.assertRaises(
             Program.DoesNotExist,
             Program.objects.get,
