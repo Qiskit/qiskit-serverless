@@ -11,6 +11,7 @@ from typing import Any, cast
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
+from packaging.requirements import Requirement, InvalidRequirement
 from rest_framework import permissions, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
@@ -18,7 +19,7 @@ from rest_framework.response import Response
 
 from api.models import Program
 from api.use_cases.functions.upload import UploadFunctionData, FunctionUploadUseCase
-from api.utils import encrypt_env_vars
+from api.utils import encrypt_env_vars, check_whitelisted
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.views.serializer_utils import SanitizedCharField
@@ -31,7 +32,6 @@ def get_upload_path(instance, filename):
     return f"{instance.author.username}/{instance.id}/{filename}"
 
 
-# TODO: review validation inheritances such as dependencies
 class InputSerializer(serializers.Serializer):
     """
     Validates and sanitizes query parameters for the jobs list endpoint.
@@ -71,12 +71,66 @@ class InputSerializer(serializers.Serializer):
 
         return dependency_name + dependency_version
 
+    def _parse_dependency(self, dep: Any):
+        if not isinstance(dep, dict) and not isinstance(dep, str):
+            raise ValidationError(
+                "'dependencies' should be an array with strings or dict."
+            )
+
+        if isinstance(dep, str):
+            dep_string = dep
+        else:
+            dep_name = list(dep.keys())
+            if len(dep_name) > 1 or len(dep_name) == 0:
+                raise ValidationError(
+                    "'dependencies' should be an array with dict containing one dependency only."
+                )
+            dep_name = str(dep_name[0])
+            dep_version = str(list(dep.values())[0])
+
+            # if starts with a number then prefix ==
+            try:
+                if int(dep_version[0]) >= 0:
+                    dep_version = f"=={dep_version}"
+            except ValueError:
+                pass
+
+            dep_string = dep_name + dep_version
+
+        requirement = Requirement(dep_string)
+        req_specifier_list = list(requirement.specifier)
+        req_specifier_first = next(iter(req_specifier_list), None)
+
+        if len(req_specifier_list) > 1 or (
+            req_specifier_first and req_specifier_first.operator != "=="
+        ):
+            raise ValidationError(
+                "'dependencies' needs one fixed version using the '==' operator."
+            )
+
+        return requirement
+
     def validate_dependencies(self, value: list):
         """
         Validates the function title
         """
         if not isinstance(value, list):
             raise serializers.ValidationError("'dependencies' should be a list.")
+
+        if len(value) == 0:
+            return []
+
+        try:
+            required_deps = [self._parse_dependency(dep) for dep in value]
+        except InvalidRequirement as invalid_requirement:
+            raise ValidationError(
+                "Error while parsing dependencies."
+            ) from invalid_requirement
+
+        try:
+            check_whitelisted(required_deps)
+        except ValueError as value_error:
+            raise ValidationError(value_error.args[0]) from value_error
 
         return [self._normalize_dependency(dep) for dep in value]
 
@@ -121,7 +175,8 @@ class InputSerializer(serializers.Serializer):
         else:
             if len(title_split) > 1:
                 raise ValidationError(
-                    "Qiskit Function title is malformed. It cannot contain title with slash and provider."
+                    "Qiskit Function title is malformed. "
+                    "It cannot contain title with slash and provider."
                 )
 
         if env_vars:

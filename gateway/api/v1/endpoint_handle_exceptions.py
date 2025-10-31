@@ -49,16 +49,11 @@ def endpoint_handle_exceptions(view_func: Callable):
                 status=status.HTTP_403_FORBIDDEN,
             )
         except BadRequest as error:
-            print("BadRequest")
-            print(error)
             return Response(
                 {"message": error.message},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except ValidationError as error:
-            print("ValidationError")
-            print(error)
-            print(error.detail)
             return Response(
                 {"message": _first_error_message(error.detail)},
                 status=status.HTTP_400_BAD_REQUEST,

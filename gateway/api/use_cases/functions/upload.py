@@ -5,7 +5,6 @@ from typing import Optional
 
 from django.contrib.auth.models import AbstractUser
 from rest_framework import serializers
-from rest_framework.utils.serializer_helpers import ReturnDict
 
 from api.access_policies.providers import ProviderAccessPolicy
 from api.domain.exceptions.bad_request import BadRequest
@@ -35,6 +34,9 @@ class UploadFunctionData:
     description: Optional[str] = None
 
     def dict(self):
+        """
+        Transforms dataclass to dict
+        """
         the_dict = {k: str(v) for k, v in asdict(self).items() if v}
         title = the_dict.pop("function_title")
         the_dict["title"] = title
