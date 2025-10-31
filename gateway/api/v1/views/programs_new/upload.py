@@ -94,9 +94,8 @@ class InputSerializer(serializers.Serializer):
                 "'artifact' should be a 'tar' file"
             ) from exc
 
-
         return value
-    
+
     def validate(self, attrs):
         super().validate(attrs)
 
@@ -132,9 +131,8 @@ class InputSerializer(serializers.Serializer):
             raise ValidationError(
                 "Custom images are only available if you are a provider."
             )
-        
-        return attrs
 
+        return attrs
 
     def create(self, validated_data):
         title = validated_data.get("title")
@@ -182,9 +180,7 @@ class InputSerializer(serializers.Serializer):
 #         fields = ["id", "status", "program", "created", "sub_status"]
 
 
-def serialize_output(
-    program: Program
-) -> dict[str, Any]:
+def serialize_output(program: Program) -> dict[str, Any]:
     """
     Build a paginated response with serialized jobs.
 

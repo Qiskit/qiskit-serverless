@@ -442,7 +442,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 2)
         found = False
-        
+
         print(programs_response.data)
 
         for resp_data in programs_response.data:

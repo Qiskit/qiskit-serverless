@@ -72,11 +72,13 @@ class FunctionUploadUseCase:
             provider = self.provider_repository.get_provider_by_name(provider_name)
             if provider is None:
                 raise NotFoundError(f"Provider [{provider_name}] was not found.")
-            
-            if data.image and provider.registry and not data.image.startswith(provider.registry):
-                raise BadRequest(
-                    f"Custom images must be in {provider.registry}."
-                )
+
+            if (
+                data.image
+                and provider.registry
+                and not data.image.startswith(provider.registry)
+            ):
+                raise BadRequest(f"Custom images must be in {provider.registry}.")
 
             program_data["provider"] = provider
             # data.provider = provider
