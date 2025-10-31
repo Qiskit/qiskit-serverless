@@ -331,7 +331,7 @@ RAY_CLUSTER_MODE = {
     ),
 }
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.26.1"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.27.0"
 )
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
@@ -420,5 +420,5 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_AGE = 3600
 
-# Public group name
-PUBLIC_GROUP_NAME = os.environ.get("PUBLIC_GROUP_NAME", "ibm-q/open/main")
+# Functions logs size limite in MB
+FUNCTIONS_LOGS_SIZE_LIMIT = os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "50")
