@@ -31,8 +31,8 @@ class Command(BaseCommand):
 
             max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
             max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-            remove_classical_jobs = int(max_ray_clusters_possible) != 0
-            remove_gpu_jobs = int(max_gpu_clusters_possible) != 0
+            remove_classical_jobs = int(max_ray_clusters_possible) > 0
+            remove_gpu_jobs = int(max_gpu_clusters_possible) > 0
 
             # only kill cluster if not in local mode and no jobs are running there
             if total_alive_jobs == 0 and not settings.RAY_CLUSTER_MODE.get("local"):
