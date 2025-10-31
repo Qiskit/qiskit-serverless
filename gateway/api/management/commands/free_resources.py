@@ -25,9 +25,9 @@ class Command(BaseCommand):
             # I think this logic could be reviewed because now each job
             # would have its own compute resource but let's do that
             # in an additional iteration
-            alive_jobs = Job.objects.filter(
+            total_alive_jobs = Job.objects.filter(
                 status__in=Job.RUNNING_STATUSES, compute_resource=compute_resource
-            )
+            ).count()
 
             max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
             max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
@@ -35,7 +35,7 @@ class Command(BaseCommand):
             remove_gpu_jobs = int(max_gpu_clusters_possible) != 0
 
             # only kill cluster if not in local mode and no jobs are running there
-            if len(alive_jobs) == 0 and not settings.RAY_CLUSTER_MODE.get("local"):
+            if total_alive_jobs == 0 and not settings.RAY_CLUSTER_MODE.get("local"):
                 if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
                     logger.debug(
                         "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
