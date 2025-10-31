@@ -19,15 +19,21 @@ class Command(BaseCommand):
     help = "Clean up resources."
 
     def handle(self, *args, **options):
-        compute_resources = ComputeResource.objects.filter(active=True)
+        if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
+            logger.debug(
+                "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
+                "so compute resources will not be removed.",
+            )
+            return
 
+        compute_resources = ComputeResource.objects.filter(active=True)
         for compute_resource in compute_resources:
             # I think this logic could be reviewed because now each job
             # would have its own compute resource but let's do that
             # in an additional iteration
-            total_alive_jobs = Job.objects.filter(
+            there_are_alive_jobs = Job.objects.filter(
                 status__in=Job.RUNNING_STATUSES, compute_resource=compute_resource
-            ).count()
+            ).exists()
 
             max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
             max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
@@ -35,15 +41,7 @@ class Command(BaseCommand):
             remove_gpu_jobs = int(max_gpu_clusters_possible) > 0
 
             # only kill cluster if not in local mode and no jobs are running there
-            if total_alive_jobs == 0 and not settings.RAY_CLUSTER_MODE.get("local"):
-                if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
-                    logger.debug(
-                        "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
-                        + "so cluster [%s] will not be removed",
-                        compute_resource.title,
-                    )
-                    return
-
+            if there_are_alive_jobs and not settings.RAY_CLUSTER_MODE.get("local"):
                 terminated_job = Job.objects.filter(
                     status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource
                 ).first()
