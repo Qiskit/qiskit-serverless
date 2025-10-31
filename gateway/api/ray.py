@@ -431,9 +431,8 @@ def kill_ray_cluster(cluster_name: str) -> bool:
         )
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
-        logger.warning(
-            "Something went wrong during ray cluster deletion request: %s, "
-            "the ray cluster might be in another cluster.",
+        logger.error(
+            "Something went wrong during ray cluster deletion request: %s",
             sanitized,
         )
         return success
