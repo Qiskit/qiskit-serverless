@@ -52,28 +52,18 @@ class Command(BaseCommand):
                     )
                     return
 
-                # Remove non GPU Compute Resources only if you are managing non GPU jobs
-                if remove_classical_jobs and terminated_job.gpu is False:
+                is_gpu = terminated_job.gpu
+                should_remove_as_classical = remove_classical_jobs and not is_gpu
+                should_remove_as_gpu = remove_gpu_jobs and is_gpu
+                if should_remove_as_classical or should_remove_as_gpu:
                     success = kill_ray_cluster(compute_resource.title)
                     if success:
                         # deactivate
                         compute_resource.active = False
                         compute_resource.save()
                         logger.info(
-                            "Classical Cluster [%s] is free after usage from [%s]",
-                            compute_resource.title,
-                            compute_resource.owner,
-                        )
-
-                # Remove GPU Compute Resources only if you are managing GPU jobs
-                if remove_gpu_jobs and terminated_job.gpu:
-                    success = kill_ray_cluster(compute_resource.title)
-                    if success:
-                        # deactivate
-                        compute_resource.active = False
-                        compute_resource.save()
-                        logger.info(
-                            "GPU Cluster [%s] is free after usage from [%s]",
+                            "[%s] Cluster [%s] is free after usage from [%s]",
+                            "GPU" if is_gpu else "Classical",
                             compute_resource.title,
                             compute_resource.owner,
                         )
