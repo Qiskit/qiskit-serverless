@@ -7,7 +7,6 @@ from django.core.management.base import BaseCommand
 
 from api.models import ComputeResource, Job
 from api.ray import kill_ray_cluster
-from main import settings as config
 
 
 logger = logging.getLogger("commands")
@@ -19,9 +18,16 @@ class Command(BaseCommand):
     help = "Clean up resources."
 
     def handle(self, *args, **options):
-        if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
+        if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
             logger.debug(
                 "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
+                "so compute resources will not be removed.",
+            )
+            return
+
+        if settings.RAY_CLUSTER_MODE.get("local"):
+            logger.debug(
+                "RAY_CLUSTER_MODE is local, "
                 "so compute resources will not be removed.",
             )
             return
@@ -35,35 +41,45 @@ class Command(BaseCommand):
                 status__in=Job.RUNNING_STATUSES, compute_resource=compute_resource
             ).exists()
 
-            max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
-            max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-            remove_classical_jobs = max_ray_clusters_possible > 0
-            remove_gpu_jobs = max_gpu_clusters_possible > 0
-
             # only kill cluster if not in local mode and no jobs are running there
-            if there_are_alive_jobs and not settings.RAY_CLUSTER_MODE.get("local"):
-                terminated_job = Job.objects.filter(
-                    status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource
-                ).first()
-                if terminated_job is None:
-                    logger.error(
-                        "There is no job finished for [%s] compute resource:",
-                        compute_resource.title,
-                    )
-                    return
+            if not there_are_alive_jobs:
+                self.remove_compute_resource(compute_resource)
 
-                is_gpu = terminated_job.gpu
-                should_remove_as_classical = remove_classical_jobs and not is_gpu
-                should_remove_as_gpu = remove_gpu_jobs and is_gpu
-                if should_remove_as_classical or should_remove_as_gpu:
-                    success = kill_ray_cluster(compute_resource.title)
-                    if success:
-                        # deactivate
-                        compute_resource.active = False
-                        compute_resource.save()
-                        logger.info(
-                            "[%s] Cluster [%s] is free after usage from [%s]",
-                            "GPU" if is_gpu else "Classical",
-                            compute_resource.title,
-                            compute_resource.owner,
-                        )
+    def remove_compute_resource(self, compute_resource):
+        """
+        This method removes a Compute Resource if it's
+        available in the cluster.
+
+        Args:
+            compute_resource: ComputeResource
+        """
+        max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
+        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
+        remove_classical_jobs = max_ray_clusters_possible > 0
+        remove_gpu_jobs = max_gpu_clusters_possible > 0
+
+        terminated_job = Job.objects.filter(
+            status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource
+        ).first()
+        if terminated_job is None:
+            logger.error(
+                "There is no job finished for [%s] compute resource:",
+                compute_resource.title,
+            )
+            return
+
+        is_gpu = terminated_job.gpu
+        should_remove_as_classical = remove_classical_jobs and not is_gpu
+        should_remove_as_gpu = remove_gpu_jobs and is_gpu
+        if should_remove_as_classical or should_remove_as_gpu:
+            success = kill_ray_cluster(compute_resource.title)
+            if success:
+                # deactivate
+                compute_resource.active = False
+                compute_resource.save()
+                logger.info(
+                    "[%s] Cluster [%s] is free after usage from [%s]",
+                    "GPU" if is_gpu else "Classical",
+                    compute_resource.title,
+                    compute_resource.owner,
+                )
