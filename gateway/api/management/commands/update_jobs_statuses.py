@@ -86,8 +86,8 @@ class Command(BaseCommand):
         # pylint: disable=too-many-branches
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-        update_classical_jobs = int(max_ray_clusters_possible) > 0
-        update_gpu_jobs = int(max_gpu_clusters_possible) > 0
+        update_classical_jobs = max_ray_clusters_possible > 0
+        update_gpu_jobs = max_gpu_clusters_possible > 0
 
         if update_classical_jobs:
             updated_jobs_counter = 0
