@@ -30,6 +30,7 @@ system and receive the results when they are ready.
   Examples <examples/index>
   Migration guides <migration/index>
   Deployment <deployment/index>
+  Release Notes <release-notes>
 
 .. toctree::
   :maxdepth: 1
