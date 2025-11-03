@@ -3,6 +3,7 @@
 import logging
 
 from concurrency.exceptions import RecordModifiedError
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from api.domain.function import check_logs
@@ -37,7 +38,9 @@ def update_job_status(job: Job):
         job_new_status = ray_job_status_to_model_job_status(ray_job_status)
         success = True
 
-    job_new_status = check_job_timeout(job, job_new_status)
+    if check_job_timeout(job):
+        job_new_status = Job.STOPPED
+
     if not success:
         job_new_status = handle_job_status_not_available(job, job_new_status)
 
@@ -83,10 +86,25 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # update job statuses
         # pylint: disable=too-many-branches
-        updated_jobs_counter = 0
-        jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES)
-        for job in jobs:
-            if update_job_status(job):
-                updated_jobs_counter += 1
+        max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
+        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
+        update_classical_jobs = max_ray_clusters_possible > 0
+        update_gpu_jobs = max_gpu_clusters_possible > 0
 
-        logger.info("Updated %s jobs.", updated_jobs_counter)
+        if update_classical_jobs:
+            updated_jobs_counter = 0
+            jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=False)
+            for job in jobs:
+                if update_job_status(job):
+                    updated_jobs_counter += 1
+
+            logger.info("Updated %s classical jobs.", updated_jobs_counter)
+
+        if update_gpu_jobs:
+            updated_jobs_counter = 0
+            jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=True)
+            for job in jobs:
+                if update_job_status(job):
+                    updated_jobs_counter += 1
+
+            logger.info("Updated %s GPU jobs.", updated_jobs_counter)
