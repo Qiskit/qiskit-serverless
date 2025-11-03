@@ -164,22 +164,21 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
     return Job.objects.filter(job_filter)
 
 
-def check_job_timeout(job: Job, job_status):
+def check_job_timeout(job: Job):
     """Check job timeout and update job status."""
 
     timeout = config.PROGRAM_TIMEOUT
-    if job.updated:
-        endtime = job.updated + timedelta(days=timeout)
-        now = datetime.now(tz=endtime.tzinfo)
-    if job.updated and endtime < now:  # pylint: disable=possibly-used-before-assignment
-        job_status = Job.STOPPED
-        job.logs += f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
+    endtime = job.created + timedelta(days=timeout)
+    now = datetime.now(tz=endtime.tzinfo)
+    if endtime < now:
+        job.logs += "\nMaximum job runtime reached. Stopping the job."
         logger.warning(
             "Job [%s] reached maximum runtime [%s] days and stopped.",
             job.id,
             timeout,
         )
-    return job_status
+        return True
+    return False
 
 
 def handle_job_status_not_available(job: Job, job_status):
@@ -196,7 +195,7 @@ def handle_job_status_not_available(job: Job, job_status):
         job.compute_resource.delete()
         job.compute_resource = None
         job_status = Job.FAILED
-        job.logs += f"{job.logs}\nSomething went wrong during updating job status."
+        job.logs += "\nSomething went wrong during updating job status."
     return job_status
 
 
