@@ -1,5 +1,6 @@
 """Tests for commands."""
 
+from datetime import datetime
 from allauth.socialaccount.models import SocialApp
 from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
@@ -41,6 +42,11 @@ class TestCommands(APITestCase):
         ray_client.stop_job.return_value = True
         ray_client.submit_job.return_value = "AwesomeJobId"
         get_job_handler.return_value = JobHandler(ray_client)
+
+        # This new line is needed because if not the Job will timeout
+        job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
+        job.created = datetime.now()
+        job.save()
 
         call_command("update_jobs_statuses")
 

@@ -38,7 +38,9 @@ def update_job_status(job: Job):
         job_new_status = ray_job_status_to_model_job_status(ray_job_status)
         success = True
 
-    job_new_status = check_job_timeout(job, job_new_status)
+    if check_job_timeout(job):
+        job_new_status = Job.STOPPED
+
     if not success:
         job_new_status = handle_job_status_not_available(job, job_new_status)
 
