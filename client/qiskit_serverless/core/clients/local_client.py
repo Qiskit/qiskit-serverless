@@ -85,8 +85,18 @@ class LocalClient(BaseClient):
     def job(self, job_id: str) -> Optional[Job]:
         return self._jobs[job_id]["job"]
 
-    def jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, function: Optional[QiskitFunction] = None, **kwargs) -> List[Job]:
         return [job["job"] for job in list(self._jobs.values())]
+
+    def runtime_jobs(
+        self, job_id: str, runtime_session: Optional[str] = None
+    ) -> list[str]:
+        """Return associated runtime jobs."""
+        raise NotImplementedError
+
+    def runtime_sessions(self, job_id: str):
+        """Returns associated runtime sessions if any."""
+        raise NotImplementedError
 
     def run(
         self,

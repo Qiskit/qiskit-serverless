@@ -45,6 +45,7 @@ Core abstractions
     put
     get_refs_by_status
     is_running_in_serverless
+    get_runtime_service
 
 """
 
@@ -61,6 +62,7 @@ from .job import (
     Configuration,
     is_running_in_serverless,
     is_trial,
+    get_runtime_service,
 )
 from .function import QiskitPattern, QiskitFunction
 from .decorators import (

@@ -6,6 +6,8 @@ replicaCount: 1
 useCertManager: false
 
 application:
+  gatewayEnable: true
+  schedulerEnable: true
   # Gunicorn configuration
   httpServer:
     serverModel: "main.wsgi:application"
@@ -26,7 +28,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.26.1"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.27.0"
     cpu: 2
     memory: 2
     gpu: 1
@@ -55,12 +57,12 @@ application:
     url: "https://cloud.ibm.com"
   iqpQcon:
     url: "https://api-qcon.quantum.ibm.com/api"
-  publicGroupName: "ibm-q/open/main"
   allowedHosts: "*"
   trustedOrigins: "http://localhost"
   corsOrigins: "http://localhost"
   dependencies:
       dynamicDependencies: "requirements-dynamic-dependencies.txt"
+  logsMaximumSize: 50 # in MB
 
 cos:
   claimName: gateway-claim
