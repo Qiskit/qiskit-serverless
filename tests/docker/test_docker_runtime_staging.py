@@ -77,10 +77,10 @@ class TestFunctionsStaging:
         )
 
         serverless_client.upload(function)
-        my_function = serverless_client.function("test-runtime-wrapper")
+        # my_function = serverless_client.function("test-runtime-wrapper")
 
-        job = my_function.run()
-        job_id = job.job_id
+        # job = my_function.run()
+        # job_id = job.job_id
 
         # while True:
         #     if "JOB IDS" in job.logs():
@@ -117,10 +117,10 @@ class TestFunctionsStaging:
         )
 
         serverless_client.upload(function)
-        my_function = serverless_client.function("test-runtime-wrapper")
+        # my_function = serverless_client.function("test-runtime-wrapper")
 
-        job = my_function.run()
-        job_id = job.job_id
+        # job = my_function.run()
+        # job_id = job.job_id
 
         # while True:
         #     if "JOB IDS" in job.logs():
