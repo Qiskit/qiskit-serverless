@@ -75,7 +75,7 @@ class RayClient(BaseClient):
     ####### JOBS #######
     ####################
 
-    def jobs(self, **kwargs) -> List[Job]:
+    def jobs(self, function: Optional[QiskitFunction] = None, **kwargs) -> List[Job]:
         """Return list of jobs.
 
         Returns:
@@ -157,6 +157,16 @@ class RayClient(BaseClient):
 
     def filtered_logs(self, job_id: str, **kwargs) -> str:
         """Return filtered logs."""
+        raise NotImplementedError
+
+    def runtime_jobs(
+        self, job_id: str, runtime_session: Optional[str] = None
+    ) -> list[str]:
+        """Return associated runtime jobs."""
+        raise NotImplementedError
+
+    def runtime_sessions(self, job_id: str):
+        """Returns associated runtime sessions if any."""
         raise NotImplementedError
 
     #########################

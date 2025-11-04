@@ -1,0 +1,5 @@
+---
+encoding: utf8
+default_branch: main
+unreleased_version_title: "Upcoming Qiskit Serverless release"
+earliest_version: 0.27.0

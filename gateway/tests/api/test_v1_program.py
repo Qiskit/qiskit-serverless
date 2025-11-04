@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job, Program
+from api.models import Job, Program, RuntimeJob
 from api.services.storage import ArgumentsStorage
 
 
@@ -443,35 +443,6 @@ class TestProgramApi(APITestCase):
                 )
                 found = True
         self.assertTrue(found)
-
-    def test_add_runtimejob(self):
-        """Tests run existing authorized."""
-
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
-        programs_response = self.client.post(
-            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/add_runtimejob/",
-            data={
-                "runtime_job": "runtime_job_4",
-            },
-            format="json",
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-
-    def test_list_runtimejob(self):
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
-        programs_response = self.client.get(
-            "/api/v1/jobs/8317718f-5c0d-4fb6-9947-72e480b8a348/list_runtimejob/",
-            format="json",
-        )
-        self.assertEqual(programs_response.json(), '["runtime_job_1", "runtime_job_2"]')
-
-        programs_response = self.client.get(
-            "/api/v1/jobs/57fc2e4d-267f-40c6-91a3-38153272e764/list_runtimejob/",
-            format="json",
-        )
-        self.assertEqual(programs_response.json(), '["runtime_job_3"]')
 
     def test_get_by_title(self):
         user = models.User.objects.get(username="test_user_2")

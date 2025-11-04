@@ -23,18 +23,6 @@ User: Model = get_user_model()
 logger = logging.getLogger("commands")
 
 
-def _configure_job_to_use_gpu(job: Job):
-    gpujobs = create_gpujob_allowlist()
-    if (
-        job.program.provider
-        and job.program.provider.name in gpujobs["gpu-functions"].keys()
-    ):
-        logger.debug("Job [%s] will be run on GPU nodes", job.id)
-        job.gpu = True
-
-    return job
-
-
 def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | None:
     cluster_name = generate_cluster_name(job.author.username)
     span.set_attribute("job.clustername", cluster_name)
@@ -59,6 +47,30 @@ def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | No
     return compute_resource
 
 
+def configure_job_to_use_gpu(job: Job):
+    """
+    Configures the Job if its allowed to use
+    GPU or not.
+
+    Args:
+        job (Job): Job instance
+
+    Returns:
+        Job: the instance with gpu parameter configured
+    """
+
+    gpujobs = create_gpujob_allowlist()
+    if (
+        job.program
+        and job.program.provider
+        and job.program.provider.name in gpujobs["gpu-functions"].keys()
+    ):
+        logger.debug("Job [%s] will be run on GPU nodes", job.id)
+        job.gpu = True
+
+    return job
+
+
 def execute_job(job: Job) -> Job:
     """Executes program.
 
@@ -78,8 +90,6 @@ def execute_job(job: Job) -> Job:
 
     tracer = trace.get_tracer("scheduler.tracer")
     with tracer.start_as_current_span("execute.job") as span:
-        job = _configure_job_to_use_gpu(job)
-
         compute_resource = _create_ray_cluster_compute_resource(job, span)
         if not compute_resource:
             return job
@@ -154,22 +164,21 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
     return Job.objects.filter(job_filter)
 
 
-def check_job_timeout(job: Job, job_status):
+def check_job_timeout(job: Job):
     """Check job timeout and update job status."""
 
     timeout = config.PROGRAM_TIMEOUT
-    if job.updated:
-        endtime = job.updated + timedelta(days=timeout)
-        now = datetime.now(tz=endtime.tzinfo)
-    if job.updated and endtime < now:  # pylint: disable=possibly-used-before-assignment
-        job_status = Job.STOPPED
-        job.logs += f"{job.logs}.\nMaximum job runtime reached. Stopping the job."
+    endtime = job.created + timedelta(days=timeout)
+    now = datetime.now(tz=endtime.tzinfo)
+    if endtime < now:
+        job.logs += "\nMaximum job runtime reached. Stopping the job."
         logger.warning(
             "Job [%s] reached maximum runtime [%s] days and stopped.",
             job.id,
             timeout,
         )
-    return job_status
+        return True
+    return False
 
 
 def handle_job_status_not_available(job: Job, job_status):
@@ -186,7 +195,7 @@ def handle_job_status_not_available(job: Job, job_status):
         job.compute_resource.delete()
         job.compute_resource = None
         job_status = Job.FAILED
-        job.logs += f"{job.logs}\nSomething went wrong during updating job status."
+        job.logs += "\nSomething went wrong during updating job status."
     return job_status
 
 
