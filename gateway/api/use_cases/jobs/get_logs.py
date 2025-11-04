@@ -6,6 +6,7 @@ from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 
+from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.repositories.jobs import JobsRepository
@@ -39,7 +40,7 @@ class GetJobLogsUseCase:
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        if user != job.author:
+        if not JobAccessPolicies.can_read_logs(user, job):
             raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
         logs_storage = LogsStorage(
