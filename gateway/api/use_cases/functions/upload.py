@@ -28,7 +28,7 @@ class UploadFunctionData:
     entrypoint: Optional[str] = None
     image: Optional[str] = None
 
-    arguments: Optional[str] = None
+    # arguments: Optional[str] = None
     dependencies: Optional[str] = None
     env_vars: Optional[str] = None
     description: Optional[str] = None

@@ -196,7 +196,7 @@ class InputSerializer(serializers.Serializer):
         entrypoint = validated_data.get("entrypoint")
         image = validated_data.get("image")
 
-        arguments = validated_data.get("arguments")
+        # arguments = validated_data.get("arguments")
         dependencies = validated_data.get("dependencies")
         env_vars = validated_data.get("env_vars")
         description = validated_data.get("description")
@@ -206,7 +206,7 @@ class InputSerializer(serializers.Serializer):
             provider=provider,
             entrypoint=entrypoint,
             image=image,
-            arguments=arguments,
+            # arguments=arguments,
             dependencies=json.dumps(dependencies),
             env_vars=json.dumps(env_vars),
             description=description,
@@ -354,4 +354,4 @@ def upload(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     program = FunctionUploadUseCase().execute(author=user, data=data)
-    return Response(serialize_output(program))
+    return Response(serialize_output(program=program))
