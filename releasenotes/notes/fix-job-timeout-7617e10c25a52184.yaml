@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Fixed a bug in the scheduler that it was preventing to
+    stop jobs automatically after the timeout threshold specified
+    with the environment variable ``PROGRAM_TIMEOUT``.

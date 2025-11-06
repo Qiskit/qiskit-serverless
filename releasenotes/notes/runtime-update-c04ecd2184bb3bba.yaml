@@ -1,0 +1,4 @@
+---
+upgrade:
+  - |
+    Qiskit Serverless now supports qiskit-ibm-runtime 0.43 latest version.
