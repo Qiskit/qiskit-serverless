@@ -29,6 +29,7 @@ class ProviderAccessPolicy:
         """
 
         user_groups = set(user.groups.all())
+        # TODO: provider can be None? if so we should review the warning, if not, we should remove the condition.
         admin_groups = set(provider.admin_groups.all() if provider else [])
         user_is_admin = bool(user_groups.intersection(admin_groups))
         if not user_is_admin:
