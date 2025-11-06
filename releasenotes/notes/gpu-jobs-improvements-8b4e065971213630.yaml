@@ -1,6 +1,6 @@
 ---
 upgrade:
   - |
-    The logic that was managing non GPU and GPU was improved.
+    The scheduling logic that was managing non GPU and GPU jobs was improved.
     Now the scheduler manages both type of jobs independently so
-    you can adjust separately where those jobs run.
+    you can adjust separately where each of these jobs are run.
