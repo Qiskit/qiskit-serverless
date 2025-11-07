@@ -51,5 +51,6 @@ class AssociateRuntimeJobsUseCase:
                 f"Failed to create RuntimeJob object "
                 f"[{runtime_job}] for job id [{job_id}]. Error: {e}"
             )
+            logger.error(message)
 
         return message
