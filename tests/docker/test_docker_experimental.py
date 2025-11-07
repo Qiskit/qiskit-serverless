@@ -40,7 +40,7 @@ class TestDockerExperimental:
         assert job.result() is not None
         assert job.result() == {"Message": "my_file.txt archived into my_file.tar"}
         assert job.status() == "DONE"
-        # assert isinstance(job.logs(), str)
+        assert isinstance(job.logs(), str)
 
         assert len(serverless_client.files(functionTitle)) > 0
 
@@ -65,7 +65,7 @@ class TestDockerExperimental:
         assert job.result()
         assert job.result() == {"Message": "Hello"}
         assert job.status() == "DONE"
-        # assert isinstance(job.logs(), str)
+        assert isinstance(job.logs(), str)
 
         files = serverless_client.files(functionTitle)
 

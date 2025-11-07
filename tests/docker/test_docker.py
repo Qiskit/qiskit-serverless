@@ -54,7 +54,7 @@ class TestFunctionsDocker:
             assert set(entry.keys()).issubset(allowed_keys)
 
         assert job.status() == "DONE"
-        # assert isinstance(job.logs(), str)
+        assert isinstance(job.logs(), str)
 
     # local client doesn't make sense here
     # since it follows a different logging mechanism
@@ -85,20 +85,20 @@ class TestFunctionsDocker:
         job = runnable_function.run(circuit=circuit)
 
         assert job is not None
-        # expected_message = (
-        #     "ImportError: attempted relative import with no known parent package"
-        # )
+        expected_message = (
+            "ImportError: attempted relative import with no known parent package"
+        )
 
-        # with raises(QiskitServerlessException) as exc_info:
-        #     job.result()
+        with raises(QiskitServerlessException) as exc_info:
+            job.result()
 
-        # print(str(exc_info.value))
-        # assert expected_message in str(exc_info.value)
+        print(str(exc_info.value))
+        assert expected_message in str(exc_info.value)
 
-        # assert job.status() == "ERROR"
-        # assert isinstance(job.logs(), str)
+        assert job.status() == "ERROR"
+        assert isinstance(job.logs(), str)
 
-        # print(str(exc_info.value))
+        print(str(exc_info.value))
 
     def test_function_with_arguments(self, serverless_client: ServerlessClient):
         """Integration test for Functions with arguments."""
@@ -124,7 +124,7 @@ class TestFunctionsDocker:
         for entry in job.result().get("results", []):
             assert set(entry.keys()).issubset(allowed_keys)
         assert job.status() == "DONE"
-        # assert isinstance(job.logs(), str)
+        assert isinstance(job.logs(), str)
 
     # local client doesn't make sense here
     # since all dependencies are in the user computer
@@ -145,7 +145,7 @@ class TestFunctionsDocker:
         assert job.result() is not None
         assert job.result() == {"hours": 3}
         assert job.status() == "DONE"
-        # assert isinstance(job.logs(), str)
+        assert isinstance(job.logs(), str)
 
     # local client doesn't make sense here
     # since all dependencies are in the user computer
@@ -208,7 +208,7 @@ class TestFunctionsDocker:
         for entry in job.result().get("results", []):
             assert set(entry.keys()).issubset(allowed_keys)
         assert job.status() == "DONE"
-        # assert isinstance(job.logs(), str)
+        assert isinstance(job.logs(), str)
 
     def test_multiple_runs(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
@@ -238,8 +238,8 @@ class TestFunctionsDocker:
         assert retrieved_job1.result() is not None
         assert retrieved_job2.result() is not None
 
-        # assert isinstance(retrieved_job1.logs(), str)
-        # assert isinstance(retrieved_job2.logs(), str)
+        assert isinstance(retrieved_job1.logs(), str)
+        assert isinstance(retrieved_job2.logs(), str)
 
     @mark.skip(
         reason="Images are not working in tests jet and "
