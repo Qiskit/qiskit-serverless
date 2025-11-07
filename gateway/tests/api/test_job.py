@@ -22,6 +22,16 @@ class TestJobApi(APITestCase):
         user = models.User.objects.get(username=username)
         self.client.force_authenticate(user=user)
 
+    def _fake_media_root(self):
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        return media_root
+
     def test_job_non_auth_user(self):
         """Tests job list non-authorized."""
         url = reverse("v1:jobs-list")
@@ -256,15 +266,7 @@ class TestJobApi(APITestCase):
 
     def test_job_detail(self):
         """Tests job detail authorized."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
             self._authorize()
 
             jobs_response = self.client.get(
@@ -276,15 +278,7 @@ class TestJobApi(APITestCase):
 
     def test_job_detail_without_result_param(self):
         """Tests job detail authorized."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
             self._authorize()
 
             jobs_response = self.client.get(
@@ -297,15 +291,7 @@ class TestJobApi(APITestCase):
 
     def test_job_detail_without_result_file(self):
         """Tests job detail authorized."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
             self._authorize()
 
             jobs_response = self.client.get(
@@ -340,15 +326,7 @@ class TestJobApi(APITestCase):
 
     def test_job_save_result(self):
         """Tests job results save."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
             self._authorize()
             job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
             jobs_response = self.client.post(
@@ -465,15 +443,7 @@ class TestJobApi(APITestCase):
         User has access to job result from a function provider
         as the authot of the job
         """
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
             self._authorize()
 
             jobs_response = self.client.get(
@@ -488,15 +458,7 @@ class TestJobApi(APITestCase):
         A provider admin has no access to job result from a function provider
         if it's not the author of the job
         """
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
             user = models.User.objects.get(username="test_user_3")
             self.client.force_authenticate(user=user)
 
@@ -529,47 +491,51 @@ class TestJobApi(APITestCase):
 
     def test_job_logs_by_author_for_function_without_provider(self):
         """Tests job log by job author."""
-        self._authorize()
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
+            self._authorize()
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 2")
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("logs"), "log entry 2")
 
     def test_job_logs_by_author_for_function_with_provider(self):
         """Tests job log by job author."""
-        self._authorize()
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
+            self._authorize()
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_job_logs_by_function_provider(self):
         """Tests job log by fuction provider."""
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
 
     def test_job_logs(self):
         """Tests job log non-authorized."""
-        user = models.User.objects.get(username="test_user_3")
-        self.client.force_authenticate(user=user)
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
+            user = models.User.objects.get(username="test_user_3")
+            self.client.force_authenticate(user=user)
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_runtime_jobs_post(self):
         """Tests runtime jobs POST endpoint."""
