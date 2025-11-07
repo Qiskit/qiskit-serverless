@@ -525,6 +525,60 @@ class TestJobApi(APITestCase):
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
 
+    def test_job_provider_logs(self):
+        """Tests job log by fuction provider."""
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+
+            jobs_response = self.client.get(
+                reverse(
+                    "v1:jobs-provider-logs",
+                    args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"],
+                ),
+                format="json",
+            )
+
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("logs"), "provider log entry 1")
+
+    def test_job_provider_logs_2(self):
+        """Tests job log by fuction provider."""
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
+            user = models.User.objects.get(username="test_user")
+            self.client.force_authenticate(user=user)
+
+            jobs_response = self.client.get(
+                reverse(
+                    "v1:jobs-provider-logs",
+                    args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"],
+                ),
+                format="json",
+            )
+
+            self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_job_provider_logs_3(self):
+        """Tests job log by fuction provider."""
+        with self.settings(MEDIA_ROOT=self._fake_media_root()):
+            user = models.User.objects.get(username="test_user_3")
+            self.client.force_authenticate(user=user)
+
+            job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"
+            jobs_response = self.client.get(
+                reverse(
+                    "v1:jobs-provider-logs",
+                    args=[job_id],
+                ),
+                format="json",
+            )
+
+            self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
+            self.assertEqual(
+                jobs_response.data.get("message"),
+                f"Logs for job[{job_id}] are not found",
+            )
+
     def test_job_logs(self):
         """Tests job log non-authorized."""
         with self.settings(MEDIA_ROOT=self._fake_media_root()):

@@ -25,7 +25,7 @@ class JobProviderLogsOutputSerializer(serializers.Serializer):
     Serializer for job logs response.
     """
 
-    logs = serializers.CharField() 
+    logs = serializers.CharField()
 
 
 def serialize_output(logs: str) -> dict[str, Any]:
@@ -49,11 +49,11 @@ def serialize_output(logs: str) -> dict[str, Any]:
         **standard_error_responses(not_found_example="Job [XXXX] not found"),
     },
 )
-@endpoint("jobs/<uuid:job_id>/provider-logs", name="jobs-logs")
+@endpoint("jobs/<uuid:job_id>/provider-logs", name="jobs-provider-logs")
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
-def get_logs(request: Request, job_id: UUID) -> Response:
+def provider_logs(request: Request, job_id: UUID) -> Response:
     """
     Retrieve logs for a specific job.
 
