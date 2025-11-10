@@ -109,7 +109,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
         Args:
             name: name of client
-            host: host of gateway
+            host: host of gateway. If None, it will use the ENV_GATEWAY_PROVIDER_HOST environment variable.
             version: version of gateway
             token: authorization token
             instance: IBM Cloud CRN or IQP h/g/p
@@ -696,6 +696,7 @@ class IBMServerlessClient(ServerlessClient):
         file using the default account name.
 
         Args:
+            host: host of gateway. Optional. It will use the IBM_SERVERLESS_HOST_URL environment variable or the IBM production host.
             token: IBM quantum token
             name: Name of the account to load
             instance: IBM Cloud CRN or IQP h/g/p
