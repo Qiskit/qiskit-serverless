@@ -16,12 +16,57 @@ import unittest
 import tempfile
 from unittest.mock import patch
 
+from qiskit_ibm_runtime.accounts import AccountManager
+
 from qiskit_serverless import IBMServerlessClient
 from qiskit_serverless.core.enums import Channel
 
 
 class TestIBMServerlessClient(unittest.TestCase):
     """Unit tests for IBMServerlessClient."""
+
+    @patch(
+        "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials"
+    )
+    def test_init(self, mock_verify_credentials):
+        """Test __init__ with no args returns default values in `ibm_quantum_platform` channel."""
+
+        # Mock ServerlessClient credential verification
+        mock_verify_credentials.return_value = None
+        default_channel = "ibm_quantum_platform"
+
+        client = IBMServerlessClient()
+
+        self.assertEqual(client.host, "https://qiskit-serverless.quantum.ibm.com")
+        self.assertEqual(client.channel, default_channel)
+
+        account = AccountManager.get(channel=default_channel)
+        self.assertEqual(client.channel, account.channel)
+        self.assertEqual(client.instance, account.instance)
+        self.assertEqual(client.token, account.token)
+
+    @patch(
+        "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials"
+    )
+    def test_init_with_token_host_and_instance(self, mock_verify_credentials):
+        """Test __init__ with an explicit token, instance and host"""
+
+        # Mock ServerlessClient credential verification
+        mock_verify_credentials.return_value = None
+
+        use_host = "http://other.host"
+        use_token = "my_token"
+        use_instance = "my_instance"
+        use_channel = Channel.IBM_QUANTUM_PLATFORM.value
+
+        client = IBMServerlessClient(
+            token=use_token, instance=use_instance, channel=use_channel, host=use_host
+        )
+
+        self.assertEqual(client.host, use_host)
+        self.assertEqual(client.channel, use_channel)
+        self.assertEqual(client.instance, use_instance)
+        self.assertEqual(client.token, use_token)
 
     @patch(
         "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials"
