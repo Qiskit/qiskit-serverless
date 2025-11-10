@@ -27,7 +27,7 @@ class TestIBMServerlessClient(unittest.TestCase):
         "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials"
     )
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
-    def test_init_with_token_host_and_instance(self, mock_file_path, mock_verify_credentials):
+    def test_init(self, mock_file_path, mock_verify_credentials):
         """Test __init__ with an explicit token, instance and host"""
 
         # Mock ServerlessClient credential verification
