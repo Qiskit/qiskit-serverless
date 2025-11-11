@@ -39,7 +39,7 @@ def set_up_serverless_client():
     compose.start()
 
     connection_url = "http://localhost:8000"
-    compose.wait_for_http(f"{connection_url}/backoffice", timeout=300)  # 5 min
+    compose.wait_for(f"{connection_url}/backoffice")
 
     serverless = ServerlessClient(
         token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
