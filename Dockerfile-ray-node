@@ -6,8 +6,8 @@ ARG DYNAMIC_DEPENDENCIES_FILE
 RUN microdnf update -y && microdnf clean all
 
 RUN microdnf install -y \
-    python3.11-3.11.11 \
-    python3.11-devel-3.11.11 \
+    python3.11 \
+    python3.11-devel \
     wget-1.21.1
 RUN microdnf clean all
 RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
