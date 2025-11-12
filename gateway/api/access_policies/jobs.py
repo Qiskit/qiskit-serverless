@@ -71,7 +71,7 @@ class JobAccessPolicies:
     @staticmethod
     def can_read_logs(user: type[AbstractUser], job: Job) -> bool:
         """
-        Checks if the user has permissions to read the result of a job:
+        Checks if the user has permissions to read the logs of a job:
 
         Args:
             user: Django user from the request
@@ -84,7 +84,29 @@ class JobAccessPolicies:
         has_access = user.id == job.author.id
         if not has_access:
             logger.warning(
-                "User [%s] has no access to read the result of the job [%s].",
+                "User [%s] has no access to read the logs of the job [%s].",
+                user.username,
+                job.author,
+            )
+        return has_access
+    
+    @staticmethod
+    def can_write_logs(user: type[AbstractUser], job: Job) -> bool:
+        """
+        Checks if the user has permissions to write logs of the job:
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        has_access = user.id == job.author.id
+        if not has_access:
+            logger.warning(
+                "User [%s] has no access to write the logs of the job [%s].",
                 user.username,
                 job.author,
             )

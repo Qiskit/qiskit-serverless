@@ -15,10 +15,23 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
+from api.use_cases.jobs.put_provider_logs import PutProviderJobLogsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 
+
+class InputSerializer(serializers.Serializer):
+    """
+    Validate and sanitize the input
+    """
+
+    log = serializers.CharField(required=True)
+
+    class Meta:
+        """Meta class to define input serializer name"""
+
+        ref_name = "JobProviderLogsInputSerializer"
 
 class JobProviderLogsOutputSerializer(serializers.Serializer):
     """
@@ -64,6 +77,18 @@ def provider_logs(request: Request, job_id: UUID) -> Response:
     Returns:
         Response containing the serialized job logs.
     """
+
     user = cast(AbstractUser, request.user)
-    logs = GetProviderJobLogsUseCase().execute(job_id, user)
-    return Response(serialize_output(logs))
+
+    #GET
+    if request.method == "GET":
+        logs = GetProviderJobLogsUseCase().execute(job_id, user)
+        return Response(serialize_output(logs))
+    
+
+    # PUT
+    serializer = InputSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    log = serializer.validated_data["log"]
+    PutProviderJobLogsUseCase().execute(job_id, user, log)

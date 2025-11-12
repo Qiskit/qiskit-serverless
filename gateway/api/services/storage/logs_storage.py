@@ -5,8 +5,12 @@ import logging
 import os
 from typing import Optional
 
+from filelock import FileLock
+
+from api.domain.exceptions.internal_error import InternalError
 from api.services.storage.path_builder import PathBuilder
 from api.services.storage.enums.working_dir import WorkingDir
+from api.domain.function.check_logs import check_logs
 
 
 logger = logging.getLogger("gateway")
@@ -90,3 +94,39 @@ class LogsStorage:
                 str(e),
             )
             return None
+
+    def put(self, job_id: str, log: str) -> Optional[str]:
+        """
+        Retrieve a log file for the given job id
+
+        Args:
+            job_id (str): the id for the job to get the logs
+
+        Returns:
+            Optional[str]: content of the file
+        """
+        log_path = self._get_logs_path(job_id)        
+        lock_path = f"{log_path}.lock"
+
+        try:
+            with FileLock(lock_path, timeout=5): # thread safe
+                with open(log_path, "a+", encoding=self.ENCODING) as log_file:
+                    log_file.seek(0)
+                    logs = log_file.read()
+
+                    logs += f"{os.linesep}{log}"
+
+                    logs = check_logs(logs)
+
+                    log_file.seek(0)
+                    log_file.truncate()
+                    log_file.write(logs)
+
+
+        except (UnicodeDecodeError, IOError) as e:
+            logger.error(
+                "Failed to read or write log file for job ID '%s': %s",
+                job_id,
+                str(e),
+            )
+            raise InternalError(f"Failed to read or write log file for job ID '{job_id}'")

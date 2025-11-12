@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
+from api.domain.exceptions.internal_error import InternalError
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 
@@ -46,6 +47,11 @@ def endpoint_handle_exceptions(view_func: Callable):
             return Response(
                 {"message": error.message},
                 status=status.HTTP_403_FORBIDDEN,
+            )
+        except InternalError as error:
+            return Response(
+                {"message": error.message},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         except ValidationError as error:
             return Response(
