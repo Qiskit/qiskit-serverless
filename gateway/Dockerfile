@@ -2,11 +2,11 @@ ARG MICRO_IMAGE_DIR=/ubi-micro-img
 
 # BASE image using UBI 9 micro where the
 # application and requirements will be installed
-FROM registry.access.redhat.com/ubi9-micro:9.6-1754467928 AS base
+FROM registry.access.redhat.com/ubi9-micro:9.6-1762316544 AS base
 
 # BUILD image using UBI 9 where the dependencies that
 # require installing with a package manager will be installed
-FROM registry.access.redhat.com/ubi9:9.6-1758184894 AS build
+FROM registry.access.redhat.com/ubi9:9.6-1760340943 AS build
 ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image
@@ -18,8 +18,8 @@ RUN dnf update -y && dnf clean all
 
 # Install Python inside the BASE image
 RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
-    python3.11-3.11.11 \
-    python3.11-devel-3.11.11 \
+    python3.11 \
+    python3.11-devel \
     libstdc++ &&\
     dnf upgrade --installroot ${MICRO_IMAGE_DIR} --nodocs -y && \
     dnf clean all --installroot ${MICRO_IMAGE_DIR}

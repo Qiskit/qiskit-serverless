@@ -542,7 +542,7 @@ class TestJobApi(APITestCase):
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("logs"), "provider log entry 1")
 
-    def test_job_provider_logs_2(self):
+    def test_job_provider_logs_forbidden(self):
         """Tests job log by fuction provider."""
         with self.settings(MEDIA_ROOT=self._fake_media_root()):
             user = models.User.objects.get(username="test_user")
@@ -558,7 +558,7 @@ class TestJobApi(APITestCase):
 
             self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_job_provider_logs_3(self):
+    def test_job_provider_logs_not_fount_empty(self):
         """Tests job log by fuction provider."""
         with self.settings(MEDIA_ROOT=self._fake_media_root()):
             user = models.User.objects.get(username="test_user_3")

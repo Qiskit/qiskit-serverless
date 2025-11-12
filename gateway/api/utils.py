@@ -237,7 +237,7 @@ def generate_cluster_name(username: str) -> str:
         generated cluster name
     """
     # Force capital letters to be lowercase
-    lowercase_username = username.lower()
+    lowercase_username = username.lower()[:20]
 
     # Substitute any not valid character by "-"
     pattern = re.compile("[^a-z0-9-]")
