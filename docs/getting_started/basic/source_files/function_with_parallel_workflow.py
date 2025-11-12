@@ -46,7 +46,7 @@ if not isinstance(circuits, list):
 # Basic validation
 if not all(isinstance(circuit, QuantumCircuit) for circuit in circuits):
     raise ValueError("`circuits` must be a list of qiskit.QuantumCircuit objects.")
-if not isinstance(backend_name, str):
+if not isinstance(backend_name, str) or len(backend_name) == 0:
     raise ValueError("backend_name must be a non-empty string.")
 
 print(
