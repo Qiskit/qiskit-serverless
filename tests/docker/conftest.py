@@ -34,7 +34,7 @@ def set_up_serverless_client():
     compose = DockerCompose(
         resources_path,
         compose_file_name="../../../docker-compose-dev.yaml",
-        pull=True,
+        pull=False,
     )
     compose.start()
 
