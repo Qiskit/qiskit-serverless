@@ -714,7 +714,7 @@ class IBMServerlessClient(ServerlessClient):
             channel=self.account.channel,
             token=self.account.token,
             instance=self.account.instance,
-            host=host if host is not None else IBM_SERVERLESS_HOST_URL,
+            host=host if host else IBM_SERVERLESS_HOST_URL,
         )
 
     def _discover_account(
