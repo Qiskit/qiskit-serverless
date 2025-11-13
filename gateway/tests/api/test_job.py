@@ -558,7 +558,7 @@ class TestJobApi(APITestCase):
 
             self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_job_provider_logs_not_fount_empty(self):
+    def test_job_provider_logs_not_found_empty(self):
         """Tests job log by fuction provider."""
         with self.settings(MEDIA_ROOT=self._fake_media_root()):
             user = models.User.objects.get(username="test_user_3")
@@ -578,6 +578,70 @@ class TestJobApi(APITestCase):
                 jobs_response.data.get("message"),
                 f"Logs for job[{job_id}] are not found",
             )
+
+    def test_job_put_provider_logs(self):
+        """Tests job log by fuction provider."""
+
+        job_id = "551b4505-2d41-4116-9b89-ab40834f6d5e"
+        
+        # cleanup for test execution.
+        log_path = os.path.join(settings.MEDIA_ROOT, f"ibm/Docker-Image-Program-2/logs/{job_id}.log")
+        if os.path.exists(log_path):
+            os.remove(log_path)
+
+        user = models.User.objects.get(username="test_user_3")
+        self.client.force_authenticate(user=user)
+
+        jobs_response = self.client.put(
+            reverse(
+                "v1:jobs-provider-logs",
+                args=[job_id],
+            ),
+            format="json",
+            data={
+                "log": "my new log line",
+            },
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+
+        jobs_response = self.client.get(
+            reverse(
+                "v1:jobs-provider-logs",
+                args=[job_id],
+            ),
+            format="json",
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), "my new log line")
+
+        jobs_response = self.client.put(
+            reverse(
+                "v1:jobs-provider-logs",
+                args=[job_id],
+            ),
+            format="json",
+            data={
+                "log": "another log line",
+            },
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+
+        jobs_response = self.client.get(
+            reverse(
+                "v1:jobs-provider-logs",
+                args=[job_id],
+            ),
+            format="json",
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            jobs_response.data.get("logs"), "my new log line\nanother log line"
+        )
+
 
     def test_job_logs(self):
         """Tests job log non-authorized."""

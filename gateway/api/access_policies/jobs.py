@@ -89,7 +89,7 @@ class JobAccessPolicies:
                 job.author,
             )
         return has_access
-    
+
     @staticmethod
     def can_write_logs(user: type[AbstractUser], job: Job) -> bool:
         """

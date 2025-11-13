@@ -48,8 +48,8 @@ class PutProviderJobLogsUseCase:
         if not job.program.provider or not ProviderAccessPolicy.can_access(
             user, job.program.provider
         ):
-            raise ForbiddenError(f"You don't have access to job [{job_id}]")
-        
+            raise ForbiddenError(f"You don't have access to job provider [{job_id}]")
+
         if not JobAccessPolicies.can_write_logs(user, job):
             raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
@@ -60,4 +60,4 @@ class PutProviderJobLogsUseCase:
             provider_name=job.program.provider.name,
         )
 
-        logs_storage.put(job_id, log)
+        logs_storage.put(job, log)

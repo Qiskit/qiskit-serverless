@@ -259,6 +259,18 @@
     }
   },
   {
+    "model": "api.job",
+    "pk": "551b4505-2d41-4116-9b89-ab40834f6d5e",
+    "fields": {
+      "sub_status": "",
+      "program": "6160a2ff-e482-443d-af23-15110b646ae3",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "result": "{\"somekey\":1}",
+      "status": "RUNNING",
+      "author": 3
+    }
+  },
+  {
     "model": "api.runtimejob",
     "pk": "runtime_job_1",
     "fields": {

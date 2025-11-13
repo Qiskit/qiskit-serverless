@@ -33,6 +33,7 @@ class InputSerializer(serializers.Serializer):
 
         ref_name = "JobProviderLogsInputSerializer"
 
+
 class JobProviderLogsOutputSerializer(serializers.Serializer):
     """
     Serializer for job logs response.
@@ -63,7 +64,7 @@ def serialize_output(logs: str) -> dict[str, Any]:
     },
 )
 @endpoint("jobs/<uuid:job_id>/provider-logs", name="jobs-provider-logs")
-@api_view(["GET"])
+@api_view(["GET", "PUT"])
 @permission_classes([permissions.IsAuthenticated])
 @endpoint_handle_exceptions
 def provider_logs(request: Request, job_id: UUID) -> Response:
@@ -80,11 +81,10 @@ def provider_logs(request: Request, job_id: UUID) -> Response:
 
     user = cast(AbstractUser, request.user)
 
-    #GET
+    # GET
     if request.method == "GET":
         logs = GetProviderJobLogsUseCase().execute(job_id, user)
         return Response(serialize_output(logs))
-    
 
     # PUT
     serializer = InputSerializer(data=request.data)
@@ -92,3 +92,4 @@ def provider_logs(request: Request, job_id: UUID) -> Response:
 
     log = serializer.validated_data["log"]
     PutProviderJobLogsUseCase().execute(job_id, user, log)
+    return Response()
