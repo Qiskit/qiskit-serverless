@@ -583,9 +583,11 @@ class TestJobApi(APITestCase):
         """Tests job log by fuction provider."""
 
         job_id = "551b4505-2d41-4116-9b89-ab40834f6d5e"
-        
+
         # cleanup for test execution.
-        log_path = os.path.join(settings.MEDIA_ROOT, f"ibm/Docker-Image-Program-2/logs/{job_id}.log")
+        log_path = os.path.join(
+            settings.MEDIA_ROOT, f"ibm/Docker-Image-Program-2/logs/{job_id}.log"
+        )
         if os.path.exists(log_path):
             os.remove(log_path)
 
@@ -641,7 +643,6 @@ class TestJobApi(APITestCase):
         self.assertEqual(
             jobs_response.data.get("logs"), "my new log line\nanother log line"
         )
-
 
     def test_job_logs(self):
         """Tests job log non-authorized."""
