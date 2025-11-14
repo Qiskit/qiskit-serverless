@@ -21,11 +21,11 @@ NO_LOGS_MSG_2: Final[str] = "No logs yet."
 
 
 class PutProviderJobLogsUseCase:
-    """Use case for retrieving job logs."""
+    """Use case for writing job logs."""
 
     jobs_repository = JobsRepository()
 
-    def execute(self, job_id: UUID, user: AbstractUser, log: str) -> str:
+    def execute(self, job_id: UUID, user: AbstractUser, log: str) -> None:
         """Return the logs of a job if the user has access.
 
         Args:
@@ -36,11 +36,11 @@ class PutProviderJobLogsUseCase:
             NotFoundError: If the job does not exist.
 
         Returns:
-            str: Job logs if accessible, otherwise a message indicating no logs are available.
+            None
         """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found 1")
+            raise NotFoundError(f"Job [{job_id}] not found")
 
         if job.status != Job.RUNNING:
             raise ForbiddenError(f"The job is not in running state.")
