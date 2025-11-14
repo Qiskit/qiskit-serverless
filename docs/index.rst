@@ -27,7 +27,6 @@ system and receive the results when they are ready.
   About Qiskit Serverless <self>
   Installation <installation/index>
   Getting started <getting_started/index>
-  Examples <examples/index>
   Migration guides <migration/index>
   Deployment <deployment/index>
   Release Notes <release-notes>
