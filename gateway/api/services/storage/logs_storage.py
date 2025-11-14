@@ -2,9 +2,14 @@
 This module handle the access to the logs store
 """
 import logging
+import math
 import os
 from typing import Optional
+from django.conf import settings
+from loguru import logger as file_logger
 
+from api.domain.exceptions.internal_error import InternalError
+from api.models import Job
 from api.services.storage.path_builder import PathBuilder
 from api.services.storage.enums.working_dir import WorkingDir
 
@@ -90,3 +95,40 @@ class LogsStorage:
                 str(e),
             )
             return None
+
+    def put(self, job: Job, log: str) -> None:
+        """
+        Write a log in a file for the given job id
+
+        Args:
+            job (Job): the job to write the logs
+            log (str): the job to write the logs
+
+        Returns:
+            None
+        """
+        log_path = self._get_logs_path(job.id)
+        max_mb = int(settings.FUNCTIONS_LOGS_SIZE_LIMIT)
+        file_size = 1024 * 1024 * 1
+
+        try:
+            file_logger.remove()
+            file_logger.add(
+                log_path,
+                rotation=file_size,
+                retention=math.trunc(max_mb / file_size),
+                compression=None,  # needed in mounted volumes
+                enqueue=True,  # needed in mounted for S3 Fuse
+                format="({level})[{time}] {message}",
+            )
+            file_logger.info(log)
+
+        except (UnicodeDecodeError, IOError) as e:
+            logger.error(
+                "Failed to read or write log file for job ID '%s': %s",
+                job.id,
+                str(e),
+            )
+            raise InternalError(
+                f"Failed to read or write log file for job ID '{job.id}'"
+            ) from e
