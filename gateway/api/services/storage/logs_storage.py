@@ -101,11 +101,11 @@ class LogsStorage:
         Write a log in a file for the given job id
 
         Args:
-            job (Job): the job to get the logs
-            log (str): the job to get the logs
+            job (Job): the job to write the logs
+            log (str): the job to write the logs
 
         Returns:
-            Optional[str]: content of the file
+            None
         """
         log_path = self._get_logs_path(job.id)
         max_mb = int(settings.FUNCTIONS_LOGS_SIZE_LIMIT)
