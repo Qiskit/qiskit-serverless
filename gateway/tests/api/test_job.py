@@ -1,5 +1,6 @@
 """Tests jobs APIs."""
 
+import glob
 import json
 import os
 
@@ -586,10 +587,11 @@ class TestJobApi(APITestCase):
 
         # cleanup for test execution.
         log_path = os.path.join(
-            settings.MEDIA_ROOT, f"ibm/Docker-Image-Program-2/logs/{job_id}.log"
+            settings.MEDIA_ROOT, f"ibm/Docker-Image-Program-2/logs/*"
         )
-        if os.path.exists(log_path):
-            os.remove(log_path)
+        files = glob.glob(log_path)
+        for f in files:
+            os.remove(f)
 
         user = models.User.objects.get(username="test_user_3")
         self.client.force_authenticate(user=user)
@@ -616,7 +618,7 @@ class TestJobApi(APITestCase):
         )
 
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "my new log line")
+        self.assertTrue("my new log line\n" in jobs_response.data.get("logs"))
 
         jobs_response = self.client.put(
             reverse(
@@ -640,9 +642,52 @@ class TestJobApi(APITestCase):
         )
 
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            jobs_response.data.get("logs"), "my new log line\nanother log line"
+        self.assertTrue("my new log line\n" in jobs_response.data.get("logs"))
+        self.assertTrue("another log line\n" in jobs_response.data.get("logs"))
+
+    def test_job_put_massive_logs(self):
+        """Tests job log by fuction provider."""
+
+        job_id = "551b4505-2d41-4116-9b89-ab40834f6d5e"
+
+        def string_kb(size_kb: int) -> str:
+            return "A" * (size_kb * 1024)
+
+        # cleanup for test execution.
+        log_path = os.path.join(
+            settings.MEDIA_ROOT, f"ibm/Docker-Image-Program-2/logs/*"
         )
+        files = glob.glob(log_path)
+        for f in files:
+            os.remove(f)
+
+        user = models.User.objects.get(username="test_user_3")
+        self.client.force_authenticate(user=user)
+
+        for i in range(0, 100):
+            jobs_response = self.client.put(
+                reverse(
+                    "v1:jobs-provider-logs",
+                    args=[job_id],
+                ),
+                format="json",
+                data={
+                    "log": string_kb(200),
+                },
+            )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+
+        jobs_response = self.client.get(
+            reverse(
+                "v1:jobs-provider-logs",
+                args=[job_id],
+            ),
+            format="json",
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(len(jobs_response.data.get("logs")) >= 20000)
 
     def test_job_logs(self):
         """Tests job log non-authorized."""

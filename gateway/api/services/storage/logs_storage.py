@@ -2,16 +2,16 @@
 This module handle the access to the logs store
 """
 import logging
+import math
 import os
 from typing import Optional
-
-from filelock import FileLock
+from django.conf import settings
+from loguru import logger as file_logger
 
 from api.domain.exceptions.internal_error import InternalError
 from api.models import Job
 from api.services.storage.path_builder import PathBuilder
 from api.services.storage.enums.working_dir import WorkingDir
-from api.domain.function.check_logs import check_logs
 
 
 logger = logging.getLogger("gateway")
@@ -108,23 +108,20 @@ class LogsStorage:
             Optional[str]: content of the file
         """
         log_path = self._get_logs_path(job.id)
-        lock_path = f"{log_path}.lock"
+        max_mb = int(settings.FUNCTIONS_LOGS_SIZE_LIMIT)
+        file_size = 1024 * 1024 * 1
 
         try:
-            with FileLock(lock_path, timeout=5):  # thread safe
-                with open(log_path, "a+", encoding=self.ENCODING) as log_file:
-                    log_file.seek(0)
-                    logs = log_file.read()
-
-                    if len(logs) != 0:
-                        logs += os.linesep
-                    logs += log
-
-                    logs = check_logs(logs, job)
-
-                    log_file.seek(0)
-                    log_file.truncate()
-                    log_file.write(logs)
+            file_logger.remove()
+            file_logger.add(
+                log_path,
+                rotation=file_size,
+                retention=math.trunc(max_mb / file_size),
+                compression=None,  # needed in mounted volumes
+                enqueue=True,  # needed in mounted for S3 Fuse
+                format="({level})[{time}] {message}",
+            )
+            file_logger.info(log)
 
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
