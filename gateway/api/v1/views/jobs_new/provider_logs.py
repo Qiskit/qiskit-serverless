@@ -15,6 +15,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
+
 from api.use_cases.jobs.put_provider_logs import PutProviderJobLogsUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
