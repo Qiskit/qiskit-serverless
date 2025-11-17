@@ -345,6 +345,9 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
             logger.error("Unable to open dynamic dependencies requirements file: %s", e)
         return {}
 
+    # packaging.requirements.Requirement is a PEP 508-compliant parser. It won’t parse pip
+    # “requirements.txt” extensions like --hash=..., -r other.txt, environment variable
+    # substitution, or line continuations with '\'.
     dependencies = [dep.replace("\n", "") for dep in dependencies]
     dependencies = filter(lambda dep: not dep.startswith("#") and dep, dependencies)
     dependencies = [Requirement(dep) for dep in dependencies]
