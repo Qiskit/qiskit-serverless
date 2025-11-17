@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Parallel workflows with QiskitFunction" href="03_distributed_workloads.html" /><link rel="prev" title="Running a Qiskit Function as a function" href="01_running_program.html" />
+<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Retrieving Results from Old Jobs" href="04_retrieving_past_results.html" /><link rel="prev" title="Passing input arguments to your QiskitFunction" href="02_arguments_and_results.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>Passing input arguments to your QiskitFunction - Qiskit Serverless 0.27.1</title>
+        <title>Parallel workflows with QiskitFunction - Qiskit Serverless 0.27.1</title>
       <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=3ee1c6c6" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -204,8 +204,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../../installation/index.html">Installation</a></li>
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Getting started</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a Qiskit Function as a function</a></li>
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Passing input arguments to your QiskitFunction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="03_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_arguments_and_results.html">Passing input arguments to your QiskitFunction</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Parallel workflows with QiskitFunction</a></li>
 <li class="toctree-l2"><a class="reference internal" href="04_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
@@ -286,7 +286,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../../_sources/getting_started/basic/02_arguments_and_results.ipynb.txt" title="View this page">
+  <a class="muted-link" href="../../_sources/getting_started/basic/03_distributed_workloads.ipynb.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -306,48 +306,51 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="Passing-input-arguments-to-your-QiskitFunction">
-<h1>Passing input arguments to your QiskitFunction<a class="headerlink" href="#Passing-input-arguments-to-your-QiskitFunction" title="Permalink to this heading">¶</a></h1>
-<p>In this tutorial, we’ll make our Qiskit Function more flexible by allowing it to accept input arguments and return structured results. This way, you can reuse the same function for different configurations without modifying the code.</p>
-<section id="Install-dependencies">
-<h2>Install dependencies<a class="headerlink" href="#Install-dependencies" title="Permalink to this heading">¶</a></h2>
-<p>Before we begin, make sure the required packages are installed in your notebook environment:</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">pip</span> install &quot;qiskit==2.2.3&quot; &quot;qiskit-ibm-runtime==0.43.1&quot; &quot;qiskit-serverless==0.27.0&quot;
-</pre></div>
-</div>
-</div>
-<section id="Prep-Work">
-<h3>Prep Work<a class="headerlink" href="#Prep-Work" title="Permalink to this heading">¶</a></h3>
-<section id="Write-the-function-with-arguments">
-<h4>Write the function with arguments<a class="headerlink" href="#Write-the-function-with-arguments" title="Permalink to this heading">¶</a></h4>
-<p>A <code class="docutils literal notranslate"><span class="pre">QiskitFunction</span></code> can receive arguments in the form of keyword pairs (for example: <code class="docutils literal notranslate"><span class="pre">backend_name=&quot;ibm_nairobi&quot;,</span> <span class="pre">circuit=my_circuit</span></code>). At runtime, the function retrieves these inputs by calling <code class="docutils literal notranslate"><span class="pre">get_arguments()</span></code>. The serverless framework deserializes them and returns a Python dictionary.</p>
-<blockquote>
-<div><p>⚠ Only serializable arguments can be passed to the function. Qiskit uses QPY serialization for QuantumCircuit objects, which allows circuits to be safely transmitted and reconstructed. <code class="docutils literal notranslate"><span class="pre">`get_arguments()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments</a>&gt;`__ must also be able to deserialize the object correctly.</p>
-</div></blockquote>
-</section>
-<section id="Why-pass-the-circuit-instead-of-building-it-inside-the-function?">
-<h4>Why pass the circuit instead of building it inside the function?<a class="headerlink" href="#Why-pass-the-circuit-instead-of-building-it-inside-the-function?" title="Permalink to this heading">¶</a></h4>
-<p>This approach makes the function reusable for different inputs and keeps its responsibility focused on execution steps: transpile → run → save results.</p>
-<p>Now, create a new file called <code class="docutils literal notranslate"><span class="pre">function_with_arguments.py</span></code> inside <code class="docutils literal notranslate"><span class="pre">source_files</span></code> <a class="reference external" href="./source_files/function_with_arguments.py">./source_files/function_with_arguments.py</a>. This function will:</p>
+          <section id="Parallel-workflows-with-QiskitFunction">
+<h1>Parallel workflows with QiskitFunction<a class="headerlink" href="#Parallel-workflows-with-QiskitFunction" title="Permalink to this heading">¶</a></h1>
+<p>In this tutorial, we’ll explore how to run quantum workloads in parallel using Qiskit Serverless. The function defines a distributed task that transpiles and samples a single circuit on a chosen backend; then the main body launches one task per circuit and gathers the results.</p>
+<p>Instead of executing a single circuit like in <a class="reference internal" href="02_arguments_and_results.html"><span class="doc">Tutorial 02</span></a>, we’ll pass a list of circuits and use the <code class="docutils literal notranslate"><span class="pre">`&#64;distribute_task()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task</a>&gt;`__ decorator to transpile each one concurrently across distributed compute resources. Then, we will send them in one batch for execution.</p>
+<section id="Prep-work">
+<h2>Prep work<a class="headerlink" href="#Prep-work" title="Permalink to this heading">¶</a></h2>
+<p>To utilize prallelism, the function we will write needs to have a method that can run independently from the main thread. Transpilation of a circuit can run independently from other tanspilations so we will make it our parallel task.</p>
+<p>The function accepts:</p>
 <ul class="simple">
-<li><p>Accept arguments (for example, a <code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code> and a backend name).</p></li>
-<li><p>Resolve a backend (fake or real) and transpile the circuit for it.</p></li>
-<li><p>Run the Sampler primitive.</p></li>
-<li><p><a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.save_result.html#qiskit_serverless.core.save_result">Save the results</a> so they’re available via <code class="docutils literal notranslate"><span class="pre">job.result()</span></code> later.</p></li>
+<li><p>A list of circuits to run.</p></li>
+<li><p>A backend name (either a simulator or a real device).</p></li>
+<li><p>An optional service object for accessing IBM Quantum backends.</p></li>
 </ul>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;function with arguments for jupyter notebook.&quot;&quot;&quot;</span>
+<p>The function output:</p>
+<ul class="simple">
+<li><p>Each circuit result’s counts.</p></li>
+</ul>
+<section id="Write-the-function">
+<h3>Write the function<a class="headerlink" href="#Write-the-function" title="Permalink to this heading">¶</a></h3>
+<p>Let’s take a look at the function file <a class="reference external" href="./source_files/function_with_parallel_workflow.py">./source_files/function_with_parallel_workflow.py</a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;function with parallel workflow for jupyter notebook.&quot;&quot;&quot;</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuantumCircuit</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit.providers</span><span class="w"> </span><span class="kn">import</span> <span class="n">BackendV2</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit.providers.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitBackendNotFoundError</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit.transpiler</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_preset_pass_manager</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime.fake_provider</span><span class="w"> </span><span class="kn">import</span> <span class="n">FakeProviderForBackendV2</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">SamplerV2</span> <span class="k">as</span> <span class="n">Sampler</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_arguments</span><span class="p">,</span> <span class="n">save_result</span><span class="p">,</span> <span class="n">distribute_task</span><span class="p">,</span> <span class="n">get</span>
+
+
+<span class="nd">@distribute_task</span><span class="p">()</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">distributed_transpilation</span><span class="p">(</span>
+    <span class="n">circuit_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">target_backend</span><span class="p">:</span> <span class="n">BackendV2</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Distributed task that returns an ISA circuit ready for execution.&quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;[distributed_transpilation] Start (index=</span><span class="si">{</span><span class="n">circuit_idx</span><span class="si">}</span><span class="s2">, &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;qubits=</span><span class="si">{</span><span class="n">circuit</span><span class="o">.</span><span class="n">num_qubits</span><span class="si">}</span><span class="s2">, clbits=</span><span class="si">{</span><span class="n">circuit</span><span class="o">.</span><span class="n">num_clbits</span><span class="si">}</span><span class="s2">, backend=</span><span class="si">{</span><span class="n">target_backend</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">pm</span> <span class="o">=</span> <span class="n">generate_preset_pass_manager</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">target_backend</span><span class="p">,</span> <span class="n">optimization_level</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">isa_circuit</span> <span class="o">=</span> <span class="n">pm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[distributed_transpilation] Transpilation complete (optimization_level=3)&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">isa_circuit</span>
 
 
 <span class="c1"># ----- parse inputs -----</span>
@@ -356,19 +359,29 @@
 <span class="n">arguments</span> <span class="o">=</span> <span class="n">get_arguments</span><span class="p">()</span>
 
 <span class="c1"># Extract inputs we care about</span>
-<span class="n">circuit</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;circuit&quot;</span><span class="p">)</span>
+<span class="n">circuits</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;circuits&quot;</span><span class="p">)</span>
 <span class="n">backend_name</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;backend_name&quot;</span><span class="p">)</span>
 <span class="n">service</span> <span class="o">=</span> <span class="n">arguments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[main] Inputs received (backend_name=</span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+<span class="c1"># Normalize inputs</span>
+<span class="k">if</span> <span class="n">circuits</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="s2">&quot;`circuits` is required and must be a QuantumCircuit or a list of them.&quot;</span>
+    <span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">circuits</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+    <span class="n">circuits</span> <span class="o">=</span> <span class="p">[</span><span class="n">circuits</span><span class="p">]</span>
 
 <span class="c1"># Basic validation</span>
-<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">):</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;circuit must be QuantumCircuit.&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">)</span> <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`circuits` must be a list of qiskit.QuantumCircuit objects.&quot;</span><span class="p">)</span>
 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">backend_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">backend_name</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;backend_name must be a non-empty string.&quot;</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[main] Inputs received (backend_name=</span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">&quot;[main] Inputs received (num_circuits=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">circuits</span><span class="p">)</span><span class="si">}</span><span class="s2">, backend_name=</span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">)&quot;</span>
+<span class="p">)</span>
 
+<span class="c1"># ----- resolve provider / backend -----</span>
 <span class="c1"># Choose a provider: fake provider for local testing, or a real servic</span>
 <span class="k">if</span> <span class="s2">&quot;fake&quot;</span> <span class="ow">in</span> <span class="n">backend_name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
     <span class="nb">print</span><span class="p">(</span>
@@ -388,7 +401,6 @@
         <span class="s2">&quot;[main] No service provided and backend not fake; &quot;</span>
         <span class="s2">&quot;attempting to initialize QiskitRuntimeService from environment variables...&quot;</span>
     <span class="p">)</span>
-
     <span class="k">try</span><span class="p">:</span>
         <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
             <span class="n">channel</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;QISKIT_IBM_CHANNEL&quot;</span><span class="p">),</span>
@@ -408,43 +420,73 @@
             <span class="sa">f</span><span class="s2">&quot;`QiskitRuntimeService` couldn&#39;t be initialized with os environment variables: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">.&quot;</span>
         <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 
-<span class="c1"># ----- transpile -----</span>
-<span class="c1"># Match the run to the backend and transpile</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Building preset pass manager (optimization_level=3)...&quot;</span><span class="p">)</span>
-<span class="n">pm</span> <span class="o">=</span> <span class="n">generate_preset_pass_manager</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">,</span> <span class="n">optimization_level</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Transpiling circuit...&quot;</span><span class="p">)</span>
-<span class="n">isa_circuit</span> <span class="o">=</span> <span class="n">pm</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Transpilation complete&quot;</span><span class="p">)</span>
 
-<span class="c1"># ----- execute -----</span>
-<span class="c1"># Execute and collect counts</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[main] Executing circuit on backend (name=</span><span class="si">{</span><span class="n">backend</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">)...&quot;</span><span class="p">)</span>
-<span class="n">sampler</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">(</span><span class="n">backend</span><span class="p">)</span>
-<span class="n">job_result</span> <span class="o">=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="n">isa_circuit</span><span class="p">])</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Sampler execution complete&quot;</span><span class="p">)</span>
+<span class="c1"># ----- launch parallel tasks -----</span>
 
-<span class="c1"># Extract counts</span>
-<span class="n">quasi_dists</span> <span class="o">=</span> <span class="n">job_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">meas</span><span class="o">.</span><span class="n">get_counts</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Extracted counts from result&quot;</span><span class="p">)</span>
+<span class="c1"># get task references (async, parallel on the serverless cluster)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[main] Launching distributed transpilation tasks (count=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">circuits</span><span class="p">)</span><span class="si">}</span><span class="s2">)...&quot;</span><span class="p">)</span>
+<span class="c1"># sending circuit indexing for</span>
+<span class="n">sample_task_references</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">distributed_transpilation</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">circuit</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">circuits</span><span class="p">)</span>
+<span class="p">]</span>
 
-<span class="c1"># ----- persist -------</span>
-<span class="c1"># saving results of the execution</span>
-<span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;quasi_dists&quot;</span><span class="p">:</span> <span class="n">quasi_dists</span><span class="p">})</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Results saved.&quot;</span><span class="p">)</span>
+<span class="c1"># ----- collect ISA circuits -----</span>
+<span class="c1"># collect all results (blocks until all tasks complete)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Waiting for transpilation tasks to finish...&quot;</span><span class="p">)</span>
+<span class="n">isa_circuits</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="n">sample_task_references</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[main] All transpilation tasks completed (isa_count=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">isa_circuits</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+<span class="c1"># ----- batch execute on the quantum computer -----</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[main] Executing circuits on backend (name=</span><span class="si">{</span><span class="n">backend</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">)...&quot;</span><span class="p">)</span>
+<span class="n">pub_results</span> <span class="o">=</span> <span class="n">Sampler</span><span class="p">(</span><span class="n">backend</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">isa_circuits</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Circuit execution completed&quot;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[main] Extracting counts from results...&quot;</span><span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">meas</span><span class="o">.</span><span class="n">get_counts</span><span class="p">()</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">pub_results</span><span class="p">]</span>
+
+<span class="c1"># ----- persist results -----</span>
+<span class="c1"># persist results so `job.result()` returns them</span>
+<span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="n">results</span><span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span>
+    <span class="s2">&quot;[main] Results saved (len(results) = &quot;</span>
+    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span><span class="si">}</span><span class="s2">; example_keys=</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">results</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;[]&#39;</span><span class="si">}</span><span class="s2">)&quot;</span>
+<span class="p">)</span>
 </pre></div>
 </div>
-<p>This function resolves the backend through a <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code>. For real IBM Quantum backends, the service can be provided explicitly as an argument (recommended for notebooks and local runs) or constructed dynamically from environment variables. These variables—such as <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_CHANNEL</span></code>, <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_TOKEN</span></code>, <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_INSTANCE</span></code>, and <code class="docutils literal notranslate"><span class="pre">QISKIT_IBM_URL</span></code> —are typically set by your DevOps or cloud team during deployment (for example, in Kubernetes manifests or Docker Compose). When
-present, the function uses them to authenticate and configure the runtime service without hardcoding credentials in the code. For more information visit <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/deployment/cloud.html#">Cloud infrastructure setup</a>.</p>
+<p>There are several new concepts introduced in this Qiskit Function, but don’t worry—its core functionality is very similar to what you saw in <a class="reference internal" href="02_arguments_and_results.html"><span class="doc">Tutorial 02</span></a>. The main difference is that instead of running a single circuit, we now accept a list of circuits and use the <code class="docutils literal notranslate"><span class="pre">`&#64;distribute_task()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task</a>&gt;`__ decorator to transpile each one in
+parallel before executing them. So while the code may look more complex, the idea is the same: prepare a circuit, run it on a backend, collect the results and save them.</p>
+<p>In the function above, the <code class="docutils literal notranslate"><span class="pre">`&#64;distribute_task()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task</a>&gt;`__ decorator plays a key role:</p>
+<ul class="simple">
+<li><p>It converts a regular Python function into a distributed task. This means each call to the function will be executed asynchronously on separate compute resources, allowing us to run multiple tasks in parallel.</p></li>
+<li><p>When you call a distributed task, it returns a reference to the execution—not the result itself. To retrieve the actual result, you use the <code class="docutils literal notranslate"><span class="pre">`get()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.get.html">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.get.html</a>&gt;`__ method, which waits for the task to complete and then returns its output. The <code class="docutils literal notranslate"><span class="pre">`get(...)</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.get.html">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.get.html</a>&gt;`__ method accept either a single <code class="docutils literal notranslate"><span class="pre">ObjectRef</span></code> or a sequence of them.</p></li>
+</ul>
+<p>In the function above, we apply <code class="docutils literal notranslate"><span class="pre">`&#64;distribute_task()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task</a>&gt;`__ to our <code class="docutils literal notranslate"><span class="pre">distributed_transpilation(...)</span></code> method, so each call runs in parallel as each is an independent task.</p>
+<p>Once you understand how <code class="docutils literal notranslate"><span class="pre">`&#64;distribute_task()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task</a>&gt;`__ works, the rest of the function becomes easy to follow:</p>
+<ul class="simple">
+<li><p>We read the list of circuits from the function arguments using <code class="docutils literal notranslate"><span class="pre">`get_arguments()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.serializers.get_arguments.html#qiskit_serverless.serializers.get_arguments</a>&gt;`__, then call <code class="docutils literal notranslate"><span class="pre">distributed_transpilation(...)</span></code> for each one. This creates a list of task references.</p></li>
+<li><p>Each task receives a QuantumCircuit, a backend, and the index of the circuit (used for logging). It transpiles the circuit and returns an ISA circuit targeted to the selected backend.</p></li>
+<li><p>These tasks run in parallel across the serverless compute environment. Once all are launched, we call <code class="docutils literal notranslate"><span class="pre">`get(...)</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.get.html">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.get.html</a>&gt;`__ on the list of references to collect the results.</p></li>
+<li><p>After all transpilation tasks finish, we send the entire list of ISA circuits to the quantum computer in one batch via Sampler(backend).run(isa_circuits).</p></li>
+<li><p>Finally, we extract the counts from the sampler results and save them using <code class="docutils literal notranslate"><span class="pre">`save_resul()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.save_result.html#qiskit_serverless.core.save_result">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.save_result.html#qiskit_serverless.core.save_result</a>&gt;`__, so they can be retrieved later via <code class="docutils literal notranslate"><span class="pre">job.result()</span></code>.</p></li>
+</ul>
+<p>So while this function does the same overall flow—prepare → run → collect → save—that you’ve already seen, the use of <code class="docutils literal notranslate"><span class="pre">`&#64;distribute_task()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task</a>&gt;`__ makes it easy to scale up and run workloads in parallel. This approach avoids queue contention from many small jobs: you get the scalability of parallel transpilation with the efficiency of one batched hardware execution.</p>
+<blockquote>
+<div><p>⚠ By default, each distributed task is allocated 1 CPU. For advanced resource allocation (such as requesting GPUs or custom memory limits), refer to the section titled “Advanced Parallel Workflow” later in this tutorial.</p>
+</div></blockquote>
 </section>
 <section id="Deploying-the-function">
-<h4>Deploying the function<a class="headerlink" href="#Deploying-the-function" title="Permalink to this heading">¶</a></h4>
-<p>Now that we have a function that accepts arguments, we need to upload it to the serverless gateway and run it with custom inputs. &gt; ⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/deployment/local.html">local infrastructure setup</a>.</p>
+<h3>Deploying the function<a class="headerlink" href="#Deploying-the-function" title="Permalink to this heading">¶</a></h3>
+<p>As in previous tutorials, we will now upload our function and run it.</p>
+<blockquote>
+<div><p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/deployment/local.html">local infrastructure setup</a>.</p>
+</div></blockquote>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessClient</span><span class="p">,</span> <span class="n">QiskitFunction</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessClient</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitFunction</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">ServerlessClient</span><span class="p">(</span>
     <span class="n">token</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GATEWAY_TOKEN&quot;</span><span class="p">,</span> <span class="s2">&quot;awesome_token&quot;</span><span class="p">),</span>
@@ -453,13 +495,14 @@ present, the function uses them to authenticate and configure the runtime servic
     <span class="c1"># If you are using the kubernetes approach the URL must be http://localhost</span>
 <span class="p">)</span>
 
-<span class="n">function_with_args</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;function-with-arguments&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;function_with_arguments.py&quot;</span><span class="p">,</span>
+<span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;function-with-parallel-workflow&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;function_with_parallel_workflow.py&quot;</span><span class="p">,</span>
     <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function_with_args</span><span class="p">)</span>
+<span class="n">client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
+<span class="n">client</span>
 </pre></div>
 </div>
 </div>
@@ -469,30 +512,29 @@ present, the function uses them to authenticate and configure the runtime servic
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-QiskitFunction(function-with-arguments)
+&lt;gateway-client&gt;
 </pre></div></div>
 </div>
 </section>
 </section>
 <section id="Running-the-QiskitFunction">
-<h3>Running the QiskitFunction<a class="headerlink" href="#Running-the-QiskitFunction" title="Permalink to this heading">¶</a></h3>
+<h2>Running the QiskitFunction<a class="headerlink" href="#Running-the-QiskitFunction" title="Permalink to this heading">¶</a></h2>
 <section id="Testing-environment">
-<h4>Testing environment<a class="headerlink" href="#Testing-environment" title="Permalink to this heading">¶</a></h4>
-<p>After deploying <code class="docutils literal notranslate"><span class="pre">function-with-arguments</span></code>, let’s test it. For quick, credential‑free testing we’ll use a simulator. In this example we choose <code class="docutils literal notranslate"><span class="pre">FakeVigoV2</span></code> and pass its name as the <code class="docutils literal notranslate"><span class="pre">backend_name</span></code>. (The function detects “fake” in the name and constructs a fake provider internally.)</p>
+<h3>Testing environment<a class="headerlink" href="#Testing-environment" title="Permalink to this heading">¶</a></h3>
+<p>After deploying <code class="docutils literal notranslate"><span class="pre">function-with-parallel-workflow</span></code>, let’s test it. For quick, credential‑free testing we’ll use a simulator. In this example we choose <code class="docutils literal notranslate"><span class="pre">FakeVigoV2</span></code> and pass its name as the <code class="docutils literal notranslate"><span class="pre">backend_name</span></code>. (The function detects “fake” in the name and constructs a fake provider internally.) As for circuits, lets create a list of random circuits which we will be passed as arguments to the function.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuantumCircuit</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit.circuit.random</span><span class="w"> </span><span class="kn">import</span> <span class="n">random_circuit</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime.fake_provider</span><span class="w"> </span><span class="kn">import</span> <span class="n">FakeVigoV2</span>
 
 <span class="n">backend_name</span> <span class="o">=</span> <span class="n">FakeVigoV2</span><span class="p">()</span><span class="o">.</span><span class="n">name</span>  <span class="c1"># e.g., &quot;fake_vigo&quot;</span>
 
-<span class="n">circuit</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
-<span class="n">circuit</span><span class="o">.</span><span class="n">h</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-<span class="n">circuit</span><span class="o">.</span><span class="n">cx</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-<span class="n">circuit</span><span class="o">.</span><span class="n">measure_all</span><span class="p">()</span>
-<span class="n">circuit</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+<span class="n">circuits</span> <span class="o">=</span> <span class="p">[</span><span class="n">random_circuit</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+<span class="p">[</span><span class="n">circuit</span><span class="o">.</span><span class="n">measure_all</span><span class="p">()</span> <span class="k">for</span> <span class="n">circuit</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">]</span>
+<span class="n">circuits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">draw</span><span class="p">(),</span> <span class="n">circuits</span>
 </pre></div>
 </div>
 </div>
@@ -500,26 +542,30 @@ QiskitFunction(function-with-arguments)
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="output_area rendered_html docutils container">
-<pre style="word-wrap: normal;white-space: pre;background: #fff0;line-height: 1.1;font-family: &quot;Courier New&quot;,Courier,monospace">        ┌───┐      ░ ┌─┐
-   q_0: ┤ H ├──■───░─┤M├───
-        └───┘┌─┴─┐ ░ └╥┘┌─┐
-   q_1: ─────┤ X ├─░──╫─┤M├
-             └───┘ ░  ║ └╥┘
-meas: 2/══════════════╩══╩═
-                      0  1 </pre></div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(        ┌──────────────────────────┐┌──────────────┐ ░ ┌─┐
+    q_0: ┤ U3(4.5673,3.2818,2.9906) ├┤0             ├─░─┤M├───
+         └────────────┬─────────────┘│  Rxx(4.6353) │ ░ └╥┘┌─┐
+    q_1: ─────────────■──────────────┤1             ├─░──╫─┤M├
+                                     └──────────────┘ ░  ║ └╥┘
+ meas: 2/════════════════════════════════════════════════╩══╩═
+                                                         0  1 ,
+ [&lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x129f26200&gt;,
+  &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x129f262b0&gt;,
+  &lt;qiskit.circuit.quantumcircuit.QuantumCircuit at 0x129f26360&gt;])
+</pre></div></div>
 </div>
 <p>Run the function on the simulator backend:</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;function-with-arguments&quot;</span><span class="p">)</span>
-
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">parallel_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;function-with-parallel-workflow&quot;</span><span class="p">)</span>
 <span class="c1"># For fake backends, passing `service` is not required.</span>
-<span class="n">job</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuit</span><span class="o">=</span><span class="n">circuit</span><span class="p">,</span> <span class="n">backend_name</span><span class="o">=</span><span class="n">backend_name</span><span class="p">)</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">parallel_function</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">circuits</span><span class="o">=</span><span class="n">circuits</span><span class="p">,</span> <span class="n">backend_name</span><span class="o">=</span><span class="n">backend_name</span><span class="p">)</span>
 <span class="n">job</span>
-<br/></pre></div>
+</pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
@@ -528,7 +574,7 @@ meas: 2/══════════════╩══╩═
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | b8c3d397-1428-476a-81c0-64e1cbc4719e&gt;
+&lt;Job | 655d139d-e7e2-42ae-8cb3-e0bce8d6730d&gt;
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
@@ -548,7 +594,6 @@ meas: 2/══════════════╩══╩═
 &#39;QUEUED&#39;
 </pre></div></div>
 </div>
-<p>Retrieve the results from the client:</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
@@ -563,7 +608,7 @@ meas: 2/══════════════╩══╩═
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;quasi_dists&#39;: {&#39;00&#39;: 523, &#39;11&#39;: 501}}
+{&#39;results&#39;: [{&#39;11&#39;: 541, &#39;00&#39;: 483}, {&#39;00&#39;: 1024}, {&#39;01&#39;: 542, &#39;00&#39;: 482}]}
 </pre></div></div>
 </div>
 <p>Check the logs:</p>
@@ -580,25 +625,55 @@ meas: 2/══════════════╩══╩═
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-2025-11-12 14:20:46,675 INFO job_manager.py:568 -- Runtime env is setting up.
+2025-11-12 12:35:53,422 INFO job_manager.py:568 -- Runtime env is setting up.
 [main] Parsing arguments...
-[main] Inputs received (backend_name=fake_vigo)
-[main] Inputs received (backend_name=fake_vigo)
+[main] Inputs received (num_circuits=3, backend_name=fake_vigo)
 [main] Using fake provider (auto-selected because backend_name contains &#39;fake&#39;).
 [main] Backend resolved (name=fake_vigo)
-[main] Building preset pass manager (optimization_level=3)...
-[main] Transpiling circuit...
-[main] Transpilation complete
-[main] Executing circuit on backend (name=fake_vigo)...
-[main] Sampler execution complete
-[main] Extracted counts from result
-[main] Results saved.
+[main] Launching distributed transpilation tasks (count=3)...
+2025-11-12 12:36:01,229 INFO worker.py:1692 -- Using address 172.18.0.3:6379 set in the environment variable RAY_ADDRESS
+2025-11-12 12:36:01,237 INFO worker.py:1833 -- Connecting to existing Ray cluster at address: 172.18.0.3:6379...
+2025-11-12 12:36:01,356 INFO worker.py:2004 -- Connected to Ray cluster. View the dashboard at <span class="ansi-green-intense-fg ansi-bold">http://172.18.0.3:8265 </span>
+/usr/local/lib64/python3.11/site-packages/ray/_private/worker.py:2052: FutureWarning: Tip: In future versions of Ray, Ray will no longer override accelerator visible devices env var if num_gpus=0 or num_gpus=None (default). To enable this behavior and turn off this error message, set RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
+  warnings.warn(
+&lt;jemalloc&gt;: MADV_DONTNEED does not work (memset will be used instead)
+&lt;jemalloc&gt;: (This is the expected behaviour if you are running under QEMU)
+[main] Waiting for transpilation tasks to finish...
+<span class="ansi-cyan-fg">(distributed_transpilation pid=1391)</span> &lt;jemalloc&gt;: MADV_DONTNEED does not work (memset will be used instead)
+<span class="ansi-cyan-fg">(distributed_transpilation pid=1391)</span> &lt;jemalloc&gt;: (This is the expected behaviour if you are running under QEMU)
+<span class="ansi-cyan-fg">(distributed_transpilation pid=1391)</span> [distributed_transpilation] Start (index=1, qubits=2, clbits=2, backend=fake_vigo)
+<span class="ansi-cyan-fg">(distributed_transpilation pid=1391)</span> [distributed_transpilation] Transpilation complete (index=1)
+[main] All transpilation tasks completed (isa_count=3)
+[main] Executing circuits on backend (name=fake_vigo)...
+[main] Circuit execution completed
+[main] Extracting counts from results...
+[main] Results saved (len(results) = 3; example_keys=[&#39;11&#39;, &#39;00&#39;])
+<span class="ansi-cyan-fg">(distributed_transpilation pid=1388)</span> [distributed_transpilation] Start (index=0, qubits=2, clbits=2, backend=fake_vigo)<span class="ansi-green-fg"> [repeated 2x across cluster] (Ray deduplicates logs by default. Set RAY_DEDUP_LOGS=0 to disable log deduplication, or see https://docs.ray.io/en/master/ray-observability/user-guides/configure-logging.html#log-deduplication for more options.)</span>
+<span class="ansi-cyan-fg">(distributed_transpilation pid=1388)</span> [distributed_transpilation] Transpilation complete (index=0)<span class="ansi-green-fg"> [repeated 2x across cluster]</span>
+<span class="ansi-cyan-fg">(distributed_transpilation pid=1388)</span> &lt;jemalloc&gt;: MADV_DONTNEED does not work (memset will be used instead)<span class="ansi-green-fg"> [repeated 2x across cluster]</span>
+<span class="ansi-cyan-fg">(distributed_transpilation pid=1388)</span> &lt;jemalloc&gt;: (This is the expected behaviour if you are running under QEMU)<span class="ansi-green-fg"> [repeated 2x across cluster]</span>
 
 </pre></div></div>
 </div>
 </section>
+<section id="Advance-parallel-workflow">
+<h3>Advance parallel workflow<a class="headerlink" href="#Advance-parallel-workflow" title="Permalink to this heading">¶</a></h3>
+<p>By defulat, the <code class="docutils literal notranslate"><span class="pre">`&#64;distribute_task()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task</a>&gt;`__ decorator allocate <code class="docutils literal notranslate"><span class="pre">1</span></code> cpu for a task, but it can changed upon request. The <code class="docutils literal notranslate"><span class="pre">`&#64;distribute_task()</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.distribute_task.html#qiskit_serverless.core.distribute_task</a>&gt;`__ decorator can accept a
+<code class="docutils literal notranslate"><span class="pre">`Target</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Target.html">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Target.html</a>&gt;`__ object to specify resource allocations for each distributed task. If your <code class="docutils literal notranslate"><span class="pre">QiskitFunction</span></code> performs resource-intensive operations—such as GPU-accelerated transpilation or memory-heavy simulations—you can define the required resources by passing either:</p>
+<ul class="simple">
+<li><p>a <code class="docutils literal notranslate"><span class="pre">`Target</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Target.html">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Target.html</a>&gt;`__ object or</p></li>
+<li><p>a dictionary that can intiate a <code class="docutils literal notranslate"><span class="pre">`Target</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Target.html">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Target.html</a>&gt;`__ by using <code class="docutils literal notranslate"><span class="pre">`Target.from_dict(**kwargs)</span></code> &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Target.html">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Target.html</a>&gt;`__.</p></li>
+</ul>
+<p>For example, if your transpilation logic benefits from GPU acceleration, you can annotate your task like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@distribute_task</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;gpu&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">distributed_sample</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<p>This tells the serverless scheduler to allocate one CPU and one GPU for each task execution. For more details on how to define and use resource targets, refer to the <code class="docutils literal notranslate"><span class="pre">`Target</span></code> documantation &lt;<a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Target.html">https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Target.html</a>&gt;`__</p>
+</section>
 <section id="Running-on-a-real-backend-(IBM-Quantum-Platform)">
-<h4>Running on a real backend (IBM Quantum Platform)<a class="headerlink" href="#Running-on-a-real-backend-(IBM-Quantum-Platform)" title="Permalink to this heading">¶</a></h4>
+<h3>Running on a real backend (IBM Quantum Platform)<a class="headerlink" href="#Running-on-a-real-backend-(IBM-Quantum-Platform)" title="Permalink to this heading">¶</a></h3>
 <p>To run on real hardware (or managed cloud simulators), create a <code class="docutils literal notranslate"><span class="pre">`QiskitRuntimeService</span></code> &lt;<a class="reference external" href="https://quantum.cloud.ibm.com/docs/en/guides/initialize-account">https://quantum.cloud.ibm.com/docs/en/guides/initialize-account</a>&gt;`__ instance and pass it to the function alongside a real backend_name. You can either use previously saved credentials or supply them directly (uncomment as needed). Then select a backend—for example, the least busy operational device—and pass its name.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
@@ -628,10 +703,17 @@ meas: 2/══════════════╩══╩═
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Results: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Logs: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span><span class="si">}</span><span class="s2">)</span>
-<br/></pre></div>
+</pre></div>
 </div>
 </div>
-</section>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
 </section>
 </section>
 </section>
@@ -641,23 +723,23 @@ meas: 2/══════════════╩══╩═
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="03_distributed_workloads.html">
+          <a class="next-page" href="04_retrieving_past_results.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Parallel workflows with QiskitFunction</div>
+                <div class="title">Retrieving Results from Old Jobs</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="01_running_program.html">
+          <a class="prev-page" href="02_arguments_and_results.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Running a Qiskit Function as a function</div>
+                <div class="title">Passing input arguments to your QiskitFunction</div>
                 
               </div>
             </a>
@@ -691,19 +773,16 @@ meas: 2/══════════════╩══╩═
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Passing input arguments to your QiskitFunction</a><ul>
-<li><a class="reference internal" href="#Install-dependencies">Install dependencies</a><ul>
-<li><a class="reference internal" href="#Prep-Work">Prep Work</a><ul>
-<li><a class="reference internal" href="#Write-the-function-with-arguments">Write the function with arguments</a></li>
-<li><a class="reference internal" href="#Why-pass-the-circuit-instead-of-building-it-inside-the-function?">Why pass the circuit instead of building it inside the function?</a></li>
+<li><a class="reference internal" href="#">Parallel workflows with QiskitFunction</a><ul>
+<li><a class="reference internal" href="#Prep-work">Prep work</a><ul>
+<li><a class="reference internal" href="#Write-the-function">Write the function</a></li>
 <li><a class="reference internal" href="#Deploying-the-function">Deploying the function</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#Running-the-QiskitFunction">Running the QiskitFunction</a><ul>
 <li><a class="reference internal" href="#Testing-environment">Testing environment</a></li>
+<li><a class="reference internal" href="#Advance-parallel-workflow">Advance parallel workflow</a></li>
 <li><a class="reference internal" href="#Running-on-a-real-backend-(IBM-Quantum-Platform)">Running on a real backend (IBM Quantum Platform)</a></li>
-</ul>
-</li>
 </ul>
 </li>
 </ul>

@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Parallel workflows with QiskitFunction" href="04_distributed_workloads.html" /><link rel="prev" title="Passing input arguments to your QiskitFunction" href="02_arguments_and_results.html" />
+<link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="&lt;no title&gt;" href="../experimental/index.html" /><link rel="prev" title="Parallel workflows with QiskitFunction" href="03_distributed_workloads.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>Using python packages with your QiskitFunction - Qiskit Serverless 0.27.1</title>
+        <title>Retrieving Results from Old Jobs - Qiskit Serverless 0.27.1</title>
       <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=3ee1c6c6" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -205,23 +205,17 @@
 <li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">Getting started</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Getting started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="01_running_program.html">Running a Qiskit Function as a function</a></li>
 <li class="toctree-l2"><a class="reference internal" href="02_arguments_and_results.html">Passing input arguments to your QiskitFunction</a></li>
-<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Using python packages with your QiskitFunction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="04_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="05_retrieving_past_results.html">Retrieving Results from Old Jobs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_distributed_workloads.html">Parallel workflows with QiskitFunction</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Retrieving Results from Old Jobs</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/file_download.html">File download (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../experimental/manage_data_directory.html">Shared data directory (Experimental)</a></li>
 </ul>
 </li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../examples/index.html">Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Examples</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../examples/01_vqe.html">Example: VQE as QiskitPattern</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../examples/02_qaoa.html">Example: QAOA as QiskitPattern</a></li>
-</ul>
-</li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../migration/index.html">Migration guides</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Migration guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../migration/index.html">Migration guides</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Migration guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../migration/migration_from_qiskit_runtime_programs.html">Converting from Qiskit Runtime Programs</a></li>
 </ul>
 </li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../deployment/index.html">Deployment</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of Deployment</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../deployment/index.html">Deployment</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Deployment</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../deployment/local.html">Local infrastructure setup</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../deployment/cloud.html">Cloud infrastructure setup</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../deployment/client_configuration.html">Client configuration</a></li>
@@ -232,9 +226,9 @@
 <li class="toctree-l1"><a class="reference internal" href="../../release-notes.html">Release Notes</a></li>
 </ul>
 <ul>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../apidocs/index.html">API References</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of API References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../apidocs/index.html">API References</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of API References</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../stubs/qiskit_serverless.QiskitServerlessException.html">qiskit_serverless.QiskitServerlessException</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.core</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Core module (qiskit_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../apidocs/core.html">Core module (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.core</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of Core module (qiskit_serverless.core)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.ServerlessClient.html">qiskit_serverless.core.ServerlessClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.IBMServerlessClient.html">qiskit_serverless.core.IBMServerlessClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.BaseClient.html">qiskit_serverless.core.BaseClient</a></li>
@@ -257,7 +251,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.core.get_runtime_service.html">qiskit_serverless.core.get_runtime_service</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Serializers (qiskit_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../apidocs/serializers.html">Serializers (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.serializers</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Serializers (qiskit_serverless.serializers)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.serializers.register_all_serializers.html">qiskit_serverless.serializers.register_all_serializers</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.serializers.circuit_serializer.html">qiskit_serverless.serializers.circuit_serializer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.serializers.circuit_deserializer.html">qiskit_serverless.serializers.circuit_deserializer</a></li>
@@ -266,7 +260,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.serializers.get_arguments.html">qiskit_serverless.serializers.get_arguments</a></li>
 </ul>
 </li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of Utilities (qiskit_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../apidocs/utils.html">Utilities (<code class="xref py py-mod docutils literal notranslate"><span class="pre">qiskit_serverless.utils</span></code>)</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Utilities (qiskit_serverless.utils)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.utils.ErrorCodes.html">qiskit_serverless.utils.ErrorCodes</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.utils.JsonSerializable.html">qiskit_serverless.utils.JsonSerializable</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../stubs/qiskit_serverless.utils.format_provider_name_and_title.html">qiskit_serverless.utils.format_provider_name_and_title</a></li>
@@ -292,7 +286,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../../_sources/getting_started/basic/03_dependencies.ipynb.txt" title="View this page">
+  <a class="muted-link" href="../../_sources/getting_started/basic/04_retrieving_past_results.ipynb.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -312,48 +306,15 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="Using-python-packages-with-your-QiskitFunction">
-<h1>Using python packages with your QiskitFunction<a class="headerlink" href="#Using-python-packages-with-your-QiskitFunction" title="Permalink to this heading">¶</a></h1>
-<p>In this document, we will learn how to install custom dependencies to your function.</p>
-<p>Let’s create another file with our new function <a class="reference external" href="./source_files/function_with_dependencies.py">./source_files/function_with_dependencies.py</a>.</p>
-<p>For the sake of this example, let’s use the <code class="docutils literal notranslate"><span class="pre">pendulum</span></code> package as our custom dependency. We are going to calculate the difference in ours between Toronto and Vancouver timezones.</p>
-<p>Here’s what the file would look like:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">save_result</span>
-
-<span class="kn">import</span><span class="w"> </span><span class="nn">pendulum</span>
-
-<span class="n">dt_toronto</span> <span class="o">=</span> <span class="n">pendulum</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="s1">&#39;America/Toronto&#39;</span><span class="p">)</span>
-<span class="n">dt_vancouver</span> <span class="o">=</span> <span class="n">pendulum</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">tz</span><span class="o">=</span><span class="s1">&#39;America/Vancouver&#39;</span><span class="p">)</span>
-
-<span class="n">diff</span> <span class="o">=</span> <span class="n">dt_vancouver</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">dt_toronto</span><span class="p">)</span><span class="o">.</span><span class="n">in_hours</span><span class="p">()</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="n">diff</span><span class="p">)</span>
-<span class="n">save_result</span><span class="p">({</span><span class="s2">&quot;hours&quot;</span><span class="p">:</span> <span class="n">diff</span><span class="p">})</span>
-</pre></div>
-</div>
-<p>As you can see, we’ve imported our custom dependency, <code class="docutils literal notranslate"><span class="pre">pendulum</span></code>, and used its <code class="docutils literal notranslate"><span class="pre">datetime</span></code> method to calculate their date times.</p>
-<p>Now, let’s create and configure our client</p>
-<p>To install a custom dependency that our function might use we need to pass it as the <code class="docutils literal notranslate"><span class="pre">dependencies</span></code> argument to the <code class="docutils literal notranslate"><span class="pre">QiskitFunctions</span></code> class constructor. You can pass multiple dependencies.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitFunction</span>
-
-<span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;function-with-dependencies&quot;</span><span class="p">,</span>
-    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;function.py&quot;</span><span class="p">,</span>
-    <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span><span class="p">,</span>
-    <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;pendulum&quot;</span><span class="p">],</span>
-<span class="p">)</span>
-</pre></div>
-</div>
-</div>
+          <section id="Retrieving-Results-from-Old-Jobs">
+<h1>Retrieving Results from Old Jobs<a class="headerlink" href="#Retrieving-Results-from-Old-Jobs" title="Permalink to this heading">¶</a></h1>
+<p>In this tutorial, we will run two Qiskit Functions and then retrieve the results of each Qiskit Function using the job IDs and the serverless client.</p>
+<p>First, create <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Provider.html#qiskit_serverless.core.ServerlessProvider">ServerlessProvider</a> instance.</p>
 <blockquote>
 <div><p>⚠ This provider is set up with default credentials to a test cluster intended to run on your machine. For information on setting up infrastructure on your local machine, check out the guide on <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/deployment/local.html">local infrastructure setup</a>.</p>
 </div></blockquote>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerlessClient</span>
@@ -369,38 +330,62 @@
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
 &lt;gateway-client&gt;
 </pre></div></div>
 </div>
+<p>Run two functions in parallel.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
-<span class="n">my_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;function-with-dependencies&quot;</span><span class="p">)</span>
-<span class="n">my_function</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitFunction</span>
+
+<span class="n">function</span> <span class="o">=</span> <span class="n">QiskitFunction</span><span class="p">(</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;function-to-fetch-results&quot;</span><span class="p">,</span> <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;function.py&quot;</span><span class="p">,</span> <span class="n">working_dir</span><span class="o">=</span><span class="s2">&quot;./source_files/&quot;</span>
+<span class="p">)</span>
+<span class="n">client</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
+
+<span class="n">my_function</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;function-to-fetch-results&quot;</span><span class="p">)</span>
+
+<span class="n">job1</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<span class="n">job2</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+<span class="n">job1</span><span class="p">,</span> <span class="n">job2</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-QiskitFunction(function-with-dependencies)
+(&lt;Job | 4c0b828f-03eb-487d-afa4-6cb4b2d38b18&gt;,
+ &lt;Job | 95e6312c-d246-48ac-b86b-70825ab30f26&gt;)
 </pre></div></div>
 </div>
+<p>Retrieve the job IDs for each of the running functions.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job_id1</span> <span class="o">=</span> <span class="n">job1</span><span class="o">.</span><span class="n">job_id</span>
+<span class="n">job_id2</span> <span class="o">=</span> <span class="n">job2</span><span class="o">.</span><span class="n">job_id</span>
+</pre></div>
+</div>
+</div>
+<p>Call the blocking comand, <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job">Job</a><code class="docutils literal notranslate"><span class="pre">.result()</span></code>, to ensure the results are ready in the following cells.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">my_function</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-<span class="n">job</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job1</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+<span class="n">job2</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -410,41 +395,75 @@ QiskitFunction(function-with-dependencies)
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;Job | f1e286c1-f6b1-434d-b2eb-3c4aeacf797e&gt;
+{&#39;11&#39;: 531, &#39;00&#39;: 493}
 </pre></div></div>
 </div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<p>Retrieve the completed jobs through the serverless client, using the job IDs.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">retrieved_job1</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">job_id1</span><span class="p">)</span>
+<span class="n">retrieved_job2</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">job_id2</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
-</pre></div>
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&#39;DONE&#39;
-</pre></div></div>
-</div>
+<p>Inspect the results of the retrieved jobs.</p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job 1 results: </span><span class="si">{</span><span class="n">retrieved_job1</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job 2 results: </span><span class="si">{</span><span class="n">retrieved_job2</span><span class="o">.</span><span class="n">result</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Job 1 results: {&#39;00&#39;: 519, &#39;11&#39;: 505}
+Job 2 results: {&#39;11&#39;: 531, &#39;00&#39;: 493}
+</pre></div></div>
+</div>
+<p>To inspect the logs from a function, access them from the <a class="reference external" href="https://qiskit.github.io/qiskit-serverless/stubs/qiskit_serverless.core.Job.html#qiskit_serverless.core.Job">Job</a> instance.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job 1 logs: </span><span class="si">{</span><span class="n">retrieved_job1</span><span class="o">.</span><span class="n">logs</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Job 1 logs: 2024-12-05 17:33:36,813     INFO job_manager.py:531 -- Runtime env is setting up.
+Running function...
+Completed running function.
+
+</pre></div></div>
+</div>
+<p>To get a list of all previously executed functions, use the <code class="docutils literal notranslate"><span class="pre">.get_jobs()</span></code> method of the <code class="docutils literal notranslate"><span class="pre">QiskitServerless</span></code> object. The <code class="docutils literal notranslate"><span class="pre">get_jobs</span></code> method accepts 2 optional parameters, <code class="docutils literal notranslate"><span class="pre">limit</span></code> and <code class="docutils literal notranslate"><span class="pre">offset</span></code>, which control the size of returned results.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">client</span><span class="o">.</span><span class="n">get_jobs</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;11&#39;: 513, &#39;00&#39;: 511}
+[&lt;Job | 4c0b828f-03eb-487d-afa4-6cb4b2d38b18&gt;,
+ &lt;Job | 8eedfd5f-a903-49f1-9147-ee2140f67e55&gt;]
 </pre></div></div>
 </div>
 </section>
@@ -454,23 +473,23 @@ QiskitFunction(function-with-dependencies)
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="04_distributed_workloads.html">
+          <a class="next-page" href="../experimental/index.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Parallel workflows with QiskitFunction</div>
+                <div class="title">&lt;no title&gt;</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="02_arguments_and_results.html">
+          <a class="prev-page" href="03_distributed_workloads.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Passing input arguments to your QiskitFunction</div>
+                <div class="title">Parallel workflows with QiskitFunction</div>
                 
               </div>
             </a>
