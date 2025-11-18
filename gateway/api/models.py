@@ -136,6 +136,30 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         return f"{self.title}"
 
 
+class ProgramHistory(models.Model):
+    ADD = "ADD"
+    REMOVE = "REMOVE"
+    ACTIONS = [
+        (ADD, "Add"),
+        (REMOVE, "Remove"),
+    ]
+
+    PROGRAM_FIELD_INSTANCES = "instances"
+    PROGRAM_FIELD_TRIAL_INSTANCES = "trial_instances"
+    FIELD_NAMES = [
+        (PROGRAM_FIELD_INSTANCES, PROGRAM_FIELD_INSTANCES),
+        (PROGRAM_FIELD_TRIAL_INSTANCES, PROGRAM_FIELD_TRIAL_INSTANCES),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    function = models.ForeignKey(Program, on_delete=models.CASCADE)
+    action = models.CharField(max_length=255, choices=ACTIONS)
+    field_name = models.CharField(max_length=255, choices=FIELD_NAMES)
+    value = models.CharField(max_length=255)
+    description = models.CharField(max_length=255, null=True)
+    changed = models.DateTimeField(auto_now_add=True, editable=False)
+
+
 class ComputeResource(models.Model):
     """Compute resource model."""
 
