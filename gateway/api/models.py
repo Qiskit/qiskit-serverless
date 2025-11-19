@@ -159,6 +159,12 @@ class ProgramHistory(models.Model):
     entity_id = models.CharField(max_length=255)
     description = models.CharField(max_length=255, null=True)
     changed = models.DateTimeField(auto_now_add=True, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
 
 
 class ComputeResource(models.Model):

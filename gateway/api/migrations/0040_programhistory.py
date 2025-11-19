@@ -2,6 +2,8 @@
 
 import django.db.models.deletion
 import uuid
+
+from django.conf import settings
 from django.db import migrations, models
 
 
@@ -45,6 +47,15 @@ class Migration(migrations.Migration):
                 ("entity_id", models.CharField(max_length=255)),
                 ("description", models.CharField(max_length=255, null=True)),
                 ("changed", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
                 (
                     "program",
                     models.ForeignKey(

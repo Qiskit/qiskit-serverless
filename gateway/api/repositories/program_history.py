@@ -1,10 +1,12 @@
 import logging
 from typing import Optional
 
+from django.contrib.auth import get_user_model
 from api.models import ProgramHistory, Program, Group
 
 
 logger = logging.getLogger("gateway")
+User = get_user_model()
 
 
 class ProgramHistoryRepository:
@@ -16,6 +18,7 @@ class ProgramHistoryRepository:
         description: str,
         field_name: str,
         action: str,
+        user: Optional[User] = None,
     ) -> ProgramHistory:
         """
         Creates a history entry for a program field change.
@@ -27,6 +30,7 @@ class ProgramHistoryRepository:
           - description: Human-readable description of the related entity, like the Group name
           - field_name: Field name (use ProgramHistory.PROGRAM_FIELD_INSTANCES or PROGRAM_FIELD_TRIAL_INSTANCES)
           - action: Action type (use ProgramHistory.ADD or ProgramHistory.REMOVE)
+          - user: User who made the change (optional)
 
         Returns:
           - ProgramHistory: the created history entry
@@ -39,6 +43,7 @@ class ProgramHistoryRepository:
             entity=entity_model.__name__,
             entity_id=str(entity_id),
             description=description,
+            user=user,
         )
         history_entry.save()
         return history_entry

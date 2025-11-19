@@ -1,9 +1,9 @@
 """Signals for api models."""
 
-import logging
 from django.db import transaction
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
+from crum import get_current_user
 from api.models import Program, ProgramHistory
 from api.repositories.program_history import ProgramHistoryRepository
 
@@ -29,6 +29,7 @@ def handle_program_instances_changed(sender, instance, action, pk_set, **kwargs)
         return
 
     def create_history_entries():
+        user = get_current_user()
         for group_id in pk_set:
             group = repository.get_group_by_id(group_id)
             if group:
@@ -39,6 +40,7 @@ def handle_program_instances_changed(sender, instance, action, pk_set, **kwargs)
                     description=group.name,
                     field_name=ProgramHistory.PROGRAM_FIELD_INSTANCES,
                     action=history_action,
+                    user=user,
                 )
 
     # Use on_commit to ensure LogEntry is created first
@@ -66,6 +68,7 @@ def handle_program_trial_instances_changed(sender, instance, action, pk_set, **k
         return
 
     def create_history_entries():
+        user = get_current_user()
         for group_id in pk_set:
             group = repository.get_group_by_id(group_id)
             if group:
@@ -76,6 +79,7 @@ def handle_program_trial_instances_changed(sender, instance, action, pk_set, **k
                     description=group.name,
                     field_name=ProgramHistory.PROGRAM_FIELD_TRIAL_INSTANCES,
                     action=history_action,
+                    user=user,
                 )
 
     transaction.on_commit(create_history_entries)
