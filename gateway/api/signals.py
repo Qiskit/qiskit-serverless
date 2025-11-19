@@ -34,16 +34,17 @@ def handle_program_instances_changed(sender, instance, action, pk_set, **kwargs)
         user = get_current_user()
         for group_id in pk_set:
             group = groups_repository.get_group_by_id(group_id)
-            if group:
-                program_history_repository.create_history_entry(
-                    program=instance,
-                    entity_model=group.__class__,
-                    entity_id=group.id,
-                    description=group.name,
-                    field_name=ProgramHistory.PROGRAM_FIELD_INSTANCES,
-                    action=history_action,
-                    user=user,
-                )
+            if not group:
+                continue
+            program_history_repository.create_history_entry(
+                program=instance,
+                entity_model=group.__class__,
+                entity_id=group.id,
+                description=group.name,
+                field_name=ProgramHistory.PROGRAM_FIELD_INSTANCES,
+                action=history_action,
+                user=user,
+            )
 
     # Use on_commit to ensure LogEntry is created first
     transaction.on_commit(create_history_entries)
@@ -74,15 +75,16 @@ def handle_program_trial_instances_changed(sender, instance, action, pk_set, **k
         user = get_current_user()
         for group_id in pk_set:
             group = groups_repository.get_group_by_id(group_id)
-            if group:
-                program_history_repository.create_history_entry(
-                    program=instance,
-                    entity_model=group.__class__,
-                    entity_id=group.id,
-                    description=group.name,
-                    field_name=ProgramHistory.PROGRAM_FIELD_TRIAL_INSTANCES,
-                    action=history_action,
-                    user=user,
-                )
+            if not group:
+                continue
+            program_history_repository.create_history_entry(
+                program=instance,
+                entity_model=group.__class__,
+                entity_id=group.id,
+                description=group.name,
+                field_name=ProgramHistory.PROGRAM_FIELD_TRIAL_INSTANCES,
+                action=history_action,
+                user=user,
+            )
 
     transaction.on_commit(create_history_entries)

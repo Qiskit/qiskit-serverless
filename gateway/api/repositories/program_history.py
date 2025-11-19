@@ -11,6 +11,7 @@ User = get_user_model()
 class ProgramHistoryRepository:
     def create_history_entry(
         self,
+        *,
         program: Program,
         entity_model: type,
         entity_id: int,
@@ -27,7 +28,8 @@ class ProgramHistoryRepository:
           - entity_model: Model class of the related entity (e.g., Group)
           - entity_id: ID of the related entity being added/removed
           - description: Human-readable description of the related entity, like the group name
-          - field_name: Field name (use ProgramHistory.PROGRAM_FIELD_INSTANCES or PROGRAM_FIELD_TRIAL_INSTANCES)
+          - field_name: Field name (use ProgramHistory.PROGRAM_FIELD_INSTANCES
+              or PROGRAM_FIELD_TRIAL_INSTANCES)
           - action: Action type (use ProgramHistory.ADD or ProgramHistory.REMOVE)
           - user: User who made the change (optional)
 
