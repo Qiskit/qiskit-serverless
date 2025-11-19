@@ -53,7 +53,18 @@
         </tbody>
     </table>
     <p class="paginator">
-        {{ history_entries|length }} {% blocktranslate count counter=history_entries|length %}entry{% plural %}entries{% endblocktranslate %}
+      {% if pagination_required %}
+        {% for i in page_range %}
+          {% if i == history_entries.paginator.ELLIPSIS %}
+            {{ history_entries.paginator.ELLIPSIS }}
+          {% elif i == history_entries.number %}
+            <span class="this-page">{{ i }}</span>
+          {% else %}
+            <a href="?{{ page_var }}={{ i }}" {% if i == history_entries.paginator.num_pages %} class="end" {% endif %}>{{ i }}</a>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {{ history_entries.paginator.count }} {% blocktranslate count counter=history_entries.paginator.count %}entry{% plural %}entries{% endblocktranslate %}
     </p>
 {% else %}
     <p>{% translate 'No changes to instances or trial instances have been recorded yet.' %}</p>
