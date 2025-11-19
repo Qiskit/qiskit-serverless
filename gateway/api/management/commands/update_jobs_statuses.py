@@ -32,7 +32,21 @@ def update_job_status(job: Job):
     job_new_status = Job.PENDING
     success = False
     job_handler = get_job_handler(job.compute_resource.host)
-    ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
+
+    try:
+        ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
+    except RuntimeError as e:
+        # Handle case where Ray operator lost reference to the job
+        logger.error(
+            "Job [%s] with ray_job_id [%s] failed to get status from Ray cluster. "
+            "Marking as FAILED. Error: %s",
+            job.id,
+            job.ray_job_id,
+            str(e),
+        )
+        ray_job_status = None
+        job_new_status = Job.FAILED
+        success = False
 
     if ray_job_status:
         job_new_status = ray_job_status_to_model_job_status(ray_job_status)
@@ -59,16 +73,25 @@ def update_job_status(job: Job):
             job.sub_status = None
             job.env_vars = "{}"
 
-    if job_handler:
-        logs = job_handler.logs(job.ray_job_id)
-        job.logs = check_logs(logs, job)
-        # check if job is resource constrained
-        no_resources_log = "No available node types can fulfill resource request"
-        if no_resources_log in job.logs:
-            job_new_status = fail_job_insufficient_resources(job)
-            job.status = job_new_status
-            # cleanup env vars
-            job.env_vars = "{}"
+    if job_handler and ray_job_status is not None:
+        try:
+            logs = job_handler.logs(job.ray_job_id)
+            job.logs = check_logs(logs, job)
+            # check if job is resource constrained
+            no_resources_log = "No available node types can fulfill resource request"
+            if no_resources_log in job.logs:
+                job_new_status = fail_job_insufficient_resources(job)
+                job.status = job_new_status
+                # cleanup env vars
+                job.env_vars = "{}"
+        except RuntimeError as e:
+            # Handle case where Ray operator lost reference to the job
+            logger.warning(
+                "Cannot fetch logs for job [%s] with ray_job_id [%s]. Error: %s",
+                job.id,
+                job.ray_job_id,
+                str(e),
+            )
 
     try:
         job.save()
