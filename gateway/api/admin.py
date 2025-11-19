@@ -63,4 +63,4 @@ class RuntimeJobAdmin(admin.ModelAdmin):
 class GroupMetadataAdmin(admin.ModelAdmin):
     """RuntimeJobAdmin."""
 
-    search_fields = ["account", "group"]
+    search_fields = ["account", "group__name"]
