@@ -1,11 +1,14 @@
 """Admin module."""
 
 from django.contrib import admin
+from django.urls import path
+from django.shortcuts import render, get_object_or_404
 from api.models import (
     GroupMetadata,
     JobConfig,
     Provider,
     Program,
+    ProgramHistory,
     ComputeResource,
     Job,
     RuntimeJob,
@@ -32,6 +35,43 @@ class ProgramAdmin(admin.ModelAdmin):
     list_filter = ["provider", "type", "disabled"]
     exclude = ["env_vars"]
     filter_horizontal = ["instances", "trial_instances"]
+    change_form_template = "program/change_form.html"
+
+    list_display = [
+        "title",
+        "provider",
+        "author",
+        "type",
+        "disabled",
+    ]
+
+    def get_urls(self):
+        """Add program history url to the available urls."""
+        custom_urls = [
+            path(
+                "<path:object_id>/program-history/",
+                self.admin_site.admin_view(self.program_history_view),
+                name="program_history_view",
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def program_history_view(self, request, object_id):
+        program = get_object_or_404(Program, pk=object_id)
+
+        history_entries = ProgramHistory.objects.filter(program=program).order_by(
+            "-changed"
+        )
+
+        context = {
+            **self.admin_site.each_context(request),
+            "object": program,
+            "history_entries": history_entries,
+            "opts": self.model._meta,
+            "app_label": self.model._meta.app_label,
+        }
+
+        return render(request, "program/program_history.html", context)
 
 
 @admin.register(ComputeResource)

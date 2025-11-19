@@ -41,11 +41,12 @@ class Migration(migrations.Migration):
                         max_length=255,
                     ),
                 ),
-                ("value", models.CharField(max_length=255)),
+                ("entity", models.CharField(max_length=255)),
+                ("entity_id", models.CharField(max_length=255)),
                 ("description", models.CharField(max_length=255, null=True)),
                 ("changed", models.DateTimeField(auto_now_add=True)),
                 (
-                    "function",
+                    "program",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE, to="api.program"
                     ),

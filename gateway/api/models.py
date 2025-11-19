@@ -152,10 +152,11 @@ class ProgramHistory(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    function = models.ForeignKey(Program, on_delete=models.CASCADE)
+    program = models.ForeignKey(Program, on_delete=models.CASCADE)
     action = models.CharField(max_length=255, choices=ACTIONS)
     field_name = models.CharField(max_length=255, choices=FIELD_NAMES)
-    value = models.CharField(max_length=255)
+    entity = models.CharField(max_length=255)
+    entity_id = models.CharField(max_length=255)
     description = models.CharField(max_length=255, null=True)
     changed = models.DateTimeField(auto_now_add=True, editable=False)
 
