@@ -4,7 +4,7 @@ API V1: Available dependencies end-point.
 from typing import Dict
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from pkg_resources import Requirement
+from packaging.requirements import Requirement
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
