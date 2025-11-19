@@ -1,0 +1,63 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+        &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{{ object|truncatewords:"18" }}</a>
+        &rsaquo; {% translate 'Program History' %}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+<div id="change-history" class="module">
+{% if history_entries %}
+    <table>
+        <thead>
+        <tr>
+            <th scope="col">{% translate 'Date/time' %}</th>
+            <th scope="col">{% translate 'User' %}</th>
+            <th scope="col">{% translate 'Entity' %}</th>
+            <th scope="col">{% translate 'Action' %}</th>
+            <th scope="col">{% translate 'Field' %}</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for entry in history_entries %}
+        <tr>
+            <th scope="row">{{ entry.changed|date:"DATETIME_FORMAT" }}</th>
+            <td>
+                {% if entry.user %}
+                    {{ entry.user.get_username }}
+                    {% if entry.user.get_full_name %}
+                        ({{ entry.user.get_full_name }})
+                    {% endif %}
+                {% else %}
+                    {% translate 'Unknown' %}
+                {% endif %}
+            </td>
+            <td>{{ entry.entity }}: {{ entry.description }}</td>
+            <td>
+                {% if entry.action == 'ADD' %}
+                    <span style="color: green;">{% translate 'Added' %}</span>
+                {% else %}
+                    <span style="color: red;">{% translate 'Removed' %}</span>
+                {% endif %}
+            </td>
+            <td>{{ entry.get_field_name_display }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <p class="paginator">
+        {{ history_entries|length }} {% blocktranslate count counter=history_entries|length %}entry{% plural %}entries{% endblocktranslate %}
+    </p>
+{% else %}
+    <p>{% translate 'No changes to instances or trial instances have been recorded yet.' %}</p>
+{% endif %}
+</div>
+</div>
+{% endblock %}
