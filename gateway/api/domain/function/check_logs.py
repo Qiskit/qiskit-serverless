@@ -27,18 +27,20 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
         logs with error message and metadata.
     """
 
-    max_mb = int(settings.FUNCTIONS_LOGS_SIZE_LIMIT)
-    max_bytes = max_mb * 1024**2
-
-    if job.status == Job.FAILED and logs in ["", None]:
+    if job.status == Job.FAILED:
         logs = f"Job {job.id} failed due to an internal error."
         logger.warning("Job %s failed due to an internal error.", job.id)
 
         return logs
 
-    logs_size = sys.getsizeof(logs)
-    if logs_size == 0:
-        return logs
+    if not logs:
+        return ""
+
+    max_mb = int(settings.FUNCTIONS_LOGS_SIZE_LIMIT)
+    max_bytes = max_mb * 1024**2
+
+    logs_bytes = logs.encode("utf-8")
+    logs_size = len(logs_bytes)
 
     if logs_size > max_bytes:
         logger.warning(
@@ -47,15 +49,16 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
             logs_size,
             max_mb,
         )
-        ratio = max_bytes / logs_size
-        new_length = max(1, int(len(logs) * ratio))
 
-        # truncate logs depending of the ratio
-        logs = logs[:new_length]
-        logs += (
-            "\nLogs exceeded maximum allowed size ("
+        # truncate logs discarding older
+        logs_bytes = logs_bytes[-max_bytes:]
+        logs = logs_bytes.decode("utf-8", errors="ignore")
+
+        logs = (
+            "\n[Logs exceeded maximum allowed size ("
             + str(max_mb)
-            + " MB) and could not be stored."
+            + " MB). Older logs are discarded.]"
+            + logs
         )
 
     return logs
