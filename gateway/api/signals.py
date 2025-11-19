@@ -5,6 +5,7 @@ from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from crum import get_current_user
 from api.models import Program, ProgramHistory
+from api.repositories.groups import GroupRepository
 from api.repositories.program_history import ProgramHistoryRepository
 
 
@@ -19,7 +20,8 @@ def handle_program_instances_changed(sender, instance, action, pk_set, **kwargs)
         action: 'pre_add', 'post_add', 'pre_remove', 'post_remove'
         pk_set: Set of primary keys of the Group objects being added/removed
     """
-    repository = ProgramHistoryRepository()
+    program_history_repository = ProgramHistoryRepository()
+    groups_repository = GroupRepository()
 
     if action == "post_add":
         history_action = ProgramHistory.ADD
@@ -31,9 +33,9 @@ def handle_program_instances_changed(sender, instance, action, pk_set, **kwargs)
     def create_history_entries():
         user = get_current_user()
         for group_id in pk_set:
-            group = repository.get_group_by_id(group_id)
+            group = groups_repository.get_group_by_id(group_id)
             if group:
-                repository.create_history_entry(
+                program_history_repository.create_history_entry(
                     program=instance,
                     entity_model=group.__class__,
                     entity_id=group.id,
@@ -58,7 +60,8 @@ def handle_program_trial_instances_changed(sender, instance, action, pk_set, **k
         action: 'pre_add', 'post_add', 'pre_remove', 'post_remove'
         pk_set: Set of primary keys of the Group objects being added/removed
     """
-    repository = ProgramHistoryRepository()
+    program_history_repository = ProgramHistoryRepository()
+    groups_repository = GroupRepository()
 
     if action == "post_add":
         history_action = ProgramHistory.ADD
@@ -70,9 +73,9 @@ def handle_program_trial_instances_changed(sender, instance, action, pk_set, **k
     def create_history_entries():
         user = get_current_user()
         for group_id in pk_set:
-            group = repository.get_group_by_id(group_id)
+            group = groups_repository.get_group_by_id(group_id)
             if group:
-                repository.create_history_entry(
+                program_history_repository.create_history_entry(
                     program=instance,
                     entity_model=group.__class__,
                     entity_id=group.id,
