@@ -137,6 +137,11 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
 
 
 class ProgramHistory(models.Model):
+    """
+    Program History model.
+    Every record in this table is an action to add or remove an instance from a program.
+    """
+
     ADD = "ADD"
     REMOVE = "REMOVE"
     ACTIONS = [

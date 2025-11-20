@@ -10,12 +10,12 @@ from api.repositories.program_history import ProgramHistoryRepository
 
 
 @receiver(m2m_changed, sender=Program.instances.through)
-def handle_program_instances_changed(sender, instance, action, pk_set, **kwargs):
+def handle_program_instances_changed(_sender, instance, action, pk_set, **kwargs):
     """
     Handle changes to Program.instances ManyToMany relationship.
 
     Args:
-        sender: The Program model
+        _sender: The Program model
         instance: The Program instance
         action: 'pre_add', 'post_add', 'pre_remove', 'post_remove'
         pk_set: Set of primary keys of the Group objects being added/removed
@@ -51,12 +51,12 @@ def handle_program_instances_changed(sender, instance, action, pk_set, **kwargs)
 
 
 @receiver(m2m_changed, sender=Program.trial_instances.through)
-def handle_program_trial_instances_changed(sender, instance, action, pk_set, **kwargs):
+def handle_program_trial_instances_changed(_sender, instance, action, pk_set, **kwargs):
     """
     Handle changes to Program.trial_instances ManyToMany relationship.
 
     Args:
-        sender: The Program model
+        _sender: The Program model
         instance: The Program instance
         action: 'pre_add', 'post_add', 'pre_remove', 'post_remove'
         pk_set: Set of primary keys of the Group objects being added/removed

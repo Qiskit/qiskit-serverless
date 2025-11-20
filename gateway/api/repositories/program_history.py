@@ -1,3 +1,7 @@
+"""
+Repository implementation for ProgramHistory model
+"""
+
 import logging
 from typing import Optional
 
@@ -9,6 +13,10 @@ User = get_user_model()
 
 
 class ProgramHistoryRepository:
+    """
+    Repository to manage all read and write operations on the Groups table.
+    """
+
     def create_history_entry(
         self,
         *,

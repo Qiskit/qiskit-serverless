@@ -10,5 +10,5 @@ class ApiConfig(AppConfig):
     name = "api"
 
     def ready(self):
-        """Import signal handlers when Django starts."""
-        import api.signals  # noqa: F401
+        """Import signal handlers only when Django has started and ready."""
+        import api.signals  # noqa: F401  # pylint: disable=import-outside-toplevel,unused-import
