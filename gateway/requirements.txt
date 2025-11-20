@@ -22,7 +22,6 @@ qiskit[qpy-compat]>=1.4, <3
 qiskit-ibm-runtime>=0.40.1, <0.44.0
 tzdata>=2024.1
 django-cors-headers>=4.4.0, <5
-django-crum>=0.7.9, <1
 whitenoise>=6.7.0, <7
 objsize>=0.7.1, <1
 ibm-platform-services>=0.59.1, <1

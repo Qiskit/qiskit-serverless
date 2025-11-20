@@ -79,7 +79,6 @@ INSTALLED_APPS = [
     "drf_yasg",
     "corsheaders",
     "csp",
-    "crum",
 ]
 
 MIDDLEWARE = [
@@ -92,7 +91,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "crum.CurrentRequestUserMiddleware",
+    "main.middleware.current_user_context",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

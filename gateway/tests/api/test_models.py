@@ -3,7 +3,7 @@
 from django.contrib.auth.models import User, Group
 from django.test import TransactionTestCase
 from rest_framework.test import APITestCase
-from crum import impersonate
+from api.context import impersonate
 
 from api.models import Job, Program, ProgramHistory
 

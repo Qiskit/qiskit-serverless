@@ -3,19 +3,20 @@
 from django.db import transaction
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
-from crum import get_current_user
+from api.context import get_current_user
 from api.models import Program, ProgramHistory
 from api.repositories.groups import GroupRepository
 from api.repositories.program_history import ProgramHistoryRepository
 
 
 @receiver(m2m_changed, sender=Program.instances.through)
-def handle_program_instances_changed(_sender, instance, action, pk_set, **kwargs):
+def handle_program_instances_changed(sender, instance, action, pk_set, **kwargs):
+    # pylint: disable=unused-argument
     """
     Handle changes to Program.instances ManyToMany relationship.
 
     Args:
-        _sender: The Program model
+        sender: The Program model
         instance: The Program instance
         action: 'pre_add', 'post_add', 'pre_remove', 'post_remove'
         pk_set: Set of primary keys of the Group objects being added/removed
@@ -51,12 +52,13 @@ def handle_program_instances_changed(_sender, instance, action, pk_set, **kwargs
 
 
 @receiver(m2m_changed, sender=Program.trial_instances.through)
-def handle_program_trial_instances_changed(_sender, instance, action, pk_set, **kwargs):
+def handle_program_trial_instances_changed(sender, instance, action, pk_set, **kwargs):
+    # pylint: disable=unused-argument
     """
     Handle changes to Program.trial_instances ManyToMany relationship.
 
     Args:
-        _sender: The Program model
+        sender: The Program model
         instance: The Program instance
         action: 'pre_add', 'post_add', 'pre_remove', 'post_remove'
         pk_set: Set of primary keys of the Group objects being added/removed
