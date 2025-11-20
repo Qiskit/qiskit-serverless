@@ -35,8 +35,7 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
     if not logs:
         return ""
 
-    max_mb = int(settings.FUNCTIONS_LOGS_SIZE_LIMIT)
-    max_bytes = max_mb * 1024**2
+    max_bytes = int(settings.FUNCTIONS_LOGS_SIZE_LIMIT)
 
     logs_size = len(logs)
 
@@ -45,7 +44,7 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
             "Job %s is exceeding the maximum size for logs %s MB > %s MB.",
             job.id,
             logs_size,
-            max_mb,
+            max_bytes,
         )
 
         # truncate logs discarding older
@@ -53,7 +52,7 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
 
         logs = (
             "[Logs exceeded maximum allowed size ("
-            + str(max_mb)
+            + str(max_bytes/(1024**2))
             + " MB). Logs have been truncated, discarding the oldest entries first.]\n"
             + logs
         )
