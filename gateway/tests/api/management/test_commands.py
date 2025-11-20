@@ -106,8 +106,13 @@ class TestCommands(APITestCase):
             job = MagicMock()
             job.id = "42"
             job.status = "RUNNING"
-            logs = check_logs(logs=("A" * (1_200_000)), job=job)
+            log_to_test = "A" * (1_200_000) + "B"
+            logs = check_logs(logs=log_to_test, job=job)
             self.assertIn(
-                "Logs exceeded maximum allowed size (1 MB) and could not be stored.",
+                "[Logs exceeded maximum allowed size (1 MB). Older logs are discarded.]",
+                logs,
+            )
+            self.assertIn(
+                "AAAAAAAAAAB",
                 logs,
             )

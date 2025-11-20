@@ -1,7 +1,6 @@
 """This class contain methods to manage the logs in the application."""
 
 import logging
-import sys
 from typing import Union
 
 from django.conf import settings
@@ -27,8 +26,8 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
         logs with error message and metadata.
     """
 
-    if job.status == Job.FAILED:
-        logs += f"\n[Job {job.id} failed due to an internal error]"
+    if job.status == Job.FAILED and not logs:
+        logs = f"Job {job.id} failed due to an internal error."
         logger.warning("Job %s failed due to an internal error.", job.id)
 
         return logs
@@ -53,9 +52,9 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
         logs = logs[-max_bytes:]
 
         logs = (
-            "\n[Logs exceeded maximum allowed size ("
+            "[Logs exceeded maximum allowed size ("
             + str(max_mb)
-            + " MB). Older logs are discarded.]"
+            + " MB). Older logs are discarded.]\n"
             + logs
         )
 
