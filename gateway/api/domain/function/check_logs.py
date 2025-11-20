@@ -39,8 +39,7 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
     max_mb = int(settings.FUNCTIONS_LOGS_SIZE_LIMIT)
     max_bytes = max_mb * 1024**2
 
-    logs_bytes = logs.encode("utf-8")
-    logs_size = len(logs_bytes)
+    logs_size = len(logs)
 
     if logs_size > max_bytes:
         logger.warning(
@@ -51,8 +50,7 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
         )
 
         # truncate logs discarding older
-        logs_bytes = logs_bytes[-max_bytes:]
-        logs = logs_bytes.decode("utf-8", errors="ignore")
+        logs = logs[-max_bytes:]
 
         logs = (
             "\n[Logs exceeded maximum allowed size ("
