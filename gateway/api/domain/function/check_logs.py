@@ -52,7 +52,7 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
 
         logs = (
             "[Logs exceeded maximum allowed size ("
-            + str(max_bytes/(1024**2))
+            + str(max_bytes / (1024**2))
             + " MB). Logs have been truncated, discarding the oldest entries first.]\n"
             + logs
         )
