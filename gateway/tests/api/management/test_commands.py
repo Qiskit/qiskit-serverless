@@ -109,7 +109,7 @@ class TestCommands(APITestCase):
             log_to_test = "A" * (1_200_000) + "B"
             logs = check_logs(logs=log_to_test, job=job)
             self.assertIn(
-                "[Logs exceeded maximum allowed size (1 MB). Older logs are discarded.]",
+                "[Logs exceeded maximum allowed size (1 MB). Logs have been truncated, discarding the oldest entries first.]",
                 logs,
             )
             self.assertIn(
