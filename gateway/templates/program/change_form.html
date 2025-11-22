@@ -1,0 +1,13 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    {% if original %}
+        <li>
+            <a href="{% url 'admin:program_history_view' original.pk %}" class="historylink">
+                {% translate "Program History" %}
+            </a>
+        </li>
+    {% endif %}
+{% endblock %}
