@@ -34,7 +34,10 @@ class TestModels(APITestCase):
 
 
 class TestProgramSignals(TransactionTestCase):
+    """Test signals in Program model."""
+
     def test_program_instances_signal(self):
+        """Tests post_add and post_remove signal in program model when instance field is updated."""
         user = User.objects.create_user(username="test_user")
         admin_user = User.objects.create_user(username="admin_user", is_staff=True)
         program = Program.objects.create(title="Title", author=user)
@@ -90,6 +93,8 @@ class TestProgramSignals(TransactionTestCase):
         )
 
     def test_program_trial_instances_signal(self):
+        """Tests post_add and post_remove signal in program model when trial_instance
+        field is updated."""
         user = User.objects.create_user(username="test_user")
         admin_user = User.objects.create_user(username="admin_user2", is_staff=True)
         program = Program.objects.create(title="Title", author=user)
