@@ -3,7 +3,10 @@
 from contextvars import ContextVar
 from contextlib import contextmanager
 from typing import Optional
-from django.contrib.auth.models import User  # pylint: disable=imported-auth-user
+
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 # ContextVar to store the current user
 _current_user: ContextVar[Optional[User]] = ContextVar("current_user", default=None)
