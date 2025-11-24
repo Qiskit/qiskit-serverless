@@ -5,8 +5,13 @@ import logging
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from api.domain.function import check_logs
+from api.domain.function.filter_logs import extract_public_logs
 from api.models import ComputeResource, Job
-from api.ray import kill_ray_cluster
+from api.ray import kill_ray_cluster, get_job_handler
+from api.repositories.users import UserRepository
+from api.services.storage.enums.working_dir import WorkingDir
+from api.services.storage.logs_storage import LogsStorage
 
 
 logger = logging.getLogger("commands")
@@ -45,7 +50,7 @@ class Command(BaseCommand):
             if not there_are_alive_jobs:
                 self.remove_compute_resource(compute_resource)
 
-    def remove_compute_resource(self, compute_resource):
+    def remove_compute_resource(self, compute_resource: ComputeResource):
         """
         This method removes a Compute Resource if it's
         available in the cluster.
@@ -68,6 +73,9 @@ class Command(BaseCommand):
             )
             return
 
+        self.save_logs_to_storage(job=terminated_job, compute_resource=compute_resource)
+        terminated_job.logs = ""
+
         is_gpu = terminated_job.gpu
         should_remove_as_classical = remove_classical_jobs and not is_gpu
         should_remove_as_gpu = remove_gpu_jobs and is_gpu
@@ -83,3 +91,38 @@ class Command(BaseCommand):
                     compute_resource.title,
                     compute_resource.owner,
                 )
+
+    def save_logs_to_storage(self, job: Job, compute_resource: ComputeResource):
+        """
+        Save the logs in the corresponding storages.
+
+        Args:
+            compute_resource: ComputeResource
+            job: Job
+        """
+        job_handler = get_job_handler(compute_resource.host)
+        logs = job_handler.logs(job.ray_job_id)
+        logs = check_logs(logs, job)
+
+        user_repository = UserRepository()
+        author = user_repository.get_or_create_by_id(job.author)
+
+        user_logs_storage = LogsStorage(
+            username=author.username,
+            working_dir=WorkingDir.USER_STORAGE,
+            function_title=job.program.title,
+            provider_name=None,
+        )
+
+        user_logs = extract_public_logs(logs)
+        user_logs_storage.save(job.id, user_logs)
+
+        if job.program.provider:
+            provider_logs_storage = LogsStorage(
+                username=author.username,
+                working_dir=WorkingDir.PROVIDER_STORAGE,
+                function_title=job.program.title,
+                provider_name=job.program.provider.name,
+            )
+
+            provider_logs_storage.save(job.id, logs)
