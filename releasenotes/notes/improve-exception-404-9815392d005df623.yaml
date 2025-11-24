@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Improved error handling by the serverless client when a function is not found, instead of providing a 
+    bare 404 error, the exception now points to the function title and credentials as possible sources for 
+    the issue. Fixes https://github.com/Qiskit/qiskit-serverless/issues/1773.
