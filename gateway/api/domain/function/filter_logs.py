@@ -1,5 +1,6 @@
 """Methods for filtering job logs."""
 import re
+from typing import Optional
 
 
 def extract_public_logs(text: str) -> str:
@@ -13,14 +14,14 @@ def extract_public_logs(text: str) -> str:
         str -> The log filtered out
     """
     pattern = re.compile(
-        r"^[\[(?P<type>PUBLIC|PRIVATE)\]\s+][^:]+:[A-Z]+:"
+        r"^(?:\[(?P<type>PUBLIC|PRIVATE)\]\s+)?[^:]+:[A-Z]+:"
         r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}:",
         re.IGNORECASE | re.MULTILINE,
     )
 
     logs: str = ""
-    current_block: list[str] = None
-    current_type: str = None
+    current_block: Optional[list[str]] = None
+    current_type: Optional[str] = None
 
     for line in text.splitlines(True):
         m = pattern.match(line)
@@ -28,7 +29,7 @@ def extract_public_logs(text: str) -> str:
             if current_block is not None and current_type == "PUBLIC":
                 logs += "".join(current_block)
 
-            log_type = m.group("type").upper()
+            log_type = m.group("type").upper() if m.group("type") else None
             current_block = [line]
             current_type = log_type
         else:
