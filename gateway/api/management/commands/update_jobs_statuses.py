@@ -76,7 +76,7 @@ def update_job_status(job: Job):
     if job_handler and ray_job_status is not None:
         try:
             logs = job_handler.logs(job.ray_job_id)
-            job.logs = check_logs(logs, job)
+            job.logs = check_logs(logs, job) or ""
             # check if job is resource constrained
             no_resources_log = "No available node types can fulfill resource request"
             if no_resources_log in job.logs:
