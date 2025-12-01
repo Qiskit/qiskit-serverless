@@ -24,12 +24,14 @@ def extract_public_logs(text: str) -> str:
     current_type: Optional[str] = None
 
     for line in text.splitlines(True):
-        m = pattern.match(line)
-        if m:
+        re_match = pattern.match(line)
+        if re_match:
             if current_block is not None and current_type == "PUBLIC":
                 logs += "".join(current_block)
 
-            log_type = m.group("type").upper() if m.group("type") else None
+            log_type = (
+                re_match.group("type").upper() if re_match.group("type") else None
+            )
             current_block = [line]
             current_type = log_type
         else:

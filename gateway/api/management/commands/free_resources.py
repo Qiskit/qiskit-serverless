@@ -114,15 +114,18 @@ class Command(BaseCommand):
             provider_name=None,
         )
 
+        if not job.program.provider:
+            user_logs_storage.save(job.id, logs)
+            return
+
         user_logs = extract_public_logs(logs)
         user_logs_storage.save(job.id, user_logs)
 
-        if job.program.provider:
-            provider_logs_storage = LogsStorage(
-                username=author.username,
-                working_dir=WorkingDir.PROVIDER_STORAGE,
-                function_title=job.program.title,
-                provider_name=job.program.provider.name,
-            )
+        provider_logs_storage = LogsStorage(
+            username=author.username,
+            working_dir=WorkingDir.PROVIDER_STORAGE,
+            function_title=job.program.title,
+            provider_name=job.program.provider.name,
+        )
 
-            provider_logs_storage.save(job.id, logs)
+        provider_logs_storage.save(job.id, logs)
