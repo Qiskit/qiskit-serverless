@@ -1,0 +1,4 @@
+types-Deprecated
+types-PyYAML
+types-decorator
+types-requests
