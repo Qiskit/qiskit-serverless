@@ -27,6 +27,34 @@ class TestIBMServerlessClient(unittest.TestCase):
         "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials"
     )
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
+    def test_init(self, mock_file_path, mock_verify_credentials):
+        """Test __init__ with an explicit token, instance and host"""
+
+        # Mock ServerlessClient credential verification
+        mock_verify_credentials.return_value = None
+
+        use_host = "http://other.host"
+        use_token = "my_token"
+        use_instance = "my_instance"
+        use_channel = Channel.IBM_QUANTUM_PLATFORM.value
+
+        # Replace the _DEFAULT_ACCOUNT_CONFIG_JSON_FILE path with a temporary file
+        with tempfile.NamedTemporaryFile() as temp_file:
+            mock_file_path.return_value = temp_file.name
+
+        client = IBMServerlessClient(
+            token=use_token, instance=use_instance, channel=use_channel, host=use_host
+        )
+
+        self.assertEqual(client.host, use_host)
+        self.assertEqual(client.channel, use_channel)
+        self.assertEqual(client.instance, use_instance)
+        self.assertEqual(client.token, use_token)
+
+    @patch(
+        "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials"
+    )
+    @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_save_load_account(self, mock_file_path, mock_verify_credentials):
         """Test saving and loading accounts with the IBMServerlessClient."""
 
