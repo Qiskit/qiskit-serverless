@@ -11,7 +11,9 @@ class TestFilterLogs(APITestCase):
     def test_extract_public_logs(self):
         """Tests compute resource creation command."""
 
-        log = """[PUBLIC] sim_entrypoint.run_function:INFO:2024-10-15 11:30:32,123: Starting application
+        log = """
+        
+[PUBLIC] sim_entrypoint.run_function:INFO:2024-10-15 11:30:32,123: Starting application
 [private] sim_entrypoint.run_function:INFO:2024-10-15 11:30:32,123: Mapping
 [PUBLIC] sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Backend = {
     "name": "ibm_123"
@@ -27,7 +29,9 @@ third_party.run_function:INFO:2024-11-15 11:30:32,124: running_options = {
     },
 }
 [puBLic] sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Starting
-[PRIVATE] sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Private information"""
+[PRIVATE] sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Private information
+
+"""
 
         expected_output = """[PUBLIC] sim_entrypoint.run_function:INFO:2024-10-15 11:30:32,123: Starting application
 [PUBLIC] sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Backend = {
