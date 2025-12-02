@@ -2,7 +2,7 @@
 
 import logging
 from typing import Dict
-from pkg_resources import Requirement
+from packaging.requirements import Requirement
 
 from api.utils import create_dynamic_dependencies_whitelist
 

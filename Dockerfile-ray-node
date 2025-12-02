@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9-minimal:9.6-1758184547
+FROM registry.access.redhat.com/ubi9-minimal:9.7-1763362218
 
 ARG DYNAMIC_DEPENDENCIES_FILE
 
@@ -6,8 +6,8 @@ ARG DYNAMIC_DEPENDENCIES_FILE
 RUN microdnf update -y && microdnf clean all
 
 RUN microdnf install -y \
-    python3.11-3.11.11 \
-    python3.11-devel-3.11.11 \
+    python3.11 \
+    python3.11-devel \
     wget-1.21.1
 RUN microdnf clean all
 RUN ln -s /usr/bin/python3.11 /usr/local/bin/python3 && \
