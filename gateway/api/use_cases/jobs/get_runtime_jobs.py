@@ -36,4 +36,3 @@ class GetRuntimeJobsUseCase:
             raise NotFoundError(f"Job [{job_id}] not found")
 
         return self.runtime_job_repository.get_runtime_job(job)
-

@@ -39,7 +39,9 @@ class AssociateRuntimeJobsUseCase:
             raise NotFoundError(f"Job [{job_id}] not found")
 
         try:
-            self.runtime_job_repository.create_runtime_job(job, runtime_job, runtime_session)
+            self.runtime_job_repository.create_runtime_job(
+                job, runtime_job, runtime_session
+            )
             message = (
                 f"RuntimeJob object [{runtime_job}] created "
                 f"for serverless job id [{job_id}]."
