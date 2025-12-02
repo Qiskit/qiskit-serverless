@@ -32,8 +32,8 @@ class TestCommands(APITestCase):
         num_resources = ComputeResource.objects.count()
         self.assertEqual(num_resources, 1)
 
-    @patch("api.ray.get_job_handler")
-    def test_update_jobs_statuses(self, get_job_handler):
+    @patch("api.ray.JobSubmissionClient")
+    def test_update_jobs_statuses(self, mock_job_submission_client):
         """Tests update of job statuses."""
         # Test status change from PENDING to RUNNING
         ray_client = MagicMock()
@@ -41,7 +41,9 @@ class TestCommands(APITestCase):
         ray_client.get_job_logs.return_value = "No logs yet."
         ray_client.stop_job.return_value = True
         ray_client.submit_job.return_value = "AwesomeJobId"
-        get_job_handler.return_value = JobHandler(ray_client)
+
+        # Mock JobSubmissionClient to return our mocked client
+        mock_job_submission_client.return_value = ray_client
 
         # This new line is needed because if not the Job will timeout
         job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
