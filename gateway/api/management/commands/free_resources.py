@@ -101,8 +101,8 @@ class Command(BaseCommand):
             job: Job
         """
         job_handler = get_job_handler(compute_resource.host)
-        logs = job_handler.logs(job.ray_job_id)
-        logs = check_logs(logs, job)
+        full_logs = job_handler.logs(job.ray_job_id)
+        full_logs = check_logs(full_logs, job)
 
         user_repository = UserRepository()
         author = user_repository.get_or_create_by_id(job.author)
@@ -114,18 +114,17 @@ class Command(BaseCommand):
             provider_name=None,
         )
 
-        if not job.program.provider:
-            user_logs_storage.save(job.id, logs)
-            return
+        has_provider = job.program.provider is not None
 
-        user_logs = extract_public_logs(logs)
+        user_logs = extract_public_logs(full_logs) if has_provider else full_logs
         user_logs_storage.save(job.id, user_logs)
 
-        provider_logs_storage = LogsStorage(
-            username=author.username,
-            working_dir=WorkingDir.PROVIDER_STORAGE,
-            function_title=job.program.title,
-            provider_name=job.program.provider.name,
-        )
+        if has_provider:
+            provider_logs_storage = LogsStorage(
+                username=author.username,
+                working_dir=WorkingDir.PROVIDER_STORAGE,
+                function_title=job.program.title,
+                provider_name=job.program.provider.name,
+            )
 
-        provider_logs_storage.save(job.id, logs)
+            provider_logs_storage.save(job.id, full_logs)
