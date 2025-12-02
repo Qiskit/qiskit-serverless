@@ -37,24 +37,23 @@ class CustomTokenBackend(authentication.BaseAuthentication):
 
         crn = request.META.get("HTTP_SERVICE_CRN", None)
         channel_header = request.META.get("HTTP_SERVICE_CHANNEL", None)
-        # This is to maintain backwards compatibility with previous user patterns.
-        # In qiskit-serverless <=0.24.0 , the channel input was not provided to the
-        # authenticator, but inferred from other inputs:
-        #   - IQP use case: Catalog(token=""")
-        #   - IBM cloud use case: Catalog(channel=", token="", crn="")
 
-        if channel_header is None and crn is None:
-            channel_header = Channel.IBM_QUANTUM.value
         if channel_header is None and crn is not None:
             channel_header = Channel.IBM_QUANTUM_PLATFORM.value
+
+        if channel_header is None:
+            logger.warning("Channel header is required.")
+            raise exceptions.AuthenticationFailed(
+                "Channel header is required. Please provide a valid channel."
+            )
+
         try:
             channel = Channel(channel_header)
         except ValueError as error:
             logger.warning("Channel value [%s] is not valid.", channel_header)
             raise exceptions.AuthenticationFailed(
                 "The value of the channel is not correct. Verify that you are using one of these: "
-                f"{Channel.IBM_QUANTUM.value}, {Channel.IBM_CLOUD.value}, "
-                f"{Channel.IBM_QUANTUM_PLATFORM.value}"
+                f"{Channel.IBM_CLOUD.value}, {Channel.IBM_QUANTUM_PLATFORM.value}"
             ) from error
 
         # Specific logic to guarantee access to public end-points
