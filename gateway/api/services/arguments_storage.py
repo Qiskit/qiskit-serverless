@@ -15,9 +15,17 @@ class ArgumentsStorage:
     ARGUMENTS_FILE_EXTENSION = ".json"
     ENCODING = "utf-8"
 
-    def __init__(
-        self, username: str, function_title: str, provider_name: Optional[str]
-    ):
+    def __init__(self, function):
+        """
+        Initialize ArgumentsStorage with a function instance.
+
+        Args:
+            function: Program model instance containing title, provider, and author
+        """
+        username = function.author.username
+        function_title = function.title
+        provider_name = function.provider.name if function.provider else None
+
         # We need to use the same path as the FileStorage here
         # because it is attached the volume in the docker image
         if provider_name is None:
