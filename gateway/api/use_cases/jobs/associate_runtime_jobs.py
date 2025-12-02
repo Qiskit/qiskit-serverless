@@ -6,6 +6,7 @@ from uuid import UUID
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.models import RuntimeJob
 from api.repositories.jobs import JobsRepository
+from api.repositories.runtime_job import RuntimeJobRepository
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 
@@ -14,6 +15,7 @@ class AssociateRuntimeJobsUseCase:
     """Associate a RuntimeJob object to a given Job."""
 
     jobs_repository = JobsRepository()
+    runtime_job_repository = RuntimeJobRepository()
 
     def execute(
         self, job_id: UUID, runtime_job: str, runtime_session: str | None
@@ -37,11 +39,7 @@ class AssociateRuntimeJobsUseCase:
             raise NotFoundError(f"Job [{job_id}] not found")
 
         try:
-            RuntimeJob.objects.create(
-                job=job,
-                runtime_job=runtime_job,
-                runtime_session=runtime_session,
-            )
+            self.runtime_job_repository.create_runtime_job(job, runtime_job, runtime_session)
             message = (
                 f"RuntimeJob object [{runtime_job}] created "
                 f"for serverless job id [{job_id}]."
