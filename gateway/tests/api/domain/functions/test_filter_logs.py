@@ -13,6 +13,10 @@ class TestFilterLogs(APITestCase):
 
         log = """
         
+third_party.run_function:INFO:2024-11-15 11:30:32,124: third party setting up...
+system 1 up...
+system 2 up...
+Setup complete!
 [PUBLIC] sim_entrypoint.run_function:INFO:2024-10-15 11:30:32,123: Starting application
 [private] sim_entrypoint.run_function:INFO:2024-10-15 11:30:32,123: Mapping
 [PUBLIC] sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Backend = {
