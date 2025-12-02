@@ -31,7 +31,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
-          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d {DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
+          command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           volumeMounts:
           - name: gateway-pv-storage
             mountPath: /usr/src/app/media/
@@ -66,16 +66,16 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args: [ 
-            "gunicorn", 
-            {{ .Values.application.httpServer.serverModel }}, 
-            "--bind", "0.0.0.0:{{ .Values.service.port }}", 
+          args: [
+            "gunicorn",
+            {{ .Values.application.httpServer.serverModel }},
+            "--bind", "0.0.0.0:{{ .Values.service.port }}",
             "--workers={{ .Values.application.httpServer.workers }}",
-            "--threads={{ .Values.application.httpServer.threads }}", 
-            "--max-requests={{ .Values.application.httpServer.threads }}",
+            "--threads={{ .Values.application.httpServer.threads }}",
+            "--max-requests={{ .Values.application.httpServer.maxRequests }}",
             "--max-requests-jitter={{ .Values.application.httpServer.jitter }}",
             "--timeout={{ .Values.application.httpServer.timeout }}"
-            ]
+          ]
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
@@ -218,7 +218,7 @@ spec:
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
-      {{- end }}      
+      {{- end }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
