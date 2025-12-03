@@ -40,10 +40,5 @@ router.register(
     v1_views.ProgramViewSet,
     basename=v1_views.ProgramViewSet.BASE_NAME,
 )
-router.register(
-    r"jobs",
-    v1_views.JobViewSet,
-    basename=v1_views.JobViewSet.BASE_NAME,
-)
 
 urlpatterns = RouteRegistry.get() + router.urls
