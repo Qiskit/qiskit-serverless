@@ -51,6 +51,12 @@ from constants import (
     LIMITS_MEMORY_PER_TASK,
     LIMITS_MEMORY_PER_TASK_DEFAULT,
     MAINTENANCE,
+    OTEL_ENABLED,
+    OTEL_ENABLED_DEFAULT,
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT_DEFAULT,
+    OTEL_EXPORTER_OTLP_TRACES_INSECURE,
+    OTEL_EXPORTER_OTLP_TRACES_INSECURE_DEFAULT,
     PROGRAM_TIMEOUT,
     PROGRAM_TIMEOUT_DEFAULT,
     QISKIT_IBM_URL,
@@ -470,6 +476,3 @@ class Config:
     def otel_enabled(cls) -> bool:
         """Check if OpenTelemetry is enabled."""
         return bool(int(os.environ.get(OTEL_ENABLED, OTEL_ENABLED_DEFAULT)))
-
-
-# Made with Bob
