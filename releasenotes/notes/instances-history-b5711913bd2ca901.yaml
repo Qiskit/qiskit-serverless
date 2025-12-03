@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    Created a history change in Programs model to be able
+    to audit the changes in the access from instances and
+    instances_trial.
