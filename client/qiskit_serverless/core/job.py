@@ -42,9 +42,8 @@ import requests
 
 from qiskit_ibm_runtime import QiskitRuntimeService
 
+from qiskit_serverless.core.config import Config
 from qiskit_serverless.core.constants import (
-    ENV_JOB_GATEWAY_INSTANCE,
-    QISKIT_IBM_CHANNEL,
     REQUESTS_TIMEOUT,
     ENV_JOB_GATEWAY_TOKEN,
     ENV_JOB_GATEWAY_HOST,
@@ -320,8 +319,8 @@ def save_result(result: Dict[str, Any]):
         print(f"\nSaved Result:{result_record}:End Saved Result\n")
         return False
 
-    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
-    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
+    instance = Config.job_gateway_instance()
+    channel = Config.qiskit_ibm_channel()
 
     if not is_jsonable(result, cls=QiskitObjectsEncoder):
         logging.warning("Object passed is not json serializable.")
@@ -360,12 +359,12 @@ def update_status(status: str):
         )
         return False
 
-    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
-    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
+    instance = Config.job_gateway_instance()
+    channel = Config.qiskit_ibm_channel()
 
     url = (
-        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/sub_status/"
+        f"{Config.job_gateway_host()}/"
+        f"api/{version}/jobs/{Config.job_id_gateway()}/sub_status/"
     )
     response = requests.patch(
         url,
@@ -445,7 +444,7 @@ def get_runtime_service(
         channel=channel or os.environ["QISKIT_IBM_CHANNEL"],
         instance=instance or os.environ["QISKIT_IBM_INSTANCE"],
         token=token or os.environ["QISKIT_IBM_TOKEN"],
-        url=url or os.environ.get("QISKIT_IBM_URL", None),
+        url=url or Config.qiskit_ibm_url(),
     )
 
 

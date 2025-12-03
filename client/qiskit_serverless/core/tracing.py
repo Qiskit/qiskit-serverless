@@ -37,15 +37,9 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+from qiskit_serverless.core.config import Config
 from qiskit_serverless.core.constants import (
-    OT_PROGRAM_NAME,
-    OT_PROGRAM_NAME_DEFAULT,
-    OT_JAEGER_HOST_KEY,
-    OT_JAEGER_PORT_KEY,
     OT_TRACEPARENT_ID_KEY,
-    OT_RAY_TRACER,
-    OT_INSECURE,
-    OT_ENABLED,
     OT_SPAN_DEFAULT_NAME,
     OT_LABEL_CALL_LOCATION,
 )
@@ -69,21 +63,17 @@ def get_tracer(
     Returns:
         tracer
     """
-    resource = Resource(
-        attributes={
-            SERVICE_NAME: f"qs.{os.environ.get(OT_PROGRAM_NAME, OT_PROGRAM_NAME_DEFAULT)}"
-        }
-    )
+    resource = Resource(attributes={SERVICE_NAME: f"qs.{Config.ot_program_name()}"})
     provider = TracerProvider(resource=resource)
     if agent_host is not None and agent_port is not None:
         otel_exporter = BatchSpanProcessor(
             OTLPSpanExporter(
                 endpoint=f"{agent_host}:{agent_port}",
-                insecure=bool(os.environ.get(OT_INSECURE, "0")),
+                insecure=Config.ot_insecure(),
             )
         )
         provider.add_span_processor(otel_exporter)
-    if bool(int(os.environ.get(OT_ENABLED, "0"))):
+    if Config.ot_enabled():
         trace._set_tracer_provider(  # pylint: disable=protected-access
             provider, log=False
         )
@@ -100,22 +90,24 @@ def _trace_env_vars(env_vars: dict, location: Optional[str] = None):
     Returns:
         dict of env variables
     """
-    if bool(int(os.environ.get(OT_RAY_TRACER, "0"))):
+    if Config.ot_ray_tracer():
         tracer = trace.get_tracer("Qiskit-Serverless")
     else:
         tracer = get_tracer(
             __name__,
-            agent_host=os.environ.get(OT_JAEGER_HOST_KEY, None),
-            agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
+            agent_host=Config.ot_jaeger_host(),
+            agent_port=Config.ot_jaeger_port(),
         )
     if env_vars.get(OT_TRACEPARENT_ID_KEY, None) is not None:
         env_vars[OT_TRACEPARENT_ID_KEY] = env_vars.get(OT_TRACEPARENT_ID_KEY)
-    elif os.environ.get(OT_TRACEPARENT_ID_KEY) is not None:
-        env_vars[OT_TRACEPARENT_ID_KEY] = os.environ.get(OT_TRACEPARENT_ID_KEY)
+    elif Config.ot_traceparent_id() is not None:
+        env_vars[OT_TRACEPARENT_ID_KEY] = Config.ot_traceparent_id()
     else:
         carrier: Dict[str, str] = {}
         with tracer.start_as_current_span(
-            os.environ.get(OT_PROGRAM_NAME, OT_SPAN_DEFAULT_NAME)
+            Config.ot_program_name()
+            if Config.ot_program_name() != "unnamed_execution"
+            else OT_SPAN_DEFAULT_NAME
         ) as span:
             if location is not None:
                 span.set_attribute(OT_LABEL_CALL_LOCATION, location)
@@ -134,18 +126,18 @@ def setup_tracing() -> None:
 
     Passed as an argument at Ray start
     """
-    agent_host = os.environ.get(OT_JAEGER_HOST_KEY, None)
-    agent_port = int(os.environ.get(OT_JAEGER_PORT_KEY, 6831))
+    agent_host = Config.ot_jaeger_host()
+    agent_port = Config.ot_jaeger_port()
     resource = Resource(attributes={SERVICE_NAME: "Qiskit-Serverless: Ray"})
     provider = TracerProvider(resource=resource)
     otel_exporter = BatchSpanProcessor(
         OTLPSpanExporter(
             endpoint=f"{agent_host}:{agent_port}",
-            insecure=bool(os.environ.get(OT_INSECURE, "0")),
+            insecure=Config.ot_insecure(),
         )
     )
     provider.add_span_processor(otel_exporter)
-    if bool(int(os.environ.get(OT_ENABLED, "0"))):
+    if Config.ot_enabled():
         trace._set_tracer_provider(  # pylint: disable=protected-access
             provider, log=False
         )
