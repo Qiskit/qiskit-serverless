@@ -60,7 +60,7 @@ class GetJobLogsUseCase:
             return logs
 
         # Get from Ray if it is already running.
-        if job.compute_resource:
+        if job.compute_resource and job.compute_resource.active:
             job_handler = get_job_handler(job.compute_resource.host)
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
@@ -73,4 +73,4 @@ class GetJobLogsUseCase:
             raise NotFoundError(f"Logs for job[{job_id}] are not found")
 
         # Legacy: Get from db.
-        return job.logs
+        return logs
