@@ -1,7 +1,6 @@
 """Tests for commands."""
 
 from datetime import datetime
-from allauth.socialaccount.models import SocialApp
 from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
