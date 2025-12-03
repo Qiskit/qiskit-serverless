@@ -109,5 +109,5 @@ def runtime_jobs(request: Request, job_id: UUID) -> Response:
     if request.method == "GET":
         out_runtime_jobs = GetRuntimeJobsUseCase().execute(job_id)
         return Response(serialize_output(out_runtime_jobs))
-        
+
     raise MethodNotAllowed(request.method)
