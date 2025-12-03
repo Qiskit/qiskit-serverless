@@ -38,14 +38,8 @@ class CustomTokenBackend(authentication.BaseAuthentication):
         crn = request.META.get("HTTP_SERVICE_CRN", None)
         channel_header = request.META.get("HTTP_SERVICE_CHANNEL", None)
 
-        if channel_header is None and crn is not None:
-            channel_header = Channel.IBM_QUANTUM_PLATFORM.value
-
         if channel_header is None:
-            logger.warning("Channel header is required.")
-            raise exceptions.AuthenticationFailed(
-                "Channel header is required. Please provide a valid channel."
-            )
+            channel_header = Channel.IBM_QUANTUM_PLATFORM.value
 
         try:
             channel = Channel(channel_header)
