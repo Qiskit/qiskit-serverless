@@ -11,6 +11,8 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+from config import Config
+
 
 def main():
     """Run administrative tasks."""
@@ -27,16 +29,12 @@ def main():
     provider = TracerProvider(resource=resource)
     otel_exporter = BatchSpanProcessor(
         OTLPSpanExporter(
-            endpoint=os.environ.get(
-                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
-            ),
-            insecure=bool(
-                int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))
-            ),
+            endpoint=Config.otel_exporter_otlp_traces_endpoint(),
+            insecure=Config.otel_exporter_otlp_traces_insecure(),
         )
     )
     provider.add_span_processor(otel_exporter)
-    if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
+    if Config.otel_enabled():
         trace._set_tracer_provider(
             provider, log=False
         )  # pylint: disable=protected-access

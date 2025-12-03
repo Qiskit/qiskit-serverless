@@ -42,12 +42,9 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.accounts import AccountManager, Account
 from qiskit_ibm_runtime.accounts.exceptions import InvalidAccountError
 
+from qiskit_serverless.core.config import Config
 from qiskit_serverless.core.constants import (
     REQUESTS_TIMEOUT,
-    ENV_GATEWAY_PROVIDER_HOST,
-    ENV_GATEWAY_PROVIDER_VERSION,
-    ENV_GATEWAY_PROVIDER_TOKEN,
-    GATEWAY_PROVIDER_VERSION_DEFAULT,
     IBM_SERVERLESS_HOST_URL,
     MAX_ARTIFACT_FILE_SIZE_MB,
 )
@@ -116,15 +113,13 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             channel: identifies the method to use to authenticate the user
         """
         name = name or "gateway-client"
-        host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
+        host = host or Config.gateway_host()
         if host is None:
             raise QiskitServerlessException("Please provide `host` of gateway.")
 
-        version = version or os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-        if version is None:
-            version = GATEWAY_PROVIDER_VERSION_DEFAULT
+        version = version or Config.gateway_provider_version()
 
-        token = token or os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN)
+        token = token or Config.gateway_token()
         if token is None:
             raise QiskitServerlessException(
                 "Authentication credentials must be provided in form of `token`."

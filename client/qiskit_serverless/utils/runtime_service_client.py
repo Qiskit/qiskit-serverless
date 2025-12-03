@@ -25,7 +25,6 @@ Qiskit Serverless runtime client wrapper
 
     ServerlessRuntimeService
 """
-import os
 import logging
 from typing import Dict, Optional
 
@@ -33,16 +32,8 @@ import requests
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.runtime_job_v2 import RuntimeJobV2
 
-from qiskit_serverless.core.constants import (
-    ENV_JOB_GATEWAY_INSTANCE,
-    QISKIT_IBM_CHANNEL,
-    REQUESTS_TIMEOUT,
-    ENV_JOB_GATEWAY_TOKEN,
-    ENV_JOB_GATEWAY_HOST,
-    ENV_JOB_ID_GATEWAY,
-    ENV_GATEWAY_PROVIDER_VERSION,
-    GATEWAY_PROVIDER_VERSION_DEFAULT,
-)
+from qiskit_serverless.core.config import Config
+from qiskit_serverless.core.constants import REQUESTS_TIMEOUT
 from qiskit_serverless.utils.http import get_headers
 
 
@@ -58,21 +49,19 @@ def associate_runtime_job_with_serverless_job(
     Returns:
         bool: if request was ok
     """
-    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-    if version is None:
-        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+    version = Config.gateway_provider_version()
 
-    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    token = Config.job_gateway_token()
     if token is None:
         logging.warning("Runtime job will not be associated with serverless job.")
         return False
 
-    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
-    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
+    instance = Config.job_gateway_instance()
+    channel = Config.qiskit_ibm_channel()
 
     url = (
-        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/runtime_jobs/"
+        f"{Config.job_gateway_host()}/"
+        f"api/{version}/jobs/{Config.job_id_gateway()}/runtime_jobs/"
     )
 
     response = requests.post(

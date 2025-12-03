@@ -45,11 +45,7 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_serverless.core.config import Config
 from qiskit_serverless.core.constants import (
     REQUESTS_TIMEOUT,
-    ENV_JOB_GATEWAY_TOKEN,
-    ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
-    ENV_GATEWAY_PROVIDER_VERSION,
-    GATEWAY_PROVIDER_VERSION_DEFAULT,
     ENV_ACCESS_TRIAL,
 )
 from qiskit_serverless.exception import QiskitServerlessException
@@ -303,11 +299,9 @@ def save_result(result: Dict[str, Any]):
         result: data that will be accessible from job handler `.result()` method.
     """
 
-    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-    if version is None:
-        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+    version = Config.gateway_provider_version()
 
-    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    token = Config.job_gateway_token()
     if token is None:
         logging.warning(
             "Results will be saved as logs since "
@@ -327,8 +321,8 @@ def save_result(result: Dict[str, Any]):
         return False
 
     url = (
-        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
+        f"{Config.job_gateway_host()}/"
+        f"api/{version}/jobs/{Config.job_id_gateway()}/result/"
     )
     response = requests.post(
         url,
@@ -346,11 +340,9 @@ def save_result(result: Dict[str, Any]):
 def update_status(status: str):
     """Update sub status."""
 
-    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-    if version is None:
-        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+    version = Config.gateway_provider_version()
 
-    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    token = Config.job_gateway_token()
     if token is None:
         logging.warning(
             "'sub_status' cannot be updated since "
@@ -441,9 +433,9 @@ def get_runtime_service(
     """
 
     return ServerlessRuntimeService(
-        channel=channel or os.environ["QISKIT_IBM_CHANNEL"],
-        instance=instance or os.environ["QISKIT_IBM_INSTANCE"],
-        token=token or os.environ["QISKIT_IBM_TOKEN"],
+        channel=channel or Config.qiskit_ibm_channel(),
+        instance=instance or Config.qiskit_ibm_instance(),
+        token=token or Config.qiskit_ibm_token(),
         url=url or Config.qiskit_ibm_url(),
     )
 

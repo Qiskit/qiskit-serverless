@@ -4,27 +4,29 @@ import os
 from typing import Optional
 
 from qiskit_serverless.core.constants import (
-    OT_PROGRAM_NAME,
-    OT_PROGRAM_NAME_DEFAULT,
+    DATA_PATH,
+    DATA_PATH_DEFAULT,
+    ENV_GATEWAY_PROVIDER_HOST,
+    ENV_GATEWAY_PROVIDER_TOKEN,
+    ENV_GATEWAY_PROVIDER_VERSION,
+    ENV_JOB_GATEWAY_HOST,
+    ENV_JOB_GATEWAY_INSTANCE,
+    ENV_JOB_ID_GATEWAY,
+    ENV_JOB_GATEWAY_TOKEN,
+    GATEWAY_PROVIDER_VERSION_DEFAULT,
+    OT_ENABLED,
+    OT_INSECURE,
     OT_JAEGER_HOST_KEY,
     OT_JAEGER_PORT_KEY,
-    OT_TRACEPARENT_ID_KEY,
-    OT_INSECURE,
-    OT_ENABLED,
+    OT_PROGRAM_NAME,
+    OT_PROGRAM_NAME_DEFAULT,
     OT_RAY_TRACER,
-    ENV_GATEWAY_PROVIDER_HOST,
-    ENV_GATEWAY_PROVIDER_VERSION,
-    ENV_GATEWAY_PROVIDER_TOKEN,
-    GATEWAY_PROVIDER_VERSION_DEFAULT,
-    ENV_JOB_GATEWAY_TOKEN,
-    ENV_JOB_GATEWAY_HOST,
-    ENV_JOB_ID_GATEWAY,
+    OT_TRACEPARENT_ID_KEY,
+    QISKIT_IBM_CHANNEL,
+    QISKIT_IBM_INSTANCE,
+    QISKIT_IBM_TOKEN,
+    QISKIT_IBM_URL,
 )
-
-# Constants not exported from constants.py
-ENV_JOB_GATEWAY_INSTANCE = "ENV_JOB_GATEWAY_INSTANCE"
-QISKIT_IBM_CHANNEL = "QISKIT_IBM_CHANNEL"
-DATA_PATH = "DATA_PATH"
 
 
 class Config:
@@ -84,6 +86,11 @@ class Config:
         )
 
     @classmethod
+    def gateway_provider_version(cls) -> str:
+        """Get gateway provider version (alias for gateway_version)."""
+        return cls.gateway_version()
+
+    @classmethod
     def gateway_token(cls) -> Optional[str]:
         """Get gateway provider token."""
         return os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN, None)
@@ -117,23 +124,20 @@ class Config:
     @classmethod
     def qiskit_ibm_token(cls) -> Optional[str]:
         """Get Qiskit IBM token."""
-        return os.environ.get("QISKIT_IBM_TOKEN", None)
+        return os.environ.get(QISKIT_IBM_TOKEN, None)
 
     @classmethod
     def qiskit_ibm_url(cls) -> Optional[str]:
         """Get Qiskit IBM URL."""
-        return os.environ.get("QISKIT_IBM_URL", None)
+        return os.environ.get(QISKIT_IBM_URL, None)
 
     @classmethod
     def qiskit_ibm_instance(cls) -> Optional[str]:
         """Get Qiskit IBM instance."""
-        return os.environ.get("QISKIT_IBM_INSTANCE", None)
+        return os.environ.get(QISKIT_IBM_INSTANCE, None)
 
     # Data Configuration
     @classmethod
     def data_path(cls) -> str:
         """Get data path."""
-        return os.environ.get(DATA_PATH, "/data")
-
-
-# Made with Bob
+        return os.environ.get(DATA_PATH, DATA_PATH_DEFAULT)
