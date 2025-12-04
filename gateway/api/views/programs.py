@@ -4,6 +4,7 @@ Django Rest framework Program views for api application:
 Version views inherit from the different views.
 """
 import logging
+import os
 
 # pylint: disable=duplicate-code
 from opentelemetry import trace
@@ -29,7 +30,6 @@ from api.serializers import (
 from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
 from api.views.enums.type_filter import TypeFilter
 from api.decorators.trace_decorator import trace_decorator_factory
-from config import Config
 
 # pylint: disable=duplicate-code
 logger = logging.getLogger("gateway")
@@ -37,12 +37,14 @@ resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)
 otel_exporter = BatchSpanProcessor(
     OTLPSpanExporter(
-        endpoint=Config.otel_exporter_otlp_traces_endpoint(),
-        insecure=Config.otel_exporter_otlp_traces_insecure(),
+        endpoint=os.environ.get(
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
+        ),
+        insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
 provider.add_span_processor(otel_exporter)
-if Config.otel_enabled():
+if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
     trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
 _trace = trace_decorator_factory("program")

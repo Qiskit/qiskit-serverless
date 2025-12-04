@@ -17,9 +17,7 @@ from datetime import timedelta
 from pathlib import Path
 from utils import sanitize_file_path
 
-from config import Config
-
-RELEASE_VERSION = Config.version()
+RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,22 +27,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = Config.secret_key()
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-&)i3b5aue*#-i6k9i-03qm(d!0h&662lbhj12on_*gimn3x8p7",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = Config.debug()
+DEBUG = int(os.environ.get("DEBUG", 1))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-LOG_LEVEL = Config.log_level()
+LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
 
 # It must be a full url without protocol: mydomain.com
-ALLOWED_HOSTS = Config.allowed_hosts()
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
 # It must be a full url: https://mydomain.com
-CSRF_TRUSTED_ORIGINS = Config.csrf_trusted_origins()
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(
+    ","
+)
 
 # It must be a regex compatible: ^https://\w+\.example\.com$
-CORS_ALLOWED_ORIGIN_REGEXES = Config.cors_allowed_origin_regexes()
+CORS_ALLOWED_ORIGIN_REGEXES = os.environ.get(
+    "CORS_ALLOWED_ORIGIN_REGEXES", "http://localhost"
+).split(",")
+CORS_ALLOWED_ORIGIN_REGEXES = [rf"{pattern}" for pattern in CORS_ALLOWED_ORIGIN_REGEXES]
 
 # allow connections from any kubernetes pod within the cluster
 # k8s pods are given an IP on the private 10. network, and 10.0.0.0/8
@@ -161,11 +167,11 @@ LOGGING = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": Config.database_name(),
-        "USER": Config.database_user(),
-        "PASSWORD": Config.database_password(),
-        "HOST": Config.database_host(),
-        "PORT": Config.database_port(),
+        "NAME": os.environ.get("DATABASE_NAME", "serverlessdb"),
+        "USER": os.environ.get("DATABASE_USER", "serverlessuser"),
+        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "serverlesspassword"),
+        "HOST": os.environ.get("DATABASE_HOST", "localhost"),
+        "PORT": os.environ.get("DATABASE_PORT", "5432"),
     },
     "test": {
         "ENGINE": "django_prometheus.db.backends.sqlite3",
@@ -227,7 +233,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============
 # AUTH SETTINGS
 # =============
-SETTINGS_AUTH_MECHANISM = Config.auth_mechanism()
+SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "default")
 SETTINGS_DEFAULT_AUTH_CLASSES = [
     "rest_framework_simplejwt.authentication.JWTAuthentication",
     "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
@@ -245,8 +251,10 @@ DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
     SETTINGS_AUTH_MECHANISM, SETTINGS_DEFAULT_AUTH_CLASSES
 )
 # mock token value
-SETTINGS_AUTH_MOCK_TOKEN = Config.auth_mock_token()
-SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = Config.auth_mockprovider_registry()
+SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
+SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get(
+    "SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", None
+)
 # =============
 
 REST_FRAMEWORK = {
@@ -278,7 +286,7 @@ SWAGGER_SETTINGS = {
 }
 
 SITE_ID = 1
-SITE_HOST = Config.site_host()
+SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
 
 # Provider specific settings
 SIMPLE_JWT = {
@@ -287,7 +295,7 @@ SIMPLE_JWT = {
 }
 
 # custom token auth
-QUANTUM_PLATFORM_API_BASE_URL = Config.quantum_platform_api_base_url()
+QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", None)
 # verification fields to check when returned from auth api
 # Example of checking multiple fields:
 #    For following verification data
@@ -302,51 +310,98 @@ QUANTUM_PLATFORM_API_BASE_URL = Config.quantum_platform_api_base_url()
 #    }
 #   setting string will be:
 #    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", "is_valid;some,nested,field"
-SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = Config.token_auth_verification_field()
+SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get(
+    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None
+)
 
 # resources limitations
-LIMITS_JOBS_PER_USER = Config.limits_jobs_per_user()
-LIMITS_MAX_CLUSTERS = Config.limits_max_clusters()
-LIMITS_GPU_CLUSTERS = Config.limits_gpu_clusters()
-LIMITS_CPU_PER_TASK = Config.limits_cpu_per_task()
-LIMITS_GPU_PER_TASK = Config.limits_gpu_per_task()
-LIMITS_MEMORY_PER_TASK = Config.limits_memory_per_task()
-MAINTENANCE = Config.maintenance()
+LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
+LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
+LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
+LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
+LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
+LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
+MAINTENANCE = os.environ.get("MAINTENANCE", "false") == "true"
 
 # ray cluster management
-RAY_KUBERAY_NAMESPACE = Config.ray_kuberay_namespace()
+RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
 RAY_CLUSTER_MODE = {
-    "local": Config.ray_cluster_mode_local(),
-    "ray_local_host": Config.ray_cluster_mode_local_host(),
+    "local": int(os.environ.get("RAY_CLUSTER_MODE_LOCAL", 0)),
+    "ray_local_host": os.environ.get(
+        "RAY_CLUSTER_MODE_LOCAL_HOST", "http://localhost:8265"
+    ),
 }
-RAY_NODE_IMAGE = Config.ray_node_image()
-RAY_CLUSTER_WORKER_REPLICAS = Config.ray_cluster_worker_replicas()
-RAY_CLUSTER_WORKER_REPLICAS_MAX = Config.ray_cluster_worker_replicas_max()
-RAY_CLUSTER_WORKER_MIN_REPLICAS = Config.ray_cluster_worker_min_replicas()
-RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX = Config.ray_cluster_worker_min_replicas_max()
-RAY_CLUSTER_WORKER_MAX_REPLICAS = Config.ray_cluster_worker_max_replicas()
-RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX = Config.ray_cluster_worker_max_replicas_max()
-RAY_CLUSTER_WORKER_AUTO_SCALING = Config.ray_cluster_worker_auto_scaling()
-RAY_CLUSTER_MAX_READINESS_TIME = Config.ray_cluster_max_readiness_time()
-RAY_SETUP_MAX_RETRIES = Config.ray_setup_max_retries()
-RAY_CLUSTER_NO_DELETE_ON_COMPLETE = Config.ray_cluster_no_delete_on_complete()
-RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL = Config.ray_cluster_cpu_node_selector_label()
-RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL = Config.ray_cluster_gpu_node_selector_label()
-PROGRAM_TIMEOUT = Config.program_timeout()
-GATEWAY_ALLOWLIST_CONFIG = Config.gateway_allowlist_config()
-GATEWAY_GPU_JOBS_CONFIG = Config.gateway_gpu_jobs_config()
-GATEWAY_DYNAMIC_DEPENDENCIES = Config.gateway_dynamic_dependencies()
+RAY_NODE_IMAGE = os.environ.get(
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.27.1"
+)
+RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
+RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
+    os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5")
+)
+RAY_CLUSTER_WORKER_MIN_REPLICAS = int(
+    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1")
+)
+RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX = int(
+    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX", "2")
+)
+RAY_CLUSTER_WORKER_MAX_REPLICAS = int(
+    os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4")
+)
+RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX = int(
+    os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX", "10")
+)
+RAY_CLUSTER_WORKER_AUTO_SCALING = bool(
+    os.environ.get("RAY_CLUSTER_WORKER_AUTO_SCALING", False)
+)
+RAY_CLUSTER_MAX_READINESS_TIME = int(
+    os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "120")
+)
+
+RAY_SETUP_MAX_RETRIES = int(os.environ.get("RAY_SETUP_MAX_RETRIES", 30))
+
+RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(
+    os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False)
+)
+
+RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL = os.environ.get(
+    "RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL",
+    "ibm-cloud.kubernetes.io/worker-pool-name: default",
+)
+
+RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL = os.environ.get(
+    "RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL",
+    "ibm-cloud.kubernetes.io/worker-pool-name: gpu-workers",
+)
+
+PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
+
+GATEWAY_ALLOWLIST_CONFIG = str(
+    os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json")
+)
+
+GATEWAY_GPU_JOBS_CONFIG = str(
+    os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json")
+)
+
+GATEWAY_DYNAMIC_DEPENDENCIES = str(
+    os.environ.get(
+        "GATEWAY_DYNAMIC_DEPENDENCIES", "requirements-dynamic-dependencies.txt"
+    )
+)
 
 # authentication base url for qiskit runtime
-QISKIT_IBM_URL = Config.qiskit_ibm_url()
+QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
 
 # quantum api
-IQP_QCON_API_BASE_URL = Config.iqp_qcon_api_base_url()
+IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
 
 # IBM Cloud
-IAM_IBM_CLOUD_BASE_URL = Config.iam_ibm_cloud_base_url()
-RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = Config.resource_controller_ibm_cloud_base_url()
-RESOURCE_PLANS_ID_ALLOWED = Config.resource_plans_id_allowed()
+
+IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL", None)
+RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = os.environ.get(
+    "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL", None
+)
+RESOURCE_PLANS_ID_ALLOWED = os.environ.get("RESOURCE_PLANS_ID_ALLOWED", "").split(",")
 
 # Content Security Policy
 CSP_DEFAULT_SRC = "'none'"
@@ -360,11 +415,11 @@ CSP_CONNECT_SRC = "'self'"
 CSP_WORKER_SRC = ("'self'", "blob:")
 
 # Custom image for programs settings
-CUSTOM_IMAGE_PACKAGE_NAME = Config.custom_image_package_name()
-CUSTOM_IMAGE_PACKAGE_PATH = Config.custom_image_package_path()
+CUSTOM_IMAGE_PACKAGE_NAME = os.environ.get("CUSTOM_IMAGE_PACKAGE_NAME", "runner")
+CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner")
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_AGE = 3600
 
 # Functions logs size limite in MB
-FUNCTIONS_LOGS_SIZE_LIMIT = Config.functions_logs_size_limit()
+FUNCTIONS_LOGS_SIZE_LIMIT = os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "50")
