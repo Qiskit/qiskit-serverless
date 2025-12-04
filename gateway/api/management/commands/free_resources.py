@@ -107,14 +107,14 @@ class Command(BaseCommand):
         user_repository = UserRepository()
         author = user_repository.get_or_create_by_id(job.author)
         username = author.username
-        
+
         has_provider = job.program.provider is not None
 
         if has_provider:
             self._save_logs_with_provider(full_logs, username, job)
         else:
             self._save_logs_only_user(full_logs, username, job)
-    
+
     def _save_logs_only_user(full_logs: str, username: str, job: Job):
         """
         Save the logs in the user storage.
@@ -134,10 +134,9 @@ class Command(BaseCommand):
 
         user_logs_storage.save(job.id, full_logs)
 
-
     def _save_logs_with_provider(full_logs: str, username: str, job: Job):
         """
-        Save the logs in the provide storage and filter 
+        Save the logs in the provide storage and filter
         for public logs only to save them into the user storage.
 
         Args:
