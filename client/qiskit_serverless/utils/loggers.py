@@ -5,9 +5,27 @@ class PrefixFormatter(logging.Formatter):
         super().__init__(*args, **kwargs)
         self.prefix = prefix
 
-    def formatMessage(self, record):
-        original_message = super().formatMessage(record)
-        return f"{self.prefix} {original_message}"
+    def format(self, record):
+        original_msg = record.getMessage()
+        lines = original_msg.splitlines()
+
+        formatted_lines = []
+        for line in lines:
+            temp = logging.LogRecord(
+                name=record.name,
+                level=record.levelno,
+                pathname=record.pathname,
+                lineno=record.lineno,
+                msg=line,
+                args=None,
+                exc_info=None,
+            )
+
+            base = super().format(temp)
+            formatted_lines.append(f"{self.prefix} {base}")
+
+        return "\n".join(formatted_lines)
+
 
 def _create_logger(name, prefix):
     logger = logging.getLogger(name)
