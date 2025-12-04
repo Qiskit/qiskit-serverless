@@ -14,6 +14,11 @@ from qiskit_serverless.core.constants import (
     ENV_JOB_ID_GATEWAY,
     ENV_JOB_GATEWAY_TOKEN,
     GATEWAY_PROVIDER_VERSION_DEFAULT,
+    ENV_ACCESS_TRIAL,
+    IBM_SERVERLESS_HOST_URL_DEFAULT,
+    IBM_SERVERLESS_HOST_URL_OVERRIDE,
+    MAX_ARTIFACT_FILE_SIZE_MB_DEFAULT,
+    MAX_ARTIFACT_FILE_SIZE_MB_OVERRIDE,
     OT_ENABLED,
     OT_INSECURE,
     OT_JAEGER_HOST_KEY,
@@ -26,10 +31,14 @@ from qiskit_serverless.core.constants import (
     QISKIT_IBM_INSTANCE,
     QISKIT_IBM_TOKEN,
     QISKIT_IBM_URL,
+    REQUESTS_STREAMING_TIMEOUT_DEFAULT,
+    REQUESTS_STREAMING_TIMEOUT_OVERRIDE,
+    REQUESTS_TIMEOUT_DEFAULT,
+    REQUESTS_TIMEOUT_OVERRIDE,
 )
 
 
-class Config:
+class Config:  # pylint: disable=too-many-public-methods
     """Centralized configuration for environment variables.
 
     This class provides type-safe access to environment variables with
@@ -141,3 +150,52 @@ class Config:
     def data_path(cls) -> str:
         """Get data path."""
         return os.environ.get(DATA_PATH, DATA_PATH_DEFAULT)
+
+    # Request Configuration
+    @classmethod
+    def requests_timeout(cls) -> int:
+        """Get request timeout in seconds."""
+        return int(
+            os.environ.get(REQUESTS_TIMEOUT_OVERRIDE, str(REQUESTS_TIMEOUT_DEFAULT))
+        )
+
+    @classmethod
+    def requests_streaming_timeout(cls) -> int:
+        """Get streaming request timeout in seconds."""
+        return int(
+            os.environ.get(
+                REQUESTS_STREAMING_TIMEOUT_OVERRIDE,
+                str(REQUESTS_STREAMING_TIMEOUT_DEFAULT),
+            )
+        )
+
+    # Artifact Configuration
+    @classmethod
+    def max_artifact_file_size_mb(cls) -> int:
+        """Get maximum artifact file size in MB."""
+        return int(
+            os.environ.get(
+                MAX_ARTIFACT_FILE_SIZE_MB_OVERRIDE,
+                str(MAX_ARTIFACT_FILE_SIZE_MB_DEFAULT),
+            )
+        )
+
+    # IBM Serverless Configuration
+    @classmethod
+    def ibm_serverless_host_url(cls) -> str:
+        """Get IBM Serverless host URL."""
+        return os.environ.get(
+            IBM_SERVERLESS_HOST_URL_OVERRIDE, IBM_SERVERLESS_HOST_URL_DEFAULT
+        )
+
+    # Access Configuration
+    @classmethod
+    def is_trial(cls) -> bool:
+        """Check if running in trial mode."""
+        return os.environ.get(ENV_ACCESS_TRIAL) == "True"
+
+    # Test Configuration
+    @classmethod
+    def in_test(cls) -> Optional[str]:
+        """Check if running in test mode."""
+        return os.environ.get("IN_TEST")

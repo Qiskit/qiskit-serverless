@@ -44,9 +44,7 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_serverless.core.config import Config
 from qiskit_serverless.core.constants import (
-    REQUESTS_TIMEOUT,
     ENV_JOB_ID_GATEWAY,
-    ENV_ACCESS_TRIAL,
 )
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
@@ -328,7 +326,7 @@ def save_result(result: Dict[str, Any]):
         url,
         data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
         headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
+        timeout=Config.requests_timeout(),
     )
     if not response.ok:
         sanitized = response.text.replace("\n", "").replace("\r", "")
@@ -362,7 +360,7 @@ def update_status(status: str):
         url,
         data={"sub_status": status},
         headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
+        timeout=Config.requests_timeout(),
     )
     if not response.ok:
         sanitized = response.text.replace("\n", "").replace("\r", "")
@@ -447,4 +445,4 @@ def is_running_in_serverless() -> bool:
 
 def is_trial() -> bool:
     """Return ``True`` if Job is running in trial mode, ``False`` otherwise."""
-    return os.getenv(ENV_ACCESS_TRIAL) == "True"
+    return Config.is_trial()

@@ -33,7 +33,6 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.runtime_job_v2 import RuntimeJobV2
 
 from qiskit_serverless.core.config import Config
-from qiskit_serverless.core.constants import REQUESTS_TIMEOUT
 from qiskit_serverless.utils.http import get_headers
 
 
@@ -68,7 +67,7 @@ def associate_runtime_job_with_serverless_job(
         url,
         json={"runtime_job": runtime_job_id, "runtime_session": session_id},
         headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
+        timeout=Config.requests_timeout(),
     )
     if not response.ok:
         sanitized = response.text.replace("\n", "").replace("\r", "")
