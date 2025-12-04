@@ -23,10 +23,8 @@ WORKDIR /
 USER 0
 RUN mkdir /data && chown 1000:1000 /data
 RUN mkdir /function_data && chown 1000:1000 /function_data
-COPY client ./qs
-COPY gateway/requirements-dynamic-dependencies.txt ./qs
-COPY gateway/requirements-test-dynamic-dependencies.txt ./qs
-WORKDIR /qs
+COPY gateway/requirements-dynamic-dependencies.txt /tmp/
+COPY gateway/requirements-test-dynamic-dependencies.txt /tmp/
 
 # Need versions of pip more recent than provided by UBI image
 RUN python3.11 -m ensurepip --upgrade
@@ -34,16 +32,12 @@ RUN python3.11 -m ensurepip --upgrade
 RUN pip install --upgrade --no-cache-dir pip>=24.2 &&\
     pip install --upgrade --no-cache-dir setuptools>=80.0.0
 
-RUN pip install -r requirements.txt --no-cache-dir &&\
-    pip install . --no-cache-dir &&\
+RUN pip install --no-cache-dir qiskit-serverless &&\
     cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages &&\
     cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages
 
 RUN if [ -n "${DYNAMIC_DEPENDENCIES_FILE}" ]; then \
-        pip install -r ${DYNAMIC_DEPENDENCIES_FILE} --no-cache-dir; \
+        pip install -r /tmp/${DYNAMIC_DEPENDENCIES_FILE} --no-cache-dir; \
     fi
-
-WORKDIR /
-RUN rm -r ./qs
 
 USER 1000
