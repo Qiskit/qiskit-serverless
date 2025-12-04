@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    :class:`.IBMServerlessClient`  now supports custom gateway hosts through the ``host`` parameter.
+    This allows for a more streamlined testing of the client connecting to non-production gateways.
