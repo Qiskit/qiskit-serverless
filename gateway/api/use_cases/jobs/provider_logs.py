@@ -16,9 +16,10 @@ from api.services.storage.logs_storage import LogsStorage
 
 
 NO_LOGS_MSG: Final[str] = "No available logs"
+NO_LOGS_MSG_2: Final[str] = "No logs yet."
 
 
-class GetJobLogsUseCase:
+class GetProviderJobLogsUseCase:
     """Use case for retrieving job logs."""
 
     jobs_repository = JobsRepository()
@@ -38,24 +39,26 @@ class GetJobLogsUseCase:
         """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise NotFoundError(f"Job [{job_id}] not found 1")
 
-        if not JobAccessPolicies.can_read_logs(user, job):
+        if not job.program.provider or not ProviderAccessPolicy.can_access(
+            user, job.program.provider
+        ):
             raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
         logs_storage = LogsStorage(
             username=user.username,
-            working_dir=WorkingDir.USER_STORAGE,
+            working_dir=WorkingDir.PROVIDER_STORAGE,
             function_title=job.program.title,
-            provider_name=job.program.provider.name if job.program.provider else None,
+            provider_name=job.program.provider.name,
         )
 
         logs = logs_storage.get(job_id)
 
         if logs is None:
-            raise NotFoundError(f"Logs for job[{job_id}] are not found")
+            logs = job.logs
 
-        if len(logs) == 0:
-            return "No logs available"
+        if not logs or logs == NO_LOGS_MSG or logs == NO_LOGS_MSG_2:
+            raise NotFoundError(f"Logs for job[{job_id}] are not found")
 
         return logs
