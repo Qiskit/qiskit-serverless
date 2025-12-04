@@ -90,3 +90,23 @@ class LogsStorage:
                 str(e),
             )
             return None
+
+    def save(self, job_id: str, logs: str):
+        """
+        Creates and writes a log file for the given job id
+
+        Args:
+            job_id (str): the id for the job to save the logs
+            logs (str): the logs to be saved
+        """
+        log_path = self._get_logs_path(job_id)
+
+        try:
+            with open(log_path, "w+", encoding=self.ENCODING) as log_file:
+                log_file.write(logs)
+        except (UnicodeDecodeError, IOError) as e:
+            logger.error(
+                "Failed to write log file for job ID '%s': %s",
+                job_id,
+                str(e),
+            )
