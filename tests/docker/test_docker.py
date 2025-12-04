@@ -390,3 +390,23 @@ class TestFunctionsDocker:
 
         succeeded_jobs = serverless_client.jobs(status="SUCCEEDED")
         assert len(succeeded_jobs) >= 3
+
+    def test_logs(self, serverless_client: ServerlessClient):
+
+        function = QiskitFunction(
+            title=f"logs_function",
+            entrypoint="logger.py",
+            working_dir=resources_path,
+        )
+        function = serverless_client.upload(function)
+        job = function.run()
+
+        while not job.in_terminal_state():
+            sleep(1)
+
+        assert job.logs() == """[PUBLIC] INFO:user: User log
+[PUBLIC] WARNING:user: User log
+[PUBLIC] ERROR:user: User log
+[PRIVATE] INFO:provider: Provider log
+[PRIVATE] WARNING:provider: Provider log
+[PRIVATE] ERROR:provider: Provider log"""
