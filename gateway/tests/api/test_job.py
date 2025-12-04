@@ -577,19 +577,26 @@ class TestJobApi(APITestCase):
         self.client.force_authenticate(user=user)
 
         # Job with a single runtime job
+        job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
         response = self.client.post(
-            reverse(
-                "v1:jobs-runtime-jobs", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]
-            ),
+            reverse("v1:jobs-runtime-jobs", args=[job_id]),
             data={
                 "runtime_job": "runtime_job_new",
                 "runtime_session": "session_id_new",
             },
             format="json",
         )
+
+        expected_message = (
+            f"RuntimeJob object [runtime_job_new] "
+            f"created for serverless job id [{job_id}]."
+        )
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data.get("message"), "RuntimeJob is added.")
+        self.assertEqual(response.data.get("message"), expected_message)
+
         runtime_job = RuntimeJob.objects.get(runtime_job="runtime_job_new")
+
         self.assertEqual(
             str(runtime_job.job.id), "8317718f-5c0d-4fb6-9947-72e480b8a348"
         )
