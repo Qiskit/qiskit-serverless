@@ -1,0 +1,4 @@
+---
+features:
+  - |
+    Added a new ``ProgramHistory`` model and database table to track when entities perform actions to add or remove an instance from a program. These allow to audit access changes for both ``instances`` and ``trial_instances``.
