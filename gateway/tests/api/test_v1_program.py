@@ -147,7 +147,7 @@ class TestProgramApi(APITestCase):
             self.assertEqual(job.config.auto_scaling, True)
 
             program = Program.objects.get(title="Program", author=user)
-            arguments_storage = ArgumentsStorage(program)
+            arguments_storage = ArgumentsStorage(user.username, program)
             stored_arguments = arguments_storage.get(job.id)
 
             self.assertEqual(stored_arguments, arguments)
@@ -197,7 +197,7 @@ class TestProgramApi(APITestCase):
             self.assertEqual(job.config.auto_scaling, True)
 
             program = Program.objects.get(title="Docker-Image-Program", author=user)
-            arguments_storage = ArgumentsStorage(program)
+            arguments_storage = ArgumentsStorage(user.username, program)
             stored_arguments = arguments_storage.get(job.id)
 
             self.assertEqual(stored_arguments, arguments)

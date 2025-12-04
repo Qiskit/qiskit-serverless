@@ -6,6 +6,8 @@ import os
 from typing import Optional
 from django.conf import settings
 
+from api.models import Program
+
 logger = logging.getLogger("gateway")
 
 
@@ -15,14 +17,14 @@ class ArgumentsStorage:
     ARGUMENTS_FILE_EXTENSION = ".json"
     ENCODING = "utf-8"
 
-    def __init__(self, function):
+    def __init__(self, username: str, function: Program):
         """
         Initialize ArgumentsStorage with a function instance.
 
         Args:
+            username: Program model instance containing title, provider, and author
             function: Program model instance containing title, provider, and author
         """
-        username = function.author.username
         function_title = function.title
         provider_name = function.provider.name if function.provider else None
 

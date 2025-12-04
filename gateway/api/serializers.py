@@ -299,7 +299,7 @@ class RunJobSerializer(serializers.ModelSerializer):
             )
         )
 
-        arguments_storage = ArgumentsStorage(program)
+        arguments_storage = ArgumentsStorage(author.username, program)
         arguments_storage.save(job.id, arguments)
 
         try:

@@ -35,10 +35,6 @@ logger = logging.getLogger("gateway")
 class FileStorage:
     """
     The main objective of this class is to manage the access of the users to their storage.
-
-    Attributes:
-        username (str): storage user's username
-        working_dir (WorkingDir(Enum)): working directory
     """
 
     def __init__(
