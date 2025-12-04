@@ -109,7 +109,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
 
         Args:
             name: name of client
-            host: host of gateway
+            host: host of gateway. If None, it uses the ENV_GATEWAY_PROVIDER_HOST env var
             version: version of gateway
             token: authorization token
             instance: IBM Cloud CRN or IQP h/g/p
@@ -680,6 +680,8 @@ class IBMServerlessClient(ServerlessClient):
         name: Optional[str] = None,
         instance: Optional[str] = None,
         channel: str = Channel.IBM_QUANTUM_PLATFORM.value,
+        *,
+        host: Optional[str] = None,
     ):
         """
         Initialize a client with access to an IBMQ-provided remote cluster.
@@ -695,6 +697,7 @@ class IBMServerlessClient(ServerlessClient):
         file using the default account name.
 
         Args:
+            host: host of gateway. Optional. It uses IBM_SERVERLESS_HOST_URL env var or IBM host
             token: IBM quantum token
             name: Name of the account to load
             instance: IBM Cloud CRN or IQP h/g/p
@@ -711,7 +714,7 @@ class IBMServerlessClient(ServerlessClient):
             channel=self.account.channel,
             token=self.account.token,
             instance=self.account.instance,
-            host=IBM_SERVERLESS_HOST_URL,
+            host=host if host else IBM_SERVERLESS_HOST_URL,
         )
 
     def _discover_account(

@@ -112,27 +112,6 @@ class JobHandler:
                     f"Program [{program.title}] has no image or artifact associated."
                 )
 
-            # upload arguments to working directory
-            provider_name = None
-            if job.program.provider is not None:
-                provider_name = job.program.provider.name
-            storage = ArgumentsStorage(
-                job.author.username, program.title, provider_name
-            )
-            arguments = storage.get(job.id)
-            arguments_file = os.path.join(
-                working_directory_for_upload, "arguments.serverless"
-            )
-
-            # DEPRECATED: arguments is now saved in /:username/:jobid,
-            # arguments.serverless is going to be deprecated
-            with open(arguments_file, "w", encoding="utf-8") as f:
-                if arguments:
-                    logger.debug("uploading arguments for job [%s]", job.id)
-                    f.write(arguments)
-                else:
-                    f.write("{}")
-
             # set tracing
             carrier: dict[str, str] = {}
             TraceContextTextMapPropagator().inject(carrier)
