@@ -238,7 +238,7 @@ class SerializerTest(APITestCase):
         job_serializer = RunJobSerializer(data=job_data)
         job_serializer.is_valid()
         job = job_serializer.save(
-            channel=Channel.IBM_QUANTUM,
+            channel=Channel.IBM_QUANTUM_PLATFORM,
             author=user,
             carrier={},
             token="my_token",
