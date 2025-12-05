@@ -33,7 +33,7 @@ from qiskit.primitives import SamplerResult, EstimatorResult
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.utils.json import RuntimeDecoder, RuntimeEncoder
 
-from qiskit_serverless.core.constants import ENV_JOB_ID_GATEWAY, DATA_PATH
+from qiskit_serverless.core.config import Config
 from qiskit_serverless.exception import QiskitServerlessException
 
 
@@ -82,14 +82,14 @@ def get_arguments() -> Dict[str, Any]:
         Dictionary of arguments.
     """
     arguments = "{}"
-    job_id_gateway = os.environ.get(ENV_JOB_ID_GATEWAY)
+    job_id_gateway = Config.job_id_gateway()
     if not job_id_gateway:
         raise QiskitServerlessException(
             "Error getting arguments: JOB_ID_GATEWAY environment variable is missing or empty"
         )
     # DATA_PATH is just used in tests and local development.
     # In k8 we always want to use the default "/data"
-    data_path = os.environ.get(DATA_PATH, "/data")
+    data_path = Config.data_path()
     arguments_dir = f"{data_path}/arguments"
     arguments_file_path = f"{arguments_dir}/{job_id_gateway}.json"
 
