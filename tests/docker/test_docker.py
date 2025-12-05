@@ -390,3 +390,25 @@ class TestFunctionsDocker:
 
         succeeded_jobs = serverless_client.jobs(status="SUCCEEDED")
         assert len(succeeded_jobs) >= 3
+
+    def test_wrong_function_name(self, serverless_client: ServerlessClient):
+        """Integration test for retrieving a function that isn't accessible."""
+
+        arguments_function = QiskitFunction(
+            title="pattern-with-arguments",
+            entrypoint="pattern_with_arguments.py",
+            working_dir=resources_path,
+        )
+
+        expected_message = (
+            "Failed to retrieve 'None/wrong-title'. "
+            "Please check that your API credentials and the function name are correct. "
+            "You can view the list of available functions for your credentials using `.list()`."
+        )
+
+        serverless_client.upload(arguments_function)
+
+        with raises(QiskitServerlessException) as exc_info:
+            serverless_client.function("wrong-title")
+
+        assert str(exc_info.value) == expected_message
