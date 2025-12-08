@@ -139,23 +139,28 @@ def safe_json_request(
     if error_message:
         raise QiskitServerlessException(error_message)
 
-    if response is not None and not response.ok:
-        # When response is not ok, the expected
-        # response is a dictionary with a "detail" field
-        # that contains the error message.
-        print("RESPONSE TEXT", response.text)
-        print("RESPONSE JSON", response.json())
-        error_detail = response.json().get("detail")
-        raise QiskitServerlessException(
-            format_err_msg(
-                response.status_code,
-                str(error_detail),
-            )
-        )
-
     decoding_error_message: Optional[str] = None
     try:
         json_data = json.loads(response.text)
+        if response is not None and not response.ok:
+            # When response is not ok, the expected json
+            # response is a dictionary with a field
+            # that contains the error message. The key
+            # varies between messages, so appending all
+            # values to a string allows to capture all
+            # potential messages
+            print("RESPONSE JSON", json_data)
+            error_msg = ""
+            for error_string in json_data.values():
+                error_msg += str(error_string)
+            print("ERROR MSG", error_msg)
+
+            raise QiskitServerlessException(
+                format_err_msg(
+                    response.status_code,
+                    str(error_msg),
+                )
+            )
     except json.JSONDecodeError as json_error:
         decoding_error_message = format_err_msg(
             ErrorCodes.JSON1001,
