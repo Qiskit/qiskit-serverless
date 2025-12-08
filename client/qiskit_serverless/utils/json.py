@@ -143,6 +143,8 @@ def safe_json_request(
         # When response is not ok, the expected
         # response is a dictionary with a "detail" field
         # that contains the error message.
+        print("RESPONSE TEXT", response.text)
+        print("RESPONSE JSON", response.json())
         error_detail = response.json().get("detail")
         raise QiskitServerlessException(
             format_err_msg(
