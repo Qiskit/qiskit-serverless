@@ -13,7 +13,6 @@ from api.repositories.users import UserRepository
 from api.services.authentication.authentication_base import AuthenticationBase
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
-from api.services.authentication.ibm_quantum import IBMQuantum
 from api.domain.authentication.channel import Channel
 
 
@@ -46,10 +45,6 @@ class AuthenticationUseCase:
                 "Authentication will be executed with IBM Cloud Quantum Platform."
             )
             return IBMQuantumPlatform(api_key=self.authorization_token, crn=self.crn)
-
-        if self.channel == Channel.IBM_QUANTUM:
-            logger.debug("Authentication will be executed with IQP.")
-            return IBMQuantum(authorization_token=self.authorization_token)
 
         logger.debug("Authentication will be executed with Local service.")
         return LocalAuthenticationService(authorization_token=self.authorization_token)
