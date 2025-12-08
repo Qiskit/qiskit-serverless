@@ -577,23 +577,17 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
         provider, title = format_provider_name_and_title(
             request_provider=provider, title=title
         )
-        try:
-            response_data = safe_json_request_as_dict(
-                request=lambda: requests.get(
-                    f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
-                    headers=get_headers(
-                        token=self.token, instance=self.instance, channel=self.channel
-                    ),
-                    params={"provider": provider},
-                    timeout=REQUESTS_TIMEOUT,
-                )
+
+        response_data = safe_json_request_as_dict(
+            request=lambda: requests.get(
+                f"{self.host}/api/{self.version}/programs/get_by_title/{title}",
+                headers=get_headers(
+                    token=self.token, instance=self.instance, channel=self.channel
+                ),
+                params={"provider": provider},
+                timeout=REQUESTS_TIMEOUT,
             )
-        except QiskitServerlessException as e:
-            raise QiskitServerlessException(
-                f"Failed to retrieve '{provider}/{title}'. "
-                "Please check that your API credentials and the function name are correct. "
-                "You can view the list of available functions for your credentials using `.list()`."
-            ) from e
+        )
 
         response_data["client"] = self
         the_function = RunnableQiskitFunction.from_json(response_data)
