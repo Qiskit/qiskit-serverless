@@ -401,9 +401,8 @@ class TestFunctionsDocker:
         )
 
         expected_message = (
-            "Failed to retrieve 'None/wrong-title'. "
-            "Please check that your API credentials and the function name are correct. "
-            "You can view the list of available functions for your credentials using `.list()`."
+            "User program 'wrong-title' was not found or you do not "
+            "have permission to view it."
         )
 
         serverless_client.upload(arguments_function)
