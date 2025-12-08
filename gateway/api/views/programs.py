@@ -308,7 +308,10 @@ class ProgramViewSet(viewsets.GenericViewSet):
             if function is None:
                 return Response(
                     {
-                        "message": f"User program '{function_title}' was not found or you do not have permission to view it."
+                        "message": (
+                            f"User program '{function_title}' was not found or "
+                            "you do not have permission to view it."
+                        )
                     },
                     status=status.HTTP_404_NOT_FOUND,
                 )
