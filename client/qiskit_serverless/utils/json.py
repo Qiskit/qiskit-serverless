@@ -148,12 +148,10 @@ def safe_json_request(
             # that contains the error message. The key
             # varies between messages, so appending all
             # values to a string allows to capture all
-            # potential messages
-            print("RESPONSE JSON", json_data)
+            # potential messages.
             error_msg = ""
             for error_string in json_data.values():
                 error_msg += str(error_string)
-            print("ERROR MSG", error_msg)
 
             raise QiskitServerlessException(
                 format_err_msg(
