@@ -6,9 +6,10 @@ from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 
-from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
+from api.domain.function import check_logs
+from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.access_policies.providers import ProviderAccessPolicy
 from api.services.storage.enums.working_dir import WorkingDir
@@ -55,10 +56,21 @@ class GetProviderJobLogsUseCase:
 
         logs = logs_storage.get(job_id)
 
-        if logs is None:
-            logs = job.logs
+        # No logs stored.
+        if logs:
+            return logs
+
+        # Get from Ray if it is already running.
+        if job.compute_resource and job.compute_resource.active:
+            job_handler = get_job_handler(job.compute_resource.host)
+            logs = job_handler.logs(job.ray_job_id)
+            logs = check_logs(logs, job)
+            return logs
+
+        logs = job.logs
 
         if not logs or logs == NO_LOGS_MSG or logs == NO_LOGS_MSG_2:
             raise NotFoundError(f"Logs for job[{job_id}] are not found")
 
+        # Legacy: Get from db.
         return logs
