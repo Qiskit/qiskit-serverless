@@ -178,9 +178,7 @@ class TestFunctionsDocker:
 
         def exceptionCheck(e: QiskitServerlessException):
             code_index = str(e).find("Code: 400")
-            details_index = str(e).find(
-                f"non_field_errors: Dependency `{dependency}` is not allowed"
-            )
+            details_index = str(e).find(f"Dependency `{dependency}` is not allowed")
             return code_index > 0 and details_index > 0
 
         with raises(QiskitServerlessException, check=exceptionCheck):
@@ -401,7 +399,9 @@ class TestFunctionsDocker:
         )
 
         expected_message = (
-            "User program 'wrong-title' was not found or you do not "
+            "\n| Message: Http bad request.\n"
+            "| Code: 404\n"
+            "| Details: User program 'wrong-title' was not found or you do not "
             "have permission to view it."
         )
 
