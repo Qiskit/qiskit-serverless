@@ -10,6 +10,10 @@ from django.db import migrations
 
 def remove_allauth_tables(apps, schema_editor):
     """Remove allauth tables if they exist."""
+    # Skip in SQLite (tests). Allauth and socialaccount tables are never created
+    if schema_editor.connection.vendor == "sqlite":
+        return
+
     tables = [
         "socialaccount_socialtoken",
         "socialaccount_socialapp_sites",
