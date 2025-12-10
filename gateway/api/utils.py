@@ -156,22 +156,18 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
                 job.id,
             )
 
-    if settings.SETTINGS_AUTH_MECHANISM != "default":
-        if instance:
-            extra = {
-                "QISKIT_IBM_INSTANCE": str(instance),
-            }
-        extra.update(
-            {
-                "QISKIT_IBM_TOKEN": str(token),
-                "QISKIT_IBM_CHANNEL": channel.value,
-                "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
-            }
-        )
+    extra.update(
+        {
+            "QISKIT_IBM_TOKEN": str(token),
+            "QISKIT_IBM_CHANNEL": channel.value,
+            "QISKIT_IBM_URL": settings.QISKIT_IBM_URL,
+        }
+    )
 
     if instance:
         extra.update(
             {
+                "QISKIT_IBM_INSTANCE": str(instance),
                 "ENV_JOB_GATEWAY_INSTANCE": str(instance),
             }
         )
