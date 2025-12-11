@@ -404,9 +404,9 @@ class TestFunctionsDocker:
         while not job.in_terminal_state():
             sleep(1)
 
-        assert job.logs() == """[PUBLIC] INFO:user: User log
-[PUBLIC] WARNING:user: User log
-[PUBLIC] ERROR:user: User log
-[PRIVATE] INFO:provider: Provider log
-[PRIVATE] WARNING:provider: Provider log
-[PRIVATE] ERROR:provider: Provider log"""
+        assert job.logs() == """INFO:user: User log
+INFO:user: User multiline
+INFO:user: log
+WARNING:user: User log
+ERROR:user: User log
+"""
