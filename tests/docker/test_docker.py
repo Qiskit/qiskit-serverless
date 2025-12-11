@@ -392,9 +392,10 @@ class TestFunctionsDocker:
         assert len(succeeded_jobs) >= 3
 
     def test_logs(self, serverless_client: ServerlessClient):
+        """Integration test for logs."""
 
         function = QiskitFunction(
-            title=f"logs_function",
+            title="logs_function",
             entrypoint="logger.py",
             working_dir=resources_path,
         )
@@ -404,9 +405,12 @@ class TestFunctionsDocker:
         while not job.in_terminal_state():
             sleep(1)
 
-        assert job.logs() == """INFO:user: User log
+        assert (
+            job.logs()
+            == """INFO:user: User log
 INFO:user: User multiline
 INFO:user: log
 WARNING:user: User log
 ERROR:user: User log
 """
+        )
