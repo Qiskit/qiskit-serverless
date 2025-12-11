@@ -3,6 +3,7 @@ Django Rest framework Program views for api application:
 
 Version views inherit from the different views.
 """
+
 import logging
 import os
 
@@ -290,15 +291,32 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 title=function_title,
                 provider_name=provider_name,
             )
+            if function is None:
+                return Response(
+                    {
+                        "message": (
+                            f"Program '{function_title}' for provider '{provider_name}' "
+                            "was not found or you do not have permission to view it."
+                        )
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
         else:
             function = self.function_repository.get_user_function(
                 author=author, title=function_title
             )
+            if function is None:
+                return Response(
+                    {
+                        "message": (
+                            f"User program '{function_title}' was not found or "
+                            "you do not have permission to view it."
+                        )
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-        if function:
-            return Response(self.get_serializer(function).data)
-
-        return Response(status=404)
+        return Response(self.get_serializer(function).data)
 
     # This end-point is deprecated and we need to confirm if we can remove it
     @_trace
