@@ -7,6 +7,7 @@ from django.contrib.auth import models
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files import File
 from rest_framework.test import APITestCase
+from unittest.mock import patch
 from api.domain.authentication.channel import Channel
 from api.v1.serializers import (
     JobConfigSerializer,
@@ -21,6 +22,23 @@ class SerializerTest(APITestCase):
     """Tests for serializer."""
 
     fixtures = ["tests/fixtures/fixtures.json"]
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()  # never remove this line, or the fixtures won't be loaded
+        cls.env_patcher = patch.dict(
+            os.environ,
+            {
+                "GATEWAY_DYNAMIC_DEPENDENCIES": "requirements-test-dynamic-dependencies.txt"
+            },
+            clear=False,
+        )
+        cls.env_patcher.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.env_patcher.stop()
+        super().tearDownClass()
 
     def test_JobConfigSerializer(self):
         data = '{"workers": null, "min_workers": 1, "max_workers": 5, "auto_scaling": true}'
