@@ -21,8 +21,7 @@ from django.urls import path, include, re_path
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
-import probes.views
-import version.views
+from main.views import probes, system
 
 handler500 = "rest_framework.exceptions.server_error"
 
@@ -42,9 +41,9 @@ schema = get_schema_view(  # pylint: disable=invalid-name
 )
 
 urlpatterns = [
-    path("readiness/", probes.views.readiness, name="readiness"),
-    path("liveness/", probes.views.liveness, name="liveness"),
-    path("version/", version.views.version, name="version"),
+    path("readiness/", probes.readiness, name="readiness"),
+    path("liveness/", probes.liveness, name="liveness"),
+    path("version/", system.version, name="version"),
     path("backoffice/", admin.site.urls),
     re_path(r"^api/v1/", include(("api.v1.urls", "api"), namespace="v1")),
 ]
