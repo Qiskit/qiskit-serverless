@@ -1,0 +1,8 @@
+---
+upgrade:
+  - |
+    The legacy IBM Quantum authentication channel (``ibm_quantum``) has been removed.
+    Users should migrate to using the IBM Quantum Platform channel (``ibm_quantum_platform``)
+    for authentication. The authentication logic has been simplified to support only
+    ``ibm_cloud`` and ``ibm_quantum_platform`` channels. When no channel header is provided
+    and a CRN is present, the system defaults to ``ibm_quantum_platform``.
