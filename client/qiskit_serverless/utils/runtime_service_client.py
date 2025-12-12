@@ -17,7 +17,7 @@ Json utilities (:mod:`qiskit_serverless.utils.runtime_service_client`)
 
 .. currentmodule:: qiskit_serverless.utils.runtime_service_client
 
-Qiskit Serverless runtime client wrapper
+Qiskit Serverless Runtime Client Wrapper
 ========================================
 
 .. autosummary::
