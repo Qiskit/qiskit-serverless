@@ -9,7 +9,6 @@ def readiness(request):
     """Service is ready to accept traffic."""
 
     if not ApiConfig.is_ready:
-        # wait for migrations
         return JsonResponse({"status": "api_config_not_ready"}, status=503)
 
     try:
