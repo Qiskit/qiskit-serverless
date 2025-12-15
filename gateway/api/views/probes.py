@@ -12,7 +12,6 @@ def readiness(request):
         # wait for migrations
         return JsonResponse({"status": "api_config_not_ready"}, status=503)
 
-    # TODO: add health checks here instead...
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
