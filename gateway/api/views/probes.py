@@ -1,6 +1,8 @@
 """Health check endpoints for Kubernetes readiness and liveness probes."""
 
+from django.db import connection, OperationalError
 from django.http import JsonResponse
+from api.apps import ApiConfig
 
 
 def readiness(request):
