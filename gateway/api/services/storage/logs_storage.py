@@ -102,8 +102,10 @@ class LogsStorage:
         log_path = self._get_logs_path(job_id)
 
         try:
+            print ("JJJJJJJJJJJJJJ 3.")
             with open(log_path, "w+", encoding=self.ENCODING) as log_file:
                 log_file.write(logs)
+            print ("JJJJJJJJJJJJJJ 4.")
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
                 "Failed to write log file for job ID '%s': %s",
