@@ -1,4 +1,4 @@
-# compose config on latest release builds
+# compose config for running images based on local files
 services:
   ray-head:
     user: "0"
@@ -11,8 +11,8 @@ services:
     ports:
       - 8265:8265
     volumes:
-      - host-shm:/dev/shm
-      - program-artifacts:/data
+      - ./.docker-mounted/ray/dev/shm:/dev/shm
+      - ./.docker-mounted/ray/data:/data
     environment:
       - DATA_PATH=/data/mockuser
     networks:
@@ -52,7 +52,7 @@ services:
     networks:
       - safe-tier
     volumes:
-      - program-artifacts:/usr/src/app/media/
+      - ./.docker-mounted/cos/media:/usr/src/app/media/
     depends_on:
       - postgres
   scheduler:
@@ -72,7 +72,7 @@ services:
     networks:
       - safe-tier
     volumes:
-      - program-artifacts:/usr/src/app/media/
+      - ./.docker-mounted/cos/media:/usr/src/app/media/
     depends_on:
       - postgres
   prometheus:
@@ -92,7 +92,7 @@ services:
     image: grafana/promtail:2.8.4
     profiles: [ "full" ]
     volumes:
-      - host-log:/var/log
+      - ./.docker-mounted/promtail/var/log:/var/log
     command: -config.file=/etc/promtail/config.yml
     networks:
       - safe-tier
@@ -105,7 +105,3 @@ services:
       - safe-tier
 networks:
   safe-tier:
-volumes:
-  program-artifacts:
-  host-shm:
-  host-log:
