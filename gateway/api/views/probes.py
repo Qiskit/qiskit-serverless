@@ -6,7 +6,7 @@ from api.apps import ApiConfig
 
 
 def readiness(request):
-    """Readiness probe endpoint - indicates the service is ready to accept traffic."""
+    """Service is ready to accept traffic."""
 
     if not ApiConfig.is_ready:
         # wait for migrations
@@ -22,5 +22,5 @@ def readiness(request):
 
 
 def liveness(request):
-    """Liveness probe endpoint - indicates the service is alive and running."""
+    """Service is alive and running."""
     return JsonResponse({"status": "alive"})
