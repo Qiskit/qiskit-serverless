@@ -7,6 +7,18 @@ from api.apps import ApiConfig
 
 def readiness(request):
     """Readiness probe endpoint - indicates the service is ready to accept traffic."""
+
+    if not ApiConfig.is_ready:
+        # wait for migrations
+        return JsonResponse({"status": "api_config_not_ready"}, status=503)
+
+    # TODO: add health checks here instead...
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+    except OperationalError:
+        return JsonResponse({"status": "database_unavailable"}, status=503)
+
     return JsonResponse({"status": "ready"})
 
 
