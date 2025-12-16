@@ -75,12 +75,16 @@ def serverless_client():
     if not os.path.exists("docker-compose-logs"):
         os.makedirs("docker-compose-logs", exist_ok=True)
     try:
-        with open(f"docker-compose-logs/full-{now}.logs", "w+", encoding="utf-8") as log_file:
+        with open(
+            f"docker-compose-logs/full-{now}.logs", "w+", encoding="utf-8"
+        ) as log_file:
             log_file.write(compose_logs)
 
-        with open(f"docker-compose-logs/scheduler-{now}.logs", "w+", encoding="utf-8") as log_file:
+        with open(
+            f"docker-compose-logs/scheduler-{now}.logs", "w+", encoding="utf-8"
+        ) as log_file:
             log_file.write(scheduler_logs)
-    except (UnicodeDecodeError, IOError) as e:
+    except (UnicodeDecodeError, IOError):
         print("Failed to write log file for docker tests")
 
     compose.stop()

@@ -76,7 +76,7 @@ class TestFunctionsDocker:
         )
 
         with raises(QiskitServerlessException) as exc_info:
-            result = job.result()
+            job.result()
 
         assert expected_message in str(exc_info.value)
 
