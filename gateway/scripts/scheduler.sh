@@ -1,5 +1,6 @@
 #!/bin/sh
 
+python manage.py migrate
 while :
 do
   python manage.py update_jobs_statuses
