@@ -28,11 +28,16 @@ services:
       POSTGRES_USER: serverlessuser
       POSTGRES_PASSWORD: serverlesspassword
     networks:
-      - safe-tier
+      - safe-tier/
     ports:
       - 5432:5432
     restart:
       always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U serverlessuser -d serverlessdb"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
   gateway:
     container_name: gateway
     build:
@@ -61,7 +66,8 @@ services:
     volumes:
       - ./.docker-mounted/cos/media:/usr/src/app/media/
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     develop:
       watch:
         - path: ./gateway
@@ -88,7 +94,8 @@ services:
     volumes:
       - ./.docker-mounted/cos/media:/usr/src/app/media/
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
   prometheus:
     image: prom/prometheus:v2.44.0
     profiles: [ "full" ]
