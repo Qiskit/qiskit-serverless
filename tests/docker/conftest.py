@@ -108,7 +108,7 @@ def print_container_logs(test_name, container_name, num_lines=500):
 @fixture(autouse=True)
 def log_test_failures(request):
     """Fixture to print container logs if a test fails"""
-    initial_failures = request.session.testsfailed
+    # initial_failures = request.session.testsfailed
 
     yield  # Run the test...
 
