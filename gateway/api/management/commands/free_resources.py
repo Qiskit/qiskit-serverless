@@ -35,6 +35,12 @@ class Command(BaseCommand):
                 "RAY_CLUSTER_MODE is local, "
                 "so compute resources will not be removed.",
             )
+            compute_resources = ComputeResource.objects.filter(active=True)
+            for compute_resource in compute_resources:
+                terminated_job = Job.objects.filter(
+                    status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource
+                ).first()
+                self.save_logs_to_storage(job=terminated_job, compute_resource=compute_resource)
             return
 
         compute_resources = ComputeResource.objects.filter(active=True)

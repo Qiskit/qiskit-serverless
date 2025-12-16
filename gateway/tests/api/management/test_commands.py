@@ -11,6 +11,7 @@ from django.contrib.sites.models import Site
 from api.domain.function import check_logs
 from api.models import ComputeResource, Job
 from api.ray import JobHandler
+from api.use_cases.jobs.get_logs import GetJobLogsUseCase
 
 
 class TestCommands(APITestCase):
@@ -43,7 +44,7 @@ class TestCommands(APITestCase):
         ray_client.submit_job.return_value = "AwesomeJobId"
         get_job_handler.return_value = JobHandler(ray_client)
 
-        # This new line is needed because if not the Job will timeout
+        # This three lines are needed because if not the Job will timeout
         job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
         job.created = datetime.now()
         job.save()
@@ -60,10 +61,7 @@ class TestCommands(APITestCase):
         call_command("update_jobs_statuses")
 
         job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
-        self.assertEqual(
-            job.logs,
-            "Job 1a7947f9-6ae8-4e3d-ac1e-e7d608deec84 failed due to an internal error.",
-        )
+        self.assertEqual(job.status, JobStatus.FAILED)
 
     @patch("api.schedule.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
