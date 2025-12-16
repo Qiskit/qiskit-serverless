@@ -1,6 +1,7 @@
 # pylint: disable=import-error, invalid-name
 """Fixtures for tests"""
 import os
+import traceback
 
 from pytest import fixture
 from testcontainers.compose import DockerCompose
@@ -33,7 +34,7 @@ def local_client():
 
 def set_up_serverless_client():
     """Auxiliar fixture function to create a serverless client"""
-    global _compose_instance
+    global _compose_instance  # pylint: disable=global-statement
 
     compose = DockerCompose(
         resources_path,
@@ -75,9 +76,6 @@ def serverless_client():
 
 def print_container_logs(test_name, container_name, num_lines=100):
     """Print logs from a specific container."""
-    global _compose_instance
-    import traceback
-
     if _compose_instance is None:
         print(f"WARNING: No compose instance available for {container_name} logs")
         return
@@ -91,7 +89,7 @@ def print_container_logs(test_name, container_name, num_lines=100):
         lines = log_text.split("\n")
         for line in lines[-num_lines:]:
             print(line)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Failed to get {container_name} logs: {e}")
         traceback.print_exc()
 
