@@ -68,6 +68,7 @@ services:
           action: sync
           target: /usr/src/app
   scheduler:
+    user: "root"
     container_name: scheduler
     build:
       context: ./

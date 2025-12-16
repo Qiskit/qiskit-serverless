@@ -1,6 +1,7 @@
 # pylint: disable=import-error, invalid-name
 """Fixtures for tests"""
 import os
+from datetime import datetime
 
 from pytest import fixture
 from testcontainers.compose import DockerCompose
@@ -64,5 +65,21 @@ def serverless_client():
     [compose, serverless] = set_up_serverless_client()
 
     yield serverless
+
+    # keep docker logs
+    compose_logs = compose.get_logs()[0]
+    lines = [line for line in compose_logs.splitlines() if line.startswith("scheduler")]
+    scheduler_logs = "\n".join(lines) + "\n" if lines else ""
+
+    now = datetime.timestamp(datetime.now())
+    os.mkdir("docker-compose-logs")
+    try:
+        with open(f"docker-compose-logs/full-{now}.logs", "w+", encoding="utf-8") as log_file:
+            log_file.write(compose_logs)
+
+        with open(f"docker-compose-logs/scheduler-{now}.logs", "w+", encoding="utf-8") as log_file:
+            log_file.write(scheduler_logs)
+    except (UnicodeDecodeError, IOError) as e:
+        print("Failed to write log file for docker tests")
 
     compose.stop()

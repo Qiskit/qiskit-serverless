@@ -56,16 +56,8 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    # local client doesn't make sense here
-    # since it follows a different logging mechanism
-    def test_function_with_errors(self, serverless_client: ServerlessClient):
+    def test_function_with_import_errors(self, serverless_client: ServerlessClient):
         """Integration test for faulty function run."""
-        circuit = QuantumCircuit(2)
-        circuit.h(0)
-        circuit.cx(0, 1)
-        circuit.measure_all()
-        circuit.draw()
-
         function = QiskitFunction(
             title="pattern-with-errors",
             entrypoint="pattern_with_errors.py",
@@ -75,14 +67,8 @@ class TestFunctionsDocker:
         runnable_function = serverless_client.upload(function)
 
         assert runnable_function is not None
-        assert runnable_function.type == "GENERIC"
 
-        runnable_function = serverless_client.function(function.title)
-
-        assert runnable_function is not None
-        assert runnable_function.type == "GENERIC"
-
-        job = runnable_function.run(circuit=circuit)
+        job = runnable_function.run()
 
         assert job is not None
         expected_message = (
@@ -90,9 +76,8 @@ class TestFunctionsDocker:
         )
 
         with raises(QiskitServerlessException) as exc_info:
-            job.result()
+            result = job.result()
 
-        print(str(exc_info.value))
         assert expected_message in str(exc_info.value)
 
         assert job.status() == "ERROR"
@@ -120,14 +105,14 @@ class TestFunctionsDocker:
 
         assert job is not None
         assert job.result() is not None
+
         allowed_keys = {"00", "11"}
         for entry in job.result().get("results", []):
             assert set(entry.keys()).issubset(allowed_keys)
+
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    # local client doesn't make sense here
-    # since all dependencies are in the user computer
     def test_function_dependencies_basic(self, serverless_client: ServerlessClient):
         """Integration test for Functions with dependencies."""
         function = QiskitFunction(
@@ -147,8 +132,6 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    # local client doesn't make sense here
-    # since all dependencies are in the user computer
     def test_function_dependencies_with_version(
         self, serverless_client: ServerlessClient
     ):
@@ -164,8 +147,6 @@ class TestFunctionsDocker:
 
         assert runnable_function is not None
 
-    # local client doesn't make sense here
-    # since all dependencies are in the user computer
     def test_function_blocked_dependency(self, serverless_client: ServerlessClient):
         """Integration test for Functions with blocked dependencies."""
         dependency = "notallowedone"

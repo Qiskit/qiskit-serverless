@@ -80,6 +80,7 @@ coverage.xml
 .hypothesis/
 **/MagicMock/
 tests/**/downloaded_*.tar
+tests/**/docker-compose-logs/*.logs
 
 # pyenv
 .python-version
