@@ -28,7 +28,7 @@ services:
       POSTGRES_USER: serverlessuser
       POSTGRES_PASSWORD: serverlesspassword
     networks:
-      - safe-tier/
+      - safe-tier
     ports:
       - 5432:5432
     restart:
