@@ -72,7 +72,8 @@ def serverless_client():
     scheduler_logs = "\n".join(lines) + "\n" if lines else ""
 
     now = datetime.timestamp(datetime.now())
-    os.mkdir("docker-compose-logs")
+    if not os.path.exists("docker-compose-logs"):
+        os.makedirs("docker-compose-logs", exist_ok=True)
     try:
         with open(f"docker-compose-logs/full-{now}.logs", "w+", encoding="utf-8") as log_file:
             log_file.write(compose_logs)
