@@ -48,7 +48,7 @@ services:
       - 8000:8000
     user: "root" # we use the root user here so the docker-compose watch can sync files into the container
     environment:
-      - DEBUG=1
+      - DEBUG=0
       - RAY_HOST=http://ray-head:8265
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
@@ -80,7 +80,7 @@ services:
       dockerfile: gateway/Dockerfile
     entrypoint: "./scripts/scheduler.sh"
     environment:
-      - DEBUG=1
+      - DEBUG=0
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_NAME=serverlessdb
