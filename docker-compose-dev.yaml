@@ -33,11 +33,6 @@ services:
       - 5432:5432
     restart:
       always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U serverlessuser -d serverlessdb"]
-      interval: 1s
-      timeout: 5s
-      retries: 5
   gateway:
     container_name: gateway
     build:
@@ -48,7 +43,7 @@ services:
       - 8000:8000
     user: "root" # we use the root user here so the docker-compose watch can sync files into the container
     environment:
-      - DEBUG=0
+      - DEBUG=1
       - RAY_HOST=http://ray-head:8265
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
@@ -66,8 +61,7 @@ services:
     volumes:
       - ./.docker-mounted/cos/media:/usr/src/app/media/
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     develop:
       watch:
         - path: ./gateway
@@ -80,7 +74,7 @@ services:
       dockerfile: gateway/Dockerfile
     entrypoint: "./scripts/scheduler.sh"
     environment:
-      - DEBUG=0
+      - DEBUG=1
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_NAME=serverlessdb
@@ -94,8 +88,7 @@ services:
     volumes:
       - ./.docker-mounted/cos/media:/usr/src/app/media/
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
   prometheus:
     image: prom/prometheus:v2.44.0
     profiles: [ "full" ]
