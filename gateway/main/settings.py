@@ -383,11 +383,23 @@ GATEWAY_GPU_JOBS_CONFIG = str(
     os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json")
 )
 
-GATEWAY_DYNAMIC_DEPENDENCIES = str(
-    os.environ.get(
-        "GATEWAY_DYNAMIC_DEPENDENCIES", "requirements-dynamic-dependencies.txt"
-    )
-)
+
+class Config:
+    """Configuration class to hold all the setting loaded from environment variables.
+    Instead of having variables that are loaded only once during bootstrap (and can't be easily
+    patched in test), a class with methods that allow us to patch them, cache them or add logic that
+    will be executed in every call.
+    """
+
+    @classmethod
+    def gateway_dynamic_dependencies(cls) -> str:
+        """Returns the GATEWAY_DYNAMIC_DEPENDENCIES environment variable."""
+        return str(
+            os.environ.get(
+                "GATEWAY_DYNAMIC_DEPENDENCIES", "requirements-dynamic-dependencies.txt"
+            )
+        )
+
 
 # authentication base url for qiskit runtime
 QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
