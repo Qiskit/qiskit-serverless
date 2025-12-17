@@ -1,12 +1,10 @@
 """Tests for commands."""
 
 from datetime import datetime
-from allauth.socialaccount.models import SocialApp
 from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
-from django.contrib.sites.models import Site
 
 from api.domain.function import check_logs
 from api.models import ComputeResource, Job
