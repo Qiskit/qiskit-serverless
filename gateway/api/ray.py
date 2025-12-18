@@ -14,6 +14,7 @@ import yaml
 from django.template.loader import get_template
 from kubernetes import client as kubernetes_client, config
 from kubernetes.client.exceptions import ApiException
+from kubernetes.config import ConfigException
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import ResourceNotFoundError, NotFoundError
 from ray.dashboard.modules.job.sdk import JobSubmissionClient
@@ -399,7 +400,12 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     success = False
     namespace = settings.RAY_KUBERAY_NAMESPACE
 
-    config.load_incluster_config()
+    try:
+        config.load_incluster_config()
+    except ConfigException:
+        logger.error("Error accessing to cluster config in %s", cluster_name)
+        return success
+
     k8s_client = kubernetes_client.api_client.ApiClient()
     dyn_client = DynamicClient(k8s_client)
     raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")

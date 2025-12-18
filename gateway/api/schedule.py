@@ -39,7 +39,14 @@ def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | No
             cluster_name,
             job,
         )
-        kill_ray_cluster(cluster_name)
+        try:
+            kill_ray_cluster(cluster_name)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.warning(
+                "Failed to kill Ray cluster [%s]: %s",
+                cluster_name,
+                str(e),
+            )
         job.status = Job.FAILED
         job.logs += "\nCompute resource was not created properly."
         span.set_attribute("job.status", job.status)
@@ -181,7 +188,7 @@ def check_job_timeout(job: Job):
     return False
 
 
-def handle_job_status_not_available(job: Job, job_status):
+def handle_job_status_not_available(job: Job):
     """Process job status not available and update job"""
 
     if config.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
@@ -194,9 +201,7 @@ def handle_job_status_not_available(job: Job, job_status):
         kill_ray_cluster(job.compute_resource.title)
         job.compute_resource.delete()
         job.compute_resource = None
-        job_status = Job.FAILED
         job.logs += "\nSomething went wrong during updating job status."
-    return job_status
 
 
 def fail_job_insufficient_resources(job: Job):
