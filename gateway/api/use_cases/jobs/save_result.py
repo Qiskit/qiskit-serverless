@@ -43,7 +43,7 @@ class JobSaveResultUseCase:
         if not can_save_result:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        result_storage = ResultStorage(user.username)
+        result_storage = ResultStorage(job.program)
         result_storage.save(job.id, result)
         job.result = result
 

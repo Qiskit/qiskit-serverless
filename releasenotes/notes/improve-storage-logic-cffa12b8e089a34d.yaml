@@ -1,0 +1,9 @@
+---
+upgrade:
+  - |
+    Refactored storage service initialization to accept ``Program`` model instances
+    instead of individual parameters. The ``FileStorage``, ``ArgumentsStorage``, and
+    ``ResultStorage`` classes now accept a ``function`` parameter (Program model instance)
+    rather than separate ``username``, ``function_title``, and ``provider_name`` parameters.
+    This change improves code cohesion by reducing the number of parameters passed between
+    components and ensures consistent access to program metadata across storage services.

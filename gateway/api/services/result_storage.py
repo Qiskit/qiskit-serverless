@@ -15,8 +15,14 @@ class ResultStorage:
     RESULT_FILE_EXTENSION = ".json"
     ENCODING = "utf-8"
 
-    def __init__(self, username: str):
-        """Initialize the storage path for a given user."""
+    def __init__(self, function):
+        """
+        Initialize the storage path for a given function.
+
+        Args:
+            function: Program model instance containing author
+        """
+        username = function.author.username
         self.user_results_directory = os.path.join(
             settings.MEDIA_ROOT, username, "results"
         )

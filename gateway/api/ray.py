@@ -223,24 +223,20 @@ def _create_cluster_data(job: Job, cluster_name: str):
 
     # configure provider configuration if needed
     node_image = settings.RAY_NODE_IMAGE
-    provider_name = None
     if job.program.provider is not None:
         node_image = job.program.image
-        provider_name = job.program.provider.name
 
     user_file_storage = FileStorage(
         username=user.username,
         working_dir=WorkingDir.USER_STORAGE,
-        function_title=job.program.title,
-        provider_name=provider_name,
+        function=job.program,
     )
     provider_file_storage = user_file_storage
     if job.program.provider is not None:
         provider_file_storage = FileStorage(
             username=user.username,
             working_dir=WorkingDir.PROVIDER_STORAGE,
-            function_title=job.program.title,
-            provider_name=provider_name,
+            function=job.program,
         )
 
     cluster = get_template("rayclustertemplate.yaml")
