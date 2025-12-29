@@ -13,6 +13,14 @@ body:
     validations:
       required: true
   - type: input
+    id: installation-steps
+    attributes:
+      label: Installation steps
+      description: Provide the needed steps to be able to install the package (INCLUDE ONLY PUBLIC INFORMATION)
+      placeholder: pip install qiskit-serverless
+    validations:
+      required: false
+  - type: input
     id: package-version
     attributes:
       label: Package Version
