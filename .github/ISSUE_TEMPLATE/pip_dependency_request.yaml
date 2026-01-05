@@ -12,7 +12,7 @@ body:
       placeholder: qiskit-serverless
     validations:
       required: true
-  - type: input
+  - type: textarea
     id: installation-steps
     attributes:
       label: Installation steps
