@@ -61,7 +61,7 @@ gateway:
     ray:
       nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.28.0"
       opensslImage: registry.access.redhat.com/ubi8/openssl:8.9-13
-      kubectlImage: alpine/k8s:1.33.4
+      kubectlImage: alpine/k8s:1.35.0
       gpuJobsConfig: "/tmp/gpujobs/gpu-jobs.json"
     limits:
       maxJobsPerUser: 2
