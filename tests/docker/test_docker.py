@@ -56,8 +56,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    # local client doesn't make sense here
-    # since it follows a different logging mechanism
+
     def test_function_with_import_errors(self, serverless_client: ServerlessClient):
         """Integration test for faulty function run."""
         function = QiskitFunction(
@@ -77,15 +76,11 @@ class TestFunctionsDocker:
             "ImportError: attempted relative import with no known parent package"
         )
 
-        print("------- BEFORE RAISE")
         with raises(QiskitServerlessException) as exc_info:
-            result = job.result()
-            print(result)
+            job.result()
 
-        print("------- AFTER RAISE")
         print(str(exc_info.value))
         assert expected_message in str(exc_info.value)
-        print("------- AFTER CHECK")
 
         assert job.status() == "ERROR"
         assert isinstance(job.logs(), str)
@@ -113,6 +108,30 @@ class TestFunctionsDocker:
         assert job is not None
         assert job.result() is not None
         allowed_keys = {"00", "11"}
+        for entry in job.result().get("results", []):
+            assert set(entry.keys()).issubset(allowed_keys)
+        assert job.status() == "DONE"
+        assert isinstance(job.logs(), str)
+
+    def test_distributed_workloads(self, serverless_client: ServerlessClient):
+        """Integration test for Functions for distributed workloads."""
+
+        circuits = [random_circuit(2, 2) for _ in range(3)]
+        for circuit in circuits:
+            circuit.measure_all()
+
+        function = QiskitFunction(
+            title="pattern-with-parallel-workflow",
+            entrypoint="pattern_with_parallel_workflow.py",
+            working_dir=resources_path,
+        )
+        runnable_function = serverless_client.upload(function)
+
+        job = runnable_function.run(circuits=circuits)
+
+        assert job is not None
+        assert job.result() is not None
+        allowed_keys = {"00", "11", "01", "10"}
         for entry in job.result().get("results", []):
             assert set(entry.keys()).issubset(allowed_keys)
         assert job.status() == "DONE"
