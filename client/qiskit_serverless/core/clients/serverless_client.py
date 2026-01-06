@@ -687,7 +687,7 @@ class IBMServerlessClient(ServerlessClient):
         file using the default account name.
 
         Args:
-            host: host of gateway. Optional. It uses IBM_SERVERLESS_HOST_URL env var or IBM host
+            host: host of gateway. Optional. It uses IBM_SERVERLESS_HOST_URL_OVERRIDE env var or IBM host
             token: IBM quantum token
             name: Name of the account to load
             instance: IBM Cloud CRN or IQP h/g/p
