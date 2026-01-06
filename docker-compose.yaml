@@ -29,6 +29,11 @@ services:
       - 5432:5432
     restart:
       always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U serverlessuser -d serverlessdb"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
   gateway:
     container_name: gateway
     image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.28.0}
@@ -54,7 +59,8 @@ services:
     volumes:
       - program-artifacts:/usr/src/app/media/
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
   scheduler:
     container_name: scheduler
     image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.28.0}
@@ -74,7 +80,8 @@ services:
     volumes:
       - program-artifacts:/usr/src/app/media/
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
   prometheus:
     image: prom/prometheus:v2.44.0
     profiles: [ "full" ]
