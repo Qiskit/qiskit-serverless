@@ -129,7 +129,6 @@ def safe_json_request(
     error_message: Optional[str] = None
     try:
         response = request()
-        print(f"AFTER REQUEST: {response}")
     except requests.exceptions.RequestException as request_exception:
         error_message = format_err_msg(
             ErrorCodes.AUTH1001,
@@ -142,7 +141,6 @@ def safe_json_request(
 
     decoding_error_message: Optional[str] = None
     try:
-        print(f"BEFORE LOADS: {response.text}")
         json_data = json.loads(response.text)
         if response is not None and not response.ok:
             # When response is not ok, the expected json

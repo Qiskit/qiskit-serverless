@@ -171,9 +171,7 @@ class Job:
 
     def status(self):
         """Returns status of the job."""
-        status = _map_status_from_serveless(self._job_service.status(self.job_id))
-        print(f" + Status: {status}")
-        return status
+        return _map_status_from_serveless(self._job_service.status(self.job_id))
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
@@ -247,8 +245,7 @@ class Job:
 
         # Retrieve the results. If they're string format, try to decode to a dictionary.
         results = self._job_service.result(self.job_id)
-        print(f"RESULTS: {results}")
-        print(f"LOGS: {self.logs()}")
+
         if self.status() == "ERROR":
             if results:
                 raise QiskitServerlessException(results)
