@@ -12,6 +12,7 @@ from wsgiref.util import FileWrapper
 from django.conf import settings
 from django.core.files import File
 
+from api.models import Program
 from utils import sanitize_file_path
 
 
@@ -41,7 +42,7 @@ class FileStorage:
         self,
         username: str,
         working_dir: WorkingDir,
-        function,
+        function: Program,
     ) -> None:
         """
         Initialize FileStorage with a function instance.
