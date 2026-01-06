@@ -466,13 +466,16 @@ class TestProgramApi(APITestCase):
     def test_get_by_title(self):
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
+
+        # Trying to get a provider function WITHOUT specifying provider should return 404
+        # because get_user_function() correctly filters by provider=None
         programs_response = self.client.get(
             "/api/v1/programs/get_by_title/Docker-Image-Program/",
             format="json",
         )
-        self.assertEqual(programs_response.data.get("provider"), "default")
-        self.assertIsNotNone(programs_response.data.get("title"))
+        self.assertEqual(programs_response.status_code, status.HTTP_404_NOT_FOUND)
 
+        # Getting a provider function WITH provider query param should work
         programs_response_with_provider = self.client.get(
             "/api/v1/programs/get_by_title/Docker-Image-Program/",
             {"provider": "default"},
@@ -575,3 +578,97 @@ class TestProgramApi(APITestCase):
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(programs_response.data.get("description"), description)
+
+    def test_run_user_function_with_same_title_as_provider_function(self):
+        """
+        Tests that when a user has two functions with the same title
+        (one without provider and one with provider), running without
+        provider correctly uses the user function (provider=None) and
+        stores arguments in the correct path.
+        """
+
+        with self.settings(MEDIA_ROOT=self.media_root):
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+
+            # Create user function (without provider)
+            fake_file_user = ContentFile(b"print('User Function')")
+            fake_file_user.name = "user_func.tar"
+
+            upload_response_user = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "duplicate-title",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "artifact": fake_file_user,
+                },
+            )
+            self.assertEqual(upload_response_user.status_code, status.HTTP_200_OK)
+            self.assertIsNone(upload_response_user.data.get("provider"))
+
+            # Create provider function (with provider) - same title, same author
+            fake_file_provider = ContentFile(b"print('Provider Function')")
+            fake_file_provider.name = "provider_func.tar"
+
+            upload_response_provider = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "duplicate-title",
+                    "entrypoint": "main.py",
+                    "dependencies": "[]",
+                    "artifact": fake_file_provider,
+                    "provider": "default",
+                },
+            )
+            self.assertEqual(upload_response_provider.status_code, status.HTTP_200_OK)
+            self.assertEqual(upload_response_provider.data.get("provider"), "default")
+
+            # Verify both functions exist
+            user_program = Program.objects.get(
+                title="duplicate-title", author=user, provider=None
+            )
+            provider_program = Program.objects.get(
+                title="duplicate-title", author=user, provider__name="default"
+            )
+            self.assertIsNotNone(user_program)
+            self.assertIsNotNone(provider_program)
+            self.assertNotEqual(user_program.id, provider_program.id)
+
+            # Run the user function (without provider)
+            arguments = json.dumps({"test_key": "test_value"})
+            run_response = self.client.post(
+                "/api/v1/programs/run/",
+                data={
+                    "title": "duplicate-title",
+                    "arguments": arguments,
+                    "config": {
+                        "workers": None,
+                        "min_workers": 1,
+                        "max_workers": 5,
+                        "auto_scaling": True,
+                    },
+                },
+                format="json",
+            )
+
+            self.assertEqual(run_response.status_code, status.HTTP_200_OK)
+            job_id = run_response.data.get("id")
+            job = Job.objects.get(id=job_id)
+
+            # Verify the job is associated with the USER function (not provider function)
+            self.assertEqual(job.program.id, user_program.id)
+            self.assertIsNone(job.program.provider)
+
+            # Verify arguments are stored in the correct path (user storage, not provider)
+            arguments_storage = ArgumentsStorage(user.username, user_program)
+            stored_arguments = arguments_storage.get(job.id)
+            self.assertEqual(stored_arguments, arguments)
+
+            # Verify the storage path is for user function (no provider in path)
+            expected_arguments_path = os.path.join(
+                self.media_root, user.username, "arguments"
+            )
+            self.assertEqual(
+                arguments_storage.user_arguments_directory, expected_arguments_path
+            )
