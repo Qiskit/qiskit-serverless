@@ -8,7 +8,10 @@ class ApiConfig(AppConfig):
 
     default_auto_field = "django.db.models.BigAutoField"
     name = "api"
+    is_ready = False
 
     def ready(self):
         """Import signal handlers only when Django has started and ready."""
         import api.signals  # noqa: F401  # pylint: disable=import-outside-toplevel,unused-import
+
+        ApiConfig.is_ready = True
