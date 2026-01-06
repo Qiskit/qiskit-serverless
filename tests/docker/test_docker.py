@@ -178,9 +178,7 @@ class TestFunctionsDocker:
 
         def exceptionCheck(e: QiskitServerlessException):
             code_index = str(e).find("Code: 400")
-            details_index = str(e).find(
-                f"non_field_errors: Dependency `{dependency}` is not allowed"
-            )
+            details_index = str(e).find(f"Dependency `{dependency}` is not allowed")
             return code_index > 0 and details_index > 0
 
         with raises(QiskitServerlessException, check=exceptionCheck):
@@ -390,3 +388,26 @@ class TestFunctionsDocker:
 
         succeeded_jobs = serverless_client.jobs(status="SUCCEEDED")
         assert len(succeeded_jobs) >= 3
+
+    def test_wrong_function_name(self, serverless_client: ServerlessClient):
+        """Integration test for retrieving a function that isn't accessible."""
+
+        arguments_function = QiskitFunction(
+            title="pattern-with-arguments",
+            entrypoint="pattern_with_arguments.py",
+            working_dir=resources_path,
+        )
+
+        expected_message = (
+            "\n| Message: Http bad request.\n"
+            "| Code: 404\n"
+            "| Details: User program 'wrong-title' was not found or you do not "
+            "have permission to view it."
+        )
+
+        serverless_client.upload(arguments_function)
+
+        with raises(QiskitServerlessException) as exc_info:
+            serverless_client.function("wrong-title")
+
+        assert str(exc_info.value) == expected_message

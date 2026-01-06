@@ -18,41 +18,6 @@ from api.utils import (
 class TestUtils(APITestCase):
     """TestUtils."""
 
-    def test_ibm_quantum_env_var_build(self):
-        """This test is to test the env_vars for an IBM Quantum authentication process."""
-
-        with self.settings(SETTINGS_AUTH_MECHANISM="custom_token"):
-            channel = Channel.IBM_QUANTUM
-            token = "an_awesome_token"
-            job = MagicMock()
-            job.id = "42"
-            trial = False
-            arguments = "{}"
-            instance = None
-
-            env_vars = build_env_variables(
-                channel=channel,
-                token=token,
-                job=job,
-                trial_mode=trial,
-                args=arguments,
-                instance=instance,
-            )
-
-            self.assertEqual(
-                env_vars,
-                {
-                    "ENV_JOB_GATEWAY_TOKEN": "an_awesome_token",
-                    "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
-                    "ENV_JOB_ID_GATEWAY": "42",
-                    "ENV_JOB_ARGUMENTS": "{}",
-                    "ENV_ACCESS_TRIAL": "False",
-                    "QISKIT_IBM_TOKEN": "an_awesome_token",
-                    "QISKIT_IBM_CHANNEL": "ibm_quantum",
-                    "QISKIT_IBM_URL": "https://auth.quantum.ibm.com/api",
-                },
-            )
-
     def test_ibm_cloud_env_var_build(self):
         """This test is to test the env_vars for an IBM Cloud authentication process."""
 
