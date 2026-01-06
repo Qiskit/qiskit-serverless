@@ -56,7 +56,6 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-
     def test_function_with_import_errors(self, serverless_client: ServerlessClient):
         """Integration test for faulty function run."""
         function = QiskitFunction(
