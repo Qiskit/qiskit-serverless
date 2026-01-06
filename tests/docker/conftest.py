@@ -71,11 +71,6 @@ def serverless_client():
 
     yield serverless
 
-    print("======= DOCKER LOGS =======")
-    compose_logs = compose.get_logs()[0]
-    lines = [line for line in compose_logs.splitlines() if line.startswith("scheduler")]
-    logs = "\n".join(lines) + "\n" if lines else ""
-    print(logs)
     compose.stop()
 
 
