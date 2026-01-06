@@ -140,7 +140,8 @@ class Command(BaseCommand):
             provider_name=None,
         )
 
-        user_logs_storage.save(job.id, full_logs)
+        user_logs = extract_public_logs(full_logs)
+        user_logs_storage.save(job.id, user_logs)
 
     def _save_logs_with_provider(self, full_logs: str, username: str, job: Job):
         """
