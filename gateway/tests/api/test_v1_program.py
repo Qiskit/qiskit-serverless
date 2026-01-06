@@ -159,6 +159,14 @@ class TestProgramApi(APITestCase):
 
             self.assertEqual(stored_arguments, arguments)
 
+            # Verify arguments are stored in the correct folder path
+            expected_arguments_path = os.path.join(
+                self.media_root, user.username, "arguments"
+            )
+            self.assertEqual(
+                arguments_storage.user_arguments_directory, expected_arguments_path
+            )
+
     def test_provider_run(self):
         """Tests run existing authorized."""
 
@@ -200,6 +208,18 @@ class TestProgramApi(APITestCase):
             stored_arguments = arguments_storage.get(job.id)
 
             self.assertEqual(stored_arguments, arguments)
+
+            # Verify arguments are stored in the correct folder path for provider
+            expected_arguments_path = os.path.join(
+                self.media_root,
+                user.username,
+                "default",
+                "Docker-Image-Program",
+                "arguments",
+            )
+            self.assertEqual(
+                arguments_storage.user_arguments_directory, expected_arguments_path
+            )
 
     def test_run_locked(self):
         """Tests run disabled program."""
