@@ -80,7 +80,7 @@ class TestFunctionsDocker:
         print("------- BEFORE RAISE")
         with raises(QiskitServerlessException) as exc_info:
             result = job.result()
-            print (result)
+            print(result)
 
         print("------- AFTER RAISE")
         print(str(exc_info.value))
@@ -117,6 +117,7 @@ class TestFunctionsDocker:
             assert set(entry.keys()).issubset(allowed_keys)
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
+
 
 #     # local client doesn't make sense here
 #     # since all dependencies are in the user computer
