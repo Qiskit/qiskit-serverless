@@ -41,15 +41,14 @@ class TestCommands(APITestCase):
         ray_client.submit_job.return_value = "AwesomeJobId"
         get_job_handler.return_value = JobHandler(ray_client)
 
-        # This new line is needed because if not the Job will timeout
-        job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
-        job.created = datetime.now()
-        job.save()
+        job = self._create_test_job(ray_job_id="test_update_jobs_statuses")
 
         call_command("update_jobs_statuses")
 
-        job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
+        job.refresh_from_db()
         self.assertEqual(job.status, "RUNNING")
+        self.assertEqual(job.logs, "No logs yet.")
+        self.assertIsNotNone(job.env_vars)
 
         # Test job logs for FAILED job with empty logs
         ray_client.get_job_status.return_value = JobStatus.FAILED
@@ -57,11 +56,11 @@ class TestCommands(APITestCase):
 
         call_command("update_jobs_statuses")
 
-        job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
-        self.assertEqual(
-            job.logs,
-            "Job 1a7947f9-6ae8-4e3d-ac1e-e7d608deec84 failed due to an internal error.",
-        )
+        job.refresh_from_db()
+        self.assertEqual(job.status, "FAILED")
+        self.assertEqual(job.logs, f"Job {job.id} failed due to an internal error.")
+        self.assertEqual(job.env_vars, "{}")
+        self.assertIsNone(job.sub_status)
 
     @patch("api.schedule.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
@@ -109,3 +108,22 @@ class TestCommands(APITestCase):
                 "Logs exceeded maximum allowed size (1 MB) and could not be stored.",
                 logs,
             )
+
+    def _create_test_job(self, ray_job_id="test-job-id", status=None):
+        """Helper method to create a test job with fresh state."""
+        # Get existing job to use its relationships and set it to STOPPED
+        existing_job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
+        existing_job.status = Job.STOPPED
+        existing_job.save()
+
+        # Create a new job for testing
+        job = Job.objects.create(
+            author=existing_job.author,
+            program=existing_job.program,
+            compute_resource=existing_job.compute_resource,
+            env_vars="{'foo':'bar'}",
+            status=Job.PENDING,
+            created=datetime.now(),
+            ray_job_id=ray_job_id,
+        )
+        return job
