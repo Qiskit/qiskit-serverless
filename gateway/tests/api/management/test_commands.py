@@ -58,7 +58,7 @@ class TestCommands(APITestCase):
 
         job.refresh_from_db()
         self.assertEqual(job.status, "FAILED")
-        self.assertEqual(job.logs, f"Job {job.id} failed due to an internal error.")
+        self.assertEqual(job.logs, "No logs yet.")
         self.assertEqual(job.env_vars, "{}")
         self.assertIsNone(job.sub_status)
 
