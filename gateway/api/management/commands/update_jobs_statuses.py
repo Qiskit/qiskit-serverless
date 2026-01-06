@@ -1,7 +1,6 @@
 """Cleanup resources command."""
 
 import logging
-import os
 
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings

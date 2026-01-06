@@ -163,18 +163,8 @@ class PathBuilder:
         sanitized_path = sanitize_file_path(path)
 
         # Create directory if it doesn't exist
-        print(f"EXISTS: {os.path.exists(sanitized_path)}")
-        print(os.access(settings.MEDIA_ROOT, os.W_OK))
-        print(os.access("/usr", os.W_OK))
-        print(os.access("/usr/src", os.W_OK))
-        print(os.access("/usr/src/app", os.W_OK))
-        print(os.access("/usr/src/app/media", os.W_OK))
-        print(os.access("/usr/src/app/media/mockuser", os.W_OK))
-        print(os.access("/usr/src/app/media/mockuser/logs", os.W_OK))
         if not os.path.exists(sanitized_path):
-            print(f"MAKING DIRS {sanitized_path}")            
             os.makedirs(sanitized_path, exist_ok=True)
-            print(f"MADE DIRS")
             logger.debug("Path %s was created.", sanitized_path)
 
         return sanitized_path

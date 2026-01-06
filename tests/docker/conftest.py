@@ -1,7 +1,6 @@
 # pylint: disable=import-error, invalid-name
 """Fixtures for tests"""
 import os
-import re
 
 from pytest import fixture
 from testcontainers.compose import DockerCompose

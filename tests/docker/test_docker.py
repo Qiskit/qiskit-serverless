@@ -25,36 +25,36 @@ resources_path = os.path.join(
 class TestFunctionsDocker:
     """Test class for integration testing with docker."""
 
-    # @mark.order(1)
-    # def test_simple_function(self, serverless_client: ServerlessClient):
-    #     """Integration test function uploading."""
-    #     simple_function = QiskitFunction(
-    #         title="my-first-pattern",
-    #         entrypoint="pattern.py",
-    #         working_dir=resources_path,
-    #     )
+    @mark.order(1)
+    def test_simple_function(self, serverless_client: ServerlessClient):
+        """Integration test function uploading."""
+        simple_function = QiskitFunction(
+            title="my-first-pattern",
+            entrypoint="pattern.py",
+            working_dir=resources_path,
+        )
 
-    #     runnable_function = serverless_client.upload(simple_function)
+        runnable_function = serverless_client.upload(simple_function)
 
-    #     assert runnable_function is not None
-    #     assert runnable_function.type == "GENERIC"
+        assert runnable_function is not None
+        assert runnable_function.type == "GENERIC"
 
-    #     runnable_function = serverless_client.function(simple_function.title)
+        runnable_function = serverless_client.function(simple_function.title)
 
-    #     assert runnable_function is not None
-    #     assert runnable_function.type == "GENERIC"
+        assert runnable_function is not None
+        assert runnable_function.type == "GENERIC"
 
-    #     job = runnable_function.run()
+        job = runnable_function.run()
 
-    #     # pylint: disable=duplicate-code
-    #     assert job is not None
-    #     assert job.result() is not None
-    #     allowed_keys = {"00", "11"}
-    #     for entry in job.result().get("results", []):
-    #         assert set(entry.keys()).issubset(allowed_keys)
+        # pylint: disable=duplicate-code
+        assert job is not None
+        assert job.result() is not None
+        allowed_keys = {"00", "11"}
+        for entry in job.result().get("results", []):
+            assert set(entry.keys()).issubset(allowed_keys)
 
-    #     assert job.status() == "DONE"
-    #     assert isinstance(job.logs(), str)
+        assert job.status() == "DONE"
+        assert isinstance(job.logs(), str)
 
     # local client doesn't make sense here
     # since it follows a different logging mechanism
