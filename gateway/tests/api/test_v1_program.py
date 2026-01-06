@@ -18,6 +18,21 @@ class TestProgramApi(APITestCase):
 
     fixtures = ["tests/fixtures/fixtures.json"]
 
+    def setUp(self):
+        """Set up test fixtures and media root path."""
+        super().setUp()
+        self.media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        self.media_root = os.path.normpath(os.path.join(os.getcwd(), self.media_root))
+
+    def tearDown(self):
+        """Clean up created files after each test."""
+        super().tearDown()
+
     def test_programs_non_auth_user(self):
         """Tests program list non-authorized."""
         url = reverse("v1:programs-list")
@@ -107,15 +122,7 @@ class TestProgramApi(APITestCase):
     def test_run(self):
         """Tests run existing authorized."""
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.media_root):
             user = models.User.objects.get(username="test_user_3")
             self.client.force_authenticate(user=user)
 
@@ -155,15 +162,7 @@ class TestProgramApi(APITestCase):
     def test_provider_run(self):
         """Tests run existing authorized."""
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.media_root):
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
 
