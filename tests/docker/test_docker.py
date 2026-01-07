@@ -224,7 +224,6 @@ class TestFunctionsDocker:
 
         assert job.status() == "RUNNING: MAPPING"
 
-    @mark.skip(reason="temporal")
     def test_dependencies_versions(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
@@ -232,7 +231,6 @@ class TestFunctionsDocker:
 
         assert deps == ["pendulum>=3.0.0", "wheel>=0.45.1"]
 
-    @mark.skip(reason="temporal")
     def test_execute_functions_in_parallel(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
