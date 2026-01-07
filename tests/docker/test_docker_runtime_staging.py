@@ -2,7 +2,6 @@
 """Tests jobs using Qiskit Runtime's staging resources."""
 import os
 
-from pytest import mark
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_serverless import (
     QiskitFunction,
@@ -17,7 +16,6 @@ resources_path = os.path.join(
 class TestFunctionsStaging:
     """Integration tests for runtime wrapper with and without session."""
 
-    @mark.skip(reason="temporal")
     def _run_and_validate_function(
         self, serverless_client: ServerlessClient, entrypoint: str, num_jobs: int
     ):
@@ -63,7 +61,6 @@ class TestFunctionsStaging:
 
         job.cancel(service)
 
-    @mark.skip(reason="temporal")
     def test_stop_job(self, serverless_client: ServerlessClient):
         """Integration test for stopping a job."""
 
@@ -104,7 +101,6 @@ class TestFunctionsStaging:
         else:
             assert job.status() == "DONE"
 
-    @mark.skip(reason="temporal")
     def test_stop_job_service(self, serverless_client: ServerlessClient):
         """Integration test for stopping a job given a runtime service."""
 
@@ -152,14 +148,12 @@ class TestFunctionsStaging:
         else:
             assert job.status() == "DONE"
 
-    @mark.skip(reason="temporal")
     def test_jobs_no_session(self, serverless_client: ServerlessClient):
         """Test job submission with get_runtime_service without sessions."""
         self._run_and_validate_function(
             serverless_client, "pattern_with_runtime_wrapper_1.py", num_jobs=2
         )
 
-    @mark.skip(reason="temporal")
     def test_jobs_with_session(self, serverless_client: ServerlessClient):
         """Test job submission with get_runtime_service with sessions."""
         self._run_and_validate_function(
