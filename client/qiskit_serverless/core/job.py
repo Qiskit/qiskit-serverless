@@ -171,7 +171,9 @@ class Job:
 
     def status(self):
         """Returns status of the job."""
-        return _map_status_from_serveless(self._job_service.status(self.job_id))
+        status = _map_status_from_serveless(self._job_service.status(self.job_id))
+        print(f" + Job status: {status}")
+        return status
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
