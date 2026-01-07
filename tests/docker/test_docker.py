@@ -56,7 +56,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    @mark.skip(reason="temporal")
+    @mark.skip(reason="temporal. FAIL")
     # failed jobs has logs "", so the result() can't get the error from the logs
     def test_function_with_import_errors(self, serverless_client: ServerlessClient):
         """Integration test for faulty function run."""
