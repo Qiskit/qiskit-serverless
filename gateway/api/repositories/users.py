@@ -21,7 +21,7 @@ class UserRepository:
     The main objective of this class is to manage the access to the model
     """
 
-    def get_or_create_by_id(self, user_id: str) -> type[AbstractUser]:
+    def get_or_create_by_id(self, user_id: str) -> AbstractUser:
         """
         This method returns a user by its id. If the user does not
         exist its created.
