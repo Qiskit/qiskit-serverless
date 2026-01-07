@@ -79,7 +79,6 @@ class TestDockerExperimental:
 
         assert (file_count - len(serverless_client.files(functionTitle))) == 1
 
-    @mark.skip(reason="temporal")
     @mark.order(1)
     def test_list_upload_download_delete(self, serverless_client: ServerlessClient):
         """Integration test for upload files."""
@@ -116,7 +115,6 @@ class TestDockerExperimental:
 
         assert (file_count - len(files)) == 1
 
-    @mark.skip(reason="temporal")
     def test_list_upload_download_delete_with_provider_function(
         self, serverless_client: ServerlessClient
     ):
@@ -161,7 +159,6 @@ class TestDockerExperimental:
 
         assert (file_count - len(files)) == 1
 
-    @mark.skip(reason="temporal")
     def test_provider_list_upload_download_delete(
         self, serverless_client: ServerlessClient
     ):
