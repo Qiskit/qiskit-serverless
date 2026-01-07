@@ -354,7 +354,6 @@ ERROR:user: User log
 """
         )
 
-    @mark.skip(reason="temporal")
     def test_wrong_function_name(self, serverless_client: ServerlessClient):
         """Integration test for retrieving a function that isn't accessible."""
 
