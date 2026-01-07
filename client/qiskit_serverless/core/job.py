@@ -250,10 +250,13 @@ class Job:
 
         if self.status() == "ERROR":
             if results:
+                print(f"Job error. Raising QiskitServerlessException with results:'{results}'")
                 raise QiskitServerlessException(results)
 
             # If no result returned (common with import errors),
             # try to match on error trace in logs to point to source of error
+            print(f"Job error no results. Raising QiskitServerlessException filtered_logs:'{self.filtered_logs()}'")
+            print(f"Job error no results. Raising QiskitServerlessException filtered_logs:'{self.filtered_logs(include=r'(?i)error|exception')}'")
             raise QiskitServerlessException(
                 self.filtered_logs(include=r"(?i)error|exception")
             )
