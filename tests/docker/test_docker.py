@@ -119,7 +119,6 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    @mark.skip(reason="temporal")
     def test_distributed_workloads(self, serverless_client: ServerlessClient):
         """Integration test for Functions for distributed workloads."""
 
@@ -144,7 +143,6 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    @mark.skip(reason="temporal")
     def test_multiple_runs(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
@@ -206,7 +204,6 @@ class TestFunctionsDocker:
         with raises(QiskitServerlessException):
             job.result()
 
-    @mark.skip(reason="temporal")
     def test_update_sub_status(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
