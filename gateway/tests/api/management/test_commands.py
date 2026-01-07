@@ -1,5 +1,7 @@
 """Tests for commands."""
 
+import os
+import tempfile
 from datetime import datetime
 from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
@@ -7,7 +9,7 @@ from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
 
 from api.domain.function import check_logs
-from api.models import ComputeResource, Job
+from api.models import ComputeResource, Job, Program, Provider
 from api.ray import JobHandler
 
 
@@ -113,6 +115,139 @@ class TestCommands(APITestCase):
                 "AAAAAAAAAAB",
                 logs,
             )
+
+    @patch("api.management.commands.free_resources.get_job_handler")
+    def test_free_resources_filters_logs_without_provider(self, get_job_handler):
+        """Tests that logs are filtered when saving for function without provider."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
+                # Create test data
+                program = Program.objects.get(pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
+                compute_resource = ComputeResource.objects.get(
+                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
+                )
+
+                job = Job.objects.create(
+                    author_id=1,
+                    program=program,
+                    compute_resource=compute_resource,
+                    status=Job.SUCCEEDED,
+                    ray_job_id="test-ray-job-id",
+                    created=datetime.now(),
+                )
+
+                # Mock Ray to return unfiltered logs with PUBLIC and PRIVATE markers
+                full_logs = """
+2026-01-06 10:00:00,000 INFO job_manager.py:568 -- Runtime env is setting up.
+
+[PUBLIC] INFO:user: Public user log
+[PRIVATE] INFO:provider: Private provider log
+[PUBLIC] INFO:user: Another public log
+Ray internal log without marker
+[PUBLIC] INFO:user: Final public log
+"""
+
+                ray_client = MagicMock()
+                ray_client.get_job_logs.return_value = full_logs
+                get_job_handler.return_value = JobHandler(ray_client)
+
+                call_command("free_resources")
+
+                # User logs are located in username/logs/
+                # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
+                user_log_file_path = os.path.join(
+                    temp_dir,
+                    "test_user",
+                    "logs",
+                    f"{job.id}.log",
+                )
+                expected_user_logs = """INFO:user: Public user log
+INFO:user: Another public log
+INFO:user: Final public log
+"""
+
+                with open(user_log_file_path, "r", encoding="utf-8") as log_file:
+                    saved_user_logs = log_file.read()
+                self.assertEqual(saved_user_logs, expected_user_logs)
+
+    @patch("api.management.commands.free_resources.get_job_handler")
+    def test_free_resources_filters_logs_with_provider(self, get_job_handler):
+        """Tests that logs are filtered when saving for function with provider."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
+                # Create provider and program with provider
+                provider = Provider.objects.create(
+                    name="test-provider",
+                    registry="docker.io/test",
+                )
+
+                program = Program.objects.create(
+                    title="test-program-with-provider",
+                    author_id=1,
+                    provider=provider,
+                    created=datetime.now(),
+                )
+
+                compute_resource = ComputeResource.objects.get(
+                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
+                )
+
+                job = Job.objects.create(
+                    author_id=1,
+                    program=program,
+                    compute_resource=compute_resource,
+                    status=Job.SUCCEEDED,
+                    ray_job_id="test-ray-job-id-with-provider",
+                    created=datetime.now(),
+                )
+
+                # Mock Ray to return unfiltered logs
+                full_logs = """
+[PUBLIC] INFO:user: Public log for user
+
+[PRIVATE] INFO:provider: Private log for provider only
+[PUBLIC] INFO:user: Another public log
+Internal system log
+[PRIVATE] WARNING:provider: Private warning
+[PUBLIC] INFO:user: Final public log
+"""
+
+                ray_client = MagicMock()
+                ray_client.get_job_logs.return_value = full_logs
+                get_job_handler.return_value = JobHandler(ray_client)
+
+                # Execute free_resources command
+                call_command("free_resources")
+
+                # User logs are located in username/logs/
+                # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
+                user_log_file_path = os.path.join(
+                    temp_dir,
+                    "test_user",
+                    "logs",
+                    f"{job.id}.log",
+                )
+                expected_user_logs = """INFO:user: Public log for user
+INFO:user: Another public log
+INFO:user: Final public log
+"""
+
+                with open(user_log_file_path, "r", encoding="utf-8") as log_file:
+                    saved_user_logs = log_file.read()
+                self.assertEqual(saved_user_logs, expected_user_logs)
+
+                # Verify provider logs contain everything: [PUBLIC], [PRIVATE] and internal logs...
+                provider_log_file_path = os.path.join(
+                    temp_dir,
+                    "test-provider",
+                    "test-program-with-provider",
+                    "logs",
+                    f"{job.id}.log",
+                )
+
+                with open(provider_log_file_path, "r", encoding="utf-8") as log_file:
+                    saved_provider_logs = log_file.read()
+                self.assertEqual(saved_provider_logs, full_logs)
 
     def _create_test_job(self, ray_job_id="test-job-id", status=None):
         """Helper method to create a test job with fresh state."""
