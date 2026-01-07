@@ -39,8 +39,10 @@ dynamic = ["version", "readme", "dependencies"]
 qiskit_serverless = ["VERSION.txt"]
 
 [tool.setuptools]
-packages = {find = {}}
 include-package-data = true
+
+[tool.setuptools.packages.find]
+exclude = ["build*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "qiskit_serverless.version.__version__"}
