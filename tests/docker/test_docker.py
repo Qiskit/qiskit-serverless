@@ -93,7 +93,6 @@ class TestFunctionsDocker:
         assert job.status() == "ERROR"
         assert isinstance(job.logs(), str)
 
-    @mark.skip(reason="temporal")
     def test_function_with_arguments(self, serverless_client: ServerlessClient):
         """Integration test for Functions with arguments."""
         circuit = QuantumCircuit(2)
