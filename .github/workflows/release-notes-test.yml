@@ -108,14 +108,7 @@ jobs:
 
           # Compose the new body: Reno notes first, then existing release body
           {
-            echo "## Reno notes for ${TAG}"
-            echo
             cat RELEASE_NOTES.md
-
-            echo
-            echo "---"
-            echo
-            echo "## Existing GitHub Release body"
             echo
             cat OLD_BODY.md
           } > NEW_BODY.md
