@@ -13,10 +13,24 @@ metadata:
   name: {{ $fullName }}
   labels:
     {{- include "gateway.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
   annotations:
+    {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
+    {{- if .Values.application.security }}
+    {{- if .Values.application.security.sslRedirect }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    {{- end }}
+    {{- if gt (.Values.application.security.hstsSeconds | int) 0 }}
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: {{ .Values.application.security.hstsSeconds | quote }}
+    nginx.ingress.kubernetes.io/hsts-include-subdomains: {{ .Values.application.security.hstsIncludeSubdomains | quote }}
+    {{- if .Values.application.security.hstsPreload }}
+    nginx.ingress.kubernetes.io/hsts-preload: "true"
+    {{- end }}
+    {{- end }}
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   {{- if .Values.ingress.tls }}
