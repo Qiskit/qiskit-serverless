@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies (reno + fallbacks)
         run: |
           python -m pip install --upgrade pip
-          pip install reno docutils markdownify
+          pip install reno docutils markdownify 
 
       - name: Compute version from input tag
         id: version
@@ -66,7 +66,21 @@ jobs:
             --branch main \
             > RELEASE_NOTES.md
           echo "Generated release notes. Preview:"
-          head -n 20 RELEASE_NOTES.md
+          head -n 20 RELEASE_NOTES.rst
+
+      - name: Convert ReST to Markdown
+        working-directory: .
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v pandoc >/dev/null 2>&1; then
+            echo "Pandoc found; converting ReST → Markdown via pandoc."
+            pandoc RELEASE_NOTES.rst -f rst -t gfm -o RELEASE_NOTES.md
+          else
+            echo "Pandoc not found; installing via apt-get."
+            sudo apt-get update -y
+            sudo apt-get install -y pandoc || true
+            pandoc RELEASE_NOTES.rst -f rst -t gfm -o RELEASE_NOTES.md
 
       - name: Upload generated notes as artifact
         uses: actions/upload-artifact@v4
