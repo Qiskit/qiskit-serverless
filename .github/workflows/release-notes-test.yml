@@ -123,19 +123,16 @@ jobs:
           path: |
             NEW_BODY.md
 
-      # # Optional: dry-run editing of the GitHub Release body for the given tag.
-      # # Toggled via input.
-      # - name: Update GitHub Release body (optional)
-      #   if: ${{ inputs.update_release }}
-      #   env:
-      #     GH_TOKEN: ${{ github.token }}
-      #   run: |
-      #     TAG="${{ steps.version.outputs.tag }}"
-      #     echo "Attempting to edit GitHub Release ${TAG} body with generated Markdown."
-      #     gh release edit "$TAG" --notes-file RELEASE_NOTES.md || {
-      #       echo "Release ${TAG} not found or edit failed. This is expected if the release doesn't exist yet.";
-      #       exit 0;
-      #     }
+      - name: Update GitHub Release body
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          echo "Attempting to edit GitHub Release ${TAG} body with generated Markdown."
+          gh release edit "$TAG" --notes-file NEW_BODY.md || {
+            echo "Release ${TAG} not found or edit failed. This is expected if the release doesn't exist yet.";
+            exit 0;
+          }
 
       - name: Confirm no publish
         run: |
