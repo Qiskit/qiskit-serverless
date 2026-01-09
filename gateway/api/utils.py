@@ -16,7 +16,6 @@ from ray.dashboard.modules.job.common import JobStatus
 import objsize
 
 from api.domain.authentication.channel import Channel
-from main.settings import Config
 
 from .models import Job
 
@@ -332,11 +331,11 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     """
     try:
         with open(
-            Config.gateway_dynamic_dependencies(), encoding="utf-8", mode="r"
+            settings.GATEWAY_DYNAMIC_DEPENDENCIES, encoding="utf-8", mode="r"
         ) as f:
             dependencies = f.readlines()
     except IOError as e:
-        if Config.gateway_dynamic_dependencies() != "":
+        if settings.GATEWAY_DYNAMIC_DEPENDENCIES != "":
             logger.error("Unable to open dynamic dependencies requirements file: %s", e)
         return {}
 
