@@ -23,23 +23,6 @@ class SerializerTest(APITestCase):
 
     fixtures = ["tests/fixtures/fixtures.json"]
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()  # never remove this line, or the fixtures won't be loaded
-        cls.env_patcher = patch.dict(
-            os.environ,
-            {
-                "GATEWAY_DYNAMIC_DEPENDENCIES": "requirements-test-dynamic-dependencies.txt"
-            },
-            clear=False,
-        )
-        cls.env_patcher.start()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.env_patcher.stop()
-        super().tearDownClass()
-
     def test_JobConfigSerializer(self):
         data = '{"workers": null, "min_workers": 1, "max_workers": 5, "auto_scaling": true}'
         config_serializer = JobConfigSerializer(data=json.loads(data))
