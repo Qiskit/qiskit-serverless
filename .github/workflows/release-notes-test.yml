@@ -58,13 +58,11 @@ jobs:
         id: version
         run: |
           TAG="v0.28.0"   # e.g., v1.2.3
-          VERSION="${TAG#v}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Generate release notes (Reno)
         run: |
-          reno report --version "${{ steps.version.outputs.version }}" \
+          reno report --version "${{ steps.version.outputs.tag }}" \
             --branch main \
             > RELEASE_NOTES.md
           echo "Generated release notes. Preview:"
