@@ -389,7 +389,6 @@ GATEWAY_DYNAMIC_DEPENDENCIES = str(
     )
 )
 
-
 # authentication base url for qiskit runtime
 QISKIT_IBM_URL = os.environ.get("QISKIT_IBM_URL", "https://cloud.ibm.com")
 
