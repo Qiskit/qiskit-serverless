@@ -1,8 +1,0 @@
-=========
-Migration
-=========
-
-.. nbgallery::
-   :glob:
-
-   *
