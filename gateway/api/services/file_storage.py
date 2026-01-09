@@ -12,6 +12,7 @@ from wsgiref.util import FileWrapper
 from django.conf import settings
 from django.core.files import File
 
+from api.models import Program
 from utils import sanitize_file_path
 
 
@@ -35,24 +36,28 @@ logger = logging.getLogger("gateway")
 class FileStorage:
     """
     The main objective of this class is to manage the access of the users to their storage.
-
-    Attributes:
-        username (str): storage user's username
-        working_dir (WorkingDir(Enum)): working directory
-        function_title (str): title of the function in case is needed to build the path
-        provider_name (str | None): name of the provider in caseis needed to build the path
     """
 
     def __init__(
         self,
         username: str,
         working_dir: WorkingDir,
-        function_title: str,
-        provider_name: Optional[str],
+        function: Program,
     ) -> None:
+        """
+        Initialize FileStorage with a function instance.
+
+        Args:
+            username: User's username
+            working_dir: Working directory type (USER_STORAGE or PROVIDER_STORAGE)
+            function: Program model instance containing title and provider
+        """
         self.sub_path = None
         self.absolute_path = None
         self.username = username
+
+        function_title = function.title
+        provider_name = function.provider.name if function.provider else None
 
         if working_dir is WorkingDir.USER_STORAGE:
             self.sub_path = self.__get_user_sub_path(function_title, provider_name)
