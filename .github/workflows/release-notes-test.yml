@@ -1,0 +1,83 @@
+
+name: Test Reno drafting without a release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to simulate (e.g., v1.2.3)"
+        required: true
+        type: string
+      update_release:
+        description: "If true, attempt to edit the GitHub Release body for the tag (no PyPI publish)."
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  test-release-notes:
+    name: Generate and Convert Release Notes (Test Only)
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/qiskit-serverless
+    defaults:
+      run:
+        working-directory: ./client
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies (reno + fallbacks)
+        run: |
+          python -m pip install --upgrade pip
+          pip install reno docutils markdownify
+
+      - name: Compute version from input tag
+        id: version
+        run: |
+          TAG="${{ inputs.tag }}"   # e.g., v1.2.3
+          VERSION="${TAG#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes (Reno)
+        run: |
+          reno report --version "${{ steps.version.outputs.version }}" > RELEASE_NOTES.md
+          echo "Generated release notes:"
+          head -n 20 RELEASE_NOTES.md
+
+      - name: Upload generated notes as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes-preview
+          path: |
+            client/RELEASE_NOTES.md
+
+      # Optional: dry-run editing of the GitHub Release body for the given tag.
+      # Toggled via input.
+      - name: Update GitHub Release body (optional)
+        if: ${{ inputs.update_release }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          echo "Attempting to edit GitHub Release ${TAG} body with generated Markdown."
+          gh release edit "$TAG" --notes-file RELEASE_NOTES.md || {
+            echo "Release ${TAG} not found or edit failed. This is expected if the release doesn't exist yet.";
+            exit 0;
+          }
+
+      - name: Confirm no publish
+        run: |
+          echo "Test complete: notes generated and uploaded as artifact."
+          echo "No build, no PyPI publish performed."
