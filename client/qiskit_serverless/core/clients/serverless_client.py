@@ -42,15 +42,7 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.accounts import AccountManager, Account
 from qiskit_ibm_runtime.accounts.exceptions import InvalidAccountError
 
-from qiskit_serverless.core.constants import (
-    REQUESTS_TIMEOUT,
-    ENV_GATEWAY_PROVIDER_HOST,
-    ENV_GATEWAY_PROVIDER_VERSION,
-    ENV_GATEWAY_PROVIDER_TOKEN,
-    GATEWAY_PROVIDER_VERSION_DEFAULT,
-    IBM_SERVERLESS_HOST_URL,
-    MAX_ARTIFACT_FILE_SIZE_MB,
-)
+from qiskit_serverless.core.config import Config
 from qiskit_serverless.core.client import BaseClient
 from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.enums import Channel
@@ -116,15 +108,13 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             channel: identifies the method to use to authenticate the user
         """
         name = name or "gateway-client"
-        host = host or os.environ.get(ENV_GATEWAY_PROVIDER_HOST)
+        host = host or Config.gateway_host()
         if host is None:
             raise QiskitServerlessException("Please provide `host` of gateway.")
 
-        version = version or os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-        if version is None:
-            version = GATEWAY_PROVIDER_VERSION_DEFAULT
+        version = version or Config.gateway_provider_version()
 
-        token = token or os.environ.get(ENV_GATEWAY_PROVIDER_TOKEN)
+        token = token or Config.gateway_token()
         if token is None:
             raise QiskitServerlessException(
                 "Authentication credentials must be provided in form of `token`."
@@ -170,7 +160,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     headers=get_headers(
                         token=self.token, instance=self.instance, channel=self.channel
                     ),
-                    timeout=REQUESTS_TIMEOUT,
+                    timeout=Config.requests_timeout(),
                 )
             )
         except QiskitServerlessException as reason:
@@ -184,7 +174,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
             request=lambda: requests.get(
                 url=f"{self.host}/api/{self.version}/dependencies-versions/",
                 headers=get_headers(token=self.token, instance=self.instance),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
 
@@ -229,7 +219,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
 
@@ -281,7 +271,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
 
@@ -299,7 +289,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
 
@@ -351,7 +341,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     headers=get_headers(
                         token=self.token, instance=self.instance, channel=self.channel
                     ),
-                    timeout=REQUESTS_TIMEOUT,
+                    timeout=Config.requests_timeout(),
                 )
             )
             job_id = response_data.get("id")
@@ -369,7 +359,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
 
@@ -404,7 +394,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
                 json=data,
             )
         )
@@ -420,7 +410,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
                 params={"with_result": "true"},
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
         return json.loads(
@@ -435,7 +425,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
         return response_data.get("logs")
@@ -452,7 +442,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
 
@@ -474,7 +464,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
         runtime_jobs = response_data.get("runtime_jobs", [])
@@ -557,7 +547,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
                 params=kwargs,
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
 
@@ -585,7 +575,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
                     token=self.token, instance=self.instance, channel=self.channel
                 ),
                 params={"provider": provider},
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
 
@@ -697,7 +687,7 @@ class IBMServerlessClient(ServerlessClient):
         file using the default account name.
 
         Args:
-            host: host of gateway. Optional. It uses IBM_SERVERLESS_HOST_URL env var or IBM host
+            host: host of gateway. Optional. It uses IBM_SERVERLESS_HOST_URL_OVERRIDE env var or IBM host
             token: IBM quantum token
             name: Name of the account to load
             instance: IBM Cloud CRN or IQP h/g/p
@@ -714,7 +704,7 @@ class IBMServerlessClient(ServerlessClient):
             channel=self.account.channel,
             token=self.account.token,
             instance=self.account.instance,
-            host=host if host else IBM_SERVERLESS_HOST_URL,
+            host=host if host else Config.ibm_serverless_host_url(),
         )
 
     def _discover_account(
@@ -843,7 +833,7 @@ def _upload_with_docker_image(  # pylint: disable=too-many-positional-arguments
                 "description": program.description,
             },
             headers=get_headers(token=token, instance=instance, channel=channel),
-            timeout=REQUESTS_TIMEOUT,
+            timeout=Config.requests_timeout(),
         )
     )
     program_title = response_data.get("title", "na")
@@ -898,10 +888,10 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments, to
 
         # check file size
         size_in_mb = Path(artifact_file_path).stat().st_size / 1024**2
-        if size_in_mb > MAX_ARTIFACT_FILE_SIZE_MB:
+        if size_in_mb > Config.max_artifact_file_size_mb():
             raise QiskitServerlessException(
                 f"{artifact_file_path} is {int(size_in_mb)} Mb, "
-                f"which is greater than {MAX_ARTIFACT_FILE_SIZE_MB} allowed. "
+                f"which is greater than {Config.max_artifact_file_size_mb()} allowed. "
                 f"Try to reduce size of `working_dir`."
             )
 
@@ -922,7 +912,7 @@ def _upload_with_artifact(  # pylint:  disable=too-many-positional-arguments, to
                     headers=get_headers(
                         token=token, instance=instance, channel=channel
                     ),
-                    timeout=REQUESTS_TIMEOUT,
+                    timeout=Config.requests_timeout(),
                 )
             )
             span.set_attribute("function.title", response_data.get("title", "na"))
