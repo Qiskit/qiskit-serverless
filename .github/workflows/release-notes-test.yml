@@ -57,17 +57,19 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Generate release notes (Reno)
+        working-directory: .
         run: |
           reno report --version "${{ steps.version.outputs.version }}" > RELEASE_NOTES.md
           echo "Generated release notes:"
           head -n 20 RELEASE_NOTES.md
 
       - name: Upload generated notes as artifact
+        working-directory: .
         uses: actions/upload-artifact@v4
         with:
           name: release-notes-preview
           path: |
-            client/RELEASE_NOTES.md
+            RELEASE_NOTES.md
 
       # # Optional: dry-run editing of the GitHub Release body for the given tag.
       # # Toggled via input.
