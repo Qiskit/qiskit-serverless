@@ -338,6 +338,42 @@ class TestJobApi(APITestCase):
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_job_result_uses_author_username(self):
+        """
+        Tests that job results are retrieved using job.author.username,
+        not the requesting user's username. This ensures results are read
+        from the correct storage path where they were saved.
+
+        Note: Currently can_read_result() only allows authors to read results,
+        but this test validates the correct behavior if permissions change in
+        the future to allow provider admins to read results.
+        """
+        from api.services.result_storage import ResultStorage
+
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            # Get a job created by test_user (author=1)
+            job = Job.objects.get(pk="8317718f-5c0d-4fb6-9947-72e480b8a348")
+            self.assertEqual(job.author.username, "test_user")
+
+            # Verify results file exists in author's directory
+            result_storage = ResultStorage(job.author.username)
+            result = result_storage.get(str(job.id))
+            self.assertIsNotNone(result)
+
+            # If we incorrectly used a different user's username, we wouldn't find it
+            different_user = models.User.objects.get(username="test_user_2")
+            wrong_result_storage = ResultStorage(different_user.username)
+            wrong_result = wrong_result_storage.get(str(job.id))
+            self.assertIsNone(wrong_result)  # Should not find result in wrong path
+
     def test_job_save_result(self):
         """Tests job results save."""
         media_root = os.path.join(
@@ -379,6 +415,59 @@ class TestJobApi(APITestCase):
             jobs_response.data.get("message"),
             f"Job [{job_id}] not found",
         )
+
+    def test_job_save_result_uses_author_username(self):
+        """
+        Tests that job results are saved using job.author.username,
+        not the requesting user's username. This ensures results are written
+        to the correct storage path where they can be retrieved later.
+
+        Note: Currently can_save_result() only allows authors to save results,
+        but this test validates the correct behavior if permissions change in
+        the future to allow other users (e.g., system processes) to save results.
+        """
+        from api.services.result_storage import ResultStorage
+
+        media_root = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+
+        with self.settings(MEDIA_ROOT=media_root):
+            # Get a job created by test_user (author=1)
+            job = Job.objects.get(pk="57fc2e4d-267f-40c6-91a3-38153272e764")
+            self.assertEqual(job.author.username, "test_user")
+
+            # Save result as the author
+            self._authorize()
+            test_result = json.dumps({"test_save": "value"})
+            jobs_response = self.client.post(
+                reverse("v1:jobs-result", args=[str(job.id)]),
+                format="json",
+                data={"result": test_result},
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+
+            # Verify result is saved in author's directory
+            result_storage = ResultStorage(job.author.username)
+            saved_result = result_storage.get(str(job.id))
+            self.assertEqual(saved_result, test_result)
+
+            # If we incorrectly saved using a different user's username, we wouldn't find it there
+            different_user = models.User.objects.get(username="test_user_2")
+            wrong_result_storage = ResultStorage(different_user.username)
+            wrong_result = wrong_result_storage.get(str(job.id))
+            self.assertIsNone(wrong_result)  # Should not find result in wrong path
+
+            # Cleanup
+            result_path = os.path.join(
+                media_root, job.author.username, "results", f"{job.id}.json"
+            )
+            if os.path.exists(result_path):
+                os.remove(result_path)
 
     def test_job_update_sub_status(self):
         """Test job update sub status"""
