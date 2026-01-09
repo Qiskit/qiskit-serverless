@@ -321,7 +321,7 @@ LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
-MAINTENANCE = os.environ.get("MAINTENANCE", "false") == "true"
+MAINTENANCE = os.environ.get("MAINTENANCE", "false").lower() == "true"
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
@@ -420,6 +420,12 @@ CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_AGE = 3600
+SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "true" if not DEBUG else "false").lower() == "true"
+
+# HTTP Strict Transport Security settings
+SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "31536000" if not DEBUG else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "true" if not DEBUG else "false").lower() == "true"
+SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "true" if not DEBUG else "false").lower() == "true"
 
 # Functions logs size limite in MB
 FUNCTIONS_LOGS_SIZE_LIMIT = os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "50")
