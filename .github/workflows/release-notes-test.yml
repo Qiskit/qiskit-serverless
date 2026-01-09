@@ -128,7 +128,7 @@ jobs:
         with:
           name: release-notes-preview
           path: |
-            RELEASE_NOTES.md
+            NEW_BODY.md
 
       # # Optional: dry-run editing of the GitHub Release body for the given tag.
       # # Toggled via input.
