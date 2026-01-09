@@ -7,7 +7,6 @@ from django.contrib.auth import models
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files import File
 from rest_framework.test import APITestCase
-from unittest.mock import patch
 from api.domain.authentication.channel import Channel
 from api.v1.serializers import (
     JobConfigSerializer,
