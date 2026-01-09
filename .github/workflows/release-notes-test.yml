@@ -1,18 +1,24 @@
 
 name: Test Reno drafting without a release
 
+
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to simulate (e.g., v1.2.3)"
-        required: true
-        type: string
-      update_release:
-        description: "If true, attempt to edit the GitHub Release body for the tag (no PyPI publish)."
-        required: false
-        type: boolean
-        default: false
+  push:
+    branches:
+      - automate-renos
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       tag:
+#         description: "Tag to simulate (e.g., v1.2.3)"
+#         required: true
+#         type: string
+#       update_release:
+#         description: "If true, attempt to edit the GitHub Release body for the tag (no PyPI publish)."
+#         required: false
+#         type: boolean
+#         default: false
 
 permissions:
   contents: write
@@ -45,7 +51,7 @@ jobs:
       - name: Compute version from input tag
         id: version
         run: |
-          TAG="${{ inputs.tag }}"   # e.g., v1.2.3
+          TAG="v0.28.0"   # e.g., v1.2.3
           VERSION="${TAG#v}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
@@ -63,19 +69,19 @@ jobs:
           path: |
             client/RELEASE_NOTES.md
 
-      # Optional: dry-run editing of the GitHub Release body for the given tag.
-      # Toggled via input.
-      - name: Update GitHub Release body (optional)
-        if: ${{ inputs.update_release }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          echo "Attempting to edit GitHub Release ${TAG} body with generated Markdown."
-          gh release edit "$TAG" --notes-file RELEASE_NOTES.md || {
-            echo "Release ${TAG} not found or edit failed. This is expected if the release doesn't exist yet.";
-            exit 0;
-          }
+      # # Optional: dry-run editing of the GitHub Release body for the given tag.
+      # # Toggled via input.
+      # - name: Update GitHub Release body (optional)
+      #   if: ${{ inputs.update_release }}
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+      #   run: |
+      #     TAG="${{ steps.version.outputs.tag }}"
+      #     echo "Attempting to edit GitHub Release ${TAG} body with generated Markdown."
+      #     gh release edit "$TAG" --notes-file RELEASE_NOTES.md || {
+      #       echo "Release ${TAG} not found or edit failed. This is expected if the release doesn't exist yet.";
+      #       exit 0;
+      #     }
 
       - name: Confirm no publish
         run: |
