@@ -2,14 +2,14 @@ ray[default]>=2.30, <3
 requests>=2.32.2, <3
 importlib-metadata>=5.2.0, <9
 qiskit[qpy-compat]>=1.4, <3
-qiskit-ibm-runtime>=0.40.1, <0.44.0
+qiskit-ibm-runtime>=0.40.1, <0.46.0
 # Make sure ray node and notebook node have the same version of cloudpickle
 cloudpickle==2.2.1
 tqdm>=4.66.3, <5
 # opentelemetry
-opentelemetry-api>=1.18.0, <1.33.1
-opentelemetry-sdk>=1.18.0, <1.33.1
-opentelemetry-exporter-otlp-proto-grpc>=1.18.0, <1.33.1
+opentelemetry-api>=1.18.0, <1.40
+opentelemetry-sdk>=1.18.0, <1.40
+opentelemetry-exporter-otlp-proto-grpc>=1.18.0, <1.40
 opentelemetry-instrumentation-requests>=0.40b0
 ipywidgets>=8.1.6, <9
 ipython>=8.10.0, <9
