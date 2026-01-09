@@ -1,31 +1,16 @@
 
-name: Test Reno drafting without a release
-
+name: Generate Changelog with Release Notes
 
 on:
-  push:
-    branches:
-      - automate-renos
-
-# on:
-#   workflow_dispatch:
-#     inputs:
-#       tag:
-#         description: "Tag to simulate (e.g., v1.2.3)"
-#         required: true
-#         type: string
-#       update_release:
-#         description: "If true, attempt to edit the GitHub Release body for the tag (no PyPI publish)."
-#         required: false
-#         type: boolean
-#         default: false
+  release:
+    types: [published]
 
 permissions:
   contents: write
 
 jobs:
-  test-release-notes:
-    name: Generate and Convert Release Notes (Test Only)
+  release-notes:
+    name: Generate Release Notes and Update Changelog
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -57,8 +42,8 @@ jobs:
       - name: Compute version from input tag
         id: version
         run: |
-          TAG="v0.28.0"   # e.g., v1.2.3
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          EVENT_TAG="${{ github.event_name == 'release' && github.event.release.tag_name || '' }}"
+          echo "tag=${EVENT_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Generate release notes (Reno)
         run: |
@@ -82,6 +67,14 @@ jobs:
             sudo apt-get install -y pandoc || true
             pandoc RELEASE_NOTES.rst -f rst -t gfm -o RELEASE_NOTES.md
           fi
+
+      - name: Update GitHub Release body with raw changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          echo "Updating GitHub Release body with changelog."
+          gh release edit "$TAG" --generate-notes
 
       - name: Compose prepended changelog + release notes
         env:
@@ -116,13 +109,6 @@ jobs:
           echo "Composed NEW_BODY.md. Preview:"
           sed -n '1,40p' NEW_BODY.md || true
 
-      - name: Upload generated notes as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-notes-preview
-          path: |
-            NEW_BODY.md
-
       - name: Update GitHub Release body
         env:
           GH_TOKEN: ${{ github.token }}
@@ -133,8 +119,3 @@ jobs:
             echo "Release ${TAG} not found or edit failed. This is expected if the release doesn't exist yet.";
             exit 0;
           }
-
-      - name: Confirm no publish
-        run: |
-          echo "Test complete: notes generated and uploaded as artifact."
-          echo "No build, no PyPI publish performed."
