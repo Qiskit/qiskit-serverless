@@ -64,7 +64,7 @@ jobs:
         run: |
           reno report --version "${{ steps.version.outputs.tag }}" \
             --branch main \
-            > RELEASE_NOTES.md
+            > RELEASE_NOTES.rst
           echo "Generated release notes. Preview:"
           head -n 20 RELEASE_NOTES.rst
 
