@@ -307,10 +307,23 @@
         <article role="main" id="furo-main-content">
           <section id="release-notes">
 <span id="id1"></span><h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this heading">¶</a></h1>
-<section id="v0-28-0-10">
-<span id="release-notes-v0-28-0-10"></span><h2>v0.28.0-10<a class="headerlink" href="#v0-28-0-10" title="Permalink to this heading">¶</a></h2>
+<section id="v0-28-0-11">
+<span id="release-notes-v0-28-0-11"></span><h2>v0.28.0-11<a class="headerlink" href="#v0-28-0-11" title="Permalink to this heading">¶</a></h2>
 <section id="upgrade-notes">
-<span id="release-notes-v0-28-0-10-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-28-0-11-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Refactored storage service initialization to accept <code class="docutils literal notranslate"><span class="pre">Program</span></code> model instances
+instead of individual parameters. The <code class="docutils literal notranslate"><span class="pre">FileStorage</span></code> and <code class="docutils literal notranslate"><span class="pre">ArgumentsStorage</span></code>
+classes now accept a <code class="docutils literal notranslate"><span class="pre">function</span></code> parameter (Program model instance)
+rather than separate <code class="docutils literal notranslate"><span class="pre">username</span></code>, <code class="docutils literal notranslate"><span class="pre">function_title</span></code>, and <code class="docutils literal notranslate"><span class="pre">provider_name</span></code> parameters.
+This change improves code cohesion by reducing the number of parameters passed between
+components and ensures consistent access to program metadata across storage services.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Removed unused <code class="docutils literal notranslate"><span class="pre">function_title</span></code> and <code class="docutils literal notranslate"><span class="pre">provider_name</span></code> parameters from
+<code class="docutils literal notranslate"><span class="pre">ProgramViewSet.run()</span></code> method’s call to <code class="docutils literal notranslate"><span class="pre">job_serializer.save()</span></code> as these
+parameters are no longer used after the storage service refactoring.</p></li>
+</ul>
 <ul class="simple">
 <li><p>The legacy IBM Quantum authentication channel (<code class="docutils literal notranslate"><span class="pre">ibm_quantum</span></code>) has been removed.
 Users should migrate to using the IBM Quantum Platform channel (<code class="docutils literal notranslate"><span class="pre">ibm_quantum_platform</span></code>)
@@ -320,7 +333,7 @@ and a CRN is present, the system defaults to <code class="docutils literal notra
 </ul>
 </section>
 <section id="bug-fixes">
-<span id="release-notes-v0-28-0-10-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
+<span id="release-notes-v0-28-0-11-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Fixed a bug in the json decoder that would crop the response details to the first character when 
 gateway errors were raised. This utility now forwards the full error message to the raised 
@@ -337,6 +350,13 @@ bare 404 error, the <code class="docutils literal notranslate"><span class="pre"
 </div>
 <p>Fixes <a class="reference external" href="https://github.com/Qiskit/qiskit-serverless/issues/1773">https://github.com/Qiskit/qiskit-serverless/issues/1773</a>.</p>
 </li>
+</ul>
+<ul class="simple">
+<li><p>Fixed a bug in <code class="docutils literal notranslate"><span class="pre">FunctionRepository.get_user_function()</span></code> where functions with
+providers could be incorrectly returned when searching for user functions without
+providers. The method now correctly filters by <code class="docutils literal notranslate"><span class="pre">provider=None</span></code> to ensure only
+user-owned functions without providers are returned. This prevents incorrect
+storage path resolution when users have multiple functions with the same title.</p></li>
 </ul>
 </section>
 </section>
@@ -559,7 +579,7 @@ specific jobs. For example:</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Release Notes</a><ul>
-<li><a class="reference internal" href="#v0-28-0-10">v0.28.0-10</a><ul>
+<li><a class="reference internal" href="#v0-28-0-11">v0.28.0-11</a><ul>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
 <li><a class="reference internal" href="#bug-fixes">Bug Fixes</a></li>
 </ul>
