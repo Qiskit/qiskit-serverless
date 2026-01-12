@@ -30,7 +30,7 @@ docker build -t gateway:test -f ./gateway/Dockerfile .
 kind load docker-image gateway:test
 docker image rm gateway:test
 
-docker build -t ray:test -f ./Dockerfile-ray-node .
+docker build -t ray:test -f ./ray-node/Dockerfile .
 kind load docker-image ray:test
 docker image rm ray:test
 
