@@ -37,29 +37,31 @@ RUN ln -s /usr/bin/python3.11 /usr/bin/python
 WORKDIR /usr/src/app
 
 # set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 # Add environment variables to set swagger-ui to not send analytics data
 ENV SCARF_ANALYTICS=false \
     DO_NOT_TRACK=1
 
 COPY gateway/requirements.txt .
-# Install pip
-RUN python3.11 -m ensurepip --upgrade &&\
-    python3.11 -m pip install --upgrade --no-cache-dir setuptools>=80.0.0
-    
-# Install dependencies and update then uninstall pip (not needed in final image)
-RUN python3.11 -m pip install -r requirements.txt --no-cache-dir --upgrade && \
-    cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages &&\
-    cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages &&\
+
+# Install pip, dependencies, and uninstall pip (not needed in final image)
+RUN python3.11 -m ensurepip --upgrade && \
+    python3.11 -m pip install --upgrade --no-cache-dir setuptools>=80.0.0 && \
+    python3.11 -m pip install -r requirements.txt --no-cache-dir --upgrade && \
+    cp -r -n /usr/local/lib64/python3.11/site-packages/symengine /usr/local/lib/python3.11/site-packages && \
+    cp -r -n /usr/local/lib/python3.11/site-packages/symengine /usr/local/lib64/python3.11/site-packages && \
     python3.11 -m pip uninstall -y pip
 
-COPY gateway .
-RUN chown -R 1000:100 /usr/src/app &&\
-    mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
+COPY --chown=1000:100 gateway .
 
-RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh &&\
+# Copy dynamic dependencies from Ray node image, used by GET /api/v1/dependencies-versions/
+COPY --chown=1000:100 ray-node/requirements-dynamic-dependencies.txt /
+
+RUN mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
+
+RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh && \
     chmod +x /usr/src/app/entrypoint.sh
 
 EXPOSE 8000
