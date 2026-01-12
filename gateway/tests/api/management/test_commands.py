@@ -171,7 +171,7 @@ INFO:user: Final public log
                 self.assertEqual(saved_user_logs, expected_user_logs)
 
     @patch("api.management.commands.free_resources.get_job_handler")
-    def test_free_resources_filters_logs_with_provider(self, get_job_handler):
+    def test_free_resources_filters_logs_provider_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function with provider."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
