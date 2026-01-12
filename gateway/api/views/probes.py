@@ -6,7 +6,11 @@ from api.apps import ApiConfig
 
 
 def readiness(request):
-    """Service is ready to accept traffic."""
+    """Probe meaning: service is ready to accept traffic.
+
+    SSL redirect is enabled, but Kubernetes uses HTTP for its internal probes, so the endpoint
+    was added to the SECURE_REDIRECT_EXEMPT property in settings.py.
+    """
 
     if not ApiConfig.is_ready:
         return JsonResponse({"status": "api_config_not_ready"}, status=503)
@@ -21,5 +25,10 @@ def readiness(request):
 
 
 def liveness(request):
-    """Service is alive and running."""
+    """Meaning: service is alive and running.
+
+    SSL redirect is enabled, but Kubernetes uses HTTP for its internal probes, so the endpoint
+    was added to the SECURE_REDIRECT_EXEMPT property in settings.py.
+
+    """
     return JsonResponse({"status": "alive"})

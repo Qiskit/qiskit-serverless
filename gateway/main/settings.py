@@ -425,6 +425,12 @@ SECURE_SSL_REDIRECT = (
     == "true"
 )
 
+# Kubernetes uses http in probes, so exempt probes endpoints from SSL redirect
+SECURE_REDIRECT_EXEMPT = [
+    r"^liveness$",
+    r"^readiness$",
+]
+
 # HTTP Strict Transport Security settings
 SECURE_HSTS_SECONDS = int(
     os.environ.get("SECURE_HSTS_SECONDS", "31536000" if not DEBUG else "0")
