@@ -117,7 +117,7 @@ class TestCommands(APITestCase):
             )
 
     @patch("api.management.commands.free_resources.get_job_handler")
-    def test_free_resources_filters_logs_without_provider(self, get_job_handler):
+    def test_free_resources_filters_logs_user_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function without provider."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
