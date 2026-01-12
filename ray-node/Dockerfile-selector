@@ -1,0 +1,10 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+WORKDIR /
+USER 0
+COPY ray-node/requirements-dynamic-dependencies.txt /tmp/
+RUN pip install -r /tmp/requirements-dynamic-dependencies.txt --no-cache-dir && \
+	rm /tmp/requirements-dynamic-dependencies.txt
+
+USER 1000
