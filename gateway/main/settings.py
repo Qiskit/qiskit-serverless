@@ -427,8 +427,8 @@ SECURE_SSL_REDIRECT = (
 
 # Kubernetes uses http in probes, so exempt probes endpoints from SSL redirect
 SECURE_REDIRECT_EXEMPT = [
-    r"^liveness$",
-    r"^readiness$",
+    r"^liveness/?$",
+    r"^readiness/?$",
 ]
 
 # HTTP Strict Transport Security settings
