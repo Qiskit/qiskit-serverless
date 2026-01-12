@@ -5,9 +5,24 @@ updates:
     labels: ["dependencies"]
     schedule:
       interval: "weekly"
+
   - package-ecosystem: "pip"
-    directory: "/"
+    directory: "/client"
     labels: ["dependencies"]
     versioning-strategy: increase
     schedule:
-      interval: "monthly"
+      interval: "weekly"
+
+  - package-ecosystem: "pip"
+    directory: "/gateway"
+    labels: ["dependencies"]
+    versioning-strategy: increase
+    schedule:
+      interval: "weekly"
+      
+  - package-ecosystem: "pip"
+    directory: "/tests"
+    labels: ["dependencies"]
+    versioning-strategy: increase
+    schedule:
+      interval: "weekly"
