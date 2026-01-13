@@ -48,6 +48,7 @@ jobs:
             --set gateway.application.debug=1 \
             --set gateway.application.authMockproviderRegistry=test \
             --set gateway.application.dependencies.dynamicDependencies=requirements-test-dynamic-dependencies.txt \
+            --set gateway.application.security.sslRedirect=false \
             --set postgresql.image.repository=bitnamilegacy/postgresql \
             --set postgresql.volumePermissions.image.repository=bitnamilegacy/os-shell \
             --set postgresql.metrics.image.repository=bitnamilegacy/postgres-exporter \
