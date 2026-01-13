@@ -334,7 +334,7 @@ class TestJobApi(APITestCase):
         but this test validates the correct behavior if permissions change in
         the future to allow provider admins to read results.
         """
-        from api.services.result_storage import ResultStorage
+        from api.services.storage.result_storage import ResultStorage
 
         media_root = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
@@ -404,7 +404,7 @@ class TestJobApi(APITestCase):
         but this test validates the correct behavior if permissions change in
         the future to allow other users (e.g., system processes) to save results.
         """
-        from api.services.result_storage import ResultStorage
+        from api.services.storage.result_storage import ResultStorage
 
         media_root = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
