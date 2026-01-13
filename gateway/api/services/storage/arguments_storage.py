@@ -8,6 +8,8 @@ from typing import Optional
 from api.services.storage.path_builder import PathBuilder
 from api.services.storage.enums.working_dir import WorkingDir
 
+from api.models import Program
+
 logger = logging.getLogger("gateway")
 
 
@@ -18,9 +20,10 @@ class ArgumentsStorage:
     PATH = "arguments"
     ENCODING = "utf-8"
 
-    def __init__(
-        self, username: str, function_title: str, provider_name: Optional[str]
-    ):
+    def __init__(self, username: str, function: Program):
+        function_title = function.title
+        provider_name = function.provider.name if function.provider else None
+
         ### In this case arguments are always stored in user folder
         self.sub_path = PathBuilder.sub_path(
             working_dir=WorkingDir.USER_STORAGE,

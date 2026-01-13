@@ -1,0 +1,20 @@
+---
+fixes:
+  - |
+    Fixed a bug in ``FunctionRepository.get_user_function()`` where functions with
+    providers could be incorrectly returned when searching for user functions without
+    providers. The method now correctly filters by ``provider=None`` to ensure only
+    user-owned functions without providers are returned. This prevents incorrect
+    storage path resolution when users have multiple functions with the same title.
+upgrade:
+  - |
+    Refactored storage service initialization to accept ``Program`` model instances
+    instead of individual parameters. The ``FileStorage`` and ``ArgumentsStorage``
+    classes now accept a ``function`` parameter (Program model instance)
+    rather than separate ``username``, ``function_title``, and ``provider_name`` parameters.
+    This change improves code cohesion by reducing the number of parameters passed between
+    components and ensures consistent access to program metadata across storage services.
+  - |
+    Removed unused ``function_title`` and ``provider_name`` parameters from
+    ``ProgramViewSet.run()`` method's call to ``job_serializer.save()`` as these
+    parameters are no longer used after the storage service refactoring.

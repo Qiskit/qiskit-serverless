@@ -1,0 +1,121 @@
+
+name: Generate Changelog with Release Notes
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release-notes:
+    name: Generate Release Notes and Update Changelog
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/qiskit-serverless
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure tags are fetched
+        run: |
+          git fetch --tags --force
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies (reno)
+        run: |
+          python -m pip install --upgrade pip
+          pip install reno 
+
+      - name: Compute version from input tag
+        id: version
+        run: |
+          EVENT_TAG="${{ github.event_name == 'release' && github.event.release.tag_name || '' }}"
+          echo "tag=${EVENT_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes (Reno)
+        run: |
+          reno report --version "${{ steps.version.outputs.tag }}" \
+            --branch main \
+            > RELEASE_NOTES.rst
+          echo "Generated release notes. Preview:"
+          head -n 20 RELEASE_NOTES.rst
+
+      - name: Convert ReST to Markdown
+        working-directory: .
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v pandoc >/dev/null 2>&1; then
+            echo "Pandoc found; converting ReST → Markdown via pandoc."
+            pandoc RELEASE_NOTES.rst -f rst -t gfm -o RELEASE_NOTES.md
+          else
+            echo "Pandoc not found; installing via apt-get."
+            sudo apt-get update -y
+            sudo apt-get install -y pandoc || true
+            pandoc RELEASE_NOTES.rst -f rst -t gfm -o RELEASE_NOTES.md
+          fi
+
+      - name: Update GitHub Release body with raw changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          echo "Updating GitHub Release body with changelog."
+          gh release edit "$TAG" --generate-notes
+
+      - name: Compose prepended changelog + release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Install GitHub CLI if needed
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "Installing GitHub CLI..."
+            sudo apt-get update -y
+            sudo apt-get install -y gh
+          fi
+
+          # Try to read existing release body; if release doesn't exist, OLD_BODY.md will be empty.
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} exists. Fetching current body..."
+            gh release view "${TAG}" --json body --jq '.body' > OLD_BODY.md
+          else
+            echo "Release ${TAG} does not exist. Using empty existing body."
+            : > OLD_BODY.md
+          fi
+
+          # Compose the new body: Reno notes first, then existing release body
+          {
+            cat RELEASE_NOTES.md
+            echo
+            cat OLD_BODY.md
+          } > NEW_BODY.md
+
+          echo "Composed NEW_BODY.md. Preview:"
+          sed -n '1,40p' NEW_BODY.md || true
+
+      - name: Update GitHub Release body
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          echo "Attempting to edit GitHub Release ${TAG} body with generated Markdown."
+          gh release edit "$TAG" --notes-file NEW_BODY.md || {
+            echo "Release ${TAG} not found or edit failed. This is expected if the release doesn't exist yet.";
+            exit 0;
+          }
