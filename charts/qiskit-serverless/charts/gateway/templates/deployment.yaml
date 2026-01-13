@@ -84,7 +84,6 @@ spec:
             httpGet:
               path: /liveness
               port: http
-              scheme: HTTP
             initialDelaySeconds: 60
             periodSeconds: 20
             timeoutSeconds: 5
@@ -93,7 +92,6 @@ spec:
             httpGet:
               path: /readiness
               port: http
-              scheme: HTTP
             initialDelaySeconds: 60
             periodSeconds: 20
             timeoutSeconds: 5
