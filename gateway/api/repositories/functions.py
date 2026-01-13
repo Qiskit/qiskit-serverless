@@ -130,9 +130,10 @@ class FunctionRepository:
 
         author_criteria = Q(author=author)
         title_criteria = Q(title=title)
+        provider_criteria = Q(provider=None)
 
         result_queryset = Function.objects.filter(
-            author_criteria & title_criteria
+            author_criteria & title_criteria & provider_criteria
         ).first()
 
         if result_queryset is None:

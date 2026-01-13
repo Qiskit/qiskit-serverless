@@ -6,6 +6,7 @@ import json
 from django.contrib.auth import models
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files import File
+from django.test import override_settings
 from rest_framework.test import APITestCase
 from api.domain.authentication.channel import Channel
 from api.v1.serializers import (
@@ -17,6 +18,9 @@ from api.v1.serializers import (
 from api.models import JobConfig, Program
 
 
+@override_settings(
+    GATEWAY_DYNAMIC_DEPENDENCIES="requirements-test-dynamic-dependencies.txt"
+)
 class SerializerTest(APITestCase):
     """Tests for serializer."""
 

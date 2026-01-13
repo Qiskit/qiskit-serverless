@@ -54,8 +54,7 @@ class FilesProviderDownloadUseCase:
         file_storage = FileStorage(
             username=user.username,
             working_dir=self.working_dir,
-            function_title=function_title,
-            provider_name=provider_name,
+            function=function,
         )
         result = file_storage.get_file(file_name=requested_file_name)
 
