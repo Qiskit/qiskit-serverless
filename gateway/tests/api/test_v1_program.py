@@ -164,7 +164,7 @@ class TestProgramApi(APITestCase):
                 self.media_root, user.username, "arguments"
             )
             self.assertEqual(
-                arguments_storage.user_arguments_directory, expected_arguments_path
+                arguments_storage.absolute_path, expected_arguments_path
             )
 
     def test_provider_run(self):
@@ -218,7 +218,7 @@ class TestProgramApi(APITestCase):
                 "arguments",
             )
             self.assertEqual(
-                arguments_storage.user_arguments_directory, expected_arguments_path
+                arguments_storage.absolute_path, expected_arguments_path
             )
 
     def test_run_locked(self):
@@ -670,5 +670,5 @@ class TestProgramApi(APITestCase):
                 self.media_root, user.username, "arguments"
             )
             self.assertEqual(
-                arguments_storage.user_arguments_directory, expected_arguments_path
+                arguments_storage.absolute_path, expected_arguments_path
             )
