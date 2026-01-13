@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    labels: ["dependencies"]
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "pip"
+    directory: "/client"
+    labels: ["dependencies"]
+    versioning-strategy: increase
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "pip"
+    directory: "/gateway"
+    labels: ["dependencies"]
+    versioning-strategy: increase
+    schedule:
+      interval: "weekly"
+      
+  - package-ecosystem: "pip"
+    directory: "/tests"
+    labels: ["dependencies"]
+    versioning-strategy: increase
+    schedule:
+      interval: "weekly"
