@@ -161,10 +161,7 @@ Ray internal log without marker
                     "logs",
                     f"{job.id}.log",
                 )
-                expected_user_logs = """INFO:user: Public user log
-INFO:user: Another public log
-INFO:user: Final public log
-"""
+                expected_user_logs = full_logs
 
                 with open(user_log_file_path, "r", encoding="utf-8") as log_file:
                     saved_user_logs = log_file.read()
