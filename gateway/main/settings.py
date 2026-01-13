@@ -420,9 +420,6 @@ CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_AGE = 3600
-
-# Security settings - configured via environment variables (set by Helm)
-# Defaults are safe/disabled; production values are set explicitly in values.yaml
 SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "false").lower() == "true"
 
 # Kubernetes uses HTTP for internal probes, so exempt probe endpoints from SSL redirect
@@ -436,9 +433,7 @@ SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = (
     os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "false").lower() == "true"
 )
-SECURE_HSTS_PRELOAD = (
-    os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == "true"
-)
+SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == "true"
 
 # Functions logs size limite in MB
 FUNCTIONS_LOGS_SIZE_LIMIT = os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "50")
