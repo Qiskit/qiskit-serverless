@@ -17,5 +17,5 @@ numpy>=1.17, <3
 # Minimum version of pyarrow to support the major version from numpy
 pyarrow>=16.0.0, <19
 aiohttp>=3.10.0, <4
-zipp==3.19.1
+zipp==3.23.0
 certifi==2024.7.4
