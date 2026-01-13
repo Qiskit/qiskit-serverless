@@ -420,31 +420,24 @@ CUSTOM_IMAGE_PACKAGE_PATH = os.environ.get("CUSTOM_IMAGE_PACKAGE_PATH", "/runner
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_AGE = 3600
-SECURE_SSL_REDIRECT = (
-    os.environ.get("SECURE_SSL_REDIRECT", "true" if not DEBUG else "false").lower()
-    == "true"
-)
 
-# Kubernetes uses http in probes, so exempt probes endpoints from SSL redirect
-# request.path includes leading slash, e.g. "/readiness/"
+# Security settings - configured via environment variables (set by Helm)
+# Defaults are safe/disabled; production values are set explicitly in values.yaml
+SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "false").lower() == "true"
+
+# Kubernetes uses HTTP for internal probes, so exempt probe endpoints from SSL redirect
 SECURE_REDIRECT_EXEMPT = [
     r"^/liveness/?$",
     r"^/readiness/?$",
 ]
 
 # HTTP Strict Transport Security settings
-SECURE_HSTS_SECONDS = int(
-    os.environ.get("SECURE_HSTS_SECONDS", "31536000" if not DEBUG else "0")
-)
+SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = (
-    os.environ.get(
-        "SECURE_HSTS_INCLUDE_SUBDOMAINS", "true" if not DEBUG else "false"
-    ).lower()
-    == "true"
+    os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "false").lower() == "true"
 )
 SECURE_HSTS_PRELOAD = (
-    os.environ.get("SECURE_HSTS_PRELOAD", "true" if not DEBUG else "false").lower()
-    == "true"
+    os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == "true"
 )
 
 # Functions logs size limite in MB
