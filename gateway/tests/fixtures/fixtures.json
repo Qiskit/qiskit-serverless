@@ -296,25 +296,29 @@
   },
   {
     "model": "auth.group",
-      "pk": 100,
-      "fields": {
-        "name": "runner",
-	      "permissions": [65]
-      }
+    "pk": 100,
+    "fields": {
+      "name": "runner",
+      "permissions": [
+        ["run_program", "api", "program"]
+      ]
+    }
   },
   {
     "model": "auth.group",
     "pk": 101,
     "fields": {
       "name": "viewer",
-      "permissions": [64]
+      "permissions": [
+        ["view_program", "api", "program"]
+      ]
     }
   },
   {
     "model": "auth.group",
     "pk": 105,
     "fields": {
-        "name": "default-group"
+      "name": "default-group"
     }
   },
   {

@@ -4,12 +4,13 @@ import json
 import os
 
 from django.contrib.auth import models
+from django.contrib.auth.models import Group, Permission
 from django.core.files.base import ContentFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job, Program, RuntimeJob
+from api.models import Job, Program
 from api.services.arguments_storage import ArgumentsStorage
 
 
