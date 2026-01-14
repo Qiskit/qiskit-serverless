@@ -298,14 +298,16 @@
     "model": "auth.group",
       "pk": 100,
       "fields": {
-        "name": "runner"
+        "name": "runner",
+	      "permissions": [65]
       }
   },
   {
     "model": "auth.group",
     "pk": 101,
     "fields": {
-      "name": "viewer"
+      "name": "viewer",
+      "permissions": [64]
     }
   },
   {
