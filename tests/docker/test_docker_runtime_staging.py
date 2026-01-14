@@ -2,7 +2,6 @@
 """Tests jobs using Qiskit Runtime's staging resources."""
 import os
 
-from pytest import mark
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_serverless import (
     QiskitFunction,
