@@ -11,6 +11,7 @@ confusing error messages in logs when running multiple scheduler/gateway pods.
 """
 
 import logging
+import time
 import pglock
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
@@ -19,15 +20,18 @@ logger = logging.getLogger("commands")
 
 
 class Command(BaseCommand):
-    help = "Run migrations with a PostgreSQL lock to prevent race conditions"
+    """Run migrations with a PostgreSQL lock to prevent race conditions."""
 
-    LOCK_ID = "django_migrations"
+    help = "Run migrations with a PostgreSQL lock to prevent race conditions"
 
     def handle(self, *args, **options):
         logger.debug("Acquiring migration lock...")
 
+        start = time.time()
         # timeout=None waits indefinitely
-        with pglock.advisory(self.LOCK_ID, timeout=None):
-            logger.debug("Lock acquired, running migrations...")
+        with pglock.advisory("django_migrations", timeout=None):
+            logger.info("Lock acquired after %.2fs", time.time() - start)
+
             call_command("migrate", *args, **options)
-            logger.debug(self.style.SUCCESS("Migrations completed successfully"))
+
+            logger.info("Migrations completed successfully")
