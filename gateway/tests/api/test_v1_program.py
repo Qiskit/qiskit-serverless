@@ -4,12 +4,19 @@ import json
 import os
 
 from django.contrib.auth import models
+from django.contrib.auth.models import Group, Permission
 from django.core.files.base import ContentFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job, Program, RuntimeJob
+from api.models import (
+    Job,
+    Program,
+    RuntimeJob,
+    RUN_PROGRAM_PERMISSION,
+    VIEW_PROGRAM_PERMISSION,
+)
 from api.services.arguments_storage import ArgumentsStorage
 
 
@@ -28,6 +35,17 @@ class TestProgramApi(APITestCase):
             "fake_media",
         )
         self.media_root = os.path.normpath(os.path.join(os.getcwd(), self.media_root))
+
+        # Assign permissions to groups programmatically to avoid hardcoded permission PKs
+        # that can differ between environments
+        run_permission = Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
+        view_permission = Permission.objects.get(codename=VIEW_PROGRAM_PERMISSION)
+
+        runner_group = Group.objects.get(name="runner")
+        runner_group.permissions.add(run_permission)
+
+        viewer_group = Group.objects.get(name="viewer")
+        viewer_group.permissions.add(view_permission)
 
     def tearDown(self):
         """Clean up created files after each test."""
