@@ -43,6 +43,9 @@ jobs:
       - name: Install tox
         run: |
           pip install tox>=4.0.0
+      - name: Reset compose stack (ensure clean DB)
+        run: |
+          docker compose -f ../docker-compose-dev.yaml down -v --remove-orphans || true
       - name: Run styles check
         run: tox -elint
       - name: Test using tox environment
