@@ -17,9 +17,6 @@ filename_path = os.path.join(resources_path, filename)
 class TestDockerExperimental:
     """Test class for integration testing with docker."""
 
-    @mark.skip(
-        reason="File producing and consuming is not working. Maybe write permissions for functions?"
-    )
     @mark.order(1)
     def test_file_producer(self, serverless_client: ServerlessClient):
         """Integration test for files."""
@@ -44,9 +41,6 @@ class TestDockerExperimental:
 
         assert len(serverless_client.files(functionTitle)) > 0
 
-    @mark.skip(
-        reason="File producing and consuming is not working. Maybe write permissions for functions?"
-    )
     @mark.order(2)
     def test_file_consumer(self, serverless_client: ServerlessClient):
         """Integration test for files."""

@@ -232,7 +232,7 @@ class TestFunctionsDocker:
         assert isinstance(retrieved_job2.logs(), str)
 
     @mark.skip(
-        reason="Images are not working in tests jet and "
+        reason="Images are not working in tests yet and "
         + "LocalClient does not manage image instead of working_dir+entrypoint"
     )
     def test_error(self, serverless_client: ServerlessClient):
