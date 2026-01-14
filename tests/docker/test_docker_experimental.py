@@ -14,7 +14,6 @@ filename = "data.tar"
 filename_path = os.path.join(resources_path, filename)
 
 
-@mark.skip()
 class TestDockerExperimental:
     """Test class for integration testing with docker."""
 
