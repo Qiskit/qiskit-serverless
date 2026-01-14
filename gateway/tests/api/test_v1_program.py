@@ -10,13 +10,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import (
-    Job,
-    Program,
-    RuntimeJob,
-    RUN_PROGRAM_PERMISSION,
-    VIEW_PROGRAM_PERMISSION,
-)
+from api.models import Job, Program
+from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 from api.services.arguments_storage import ArgumentsStorage
 
 
@@ -37,7 +32,6 @@ class TestProgramApi(APITestCase):
         self.media_root = os.path.normpath(os.path.join(os.getcwd(), self.media_root))
 
         # Assign permissions to groups programmatically to avoid hardcoded permission PKs
-        # that can differ between environments
         run_permission = Permission.objects.get(codename=RUN_PROGRAM_PERMISSION)
         view_permission = Permission.objects.get(codename=VIEW_PROGRAM_PERMISSION)
 
