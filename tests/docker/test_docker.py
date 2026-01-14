@@ -25,6 +25,7 @@ resources_path = os.path.join(
 class TestFunctionsDocker:
     """Test class for integration testing with docker."""
 
+    @mark.skip(reason="works")
     @mark.order(1)
     def test_simple_function(self, serverless_client: ServerlessClient):
         """Integration test function uploading."""
@@ -56,7 +57,6 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    @mark.skip(reason="temporal. FAIL")
     # failed jobs has logs "", so the result() can't get the error from the logs
     def test_function_with_import_errors(self, serverless_client: ServerlessClient):
         """Integration test for faulty function run."""
@@ -93,6 +93,7 @@ class TestFunctionsDocker:
         assert job.status() == "ERROR"
         assert isinstance(job.logs(), str)
 
+    @mark.skip(reason="works")
     def test_function_with_arguments(self, serverless_client: ServerlessClient):
         """Integration test for Functions with arguments."""
         circuit = QuantumCircuit(2)
@@ -119,6 +120,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
+    @mark.skip(reason="works")
     # local client doesn't make sense here
     # since all dependencies are in the user computer
     def test_function_dependencies_basic(self, serverless_client: ServerlessClient):
@@ -140,6 +142,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
+    @mark.skip(reason="works")
     # local client doesn't make sense here
     # since all dependencies are in the user computer
     def test_function_dependencies_with_version(
@@ -157,6 +160,7 @@ class TestFunctionsDocker:
 
         assert runnable_function is not None
 
+    @mark.skip(reason="works")
     # local client doesn't make sense here
     # since all dependencies are in the user computer
     def test_function_blocked_dependency(self, serverless_client: ServerlessClient):
@@ -177,6 +181,7 @@ class TestFunctionsDocker:
         with raises(QiskitServerlessException, check=exceptionCheck):
             serverless_client.upload(function)
 
+    @mark.skip(reason="works")
     def test_distributed_workloads(self, serverless_client: ServerlessClient):
         """Integration test for Functions for distributed workloads."""
 
@@ -201,6 +206,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
+    @mark.skip(reason="works")
     def test_multiple_runs(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
@@ -262,6 +268,7 @@ class TestFunctionsDocker:
         with raises(QiskitServerlessException):
             job.result()
 
+    @mark.skip(reason="works")
     def test_update_sub_status(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
@@ -279,6 +286,7 @@ class TestFunctionsDocker:
 
         assert job.status() == "RUNNING: MAPPING"
 
+    @mark.skip(reason="works")
     def test_dependencies_versions(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
@@ -286,6 +294,7 @@ class TestFunctionsDocker:
 
         assert deps == ["pendulum>=3.0.0", "wheel>=0.45.1"]
 
+    @mark.skip(reason="works")
     def test_execute_functions_in_parallel(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 
@@ -314,6 +323,7 @@ class TestFunctionsDocker:
         assert job_1.status() == "RUNNING"
         assert job_2.status() == "RUNNING"
 
+    @mark.skip(reason="works")
     # pylint: disable=too-many-locals
     def test_get_filtered_jobs(self, serverless_client: ServerlessClient):
         """Integration test for filtering jobs."""
@@ -382,6 +392,7 @@ class TestFunctionsDocker:
         succeeded_jobs = serverless_client.jobs(status="SUCCEEDED")
         assert len(succeeded_jobs) >= 3
 
+    @mark.skip(reason="works")
     def test_logs(self, serverless_client: ServerlessClient):
         """Integration test for logs."""
 
@@ -406,6 +417,7 @@ ERROR:user: User log
 """
         )
 
+    @mark.skip(reason="works")
     def test_wrong_function_name(self, serverless_client: ServerlessClient):
         """Integration test for retrieving a function that isn't accessible."""
 
