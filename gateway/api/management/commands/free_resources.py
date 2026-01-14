@@ -108,6 +108,8 @@ class Command(BaseCommand):
             compute_resource: ComputeResource
             job: Job
         """
+
+        print(f"save_logs_to_storage:: Job: {job.id}")
         job_handler = get_job_handler(compute_resource.host)
         full_logs = job_handler.logs(job.ray_job_id)
         full_logs = check_logs(full_logs, job)

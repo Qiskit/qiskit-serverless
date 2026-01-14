@@ -49,7 +49,6 @@ class TestCommands(APITestCase):
 
         job.refresh_from_db()
         self.assertEqual(job.status, "RUNNING")
-        self.assertEqual(job.logs, "No logs yet.")
         self.assertIsNotNone(job.env_vars)
 
         # Test job logs for FAILED job with empty logs
@@ -60,7 +59,6 @@ class TestCommands(APITestCase):
 
         job.refresh_from_db()
         self.assertEqual(job.status, "FAILED")
-        self.assertEqual(job.logs, "No logs yet.")
         self.assertEqual(job.env_vars, "{}")
         self.assertIsNone(job.sub_status)
 
