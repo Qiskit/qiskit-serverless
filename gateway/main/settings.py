@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "allauth",
     "allauth.socialaccount",
+    "pglock",
     "api",
     "psycopg2",
     "drf_yasg",
