@@ -1,4 +1,4 @@
-"""Qiskit Function code that instantiates a service with 
+"""Qiskit Function code that instantiates a service with
 get_runtime_service and submits 2 jobs within a session."""
 
 # pylint: disable=duplicate-code
