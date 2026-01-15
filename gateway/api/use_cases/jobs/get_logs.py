@@ -1,6 +1,7 @@
 """
 Use case: retrieve job logs.
 """
+
 from typing import Final
 from uuid import UUID
 

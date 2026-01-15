@@ -93,7 +93,7 @@ def safe_json_request_as_list(request: Callable[..., requests.Response]) -> List
 
 
 def safe_json_request_as_dict(
-    request: Callable[..., requests.Response]
+    request: Callable[..., requests.Response],
 ) -> Dict[str, Any]:
     """Returns parsed json data from request.
 
@@ -113,7 +113,7 @@ def safe_json_request_as_dict(
 
 
 def safe_json_request(
-    request: Callable[..., requests.Response]
+    request: Callable[..., requests.Response],
 ) -> Union[Dict[str, Any], List[Any]]:
     """Returns parsed json data from request.
 
