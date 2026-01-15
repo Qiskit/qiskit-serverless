@@ -8,7 +8,7 @@
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
       "is_active": true,
       "groups": [
-        100
+        ["ibm-q/open/main"]
       ]
     }
   },
@@ -21,7 +21,7 @@
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
       "is_active": true,
       "groups": [
-        105
+        ["admin-group"]
       ]
     }
   },
@@ -34,12 +34,12 @@
       "readable_title": "Public Function",
       "type": "APPLICATION",
       "image": "icr.io/awesome-namespace/awesome-title",
-      "author": 2,
+      "author": ["test_user_2"],
       "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
       "additional_info": "{\"request_access_url\":\"an url to ask for access to that function\",\"features_and_benefits\":[{\"title\":\"short description of the benefit\",\"description\":\"detailed explanation\"}],\"tutorials\":[{\"category\":\"tutorial category\",\"name\":\"tutorial name\",\"url\":\"tutorial url\"}],\"papers\":[{\"title\":\"paper title\",\"authors\":[{\"name\":\"author name\",\"location\":\"where the author is placed\",\"profession\":\"author main activity\"}],\"url\":\"link to the full text\",\"published_at\":\"2024\",\"arxiv_id\":\"arXiv:2408.01264\"}],\"testimonials\":[{\"title\":\"highlights of the testimonial\",\"authors\":[{\"name\":\"author name\",\"location\":\"where the author is placed\",\"profession\":\"author main activity\"}],\"description\":\"testimonial full text\"}]}",
       "instances": [
-        100,
-        105
+        ["ibm-q/open/main"],
+        ["admin-group"]
       ],
       "trial_instances": []
     }
@@ -52,10 +52,10 @@
       "title": "Private-Function",
       "readable_title": "Private Function",
       "image": "icr.io/awesome-namespace/awesome-title",
-      "author": 2,
+      "author": ["test_user_2"],
       "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
       "instances": [
-        105
+        ["admin-group"]
       ],
       "trial_instances": []
     }
@@ -65,7 +65,9 @@
     "pk": 100,
     "fields": {
       "name": "ibm-q/open/main",
-      "permissions": [64]
+      "permissions": [
+        ["view_program", "api", "program"]
+      ]
     }
   },
   {
@@ -73,7 +75,10 @@
     "pk": 105,
     "fields": {
         "name": "admin-group",
-        "permissions": [64, 65]
+        "permissions": [
+          ["view_program", "api", "program"],
+          ["run_program", "api", "program"]
+        ]
     }
   },
   {
@@ -85,7 +90,9 @@
       "url": "https://example",
       "icon_url": "https://example",
       "created": "2023-02-01T15:30:43.281796Z",
-      "admin_groups": [105],
+      "admin_groups": [
+        ["admin-group"]
+      ],
       "registry": "docker.io/awesome"
     }
   }
