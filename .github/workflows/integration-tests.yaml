@@ -31,6 +31,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the containers
         run: docker compose -f ../docker-compose-dev.yaml build
+
+      - name: Start compose stack (once)
+        run: |
+          docker compose -f ../docker-compose-dev.yaml up -d
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -40,14 +45,16 @@ jobs:
           tox_env="-epy${pver/./}"
           echo tox_env
           echo TOX_ENV=$tox_env >> $GITHUB_ENV
+
       - name: Install tox
         run: |
           pip install tox>=4.0.0
-      - name: Reset compose stack (ensure clean DB)
-        run: |
-          docker compose -f ../docker-compose-dev.yaml down -v --remove-orphans || true
+
       - name: Run styles check
         run: tox -elint
+
       - name: Test using tox environment
-        run: |
-          tox ${{ env.TOX_ENV }}
+        run: tox ${{ env.TOX_ENV }}
+
+      - name: Stop and clean compose stack
+        run: docker compose -f ../docker-compose-dev.yaml down -v --remove-orphans
