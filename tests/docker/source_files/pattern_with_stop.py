@@ -3,6 +3,7 @@ get_runtime_service and submits 2 jobs within a session."""
 
 # pylint: disable=duplicate-code
 
+from time import sleep
 import warnings
 import os
 
@@ -36,14 +37,4 @@ job_id_2 = out2.job_id()
 # test to determine that the jobs have been submitted
 # before stopping them
 print("JOB IDS", job_id_1, job_id_2)
-out1.result()
-out2.result()
-save_result(
-    {
-        "backends": [back.name for back in backends],
-        "results": [
-            [out1.job_id(), session.session_id],
-            [out2.job_id(), session.session_id],
-        ],
-    }
-)
+sleep(60)
