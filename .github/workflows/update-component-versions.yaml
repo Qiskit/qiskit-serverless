@@ -15,7 +15,7 @@ jobs:
   update_component_versions:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -64,7 +64,7 @@ jobs:
           sed -i "s/${OLDNUM}-py310/${NEWNUM}/g" docs/deployment/deploying_custom_image_function.rst
       - name: Create PR
         id: cpr
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: "update-version-${{ github.event.inputs.new_version }}"
           title: "update-version-${{ github.event.inputs.new_version }}"

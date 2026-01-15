@@ -1,6 +1,7 @@
 """
 API V1: Delete provider file end-point.
 """
+
 # pylint: disable=duplicate-code
 from typing import cast
 from drf_yasg import openapi

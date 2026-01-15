@@ -1,6 +1,7 @@
 """
 API endpoint to update a job's sub-status.
 """
+
 # pylint: disable=abstract-method
 
 from typing import Any, cast

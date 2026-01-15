@@ -1,6 +1,7 @@
 """
 API V1: Upload file end-point.
 """
+
 # pylint: disable=duplicate-code
 from typing import cast
 from drf_yasg import openapi
