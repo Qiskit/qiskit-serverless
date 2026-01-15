@@ -29,7 +29,7 @@ from api.utils import (
     generate_cluster_name,
 )
 from utils import sanitize_file_path
-from main import settings
+from django.conf import settings
 
 logger = logging.getLogger("commands")
 
