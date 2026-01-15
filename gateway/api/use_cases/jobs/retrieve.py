@@ -1,4 +1,5 @@
 """This module contains the usecase get_job"""
+
 import logging
 from uuid import UUID
 from django.contrib.auth.models import AbstractUser

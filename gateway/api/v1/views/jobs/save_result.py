@@ -1,6 +1,7 @@
 """
 Save result for a job API endpoint
 """
+
 # pylint: disable=duplicate-code, abstract-method
 
 from typing import cast

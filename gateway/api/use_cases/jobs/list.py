@@ -1,4 +1,5 @@
 """This module contains the usecase get_jos"""
+
 from typing import List
 
 from django.contrib.auth.models import AbstractUser
