@@ -19,7 +19,7 @@ from api.models import JobConfig, Program
 
 
 @override_settings(
-    GATEWAY_DYNAMIC_DEPENDENCIES="requirements-test-dynamic-dependencies.txt"
+    GATEWAY_DYNAMIC_DEPENDENCIES="../ray-node/requirements-test-dynamic-dependencies.txt"
 )
 class SerializerTest(APITestCase):
     """Tests for serializer."""
