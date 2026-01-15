@@ -393,7 +393,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(
             programs_response.data.get("entrypoint"), "test_user_3_program.py"
         )
-        self.assertEqual(programs_response.data.get("title"), "Provider Function")
+        self.assertEqual(programs_response.data.get("title"), "ProviderFunction")
         self.assertRaises(
             Program.DoesNotExist,
             Program.objects.get,
@@ -454,8 +454,9 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 2)
         found = False
+
         for resp_data in programs_response.data:
-            if resp_data.get("title") == "Provider Function":
+            if resp_data.get("title") == "ProviderFunction":
                 self.assertEqual(
                     resp_data.get("description"),
                     description,
