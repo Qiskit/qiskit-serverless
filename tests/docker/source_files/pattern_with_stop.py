@@ -18,8 +18,10 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
+print("getting runtime service")
 service = get_runtime_service(url=os.environ["QISKIT_IBM_URL"])
 
+print("getting backends")
 backends = service.backends()
 backend = service.backend("test_eagle2")
 session = Session(backend=backend)
@@ -30,6 +32,7 @@ qc.measure_all()
 out1 = sampler.run([qc])
 out2 = sampler.run([qc])
 
+print("getting job_ids")
 job_id_1 = out1.job_id()
 job_id_2 = out2.job_id()
 

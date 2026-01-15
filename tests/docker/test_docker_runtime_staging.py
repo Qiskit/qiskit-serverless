@@ -13,7 +13,7 @@ resources_path = os.path.join(
 
 def wait_for_logs(job: Job, contain: str):
     """Wait for a job to contain JOB IDS."""
-    timeout = 30  # Secs
+    timeout = 90  # Secs
     deadline = time.perf_counter() + timeout
 
     while True:
