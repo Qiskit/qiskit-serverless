@@ -18,11 +18,11 @@ def wait_for_logs(job: Job, contain: str):
 
     while True:
         if time.perf_counter() > deadline:
-            raise Exception("TIMEOUT waiting for JOB IDS")
+            raise TimeoutError("TIMEOUT waiting for JOB IDS")
 
         if contain in job.logs():
             break
-        time.sleep(1) 
+        time.sleep(1)
 
 
 class TestFunctionsStaging:
