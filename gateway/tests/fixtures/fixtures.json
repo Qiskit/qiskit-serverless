@@ -1,32 +1,5 @@
 [
   {
-    "model": "auth.group",
-    "pk": 100,
-    "fields": {
-      "name": "runner",
-      "permissions": [
-        ["run_program", "api", "program"]
-      ]
-    }
-  },
-  {
-    "model": "auth.group",
-    "pk": 101,
-    "fields": {
-      "name": "viewer",
-      "permissions": [
-        ["view_program", "api", "program"]
-      ]
-    }
-  },
-  {
-    "model": "auth.group",
-    "pk": 105,
-    "fields": {
-      "name": "default-group"
-    }
-  },
-  {
     "model": "auth.user",
     "pk": 1,
     "fields": {
@@ -62,8 +35,8 @@
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
       "is_active": true,
       "groups": [
-        ["runner"],
-        ["viewer"]
+          ["runner"],
+          ["viewer"]
       ]
     }
   },
@@ -76,32 +49,8 @@
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
       "is_active": true,
       "groups": [
-        ["runner"]
+          ["runner"]
       ]
-    }
-  },
-  {
-    "model": "api.provider",
-    "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
-    "fields": {
-      "name": "default",
-      "created": "2023-02-01T15:30:43.281796Z",
-      "admin_groups": [
-        ["default-group"]
-      ],
-      "registry": "docker.io/awesome"
-    }
-  },
-  {
-    "model": "api.provider",
-    "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbeb",
-    "fields": {
-      "name": "ibm",
-      "created": "2023-02-01T15:30:43.281796Z",
-      "admin_groups": [
-        ["viewer"]
-      ],
-      "registry": "docker.io/awesome"
     }
   },
   {
@@ -343,6 +292,57 @@
       "job": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84",
       "runtime_job": "runtime_job_5",
       "runtime_session": "session_id_5"
+    }
+  },
+  {
+    "model": "auth.group",
+      "pk": 100,
+      "fields": {
+        "name": "runner",
+        "permissions": [
+          ["run_program", "api", "program"]
+        ]
+      }
+  },
+  {
+    "model": "auth.group",
+    "pk": 101,
+    "fields": {
+      "name": "viewer",
+      "permissions": [
+        ["view_program", "api", "program"]
+      ]
+    }
+  },
+  {
+    "model": "auth.group",
+    "pk": 105,
+    "fields": {
+        "name": "default-group"
+    }
+  },
+  {
+    "model": "api.provider",
+    "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
+    "fields": {
+      "name": "default",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "admin_groups": [
+        ["default-group"]
+      ],
+      "registry": "docker.io/awesome"
+    }
+  },
+  {
+    "model": "api.provider",
+    "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbeb",
+    "fields": {
+      "name": "ibm",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "admin_groups": [
+        ["viewer"]
+      ],
+      "registry": "docker.io/awesome"
     }
   }
 ]
