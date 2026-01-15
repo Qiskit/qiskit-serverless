@@ -58,6 +58,7 @@ COPY --chown=1000:100 gateway .
 
 # Copy dynamic dependencies from Ray node image, used by GET /api/v1/dependencies-versions/
 COPY --chown=1000:100 ray-node/requirements-dynamic-dependencies.txt /
+COPY --chown=1000:100 ray-node/requirements-test-dynamic-dependencies.txt /
 
 RUN mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
 
