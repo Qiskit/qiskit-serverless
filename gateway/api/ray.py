@@ -11,6 +11,7 @@ from typing import Optional
 
 import requests
 import yaml
+from django.conf import settings
 from django.template.loader import get_template
 from kubernetes import client as kubernetes_client, config
 from kubernetes.client.exceptions import ApiException
@@ -29,7 +30,6 @@ from api.utils import (
     generate_cluster_name,
 )
 from utils import sanitize_file_path
-from django.conf import settings
 
 logger = logging.getLogger("commands")
 
