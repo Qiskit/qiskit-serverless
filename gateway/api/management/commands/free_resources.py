@@ -37,12 +37,13 @@ class Command(BaseCommand):
             )
             compute_resources = ComputeResource.objects.filter(active=True)
             for compute_resource in compute_resources:
-                terminated_job = Job.objects.filter(
+                terminated_jobs = Job.objects.filter(
                     status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource
-                ).first()
-                self.save_logs_to_storage(
-                    job=terminated_job, compute_resource=compute_resource
                 )
+                for job in terminated_jobs:
+                    self.save_logs_to_storage(
+                        job=job, compute_resource=compute_resource
+                    )
             return
 
         compute_resources = ComputeResource.objects.filter(active=True)
