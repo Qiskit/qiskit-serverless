@@ -5,7 +5,7 @@ services:
     container_name: ray-head
     build:
       context: ./
-      dockerfile: Dockerfile-ray-node
+      dockerfile: ray-node/Dockerfile
       args:
         DYNAMIC_DEPENDENCIES_FILE: requirements-test-dynamic-dependencies.txt
     entrypoint: [
