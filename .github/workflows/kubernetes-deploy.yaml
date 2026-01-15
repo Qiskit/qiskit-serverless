@@ -3,6 +3,7 @@ name: Test QS on Kubernetes
 on:
   pull_request:
     branches: [ main ]
+  merge_group:
 
 permissions:
   contents: read
@@ -12,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Create Kind cluster
         uses: chainguard-dev/actions/setup-kind@main
         with:
