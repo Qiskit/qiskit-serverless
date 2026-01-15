@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Create Kind cluster
         uses: chainguard-dev/actions/setup-kind@main
         with:
@@ -56,7 +56,7 @@ jobs:
           GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
           kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
       - name: setup python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install dependencies

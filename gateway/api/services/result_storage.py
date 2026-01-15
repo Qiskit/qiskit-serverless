@@ -1,6 +1,7 @@
 """
 This module handle the access to the result store
 """
+
 import os
 import logging
 from typing import Optional

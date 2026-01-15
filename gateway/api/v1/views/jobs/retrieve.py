@@ -1,6 +1,7 @@
 """
 API endpoint for retrieving a job by ID.
 """
+
 # pylint: disable=duplicate-code, abstract-method
 
 from typing import cast
