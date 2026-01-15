@@ -3,7 +3,6 @@ This file contains e2e tests for Mock Token authentication process
 in local environments.
 """
 
-
 from unittest.mock import MagicMock
 from rest_framework import exceptions
 from rest_framework.test import APITestCase

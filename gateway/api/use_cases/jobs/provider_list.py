@@ -1,4 +1,5 @@
 """This module contains the usecase get_jobs"""
+
 # pylint: disable=duplicate-code
 from typing import List, Tuple
 

@@ -1,6 +1,7 @@
 """
 Stop job endpoint
 """
+
 # pylint: disable=abstract-method
 from rest_framework import serializers, permissions, status
 from rest_framework.decorators import api_view, permission_classes
