@@ -1,6 +1,7 @@
 """
 API V1: list jobs endpoint
 """
+
 # pylint: disable=duplicate-code, disable=abstract-method
 from typing import cast, List, Optional
 
