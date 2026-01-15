@@ -4,7 +4,6 @@
 *.pyc
 __pycache__
 db.sqlite3
-media
 static/
 
 # Backup files #
@@ -136,5 +135,3 @@ GitHub.sublime-settings
 !.vscode/launch.json
 !.vscode/extensions.json
 .history
-
-tests/resources/fake_media/*
