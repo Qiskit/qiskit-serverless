@@ -1,6 +1,8 @@
 """Tests files api."""
 
 import os
+import shutil
+import tempfile
 from urllib.parse import urlencode
 
 from django.urls import reverse
@@ -15,6 +17,24 @@ class TestFilesApi(APITestCase):
 
     fixtures = ["tests/fixtures/files_fixtures.json"]
 
+    _fake_media_path = os.path.normpath(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+    )
+
+    def setUp(self):
+        super().setUp()
+        self._temp_directory = tempfile.TemporaryDirectory()
+        self.MEDIA_ROOT = self._temp_directory.name
+
+    def tearDown(self):
+        self._temp_directory.cleanup()
+        super().tearDown()
+
     def test_files_list_non_authorized(self):
         """Tests files list non-authorized."""
         url = reverse("v1:files-list")
@@ -24,15 +44,7 @@ class TestFilesApi(APITestCase):
     def test_files_list_with_empty_params(self):
         """Tests files list using empty params"""
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user")
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-list")
@@ -44,15 +56,9 @@ class TestFilesApi(APITestCase):
 
         function = "personal-program"
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
 
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-list")
@@ -91,15 +97,9 @@ class TestFilesApi(APITestCase):
         provider = "default"
         function = "Program"
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
 
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-list")
@@ -139,15 +139,9 @@ class TestFilesApi(APITestCase):
         provider = "default"
         function = "Program"
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
 
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
             url = reverse("v1:files-provider-list")
@@ -186,15 +180,7 @@ class TestFilesApi(APITestCase):
     def test_non_existing_file_download(self):
         """Tests downloading non-existing file."""
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             file = "non_existing_file.tar"
             function = "personal-program"
 
@@ -213,15 +199,9 @@ class TestFilesApi(APITestCase):
 
     def test_file_download(self):
         """Tests downloading an existing file."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
-        with self.settings(MEDIA_ROOT=media_root):
+        shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             file = "artifact_2.tar"
             function = "personal-program"
 
@@ -241,15 +221,7 @@ class TestFilesApi(APITestCase):
 
     def test_non_existing_provider_file_download(self):
         """Tests downloading a non-existing file from a provider storage."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             file = "non-existing_artifact.tar"
             provider = "default"
             function = "Program"
@@ -270,15 +242,10 @@ class TestFilesApi(APITestCase):
 
     def test_provider_file_download(self):
         """Tests downloading a file from a provider storage."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
-        with self.settings(MEDIA_ROOT=media_root):
+        shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             file = "provider_program_artifact.tar"
             provider = "default"
             function = "Program"
@@ -300,29 +267,18 @@ class TestFilesApi(APITestCase):
 
     def test_file_delete(self):
         """Tests delete file."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
         function = "personal-program"
         file = "artifact_delete.tar"
         username = "test_user_2"
-        functionPath = os.path.join(media_root, username)
+        functionPath = os.path.join(self.MEDIA_ROOT, username)
 
         if not os.path.exists(functionPath):
             os.makedirs(functionPath)
 
-        with open(
-            os.path.join(functionPath, file),
-            "w+",
-        ) as fp:
+        with open(os.path.join(functionPath, file), "w+") as fp:
             fp.write("This is first line")
-            fp.close()
 
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             query_params = {"function": function, "file": file}
             user = models.User.objects.get(username=username)
             self.client.force_authenticate(user=user)
@@ -332,30 +288,19 @@ class TestFilesApi(APITestCase):
 
     def test_provider_file_delete(self):
         """Tests delete file."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
         provider = "default"
         function = "Program"
         file = "artifact_delete.tar"
         username = "test_user_2"
-        functionPath = os.path.join(media_root, provider, function)
+        functionPath = os.path.join(self.MEDIA_ROOT, provider, function)
 
         if not os.path.exists(functionPath):
             os.makedirs(functionPath)
 
-        with open(
-            os.path.join(functionPath, file),
-            "w+",
-        ) as fp:
+        with open(os.path.join(functionPath, file), "w+") as fp:
             fp.write("This is first line")
-            fp.close()
 
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             query_params = {"function": function, "provider": provider, "file": file}
             user = models.User.objects.get(username=username)
             self.client.force_authenticate(user=user)
@@ -365,18 +310,11 @@ class TestFilesApi(APITestCase):
 
     def test_non_existing_file_delete(self):
         """Tests delete file."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
         function = "personal-program"
         file = "non-existing-artifact_delete.tar"
         username = "test_user_2"
 
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             query_params = {"function": function, "file": file}
             user = models.User.objects.get(username=username)
             self.client.force_authenticate(user=user)
@@ -386,19 +324,12 @@ class TestFilesApi(APITestCase):
 
     def test_non_existing_provider_file_delete(self):
         """Tests delete file."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
         provider = "default"
         function = "Program"
         file = "non-existing-artifact_delete.tar"
         username = "test_user_2"
 
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             query_params = {"function": function, "provider": provider, "file": file}
             user = models.User.objects.get(username=username)
             self.client.force_authenticate(user=user)
@@ -408,15 +339,7 @@ class TestFilesApi(APITestCase):
 
     def test_file_upload(self):
         """Tests uploading existing file."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             function = "personal-program"
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
@@ -431,20 +354,15 @@ class TestFilesApi(APITestCase):
                 )
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(os.path.join(media_root, "test_user_2", "README.md"))
-                os.remove(os.path.join(media_root, "test_user_2", "README.md"))
+                self.assertTrue(
+                    os.path.exists(
+                        os.path.join(self.MEDIA_ROOT, "test_user_2", "README.md")
+                    )
+                )
 
     def test_provider_file_upload(self):
         """Tests uploading existing file."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             provider = "default"
             function = "Program"
             user = models.User.objects.get(username="test_user_2")
@@ -461,20 +379,14 @@ class TestFilesApi(APITestCase):
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertTrue(
-                    os.path.join(media_root, "default", "Program", "README.md")
+                    os.path.exists(
+                        os.path.join(self.MEDIA_ROOT, "default", "Program", "README.md")
+                    )
                 )
-                os.remove(os.path.join(media_root, "default", "Program", "README.md"))
 
     def test_escape_directory(self):
         """Tests directory escape / injection."""
-        with self.settings(
-            MEDIA_ROOT=os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "..",
-                "resources",
-                "fake_media",
-            )
-        ):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             file = "../test_user/artifact.tar"
             function = "personal-program"
 
