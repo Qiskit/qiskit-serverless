@@ -78,8 +78,7 @@ class TestFunctionsDocker:
 
         print("--- Test result")
         with raises(QiskitServerlessException) as exc_info:
-            result = job.result()
-            print(f"---- Result job: {result}")
+            job.result()
 
         print(f"exc_info.value: {exc_info}")
         print(f"exc_info.value: {exc_info.value}")
