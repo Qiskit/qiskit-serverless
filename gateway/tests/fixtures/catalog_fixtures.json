@@ -1,26 +1,5 @@
 [
   {
-    "model": "auth.group",
-    "pk": 100,
-    "fields": {
-      "name": "ibm-q/open/main",
-      "permissions": [
-        ["view_program", "api", "program"]
-      ]
-    }
-  },
-  {
-    "model": "auth.group",
-    "pk": 105,
-    "fields": {
-      "name": "admin-group",
-      "permissions": [
-        ["view_program", "api", "program"],
-        ["run_program", "api", "program"]
-      ]
-    }
-  },
-  {
     "model": "auth.user",
     "pk": 1,
     "fields": {
@@ -44,21 +23,6 @@
       "groups": [
         ["admin-group"]
       ]
-    }
-  },
-  {
-    "model": "api.provider",
-    "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
-    "fields": {
-      "name": "default",
-      "readable_name": "Default",
-      "url": "https://example",
-      "icon_url": "https://example",
-      "created": "2023-02-01T15:30:43.281796Z",
-      "admin_groups": [
-        ["admin-group"]
-      ],
-      "registry": "docker.io/awesome"
     }
   },
   {
@@ -94,6 +58,42 @@
         ["admin-group"]
       ],
       "trial_instances": []
+    }
+  },
+  {
+    "model": "auth.group",
+    "pk": 100,
+    "fields": {
+      "name": "ibm-q/open/main",
+      "permissions": [
+        ["view_program", "api", "program"]
+      ]
+    }
+  },
+  {
+    "model": "auth.group",
+    "pk": 105,
+    "fields": {
+        "name": "admin-group",
+        "permissions": [
+          ["view_program", "api", "program"],
+          ["run_program", "api", "program"]
+        ]
+    }
+  },
+  {
+    "model": "api.provider",
+    "pk": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
+    "fields": {
+      "name": "default",
+      "readable_name": "Default",
+      "url": "https://example",
+      "icon_url": "https://example",
+      "created": "2023-02-01T15:30:43.281796Z",
+      "admin_groups": [
+        ["admin-group"]
+      ],
+      "registry": "docker.io/awesome"
     }
   }
 ]
