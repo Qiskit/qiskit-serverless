@@ -47,7 +47,17 @@
       "title": "Program",
       "entrypoint": "program.py",
       "artifact": "awesome_artifact.tar",
-      "author": 1
+      "author": ["test_user"]
+    }
+  },
+  {
+    "model": "api.computeresource",
+    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec99",
+    "fields": {
+      "created": "2023-02-01T15:30:43.281796Z",
+      "title": "compute resource",
+      "host": "somehost",
+      "owner": ["test3_user"]
     }
   },
   {
@@ -58,7 +68,7 @@
       "created": "2024-02-01T15:31:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "QUEUED",
-      "author": 1
+      "author": ["test_user"]
     }
   },
   {
@@ -69,7 +79,7 @@
       "created": "2024-02-01T15:33:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "QUEUED",
-      "author": 1
+      "author": ["test_user"]
     }
   },
   {
@@ -80,7 +90,7 @@
       "created": "2024-02-01T15:32:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "PENDING",
-      "author": 2
+      "author": ["test2_user"]
     }
   },
   {
@@ -91,18 +101,8 @@
       "created": "2024-02-01T15:30:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "PENDING",
-      "author": 3,
+      "author": ["test3_user"],
       "compute_resource": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
-    }
-  },
-  {
-    "model": "api.computeresource",
-    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec99",
-    "fields": {
-      "created": "2023-02-01T15:30:43.281796Z",
-      "title": "compute resource",
-      "host": "somehost",
-      "owner": 3
     }
   },
   {
@@ -113,7 +113,7 @@
       "created": "2024-02-01T15:32:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "RUNNING",
-      "author": 3
+      "author": ["test3_user"]
     }
   },
   {
@@ -124,7 +124,7 @@
       "created": "2024-02-01T15:34:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "QUEUED",
-      "author": 4
+      "author": ["test4_user"]
     }
   },
   {
@@ -135,7 +135,7 @@
       "created": "2024-02-01T15:35:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "QUEUED",
-      "author": 4
+      "author": ["test4_user"]
     }
   }
 ]
