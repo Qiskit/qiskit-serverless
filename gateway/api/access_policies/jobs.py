@@ -1,6 +1,7 @@
 """
 Access policies implementation for Job access
 """
+
 import logging
 from django.contrib.auth.models import AbstractUser
 

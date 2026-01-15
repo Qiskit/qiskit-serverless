@@ -2,6 +2,7 @@ name: Gateway verify process
 
 on:
   pull_request:
+  merge_group:
 
 permissions:
   contents: read
@@ -22,9 +23,9 @@ jobs:
         working-directory: ./gateway
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'

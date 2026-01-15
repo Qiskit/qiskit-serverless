@@ -1,6 +1,7 @@
 """
 RuntimeJob repository
 """
+
 from api.models import RuntimeJob
 
 
