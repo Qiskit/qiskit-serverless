@@ -4,7 +4,7 @@ importlib-metadata>=5.2.0, <9
 qiskit[qpy-compat]>=1.4, <3
 qiskit-ibm-runtime>=0.40.1, <0.46.0
 # Make sure ray node and notebook node have the same version of cloudpickle
-cloudpickle==2.2.1
+cloudpickle==3.1.2
 tqdm>=4.66.3, <5
 # opentelemetry
 opentelemetry-api>=1.18.0, <1.40
@@ -15,7 +15,7 @@ ipywidgets>=8.1.6, <9
 ipython>=8.10.0, <9
 numpy>=1.17, <3
 # Minimum version of pyarrow to support the major version from numpy
-pyarrow>=16.0.0, <19
+pyarrow>=16.0.0, <22
 aiohttp>=3.10.0, <4
-zipp==3.19.1
+zipp==3.23.0
 certifi==2026.1.4

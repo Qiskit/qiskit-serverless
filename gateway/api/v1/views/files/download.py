@@ -1,6 +1,7 @@
 """
 API V1: Download file end-point.
 """
+
 # pylint: disable=duplicate-code
 from typing import cast
 from django.http import StreamingHttpResponse

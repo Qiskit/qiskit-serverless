@@ -1,6 +1,7 @@
 """
 Use case for saving job results.
 """
+
 from uuid import UUID
 import logging
 import json
