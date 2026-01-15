@@ -2,6 +2,7 @@
 
 import os
 import json
+import tempfile
 
 from django.contrib.auth import models
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -25,6 +26,15 @@ class SerializerTest(APITestCase):
     """Tests for serializer."""
 
     fixtures = ["tests/fixtures/fixtures.json"]
+
+    def setUp(self):
+        super().setUp()
+        self._temp_directory = tempfile.TemporaryDirectory()
+        self.MEDIA_ROOT = self._temp_directory.name
+
+    def tearDown(self):
+        self._temp_directory.cleanup()
+        super().tearDown()
 
     def test_JobConfigSerializer(self):
         data = '{"workers": null, "min_workers": 1, "max_workers": 5, "auto_scaling": true}'
@@ -77,14 +87,15 @@ class SerializerTest(APITestCase):
         data["dependencies"] = dependencies
         data["artifact"] = upload_file
 
-        serializer = UploadProgramSerializer(data=data)
-        self.assertTrue(serializer.is_valid())
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            serializer = UploadProgramSerializer(data=data)
+            self.assertTrue(serializer.is_valid())
 
-        program: Program = serializer.save(author=user)
-        self.assertEqual(title, program.title)
-        self.assertEqual(type, program.type)
-        self.assertEqual(entrypoint, program.entrypoint)
-        self.assertEqual(dependencies, program.dependencies)
+            program: Program = serializer.save(author=user)
+            self.assertEqual(title, program.title)
+            self.assertEqual(type, program.type)
+            self.assertEqual(entrypoint, program.entrypoint)
+            self.assertEqual(dependencies, program.dependencies)
 
     def test_upload_program_serializer_check_empty_data(self):
         data = {}
@@ -241,22 +252,24 @@ class SerializerTest(APITestCase):
         job_data = {"arguments": arguments, "program": program_instance.id}
         job_serializer = RunJobSerializer(data=job_data)
         job_serializer.is_valid()
-        job = job_serializer.save(
-            channel=Channel.IBM_QUANTUM_PLATFORM,
-            author=user,
-            carrier={},
-            token="my_token",
-            config=jobconfig,
-        )
-        env_vars = json.loads(job.env_vars)
 
-        self.assertIsNotNone(job)
-        self.assertIsNotNone(job.program)
-        self.assertIsNotNone(job.arguments)
-        self.assertIsNotNone(job.config)
-        self.assertIsNotNone(job.author)
-        self.assertTrue(env_vars["PROGRAM_ENV1"] == "VALUE1")
-        self.assertTrue(env_vars["PROGRAM_ENV2"] == "VALUE2")
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            job = job_serializer.save(
+                channel=Channel.IBM_QUANTUM_PLATFORM,
+                author=user,
+                carrier={},
+                token="my_token",
+                config=jobconfig,
+            )
+            env_vars = json.loads(job.env_vars)
+
+            self.assertIsNotNone(job)
+            self.assertIsNotNone(job.program)
+            self.assertIsNotNone(job.arguments)
+            self.assertIsNotNone(job.config)
+            self.assertIsNotNone(job.author)
+            self.assertTrue(env_vars["PROGRAM_ENV1"] == "VALUE1")
+            self.assertTrue(env_vars["PROGRAM_ENV2"] == "VALUE2")
 
     def test_upload_program_serializer_with_only_title(self):
         """Tests upload serializer with only title."""
@@ -389,19 +402,22 @@ class SerializerTest(APITestCase):
         data["description"] = description
         data["artifact"] = upload_file
 
-        serializer = UploadProgramSerializer(data=data)
-        serializer.is_valid()
-        program: Program = serializer.save(author=user)
-        self.assertEqual(description, program.description)
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            serializer = UploadProgramSerializer(data=data)
+            serializer.is_valid()
+            program: Program = serializer.save(author=user)
+            self.assertEqual(description, program.description)
 
-        data_without_description = {}
-        data_without_description["title"] = title
-        data_without_description["entrypoint"] = entrypoint
-        data_without_description["arguments"] = arguments
-        data_without_description["dependencies"] = dependencies
-        data_without_description["artifact"] = upload_file
+            data_without_description = {}
+            data_without_description["title"] = title
+            data_without_description["entrypoint"] = entrypoint
+            data_without_description["arguments"] = arguments
+            data_without_description["dependencies"] = dependencies
+            data_without_description["artifact"] = upload_file
 
-        serializer_2 = UploadProgramSerializer(program, data=data_without_description)
-        serializer_2.is_valid()
-        program_2: Program = serializer_2.save(author=user)
-        self.assertEqual(description, program_2.description)
+            serializer_2 = UploadProgramSerializer(
+                program, data=data_without_description
+            )
+            serializer_2.is_valid()
+            program_2: Program = serializer_2.save(author=user)
+            self.assertEqual(description, program_2.description)
