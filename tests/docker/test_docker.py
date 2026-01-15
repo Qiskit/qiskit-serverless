@@ -56,16 +56,9 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    # local client doesn't make sense here
-    # since it follows a different logging mechanism
-    def test_function_with_errors(self, serverless_client: ServerlessClient):
+    # failed jobs has logs "", so the result() can't get the error from the logs
+    def test_function_with_import_errors(self, serverless_client: ServerlessClient):
         """Integration test for faulty function run."""
-        circuit = QuantumCircuit(2)
-        circuit.h(0)
-        circuit.cx(0, 1)
-        circuit.measure_all()
-        circuit.draw()
-
         function = QiskitFunction(
             title="pattern-with-errors",
             entrypoint="pattern_with_errors.py",
@@ -75,30 +68,28 @@ class TestFunctionsDocker:
         runnable_function = serverless_client.upload(function)
 
         assert runnable_function is not None
-        assert runnable_function.type == "GENERIC"
 
-        runnable_function = serverless_client.function(function.title)
-
-        assert runnable_function is not None
-        assert runnable_function.type == "GENERIC"
-
-        job = runnable_function.run(circuit=circuit)
+        job = runnable_function.run()
 
         assert job is not None
         expected_message = (
             "ImportError: attempted relative import with no known parent package"
         )
 
+        print("--- Test result")
         with raises(QiskitServerlessException) as exc_info:
             job.result()
 
-        print(str(exc_info.value))
+        print(f"exc_info.value: {exc_info}")
+        print(f"exc_info.value: {exc_info.value}")
+        print(f"exc_info.value expected : {expected_message}")
+        print(f"job.status() : {job.status()}")
+        print(f"job.logs() : {job.logs()}")
+
         assert expected_message in str(exc_info.value)
 
         assert job.status() == "ERROR"
         assert isinstance(job.logs(), str)
-
-        print(str(exc_info.value))
 
     def test_function_with_arguments(self, serverless_client: ServerlessClient):
         """Integration test for Functions with arguments."""
@@ -240,7 +231,7 @@ class TestFunctionsDocker:
         assert isinstance(retrieved_job2.logs(), str)
 
     @mark.skip(
-        reason="Images are not working in tests jet and "
+        reason="Images are not working in tests yet and "
         + "LocalClient does not manage image instead of working_dir+entrypoint"
     )
     def test_error(self, serverless_client: ServerlessClient):

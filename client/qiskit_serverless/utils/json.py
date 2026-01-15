@@ -134,9 +134,10 @@ def safe_json_request(
             ErrorCodes.AUTH1001,
             str(request_exception.args),
         )
-        response = None
 
+    print(f"Response: {response.text}")
     if error_message:
+        print(f"exception -> Raised QiskitServerlessException: {response.text}")
         raise QiskitServerlessException(error_message)
 
     decoding_error_message: Optional[str] = None
@@ -153,6 +154,7 @@ def safe_json_request(
             for error_string in json_data.values():
                 error_msg += str(error_string)
 
+            print(f"not ok -> Raised QiskitServerlessException: {error_msg}")
             raise QiskitServerlessException(
                 format_err_msg(
                     response.status_code,

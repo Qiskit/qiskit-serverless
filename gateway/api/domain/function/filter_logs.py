@@ -1,4 +1,5 @@
 """Methods for filtering job logs."""
+
 import re
 
 
