@@ -1,124 +1,124 @@
 [
-  {
-    "model": "auth.group",
-    "pk": 100,
-    "fields": {
-      "name": "ibm-test"
+    {
+        "model": "auth.user",
+        "pk": 1,
+        "fields": {
+            "email": "test_user@email.com",
+            "username": "test_user",
+            "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
+            "is_active": true,
+            "groups": [
+                ["ibm-test"],
+                ["ibm-test/open"],
+                ["ibm-test/close"],
+                ["ibm-test/close/execute"]
+            ]
+        }
+    },
+    {
+        "model": "auth.user",
+        "pk": 2,
+        "fields": {
+            "email": "test_user_2@email.com",
+            "username": "test_user_2",
+            "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
+            "is_active": true,
+            "groups": [
+                ["ibm-test"],
+                ["ibm-test/open"],
+                ["ibm-test/open/execute"]
+            ]
+        }
+    },
+    {
+        "model": "auth.user",
+        "pk": 3,
+        "fields": {
+            "email": "test_user_3@email.com",
+            "username": "test_user_3",
+            "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
+            "is_active": true
+        }
+    },
+    {
+        "model": "auth.group",
+        "pk": 100,
+        "fields": {
+            "name": "ibm-test"
+        }
+    },
+    {
+        "model": "auth.group",
+        "pk": 101,
+        "fields": {
+            "name": "ibm-test/open"
+        }
+    },
+    {
+        "model": "auth.group",
+        "pk": 102,
+        "fields": {
+            "name": "ibm-test/open/execute"
+        }
+    },
+    {
+        "model": "auth.group",
+        "pk": 103,
+        "fields": {
+            "name": "ibm-test/close"
+        }
+    },
+    {
+        "model": "auth.group",
+        "pk": 104,
+        "fields": {
+            "name": "ibm-test/close/execute"
+        }
+    },
+    {
+        "model": "api.program",
+        "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
+        "fields": {
+            "created": "2023-02-01T15:30:43.281796Z",
+            "title": "Private program",
+            "entrypoint": "program.py",
+            "artifact": "path",
+            "instances": [
+                ["ibm-test/close"],
+                ["ibm-test/close/execute"]
+            ],
+            "trial_instances": [],
+            "author": ["test_user_3"]
+        }
+    },
+    {
+        "model": "api.program",
+        "pk": "00538918-668b-4fef-a064-ec33d2060241",
+        "fields": {
+            "created": "2023-02-01T15:30:43.281796Z",
+            "title": "Public program",
+            "entrypoint": "program.py",
+            "artifact": "path",
+            "instances": [
+                ["ibm-test"],
+                ["ibm-test/open"],
+                ["ibm-test/open/execute"]
+            ],
+            "trial_instances": [],
+            "author": ["test_user_3"]
+        }
+    },
+    {
+        "model": "api.program",
+        "pk": "8c714ddb-8b53-4ecd-9812-4c123cf33acc",
+        "fields": {
+            "created": "2023-02-01T15:30:43.281796Z",
+            "title": "My program",
+            "entrypoint": "program.py",
+            "artifact": "path",
+            "instances": [],
+            "trial_instances": [],
+            "author": ["test_user"]
+        }
     }
-  },
-  {
-    "model": "auth.group",
-    "pk": 101,
-    "fields": {
-      "name": "ibm-test/open"
-    }
-  },
-  {
-    "model": "auth.group",
-    "pk": 102,
-    "fields": {
-      "name": "ibm-test/open/execute"
-    }
-  },
-  {
-    "model": "auth.group",
-    "pk": 103,
-    "fields": {
-      "name": "ibm-test/close"
-    }
-  },
-  {
-    "model": "auth.group",
-    "pk": 104,
-    "fields": {
-      "name": "ibm-test/close/execute"
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 1,
-    "fields": {
-      "email": "test_user@email.com",
-      "username": "test_user",
-      "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
-      "is_active": true,
-      "groups": [
-        ["ibm-test"],
-        ["ibm-test/open"],
-        ["ibm-test/close"],
-        ["ibm-test/close/execute"]
-      ]
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 2,
-    "fields": {
-      "email": "test_user_2@email.com",
-      "username": "test_user_2",
-      "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
-      "is_active": true,
-      "groups": [
-        ["ibm-test"],
-        ["ibm-test/open"],
-        ["ibm-test/open/execute"]
-      ]
-    }
-  },
-  {
-    "model": "auth.user",
-    "pk": 3,
-    "fields": {
-      "email": "test_user_3@email.com",
-      "username": "test_user_3",
-      "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
-      "is_active": true
-    }
-  },
-  {
-    "model": "api.program",
-    "pk": "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82",
-    "fields": {
-      "created": "2023-02-01T15:30:43.281796Z",
-      "title": "Private program",
-      "entrypoint": "program.py",
-      "artifact": "path",
-      "instances": [
-        ["ibm-test/close"],
-        ["ibm-test/close/execute"]
-      ],
-      "trial_instances": [],
-      "author": ["test_user_3"]
-    }
-  },
-  {
-    "model": "api.program",
-    "pk": "00538918-668b-4fef-a064-ec33d2060241",
-    "fields": {
-      "created": "2023-02-01T15:30:43.281796Z",
-      "title": "Public program",
-      "entrypoint": "program.py",
-      "artifact": "path",
-      "instances": [
-        ["ibm-test"],
-        ["ibm-test/open"],
-        ["ibm-test/open/execute"]
-      ],
-      "trial_instances": [],
-      "author": ["test_user_3"]
-    }
-  },
-  {
-    "model": "api.program",
-    "pk": "8c714ddb-8b53-4ecd-9812-4c123cf33acc",
-    "fields": {
-      "created": "2023-02-01T15:30:43.281796Z",
-      "title": "My program",
-      "entrypoint": "program.py",
-      "artifact": "path",
-      "instances": [],
-      "trial_instances": [],
-      "author": ["test_user"]
-    }
-  }
 ]
