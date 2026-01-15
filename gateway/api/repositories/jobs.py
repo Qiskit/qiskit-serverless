@@ -1,6 +1,7 @@
 """
 Repository implementation for Job model
 """
+
 import logging
 from uuid import UUID
 from dataclasses import dataclass
