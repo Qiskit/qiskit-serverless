@@ -1,6 +1,7 @@
 """
 Builder class to manage the different paths generated in the application
 """
+
 import logging
 import os
 from typing import Optional
