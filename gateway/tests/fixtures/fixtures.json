@@ -8,7 +8,7 @@
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
       "is_active": true,
       "groups": [
-        100
+        ["runner"]
       ]
     }
   },
@@ -21,8 +21,8 @@
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
       "is_active": true,
       "groups": [
-        100,
-        105
+        ["runner"],
+        ["default-group"]
       ]
     }
   },
@@ -35,8 +35,8 @@
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
       "is_active": true,
       "groups": [
-          100,
-          101
+          ["runner"],
+          ["viewer"]
       ]
     }
   },
@@ -49,7 +49,7 @@
       "password": "pbkdf2_sha256$390000$kcex1rxhZg6VVJYkx71cBX$e4ns0xDykbO6Dz6j4nZ4uNusqkB9GVpojyegPv5/9KM=",
       "is_active": true,
       "groups": [
-          100
+          ["runner"]
       ]
     }
   },
@@ -62,11 +62,11 @@
       "description": "Program description test",
       "entrypoint": "program.py",
       "artifact": "path",
-      "author": 1,
+      "author": ["test_user"],
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "instances": [
-        100,
-        101
+        ["runner"],
+        ["viewer"]
       ],
       "trial_instances": []
     }
@@ -82,11 +82,11 @@
       "description": "Program description test",
       "entrypoint": "program.py",
       "artifact": "path",
-      "author": 1,
+      "author": ["test_user"],
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "instances": [
-        100,
-        101
+        ["runner"],
+        ["viewer"]
       ],
       "trial_instances": []
     }
@@ -100,11 +100,11 @@
       "disabled": true,
       "entrypoint": "program.py",
       "artifact": "path",
-      "author": 1,
+      "author": ["test_user"],
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "instances": [
-        100,
-        101
+        ["runner"],
+        ["viewer"]
       ],
       "trial_instances": []
     }
@@ -116,7 +116,7 @@
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Docker-Image-Program",
       "image": "icr.io/awesome-namespace/awesome-title",
-      "author": 2,
+      "author": ["test_user_2"],
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea"
     }
@@ -128,11 +128,11 @@
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Docker-Image-Program-2",
       "image": "icr.io/awesome-namespace/awesome-title",
-      "author": 3,
+      "author": ["test_user_3"],
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbeb",
       "instances": [
-        100
+        ["runner"]
       ],
       "trial_instances": []
     }
@@ -144,12 +144,12 @@
       "created": "2023-02-01T15:30:43.281796Z",
       "title": "Docker-Image-Program-3",
       "image": "icr.io/awesome-namespace/awesome-title",
-      "author": 3,
+      "author": ["test_user_3"],
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbeb",
       "instances": [
-        100,
-        101
+        ["runner"],
+        ["viewer"]
       ],
       "trial_instances": []
     }
@@ -162,13 +162,13 @@
       "title": "Program",
       "entrypoint": "program.py",
       "artifact": "path",
-      "author": 3,
+      "author": ["test_user_3"],
       "env_vars": "{\"PROGRAM_ENV1\": \"VALUE1\", \"PROGRAM_ENV2\": \"VALUE2\"}",
       "instances": [
-        100
+        ["runner"]
       ],
       "trial_instances": [
-        100
+        ["runner"]
       ]
     }
   },
@@ -181,7 +181,7 @@
       "created": "2023-02-02T15:30:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "SUCCEEDED",
-      "author": 1,
+      "author": ["test_user"],
       "logs": "log entry 2"
     }
   },
@@ -194,7 +194,7 @@
       "created": "2023-02-02T15:30:43.281796Z",
       "result": "{\"somekey\":2}",
       "status": "QUEUED",
-      "author": 1
+      "author": ["test_user"]
     }
   },
   {
@@ -206,7 +206,7 @@
       "created": "2023-02-01T15:30:43.281796Z",
       "result": "{\"somekey\":2}",
       "status": "RUNNING",
-      "author": 1
+      "author": ["test_user"]
     }
   },
   {
@@ -218,7 +218,7 @@
       "created": "2023-02-01T15:30:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "QUEUED",
-      "author": 2
+      "author": ["test_user_2"]
     }
   },
   {
@@ -230,7 +230,7 @@
       "created": "2023-02-01T15:30:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "SUCCEEDED",
-      "author": 2,
+      "author": ["test_user_2"],
       "logs": "log entry 1"
     }
   },
@@ -243,7 +243,7 @@
       "created": "2023-02-02T15:30:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "QUEUED",
-      "author": 1
+      "author": ["test_user"]
     }
   },
   {
@@ -255,7 +255,7 @@
       "created": "2023-02-01T15:30:43.281796Z",
       "result": "{\"somekey\":1}",
       "status": "QUEUED",
-      "author": 1
+      "author": ["test_user"]
     }
   },
   {
@@ -264,7 +264,7 @@
     "fields": {
       "job": "8317718f-5c0d-4fb6-9947-72e480b8a348",
       "runtime_job": "runtime_job_1",
-      "runtime_session": "session_id_1"  
+      "runtime_session": "session_id_1"
     }
   },
   {
@@ -299,7 +299,9 @@
       "pk": 100,
       "fields": {
         "name": "runner",
-	      "permissions": [65]
+        "permissions": [
+          ["run_program", "api", "program"]
+        ]
       }
   },
   {
@@ -307,7 +309,9 @@
     "pk": 101,
     "fields": {
       "name": "viewer",
-      "permissions": [64]
+      "permissions": [
+        ["view_program", "api", "program"]
+      ]
     }
   },
   {
@@ -323,7 +327,9 @@
     "fields": {
       "name": "default",
       "created": "2023-02-01T15:30:43.281796Z",
-      "admin_groups": [105],
+      "admin_groups": [
+        ["default-group"]
+      ],
       "registry": "docker.io/awesome"
     }
   },
@@ -333,7 +339,9 @@
     "fields": {
       "name": "ibm",
       "created": "2023-02-01T15:30:43.281796Z",
-      "admin_groups": [101],
+      "admin_groups": [
+        ["viewer"]
+      ],
       "registry": "docker.io/awesome"
     }
   }

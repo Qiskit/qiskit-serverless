@@ -68,10 +68,7 @@ class GetJobLogsUseCase:
             logs = extract_public_logs(logs)
             return logs
 
+        # Legacy: Get from db.
         logs = job.logs
 
-        if not logs or logs == NO_LOGS_MSG or logs == NO_LOGS_MSG_2:
-            raise NotFoundError(f"Logs for job[{job_id}] are not found")
-
-        # Legacy: Get from db.
         return logs
