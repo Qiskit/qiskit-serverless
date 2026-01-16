@@ -17,7 +17,7 @@ build-all: build-ray-node build-gateway
 push-all: push-ray-node push-gateway
 
 build-ray-node:
-	docker build -t $(rayNodeImageName):$(version) -f Dockerfile-ray-node .
+	docker build -t $(rayNodeImageName):$(version) -f ./ray-node/Dockerfile .
 
 build-gateway:
 	docker build -t $(gatewayImageName):$(version) -f ./gateway/Dockerfile .

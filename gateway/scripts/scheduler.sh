@@ -1,6 +1,6 @@
 #!/bin/sh
 
-python manage.py migrate
+python manage.py migrate_with_lock
 while :
 do
   python manage.py update_jobs_statuses

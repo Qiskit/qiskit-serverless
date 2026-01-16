@@ -3,11 +3,11 @@
 import json
 import os
 import shutil
+import tempfile
 from unittest.mock import MagicMock
 
 import requests_mock
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from kubernetes import client, config
 from kubernetes.dynamic.client import DynamicClient
 from ray.dashboard.modules.job.common import JobStatus
@@ -92,6 +92,10 @@ class TestJobHandler(APITestCase):
     fixtures = ["tests/fixtures/schedule_fixtures.json"]
 
     def setUp(self) -> None:
+        super().setUp()
+        self._temp_directory = tempfile.TemporaryDirectory()
+        self.MEDIA_ROOT = self._temp_directory.name
+
         ray_client = MagicMock()
         ray_client.get_job_status.return_value = JobStatus.PENDING
         ray_client.get_job_logs.return_value = "No logs yet."
@@ -106,11 +110,12 @@ class TestJobHandler(APITestCase):
             "resources",
             "artifact.tar",
         )
-        path_to_media_artifact = os.path.join(
-            settings.MEDIA_ROOT, "awesome_artifact.tar"
-        )
-        os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
+        path_to_media_artifact = os.path.join(self.MEDIA_ROOT, "awesome_artifact.tar")
         shutil.copyfile(path_to_resource_artifact, path_to_media_artifact)
+
+    def tearDown(self):
+        self._temp_directory.cleanup()
+        super().tearDown()
 
     def test_job_status(self):
         """Tests job status."""
@@ -129,9 +134,10 @@ class TestJobHandler(APITestCase):
 
     def test_job_submit(self):
         """Tests job submission."""
-        job = Job.objects.first()
-        job.env_vars = json.dumps(
-            {"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")}
-        )
-        job_id = self.handler.submit(job)
-        self.assertEqual(job_id, "AwesomeJobId")
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            job = Job.objects.first()
+            job.env_vars = json.dumps(
+                {"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")}
+            )
+            job_id = self.handler.submit(job)
+            self.assertEqual(job_id, "AwesomeJobId")

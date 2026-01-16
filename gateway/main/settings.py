@@ -70,6 +70,8 @@ INSTALLED_APPS = [
     "django_prometheus",
     "rest_framework",
     "rest_framework.authtoken",
+    "pgactivity",
+    "pglock",
     "api",
     "psycopg2",
     "drf_yasg",
