@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import tempfile
+from unittest.mock import patch
 
 from django.contrib.auth import models
 from django.urls import reverse
@@ -698,3 +699,39 @@ class TestJobApi(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         runtime_jobs = response.data["runtime_jobs"]
         self.assertEqual(runtime_jobs, [])
+
+    def test_job_list_internal_server_error(self):
+        """Tests that unexpected exceptions return 500 with proper message."""
+        self._authorize()
+
+        with patch(
+            "api.use_cases.jobs.get_runtime_jobs.GetRuntimeJobsUseCase.execute",
+            side_effect=Exception("Database connection failed"),
+        ):
+            response = self.client.get(
+                reverse(
+                    "v1:jobs-runtime-jobs",
+                    args=["57fc2e4d-267f-40c6-91a3-38153272e764"],
+                ),
+                format="json",
+            )
+
+            self.assertEqual(
+                response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            self.assertEqual(response.data.get("message"), "Internal server error")
+
+    def test_job_list_error(self):
+        """Tests that unexpected exceptions return 500 with proper message."""
+        self._authorize()
+
+        with patch(
+            "api.use_cases.jobs.list.JobsListUseCase.execute",
+            side_effect=Exception("Database connection failed"),
+        ):
+            response = self.client.get(reverse("v1:jobs-list"), format="json")
+
+            self.assertEqual(
+                response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            self.assertEqual(response.data.get("message"), "Internal server error")
