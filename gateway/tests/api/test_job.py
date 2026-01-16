@@ -613,6 +613,7 @@ class TestJobApi(APITestCase):
 
     def test_job_provider_logs(self):
         """Tests job log by fuction provider."""
+        shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
