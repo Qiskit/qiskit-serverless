@@ -56,7 +56,7 @@ class GetJobLogsUseCase:
 
         logs = logs_storage.get(job_id)
 
-        # No logs stored.
+        # Logs stored in COS
         if logs:
             return logs
 
