@@ -19,9 +19,9 @@ jobs:
       fail-fast: false # keep running if one leg fails
       matrix:
         dockerfile:
-          - Dockerfile-ray-node
+          - ray-node/Dockerfile
           - gateway/Dockerfile
-          - "Dockerfile-ray-node with dynamic dependencies"
+          - "ray-node/Dockerfile with dynamic dependencies"
         python:
           - "3.11"
     steps:
@@ -30,7 +30,7 @@ jobs:
       - name: Setup buildx
         uses: docker/setup-buildx-action@v3
       - name: Build ${{ matrix.dockerfile }}
-        if: ${{ matrix.dockerfile != 'Dockerfile-ray-node with dynamic dependencies' }}
+        if: ${{ matrix.dockerfile != 'ray-node/Dockerfile with dynamic dependencies' }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -38,11 +38,11 @@ jobs:
           load: true
           tags: image:test
       - name: Build ${{ matrix.dockerfile }}
-        if: ${{ matrix.dockerfile == 'Dockerfile-ray-node with dynamic dependencies' }}
+        if: ${{ matrix.dockerfile == 'ray-node/Dockerfile with dynamic dependencies' }}
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile-ray-node
+          file: ./ray-node/Dockerfile
           load: true
           tags: image:test
           build-args: |

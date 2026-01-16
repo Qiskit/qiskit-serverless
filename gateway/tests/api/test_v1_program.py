@@ -2,6 +2,7 @@
 
 import json
 import os
+import tempfile
 
 from django.contrib.auth import models
 from django.core.files.base import ContentFile
@@ -21,16 +22,11 @@ class TestProgramApi(APITestCase):
     def setUp(self):
         """Set up test fixtures and media root path."""
         super().setUp()
-        self.media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        self.media_root = os.path.normpath(os.path.join(os.getcwd(), self.media_root))
+        self._temp_directory = tempfile.TemporaryDirectory()
+        self.MEDIA_ROOT = self._temp_directory.name
 
     def tearDown(self):
-        """Clean up created files after each test."""
+        self._temp_directory.cleanup()
         super().tearDown()
 
     def test_programs_non_auth_user(self):
@@ -122,7 +118,7 @@ class TestProgramApi(APITestCase):
     def test_run(self):
         """Tests run existing authorized."""
 
-        with self.settings(MEDIA_ROOT=self.media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_3")
             self.client.force_authenticate(user=user)
 
@@ -161,14 +157,14 @@ class TestProgramApi(APITestCase):
 
             # Verify arguments are stored in the correct folder path
             expected_arguments_path = os.path.join(
-                self.media_root, user.username, "arguments"
+                self.MEDIA_ROOT, user.username, "arguments"
             )
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
 
     def test_provider_run(self):
         """Tests run existing authorized."""
 
-        with self.settings(MEDIA_ROOT=self.media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
 
@@ -209,7 +205,7 @@ class TestProgramApi(APITestCase):
 
             # Verify arguments are stored in the correct folder path for provider
             expected_arguments_path = os.path.join(
-                self.media_root,
+                self.MEDIA_ROOT,
                 user.username,
                 "default",
                 "Docker-Image-Program",
@@ -279,18 +275,20 @@ class TestProgramApi(APITestCase):
         self.client.force_authenticate(user=user)
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
-        programs_response = self.client.post(
-            "/api/v1/programs/upload/",
-            data={
-                "title": "Private function",
-                "entrypoint": "test_user_2_program.py",
-                "dependencies": "[]",
-                "env_vars": env_vars,
-                "artifact": fake_file,
-            },
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("provider"), None)
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            programs_response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "Private function",
+                    "entrypoint": "test_user_2_program.py",
+                    "dependencies": "[]",
+                    "env_vars": env_vars,
+                    "artifact": fake_file,
+                },
+            )
+            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(programs_response.data.get("provider"), None)
 
     def test_upload_custom_image_without_provider(self):
         """Tests upload end-point authorized."""
@@ -350,19 +348,21 @@ class TestProgramApi(APITestCase):
         self.client.force_authenticate(user=user)
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
-        programs_response = self.client.post(
-            "/api/v1/programs/upload/",
-            data={
-                "title": "Provider Function",
-                "entrypoint": "test_user_2_program.py",
-                "dependencies": "[]",
-                "env_vars": env_vars,
-                "artifact": fake_file,
-                "provider": "default",
-            },
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("provider"), "default")
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            programs_response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "Provider Function",
+                    "entrypoint": "test_user_2_program.py",
+                    "dependencies": "[]",
+                    "env_vars": env_vars,
+                    "artifact": fake_file,
+                    "provider": "default",
+                },
+            )
+            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(programs_response.data.get("provider"), "default")
 
     def test_upload_provider_function_with_title(self):
         """Tests upload end-point authorized."""
@@ -374,27 +374,29 @@ class TestProgramApi(APITestCase):
         self.client.force_authenticate(user=user)
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
-        programs_response = self.client.post(
-            "/api/v1/programs/upload/",
-            data={
-                "title": "default/Provider Function",
-                "entrypoint": "test_user_3_program.py",
-                "dependencies": "[]",
-                "env_vars": env_vars,
-                "artifact": fake_file,
-            },
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("provider"), "default")
-        self.assertEqual(
-            programs_response.data.get("entrypoint"), "test_user_3_program.py"
-        )
-        self.assertEqual(programs_response.data.get("title"), "Provider Function")
-        self.assertRaises(
-            Program.DoesNotExist,
-            Program.objects.get,
-            title="default/Provider Function",
-        )
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            programs_response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "default/Provider Function",
+                    "entrypoint": "test_user_3_program.py",
+                    "dependencies": "[]",
+                    "env_vars": env_vars,
+                    "artifact": fake_file,
+                },
+            )
+            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(programs_response.data.get("provider"), "default")
+            self.assertEqual(
+                programs_response.data.get("entrypoint"), "test_user_3_program.py"
+            )
+            self.assertEqual(programs_response.data.get("title"), "Provider Function")
+            self.assertRaises(
+                Program.DoesNotExist,
+                Program.objects.get,
+                title="default/Provider Function",
+            )
 
     def test_upload_authorization_error(self):
         """Tests upload end-point authorized."""
@@ -430,34 +432,38 @@ class TestProgramApi(APITestCase):
 
         env_vars = json.dumps({"MY_ENV_VAR_KEY": "MY_ENV_VAR_VALUE"})
         description = "sample function implemented in a custom image"
-        programs_response = self.client.post(
-            "/api/v1/programs/upload/",
-            data={
-                "title": "Provider Function",
-                "entrypoint": "test_user_2_program.py",
-                "dependencies": "[]",
-                "env_vars": env_vars,
-                "artifact": fake_file,
-                "provider": "default",
-                "description": description,
-            },
-        )
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("provider"), "default")
 
-        programs_response = self.client.get(reverse("v1:programs-list"), format="json")
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            programs_response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "Provider Function",
+                    "entrypoint": "test_user_2_program.py",
+                    "dependencies": "[]",
+                    "env_vars": env_vars,
+                    "artifact": fake_file,
+                    "provider": "default",
+                    "description": description,
+                },
+            )
+            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(programs_response.data.get("provider"), "default")
 
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(programs_response.data), 2)
-        found = False
-        for resp_data in programs_response.data:
-            if resp_data.get("title") == "Provider Function":
-                self.assertEqual(
-                    resp_data.get("description"),
-                    description,
-                )
-                found = True
-        self.assertTrue(found)
+            programs_response = self.client.get(
+                reverse("v1:programs-list"), format="json"
+            )
+
+            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(programs_response.data), 2)
+            found = False
+            for resp_data in programs_response.data:
+                if resp_data.get("title") == "Provider Function":
+                    self.assertEqual(
+                        resp_data.get("description"),
+                        description,
+                    )
+                    found = True
+            self.assertTrue(found)
 
     def test_get_by_title(self):
         user = models.User.objects.get(username="test_user_2")
@@ -537,20 +543,22 @@ class TestProgramApi(APITestCase):
 
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
-        programs_response = self.client.post(
-            "/api/v1/programs/upload/",
-            data={
-                "title": "Program",
-                "entrypoint": "test_user_2_program.py",
-                "dependencies": "[]",
-                "artifact": fake_file,
-            },
-        )
 
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            programs_response.data.get("description"), "Program description test"
-        )
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            programs_response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "Program",
+                    "entrypoint": "test_user_2_program.py",
+                    "dependencies": "[]",
+                    "artifact": fake_file,
+                },
+            )
+
+            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(
+                programs_response.data.get("description"), "Program description test"
+            )
 
     def test_upload_private_function_update_description(self):
         """Tests upload end-point authorized."""
@@ -561,19 +569,21 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user")
         self.client.force_authenticate(user=user)
         description = "New program description test"
-        programs_response = self.client.post(
-            "/api/v1/programs/upload/",
-            data={
-                "title": "Program",
-                "entrypoint": "test_user_2_program.py",
-                "description": description,
-                "dependencies": "[]",
-                "artifact": fake_file,
-            },
-        )
 
-        self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(programs_response.data.get("description"), description)
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            programs_response = self.client.post(
+                "/api/v1/programs/upload/",
+                data={
+                    "title": "Program",
+                    "entrypoint": "test_user_2_program.py",
+                    "description": description,
+                    "dependencies": "[]",
+                    "artifact": fake_file,
+                },
+            )
+
+            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(programs_response.data.get("description"), description)
 
     def test_run_user_function_with_same_title_as_provider_function(self):
         """
@@ -583,7 +593,7 @@ class TestProgramApi(APITestCase):
         stores arguments in the correct path.
         """
 
-        with self.settings(MEDIA_ROOT=self.media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
 
@@ -663,6 +673,6 @@ class TestProgramApi(APITestCase):
 
             # Verify the storage path is for user function (no provider in path)
             expected_arguments_path = os.path.join(
-                self.media_root, user.username, "arguments"
+                self.MEDIA_ROOT, user.username, "arguments"
             )
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
