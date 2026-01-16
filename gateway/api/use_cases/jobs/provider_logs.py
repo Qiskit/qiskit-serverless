@@ -57,7 +57,7 @@ class GetProviderJobLogsUseCase:
 
         logs = logs_storage.get(job_id)
 
-        # No logs stored.
+        # Logs stored in storage.
         if logs:
             return logs
 
