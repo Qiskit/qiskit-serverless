@@ -55,7 +55,7 @@ def endpoint_handle_exceptions(view_func: Callable):
                 {"message": _first_error_message(error.detail)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as error:
+        except Exception as error:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Unexpected error occurred in view: %s",
                 str(error),
