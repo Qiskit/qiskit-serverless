@@ -346,7 +346,7 @@ class TestJobApi(APITestCase):
         but this test validates the correct behavior if permissions change in
         the future to allow provider admins to read results.
         """
-        from api.services.result_storage import ResultStorage
+        from api.services.storage.result_storage import ResultStorage
 
         shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
 
@@ -409,7 +409,7 @@ class TestJobApi(APITestCase):
         but this test validates the correct behavior if permissions change in
         the future to allow other users (e.g., system processes) to save results.
         """
-        from api.services.result_storage import ResultStorage
+        from api.services.storage.result_storage import ResultStorage
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             # Get a job created by test_user (author=1)
@@ -577,47 +577,106 @@ class TestJobApi(APITestCase):
 
     def test_job_logs_by_author_for_function_without_provider(self):
         """Tests job log by job author."""
-        self._authorize()
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            self._authorize()
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 2")
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("logs"), "log entry 2")
 
     def test_job_logs_by_author_for_function_with_provider(self):
         """Tests job log by job author."""
-        self._authorize()
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            self._authorize()
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_job_logs_by_function_provider(self):
         """Tests job log by fuction provider."""
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
+
+    def test_job_provider_logs(self):
+        """Tests job log by fuction provider."""
+        shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+
+            jobs_response = self.client.get(
+                reverse(
+                    "v1:jobs-provider-logs",
+                    args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"],
+                ),
+                format="json",
+            )
+
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+            self.assertEqual(jobs_response.data.get("logs"), "provider log entry 1")
+
+    def test_job_provider_logs_forbidden(self):
+        """Tests job log by fuction provider."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            user = models.User.objects.get(username="test_user")
+            self.client.force_authenticate(user=user)
+
+            jobs_response = self.client.get(
+                reverse(
+                    "v1:jobs-provider-logs",
+                    args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"],
+                ),
+                format="json",
+            )
+
+            self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_job_provider_logs_not_fount_empty(self):
+        """Tests job log by fuction provider."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            user = models.User.objects.get(username="test_user_3")
+            self.client.force_authenticate(user=user)
+
+            job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"
+            jobs_response = self.client.get(
+                reverse(
+                    "v1:jobs-provider-logs",
+                    args=[job_id],
+                ),
+                format="json",
+            )
+
+            self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
+            self.assertEqual(
+                jobs_response.data.get("message"),
+                f"Logs for job[{job_id}] are not found",
+            )
 
     def test_job_logs(self):
         """Tests job log non-authorized."""
-        user = models.User.objects.get(username="test_user_3")
-        self.client.force_authenticate(user=user)
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            user = models.User.objects.get(username="test_user_3")
+            self.client.force_authenticate(user=user)
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_runtime_jobs_post(self):
         """Tests runtime jobs POST endpoint."""

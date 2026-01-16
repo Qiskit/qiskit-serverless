@@ -11,7 +11,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from api.models import Job, Program, RuntimeJob
-from api.services.arguments_storage import ArgumentsStorage
+from api.services.storage import ArgumentsStorage
 
 
 class TestProgramApi(APITestCase):
@@ -159,9 +159,7 @@ class TestProgramApi(APITestCase):
             expected_arguments_path = os.path.join(
                 self.MEDIA_ROOT, user.username, "arguments"
             )
-            self.assertEqual(
-                arguments_storage.user_arguments_directory, expected_arguments_path
-            )
+            self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
 
     def test_provider_run(self):
         """Tests run existing authorized."""
@@ -213,9 +211,7 @@ class TestProgramApi(APITestCase):
                 "Docker-Image-Program",
                 "arguments",
             )
-            self.assertEqual(
-                arguments_storage.user_arguments_directory, expected_arguments_path
-            )
+            self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
 
     def test_run_locked(self):
         """Tests run disabled program."""
@@ -679,6 +675,4 @@ class TestProgramApi(APITestCase):
             expected_arguments_path = os.path.join(
                 self.MEDIA_ROOT, user.username, "arguments"
             )
-            self.assertEqual(
-                arguments_storage.user_arguments_directory, expected_arguments_path
-            )
+            self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)

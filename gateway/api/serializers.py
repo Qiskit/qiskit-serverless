@@ -11,7 +11,7 @@ import logging
 from typing import Tuple, Union
 from django.conf import settings
 from rest_framework import serializers
-from api.services.arguments_storage import ArgumentsStorage
+from api.services.storage import ArgumentsStorage
 
 from api.repositories.functions import FunctionRepository
 from api.repositories.users import UserRepository
