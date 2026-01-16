@@ -135,6 +135,3 @@ GitHub.sublime-settings
 !.vscode/launch.json
 !.vscode/extensions.json
 .history
-
-tests/resources/fake_media/**/arguments/*
-!tests/resources/fake_media/**/logs/*.log
