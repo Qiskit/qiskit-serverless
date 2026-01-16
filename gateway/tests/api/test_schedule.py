@@ -1,5 +1,6 @@
 """Tests scheduling."""
 
+import tempfile
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
@@ -13,6 +14,15 @@ class TestScheduleApi(APITestCase):
     """TestJobApi."""
 
     fixtures = ["tests/fixtures/schedule_fixtures.json"]
+
+    def setUp(self):
+        super().setUp()
+        self._temp_directory = tempfile.TemporaryDirectory()
+        self.MEDIA_ROOT = self._temp_directory.name
+
+    def tearDown(self):
+        self._temp_directory.cleanup()
+        super().tearDown()
 
     def test_get_fair_share_jobs(self):
         """Tests fair share jobs getter function."""
@@ -32,16 +42,17 @@ class TestScheduleApi(APITestCase):
     @patch("api.ray.get_job_handler")
     def test_create_different_compute_resources(self, mock_handler):
         """Tests should create new resource."""
-        user = get_user_model().objects.filter(username="test3_user").first()
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            user = get_user_model().objects.filter(username="test3_user").first()
 
-        job_1 = MagicMock()
-        job_1.author = user
-        ret_job_1 = execute_job(job_1)
+            job_1 = MagicMock()
+            job_1.author = user
+            ret_job_1 = execute_job(job_1)
 
-        job_2 = MagicMock()
-        job_2.author = user
-        ret_job_2 = execute_job(job_2)
+            job_2 = MagicMock()
+            job_2.author = user
+            ret_job_2 = execute_job(job_2)
 
-        self.assertNotEqual(
-            str(ret_job_1.compute_resource.id), str(ret_job_2.compute_resource.id)
-        )
+            self.assertNotEqual(
+                str(ret_job_1.compute_resource.id), str(ret_job_2.compute_resource.id)
+            )
