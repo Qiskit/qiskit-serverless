@@ -1,6 +1,7 @@
 """
 This module handle the access to the logs store
 """
+
 import logging
 import os
 from typing import Optional
