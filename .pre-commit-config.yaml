@@ -1,43 +1,46 @@
 repos:
-  # Run on every commit black: auto-formats staged files (very fast)
+  # pre-commit hooks (fast)
+  # - repo: https://github.com/pre-commit/pre-commit-hooks
+  #   rev: v5.0.0
+  #   hooks:
+  #     - id: trailing-whitespace
+  #     - id: end-of-file-fixer
+  #     - id: check-yaml
+  #     - id: check-added-large-files
+
+  # Black on commit
   - repo: https://github.com/psf/black
     rev: 24.10.0
     hooks:
       - id: black
         language_version: python3.11
 
-  # Pylint & Mypy - only on pre-push (slower checks)
-  # Config is read from each project's .pylintrc file
+  # Pylint & Mypy only on pre-push (slower checks)
   - repo: local
     hooks:
-      - id: pylint-gateway
-        name: pylint (gateway)
+      # Config located in gateway/.pylintrc
+      - id: lint-gateway
+        name: lint (gateway)
         entry: bash -c 'cd gateway && pylint -rn api main'
         language: system
         files: ^gateway/
         types: [python]
         stages: [pre-push]
 
-      - id: pylint-client
-        name: pylint (client)
-        entry: bash -c 'cd client && pylint -rn qiskit_serverless tests'
+      # Config located in client/.pylintrc
+      - id: lint-client
+        name: lint (client)
+        entry: bash -c 'cd client && pylint -rn qiskit_serverless tests && mypy --install-types --non-interactive .'
         language: system
         files: ^client/
         types: [python]
         stages: [pre-push]
 
-      - id: pylint-tests
-        name: pylint (tests)
+      # Config located in tests/.pylintrc
+      - id: lint-tests
+        name: lint (tests)
         entry: bash -c 'cd tests && pylint -rn docker/test_* docker/conftest.py'
         language: system
         files: ^tests/docker/
-        types: [python]
-        stages: [pre-push]
-
-      - id: mypy-client
-        name: mypy (client)
-        entry: bash -c 'cd client && mypy --install-types --non-interactive .'
-        language: system
-        files: ^client/
         types: [python]
         stages: [pre-push]
