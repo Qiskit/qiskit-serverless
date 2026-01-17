@@ -2,9 +2,11 @@
 
 import json
 import os
+import shutil
+import tempfile
+from unittest.mock import patch
 
 from django.contrib.auth import models
-from django.conf import settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -16,6 +18,25 @@ class TestJobApi(APITestCase):
     """TestJobApi."""
 
     fixtures = ["tests/fixtures/fixtures.json"]
+
+    _fake_media_path = os.path.normpath(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "resources",
+            "fake_media",
+        )
+    )
+
+    def setUp(self):
+        super().setUp()
+        self._temp_directory = tempfile.TemporaryDirectory()
+        self.MEDIA_ROOT = self._temp_directory.name
+        print(self.MEDIA_ROOT)
+
+    def tearDown(self):
+        self._temp_directory.cleanup()
+        super().tearDown()
 
     def _authorize(self, username="test_user"):
         """Authorize client."""
@@ -256,15 +277,9 @@ class TestJobApi(APITestCase):
 
     def test_job_detail(self):
         """Tests job detail authorized."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
 
-        with self.settings(MEDIA_ROOT=media_root):
+        shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             self._authorize()
 
             jobs_response = self.client.get(
@@ -276,15 +291,7 @@ class TestJobApi(APITestCase):
 
     def test_job_detail_without_result_param(self):
         """Tests job detail authorized."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             self._authorize()
 
             jobs_response = self.client.get(
@@ -297,15 +304,7 @@ class TestJobApi(APITestCase):
 
     def test_job_detail_without_result_file(self):
         """Tests job detail authorized."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             self._authorize()
 
             jobs_response = self.client.get(
@@ -350,15 +349,9 @@ class TestJobApi(APITestCase):
         """
         from api.services.result_storage import ResultStorage
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
+        shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
 
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             # Get a job created by test_user (author=1)
             job = Job.objects.get(pk="8317718f-5c0d-4fb6-9947-72e480b8a348")
             self.assertEqual(job.author.username, "test_user")
@@ -376,15 +369,7 @@ class TestJobApi(APITestCase):
 
     def test_job_save_result(self):
         """Tests job results save."""
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             self._authorize()
             job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
             jobs_response = self.client.post(
@@ -393,10 +378,9 @@ class TestJobApi(APITestCase):
                 data={"result": json.dumps({"ultimate": 42})},
             )
             result_path = os.path.join(
-                settings.MEDIA_ROOT, "test_user", "results", f"{job_id}.json"
+                self.MEDIA_ROOT, "test_user", "results", f"{job_id}.json"
             )
             self.assertTrue(os.path.exists(result_path))
-            os.remove(result_path)
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
 
@@ -428,15 +412,7 @@ class TestJobApi(APITestCase):
         """
         from api.services.result_storage import ResultStorage
 
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             # Get a job created by test_user (author=1)
             job = Job.objects.get(pk="57fc2e4d-267f-40c6-91a3-38153272e764")
             self.assertEqual(job.author.username, "test_user")
@@ -464,7 +440,7 @@ class TestJobApi(APITestCase):
 
             # Cleanup
             result_path = os.path.join(
-                media_root, job.author.username, "results", f"{job.id}.json"
+                self.MEDIA_ROOT, job.author.username, "results", f"{job.id}.json"
             )
             if os.path.exists(result_path):
                 os.remove(result_path)
@@ -554,15 +530,7 @@ class TestJobApi(APITestCase):
         User has access to job result from a function provider
         as the authot of the job
         """
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             self._authorize()
 
             jobs_response = self.client.get(
@@ -577,15 +545,7 @@ class TestJobApi(APITestCase):
         A provider admin has no access to job result from a function provider
         if it's not the author of the job
         """
-        media_root = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "resources",
-            "fake_media",
-        )
-        media_root = os.path.normpath(os.path.join(os.getcwd(), media_root))
-
-        with self.settings(MEDIA_ROOT=media_root):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_3")
             self.client.force_authenticate(user=user)
 
@@ -739,3 +699,39 @@ class TestJobApi(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         runtime_jobs = response.data["runtime_jobs"]
         self.assertEqual(runtime_jobs, [])
+
+    def test_job_list_internal_server_error(self):
+        """Tests that unexpected exceptions return 500 with proper message."""
+        self._authorize()
+
+        with patch(
+            "api.use_cases.jobs.get_runtime_jobs.GetRuntimeJobsUseCase.execute",
+            side_effect=Exception("Database connection failed"),
+        ):
+            response = self.client.get(
+                reverse(
+                    "v1:jobs-runtime-jobs",
+                    args=["57fc2e4d-267f-40c6-91a3-38153272e764"],
+                ),
+                format="json",
+            )
+
+            self.assertEqual(
+                response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            self.assertEqual(response.data.get("message"), "Internal server error")
+
+    def test_job_list_error(self):
+        """Tests that unexpected exceptions return 500 with proper message."""
+        self._authorize()
+
+        with patch(
+            "api.use_cases.jobs.list.JobsListUseCase.execute",
+            side_effect=Exception("Database connection failed"),
+        ):
+            response = self.client.get(reverse("v1:jobs-list"), format="json")
+
+            self.assertEqual(
+                response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            self.assertEqual(response.data.get("message"), "Internal server error")
