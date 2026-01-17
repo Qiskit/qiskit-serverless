@@ -215,6 +215,12 @@ spec:
               value: {{ .Values.application.dependencies.dynamicDependencies | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: SECURE_HSTS_SECONDS
+              value: {{ .Values.application.security.hstsSeconds | quote }}
+            - name: SECURE_HSTS_INCLUDE_SUBDOMAINS
+              value: {{ .Values.application.security.hstsIncludeSubdomains | quote }}
+            - name: SECURE_HSTS_PRELOAD
+              value: {{ .Values.application.security.hstsPreload | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
