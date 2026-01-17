@@ -47,8 +47,8 @@ from qiskit_serverless.utils.json import safe_json_request_as_dict
 _trace = trace_decorator_factory("files")
 
 
-class GatewayFilesClient:
-    """GatewayFilesClient."""
+class GatewayFilesClient :
+    """GatewayFilesClient"""
 
     def __init__(  # pylint: disable=too-many-positional-arguments
         self,
@@ -56,7 +56,9 @@ class GatewayFilesClient:
         token: str,
         version: str,
         instance: Optional[str] = None,
-        channel: Optional[str] = None,
+
+
+        channel: Optional[str] = None
     ):
         """Files client for Gateway service.
 
