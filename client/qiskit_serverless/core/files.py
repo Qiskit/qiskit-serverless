@@ -73,7 +73,7 @@ class GatewayFilesClient:
         self._channel = channel
         self._files_url = url_path_join(self.host, "api", self.version, "files")
 
-    def _download_with_url(
+    def _download_with_url(  # pylint:  disable=too-many-positional-arguments
         self,
         file: str,
         download_location: str,
