@@ -1,13 +1,5 @@
 repos:
-  # Fast hooks - run on every commit
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: trailing-whitespace
-      - id: check-yaml
-      - id: check-added-large-files
-
-  # Black - auto-formats staged files (very fast)
+  # Run on every commit black: auto-formats staged files (very fast)
   - repo: https://github.com/psf/black
     rev: 24.10.0
     hooks:
