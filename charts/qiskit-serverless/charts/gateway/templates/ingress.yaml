@@ -18,10 +18,6 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
     {{- if .Values.application.security }}
-    {{- if .Values.application.security.sslRedirect }}
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    {{- end }}
     {{- if gt (.Values.application.security.hstsSeconds | int) 0 }}
     nginx.ingress.kubernetes.io/hsts: "true"
     nginx.ingress.kubernetes.io/hsts-max-age: {{ .Values.application.security.hstsSeconds | quote }}
