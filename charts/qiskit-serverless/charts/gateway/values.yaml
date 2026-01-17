@@ -64,7 +64,6 @@ application:
       dynamicDependencies: "requirements-dynamic-dependencies.txt"
   logsMaximumSize: 50 # in MB
   security:
-    sslRedirect: true
     hstsSeconds: 0  # 0 means disabled
     hstsIncludeSubdomains: false
     hstsPreload: false
