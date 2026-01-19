@@ -153,10 +153,10 @@ This repository contains several projects with different technologies. Depending
 
 #### Setting up pre-commit hooks
 
-We use [pre-commit](https://pre-commit.com/) to automatically run linting checks. To set it up (required once per local clone):
+We use [pre-commit](https://pre-commit.com/) to automatically run linting checks. If you have already installed `requirements-dev.txt` in a virtual env, pre-commit is already 
+available and you will only would need to register the hooks (required once per `.git` folder clone):
 
 ```bash
-pip install pre-commit
 pre-commit install
 pre-commit install --hook-type pre-push
 ```
