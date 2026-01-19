@@ -1,0 +1,42 @@
+﻿qiskit\_serverless.core.LocalClient
+===================================
+
+.. currentmodule:: qiskit_serverless.core
+
+.. autoclass:: LocalClient
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~LocalClient.__init__
+      ~LocalClient.filtered_logs
+      ~LocalClient.from_dict
+      ~LocalClient.function
+      ~LocalClient.functions
+      ~LocalClient.get
+      ~LocalClient.get_job_by_id
+      ~LocalClient.get_jobs
+      ~LocalClient.job
+      ~LocalClient.jobs
+      ~LocalClient.list
+      ~LocalClient.logs
+      ~LocalClient.result
+      ~LocalClient.run
+      ~LocalClient.runtime_jobs
+      ~LocalClient.runtime_sessions
+      ~LocalClient.status
+      ~LocalClient.stop
+      ~LocalClient.to_dict
+      ~LocalClient.upload
+      ~LocalClient.widget
+   
+   
+
+   
+   
+   

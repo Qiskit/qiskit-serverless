@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="qiskit_serverless.core.distribute_qiskit_function" href="qiskit_serverless.core.distribute_qiskit_function.html" /><link rel="prev" title="qiskit_serverless.core.distribute_task" href="qiskit_serverless.core.distribute_task.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="qiskit_serverless.core.LocalClient" href="qiskit_serverless.core.LocalClient.html" /><link rel="prev" title="qiskit_serverless.core.BaseClient" href="qiskit_serverless.core.BaseClient.html" />
 
     <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>qiskit_serverless.core.distribute_program - Qiskit Serverless 0.28.0</title>
+        <title>qiskit_serverless.core.RayClient - Qiskit Serverless 0.28.0</title>
       <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=3ee1c6c6" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/qiskit-sphinx-theme.css?v=8ff9dcb6" />
@@ -227,7 +227,7 @@
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.ServerlessClient.html">qiskit_serverless.core.ServerlessClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.IBMServerlessClient.html">qiskit_serverless.core.IBMServerlessClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.BaseClient.html">qiskit_serverless.core.BaseClient</a></li>
-<li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.RayClient.html">qiskit_serverless.core.RayClient</a></li>
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">qiskit_serverless.core.RayClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.LocalClient.html">qiskit_serverless.core.LocalClient</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.Job.html">qiskit_serverless.core.Job</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.save_result.html">qiskit_serverless.core.save_result</a></li>
@@ -237,7 +237,7 @@
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.CircuitMeta.html">qiskit_serverless.core.CircuitMeta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.fetch_execution_meta.html">qiskit_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.distribute_task.html">qiskit_serverless.core.distribute_task</a></li>
-<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">qiskit_serverless.core.distribute_program</a></li>
+<li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.distribute_program.html">qiskit_serverless.core.distribute_program</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.distribute_qiskit_function.html">qiskit_serverless.core.distribute_qiskit_function</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.get.html">qiskit_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
@@ -281,7 +281,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/stubs/qiskit_serverless.core.distribute_program.rst.txt" title="View this page">
+  <a class="muted-link" href="../_sources/stubs/qiskit_serverless.core.RayClient.rst.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -301,12 +301,107 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="qiskit-serverless-core-distribute-program">
-<h1>qiskit_serverless.core.distribute_program<a class="headerlink" href="#qiskit-serverless-core-distribute-program" title="Permalink to this heading">¶</a></h1>
-<dl class="py function">
-<dt class="sig sig-object py" id="qiskit_serverless.core.distribute_program">
-<span class="sig-name descname"><span class="pre">distribute_program</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">provider</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dependencies</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">working_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qiskit_serverless/core/decorators.html#distribute_program"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qiskit_serverless.core.distribute_program" title="Permalink to this definition">¶</a></dt>
-<dd><p>Decorator for distributed program.</p>
+          <section id="qiskit-serverless-core-rayclient">
+<h1>qiskit_serverless.core.RayClient<a class="headerlink" href="#qiskit-serverless-core-rayclient" title="Permalink to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="qiskit_serverless.core.RayClient">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RayClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qiskit_serverless/core/clients/ray_client.html#RayClient"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qiskit_serverless.core.RayClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>RayClient.</p>
+<p>Ray client</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>host</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – ray head node host</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ray_provider</span> <span class="o">=</span> <span class="n">RayClient</span><span class="p">(</span><span class="s2">&quot;http://localhost:8265&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="qiskit_serverless.core.RayClient.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qiskit_serverless/core/clients/ray_client.html#RayClient.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qiskit_serverless.core.RayClient.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ray client</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>host</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – ray head node host</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ray_provider</span> <span class="o">=</span> <span class="n">RayClient</span><span class="p">(</span><span class="s2">&quot;http://localhost:8265&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<p class="rubric">Methods</p>
+<div class="table-wrapper autosummary longtable docutils container">
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#qiskit_serverless.core.RayClient.__init__" title="qiskit_serverless.core.RayClient.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(host)</p></td>
+<td><p>Ray client</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">filtered_logs</span></code>(job_id, **kwargs)</p></td>
+<td><p>Return filtered logs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_dict</span></code>(dictionary)</p></td>
+<td><p>Converts dict to object.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">function</span></code>(title[, provider])</p></td>
+<td><p>Returns program based on parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">functions</span></code>(**kwargs)</p></td>
+<td><p>Returns list of available programs.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get</span></code>(title[, provider])</p></td>
+<td><p>Returns program based on parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_job_by_id</span></code>(job_id)</p></td>
+<td><p>Returns job by job id.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_jobs</span></code>(**kwargs)</p></td>
+<td><p>Return list of jobs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">job</span></code>(job_id)</p></td>
+<td><p>Returns job by job id.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">jobs</span></code>([function])</p></td>
+<td><p>Return list of jobs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code>(**kwargs)</p></td>
+<td><p>Returns list of available programs.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">logs</span></code>(job_id)</p></td>
+<td><p>Return logs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">result</span></code>(job_id)</p></td>
+<td><p>Return results.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code>(program[, arguments, config])</p></td>
+<td><p>Run a function and return its job.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">runtime_jobs</span></code>(job_id[, runtime_session])</p></td>
+<td><p>Return associated runtime jobs.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">runtime_sessions</span></code>(job_id)</p></td>
+<td><p>Returns associated runtime sessions if any.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">status</span></code>(job_id)</p></td>
+<td><p>Check status.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">stop</span></code>(job_id[, service])</p></td>
+<td><p>Stops job/program.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dict</span></code>()</p></td>
+<td><p>Converts class to dict.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">upload</span></code>(program)</p></td>
+<td><p>Uploads program.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">widget</span></code>()</p></td>
+<td><p>Widget for information about provider and jobs.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </dd></dl>
 
 </section>
@@ -316,23 +411,23 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="qiskit_serverless.core.distribute_qiskit_function.html">
+          <a class="next-page" href="qiskit_serverless.core.LocalClient.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">qiskit_serverless.core.distribute_qiskit_function</div>
+                <div class="title">qiskit_serverless.core.LocalClient</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="qiskit_serverless.core.distribute_task.html">
+          <a class="prev-page" href="qiskit_serverless.core.BaseClient.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">qiskit_serverless.core.distribute_task</div>
+                <div class="title">qiskit_serverless.core.BaseClient</div>
                 
               </div>
             </a>
@@ -366,8 +461,11 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">qiskit_serverless.core.distribute_program</a><ul>
-<li><a class="reference internal" href="#qiskit_serverless.core.distribute_program"><code class="docutils literal notranslate"><span class="pre">distribute_program()</span></code></a></li>
+<li><a class="reference internal" href="#">qiskit_serverless.core.RayClient</a><ul>
+<li><a class="reference internal" href="#qiskit_serverless.core.RayClient"><code class="docutils literal notranslate"><span class="pre">RayClient</span></code></a><ul>
+<li><a class="reference internal" href="#qiskit_serverless.core.RayClient.__init__"><code class="docutils literal notranslate"><span class="pre">RayClient.__init__()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
