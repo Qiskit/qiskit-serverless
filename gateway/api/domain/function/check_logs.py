@@ -36,7 +36,7 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
     if not logs:
         return ""
 
-    max_bytes = int(settings.FUNCTIONS_LOGS_SIZE_LIMIT)
+    max_bytes = settings.FUNCTIONS_LOGS_SIZE_LIMIT
 
     logs_size = len(logs)
 
