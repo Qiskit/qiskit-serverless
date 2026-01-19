@@ -98,7 +98,7 @@ class TestCommands(APITestCase):
         """Test logs checker for very long logs in this case more than 1MB."""
 
         with self.settings(
-            FUNCTIONS_LOGS_SIZE_LIMIT="100",
+            FUNCTIONS_LOGS_SIZE_LIMIT=100,
         ):
             job = MagicMock()
             job.id = "42"
