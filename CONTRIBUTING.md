@@ -76,6 +76,7 @@ You'll need to install these tools on your development environment:
 1. [kubectl](https://kubectl.docs.kubernetes.io/): for interacting with Kubernetes clusters
 1. [helm](https://helm.sh/): to install qiskit-serverless on Kubernetes
 1. [tox](https://tox.wiki/en): to run tests and build the documentation
+1. [pre-commit](https://pre-commit.com/): to run linting checks automatically on commit/push
 
 Note: Installing the `pip` and `venv` python libraries will also be useful
 
@@ -149,6 +150,22 @@ This repository contains several projects with different technologies. Depending
 - `pip install -r requirements.txt -r requirements-dev.txt` for python projects (strongly consider using a [virtual environment](https://docs.python.org/3/library/venv.html)!).
 - `helm dependency build` for helm (Before running this command, make sure to check for helm configuration instructions specific to your selected project charts).
 -  `terraform init` for terraform.
+
+#### Setting up pre-commit hooks
+
+We use [pre-commit](https://pre-commit.com/) to automatically run linting checks. To set it up (required once per local clone):
+
+```bash
+pip install pre-commit
+pre-commit install
+pre-commit install --hook-type pre-push
+```
+
+**How it works:**
+- **On commit:** Black auto-formats your staged Python files. If files are modified, the commit will fail — simply `git add` the changes and commit again.
+- **On push:** Pylint and mypy run automatically (same checks as CI).
+
+This ensures your code passes linting before reaching CI, saving time on failed builds.
 
 To set up a local development environment for the qiskit-serverless components (including the gateway, repository, ray nodes, etc.) using the latest changes you've made, use `docker compose` or `podman-compose`.
 
@@ -297,17 +314,19 @@ so at least they can understand new contributions to the codebase.
 
 ### Solving linting issues
 
-While developing, you can check linting issues. Notice that, although
-some linting issues are reported as warnings, we don't usually allow any warning in our code base, so
-you will need to solve those problems for your contribution to pass the checks.
+If you have [set up pre-commit hooks](#setting-up-pre-commit-hooks), linting runs automatically:
+- **Black** formats your code on every commit
+- **Pylint/mypy** check your code before each push
+
+You can also run linting manually. This repository contains several projects and depending on the project you will need to run:
+- `tox -elint` for python projects (from the project directory: `gateway/`, `client/`, or `tests/`).
+- `helm lint` for the helm project.
+- `terraform validate` for the terraform project.
+
+Notice that, although some linting issues are reported as warnings, we don't usually allow any warning in our code base, so you will need to solve those problems for your contribution to pass the checks.
 
 In the case you need to [disable a rule](https://pylint.readthedocs.io/en/latest/user_guide/messages/message_control.html#block-disables),
 please provide an explanation supporting why the exception.
-
-This repository contains several projects and depending of the project you will need to run:
-- `tox -elint` for python projects.
-- `helm lint` for the helm project.
-- `terraform validate`for the terraform project.
 
 
 ## Final words
