@@ -47,12 +47,10 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from qiskit import QuantumCircuit
 from ray.runtime_env import RuntimeEnv
 
+from qiskit_serverless.core.config import Config
 from qiskit_serverless.core.constants import (
     OT_ATTRIBUTE_PREFIX,
-    OT_JAEGER_HOST_KEY,
-    OT_JAEGER_PORT_KEY,
     OT_TRACEPARENT_ID_KEY,
-    OT_RAY_TRACER,
 )
 from qiskit_serverless.core.tracing import get_tracer, _trace_env_vars
 from qiskit_serverless.utils import JsonSerializable
@@ -203,13 +201,13 @@ def _tracible_function(
     def decorator(func: Callable):
         @functools.wraps(func)
         def wraps(*args, **kwargs):
-            if bool(int(os.environ.get(OT_RAY_TRACER, "0"))):
+            if Config.ot_ray_tracer():
                 tracer = trace.get_tracer(func.__module__)
             else:
                 tracer = get_tracer(
                     func.__module__,
-                    agent_host=os.environ.get(OT_JAEGER_HOST_KEY, None),
-                    agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
+                    agent_host=Config.ot_jaeger_host(),
+                    agent_port=Config.ot_jaeger_port(),
                 )
             ctx = TraceContextTextMapPropagator().extract(
                 {

@@ -32,11 +32,8 @@ from typing import List, Optional
 import requests
 from tqdm import tqdm
 
+from qiskit_serverless.core.config import Config
 from qiskit_serverless.utils.urls import url_path_join
-from qiskit_serverless.core.constants import (
-    REQUESTS_STREAMING_TIMEOUT,
-    REQUESTS_TIMEOUT,
-)
 from qiskit_serverless.core.decorators import trace_decorator_factory
 from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
@@ -93,7 +90,7 @@ class GatewayFilesClient:
             headers=get_headers(
                 token=self._token, instance=self._instance, channel=self._channel
             ),
-            timeout=REQUESTS_STREAMING_TIMEOUT,
+            timeout=Config.requests_streaming_timeout(),
         ) as req:
             req.raise_for_status()
 
@@ -157,7 +154,7 @@ class GatewayFilesClient:
                 headers=get_headers(
                     token=self._token, instance=self._instance, channel=self._channel
                 ),
-                timeout=REQUESTS_STREAMING_TIMEOUT,
+                timeout=Config.requests_streaming_timeout(),
             ) as req:
                 if req.ok:
                     return req.text
@@ -179,7 +176,7 @@ class GatewayFilesClient:
                 headers=get_headers(
                     token=self._token, instance=self._instance, channel=self._channel
                 ),
-                timeout=REQUESTS_STREAMING_TIMEOUT,
+                timeout=Config.requests_streaming_timeout(),
             ) as req:
                 if req.ok:
                     return req.text
@@ -196,7 +193,7 @@ class GatewayFilesClient:
                 headers=get_headers(
                     token=self._token, instance=self._instance, channel=self._channel
                 ),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
         return response_data.get("results", [])
@@ -214,7 +211,7 @@ class GatewayFilesClient:
                 headers=get_headers(
                     token=self._token, instance=self._instance, channel=self._channel
                 ),
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
         return response_data.get("results", [])
@@ -235,7 +232,7 @@ class GatewayFilesClient:
                     "provider": function.provider,
                 },
                 headers=headers,
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
         return response_data.get("message", "")
@@ -259,7 +256,7 @@ class GatewayFilesClient:
                     "provider": function.provider,
                 },
                 headers=headers,
-                timeout=REQUESTS_TIMEOUT,
+                timeout=Config.requests_timeout(),
             )
         )
         return response_data.get("message", "")

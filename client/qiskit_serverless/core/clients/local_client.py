@@ -40,6 +40,7 @@ from subprocess import Popen
 
 from qiskit_ibm_runtime import QiskitRuntimeService
 
+from qiskit_serverless.core.config import Config
 from qiskit_serverless.core.constants import (
     DATA_PATH,
     ENV_JOB_ID_GATEWAY,
@@ -70,7 +71,7 @@ class LocalClient(BaseClient):
             >>> local = LocalClient()
         """
         super().__init__("local-client")
-        self.in_test = os.getenv("IN_TEST")
+        self.in_test = Config.in_test()
         self._jobs = {}
         self._functions = LocalFunctionsStore(self)
 

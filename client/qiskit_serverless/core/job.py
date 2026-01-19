@@ -42,16 +42,9 @@ import requests
 
 from qiskit_ibm_runtime import QiskitRuntimeService
 
+from qiskit_serverless.core.config import Config
 from qiskit_serverless.core.constants import (
-    ENV_JOB_GATEWAY_INSTANCE,
-    QISKIT_IBM_CHANNEL,
-    REQUESTS_TIMEOUT,
-    ENV_JOB_GATEWAY_TOKEN,
-    ENV_JOB_GATEWAY_HOST,
     ENV_JOB_ID_GATEWAY,
-    ENV_GATEWAY_PROVIDER_VERSION,
-    GATEWAY_PROVIDER_VERSION_DEFAULT,
-    ENV_ACCESS_TRIAL,
 )
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.serializers.program_serializers import (
@@ -304,11 +297,9 @@ def save_result(result: Dict[str, Any]):
         result: data that will be accessible from job handler `.result()` method.
     """
 
-    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-    if version is None:
-        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+    version = Config.gateway_provider_version()
 
-    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    token = Config.job_gateway_token()
     if token is None:
         logging.warning(
             "Results will be saved as logs since "
@@ -320,22 +311,22 @@ def save_result(result: Dict[str, Any]):
         print(f"\nSaved Result:{result_record}:End Saved Result\n")
         return False
 
-    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
-    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
+    instance = Config.job_gateway_instance()
+    channel = Config.qiskit_ibm_channel()
 
     if not is_jsonable(result, cls=QiskitObjectsEncoder):
         logging.warning("Object passed is not json serializable.")
         return False
 
     url = (
-        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
+        f"{Config.job_gateway_host()}/"
+        f"api/{version}/jobs/{Config.job_id_gateway()}/result/"
     )
     response = requests.post(
         url,
         data={"result": json.dumps(result or {}, cls=QiskitObjectsEncoder)},
         headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
+        timeout=Config.requests_timeout(),
     )
     if not response.ok:
         sanitized = response.text.replace("\n", "").replace("\r", "")
@@ -347,11 +338,9 @@ def save_result(result: Dict[str, Any]):
 def update_status(status: str):
     """Update sub status."""
 
-    version = os.environ.get(ENV_GATEWAY_PROVIDER_VERSION)
-    if version is None:
-        version = GATEWAY_PROVIDER_VERSION_DEFAULT
+    version = Config.gateway_provider_version()
 
-    token = os.environ.get(ENV_JOB_GATEWAY_TOKEN)
+    token = Config.job_gateway_token()
     if token is None:
         logging.warning(
             "'sub_status' cannot be updated since "
@@ -360,18 +349,18 @@ def update_status(status: str):
         )
         return False
 
-    instance = os.environ.get(ENV_JOB_GATEWAY_INSTANCE, None)
-    channel = os.environ.get(QISKIT_IBM_CHANNEL, None)
+    instance = Config.job_gateway_instance()
+    channel = Config.qiskit_ibm_channel()
 
     url = (
-        f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-        f"api/{version}/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/sub_status/"
+        f"{Config.job_gateway_host()}/"
+        f"api/{version}/jobs/{Config.job_id_gateway()}/sub_status/"
     )
     response = requests.patch(
         url,
         data={"sub_status": status},
         headers=get_headers(token=token, instance=instance, channel=channel),
-        timeout=REQUESTS_TIMEOUT,
+        timeout=Config.requests_timeout(),
     )
     if not response.ok:
         sanitized = response.text.replace("\n", "").replace("\r", "")
@@ -442,10 +431,10 @@ def get_runtime_service(
     """
 
     return ServerlessRuntimeService(
-        channel=channel or os.environ["QISKIT_IBM_CHANNEL"],
-        instance=instance or os.environ["QISKIT_IBM_INSTANCE"],
-        token=token or os.environ["QISKIT_IBM_TOKEN"],
-        url=url or os.environ.get("QISKIT_IBM_URL", None),
+        channel=channel or Config.qiskit_ibm_channel(),
+        instance=instance or Config.qiskit_ibm_instance(),
+        token=token or Config.qiskit_ibm_token(),
+        url=url or Config.qiskit_ibm_url(),
     )
 
 
@@ -456,4 +445,4 @@ def is_running_in_serverless() -> bool:
 
 def is_trial() -> bool:
     """Return ``True`` if Job is running in trial mode, ``False`` otherwise."""
-    return os.getenv(ENV_ACCESS_TRIAL) == "True"
+    return Config.is_trial()
