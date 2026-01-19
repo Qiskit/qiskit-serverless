@@ -162,8 +162,8 @@ pre-commit install --hook-type pre-push
 ```
 
 **How it works:**
-- **On commit:** Black auto-formats your staged Python files. If files are modified, the commit will fail. Just commit again.
-- **On push:** Pylint and mypy run automatically (same checks as CI).
+- **On commit:** Black will auto-format your Python files before commit them. If files are modified, the commit will fail. Just commit again.
+- **On push:** Pylint and mypy run automatically (same checks as CI). If error, the push will fail. Fix manually.
 
 This ensures your code passes linting before reaching CI, saving time on failed builds.
 

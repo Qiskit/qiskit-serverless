@@ -17,10 +17,7 @@ class AssociateRuntimeJobsUseCase:
     runtime_job_repository = RuntimeJobRepository()
 
     def execute(
-        self,
-        job_id: UUID,
-        runtime_job: str,
-        runtime_session: str | None,
+        self, job_id: UUID, runtime_job: str, runtime_session: str | None
     ) -> str:
         """
         Associate a RuntimeJob object to a given Job.
