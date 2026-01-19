@@ -8,3 +8,4 @@ requests-mock>=1.11.0
 coverage>=5.5
 responses>=0.23.3
 tox>=4.0.0
+pre-commit>=3.0.0
