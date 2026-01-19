@@ -318,7 +318,7 @@
     "model": "auth.group",
     "pk": 105,
     "fields": {
-        "name": "default-group"
+      "name": "default-group"
     }
   },
   {
