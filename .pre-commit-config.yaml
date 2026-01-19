@@ -21,7 +21,7 @@ repos:
       # Config located in gateway/.pylintrc
       - id: lint-gateway
         name: lint (gateway)
-        entry: bash -c 'cd gateway && pylint -rn api main'
+        entry: bash -c 'python -c "import pylint_django" 2>/dev/null || pip install pylint-django; cd gateway && pylint -rn api main'
         language: system
         files: ^gateway/
         types: [python]
