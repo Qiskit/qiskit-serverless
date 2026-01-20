@@ -15,7 +15,7 @@ _compose_instance = None
 
 
 @fixture(scope="module")
-def base_client(request):
+def base_client():
     """Fixture for testing files with every client."""
     [compose, serverless] = set_up_serverless_client()
     yield serverless
