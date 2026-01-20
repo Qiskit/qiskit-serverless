@@ -5,13 +5,15 @@ import logging
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from api.domain.function import check_logs
-from api.domain.function.filter_logs import extract_public_logs
 from api.models import ComputeResource, Job
-from api.ray import kill_ray_cluster, get_job_handler
+from api.ray import kill_ray_cluster
 from api.repositories.users import UserRepository
 from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.logs_storage import LogsStorage
+from api.use_cases.jobs.get_compute_resource_logs import (
+    GetComputeResourceLogsUseCase,
+    LogsResponse,
+)
 
 
 logger = logging.getLogger("commands")
@@ -41,9 +43,7 @@ class Command(BaseCommand):
                     status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource
                 )
                 for job in terminated_jobs:
-                    self.save_logs_to_storage(
-                        job=job, compute_resource=compute_resource
-                    )
+                    self.save_logs_to_storage(job=job)
             return
 
         compute_resources = ComputeResource.objects.filter(active=True)
@@ -82,7 +82,7 @@ class Command(BaseCommand):
             )
             return
 
-        self.save_logs_to_storage(job=terminated_job, compute_resource=compute_resource)
+        self.save_logs_to_storage(job=terminated_job)
         terminated_job.logs = ""
 
         is_gpu = terminated_job.gpu
@@ -101,32 +101,27 @@ class Command(BaseCommand):
                     compute_resource.owner,
                 )
 
-    def save_logs_to_storage(self, job: Job, compute_resource: ComputeResource):
+    def save_logs_to_storage(self, job: Job):
         """
         Save the logs in the corresponding storages.
 
         Args:
-            compute_resource: ComputeResource
             job: Job
         """
 
         print(f"save_logs_to_storage:: Job: {job.id}")
-        job_handler = get_job_handler(compute_resource.host)
-        full_logs = job_handler.logs(job.ray_job_id)
-        full_logs = check_logs(full_logs, job)
+        logs = GetComputeResourceLogsUseCase().execute(job)
 
         user_repository = UserRepository()
         author = user_repository.get_or_create_by_id(job.author)
         username = author.username
 
-        has_provider = job.program.provider is not None
-
-        if has_provider:
-            self._save_logs_with_provider(full_logs, username, job)
+        if logs.user_logs:
+            self._save_logs_with_provider(logs, username, job)
         else:
-            self._save_logs_only_user(full_logs, username, job)
+            self._save_logs_only_user(logs, username, job)
 
-    def _save_logs_only_user(self, full_logs: str, username: str, job: Job):
+    def _save_logs_only_user(self, logs: LogsResponse, username: str, job: Job):
         """
         Save the logs in the user storage.
 
@@ -143,9 +138,9 @@ class Command(BaseCommand):
             provider_name=None,
         )
 
-        user_logs_storage.save(job.id, full_logs)
+        user_logs_storage.save(job.id, logs.full_logs)
 
-    def _save_logs_with_provider(self, full_logs: str, username: str, job: Job):
+    def _save_logs_with_provider(self, logs: LogsResponse, username: str, job: Job):
         """
         Save the logs in the provide storage and filter
         for public logs only to save them into the user storage.
@@ -170,7 +165,6 @@ class Command(BaseCommand):
             provider_name=job.program.provider.name,
         )
 
-        user_logs = extract_public_logs(full_logs)
-        user_logs_storage.save(job.id, user_logs)
+        user_logs_storage.save(job.id, logs.user_logs)
 
-        provider_logs_storage.save(job.id, full_logs)
+        provider_logs_storage.save(job.id, logs.full_logs)

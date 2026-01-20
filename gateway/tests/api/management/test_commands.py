@@ -11,6 +11,7 @@ from unittest.mock import patch, MagicMock
 from api.domain.function import check_logs
 from api.models import ComputeResource, Job, Program, Provider
 from api.ray import JobHandler
+from api.use_cases.jobs.get_compute_resource_logs import LogsResponse
 
 
 class TestCommands(APITestCase):
@@ -114,8 +115,8 @@ class TestCommands(APITestCase):
                 logs,
             )
 
-    @patch("api.management.commands.free_resources.get_job_handler")
-    def test_free_resources_filters_logs_user_function(self, get_job_handler):
+    @patch("api.management.commands.free_resources.GetComputeResourceLogsUseCase.execute")
+    def test_free_resources_filters_logs_user_function(self, compute_resource_logs_exec):
         """Tests that logs are filtered when saving for function without provider."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
@@ -145,9 +146,7 @@ Ray internal log without marker
 [PUBLIC] INFO:user: Final public log
 """
 
-                ray_client = MagicMock()
-                ray_client.get_job_logs.return_value = full_logs
-                get_job_handler.return_value = JobHandler(ray_client)
+                compute_resource_logs_exec.return_value = LogsResponse(full_logs=full_logs, user_logs=None)
 
                 call_command("free_resources")
 
@@ -165,8 +164,8 @@ Ray internal log without marker
                     saved_user_logs = log_file.read()
                 self.assertEqual(saved_user_logs, expected_user_logs)
 
-    @patch("api.management.commands.free_resources.get_job_handler")
-    def test_free_resources_filters_logs_provider_function(self, get_job_handler):
+    @patch("api.management.commands.free_resources.GetComputeResourceLogsUseCase.execute")
+    def test_free_resources_filters_logs_provider_function(self, compute_resource_logs_exec):
         """Tests that logs are filtered when saving for function with provider."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
@@ -206,10 +205,12 @@ Internal system log
 [PRIVATE] WARNING:provider: Private warning
 [PUBLIC] INFO:user: Final public log
 """
+                expected_user_logs = """INFO:user: Public log for user
+INFO:user: Another public log
+INFO:user: Final public log
+"""
 
-                ray_client = MagicMock()
-                ray_client.get_job_logs.return_value = full_logs
-                get_job_handler.return_value = JobHandler(ray_client)
+                compute_resource_logs_exec.return_value = LogsResponse(full_logs=full_logs, user_logs=expected_user_logs)
 
                 # Execute free_resources command
                 call_command("free_resources")
@@ -222,10 +223,6 @@ Internal system log
                     "logs",
                     f"{job.id}.log",
                 )
-                expected_user_logs = """INFO:user: Public log for user
-INFO:user: Another public log
-INFO:user: Final public log
-"""
 
                 with open(user_log_file_path, "r", encoding="utf-8") as log_file:
                     saved_user_logs = log_file.read()

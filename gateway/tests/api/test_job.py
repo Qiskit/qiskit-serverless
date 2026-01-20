@@ -14,6 +14,7 @@ from rest_framework.test import APITestCase
 
 from api.models import ComputeResource, Job, RuntimeJob
 from api.ray import JobHandler
+from api.use_cases.jobs.get_compute_resource_logs import GetComputeResourceLogsUseCase
 from api.use_cases.jobs.get_logs import GetJobLogsUseCase
 from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
 
@@ -652,33 +653,41 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
-    @patch("api.use_cases.jobs.provider_logs.get_job_handler")
+    @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
     def test_job_provider_logs_in_ray(self, get_job_handler_mock):
         """Tests job log by fuction provider."""
 
-        user = models.User.objects.get(username="test_user_2")
+        full_logs = """
+[PUBLIC] INFO:user: Public log for user
+
+[PRIVATE] INFO:provider: Private log for provider only
+[PUBLIC] INFO:user: Another public log
+Internal system log
+[PRIVATE] WARNING:provider: Private warning
+[PUBLIC] INFO:user: Final public log
+"""
+        expected_user_logs = """INFO:user: Public log for user
+INFO:user: Another public log
+INFO:user: Final public log
+"""
 
         # Mock job
         compute_resource = Mock(active=True)
-        provider = Mock(admin_groups=user.groups)
-        provider.name = "fake_provider"
-        program = Mock(provider=provider, title="fake_fn")
+        program = Mock(provider=Mock())
         job = Mock(compute_resource=compute_resource, program=program)
 
         # Mock job handler
         job_handler_mock = Mock()
-        job_handler_mock.logs.return_value = "Ray Logs"
+        job_handler_mock.logs.return_value = full_logs
         get_job_handler_mock.return_value = job_handler_mock
 
-        use_case = GetProviderJobLogsUseCase()
-        # Mock repository
-        use_case.jobs_repository = Mock()
-        use_case.jobs_repository.get_job_by_id.return_value = job
+        use_case = GetComputeResourceLogsUseCase()
 
-        with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
-            result = use_case.execute("fake_job_id", user)
+        with self.settings(RAY_SETUP_MAX_RETRIES=2):
+            result = use_case.execute(job)
 
-        self.assertEqual(result, "Ray Logs")
+        self.assertEqual(result.full_logs, full_logs)
+        self.assertEqual(result.user_logs, expected_user_logs)
 
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):
@@ -787,59 +796,63 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
-    @patch("api.use_cases.jobs.get_logs.get_job_handler")
+    @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
     def test_job_logs_in_ray(self, get_job_handler_mock):
         """Tests job log by fuction provider."""
 
-        user = models.User.objects.get(username="test_user_2")
-
         # Mock job
         compute_resource = Mock(active=True)
-        program = Mock(title="fake_fn", provider=None)
-        job = Mock(compute_resource=compute_resource, program=program, author=user)
+        program = Mock(provider=None)
+        job = Mock(compute_resource=compute_resource, program=program)
 
         # Mock job handler
         job_handler_mock = Mock()
         job_handler_mock.logs.return_value = "Ray Logs"
         get_job_handler_mock.return_value = job_handler_mock
 
-        use_case = GetJobLogsUseCase()
-        # Mock repository
-        use_case.jobs_repository = Mock()
-        use_case.jobs_repository.get_job_by_id.return_value = job
+        use_case = GetComputeResourceLogsUseCase()
 
-        with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
-            result = use_case.execute("fake_job_id", user)
+        with self.settings(RAY_SETUP_MAX_RETRIES=2):
+            result = use_case.execute(job)
 
-        self.assertEqual(result, "Ray Logs")
+        self.assertEqual(result.full_logs, "Ray Logs")
+        self.assertEqual(result.user_logs, None)
 
-    @patch("api.use_cases.jobs.get_logs.get_job_handler")
+    @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
     def test_job_logs_in_ray_with_provider(self, get_job_handler_mock):
         """Tests job log by fuction provider."""
 
-        user = models.User.objects.get(username="test_user_2")
+        full_logs = """
+[PUBLIC] INFO:user: Public log for user
+
+[PRIVATE] INFO:provider: Private log for provider only
+[PUBLIC] INFO:user: Another public log
+Internal system log
+[PRIVATE] WARNING:provider: Private warning
+[PUBLIC] INFO:user: Final public log
+"""
+        expected_user_logs = """INFO:user: Public log for user
+INFO:user: Another public log
+INFO:user: Final public log
+"""
 
         # Mock job
         compute_resource = Mock(active=True)
-        provider = Mock(admin_groups=user.groups)
-        provider.name = "fake_provider"
-        program = Mock(provider=provider, title="fake_fn")
-        job = Mock(compute_resource=compute_resource, program=program, author=user)
+        program = Mock(provider=Mock())
+        job = Mock(compute_resource=compute_resource, program=program)
 
         # Mock job handler
         job_handler_mock = Mock()
-        job_handler_mock.logs.return_value = "[PUBLIC] user Logs\n[PRIVATE] other logs"
+        job_handler_mock.logs.return_value = full_logs
         get_job_handler_mock.return_value = job_handler_mock
 
-        use_case = GetJobLogsUseCase()
-        # Mock repository
-        use_case.jobs_repository = Mock()
-        use_case.jobs_repository.get_job_by_id.return_value = job
+        use_case = GetComputeResourceLogsUseCase()
 
-        with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
-            result = use_case.execute("fake_job_id", user)
+        with self.settings(RAY_SETUP_MAX_RETRIES=2):
+            result = use_case.execute(job)
 
-        self.assertEqual(result, "user Logs\n")
+        self.assertEqual(result.full_logs, full_logs)
+        self.assertEqual(result.user_logs, expected_user_logs)
 
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_logs_in_db(self, logs_storage_get_mock):

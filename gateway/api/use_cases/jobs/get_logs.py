@@ -16,6 +16,7 @@ from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.logs_storage import LogsStorage
+from api.use_cases.jobs.get_compute_resource_logs import GetComputeResourceLogsUseCase
 
 
 NO_LOGS_MSG: Final[str] = "No available logs"
@@ -61,13 +62,10 @@ class GetJobLogsUseCase:
             return logs
 
         # Get from Ray if it is already running.
-        if job.compute_resource and job.compute_resource.active:
-            job_handler = get_job_handler(job.compute_resource.host)
-            logs = job_handler.logs(job.ray_job_id)
-            logs = check_logs(logs, job)
-            if job.program.provider:
-                logs = extract_public_logs(logs)
-            return logs
+        logs = GetComputeResourceLogsUseCase().execute(job)
+
+        if logs:
+            return logs.user_logs if logs.user_logs is not None else logs.full_logs
 
         # Legacy: Get from db.
         logs = job.logs
