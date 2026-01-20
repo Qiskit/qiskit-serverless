@@ -4,7 +4,7 @@ import json
 import os
 import shutil
 import tempfile
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth import models
 from django.urls import reverse
@@ -12,8 +12,7 @@ from pytest import raises
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import ComputeResource, Job, RuntimeJob
-from api.ray import JobHandler
+from api.models import Job, RuntimeJob
 from api.use_cases.jobs.get_compute_resource_logs import GetComputeResourceLogsUseCase
 from api.use_cases.jobs.get_logs import GetJobLogsUseCase
 from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase

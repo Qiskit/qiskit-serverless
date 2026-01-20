@@ -115,8 +115,12 @@ class TestCommands(APITestCase):
                 logs,
             )
 
-    @patch("api.management.commands.free_resources.GetComputeResourceLogsUseCase.execute")
-    def test_free_resources_filters_logs_user_function(self, compute_resource_logs_exec):
+    @patch(
+        "api.management.commands.free_resources.GetComputeResourceLogsUseCase.execute"
+    )
+    def test_free_resources_filters_logs_user_function(
+        self, compute_resource_logs_exec
+    ):
         """Tests that logs are filtered when saving for function without provider."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
@@ -146,7 +150,9 @@ Ray internal log without marker
 [PUBLIC] INFO:user: Final public log
 """
 
-                compute_resource_logs_exec.return_value = LogsResponse(full_logs=full_logs, user_logs=None)
+                compute_resource_logs_exec.return_value = LogsResponse(
+                    full_logs=full_logs, user_logs=None
+                )
 
                 call_command("free_resources")
 
@@ -164,8 +170,12 @@ Ray internal log without marker
                     saved_user_logs = log_file.read()
                 self.assertEqual(saved_user_logs, expected_user_logs)
 
-    @patch("api.management.commands.free_resources.GetComputeResourceLogsUseCase.execute")
-    def test_free_resources_filters_logs_provider_function(self, compute_resource_logs_exec):
+    @patch(
+        "api.management.commands.free_resources.GetComputeResourceLogsUseCase.execute"
+    )
+    def test_free_resources_filters_logs_provider_function(
+        self, compute_resource_logs_exec
+    ):
         """Tests that logs are filtered when saving for function with provider."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
@@ -210,7 +220,9 @@ INFO:user: Another public log
 INFO:user: Final public log
 """
 
-                compute_resource_logs_exec.return_value = LogsResponse(full_logs=full_logs, user_logs=expected_user_logs)
+                compute_resource_logs_exec.return_value = LogsResponse(
+                    full_logs=full_logs, user_logs=expected_user_logs
+                )
 
                 # Execute free_resources command
                 call_command("free_resources")
