@@ -4,14 +4,18 @@ import json
 import os
 import shutil
 import tempfile
-from unittest.mock import patch
+from unittest.mock import MagicMock, Mock, patch
 
 from django.contrib.auth import models
 from django.urls import reverse
+from pytest import raises
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job, RuntimeJob
+from api.models import ComputeResource, Job, RuntimeJob
+from api.ray import JobHandler
+from api.use_cases.jobs.get_logs import GetJobLogsUseCase
+from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
 
 
 class TestJobApi(APITestCase):
@@ -630,6 +634,93 @@ class TestJobApi(APITestCase):
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("logs"), "provider log entry 1")
 
+    @patch('api.services.storage.logs_storage.LogsStorage.get')
+    def test_job_provider_logs_in_storage(self, logs_storage_get_mock):
+        """Tests job log by fuction provider."""
+        logs_storage_get_mock.return_value = "from storage"
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        jobs_response = self.client.get(
+            reverse(
+                "v1:jobs-provider-logs",
+                args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"],
+            ),
+            format="json",
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), "from storage")
+
+    @patch('api.use_cases.jobs.provider_logs.get_job_handler')
+    def test_job_provider_logs_in_ray(self, get_job_handler_mock):
+        """Tests job log by fuction provider."""
+
+        user = models.User.objects.get(username="test_user_2")
+
+        # Mock job
+        compute_resource = Mock(active=True)
+        provider = Mock(admin_groups = user.groups)
+        provider.name = "fake_provider"
+        program = Mock(provider = provider, title="fake_fn")
+        job = Mock(compute_resource = compute_resource, program = program)
+
+        # Mock job handler
+        job_handler_mock = Mock()
+        job_handler_mock.logs.return_value = "Ray Logs"
+        get_job_handler_mock.return_value = job_handler_mock
+
+        use_case = GetProviderJobLogsUseCase()
+        # Mock repository
+        use_case.jobs_repository = Mock()
+        use_case.jobs_repository.get_job_by_id.return_value = job
+
+        with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
+            result = use_case.execute("fake_job_id", user)
+
+        self.assertEqual(result, "Ray Logs")
+
+    @patch('api.services.storage.logs_storage.LogsStorage.get')
+    def test_job_provider_logs_in_db(self, logs_storage_get_mock):
+        """Tests job log by fuction provider."""
+        logs_storage_get_mock.return_value = None
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        jobs_response = self.client.get(
+            reverse(
+                "v1:jobs-provider-logs",
+                args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"],
+            ),
+            format="json",
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
+
+    def test_job_provider_logs_error(self):
+        """Tests job log by fuction provider."""
+        user = models.User.objects.get(username="test_user_2")
+
+        # Mock job
+        compute_resource = Mock(active=True, host="wrong-host")
+        provider = Mock(admin_groups = user.groups)
+        provider.name = "fake_provider"
+        program = Mock(provider = provider, title="fake_fn")
+        job = Mock(compute_resource = compute_resource, program = program)
+
+        use_case = GetProviderJobLogsUseCase()
+        # Mock repository
+        use_case.jobs_repository = Mock()
+        use_case.jobs_repository.get_job_by_id.return_value = job
+
+        with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
+            with raises(ValueError) as exc_info:
+                use_case.execute("fake_job_id", user)
+
+        self.assertEqual(str(exc_info.value), "Invalid address format: wrong-host")
+
+
     def test_job_provider_logs_forbidden(self):
         """Tests job log by fuction provider."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
@@ -678,6 +769,117 @@ class TestJobApi(APITestCase):
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @patch('api.services.storage.logs_storage.LogsStorage.get')
+    def test_job_logs_in_storage(self, logs_storage_get_mock):
+        """Tests job log by fuction provider."""
+        logs_storage_get_mock.return_value = "from storage"
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        jobs_response = self.client.get(
+            reverse(
+                "v1:jobs-logs",
+                args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"],
+            ),
+            format="json",
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), "from storage")
+
+    @patch('api.use_cases.jobs.get_logs.get_job_handler')
+    def test_job_logs_in_ray(self, get_job_handler_mock):
+        """Tests job log by fuction provider."""
+
+        user = models.User.objects.get(username="test_user_2")
+
+        # Mock job
+        compute_resource = Mock(active=True)
+        program = Mock(title="fake_fn", provider=None)
+        job = Mock(compute_resource = compute_resource, program = program, author=user)
+
+        # Mock job handler
+        job_handler_mock = Mock()
+        job_handler_mock.logs.return_value = "Ray Logs"
+        get_job_handler_mock.return_value = job_handler_mock
+
+        use_case = GetJobLogsUseCase()
+        # Mock repository
+        use_case.jobs_repository = Mock()
+        use_case.jobs_repository.get_job_by_id.return_value = job
+
+        with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
+            result = use_case.execute("fake_job_id", user)
+
+        self.assertEqual(result, "Ray Logs")
+
+    
+    @patch('api.use_cases.jobs.get_logs.get_job_handler')
+    def test_job_logs_in_ray_with_provider(self, get_job_handler_mock):
+        """Tests job log by fuction provider."""
+
+        user = models.User.objects.get(username="test_user_2")
+
+        # Mock job
+        compute_resource = Mock(active=True)
+        provider = Mock(admin_groups = user.groups)
+        provider.name = "fake_provider"
+        program = Mock(provider = provider, title="fake_fn")
+        job = Mock(compute_resource = compute_resource, program = program, author=user)
+
+        # Mock job handler
+        job_handler_mock = Mock()
+        job_handler_mock.logs.return_value = "[PUBLIC] user Logs\n[PRIVATE] other logs"
+        get_job_handler_mock.return_value = job_handler_mock
+
+        use_case = GetJobLogsUseCase()
+        # Mock repository
+        use_case.jobs_repository = Mock()
+        use_case.jobs_repository.get_job_by_id.return_value = job
+
+        with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
+            result = use_case.execute("fake_job_id", user)
+
+        self.assertEqual(result, "user Logs\n")
+
+    @patch('api.services.storage.logs_storage.LogsStorage.get')
+    def test_job_logs_in_db(self, logs_storage_get_mock):
+        """Tests job log by fuction provider."""
+        logs_storage_get_mock.return_value = None
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        jobs_response = self.client.get(
+            reverse(
+                "v1:jobs-logs",
+                args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"],
+            ),
+            format="json",
+        )
+
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
+
+    def test_job_logs_error(self):
+        """Tests job log by fuction provider."""
+        user = models.User.objects.get(username="test_user_2")
+
+        # Mock job
+        compute_resource = Mock(active=True, host="wrong-host")
+        program = Mock(title="fake_fn", provider=None)
+        job = Mock(compute_resource = compute_resource, program = program, author=user)
+
+        use_case = GetJobLogsUseCase()
+        # Mock repository
+        use_case.jobs_repository = Mock()
+        use_case.jobs_repository.get_job_by_id.return_value = job
+
+        with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
+            with raises(ValueError) as exc_info:
+                use_case.execute("fake_job_id", user)
+
+        self.assertEqual(str(exc_info.value), "Invalid address format: wrong-host")
 
     def test_runtime_jobs_post(self):
         """Tests runtime jobs POST endpoint."""

@@ -65,7 +65,8 @@ class GetJobLogsUseCase:
             job_handler = get_job_handler(job.compute_resource.host)
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
-            logs = extract_public_logs(logs)
+            if job.program.provider:
+                logs = extract_public_logs(logs)
             return logs
 
         # Legacy: Get from db.
