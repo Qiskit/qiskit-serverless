@@ -14,13 +14,12 @@ resources_path = os.path.join(
 _compose_instance = None
 
 
-@fixture(scope="module", params=["serverless"])
+@fixture(scope="module")
 def base_client(request):
     """Fixture for testing files with every client."""
-    if request.param == "serverless":
-        [compose, serverless] = set_up_serverless_client()
-        yield serverless
-        compose.stop()
+    [compose, serverless] = set_up_serverless_client()
+    yield serverless
+    compose.stop()
 
 
 def set_up_serverless_client():
