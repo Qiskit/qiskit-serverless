@@ -634,7 +634,7 @@ class TestJobApi(APITestCase):
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("logs"), "provider log entry 1")
 
-    @patch('api.services.storage.logs_storage.LogsStorage.get')
+    @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_provider_logs_in_storage(self, logs_storage_get_mock):
         """Tests job log by fuction provider."""
         logs_storage_get_mock.return_value = "from storage"
@@ -652,7 +652,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
-    @patch('api.use_cases.jobs.provider_logs.get_job_handler')
+    @patch("api.use_cases.jobs.provider_logs.get_job_handler")
     def test_job_provider_logs_in_ray(self, get_job_handler_mock):
         """Tests job log by fuction provider."""
 
@@ -660,10 +660,10 @@ class TestJobApi(APITestCase):
 
         # Mock job
         compute_resource = Mock(active=True)
-        provider = Mock(admin_groups = user.groups)
+        provider = Mock(admin_groups=user.groups)
         provider.name = "fake_provider"
-        program = Mock(provider = provider, title="fake_fn")
-        job = Mock(compute_resource = compute_resource, program = program)
+        program = Mock(provider=provider, title="fake_fn")
+        job = Mock(compute_resource=compute_resource, program=program)
 
         # Mock job handler
         job_handler_mock = Mock()
@@ -680,7 +680,7 @@ class TestJobApi(APITestCase):
 
         self.assertEqual(result, "Ray Logs")
 
-    @patch('api.services.storage.logs_storage.LogsStorage.get')
+    @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):
         """Tests job log by fuction provider."""
         logs_storage_get_mock.return_value = None
@@ -704,10 +704,10 @@ class TestJobApi(APITestCase):
 
         # Mock job
         compute_resource = Mock(active=True, host="wrong-host")
-        provider = Mock(admin_groups = user.groups)
+        provider = Mock(admin_groups=user.groups)
         provider.name = "fake_provider"
-        program = Mock(provider = provider, title="fake_fn")
-        job = Mock(compute_resource = compute_resource, program = program)
+        program = Mock(provider=provider, title="fake_fn")
+        job = Mock(compute_resource=compute_resource, program=program)
 
         use_case = GetProviderJobLogsUseCase()
         # Mock repository
@@ -719,7 +719,6 @@ class TestJobApi(APITestCase):
                 use_case.execute("fake_job_id", user)
 
         self.assertEqual(str(exc_info.value), "Invalid address format: wrong-host")
-
 
     def test_job_provider_logs_forbidden(self):
         """Tests job log by fuction provider."""
@@ -770,7 +769,7 @@ class TestJobApi(APITestCase):
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @patch('api.services.storage.logs_storage.LogsStorage.get')
+    @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_logs_in_storage(self, logs_storage_get_mock):
         """Tests job log by fuction provider."""
         logs_storage_get_mock.return_value = "from storage"
@@ -788,7 +787,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
-    @patch('api.use_cases.jobs.get_logs.get_job_handler')
+    @patch("api.use_cases.jobs.get_logs.get_job_handler")
     def test_job_logs_in_ray(self, get_job_handler_mock):
         """Tests job log by fuction provider."""
 
@@ -797,7 +796,7 @@ class TestJobApi(APITestCase):
         # Mock job
         compute_resource = Mock(active=True)
         program = Mock(title="fake_fn", provider=None)
-        job = Mock(compute_resource = compute_resource, program = program, author=user)
+        job = Mock(compute_resource=compute_resource, program=program, author=user)
 
         # Mock job handler
         job_handler_mock = Mock()
@@ -814,8 +813,7 @@ class TestJobApi(APITestCase):
 
         self.assertEqual(result, "Ray Logs")
 
-    
-    @patch('api.use_cases.jobs.get_logs.get_job_handler')
+    @patch("api.use_cases.jobs.get_logs.get_job_handler")
     def test_job_logs_in_ray_with_provider(self, get_job_handler_mock):
         """Tests job log by fuction provider."""
 
@@ -823,10 +821,10 @@ class TestJobApi(APITestCase):
 
         # Mock job
         compute_resource = Mock(active=True)
-        provider = Mock(admin_groups = user.groups)
+        provider = Mock(admin_groups=user.groups)
         provider.name = "fake_provider"
-        program = Mock(provider = provider, title="fake_fn")
-        job = Mock(compute_resource = compute_resource, program = program, author=user)
+        program = Mock(provider=provider, title="fake_fn")
+        job = Mock(compute_resource=compute_resource, program=program, author=user)
 
         # Mock job handler
         job_handler_mock = Mock()
@@ -843,7 +841,7 @@ class TestJobApi(APITestCase):
 
         self.assertEqual(result, "user Logs\n")
 
-    @patch('api.services.storage.logs_storage.LogsStorage.get')
+    @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_logs_in_db(self, logs_storage_get_mock):
         """Tests job log by fuction provider."""
         logs_storage_get_mock.return_value = None
@@ -868,7 +866,7 @@ class TestJobApi(APITestCase):
         # Mock job
         compute_resource = Mock(active=True, host="wrong-host")
         program = Mock(title="fake_fn", provider=None)
-        job = Mock(compute_resource = compute_resource, program = program, author=user)
+        job = Mock(compute_resource=compute_resource, program=program, author=user)
 
         use_case = GetJobLogsUseCase()
         # Mock repository
