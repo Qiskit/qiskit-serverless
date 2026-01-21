@@ -5,7 +5,10 @@ Use case: retrieve job logs.
 from typing import NamedTuple, Optional
 
 from api.domain.function import check_logs
-from api.domain.function.filter_logs import extract_public_logs
+from api.domain.function.filter_logs import (
+    extract_public_logs,
+    remove_prefix_tags_in_logs,
+)
 from api.models import Job
 from api.ray import get_job_handler
 
@@ -39,6 +42,8 @@ class GetComputeResourceLogsUseCase:
                 return LogsResponse(full_logs=logs, user_logs=user_logs)
 
             # The user functions only have one log.
-            return LogsResponse(full_logs=logs, user_logs=None)
+            return LogsResponse(
+                full_logs=remove_prefix_tags_in_logs(logs), user_logs=None
+            )
 
         return None
