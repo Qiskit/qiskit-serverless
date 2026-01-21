@@ -24,7 +24,13 @@ class GetComputeResourceLogsUseCase:
     """Use case for retrieving job logs."""
 
     def execute(self, job: Job) -> Optional[LogsResponse]:
-        """Return the logs of a job in a running compute resource.
+        """ Return the logs of a job in a running compute resource.
+        Provider function:
+          - full_logs: Raw logs with [PUBLIC] and [PRIVATE] prefixes and all the third party logs
+          - user_logs: Log lines that have the [PUBLIC] prefix but removing the prefix.
+        User functions:
+          - full_logs: All the logs with the prefixes removed for cleaner result.
+          - user_logs: None.
 
         Args:
             job (Job): The job executed in the compute resource.
