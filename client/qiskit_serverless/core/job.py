@@ -104,6 +104,10 @@ class JobService(ABC):
         """Return logs."""
 
     @abstractmethod
+    def provider_logs(self, job_id: str) -> str:
+        """Return logs."""
+
+    @abstractmethod
     def runtime_jobs(
         self, job_id: str, runtime_session: Optional[str] = None
     ) -> list[str]:
@@ -192,6 +196,10 @@ class Job:
     def logs(self) -> str:
         """Returns logs of the job."""
         return self._job_service.logs(self.job_id)
+
+    def provider_logs(self) -> str:
+        """Returns logs of the job."""
+        return self._job_service.provider_logs(self.job_id)
 
     def runtime_jobs(self, runtime_session: Optional[str] = None) -> list[str]:
         """Returns associated runtime jobs if any."""
