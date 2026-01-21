@@ -814,7 +814,7 @@ INFO:user: Final public log
         with self.settings(RAY_SETUP_MAX_RETRIES=2):
             result = use_case.execute(job)
 
-        self.assertEqual(result.full_logs, "Ray Logs")
+        self.assertEqual(result.full_logs, "Ray Logs\n")
         self.assertEqual(result.user_logs, None)
 
     @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
