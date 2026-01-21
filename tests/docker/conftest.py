@@ -1,5 +1,6 @@
 # pylint: disable=import-error, invalid-name
 """Fixtures for tests"""
+
 import os
 import traceback
 

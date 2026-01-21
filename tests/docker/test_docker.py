@@ -1,5 +1,6 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
+
 from datetime import datetime, timezone
 import os
 from time import sleep
@@ -15,7 +16,6 @@ from qiskit_serverless import (
     ServerlessClient,
     QiskitServerlessException,
 )
-
 
 resources_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "source_files"
