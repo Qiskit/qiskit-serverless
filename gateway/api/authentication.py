@@ -7,7 +7,6 @@ from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.use_cases.authentication import AuthenticationUseCase
 from api.domain.authentication.channel import Channel
 
-
 logger = logging.getLogger("gateway.authentication")
 PUBLIC_ENDPOINTS = ["swagger"]
 
