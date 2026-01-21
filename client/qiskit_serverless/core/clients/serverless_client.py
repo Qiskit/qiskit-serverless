@@ -444,7 +444,7 @@ class ServerlessClient(BaseClient):  # pylint: disable=too-many-public-methods
     def provider_logs(self, job_id: str):
         response_data = safe_json_request_as_dict(
             request=lambda: requests.get(
-                f"{self.host}/api/{self.version}/jobs/{job_id}/provider_logs/",
+                f"{self.host}/api/{self.version}/jobs/{job_id}/provider-logs/",
                 headers=get_headers(
                     token=self.token, instance=self.instance, channel=self.channel
                 ),

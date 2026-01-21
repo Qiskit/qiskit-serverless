@@ -430,3 +430,27 @@ ERROR:provider: Provider log
             serverless_client.function("wrong-title")
 
         assert str(exc_info.value) == expected_message
+
+    def test_provider_logs(self, serverless_client: ServerlessClient):
+        """Integration test for logs."""
+
+        function = QiskitFunction(
+            title="logs_function_2", entrypoint="logger.py", working_dir=resources_path
+        )
+        function = serverless_client.upload(function)
+        job = function.run()
+
+        while not job.in_terminal_state():
+            sleep(1)
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.provider_logs()
+
+        assert (
+            str(exc_info.value).strip()
+            == f"""
+| Message: Http bad request.
+| Code: 403
+| Details: You don't have access to job [{job.job_id}]
+""".strip()
+        )
