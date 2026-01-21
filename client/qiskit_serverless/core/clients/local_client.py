@@ -183,6 +183,9 @@ class LocalClient(BaseClient):
 
     def logs(self, job_id: str):
         return self._jobs[job_id]["logs"]
+    
+    def provider_logs(self, job_id: str):
+        return self.logs(job_id)
 
     def filtered_logs(self, job_id: str, **kwargs):
         """Return filtered logs."""

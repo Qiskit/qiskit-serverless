@@ -154,6 +154,10 @@ class RayClient(BaseClient):
     def logs(self, job_id: str) -> str:
         """Return logs."""
         return self.job_submission_client.get_job_logs(job_id)
+    
+    def provider_logs(self, job_id: str) -> str:
+        """Return logs."""
+        return self.logs(job_id)
 
     def filtered_logs(self, job_id: str, **kwargs) -> str:
         """Return filtered logs."""
