@@ -384,8 +384,7 @@ class TestFunctionsDocker:
         while not job.in_terminal_state():
             sleep(1)
 
-        assert job.logs().endswith(
-            """INFO:user: User log
+        assert job.logs().endswith("""INFO:user: User log
 INFO:user: User multiline
 INFO:user: log
 WARNING:user: User log
@@ -395,8 +394,7 @@ INFO:provider: Provider multiline
 INFO:provider: log
 WARNING:provider: Provider log
 ERROR:provider: Provider log
-"""
-        )
+""")
 
     def test_wrong_function_name(self, serverless_client: ServerlessClient):
         """Integration test for retrieving a function that isn't accessible."""
@@ -436,11 +434,8 @@ ERROR:provider: Provider log
         with raises(QiskitServerlessException) as exc_info:
             job.provider_logs()
 
-        assert (
-            str(exc_info.value).strip()
-            == f"""
+        assert str(exc_info.value).strip() == f"""
 | Message: Http bad request.
 | Code: 403
 | Details: You don't have access to job [{job.job_id}]
 """.strip()
-        )
