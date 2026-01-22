@@ -653,7 +653,9 @@ class TestJobApi(APITestCase):
 
     @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get")
-    def test_job_provider_logs_in_ray(self, logs_storage_get_mock, get_job_handler_mock):
+    def test_job_provider_logs_in_ray(
+        self, logs_storage_get_mock, get_job_handler_mock
+    ):
         """Tests job log by function provider."""
         logs_storage_get_mock.return_value = None
 
@@ -684,7 +686,10 @@ Internal system log
 
         with self.settings(RAY_SETUP_MAX_RETRIES=2):
             jobs_response = self.client.get(
-                reverse("v1:jobs-provider-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                reverse(
+                    "v1:jobs-provider-logs",
+                    args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"],
+                ),
                 format="json",
             )
 
