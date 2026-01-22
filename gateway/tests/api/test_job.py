@@ -815,7 +815,7 @@ Internal system log
         get_job_handler_mock.return_value = job_handler_mock
 
         # Add an active compute_resource to the job, so the endpoint could try to reach Ray
-        job = Job.objects.get(id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec85")
+        job = Job.objects.get(id="57fc2e4d-267f-40c6-91a3-38153272e764")
         job.compute_resource = ComputeResource.objects.create(
             title="test-cluster-2", active=True
         )
@@ -825,7 +825,7 @@ Internal system log
 
         with self.settings(RAY_SETUP_MAX_RETRIES=2):
             jobs_response = self.client.get(
-                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                reverse("v1:jobs-logs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
                 format="json",
             )
 
