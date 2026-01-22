@@ -16,7 +16,6 @@ from api.services.storage.enums.working_dir import WorkingDir
 from api.models import Program
 from utils import sanitize_file_path
 
-
 logger = logging.getLogger("gateway")
 
 

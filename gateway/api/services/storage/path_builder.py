@@ -11,7 +11,6 @@ from django.conf import settings
 from api.services.storage.enums.working_dir import WorkingDir
 from utils import sanitize_file_path
 
-
 logger = logging.getLogger("gateway")
 
 

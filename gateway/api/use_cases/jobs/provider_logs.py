@@ -17,7 +17,6 @@ from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.logs_storage import LogsStorage
 from api.use_cases.jobs.get_compute_resource_logs import GetComputeResourceLogsUseCase
 
-
 NO_LOGS_MSG: Final[str] = "No available logs"
 NO_LOGS_MSG_2: Final[str] = "No logs yet."
 
