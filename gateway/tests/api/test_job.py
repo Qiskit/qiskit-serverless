@@ -604,7 +604,7 @@ class TestJobApi(APITestCase):
             self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_job_logs_by_function_provider(self):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
@@ -617,7 +617,7 @@ class TestJobApi(APITestCase):
             self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
 
     def test_job_provider_logs(self):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
         shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_2")
@@ -636,7 +636,7 @@ class TestJobApi(APITestCase):
 
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_provider_logs_in_storage(self, logs_storage_get_mock):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
         logs_storage_get_mock.return_value = "from storage"
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
@@ -654,7 +654,7 @@ class TestJobApi(APITestCase):
 
     @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
     def test_job_provider_logs_in_ray(self, get_job_handler_mock):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
 
         full_logs = """
 [PUBLIC] INFO:user: Public log for user
@@ -690,7 +690,7 @@ INFO:user: Final public log
 
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
         logs_storage_get_mock.return_value = None
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
@@ -707,7 +707,7 @@ INFO:user: Final public log
         self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
 
     def test_job_provider_logs_error(self):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
         user = models.User.objects.get(username="test_user_2")
 
         # Mock job
@@ -729,7 +729,7 @@ INFO:user: Final public log
         self.assertEqual(str(exc_info.value), "Invalid address format: wrong-host")
 
     def test_job_provider_logs_forbidden(self):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user")
             self.client.force_authenticate(user=user)
@@ -745,7 +745,7 @@ INFO:user: Final public log
             self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_job_provider_logs_not_fount_empty(self):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_3")
             self.client.force_authenticate(user=user)
@@ -779,7 +779,7 @@ INFO:user: Final public log
 
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_logs_in_storage(self, logs_storage_get_mock):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
         logs_storage_get_mock.return_value = "from storage"
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
@@ -797,7 +797,7 @@ INFO:user: Final public log
 
     @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
     def test_job_logs_in_ray(self, get_job_handler_mock):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
 
         # Mock job
         compute_resource = Mock(active=True)
@@ -819,7 +819,7 @@ INFO:user: Final public log
 
     @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
     def test_job_logs_in_ray_with_provider(self, get_job_handler_mock):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
 
         full_logs = """
 [PUBLIC] INFO:user: Public log for user
@@ -855,7 +855,7 @@ INFO:user: Final public log
 
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_logs_in_db(self, logs_storage_get_mock):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
         logs_storage_get_mock.return_value = None
         user = models.User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
@@ -872,7 +872,7 @@ INFO:user: Final public log
         self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
 
     def test_job_logs_error(self):
-        """Tests job log by fuction provider."""
+        """Tests job log by function provider."""
         user = models.User.objects.get(username="test_user_2")
 
         # Mock job
