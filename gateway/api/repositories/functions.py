@@ -10,7 +10,6 @@ from django.contrib.auth.models import Group
 from api.models import Program as Function
 from api.repositories.users import UserRepository
 
-
 logger = logging.getLogger("gateway")
 
 

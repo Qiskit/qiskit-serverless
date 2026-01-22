@@ -1,5 +1,6 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
+
 import os
 
 from pytest import mark

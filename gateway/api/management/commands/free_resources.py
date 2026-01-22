@@ -15,7 +15,6 @@ from api.use_cases.jobs.get_compute_resource_logs import (
     LogsResponse,
 )
 
-
 logger = logging.getLogger("commands")
 
 

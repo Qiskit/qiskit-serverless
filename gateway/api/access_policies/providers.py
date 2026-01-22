@@ -6,7 +6,6 @@ import logging
 
 from api.models import Provider
 
-
 logger = logging.getLogger("gateway")
 
 

@@ -7,7 +7,6 @@ from django.conf import settings
 
 from api.models import Job
 
-
 logger = logging.getLogger("utils")
 
 
