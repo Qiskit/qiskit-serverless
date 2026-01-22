@@ -12,8 +12,7 @@ from pytest import raises
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job, RuntimeJob
-from api.use_cases.jobs.get_compute_resource_logs import GetComputeResourceLogsUseCase
+from api.models import ComputeResource, Job, RuntimeJob
 from api.use_cases.jobs.get_logs import GetJobLogsUseCase
 from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
 
@@ -653,8 +652,10 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
     @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
-    def test_job_provider_logs_in_ray(self, get_job_handler_mock):
+    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    def test_job_provider_logs_in_ray(self, logs_storage_get_mock, get_job_handler_mock):
         """Tests job log by function provider."""
+        logs_storage_get_mock.return_value = None
 
         full_logs = """
 [PUBLIC] INFO:user: Public log for user
@@ -665,28 +666,30 @@ Internal system log
 [PRIVATE] WARNING:provider: Private warning
 [PUBLIC] INFO:user: Final public log
 """
-        expected_user_logs = """INFO:user: Public log for user
-INFO:user: Another public log
-INFO:user: Final public log
-"""
-
-        # Mock job
-        compute_resource = Mock(active=True)
-        program = Mock(provider=Mock())
-        job = Mock(compute_resource=compute_resource, program=program)
 
         # Mock job handler
         job_handler_mock = Mock()
         job_handler_mock.logs.return_value = full_logs
         get_job_handler_mock.return_value = job_handler_mock
 
-        use_case = GetComputeResourceLogsUseCase()
+        # Add an active compute_resource to the job, so the endpoint could try to reach Ray
+        job = Job.objects.get(id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec85")
+        job.compute_resource = ComputeResource.objects.create(
+            title="test-cluster", active=True
+        )
+        job.save()
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
 
         with self.settings(RAY_SETUP_MAX_RETRIES=2):
-            result = use_case.execute(job)
+            jobs_response = self.client.get(
+                reverse("v1:jobs-provider-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                format="json",
+            )
 
-        self.assertEqual(result.full_logs, full_logs)
-        self.assertEqual(result.user_logs, expected_user_logs)
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), full_logs)
 
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):
@@ -796,30 +799,41 @@ INFO:user: Final public log
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
     @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
-    def test_job_logs_in_ray(self, get_job_handler_mock):
+    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    def test_job_logs_in_ray(self, logs_storage_get_mock, get_job_handler_mock):
         """Tests job log by function provider."""
-
-        # Mock job
-        compute_resource = Mock(active=True)
-        program = Mock(provider=None)
-        job = Mock(compute_resource=compute_resource, program=program)
+        logs_storage_get_mock.return_value = None
 
         # Mock job handler
         job_handler_mock = Mock()
         job_handler_mock.logs.return_value = "Ray Logs"
         get_job_handler_mock.return_value = job_handler_mock
 
-        use_case = GetComputeResourceLogsUseCase()
+        # Add an active compute_resource to the job, so the endpoint could try to reach Ray
+        job = Job.objects.get(id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec85")
+        job.compute_resource = ComputeResource.objects.create(
+            title="test-cluster-2", active=True
+        )
+        job.save()
+
+        self._authorize()
 
         with self.settings(RAY_SETUP_MAX_RETRIES=2):
-            result = use_case.execute(job)
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                format="json",
+            )
 
-        self.assertEqual(result.full_logs, "Ray Logs\n")
-        self.assertEqual(result.user_logs, None)
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), "Ray Logs\n")
 
     @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
-    def test_job_logs_in_ray_with_provider(self, get_job_handler_mock):
+    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    def test_job_logs_in_ray_with_provider(
+        self, logs_storage_get_mock, get_job_handler_mock
+    ):
         """Tests job log by function provider."""
+        logs_storage_get_mock.return_value = None
 
         full_logs = """
 [PUBLIC] INFO:user: Public log for user
@@ -835,23 +849,29 @@ INFO:user: Another public log
 INFO:user: Final public log
 """
 
-        # Mock job
-        compute_resource = Mock(active=True)
-        program = Mock(provider=Mock())
-        job = Mock(compute_resource=compute_resource, program=program)
-
         # Mock job handler
         job_handler_mock = Mock()
         job_handler_mock.logs.return_value = full_logs
         get_job_handler_mock.return_value = job_handler_mock
 
-        use_case = GetComputeResourceLogsUseCase()
+        # Add an active compute_resource to the job, so the endpoint could try to reach Ray
+        job = Job.objects.get(id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec85")
+        job.compute_resource = ComputeResource.objects.create(
+            title="test-cluster-3", active=True
+        )
+        job.save()
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
 
         with self.settings(RAY_SETUP_MAX_RETRIES=2):
-            result = use_case.execute(job)
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
+                format="json",
+            )
 
-        self.assertEqual(result.full_logs, full_logs)
-        self.assertEqual(result.user_logs, expected_user_logs)
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
 
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_logs_in_db(self, logs_storage_get_mock):
