@@ -1,13 +1,4 @@
 repos:
-  # pre-commit hooks (fast)
-  # - repo: https://github.com/pre-commit/pre-commit-hooks
-  #   rev: v5.0.0
-  #   hooks:
-  #     - id: trailing-whitespace
-  #     - id: end-of-file-fixer
-  #     - id: check-yaml
-  #     - id: check-added-large-files
-
   # Black on commit
   - repo: https://github.com/psf/black
     rev: 24.10.0
