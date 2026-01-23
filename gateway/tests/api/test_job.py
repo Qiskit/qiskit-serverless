@@ -772,7 +772,6 @@ Internal system log
                 f"No logs yet.",
             )
 
-
     def test_job_logs_by_author_for_function_without_provider(self):
         """Tests job log by job author."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
@@ -784,7 +783,10 @@ Internal system log
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
-            self.assertEqual(jobs_response.data.get("message"), f"You don't have access to job [{job_id}]")
+            self.assertEqual(
+                jobs_response.data.get("message"),
+                f"You don't have access to job [{job_id}]",
+            )
 
     def test_job_logs(self):
         """Tests job log non-authorized."""
@@ -921,7 +923,7 @@ INFO:user: Final public log
             ),
             format="json",
         )
-        
+
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "No logs yet.")
 
