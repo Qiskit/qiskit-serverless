@@ -751,7 +751,7 @@ Internal system log
 
             self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_job_provider_logs_not_fount_empty(self):
+    def test_job_provider_logs_not_found_empty(self):
         """Tests job log by function provider."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             user = models.User.objects.get(username="test_user_3")
@@ -771,6 +771,20 @@ Internal system log
                 jobs_response.data.get("logs"),
                 f"No logs yet.",
             )
+
+
+    def test_job_logs_by_author_for_function_without_provider(self):
+        """Tests job log by job author."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            self._authorize()
+
+            job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
+            jobs_response = self.client.get(
+                reverse("v1:jobs-provider-logs", args=[job_id]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+            self.assertEqual(jobs_response.data.get("message"), f"You don't have access to job [{job_id}]")
 
     def test_job_logs(self):
         """Tests job log non-authorized."""
@@ -896,6 +910,23 @@ INFO:user: Final public log
 
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_logs_in_db(self, logs_storage_get_mock):
+        """Tests job log by function provider."""
+        logs_storage_get_mock.return_value = None
+        self._authorize()
+
+        jobs_response = self.client.get(
+            reverse(
+                "v1:jobs-logs",
+                args=["8317718f-5c0d-4fb6-9947-72e480b85048"],
+            ),
+            format="json",
+        )
+        
+        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.data.get("logs"), "No logs yet.")
+
+    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    def test_job_logs_not_fount_empty(self, logs_storage_get_mock):
         """Tests job log by function provider."""
         logs_storage_get_mock.return_value = None
         user = models.User.objects.get(username="test_user_2")
