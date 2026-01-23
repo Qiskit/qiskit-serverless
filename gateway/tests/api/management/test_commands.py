@@ -173,6 +173,15 @@ INFO:user: Final public log
                     saved_user_logs = log_file.read()
                 self.assertEqual(saved_user_logs, expected_user_logs)
 
+                private_log_file_path = os.path.join(
+                    temp_dir,
+                    program.title,
+                    "logs",
+                    f"{job.id}.log",
+                )
+                # private log shouldn't exist
+                self.assertFalse(os.path.exists(private_log_file_path))
+
     @patch("api.management.commands.free_resources.get_job_handler")
     def test_free_resources_filters_logs_provider_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function with provider."""
