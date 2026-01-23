@@ -591,8 +591,8 @@ class TestJobApi(APITestCase):
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("logs"), "log entry 2")
 
-    def test_job_logs_by_author_for_function_with_provider(self):
-        """Tests job log by job author."""
+    def test_job_logs_by_non_author_for_function_with_provider(self):
+        """Tests that a user who is not the author cannot access logs of a provider job."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             self._authorize()
 
@@ -811,7 +811,24 @@ Internal system log
 
         # Mock job handler
         job_handler_mock = Mock()
-        job_handler_mock.logs.return_value = "Ray Logs"
+        job_handler_mock.logs.return_value = """
+[PUBLIC] INFO:user: Public log for user
+
+[PRIVATE] INFO:provider: Private log for provider only
+[PUBLIC] INFO:user: Another public log
+Internal system log
+[PRIVATE] WARNING:provider: Private warning
+[PUBLIC] INFO:user: Final public log
+"""
+        expected_user_logs = """
+INFO:user: Public log for user
+
+INFO:provider: Private log for provider only
+INFO:user: Another public log
+Internal system log
+WARNING:provider: Private warning
+INFO:user: Final public log
+"""
         get_job_handler_mock.return_value = job_handler_mock
 
         # Add an active compute_resource to the job, so the endpoint could try to reach Ray
@@ -830,7 +847,7 @@ Internal system log
             )
 
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "Ray Logs\n")
+        self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
 
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get")

@@ -67,10 +67,5 @@ class GetProviderJobLogsUseCase:
             logs = check_logs(logs, job)
             return logs
 
-        logs = job.logs
-
-        if not logs or logs == NO_LOGS_MSG or logs == NO_LOGS_MSG_2:
-            raise NotFoundError(f"Logs for job[{job_id}] are not found")
-
         # Legacy: Get from db.
-        return logs
+        return job.logs
