@@ -767,10 +767,10 @@ Internal system log
                 format="json",
             )
 
-            self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(
-                jobs_response.data.get("message"),
-                f"Logs for job[{job_id}] are not found",
+                jobs_response.data.get("logs"),
+                f"No logs yet.",
             )
 
     def test_job_logs(self):
