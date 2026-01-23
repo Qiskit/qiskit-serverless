@@ -62,7 +62,11 @@ class GetProviderJobLogsUseCase:
 
         # Get from Ray if it is already running.
         if job.compute_resource and job.compute_resource.active:
-            job_handler = get_job_handler(job.compute_resource.host)
+            try:
+                job_handler = get_job_handler(job.compute_resource.host)
+            except ConnectionError:
+                return "Logs not available for this job during execution."
+
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
             return logs

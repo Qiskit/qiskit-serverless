@@ -64,7 +64,11 @@ class GetJobLogsUseCase:
 
         # Get from Ray if it is already running.
         if job.compute_resource and job.compute_resource.active:
-            job_handler = get_job_handler(job.compute_resource.host)
+            try:
+                job_handler = get_job_handler(job.compute_resource.host)
+            except ConnectionError:
+                return "Logs not available for this job during execution."
+
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
             if job.program.provider:
@@ -72,4 +76,7 @@ class GetJobLogsUseCase:
             return remove_prefix_tags_in_logs(logs)
 
         # Legacy: Get from db.
-        return job.logs
+        if not job.program.provider:
+            return job.logs
+
+        return "No logs available."

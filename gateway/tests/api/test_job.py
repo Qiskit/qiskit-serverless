@@ -613,7 +613,7 @@ class TestJobApi(APITestCase):
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-            self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
+            self.assertEqual(jobs_response.data.get("logs"), "No logs available.")
 
     def test_job_provider_logs(self):
         """Tests job log by function provider."""
@@ -719,7 +719,7 @@ Internal system log
         user = models.User.objects.get(username="test_user_2")
 
         # Mock job
-        compute_resource = Mock(active=True, host="wrong-host")
+        compute_resource = Mock(active=True, host="http://wrong-host")
         provider = Mock(admin_groups=user.groups)
         provider.name = "fake_provider"
         program = Mock(provider=provider, title="fake_fn")
@@ -731,10 +731,9 @@ Internal system log
         use_case.jobs_repository.get_job_by_id.return_value = job
 
         with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
-            with raises(ValueError) as exc_info:
-                use_case.execute("fake_job_id", user)
+            message = use_case.execute("fake_job_id", user)
 
-        self.assertEqual(str(exc_info.value), "Invalid address format: wrong-host")
+        self.assertEqual(message, "Logs not available for this job during execution.")
 
     def test_job_provider_logs_forbidden(self):
         """Tests job log by function provider."""
@@ -911,14 +910,14 @@ INFO:user: Final public log
         )
 
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
+        self.assertEqual(jobs_response.data.get("logs"), "No logs available.")
 
     def test_job_logs_error(self):
         """Tests job log by function provider."""
         user = models.User.objects.get(username="test_user_2")
 
         # Mock job
-        compute_resource = Mock(active=True, host="wrong-host")
+        compute_resource = Mock(active=True, host="http://wrong-host")
         program = Mock(title="fake_fn", provider=None)
         job = Mock(compute_resource=compute_resource, program=program, author=user)
 
@@ -928,10 +927,9 @@ INFO:user: Final public log
         use_case.jobs_repository.get_job_by_id.return_value = job
 
         with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
-            with raises(ValueError) as exc_info:
-                use_case.execute("fake_job_id", user)
+            message = use_case.execute("fake_job_id", user)
 
-        self.assertEqual(str(exc_info.value), "Invalid address format: wrong-host")
+        self.assertEqual(message, "Logs not available for this job during execution.")
 
     def test_runtime_jobs_post(self):
         """Tests runtime jobs POST endpoint."""
