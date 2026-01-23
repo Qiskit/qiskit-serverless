@@ -12,7 +12,6 @@ from rest_framework import exceptions
 from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.services.authentication.authentication_base import AuthenticationBase
 
-
 logger = logging.getLogger("gateway.services.authentication.ibm_quantum_platform")
 
 

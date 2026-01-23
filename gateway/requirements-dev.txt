@@ -3,7 +3,7 @@ pytest>=6.2.5
 pylint-django>=2.5.5
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
-black~=25.12
+black~=26.1
 requests-mock>=1.11.0
 coverage>=5.5
 responses>=0.23.3
