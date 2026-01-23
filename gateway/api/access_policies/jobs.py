@@ -81,7 +81,9 @@ class JobAccessPolicies:
             bool: True or False in case the user has permissions
         """
 
-        has_access = user.id == job.author.id
+        has_access = user.id == job.author.id or ProviderAccessPolicy.can_access(
+            user, job.program.provider
+        )
         if not has_access:
             logger.warning(
                 "User [%s] has no access to read the result of the job [%s].",
