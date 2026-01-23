@@ -11,12 +11,14 @@ from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.function import check_logs
-from api.domain.function.filter_logs import extract_public_logs
+from api.domain.function.filter_logs import (
+    extract_public_logs,
+    remove_prefix_tags_in_logs,
+)
 from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.logs_storage import LogsStorage
-from api.use_cases.jobs.get_compute_resource_logs import GetComputeResourceLogsUseCase
 
 NO_LOGS_MSG: Final[str] = "No available logs"
 NO_LOGS_MSG_2: Final[str] = "No logs yet."
@@ -61,12 +63,13 @@ class GetJobLogsUseCase:
             return logs
 
         # Get from Ray if it is already running.
-        logs = GetComputeResourceLogsUseCase().execute(job)
-
-        if logs:
-            return logs.user_logs if logs.user_logs is not None else logs.full_logs
+        if job.compute_resource and job.compute_resource.active:
+            job_handler = get_job_handler(job.compute_resource.host)
+            logs = job_handler.logs(job.ray_job_id)
+            logs = check_logs(logs, job)
+            if job.program.provider:
+                return extract_public_logs(logs)
+            return remove_prefix_tags_in_logs(logs)
 
         # Legacy: Get from db.
-        logs = job.logs
-
-        return logs
+        return job.logs

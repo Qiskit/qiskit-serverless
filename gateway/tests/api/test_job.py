@@ -651,7 +651,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
-    @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
+    @patch("api.use_cases.jobs.provider_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_provider_logs_in_ray(
         self, logs_storage_get_mock, get_job_handler_mock
@@ -803,7 +803,7 @@ Internal system log
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
-    @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
+    @patch("api.use_cases.jobs.get_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_logs_in_ray(self, logs_storage_get_mock, get_job_handler_mock):
         """Tests job log by function provider."""
@@ -832,7 +832,7 @@ Internal system log
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "Ray Logs\n")
 
-    @patch("api.use_cases.jobs.get_compute_resource_logs.get_job_handler")
+    @patch("api.use_cases.jobs.get_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get")
     def test_job_logs_in_ray_with_provider(
         self, logs_storage_get_mock, get_job_handler_mock

@@ -5,15 +5,16 @@ import logging
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from api.domain.function import check_logs
+from api.domain.function.filter_logs import (
+    extract_public_logs,
+    remove_prefix_tags_in_logs,
+)
 from api.models import ComputeResource, Job
-from api.ray import kill_ray_cluster
+from api.ray import get_job_handler, kill_ray_cluster
 from api.repositories.users import UserRepository
 from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.logs_storage import LogsStorage
-from api.use_cases.jobs.get_compute_resource_logs import (
-    GetComputeResourceLogsUseCase,
-    LogsResponse,
-)
 
 logger = logging.getLogger("commands")
 
@@ -109,23 +110,25 @@ class Command(BaseCommand):
         """
 
         print(f"save_logs_to_storage:: Job: {job.id}")
-        logs = GetComputeResourceLogsUseCase().execute(job)
+        job_handler = get_job_handler(job.compute_resource.host)
+        logs = job_handler.logs(job.ray_job_id)
+        logs = check_logs(logs, job)
 
         user_repository = UserRepository()
         author = user_repository.get_or_create_by_id(job.author)
         username = author.username
 
-        if logs.user_logs:
+        if job.program.provider:
             self._save_logs_with_provider(logs, username, job)
         else:
             self._save_logs_only_user(logs, username, job)
 
-    def _save_logs_only_user(self, logs: LogsResponse, username: str, job: Job):
+    def _save_logs_only_user(self, logs: str, username: str, job: Job):
         """
         Save the logs in the user storage.
 
         Args:
-            full_logs: str
+            logs: str
             username: str
             job: Job
         """
@@ -137,15 +140,15 @@ class Command(BaseCommand):
             provider_name=None,
         )
 
-        user_logs_storage.save(job.id, logs.full_logs)
+        user_logs_storage.save(job.id, remove_prefix_tags_in_logs(logs))
 
-    def _save_logs_with_provider(self, logs: LogsResponse, username: str, job: Job):
+    def _save_logs_with_provider(self, logs: str, username: str, job: Job):
         """
         Save the logs in the provide storage and filter
         for public logs only to save them into the user storage.
 
         Args:
-            full_logs: str
+            logs: str
             username: str
             job: Job
         """
@@ -164,6 +167,7 @@ class Command(BaseCommand):
             provider_name=job.program.provider.name,
         )
 
-        user_logs_storage.save(job.id, logs.user_logs)
+        public_logs = extract_public_logs(logs)
+        user_logs_storage.save(job.id, public_logs)
 
-        provider_logs_storage.save(job.id, logs.full_logs)
+        provider_logs_storage.save(job.id, logs)
