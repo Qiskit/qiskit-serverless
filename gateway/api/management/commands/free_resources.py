@@ -171,5 +171,5 @@ class Command(BaseCommand):
         public_logs = log_filter_provider_job_public(logs)
         user_logs_storage.save(job.id, public_logs)
 
-        private_logs = logs # TODO: goyo filter provider private
+        private_logs = logs  # TODO: goyo filter provider private
         provider_logs_storage.save(job.id, private_logs)
