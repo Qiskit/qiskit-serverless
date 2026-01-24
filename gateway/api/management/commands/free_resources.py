@@ -7,8 +7,8 @@ from django.core.management.base import BaseCommand
 
 from api.domain.function import check_logs
 from api.domain.function.filter_logs import (
-    extract_public_logs,
-    remove_prefix_tags_in_logs,
+    log_filter_provider_job_public,
+    log_filter_user_job,
 )
 from api.models import ComputeResource, Job
 from api.ray import get_job_handler, kill_ray_cluster
@@ -140,7 +140,8 @@ class Command(BaseCommand):
             provider_name=None,
         )
 
-        user_logs_storage.save(job.id, remove_prefix_tags_in_logs(logs))
+        public_logs = log_filter_user_job(logs)
+        user_logs_storage.save(job.id, public_logs)
 
     def _save_logs_with_provider(self, logs: str, username: str, job: Job):
         """
@@ -167,7 +168,8 @@ class Command(BaseCommand):
             provider_name=job.program.provider.name,
         )
 
-        public_logs = extract_public_logs(logs)
+        public_logs = log_filter_provider_job_public(logs)
         user_logs_storage.save(job.id, public_logs)
 
-        provider_logs_storage.save(job.id, logs)
+        private_logs = logs # TODO: goyo filter provider private
+        provider_logs_storage.save(job.id, private_logs)

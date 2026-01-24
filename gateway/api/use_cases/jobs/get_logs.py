@@ -12,8 +12,8 @@ from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.function import check_logs
 from api.domain.function.filter_logs import (
-    extract_public_logs,
-    remove_prefix_tags_in_logs,
+    log_filter_provider_job_public,
+    log_filter_user_job,
 )
 from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
@@ -58,11 +58,11 @@ class GetJobLogsUseCase:
 
         logs = logs_storage.get(job_id)
 
-        # Logs stored in COS
+        # Logs stored in COS. They are already filtered
         if logs:
             return logs
 
-        # Get from Ray if it is already running.
+        # Get from Ray if it is already running. Then filter
         if job.compute_resource and job.compute_resource.active:
             try:
                 job_handler = get_job_handler(job.compute_resource.host)
@@ -72,11 +72,16 @@ class GetJobLogsUseCase:
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
             if job.program.provider:
-                return extract_public_logs(logs)
-            return remove_prefix_tags_in_logs(logs)
+                # Public logs from a provider job
+                return log_filter_provider_job_public(logs)
+
+            # Public logs from a user job
+            return log_filter_user_job(logs)
 
         # Legacy: Get from db.
-        if not job.program.provider:
+        if job.program.provider:
+            # Public logs from a provider job
+            return "No logs available."
+        else:
+            # Public logs from a user job
             return job.logs
-
-        return "No logs available."

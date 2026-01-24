@@ -6,7 +6,7 @@ public_pattern = re.compile(r"^\[PUBLIC\]", re.IGNORECASE)
 private_pattern = re.compile(r"^\[PRIVATE\]", re.IGNORECASE)
 
 
-def extract_public_logs(text: str) -> str:
+def log_filter_provider_job_public(text: str) -> str:
     """
     This filter the logs to get the public ones only.
 
@@ -20,7 +20,7 @@ def extract_public_logs(text: str) -> str:
     return "\n".join(lines) + "\n" if lines else ""
 
 
-def remove_prefix_tags_in_logs(text: str) -> str:
+def log_filter_user_job(text: str) -> str:
     """
     Remove all the tags that starts with [PUBLIC] or [PRIVATE].
 

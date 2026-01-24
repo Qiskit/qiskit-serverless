@@ -2,7 +2,7 @@
 
 from rest_framework.test import APITestCase
 
-from api.domain.function.filter_logs import extract_public_logs
+from api.domain.function.filter_logs import log_filter_provider_job_public
 
 
 class TestFilterLogs(APITestCase):
@@ -44,6 +44,6 @@ sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Backend = {
 sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Starting
 """
 
-        output_log = extract_public_logs(log)
+        output_log = log_filter_provider_job_public(log)
 
         self.assertEquals(output_log, expected_output)

@@ -56,11 +56,11 @@ class GetProviderJobLogsUseCase:
 
         logs = logs_storage.get(job_id)
 
-        # Logs stored in storage.
+        # Logs stored in COS. They are already filtered
         if logs:
             return logs
 
-        # Get from Ray if it is already running.
+        # Get from Ray if it is already running. Then filter
         if job.compute_resource and job.compute_resource.active:
             try:
                 job_handler = get_job_handler(job.compute_resource.host)
@@ -69,6 +69,7 @@ class GetProviderJobLogsUseCase:
 
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
+            # TODO: goyo filter provider private
             return logs
 
         # Legacy: Get from db.

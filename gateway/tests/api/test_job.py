@@ -742,9 +742,10 @@ Internal system log
     def test_job_provider_logs_not_found_empty(self):
         """Tests job log by function provider."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            self._authorize("test_user_3")
+            self._authorize("test_user_2")
 
-            job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"
+            # ec86: author=test_user, provider=default (admin=test_user_2)
+            job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec86"
             jobs_response = self.client.get(
                 reverse(
                     "v1:jobs-provider-logs",
