@@ -759,7 +759,7 @@ Internal system log
                 f"No logs yet.",
             )
 
-    def test_job_logs_by_author_for_function_without_provider(self):
+    def test_job_provider_logs_by_author_for_function_without_provider(self):
         """Tests job log by job author."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             self._authorize("test_user")
