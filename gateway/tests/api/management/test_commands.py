@@ -263,7 +263,10 @@ INFO:user: Final public log
                     saved_provider_logs = log_file.read()
                 self.assertEqual(saved_provider_logs, full_logs)
 
-    @patch("api.management.commands.free_resources.get_job_handler", side_effect=ConnectionError())
+    @patch(
+        "api.management.commands.free_resources.get_job_handler",
+        side_effect=ConnectionError(),
+    )
     def test_free_resources_with_gpu_clusters_limits_zero(self, _):
         """Tests that logs are filtered when saving for function with provider."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -310,7 +313,10 @@ INFO:user: Final public log
 
                 self.assertFalse(os.path.exists(user_log_file_path))
 
-    @patch("api.management.commands.free_resources.get_job_handler", side_effect=ConnectionError())
+    @patch(
+        "api.management.commands.free_resources.get_job_handler",
+        side_effect=ConnectionError(),
+    )
     def test_free_resources_with_cpu_clusters_limits_zero(self, _):
         """Tests that logs are filtered when saving for function with provider."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -355,7 +361,6 @@ INFO:user: Final public log
                 )
 
                 self.assertFalse(os.path.exists(user_log_file_path))
-
 
     def _create_test_job(self, ray_job_id="test-job-id", status=None):
         """Helper method to create a test job with fresh state."""
