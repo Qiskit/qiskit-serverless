@@ -66,17 +66,21 @@ If it's a provider job:
 - Returns unfiltered raw logs containing `[PRIVATE]`, `[PUBLIC]`, and 3rd party content (prefixes are maintained)
 
 
-These are the behavior table for the endpoints. 
+These are the behavior table for the endpoints.
 
-| Job Type | Caller | Endpoint | 1-COS File | 2-Ray                                | 3-Db (legacy)        |
-|----------|--------|----------|------------|--------------------------------------|----------------------|
-| User | Author | `/logs` | Public     | All, but prefixes removed            | job.logs             |
-| User | Other | `/logs` |            | Permission error                     |                      |
-| User | Any | `/provider-logs` |            | Error (not provider)                 |                      |
-| Provider | Author | `/logs` | Public     | `[PUBLIC]` only, removing the prefix | "No logs available." |
-| Provider | Author | `/provider-logs` |            | Error (not provider)                 |                      |
-| Provider | Provider | `/logs` | Public     | `[PUBLIC]` only, removing the prefix | "No logs available." |
-| Provider | Provider | `/provider-logs` | Private    | No filter                            | job.logs             |
+| Job Type | Caller | Endpoint | 1-COS File | 2-Ray | 3-Db (legacy) |
+|----------|--------|----------|------------|-------|---------------|
+| User | Author | `/logs` | `log_filter_user_job` | `log_filter_user_job` | job.logs |
+| User | Other | `/logs` | Permission error | Permission error | |
+| User | Any | `/provider-logs` | Error (not provider) | Error (not provider) | |
+| Provider | Author | `/logs` | `log_filter_provider_job_public` | `log_filter_provider_job_public` | "No logs available." |
+| Provider | Author | `/provider-logs` | Error (not provider) | Error (not provider) | |
+| Provider | Provider | `/logs` | `log_filter_provider_job_public` | `log_filter_provider_job_public` | "No logs available." |
+| Provider | Provider | `/provider-logs` | No filter | No filter (TODO) | job.logs |
+
+Filters description:
+- `log_filter_user_job`: Removes `[PUBLIC]` and `[PRIVATE]` prefixes, keeps all lines
+- `log_filter_provider_job_public`: Keeps only `[PUBLIC]` lines, removes the prefix
 
 ## Design decisions
 
