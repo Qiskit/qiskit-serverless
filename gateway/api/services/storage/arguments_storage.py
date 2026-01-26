@@ -5,9 +5,7 @@ This module handle the access to the arguments store
 import logging
 import os
 from typing import Optional
-
-from api.services.storage.path_builder import PathBuilder
-from api.services.storage.enums.working_dir import WorkingDir
+from django.conf import settings
 
 from api.models import Program
 
@@ -18,33 +16,40 @@ class ArgumentsStorage:
     """Handles the storage and retrieval of user arguments."""
 
     ARGUMENTS_FILE_EXTENSION = ".json"
-    PATH = "arguments"
     ENCODING = "utf-8"
 
     def __init__(self, username: str, function: Program):
+        """
+        Initialize ArgumentsStorage with a function instance.
+
+        Args:
+            username: Program model instance containing title, provider, and author
+            function: Program model instance containing title, provider, and author
+        """
         function_title = function.title
         provider_name = function.provider.name if function.provider else None
 
-        ### In this case arguments are always stored in user folder
-        self.sub_path = PathBuilder.sub_path(
-            working_dir=WorkingDir.USER_STORAGE,
-            username=username,
-            function_title=function_title,
-            provider_name=provider_name,
-            extra_sub_path=self.PATH,
-        )
-        self.absolute_path = PathBuilder.absolute_path(
-            working_dir=WorkingDir.USER_STORAGE,
-            username=username,
-            function_title=function_title,
-            provider_name=provider_name,
-            extra_sub_path=self.PATH,
-        )
+        # We need to use the same path as the FileStorage here
+        # because it is attached the volume in the docker image
+        if provider_name is None:
+            self.user_arguments_directory = os.path.join(
+                settings.MEDIA_ROOT, username, "arguments"
+            )
+        else:
+            self.user_arguments_directory = os.path.join(
+                settings.MEDIA_ROOT,
+                username,
+                provider_name,
+                function_title,
+                "arguments",
+            )
+
+        os.makedirs(self.user_arguments_directory, exist_ok=True)
 
     def _get_arguments_path(self, job_id: str) -> str:
         """Construct the full path for a arguments file."""
         return os.path.join(
-            self.absolute_path, f"{job_id}{self.ARGUMENTS_FILE_EXTENSION}"
+            self.user_arguments_directory, f"{job_id}{self.ARGUMENTS_FILE_EXTENSION}"
         )
 
     def get(self, job_id: str) -> Optional[str]:
@@ -62,7 +67,7 @@ class ArgumentsStorage:
             logger.info(
                 "Arguments file for job ID '%s' not found in directory '%s'.",
                 job_id,
-                arguments_path,
+                self.user_arguments_directory,
             )
             return None
 
