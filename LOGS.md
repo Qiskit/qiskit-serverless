@@ -23,7 +23,7 @@ During the function execution, the code could use `get_logger()` or `get_provide
 User gets the logs using the logs() and provider_logs() methods from the client (they will use /logs and /provider-logs respectively). Based on the log state, the endpoints will:
 
 - During execution: logs are obtained from Ray's console while the job is running.
-- After execution: logs are obtained from COS (Cloud Object Storage).
+- After execution: logs are obtained from COS (Cloud Object Storage). For legacy jobs, the logs are obtained from the database.
 
 To download from COS, the logs must be uploaded there first. So, the scheduler will check if the job has finished in the `free_resources` step, and uploads logs to COS:
 - In user jobs: one file with all logs (removing the prefixes)
@@ -68,15 +68,15 @@ If it's a provider job:
 
 These are the behavior table for the endpoints. 
 
-| Job Type | Caller | Endpoint | 1-COS File | 2-Ray                                | 3-Db (legacy)       |
-|----------|--------|----------|------------|--------------------------------------|---------------------|
-| User | Author | `/logs` | Public     | All, but prefixes removed            | job.logs            |
-| User | Other | `/logs` |            | Permission error                     | "No available logs" |
-| User | Any | `/provider-logs` |            | Error (not provider)                 |                     |
-| Provider | Author | `/logs` | Public     | `[PUBLIC]` only, removing the prefix | job.logs            |
-| Provider | Author | `/provider-logs` |            | Error (not provider)                 |                     |
-| Provider | Provider | `/logs` | Public     | `[PUBLIC]` only, removing the prefix | job.logs                    |
-| Provider | Provider | `/provider-logs` | Private    | No filter                            | job.logs                    |
+| Job Type | Caller | Endpoint | 1-COS File | 2-Ray                                | 3-Db (legacy)        |
+|----------|--------|----------|------------|--------------------------------------|----------------------|
+| User | Author | `/logs` | Public     | All, but prefixes removed            | job.logs             |
+| User | Other | `/logs` |            | Permission error                     |                      |
+| User | Any | `/provider-logs` |            | Error (not provider)                 |                      |
+| Provider | Author | `/logs` | Public     | `[PUBLIC]` only, removing the prefix | "No logs available." |
+| Provider | Author | `/provider-logs` |            | Error (not provider)                 |                      |
+| Provider | Provider | `/logs` | Public     | `[PUBLIC]` only, removing the prefix | "No logs available." |
+| Provider | Provider | `/provider-logs` | Private    | No filter                            | job.logs             |
 
 ## Design decisions
 
