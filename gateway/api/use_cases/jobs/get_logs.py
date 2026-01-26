@@ -17,7 +17,6 @@ from api.domain.function.filter_logs import (
 )
 from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
-from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.logs_storage import LogsStorage
 
 NO_LOGS_MSG: Final[str] = "No available logs"
@@ -49,16 +48,9 @@ class GetJobLogsUseCase:
         if not JobAccessPolicies.can_read_logs(user, job):
             raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
-        logs_storage = LogsStorage(
-            username=user.username,
-            working_dir=WorkingDir.USER_STORAGE,
-            function_title=job.program.title,
-            provider_name=job.program.provider.name if job.program.provider else None,
-        )
-
-        logs = logs_storage.get(job_id)
-
         # Logs stored in COS. They are already filtered
+        logs_storage = LogsStorage(job)
+        logs = logs_storage.get_public_logs()
         if logs:
             return logs
 

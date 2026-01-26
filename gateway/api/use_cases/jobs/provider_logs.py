@@ -13,7 +13,6 @@ from api.domain.function import check_logs
 from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.access_policies.providers import ProviderAccessPolicy
-from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.logs_storage import LogsStorage
 
 NO_LOGS_MSG: Final[str] = "No available logs"
@@ -40,23 +39,16 @@ class GetProviderJobLogsUseCase:
         """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found 1")
+            raise NotFoundError(f"Job [{job_id}] not found")
 
         if not job.program.provider or not ProviderAccessPolicy.can_access(
             user, job.program.provider
         ):
             raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
-        logs_storage = LogsStorage(
-            username=user.username,
-            working_dir=WorkingDir.PROVIDER_STORAGE,
-            function_title=job.program.title,
-            provider_name=job.program.provider.name,
-        )
-
-        logs = logs_storage.get(job_id)
-
         # Logs stored in COS. They are already filtered
+        logs_storage = LogsStorage(job)
+        logs = logs_storage.get_private_logs()
         if logs:
             return logs
 

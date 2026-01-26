@@ -231,11 +231,13 @@ Internal system log
                 # Execute free_resources command
                 call_command("free_resources")
 
-                # User logs are located in username/logs/
+                # User logs are located in username/provider/function/logs/ for provider jobs
                 # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
                 user_log_file_path = os.path.join(
                     temp_dir,
                     "test_user",
+                    provider.name,
+                    program.title,
                     "logs",
                     f"{job.id}.log",
                 )

@@ -651,7 +651,7 @@ class TestJobApi(APITestCase):
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("logs"), "provider log entry 1")
 
-    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
     def test_job_provider_logs_in_storage(self, logs_storage_get_mock):
         """Tests job log by function provider."""
         logs_storage_get_mock.return_value = "from storage"
@@ -667,7 +667,7 @@ class TestJobApi(APITestCase):
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
     @patch("api.use_cases.jobs.provider_logs.get_job_handler")
-    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
     def test_job_provider_logs_in_ray(
         self, logs_storage_get_mock, get_job_handler_mock
     ):
@@ -707,7 +707,7 @@ Internal system log
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), full_logs)
 
-    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):
         """Tests job log by function provider."""
         logs_storage_get_mock.return_value = None
@@ -728,12 +728,18 @@ Internal system log
         """Tests job log by function provider."""
         user = self._authorize("test_user_2")
 
-        # Mock job
+        # Mock job with all required fields for LogsStorage
         compute_resource = Mock(active=True, host="http://wrong-host")
         provider = Mock(admin_groups=user.groups)
         provider.name = "fake_provider"
         program = Mock(provider=provider, title="fake_fn")
-        job = Mock(compute_resource=compute_resource, program=program)
+        author = Mock(username="fake_author")
+        job = Mock(
+            id="fake-job-id",
+            compute_resource=compute_resource,
+            program=program,
+            author=author,
+        )
 
         use_case = GetProviderJobLogsUseCase()
         # Mock repository
@@ -800,7 +806,7 @@ Internal system log
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
-    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_storage(self, logs_storage_get_mock):
         """Tests job log by function provider."""
         logs_storage_get_mock.return_value = "from storage"
@@ -816,7 +822,7 @@ Internal system log
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
-    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_ray(self, logs_storage_get_mock, get_job_handler_mock):
         """Tests job log by function provider."""
         logs_storage_get_mock.return_value = None
@@ -862,7 +868,7 @@ INFO:user: Final public log
         self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
 
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
-    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_ray_with_provider(
         self, logs_storage_get_mock, get_job_handler_mock
     ):
@@ -906,7 +912,7 @@ INFO:user: Final public log
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
 
-    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_db(self, logs_storage_get_mock):
         """Tests job log by function provider."""
         logs_storage_get_mock.return_value = None
@@ -923,7 +929,7 @@ INFO:user: Final public log
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "log from db")
 
-    @patch("api.services.storage.logs_storage.LogsStorage.get")
+    @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_not_fount_empty(self, logs_storage_get_mock):
         """Tests job log by function provider."""
         logs_storage_get_mock.return_value = None
@@ -942,10 +948,17 @@ INFO:user: Final public log
         """Tests job log by function provider."""
         user = self._authorize("test_user_2")
 
-        # Mock job
+        # Mock job with all required fields for LogsStorage
+        # The job author must match the user for authorization to pass
         compute_resource = Mock(active=True, host="http://wrong-host")
         program = Mock(title="fake_fn", provider=None)
-        job = Mock(compute_resource=compute_resource, program=program, author=user)
+        author = Mock(id=user.id, username=user.username)
+        job = Mock(
+            id="fake-job-id",
+            compute_resource=compute_resource,
+            program=program,
+            author=author,
+        )
 
         use_case = GetJobLogsUseCase()
         # Mock repository

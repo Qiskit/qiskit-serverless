@@ -12,8 +12,6 @@ from api.domain.function.filter_logs import (
 )
 from api.models import ComputeResource, Job
 from api.ray import get_job_handler, kill_ray_cluster
-from api.repositories.users import UserRepository
-from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.logs_storage import LogsStorage
 
 logger = logging.getLogger("commands")
@@ -121,65 +119,13 @@ class Command(BaseCommand):
                 job.compute_resource.title,
                 job.id,
             )
-            logs = "Error getting logs: Compute resource is not accessible."
+            logs = "Error getting logs: compute resource is not accessible."
 
-        print(f"save_logs_to_storage:: Logs: {logs}")
-        user_repository = UserRepository()
-        author = user_repository.get_or_create_by_id(job.author)
-        username = author.username
-
+        logs_storage = LogsStorage(job)
         if job.program.provider:
-            self._save_logs_with_provider(logs, username, job)
+            public_logs = log_filter_provider_job_public(logs)
+            logs_storage.save_public_logs(public_logs)
+            logs_storage.save_private_logs(logs)
         else:
-            self._save_logs_only_user(logs, username, job)
-
-    def _save_logs_only_user(self, logs: str, username: str, job: Job):
-        """
-        Save the logs in the user storage.
-
-        Args:
-            logs: str
-            username: str
-            job: Job
-        """
-
-        user_logs_storage = LogsStorage(
-            username=username,
-            working_dir=WorkingDir.USER_STORAGE,
-            function_title=job.program.title,
-            provider_name=None,
-        )
-
-        public_logs = log_filter_user_job(logs)
-        user_logs_storage.save(job.id, public_logs)
-
-    def _save_logs_with_provider(self, logs: str, username: str, job: Job):
-        """
-        Save the logs in the provide storage and filter
-        for public logs only to save them into the user storage.
-
-        Args:
-            logs: str
-            username: str
-            job: Job
-        """
-
-        user_logs_storage = LogsStorage(
-            username=username,
-            working_dir=WorkingDir.USER_STORAGE,
-            function_title=job.program.title,
-            provider_name=None,
-        )
-
-        provider_logs_storage = LogsStorage(
-            username=username,
-            working_dir=WorkingDir.PROVIDER_STORAGE,
-            function_title=job.program.title,
-            provider_name=job.program.provider.name,
-        )
-
-        public_logs = log_filter_provider_job_public(logs)
-        user_logs_storage.save(job.id, public_logs)
-
-        private_logs = logs  # TODO: goyo filter provider private
-        provider_logs_storage.save(job.id, private_logs)
+            filtered_logs = log_filter_user_job(logs)
+            logs_storage.save_public_logs(filtered_logs)
