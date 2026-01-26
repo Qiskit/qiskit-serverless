@@ -6,7 +6,7 @@ from datetime import datetime
 from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
-from unittest.mock import patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock
 
 from api.domain.function import check_logs
 from api.models import ComputeResource, Job, Program, Provider
@@ -260,6 +260,100 @@ INFO:user: Final public log
                 with open(provider_log_file_path, "r", encoding="utf-8") as log_file:
                     saved_provider_logs = log_file.read()
                 self.assertEqual(saved_provider_logs, full_logs)
+
+    @patch("api.management.commands.free_resources.get_job_handler", side_effect=ConnectionError())
+    def test_free_resources_with_gpu_clusters_limits_zero(self, _):
+        """Tests that logs are filtered when saving for function with provider."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(
+                MEDIA_ROOT=temp_dir,
+                RAY_CLUSTER_MODE={"local": False},
+                LIMITS_GPU_CLUSTERS=0,
+            ):
+                program = Program.objects.create(
+                    title="test-program", author_id=1, created=datetime.now()
+                )
+
+                compute_resource = ComputeResource.objects.get(
+                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
+                )
+
+                job = Job.objects.create(
+                    author_id=1,
+                    program=program,
+                    compute_resource=compute_resource,
+                    status=Job.SUCCEEDED,
+                    ray_job_id="test-ray-job-gpu",
+                    created=datetime.now(),
+                    gpu=True,
+                )
+
+                # Execute free_resources command
+                call_command("free_resources")
+
+                compute_resource = ComputeResource.objects.get(
+                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
+                )
+
+                self.assertTrue(compute_resource.active)
+
+                # User logs are located in username/logs/
+                # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
+                user_log_file_path = os.path.join(
+                    temp_dir,
+                    "test_user",
+                    "logs",
+                    f"{job.id}.log",
+                )
+
+                self.assertFalse(os.path.exists(user_log_file_path))
+
+    @patch("api.management.commands.free_resources.get_job_handler", side_effect=ConnectionError())
+    def test_free_resources_with_cpu_clusters_limits_zero(self, _):
+        """Tests that logs are filtered when saving for function with provider."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(
+                MEDIA_ROOT=temp_dir,
+                RAY_CLUSTER_MODE={"local": False},
+                LIMITS_MAX_CLUSTERS=0,
+            ):
+                program = Program.objects.create(
+                    title="test-program", author_id=1, created=datetime.now()
+                )
+
+                compute_resource = ComputeResource.objects.get(
+                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
+                )
+
+                job = Job.objects.create(
+                    author_id=1,
+                    program=program,
+                    compute_resource=compute_resource,
+                    status=Job.SUCCEEDED,
+                    ray_job_id="test-ray-job-cpu",
+                    created=datetime.now(),
+                )
+
+                # Execute free_resources command
+                call_command("free_resources")
+
+                compute_resource = ComputeResource.objects.get(
+                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
+                )
+
+                self.assertTrue(compute_resource.active)
+
+                # User logs are located in username/logs/
+                # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
+                user_log_file_path = os.path.join(
+                    temp_dir,
+                    "test_user",
+                    "logs",
+                    f"{job.id}.log",
+                )
+
+                self.assertFalse(os.path.exists(user_log_file_path))
+
 
     def _create_test_job(self, ray_job_id="test-job-id", status=None):
         """Helper method to create a test job with fresh state."""

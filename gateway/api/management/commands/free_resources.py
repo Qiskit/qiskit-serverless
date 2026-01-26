@@ -82,23 +82,24 @@ class Command(BaseCommand):
             )
             return
 
-        self.save_logs_to_storage(job=terminated_job)
-        terminated_job.logs = ""
-
         is_gpu = terminated_job.gpu
         should_remove_as_classical = remove_classical_jobs and not is_gpu
         should_remove_as_gpu = remove_gpu_jobs and is_gpu
         if should_remove_as_classical or should_remove_as_gpu:
+            self.save_logs_to_storage(job=terminated_job)
+            terminated_job.logs = ""
+
             success = kill_ray_cluster(compute_resource.title)
             if success:
                 # deactivate
                 compute_resource.active = False
                 compute_resource.save()
                 logger.info(
-                    "[%s] Cluster [%s] is free after usage from [%s]",
+                    "[%s] Cluster [%s] is free after usage from [%s]. JobID [%s]",
                     "GPU" if is_gpu else "Classical",
                     compute_resource.title,
                     compute_resource.owner,
+                    terminated_job.id,
                 )
 
     def save_logs_to_storage(self, job: Job):
@@ -109,11 +110,20 @@ class Command(BaseCommand):
             job: Job
         """
 
-        print(f"save_logs_to_storage:: Job: {job.id}")
-        job_handler = get_job_handler(job.compute_resource.host)
-        logs = job_handler.logs(job.ray_job_id)
-        logs = check_logs(logs, job)
+        try:
+            job_handler = get_job_handler(job.compute_resource.host)
+            logs = job_handler.logs(job.ray_job_id)
+            logs = check_logs(logs, job)
+        except ConnectionError:
+            logger.error(
+                "Compute resource [%s] is not accessible for logs. "
+                "Skipping `remove_compute_resource` with Job [%s]",
+                job.compute_resource.title,
+                job.id,
+            )
+            logs = "Error getting logs: Compute resource is not accessible."
 
+        print(f"save_logs_to_storage:: Logs: {logs}")
         user_repository = UserRepository()
         author = user_repository.get_or_create_by_id(job.author)
         username = author.username
