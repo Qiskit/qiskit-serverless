@@ -11,7 +11,6 @@ from django.db.models import Q
 from api.domain.authentication.authentication_group import AuthenticationGroup
 from api.models import GroupMetadata
 
-
 User = get_user_model()
 logger = logging.getLogger("gateway.repositories.user")
 

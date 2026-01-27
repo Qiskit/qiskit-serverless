@@ -2,6 +2,7 @@
 Endpoint decorator Module
 """
 
+import logging
 from functools import wraps
 from typing import Callable
 
@@ -11,6 +12,8 @@ from rest_framework import status
 
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
+
+logger = logging.getLogger("gateway")
 
 
 def _first_error_message(detail) -> str:
@@ -51,6 +54,15 @@ def endpoint_handle_exceptions(view_func: Callable):
             return Response(
                 {"message": _first_error_message(error.detail)},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as error:  # pylint: disable=broad-exception-caught
+            logger.error(
+                "Unexpected error occurred in view: %s",
+                str(error),
+            )
+            return Response(
+                {"message": "Internal server error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     return wrapped_view

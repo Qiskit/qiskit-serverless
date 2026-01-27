@@ -1,12 +1,12 @@
 # pylint: disable=import-error, invalid-name
 """Fixtures for tests"""
+
 import os
 import traceback
 
 from pytest import fixture
 from testcontainers.compose import DockerCompose
 from qiskit_serverless import ServerlessClient, QiskitFunction
-from qiskit_serverless.core.clients.local_client import LocalClient
 
 resources_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "source_files"
@@ -15,21 +15,12 @@ resources_path = os.path.join(
 _compose_instance = None
 
 
-@fixture(scope="module", params=["serverless", "local"])
-def base_client(request):
-    """Fixture for testing files with every client."""
-    if request.param == "serverless":
-        [compose, serverless] = set_up_serverless_client()
-        yield serverless
-        compose.stop()
-    else:
-        yield LocalClient()
-
-
 @fixture(scope="module")
-def local_client():
-    """Fixture for testing files with local client."""
-    return LocalClient()
+def base_client():
+    """Fixture for testing files with every client."""
+    [compose, serverless] = set_up_serverless_client()
+    yield serverless
+    compose.stop()
 
 
 def set_up_serverless_client():

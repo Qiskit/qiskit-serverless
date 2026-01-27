@@ -12,7 +12,6 @@ from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.repositories.jobs import JobsRepository
 from api.access_policies.providers import ProviderAccessPolicy
 
-
 NO_LOGS_MSG: Final[str] = "No available logs"
 
 

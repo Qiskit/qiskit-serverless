@@ -13,7 +13,7 @@ class TestAvailableDependenciesVersion(APITestCase):
     fixtures = ["tests/fixtures/fixtures.json"]
 
     @override_settings(
-        GATEWAY_DYNAMIC_DEPENDENCIES="requirements-test-dynamic-dependencies.txt"
+        GATEWAY_DYNAMIC_DEPENDENCIES="../ray-node/requirements-test-dynamic-dependencies.txt"
     )
     def test_available_dependencies_version(self):
         """Tests available dependencies version."""

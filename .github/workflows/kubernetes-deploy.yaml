@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   tests:
+    name: Kubernetes deploy tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -29,7 +30,7 @@ jobs:
           docker image rm gateway:test
       - name: Build and load ray node
         run: |
-          docker build --build-arg DYNAMIC_DEPENDENCIES_FILE=requirements-test-dynamic-dependencies.txt -t ray:test -f ./Dockerfile-ray-node .
+          docker build --build-arg DYNAMIC_DEPENDENCIES_FILE=requirements-test-dynamic-dependencies.txt -t ray:test -f ./ray-node/Dockerfile .
           kind load docker-image ray:test
           docker image rm ray:test
       - name: Install helm chart
