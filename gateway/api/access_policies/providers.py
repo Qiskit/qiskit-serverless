@@ -29,7 +29,7 @@ class ProviderAccessPolicy:
         """
 
         user_groups = set(user.groups.all())
-        admin_groups = set(provider.admin_groups.all())
+        admin_groups = set(provider.admin_groups.all() if provider else [])
         user_is_admin = bool(user_groups.intersection(admin_groups))
         if not user_is_admin:
             logger.warning(
