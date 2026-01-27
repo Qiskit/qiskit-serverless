@@ -23,7 +23,8 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from api.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
-from api.services.storage import FileStorage, WorkingDir
+from api.services.storage import WorkingDir
+from api.services.file_storage import FileStorage
 from api.utils import (
     retry_function,
     decrypt_env_vars,

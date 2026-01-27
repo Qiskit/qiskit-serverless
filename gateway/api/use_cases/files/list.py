@@ -3,7 +3,8 @@
 # pylint: disable=duplicate-code
 import logging
 from django.contrib.auth.models import AbstractUser
-from api.services.storage import FileStorage, WorkingDir
+from api.services.storage import WorkingDir
+from api.services.file_storage import FileStorage
 from api.repositories.functions import FunctionRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 

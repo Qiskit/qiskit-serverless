@@ -1,7 +1,3 @@
-"""
-This file stores the logic to manage the access to data stores
-"""
-
 import glob
 import logging
 import mimetypes
@@ -11,10 +7,11 @@ from wsgiref.util import FileWrapper
 
 from django.core.files import File
 
-from api.services.storage.path_builder import PathBuilder
-from api.services.storage.enums.working_dir import WorkingDir
 from api.models import Program
+from api.services.storage import WorkingDir
+from api.services.storage.path_builder import PathBuilder
 from utils import sanitize_file_path
+
 
 logger = logging.getLogger("gateway")
 
