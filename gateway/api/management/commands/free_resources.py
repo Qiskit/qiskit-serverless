@@ -30,20 +30,6 @@ class Command(BaseCommand):
             )
             return
 
-        if settings.RAY_CLUSTER_MODE.get("local"):
-            logger.debug(
-                "RAY_CLUSTER_MODE is local, "
-                "so compute resources will not be removed.",
-            )
-            compute_resources = ComputeResource.objects.filter(active=True)
-            for compute_resource in compute_resources:
-                terminated_jobs = Job.objects.filter(
-                    status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource
-                )
-                for job in terminated_jobs:
-                    self.save_logs_to_storage(job=job)
-            return
-
         compute_resources = ComputeResource.objects.filter(active=True)
         for compute_resource in compute_resources:
             # I think this logic could be reviewed because now each job
@@ -89,7 +75,6 @@ class Command(BaseCommand):
 
             success = kill_ray_cluster(compute_resource.title)
             if success:
-                # deactivate
                 compute_resource.active = False
                 compute_resource.save()
                 logger.info(

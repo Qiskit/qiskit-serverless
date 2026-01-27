@@ -259,12 +259,6 @@ def _create_cluster_data(job: Job, cluster_name: str):
     return cluster_data
 
 
-def _is_local_mode():
-    local = settings.RAY_CLUSTER_MODE.get("local")
-    ray_local_host = settings.RAY_CLUSTER_MODE.get("ray_local_host")
-    return local and ray_local_host
-
-
 def _create_local_compute_resource(job: Job) -> ComputeResource:
     compute_resource = ComputeResource.objects.filter(
         host=settings.RAY_CLUSTER_MODE.get("ray_local_host")
@@ -346,7 +340,7 @@ def create_compute_resource(  # pylint: disable=too-many-branches,too-many-local
         returns compute resource associated with ray cluster.
     """
 
-    if _is_local_mode():
+    if settings.RAY_CLUSTER_MODE.get("local"):
         return _create_local_compute_resource(job)
 
     return _create_k8s_cluster(
@@ -389,7 +383,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     Returns:
         number of killed clusters
     """
-    if _is_local_mode():
+    if settings.RAY_CLUSTER_MODE.get("local"):
         return True
 
     success = False
