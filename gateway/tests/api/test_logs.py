@@ -1,16 +1,73 @@
 """Tests for job logs APIs."""
 
 import tempfile
+from typing import Optional
 from unittest.mock import Mock, patch
 
+import pytest
 from django.contrib.auth.models import User, Group
 from django.urls import reverse
-from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
+from rest_framework.test import APITestCase, APIClient
 
 from api.models import ComputeResource, Job, Program, Provider
 from api.use_cases.jobs.get_logs import GetJobLogsUseCase
 from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
+
+
+def create_job(author: str, provider_admin: Optional[str] = None) -> Job:
+    """Create a job for testing."""
+    author_user, _ = User.objects.get_or_create(username=author)
+    provider = None
+
+    if provider_admin:
+        provider = Provider.objects.create(name=provider_admin)
+        admin_group, _ = Group.objects.get_or_create(name=provider_admin)
+        admin_user, _ = User.objects.get_or_create(username=provider_admin)
+        admin_user.groups.add(admin_group)
+        provider.admin_groups.add(admin_group)
+
+    program = Program.objects.create(
+        title=f"{author_user}-{provider_admin or 'custom'}",
+        author=author_user,
+        provider=provider,
+    )
+
+    return Job.objects.create(author=author_user, program=program)
+
+
+@pytest.mark.django_db
+class TestJobLogsPermissions:
+    """Permission tests for job logs endpoints."""
+
+    @pytest.mark.parametrize(
+        "endpoint,caller,provider_admin,expected_status",
+        [
+            # if provider is None, it means user jobs
+            ("v1:jobs-logs", "author", None, HTTP_200_OK),
+            ("v1:jobs-logs", "other_user", None, HTTP_403_FORBIDDEN),
+            ("v1:jobs-logs", "author", "provider", HTTP_200_OK),
+            ("v1:jobs-logs", "provider", "provider", HTTP_200_OK),
+            ("v1:jobs-logs", "other_user", "provider", HTTP_403_FORBIDDEN),
+            ("v1:jobs-provider-logs", "author", None, HTTP_403_FORBIDDEN),
+            ("v1:jobs-provider-logs", "other_user", None, HTTP_403_FORBIDDEN),
+            ("v1:jobs-provider-logs", "author", "provider", HTTP_403_FORBIDDEN),
+            ("v1:jobs-provider-logs", "provider", "provider", HTTP_200_OK),
+            ("v1:jobs-provider-logs", "other_user", "provider", HTTP_403_FORBIDDEN),
+        ],
+    )
+    def test_endpoint_permissions(
+        self, endpoint, caller, provider_admin, expected_status
+    ):
+        """Test permissions for /logs and /provider-logs endpoints."""
+        user_caller, _ = User.objects.get_or_create(username=caller)
+        job = create_job(author="author", provider_admin=provider_admin)
+
+        client = APIClient()
+        client.force_authenticate(user=user_caller)
+        response = client.get(reverse(endpoint, args=[str(job.id)]), format="json")
+
+        assert response.status_code == expected_status
 
 
 class BaseJobLogsTest(APITestCase):
@@ -32,188 +89,6 @@ class BaseJobLogsTest(APITestCase):
         user, _ = User.objects.get_or_create(username=username)
         self.client.force_authenticate(user=user)
         return user
-
-    def _create_job(
-        self,
-        author: str,
-        provider_admin: str = None,
-    ) -> Job:
-        author, _ = User.objects.get_or_create(username=author)
-        provider = None
-
-        if provider_admin:
-            provider = Provider.objects.create(name=provider_admin)
-            admin_group, _ = Group.objects.get_or_create(name=provider_admin)
-            admin_user, _ = User.objects.get_or_create(username=provider_admin)
-            admin_user.groups.add(admin_group)
-            provider.admin_groups.add(admin_group)
-
-        program = Program.objects.create(
-            title=f"{author}-{provider_admin or 'custom'}",
-            author=author,
-            provider=provider,
-        )
-
-        job = Job.objects.create(author=author, program=program)
-        return job
-
-
-class TestJobLogsPermissions(BaseJobLogsTest):
-    """Permission tests for job logs endpoints.
-
-    /logs
-    job type | caller   | code | test
-    ---------|----------|------|------------------------------------
-    user     | author   | 200  | test_job_logs_by_author_for_function_without_provider
-    user     | other    | 403  | test_job_logs_by_non_author_for_function_without_provider
-    provider | author   | 200  | test_job_logs_by_author_for_function_with_provider
-    provider | provider | 200  | test_job_logs_by_function_provider
-    provider | other    | 403  | test_job_logs_by_non_author_for_function_with_provider (*)
-
-    /provider-logs:
-    job type | caller   | code | test
-    ---------|----------|------|------------------------------------
-    user     | author   | 403  | test_job_provider_logs_by_author_for_function_without_provider
-    user     | other    | 403  | test_job_provider_logs_by_non_author_for_function_without_provider
-    provider | author   | 403  | test_job_provider_logs_by_author_for_function_with_provider
-    provider | provider | 200  | test_job_provider_logs
-    provider | other    | 403  | test_job_provider_logs_forbidden
-
-    (*) test_job_logs_by_other_for_function_with_provider is a duplicate
-    """
-
-    def test_job_logs_by_author_for_function_without_provider(self):
-        """Tests /logs with user job, called by author."""
-        job = self._create_job(author="author")
-
-        self._authorize("author")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]), format="json"
-        )
-        # Content tested in: test_job_logs_in_db
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-
-    def test_job_logs_by_non_author_for_function_without_provider(self):
-        """Tests /logs with user job, called by other."""
-        job = self._create_job(author="author")  # No provider
-
-        self._authorize("other_user")  # Non-author
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_job_logs_by_author_for_function_with_provider(self):
-        """Tests /logs with provider job, called by author."""
-        job = self._create_job(author="author", provider_admin="provider_admin")
-
-        self._authorize("author")  # Author, not provider
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
-        )
-        # Content tested in: test_job_logs_not_found_empty
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-
-    def test_job_logs_by_function_provider(self):
-        """Tests /logs with provider job, called by provider."""
-        job = self._create_job(author="author", provider_admin="provider_admin")
-
-        self._authorize("provider_admin")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
-        )
-        # Content tested in: test_job_logs_not_found_empty
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-
-    def test_job_logs_by_non_author_for_function_with_provider(self):
-        """Tests /logs with provider job, called by other."""
-        job = self._create_job(author="author", provider_admin="provider_admin")
-
-        self._authorize("other_user")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
-
-    # ==========================================================================
-    # PERMISSION TESTS: /provider-logs endpoint
-    # ==========================================================================
-
-    def test_job_provider_logs_by_author_for_function_without_provider(self):
-        """Tests /provider-logs with user job, called by author."""
-        job = self._create_job(author="author")
-
-        self._authorize("author")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(
-            jobs_response.data.get("message"),
-            f"You don't have access to job [{job.id}]",
-        )
-
-    def test_job_provider_logs_by_non_author_for_function_without_provider(self):
-        """Tests /provider-logs with user job, called by other."""
-        job = self._create_job(author="author")  # No provider
-
-        self._authorize("other_user")  # Non-author
-        jobs_response = self.client.get(
-            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_job_provider_logs_by_author_for_function_with_provider(self):
-        """Tests /provider-logs with provider job, called by author."""
-        job = self._create_job(author="author", provider_admin="provider_admin")
-
-        self._authorize("author")  # Author, not provider
-        jobs_response = self.client.get(
-            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_job_provider_logs(self):
-        """Tests /provider-logs with provider job, called by provider."""
-        job = self._create_job(author="author", provider_admin="provider_admin")
-
-        self._authorize("provider_admin")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-            format="json",
-        )
-        # Content tested in: test_job_provider_logs_in_db
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-
-    def test_job_provider_logs_forbidden(self):
-        """Tests /provider-logs with provider job, called by other."""
-        job = self._create_job(author="author", provider_admin="provider_admin")
-
-        self._authorize("other_user")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-            format="json",
-        )
-
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_job_logs_by_other_for_function_with_provider(self):
-        """Tests /logs with provider job, called by other."""
-        job = self._create_job(author="author", provider_admin="provider_admin")
-
-        self._authorize("other_user")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 class TestJobLogsCoverage(BaseJobLogsTest):
@@ -239,7 +114,7 @@ class TestJobLogsCoverage(BaseJobLogsTest):
     def test_job_logs_in_storage_user_job(self, logs_storage_get_mock):
         """Tests /logs with user job from COS."""
         logs_storage_get_mock.return_value = "from storage"
-        job = self._create_job(author="author")  # User job (no provider)
+        job = create_job(author="author")  # User job (no provider)
 
         self._authorize("author")
         jobs_response = self.client.get(
@@ -247,14 +122,14 @@ class TestJobLogsCoverage(BaseJobLogsTest):
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_storage_provider_job(self, logs_storage_get_mock):
         """Tests /logs with provider job from COS."""
         logs_storage_get_mock.return_value = "from storage"
-        job = self._create_job(author="author", provider_admin="provider_admin")
+        job = create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("provider_admin")
         jobs_response = self.client.get(
@@ -262,7 +137,7 @@ class TestJobLogsCoverage(BaseJobLogsTest):
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
@@ -293,7 +168,7 @@ INFO:user: Final public log
         get_job_handler_mock.return_value = job_handler_mock
 
         # Add an active compute_resource to the job, so the endpoint could try to reach Ray
-        job = self._create_job(author="author")
+        job = create_job(author="author")
         job.compute_resource = ComputeResource.objects.create(
             title="test-cluster-2", active=True
         )
@@ -307,7 +182,7 @@ INFO:user: Final public log
                 format="json",
             )
 
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
 
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
@@ -337,7 +212,7 @@ INFO:user: Final public log
         get_job_handler_mock.return_value = job_handler_mock
 
         # Add an active compute_resource to the job, so the endpoint could try to reach Ray
-        job = self._create_job(author="author", provider_admin="provider_admin")
+        job = create_job(author="author", provider_admin="provider_admin")
         job.compute_resource = ComputeResource.objects.create(
             title="test-cluster-3", active=True
         )
@@ -351,14 +226,14 @@ INFO:user: Final public log
                 format="json",
             )
 
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
 
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_db(self, logs_storage_get_mock):
         """Tests /logs with user job from DB (legacy)."""
         logs_storage_get_mock.return_value = None
-        job = self._create_job(author="author")
+        job = create_job(author="author")
         job.logs = "log from db"
         job.save()
 
@@ -368,14 +243,14 @@ INFO:user: Final public log
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "log from db")
 
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_not_found_empty(self, logs_storage_get_mock):
         """Tests /logs with provider job, no logs available."""
         logs_storage_get_mock.return_value = None
-        job = self._create_job(author="author", provider_admin="provider_admin")
+        job = create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("provider_admin")
         jobs_response = self.client.get(
@@ -383,7 +258,7 @@ INFO:user: Final public log
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "No logs available.")
 
     def test_job_logs_error(self):
@@ -418,7 +293,7 @@ INFO:user: Final public log
     def test_job_provider_logs_in_storage(self, logs_storage_get_mock):
         """Tests /provider-logs with provider job from COS."""
         logs_storage_get_mock.return_value = "from storage"
-        job = self._create_job(author="author", provider_admin="provider_admin")
+        job = create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("provider_admin")
         jobs_response = self.client.get(
@@ -426,7 +301,7 @@ INFO:user: Final public log
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "from storage")
 
     @patch("api.use_cases.jobs.provider_logs.get_job_handler")
@@ -452,7 +327,7 @@ Internal system log
         get_job_handler_mock.return_value = job_handler_mock
 
         # Add an active compute_resource to the job, so the endpoint could try to reach Ray
-        job = self._create_job(author="author", provider_admin="provider_admin")
+        job = create_job(author="author", provider_admin="provider_admin")
         job.compute_resource = ComputeResource.objects.create(
             title="test-cluster", active=True
         )
@@ -466,14 +341,14 @@ Internal system log
                 format="json",
             )
 
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), full_logs)
 
     @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):
         """Tests /provider-logs with provider job from DB (legacy)."""
         logs_storage_get_mock.return_value = None
-        job = self._create_job(author="author", provider_admin="provider_admin")
+        job = create_job(author="author", provider_admin="provider_admin")
         job.logs = "log entry 1"
         job.save()
 
@@ -483,12 +358,12 @@ Internal system log
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
 
     def test_job_provider_logs_not_found_empty(self):
         """Tests /provider-logs with provider job, no logs available."""
-        job = self._create_job(author="author", provider_admin="provider_admin")
+        job = create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("provider_admin")
         jobs_response = self.client.get(
@@ -496,7 +371,7 @@ Internal system log
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "No logs yet.")
 
     def test_job_provider_logs_error(self):
