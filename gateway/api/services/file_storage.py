@@ -6,29 +6,15 @@ import glob
 import logging
 import mimetypes
 import os
-from enum import Enum
 from typing import Optional, Tuple
 from wsgiref.util import FileWrapper
 
-from django.conf import settings
 from django.core.files import File
 
 from api.models import Program
+from api.services.storage.enums.working_dir import WorkingDir
+from api.services.storage.path_builder import PathBuilder
 from utils import sanitize_file_path
-
-
-class WorkingDir(Enum):
-    """
-    This Enum has the values:
-        USER_STORAGE
-        PROVIDER_STORAGE
-
-    Both values are being used to identify in
-        FileStorage service the path to be used
-    """
-
-    USER_STORAGE = 1
-    PROVIDER_STORAGE = 2
 
 
 logger = logging.getLogger("gateway")
@@ -53,86 +39,23 @@ class FileStorage:
             working_dir: Working directory type (USER_STORAGE or PROVIDER_STORAGE)
             function: Program model instance containing title and provider
         """
-        self.sub_path = None
-        self.absolute_path = None
-        self.username = username
-
         function_title = function.title
         provider_name = function.provider.name if function.provider else None
 
-        if working_dir is WorkingDir.USER_STORAGE:
-            self.sub_path = self.__get_user_sub_path(function_title, provider_name)
-        elif working_dir is WorkingDir.PROVIDER_STORAGE:
-            self.sub_path = self.__get_provider_sub_path(function_title, provider_name)
-
-        self.absolute_path = self.__get_absolute_path(self.sub_path)
-
-    def __get_user_sub_path(
-        self, function_title: str, provider_name: Optional[str]
-    ) -> str:
-        """
-        This method returns the sub-path where the user or the function
-        will store files
-
-        Args:
-            function_title (str): in case the function is from a
-                provider it will identify the function folder
-            provider_name (str | None): in case a provider is provided it will
-                identify the folder for the specific function
-
-        Returns:
-            str: storage sub-path.
-                - In case the function is from a provider that sub-path would
-                    be: username/provider_name/function_title
-                - In case the function is from a user that path would
-                    be: username/
-        """
-        if provider_name is None:
-            path = os.path.join(self.username)
-        else:
-            path = os.path.join(self.username, provider_name, function_title)
-
-        return sanitize_file_path(path)
-
-    def __get_provider_sub_path(self, function_title: str, provider_name: str) -> str:
-        """
-        This method returns the provider sub-path where the user
-        or the function will store files
-
-        Args:
-            function_title (str): in case the function is from a provider
-                it will identify the function folder
-            provider_name (str): in case a provider is provided
-                it will identify the folder for the specific function
-
-        Returns:
-            str: storage sub-path following the format provider_name/function_title/
-        """
-        path = os.path.join(provider_name, function_title)
-
-        return sanitize_file_path(path)
-
-    def __get_absolute_path(self, sub_path: str) -> str:
-        """
-        This method returns the absolute path where the user
-        or the function will store files
-
-        Args:
-            sub_path (str): the sub-path that we will use to build
-                the absolute path
-
-        Returns:
-            str: storage path.
-        """
-        path = os.path.join(settings.MEDIA_ROOT, sub_path)
-        sanitized_path = sanitize_file_path(path)
-
-        # Create directory if it doesn't exist
-        if not os.path.exists(sanitized_path):
-            os.makedirs(sanitized_path, exist_ok=True)
-            logger.debug("Path %s was created.", sanitized_path)
-
-        return sanitized_path
+        self.sub_path = PathBuilder.sub_path(
+            working_dir=working_dir,
+            username=username,
+            function_title=function_title,
+            provider_name=provider_name,
+            extra_sub_path=None,
+        )
+        self.absolute_path = PathBuilder.absolute_path(
+            working_dir=working_dir,
+            username=username,
+            function_title=function_title,
+            provider_name=provider_name,
+            extra_sub_path=None,
+        )
 
     def get_files(self) -> list[str]:
         """
@@ -191,7 +114,7 @@ class FileStorage:
 
     def upload_file(self, file: File) -> str:
         """
-        This method upload a file to the specific path:
+        This method uploads a file to the specific path:
             - Only files with supported extensions are available to download
             - It returns only a file from a user or a provider file storage
 
