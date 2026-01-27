@@ -2,7 +2,10 @@
 
 from rest_framework.test import APITestCase
 
-from api.domain.function.filter_logs import log_filter_provider_job_public
+from api.domain.function.filter_logs import (
+    log_filter_provider_job_public,
+    log_filter_user_job,
+)
 
 
 class TestFilterLogs(APITestCase):
@@ -45,5 +48,30 @@ sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Starting
 """
 
         output_log = log_filter_provider_job_public(log)
+
+        self.assertEquals(output_log, expected_output)
+
+    def test_filter_user_job_logs(self):
+        """Tests log_filter_user_job removes prefixes but keeps all lines."""
+
+        log = """[PUBLIC] Public log line 1
+[PRIVATE] Private log line
+Third party log (no prefix)
+[PUBLIC] Public log line 2
+[public] Case insensitive public
+[PRIVATE] Another private line
+Regular print statement
+"""
+
+        expected_output = """Public log line 1
+Private log line
+Third party log (no prefix)
+Public log line 2
+Case insensitive public
+Another private line
+Regular print statement
+"""
+
+        output_log = log_filter_user_job(log)
 
         self.assertEquals(output_log, expected_output)
