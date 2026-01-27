@@ -13,7 +13,7 @@ defaults:
 
 jobs:
   build-containers:
-    name: build-containers
+    name: Test build containers
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # keep running if one leg fails
