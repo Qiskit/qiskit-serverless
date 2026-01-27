@@ -365,7 +365,7 @@ class TestJobApi(APITestCase):
         but this test validates the correct behavior if permissions change in
         the future to allow provider admins to read results.
         """
-        from api.services.storage.result_storage import ResultStorage
+        from api.services.result_storage import ResultStorage
 
         shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
 
@@ -428,7 +428,7 @@ class TestJobApi(APITestCase):
         but this test validates the correct behavior if permissions change in
         the future to allow other users (e.g., system processes) to save results.
         """
-        from api.services.storage.result_storage import ResultStorage
+        from api.services.result_storage import ResultStorage
 
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             # Get a job created by test_user (author=1)
