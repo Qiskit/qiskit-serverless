@@ -64,24 +64,26 @@ class TestJobLogsPermissions(BaseJobLogsTest):
     /logs
     job type | caller   | code | test
     ---------|----------|------|------------------------------------
-    user     | author    | 200 | test_job_logs_by_author_for_function_without_provider
-    user     | other     | 403 | test_job_logs_by_non_author_for_function_without_provider
-    provider | author    | 200 | test_job_logs_by_author_for_function_with_provider
-    provider | provider  | 200 | test_job_logs_by_function_provider
-    provider | other     | 403 | test_job_logs_by_non_author_for_function_with_provider
+    user     | author   | 200  | test_job_logs_by_author_for_function_without_provider
+    user     | other    | 403  | test_job_logs_by_non_author_for_function_without_provider
+    provider | author   | 200  | test_job_logs_by_author_for_function_with_provider
+    provider | provider | 200  | test_job_logs_by_function_provider
+    provider | other    | 403  | test_job_logs_by_non_author_for_function_with_provider (*)
 
     /provider-logs:
-    job type | caller  | code | test
-    ---------|---------|------|------------------------------------
-    user     | author   | 403 | test_job_provider_logs_by_author_for_function_without_provider
-    user     | other    | 403 | test_job_provider_logs_by_non_author_for_function_without_provider
-    provider | author   | 403 | test_job_provider_logs_by_author_for_function_with_provider
-    provider | provider | 200 | test_job_provider_logs
-    provider | other    | 403 | test_job_provider_logs_forbidden
+    job type | caller   | code | test
+    ---------|----------|------|------------------------------------
+    user     | author   | 403  | test_job_provider_logs_by_author_for_function_without_provider
+    user     | other    | 403  | test_job_provider_logs_by_non_author_for_function_without_provider
+    provider | author   | 403  | test_job_provider_logs_by_author_for_function_with_provider
+    provider | provider | 200  | test_job_provider_logs
+    provider | other    | 403  | test_job_provider_logs_forbidden
+
+    (*) test_job_logs_by_other_for_function_with_provider is a duplicate
     """
 
     def test_job_logs_by_author_for_function_without_provider(self):
-        """Tests job log by job author."""
+        """Tests /logs with user job, called by author."""
         job = self._create_job(author="author")
 
         self._authorize("author")
@@ -92,7 +94,7 @@ class TestJobLogsPermissions(BaseJobLogsTest):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
 
     def test_job_logs_by_non_author_for_function_without_provider(self):
-        """Tests that a non-author cannot access logs of a user job (no provider)."""
+        """Tests /logs with user job, called by other."""
         job = self._create_job(author="author")  # No provider
 
         self._authorize("other_user")  # Non-author
@@ -103,7 +105,7 @@ class TestJobLogsPermissions(BaseJobLogsTest):
         self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_job_logs_by_author_for_function_with_provider(self):
-        """Tests that the author can access filtered logs of a provider job."""
+        """Tests /logs with provider job, called by author."""
         job = self._create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("author")  # Author, not provider
@@ -115,7 +117,7 @@ class TestJobLogsPermissions(BaseJobLogsTest):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
 
     def test_job_logs_by_function_provider(self):
-        """Tests job log by function provider."""
+        """Tests /logs with provider job, called by provider."""
         job = self._create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("provider_admin")
@@ -127,7 +129,7 @@ class TestJobLogsPermissions(BaseJobLogsTest):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
 
     def test_job_logs_by_non_author_for_function_with_provider(self):
-        """Tests that a user who is not the author cannot access logs of a provider job."""
+        """Tests /logs with provider job, called by other."""
         job = self._create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("other_user")
@@ -142,7 +144,7 @@ class TestJobLogsPermissions(BaseJobLogsTest):
     # ==========================================================================
 
     def test_job_provider_logs_by_author_for_function_without_provider(self):
-        """Tests job log by job author."""
+        """Tests /provider-logs with user job, called by author."""
         job = self._create_job(author="author")
 
         self._authorize("author")
@@ -157,7 +159,7 @@ class TestJobLogsPermissions(BaseJobLogsTest):
         )
 
     def test_job_provider_logs_by_non_author_for_function_without_provider(self):
-        """Tests that a non-author cannot access provider-logs of a user job."""
+        """Tests /provider-logs with user job, called by other."""
         job = self._create_job(author="author")  # No provider
 
         self._authorize("other_user")  # Non-author
@@ -168,7 +170,7 @@ class TestJobLogsPermissions(BaseJobLogsTest):
         self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_job_provider_logs_by_author_for_function_with_provider(self):
-        """Tests that the author (not provider) cannot access provider-logs."""
+        """Tests /provider-logs with provider job, called by author."""
         job = self._create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("author")  # Author, not provider
@@ -179,7 +181,7 @@ class TestJobLogsPermissions(BaseJobLogsTest):
         self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_job_provider_logs(self):
-        """Tests job log by function provider."""
+        """Tests /provider-logs with provider job, called by provider."""
         job = self._create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("provider_admin")
@@ -191,7 +193,7 @@ class TestJobLogsPermissions(BaseJobLogsTest):
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
 
     def test_job_provider_logs_forbidden(self):
-        """Tests job log by function provider."""
+        """Tests /provider-logs with provider job, called by other."""
         job = self._create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("other_user")
@@ -202,8 +204,8 @@ class TestJobLogsPermissions(BaseJobLogsTest):
 
         self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_job_logs(self):
-        """Tests job log non-authorized."""
+    def test_job_logs_by_other_for_function_with_provider(self):
+        """Tests /logs with provider job, called by other."""
         job = self._create_job(author="author", provider_admin="provider_admin")
 
         self._authorize("other_user")
