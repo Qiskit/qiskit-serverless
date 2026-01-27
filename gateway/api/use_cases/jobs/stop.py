@@ -10,7 +10,6 @@ from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.repositories.runtime_job import RuntimeJobRepository
 
-
 logger = logging.getLogger("gateway.use_cases.jobs")
 
 

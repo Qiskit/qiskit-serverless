@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   verify-client:
-    name: lint, test
+    name: Verify client [lint, test]
 
     runs-on: ubuntu-latest
     strategy:
