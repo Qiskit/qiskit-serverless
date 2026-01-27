@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   verify-gateway:
-    name: lint, test, coverage
+    name: Verify gateway [lint, test, coverage]
 
     runs-on: ubuntu-latest
     strategy:
