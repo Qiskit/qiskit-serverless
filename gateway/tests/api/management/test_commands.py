@@ -1,13 +1,17 @@
 """Tests for commands."""
 
-from datetime import datetime
+import os
+import tempfile
+from typing import Optional
+
+from django.contrib.auth.models import User, Group
 from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
 
 from api.domain.function import check_logs
-from api.models import ComputeResource, Job
+from api.models import ComputeResource, Job, Program, Provider
 from api.ray import JobHandler
 
 
@@ -109,21 +113,51 @@ class TestCommands(APITestCase):
                 logs,
             )
 
-    def _create_test_job(self, ray_job_id="test-job-id", status=None):
-        """Helper method to create a test job with fresh state."""
-        # Get existing job to use its relationships and set it to STOPPED
-        existing_job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
-        existing_job.status = Job.STOPPED
-        existing_job.save()
+    def _create_test_job(
+        self,
+        author: str = "test_author",
+        provider_admin: Optional[str] = None,
+        status: str = Job.PENDING,
+        compute_resource: Optional[ComputeResource] = None,
+        ray_job_id: str = "test-job-id",
+        gpu: bool = False,
+    ) -> Job:
+        """Helper method to create a test job.
 
-        # Create a new job for testing
-        job = Job.objects.create(
-            author=existing_job.author,
-            program=existing_job.program,
-            compute_resource=existing_job.compute_resource,
-            env_vars="{'foo':'bar'}",
-            status=Job.PENDING,
-            created=datetime.now(),
-            ray_job_id=ray_job_id,
+        Args:
+            author: Username for the job author
+            provider_admin: If set, creates a provider and assigns admin rights
+            status: Job status (default: PENDING)
+            compute_resource: ComputeResource to use (creates new one if None)
+            ray_job_id: Ray job ID
+            gpu: Whether this is a GPU job
+        """
+        if compute_resource is None:
+            compute_resource = ComputeResource.objects.create(
+                title=f"test-cluster-{ray_job_id}", active=True
+            )
+
+        author_user, _ = User.objects.get_or_create(username=author)
+        provider = None
+
+        if provider_admin:
+            provider = Provider.objects.create(name=provider_admin)
+            admin_group, _ = Group.objects.get_or_create(name=provider_admin)
+            admin_user, _ = User.objects.get_or_create(username=provider_admin)
+            admin_user.groups.add(admin_group)
+            provider.admin_groups.add(admin_group)
+
+        program = Program.objects.create(
+            title=f"program-{author_user.username}-{provider_admin or 'custom'}",
+            author=author_user,
+            provider=provider,
         )
-        return job
+
+        return Job.objects.create(
+            author=author_user,
+            program=program,
+            status=status,
+            compute_resource=compute_resource,
+            ray_job_id=ray_job_id,
+            gpu=gpu,
+        )

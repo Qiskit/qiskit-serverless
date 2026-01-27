@@ -6,12 +6,12 @@ import shutil
 import tempfile
 from unittest.mock import patch
 
-from django.contrib.auth import models
+from django.contrib.auth.models import User, Group
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job, RuntimeJob
+from api.models import Job, Program, Provider, RuntimeJob
 
 
 class TestJobApi(APITestCase):
@@ -38,10 +38,35 @@ class TestJobApi(APITestCase):
         self._temp_directory.cleanup()
         super().tearDown()
 
-    def _authorize(self, username="test_user"):
-        """Authorize client."""
-        user = models.User.objects.get(username=username)
+    def _authorize(self, username):
+        """Authorize client and return the user."""
+        user, _ = User.objects.get_or_create(username=username)
         self.client.force_authenticate(user=user)
+        return user
+
+    def _create_job(
+        self,
+        author: str,
+        provider_admin: str = None,
+    ) -> Job:
+        author, _ = User.objects.get_or_create(username=author)
+        provider = None
+
+        if provider_admin:
+            provider = Provider.objects.create(name=provider_admin)
+            admin_group, _ = Group.objects.get_or_create(name=provider_admin)
+            admin_user, _ = User.objects.get_or_create(username=provider_admin)
+            admin_user.groups.add(admin_group)
+            provider.admin_groups.add(admin_group)
+
+        program = Program.objects.create(
+            title=f"{author}-{provider_admin or 'custom'}",
+            author=author,
+            provider=provider,
+        )
+
+        job = Job.objects.create(author=author, program=program)
+        return job
 
     def test_job_non_auth_user(self):
         """Tests job list non-authorized."""
@@ -51,7 +76,7 @@ class TestJobApi(APITestCase):
 
     def test_job_list(self):
         """Tests job list authorized."""
-        self._authorize()
+        self._authorize("test_user")
 
         jobs_response = self.client.get(reverse("v1:jobs-list"), format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -63,7 +88,7 @@ class TestJobApi(APITestCase):
 
     def test_job_catalog_list(self):
         """Tests job list authorized."""
-        self._authorize()
+        self._authorize("test_user")
 
         jobs_response = self.client.get(
             reverse("v1:jobs-list"), {"filter": "catalog"}, format="json"
@@ -75,7 +100,7 @@ class TestJobApi(APITestCase):
 
     def test_job_serverless_list(self):
         """Tests job list authorized."""
-        self._authorize()
+        self._authorize("test_user")
 
         jobs_response = self.client.get(
             reverse("v1:jobs-list"), {"filter": "serverless"}, format="json"
@@ -85,7 +110,7 @@ class TestJobApi(APITestCase):
 
     def test_job_list_filter_status(self):
         """Tests job list filtered by status."""
-        self._authorize()
+        self._authorize("test_user")
 
         jobs_response = self.client.get(
             reverse("v1:jobs-list"), {"status": "SUCCEEDED"}, format="json"
@@ -97,7 +122,7 @@ class TestJobApi(APITestCase):
 
     def test_job_list_filter_created_after(self):
         """Tests job list filtered by created_after."""
-        self._authorize()
+        self._authorize("test_user")
         created_after = "2023-02-02T00:00:00.000000Z"
 
         jobs_response = self.client.get(
@@ -110,7 +135,7 @@ class TestJobApi(APITestCase):
 
     def test_job_list_filter_function_name(self):
         """Tests job list filtered by function."""
-        self._authorize()
+        self._authorize("test_user")
 
         jobs_response = self.client.get(
             reverse("v1:jobs-list"), {"function": "Docker-Image-Program"}, format="json"
@@ -120,7 +145,7 @@ class TestJobApi(APITestCase):
 
     def test_job_list_filter_pagination(self):
         """Tests job list pagination."""
-        self._authorize()
+        self._authorize("test_user")
 
         jobs_response = self.client.get(
             reverse("v1:jobs-list"), {"offset": 0, "limit": 2}, format="json"
@@ -135,7 +160,7 @@ class TestJobApi(APITestCase):
 
     def test_job_provider_list_wrong_params(self):
         """Tests job provider list wrong params."""
-        self._authorize()
+        self._authorize("test_user")
 
         jobs_response = self.client.get(
             reverse("v1:jobs-provider-list"), {}, format="json"
@@ -148,7 +173,7 @@ class TestJobApi(APITestCase):
 
     def test_job_provider_list_wrong_provider(self):
         """Tests job provider list wrong provider."""
-        self._authorize()
+        self._authorize("test_user")
 
         provider = "fake_provider"
         function = "Program"
@@ -165,8 +190,7 @@ class TestJobApi(APITestCase):
 
     def test_job_provider_list_not_authorized_provider(self):
         """Tests job provider list not authorized provider."""
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        self._authorize("test_user")
         provider = "default"
         function = "Program"
 
@@ -182,8 +206,7 @@ class TestJobApi(APITestCase):
 
     def test_job_provider_list_function_not_found(self):
         """Tests job provider list not authorized provider."""
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authorize("test_user_2")
         provider = "default"
         function = "fake_program"
 
@@ -200,8 +223,7 @@ class TestJobApi(APITestCase):
 
     def test_job_provider_list_ok(self):
         """Tests job provider list without errors."""
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authorize("test_user_2")
         provider = "default"
         function = "Docker-Image-Program"
 
@@ -216,8 +238,7 @@ class TestJobApi(APITestCase):
 
     def test_job_provider_list_filter_status(self):
         """Tests job provider list filtered by status."""
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authorize("test_user_2")
         provider = "default"
         function = "Docker-Image-Program"
 
@@ -233,8 +254,7 @@ class TestJobApi(APITestCase):
 
     def test_job_provider_list_created_after(self):
         """Tests job provider list filtered by created_after."""
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authorize("test_user_2")
         provider = "default"
         function = "Docker-Image-Program"
         created_after = "2023-02-02"
@@ -256,8 +276,7 @@ class TestJobApi(APITestCase):
 
     def test_job_provider_list_pagination(self):
         """Tests job provider list pagination."""
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authorize("test_user_2")
         provider = "default"
         function = "Docker-Image-Program"
 
@@ -280,7 +299,7 @@ class TestJobApi(APITestCase):
 
         shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            self._authorize()
+            self._authorize("test_user")
 
             jobs_response = self.client.get(
                 reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]),
@@ -292,7 +311,7 @@ class TestJobApi(APITestCase):
     def test_job_detail_without_result_param(self):
         """Tests job detail authorized."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            self._authorize()
+            self._authorize("test_user")
 
             jobs_response = self.client.get(
                 reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"])
@@ -305,7 +324,7 @@ class TestJobApi(APITestCase):
     def test_job_detail_without_result_file(self):
         """Tests job detail authorized."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            self._authorize()
+            self._authorize("test_user")
 
             jobs_response = self.client.get(
                 reverse("v1:retrieve", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
@@ -316,8 +335,7 @@ class TestJobApi(APITestCase):
 
     def test_job_provider_detail(self):
         """Tests job detail authorized."""
-        user = models.User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
+        self._authorize("test_user_2")
 
         jobs_response = self.client.get(
             reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec86"]),
@@ -329,7 +347,7 @@ class TestJobApi(APITestCase):
 
     def test_not_authorized_job_detail(self):
         """Tests job detail fails trying to access to other user job."""
-        self._authorize()
+        self._authorize("test_user")
 
         jobs_response = self.client.get(
             reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec84"]),
@@ -362,7 +380,7 @@ class TestJobApi(APITestCase):
             self.assertIsNotNone(result)
 
             # If we incorrectly used a different user's username, we wouldn't find it
-            different_user = models.User.objects.get(username="test_user_2")
+            different_user = User.objects.get(username="test_user_2")
             wrong_result_storage = ResultStorage(different_user.username)
             wrong_result = wrong_result_storage.get(str(job.id))
             self.assertIsNone(wrong_result)  # Should not find result in wrong path
@@ -370,7 +388,7 @@ class TestJobApi(APITestCase):
     def test_job_save_result(self):
         """Tests job results save."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            self._authorize()
+            self._authorize("test_user")
             job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
             jobs_response = self.client.post(
                 reverse("v1:jobs-result", args=[job_id]),
@@ -386,7 +404,7 @@ class TestJobApi(APITestCase):
 
     def test_not_authorized_job_save_result(self):
         """Tests job results save."""
-        self._authorize()
+        self._authorize("test_user")
         job_id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec84"
         jobs_response = self.client.post(
             reverse("v1:jobs-result", args=[job_id]),
@@ -418,7 +436,7 @@ class TestJobApi(APITestCase):
             self.assertEqual(job.author.username, "test_user")
 
             # Save result as the author
-            self._authorize()
+            self._authorize("test_user")
             test_result = json.dumps({"test_save": "value"})
             jobs_response = self.client.post(
                 reverse("v1:jobs-result", args=[str(job.id)]),
@@ -433,7 +451,7 @@ class TestJobApi(APITestCase):
             self.assertEqual(saved_result, test_result)
 
             # If we incorrectly saved using a different user's username, we wouldn't find it there
-            different_user = models.User.objects.get(username="test_user_2")
+            different_user = User.objects.get(username="test_user_2")
             wrong_result_storage = ResultStorage(different_user.username)
             wrong_result = wrong_result_storage.get(str(job.id))
             self.assertIsNone(wrong_result)  # Should not find result in wrong path
@@ -447,7 +465,7 @@ class TestJobApi(APITestCase):
 
     def test_job_update_sub_status(self):
         """Test job update sub status"""
-        self._authorize()
+        self._authorize("test_user")
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
         response_sub_status = self.client.patch(
             reverse("v1:jobs-sub-status", args=[job_id]),
@@ -462,7 +480,7 @@ class TestJobApi(APITestCase):
 
     def test_job_update_sub_status_wrong_value(self):
         """Test job update sub status with wrong sub-status value"""
-        self._authorize()
+        self._authorize("test_user")
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
         response_sub_status = self.client.patch(
@@ -479,7 +497,7 @@ class TestJobApi(APITestCase):
 
     def test_job_update_sub_status_empty_value(self):
         """Test job update sub status with empty sub-status"""
-        self._authorize()
+        self._authorize("test_user")
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
         response_sub_status = self.client.patch(
@@ -494,7 +512,7 @@ class TestJobApi(APITestCase):
 
     def test_job_update_sub_status_wrong_user(self):
         """Test job update sub status with unauthorized user"""
-        self._authorize(username="test_user_2")
+        self._authorize("test_user_2")
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
         response_sub_status = self.client.patch(
@@ -510,7 +528,7 @@ class TestJobApi(APITestCase):
 
     def test_job_update_sub_status_not_running(self):
         """Test job update sub status not in running state"""
-        self._authorize()
+        self._authorize("test_user")
 
         job_id = "57fc2e4d-267f-40c6-91a3-38153272e764"
         response_sub_status = self.client.patch(
@@ -531,7 +549,7 @@ class TestJobApi(APITestCase):
         as the authot of the job
         """
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            self._authorize()
+            self._authorize("test_user")
 
             jobs_response = self.client.get(
                 reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"]),
@@ -546,8 +564,7 @@ class TestJobApi(APITestCase):
         if it's not the author of the job
         """
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
-            user = models.User.objects.get(username="test_user_3")
-            self.client.force_authenticate(user=user)
+            self._authorize("test_user_3")
 
             jobs_response = self.client.get(
                 reverse("v1:retrieve", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec87"]),
@@ -558,7 +575,7 @@ class TestJobApi(APITestCase):
 
     def test_stop_job(self):
         """Tests job stop."""
-        self._authorize()
+        self._authorize("test_user")
 
         job_stop_response = self.client.post(
             reverse(
@@ -578,7 +595,7 @@ class TestJobApi(APITestCase):
 
     def test_job_logs_by_author_for_function_without_provider(self):
         """Tests job log by job author."""
-        self._authorize()
+        self._authorize("test_user")
 
         jobs_response = self.client.get(
             reverse("v1:jobs-logs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
@@ -589,7 +606,7 @@ class TestJobApi(APITestCase):
 
     def test_job_logs_by_author_for_function_with_provider(self):
         """Tests job log by job author."""
-        self._authorize()
+        self._authorize("test_user")
 
         jobs_response = self.client.get(
             reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
@@ -599,7 +616,7 @@ class TestJobApi(APITestCase):
 
     def test_job_logs_by_function_provider(self):
         """Tests job log by fuction provider."""
-        user = models.User.objects.get(username="test_user_2")
+        user = User.objects.get(username="test_user_2")
         self.client.force_authenticate(user=user)
 
         jobs_response = self.client.get(
@@ -611,7 +628,7 @@ class TestJobApi(APITestCase):
 
     def test_job_logs(self):
         """Tests job log non-authorized."""
-        user = models.User.objects.get(username="test_user_3")
+        user = User.objects.get(username="test_user_3")
         self.client.force_authenticate(user=user)
 
         jobs_response = self.client.get(
@@ -622,8 +639,7 @@ class TestJobApi(APITestCase):
 
     def test_runtime_jobs_post(self):
         """Tests runtime jobs POST endpoint."""
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        self._authorize("test_user")
 
         # Job with a single runtime job
         job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
@@ -653,9 +669,7 @@ class TestJobApi(APITestCase):
 
     def test_runtime_jobs_get(self):
         """Tests list runtime jobs GET endpoint."""
-
-        user = models.User.objects.get(username="test_user")
-        self.client.force_authenticate(user=user)
+        self._authorize("test_user")
 
         # Job with multiple runtime jobs
         response = self.client.get(
@@ -702,7 +716,7 @@ class TestJobApi(APITestCase):
 
     def test_job_list_internal_server_error(self):
         """Tests that unexpected exceptions return 500 with proper message."""
-        self._authorize()
+        self._authorize("test_user")
 
         with patch(
             "api.use_cases.jobs.get_runtime_jobs.GetRuntimeJobsUseCase.execute",
@@ -723,7 +737,7 @@ class TestJobApi(APITestCase):
 
     def test_job_list_error(self):
         """Tests that unexpected exceptions return 500 with proper message."""
-        self._authorize()
+        self._authorize("test_user")
 
         with patch(
             "api.use_cases.jobs.list.JobsListUseCase.execute",
