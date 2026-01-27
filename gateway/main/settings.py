@@ -423,5 +423,5 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_AGE = 3600
 
-# Functions logs size limite in MB
-FUNCTIONS_LOGS_SIZE_LIMIT = os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "50")
+# Functions logs size limite in Bytes
+FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "52428800"))
