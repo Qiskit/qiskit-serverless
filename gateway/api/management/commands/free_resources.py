@@ -5,14 +5,8 @@ import logging
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from api.domain.function import check_logs
-from api.domain.function.filter_logs import (
-    log_filter_provider_job_public,
-    log_filter_user_job,
-)
 from api.models import ComputeResource, Job
-from api.ray import get_job_handler, kill_ray_cluster
-from api.services.storage.logs_storage import LogsStorage
+from api.ray import kill_ray_cluster
 
 logger = logging.getLogger("commands")
 
@@ -70,9 +64,6 @@ class Command(BaseCommand):
         should_remove_as_classical = remove_classical_jobs and not is_gpu
         should_remove_as_gpu = remove_gpu_jobs and is_gpu
         if should_remove_as_classical or should_remove_as_gpu:
-            self.save_logs_to_storage(job=terminated_job)
-            terminated_job.logs = ""
-
             success = kill_ray_cluster(compute_resource.title)
             if success:
                 compute_resource.active = False
@@ -84,33 +75,3 @@ class Command(BaseCommand):
                     compute_resource.owner,
                     terminated_job.id,
                 )
-
-    def save_logs_to_storage(self, job: Job):
-        """
-        Save the logs in the corresponding storages.
-
-        Args:
-            job: Job
-        """
-
-        try:
-            job_handler = get_job_handler(job.compute_resource.host)
-            logs = job_handler.logs(job.ray_job_id)
-            logs = check_logs(logs, job)
-        except ConnectionError:
-            logger.error(
-                "Compute resource [%s] is not accessible for logs. "
-                "Skipping `remove_compute_resource` with Job [%s]",
-                job.compute_resource.title,
-                job.id,
-            )
-            logs = "Error getting logs: compute resource is not accessible."
-
-        logs_storage = LogsStorage(job)
-        if job.program.provider:
-            public_logs = log_filter_provider_job_public(logs)
-            logs_storage.save_public_logs(public_logs)
-            logs_storage.save_private_logs(logs)
-        else:
-            filtered_logs = log_filter_user_job(logs)
-            logs_storage.save_public_logs(filtered_logs)

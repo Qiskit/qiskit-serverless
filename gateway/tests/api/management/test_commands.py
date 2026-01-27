@@ -116,15 +116,15 @@ class TestCommands(APITestCase):
                 logs,
             )
 
-    @patch("api.management.commands.free_resources.get_job_handler")
-    def test_free_resources_filters_logs_user_function(self, get_job_handler):
+    @patch("api.management.commands.update_jobs_statuses.get_job_handler")
+    def test_update_jobs_statuses_filters_logs_user_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function without provider."""
         compute_resource = ComputeResource.objects.create(
             title="test-cluster-user-logs", active=True
         )
         job = self._create_test_job(
             author="test_author",
-            status=Job.SUCCEEDED,
+            status=Job.RUNNING,
             compute_resource=compute_resource,
             ray_job_id="test-ray-job-id",
         )
@@ -143,10 +143,11 @@ Ray internal log without marker
 """
 
                 ray_client = MagicMock()
+                ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
                 ray_client.get_job_logs.return_value = full_logs
                 get_job_handler.return_value = JobHandler(ray_client)
 
-                call_command("free_resources")
+                call_command("update_jobs_statuses")
 
                 # User logs are located in username/logs/
                 # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -179,8 +180,8 @@ INFO:user: Final public log
                 # private log shouldn't exist
                 self.assertFalse(os.path.exists(private_log_file_path))
 
-    @patch("api.management.commands.free_resources.get_job_handler")
-    def test_free_resources_filters_logs_provider_function(self, get_job_handler):
+    @patch("api.management.commands.update_jobs_statuses.get_job_handler")
+    def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function with provider."""
         compute_resource = ComputeResource.objects.create(
             title="test-cluster-provider-logs", active=True
@@ -188,7 +189,7 @@ INFO:user: Final public log
         job = self._create_test_job(
             author="test_author",
             provider_admin="test_provider",
-            status=Job.SUCCEEDED,
+            status=Job.RUNNING,
             compute_resource=compute_resource,
             ray_job_id="test-ray-job-id-with-provider",
         )
@@ -207,11 +208,11 @@ Internal system log
 """
 
                 ray_client = MagicMock()
+                ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
                 ray_client.get_job_logs.return_value = full_logs
                 get_job_handler.return_value = JobHandler(ray_client)
 
-                # Execute free_resources command
-                call_command("free_resources")
+                call_command("update_jobs_statuses")
 
                 # User logs are located in username/provider/function/logs/ for provider jobs
                 # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
@@ -244,80 +245,6 @@ INFO:user: Final public log
                 with open(provider_log_file_path, "r", encoding="utf-8") as log_file:
                     saved_provider_logs = log_file.read()
                 self.assertEqual(saved_provider_logs, full_logs)
-
-    @patch(
-        "api.management.commands.free_resources.get_job_handler",
-        side_effect=ConnectionError(),
-    )
-    def test_free_resources_with_gpu_clusters_limits_zero(self, _):
-        """Tests that logs are NOT saved when LIMITS_GPU_CLUSTERS is zero."""
-        compute_resource = ComputeResource.objects.create(
-            title="test-cluster-gpu-limits", active=True
-        )
-        job = self._create_test_job(
-            author="test_author",
-            status=Job.SUCCEEDED,
-            compute_resource=compute_resource,
-            ray_job_id="test-ray-job-gpu",
-            gpu=True,
-        )
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(
-                MEDIA_ROOT=temp_dir,
-                RAY_CLUSTER_MODE={"local": True},
-                LIMITS_GPU_CLUSTERS=0,
-            ):
-                # Execute free_resources command
-                call_command("free_resources")
-
-                compute_resource.refresh_from_db()
-                self.assertTrue(compute_resource.active)
-
-                # Verify logs are NOT saved when GPU cluster limits are zero
-                user_log_file_path = os.path.join(
-                    temp_dir,
-                    "test_author",
-                    "logs",
-                    f"{job.id}.log",
-                )
-                self.assertFalse(os.path.exists(user_log_file_path))
-
-    @patch(
-        "api.management.commands.free_resources.get_job_handler",
-        side_effect=ConnectionError(),
-    )
-    def test_free_resources_with_cpu_clusters_limits_zero(self, _):
-        """Tests that logs are NOT saved when LIMITS_MAX_CLUSTERS is zero."""
-        compute_resource = ComputeResource.objects.create(
-            title="test-cluster-cpu-limits", active=True
-        )
-        job = self._create_test_job(
-            author="test_author",
-            status=Job.SUCCEEDED,
-            compute_resource=compute_resource,
-            ray_job_id="test-ray-job-cpu",
-        )
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(
-                MEDIA_ROOT=temp_dir,
-                RAY_CLUSTER_MODE={"local": True},
-                LIMITS_MAX_CLUSTERS=0,
-            ):
-                # Execute free_resources command
-                call_command("free_resources")
-
-                compute_resource.refresh_from_db()
-                self.assertTrue(compute_resource.active)
-
-                # Verify logs are NOT saved when CPU cluster limits are zero
-                user_log_file_path = os.path.join(
-                    temp_dir,
-                    "test_author",
-                    "logs",
-                    f"{job.id}.log",
-                )
-                self.assertFalse(os.path.exists(user_log_file_path))
 
     def _create_test_job(
         self,

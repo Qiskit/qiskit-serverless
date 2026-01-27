@@ -8,12 +8,12 @@ import pytest
 from django.contrib.auth.models import User, Group
 from django.core.management import call_command
 from django.urls import reverse
+from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
 from rest_framework.test import APITestCase, APIClient
 
 from api.models import ComputeResource, Job, Program, Provider
-from api.use_cases.jobs.get_logs import GetJobLogsUseCase
-from api.use_cases.jobs.provider_logs import GetProviderJobLogsUseCase
+from api.ray import JobHandler
 
 
 def create_job(author: str, provider_admin: Optional[str] = None) -> Job:
@@ -34,7 +34,17 @@ def create_job(author: str, provider_admin: Optional[str] = None) -> Job:
         provider=provider,
     )
 
-    return Job.objects.create(author=author_user, program=program)
+    compute_resource = ComputeResource.objects.create(
+        title="test-cluster-storage-provider-logs", active=True
+    )
+
+    return Job.objects.create(
+        author=author_user,
+        program=program,
+        status="RUNNING",
+        ray_job_id="test-ray-job-id",
+        compute_resource=compute_resource,
+    )
 
 
 @pytest.mark.django_db
@@ -111,19 +121,13 @@ class TestJobLogsCoverage(BaseJobLogsTest):
     (*) /provider-logs always returns 403 for user jobs (no provider)
     """
 
-    @patch("api.management.commands.free_resources.get_job_handler")
+    @patch("api.management.commands.update_jobs_statuses.get_job_handler")
     def test_job_logs_in_storage_user_job(self, get_job_handler_mock):
         """Tests /logs with user job from COS.
 
         For user jobs, all logs are shown with prefixes removed.
         """
-        # Create job with compute_resource and terminal status
         job = create_job(author="author")  # User job (no provider)
-        job.compute_resource = ComputeResource.objects.create(
-            title="test-cluster-storage-user", active=True
-        )
-        job.status = Job.SUCCEEDED
-        job.save()
 
         # Mock Ray to return logs with all types
         full_logs = """
@@ -132,22 +136,20 @@ class TestJobLogsCoverage(BaseJobLogsTest):
 
 Unprefixed message
 """
-        job_handler_mock = Mock()
-        job_handler_mock.logs.return_value = full_logs
-        get_job_handler_mock.return_value = job_handler_mock
+        ray_client = Mock()
+        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
+        ray_client.get_job_logs.return_value = full_logs
+        get_job_handler_mock.return_value = JobHandler(ray_client)
 
-        with self.settings(
-            MEDIA_ROOT=self.MEDIA_ROOT, RAY_CLUSTER_MODE={"local": True}
-        ):
-            # Execute free_resources to save logs to storage
-            call_command("free_resources")
+        # Execute update_jobs_statuses to detect terminal state and save logs
+        call_command("update_jobs_statuses")
 
-            # Call endpoint and verify logs are retrieved from storage
-            self._authorize("author")
-            jobs_response = self.client.get(
-                reverse("v1:jobs-logs", args=[str(job.id)]),
-                format="json",
-            )
+        # Call endpoint and verify logs are retrieved from storage
+        self._authorize("author")
+        jobs_response = self.client.get(
+            reverse("v1:jobs-logs", args=[str(job.id)]),
+            format="json",
+        )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         # User jobs: all logs shown, prefixes removed
@@ -159,20 +161,14 @@ Unprefixed message
 """
         self.assertEqual(jobs_response.data.get("logs"), expected_logs)
 
-    @patch("api.management.commands.free_resources.get_job_handler")
+    @patch("api.management.commands.update_jobs_statuses.get_job_handler")
     def test_job_logs_in_storage_provider_job(self, get_job_handler_mock):
         """Tests /logs with provider job from COS.
 
         For provider jobs, only [PUBLIC] lines are shown (prefix removed).
         [PRIVATE] and unprefixed logs are hidden.
         """
-        # Create job with compute_resource and terminal status
         job = create_job(author="author", provider_admin="provider_admin")
-        job.compute_resource = ComputeResource.objects.create(
-            title="test-cluster-storage-provider", active=True
-        )
-        job.status = Job.SUCCEEDED
-        job.save()
 
         # Mock Ray to return logs with all types
         full_logs = """
@@ -182,22 +178,20 @@ Unprefixed message
 
 [PUBLIC] Another public message
 """
-        job_handler_mock = Mock()
-        job_handler_mock.logs.return_value = full_logs
-        get_job_handler_mock.return_value = job_handler_mock
+        ray_client = Mock()
+        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
+        ray_client.get_job_logs.return_value = full_logs
+        get_job_handler_mock.return_value = JobHandler(ray_client)
 
-        with self.settings(
-            MEDIA_ROOT=self.MEDIA_ROOT, RAY_CLUSTER_MODE={"local": True}
-        ):
-            # Execute free_resources to save logs to storage
-            call_command("free_resources")
+        # Execute update_jobs_statuses to detect terminal state and save logs
+        call_command("update_jobs_statuses")
 
-            # Call endpoint and verify logs are retrieved from storage
-            self._authorize("provider_admin")
-            jobs_response = self.client.get(
-                reverse("v1:jobs-logs", args=[str(job.id)]),
-                format="json",
-            )
+        # Call endpoint and verify logs are retrieved from storage
+        self._authorize("provider_admin")
+        jobs_response = self.client.get(
+            reverse("v1:jobs-logs", args=[str(job.id)]),
+            format="json",
+        )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         # Provider jobs /logs: only [PUBLIC] lines, prefix removed
@@ -233,20 +227,14 @@ INFO:user: Final public log
 """
         get_job_handler_mock.return_value = job_handler_mock
 
-        # Add an active compute_resource to the job, so the endpoint could try to reach Ray
         job = create_job(author="author")
-        job.compute_resource = ComputeResource.objects.create(
-            title="test-cluster-2", active=True
-        )
-        job.save()
 
         self._authorize("author")
 
-        with self.settings(RAY_SETUP_MAX_RETRIES=2):
-            jobs_response = self.client.get(
-                reverse("v1:jobs-logs", args=[str(job.id)]),
-                format="json",
-            )
+        jobs_response = self.client.get(
+            reverse("v1:jobs-logs", args=[str(job.id)]),
+            format="json",
+        )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
@@ -273,20 +261,14 @@ Internal system log
         job_handler_mock.logs.return_value = full_logs
         get_job_handler_mock.return_value = job_handler_mock
 
-        # Add an active compute_resource to the job, so the endpoint could try to reach Ray
         job = create_job(author="author", provider_admin="provider_admin")
-        job.compute_resource = ComputeResource.objects.create(
-            title="test-cluster-3", active=True
-        )
-        job.save()
 
         self._authorize("provider_admin")
 
-        with self.settings(RAY_SETUP_MAX_RETRIES=2):
-            jobs_response = self.client.get(
-                reverse("v1:jobs-logs", args=[str(job.id)]),
-                format="json",
-            )
+        jobs_response = self.client.get(
+            reverse("v1:jobs-logs", args=[str(job.id)]),
+            format="json",
+        )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         expected_user_logs = """INFO:user: Public log for user
@@ -299,8 +281,11 @@ INFO:user: Final public log
     def test_job_logs_in_db(self, logs_storage_get_mock):
         """Tests /logs with user job from DB (legacy)."""
         logs_storage_get_mock.return_value = None
+
         job = create_job(author="author")
         job.logs = "log from db"
+        # this is needed so that it looks like the job has finished
+        job.compute_resource = None
         job.save()
 
         self._authorize("author")
@@ -316,7 +301,11 @@ INFO:user: Final public log
     def test_job_logs_not_found_empty(self, logs_storage_get_mock):
         """Tests /logs with provider job, no logs available."""
         logs_storage_get_mock.return_value = None
+
         job = create_job(author="author", provider_admin="provider_admin")
+        # this is needed so that it looks like the job has finished
+        job.compute_resource = None
+        job.save()
 
         self._authorize("provider_admin")
         jobs_response = self.client.get(
@@ -327,31 +316,28 @@ INFO:user: Final public log
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "No logs available.")
 
-    def test_job_logs_error(self):
+    @patch("api.use_cases.jobs.get_logs.get_job_handler")
+    @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
+    def test_job_logs_error(self, logs_storage_get_mock, get_job_handler_mock):
         """Tests /logs with user job, Ray error."""
-        user = self._authorize("test_user_2")
+        logs_storage_get_mock.return_value = None
+        get_job_handler_mock.side_effect = ConnectionError("Cannot connect to Ray")
 
-        # The job author must match the user for authorization to pass
-        compute_resource = Mock(active=True, host="http://wrong-host")
-        program = Mock(title="fake_fn", provider=None)
-        author = Mock(id=user.id, username=user.username)
-        job = Mock(
-            id="fake-job-id",
-            compute_resource=compute_resource,
-            program=program,
-            author=author,
+        job = create_job(author="author")
+
+        self._authorize("author")
+        jobs_response = self.client.get(
+            reverse("v1:jobs-logs", args=[str(job.id)]),
+            format="json",
         )
 
-        use_case = GetJobLogsUseCase()
-        use_case.jobs_repository = Mock()
-        use_case.jobs_repository.get_job_by_id.return_value = job
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
+        self.assertEqual(
+            jobs_response.data.get("logs"),
+            "Logs not available for this job during execution.",
+        )
 
-        with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
-            message = use_case.execute("fake_job_id", user)
-
-        self.assertEqual(message, "Logs not available for this job during execution.")
-
-    @patch("api.management.commands.free_resources.get_job_handler")
+    @patch("api.management.commands.update_jobs_statuses.get_job_handler")
     def test_job_provider_logs_in_storage(self, get_job_handler_mock):
         """Tests /provider-logs with provider job from COS.
 
@@ -365,31 +351,23 @@ Unprefixed message
 [PUBLIC] Another public message
 """
 
-        # Create job with compute_resource and terminal status
         job = create_job(author="author", provider_admin="provider_admin")
-        job.compute_resource = ComputeResource.objects.create(
-            title="test-cluster-storage-provider-logs", active=True
-        )
-        job.status = Job.SUCCEEDED
-        job.save()
 
         # Mock Ray to return logs (all logs saved for provider private logs)
-        job_handler_mock = Mock()
-        job_handler_mock.logs.return_value = full_logs
-        get_job_handler_mock.return_value = job_handler_mock
+        ray_client = Mock()
+        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
+        ray_client.get_job_logs.return_value = full_logs
+        get_job_handler_mock.return_value = JobHandler(ray_client)
 
-        with self.settings(
-            MEDIA_ROOT=self.MEDIA_ROOT, RAY_CLUSTER_MODE={"local": True}
-        ):
-            # Execute free_resources to save logs to storage
-            call_command("free_resources")
+        # Execute update_jobs_statuses to detect terminal state and save logs
+        call_command("update_jobs_statuses")
 
-            # Call endpoint and verify logs are retrieved from storage
-            self._authorize("provider_admin")
-            jobs_response = self.client.get(
-                reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-                format="json",
-            )
+        # Call endpoint and verify logs are retrieved from storage
+        self._authorize("provider_admin")
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+            format="json",
+        )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         # /provider-logs returns all logs unfiltered (with prefixes)
@@ -417,20 +395,14 @@ Internal system log
         job_handler_mock.logs.return_value = full_logs
         get_job_handler_mock.return_value = job_handler_mock
 
-        # Add an active compute_resource to the job, so the endpoint could try to reach Ray
         job = create_job(author="author", provider_admin="provider_admin")
-        job.compute_resource = ComputeResource.objects.create(
-            title="test-cluster", active=True
-        )
-        job.save()
 
         self._authorize("provider_admin")
 
-        with self.settings(RAY_SETUP_MAX_RETRIES=2):
-            jobs_response = self.client.get(
-                reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-                format="json",
-            )
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+            format="json",
+        )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), full_logs)
@@ -441,6 +413,8 @@ Internal system log
         logs_storage_get_mock.return_value = None
         job = create_job(author="author", provider_admin="provider_admin")
         job.logs = "log entry 1"
+        # this is needed so that it looks like the job has finished
+        job.compute_resource = None
         job.save()
 
         self._authorize("provider_admin")
@@ -455,6 +429,9 @@ Internal system log
     def test_job_provider_logs_not_found_empty(self):
         """Tests /provider-logs with provider job, no logs available."""
         job = create_job(author="author", provider_admin="provider_admin")
+        # this is needed so that it looks like the job has finished
+        job.compute_resource = None
+        job.save()
 
         self._authorize("provider_admin")
         jobs_response = self.client.get(
@@ -465,27 +442,23 @@ Internal system log
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "No logs yet.")
 
-    def test_job_provider_logs_error(self):
+    @patch("api.use_cases.jobs.provider_logs.get_job_handler")
+    @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
+    def test_job_provider_logs_error(self, logs_storage_get_mock, get_job_handler_mock):
         """Tests /provider-logs with provider job, Ray error."""
-        user = self._authorize("test_user_2")
+        logs_storage_get_mock.return_value = None
+        get_job_handler_mock.side_effect = ConnectionError("Cannot connect to Ray")
 
-        compute_resource = Mock(active=True, host="http://wrong-host")
-        provider = Mock(admin_groups=user.groups)
-        provider.name = "fake_provider"
-        program = Mock(provider=provider, title="fake_fn")
-        author = Mock(username="fake_author")
-        job = Mock(
-            id="fake-job-id",
-            compute_resource=compute_resource,
-            program=program,
-            author=author,
+        job = create_job(author="author", provider_admin="provider_admin")
+
+        self._authorize("provider_admin")
+        jobs_response = self.client.get(
+            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+            format="json",
         )
 
-        use_case = GetProviderJobLogsUseCase()
-        use_case.jobs_repository = Mock()
-        use_case.jobs_repository.get_job_by_id.return_value = job
-
-        with self.settings(RAY_SETUP_MAX_RETRIES=2, MEDIA_ROOT=self.MEDIA_ROOT):
-            message = use_case.execute("fake_job_id", user)
-
-        self.assertEqual(message, "Logs not available for this job during execution.")
+        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
+        self.assertEqual(
+            jobs_response.data.get("logs"),
+            "Logs not available for this job during execution.",
+        )

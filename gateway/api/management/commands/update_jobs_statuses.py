@@ -6,13 +6,19 @@ from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from api.domain.function import check_logs
+from api.domain.function.filter_logs import (
+    log_filter_provider_job_public,
+    log_filter_user_job,
+)
 from api.models import Job
-from api.ray import get_job_handler
+from api.ray import get_job_handler, JobHandler
 from api.schedule import (
     check_job_timeout,
     handle_job_status_not_available,
     fail_job_insufficient_resources,
 )
+from api.services.storage.logs_storage import LogsStorage
 from api.utils import ray_job_status_to_model_job_status
 
 logger = logging.getLogger("commands")
@@ -53,10 +59,12 @@ def update_job_status(job: Job):
         )
         status_has_changed = True
         job.status = job_new_status
-        # cleanup env vars
+        # cleanup env vars and save logs when job reaches terminal state
         if job.in_terminal_state():
             job.sub_status = None
             job.env_vars = "{}"
+            if job_handler:
+                save_logs_to_storage(job, job_handler)
 
     if job_handler:
         logs = job_handler.logs(job.ray_job_id)
@@ -74,6 +82,39 @@ def update_job_status(job: Job):
         logger.warning("Job [%s] record has not been updated due to lock.", job.id)
 
     return status_has_changed
+
+
+def save_logs_to_storage(job: Job, job_handler: JobHandler):
+    """
+    Save the logs in the corresponding storages.
+
+    This function is called exactly once when a job transitions to a terminal state.
+
+    Args:
+        job: Job that has reached a terminal state
+        job_handler: JobHandler to retrieve logs from Ray
+    """
+    try:
+        logs = job_handler.logs(job.ray_job_id)
+        logs = check_logs(logs, job)
+    except ConnectionError:
+        logger.error(
+            "Compute resource [%s] is not accessible for logs. Job [%s]",
+            job.compute_resource.title,
+            job.id,
+        )
+        logs = "Error getting logs: compute resource is not accessible."
+
+    logs_storage = LogsStorage(job)
+    if job.program.provider:
+        public_logs = log_filter_provider_job_public(logs)
+        logs_storage.save_public_logs(public_logs)
+        logs_storage.save_private_logs(logs)
+    else:
+        filtered_logs = log_filter_user_job(logs)
+        logs_storage.save_public_logs(filtered_logs)
+
+    logger.info("Logs saved to storage for job [%s]", job.id)
 
 
 class Command(BaseCommand):
