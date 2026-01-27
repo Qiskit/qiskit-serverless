@@ -268,7 +268,7 @@ INFO:user: Final public log
         side_effect=ConnectionError(),
     )
     def test_free_resources_with_gpu_clusters_limits_zero(self, _):
-        """Tests that logs are filtered when saving for function with provider."""
+        """Tests that logs are NOT saved when LIMITS_GPU_CLUSTERS is zero."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(
                 MEDIA_ROOT=temp_dir,
@@ -302,15 +302,13 @@ INFO:user: Final public log
 
                 self.assertTrue(compute_resource.active)
 
-                # User logs are located in username/logs/
-                # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
+                # Verify logs are NOT saved when GPU cluster limits are zero
                 user_log_file_path = os.path.join(
                     temp_dir,
                     "test_user",
                     "logs",
                     f"{job.id}.log",
                 )
-
                 self.assertFalse(os.path.exists(user_log_file_path))
 
     @patch(
@@ -318,7 +316,7 @@ INFO:user: Final public log
         side_effect=ConnectionError(),
     )
     def test_free_resources_with_cpu_clusters_limits_zero(self, _):
-        """Tests that logs are filtered when saving for function with provider."""
+        """Tests that logs are NOT saved when LIMITS_MAX_CLUSTERS is zero."""
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(
                 MEDIA_ROOT=temp_dir,
@@ -351,15 +349,13 @@ INFO:user: Final public log
 
                 self.assertTrue(compute_resource.active)
 
-                # User logs are located in username/logs/
-                # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
+                # Verify logs are NOT saved when CPU cluster limits are zero
                 user_log_file_path = os.path.join(
                     temp_dir,
                     "test_user",
                     "logs",
                     f"{job.id}.log",
                 )
-
                 self.assertFalse(os.path.exists(user_log_file_path))
 
     def _create_test_job(self, ray_job_id="test-job-id", status=None):
