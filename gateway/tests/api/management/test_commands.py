@@ -2,11 +2,13 @@
 
 import os
 import tempfile
-from datetime import datetime
+from typing import Optional
+
+from django.contrib.auth.models import User, Group
 from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 from api.domain.function import check_logs
 from api.models import ComputeResource, Job, Program, Provider
@@ -117,23 +119,18 @@ class TestCommands(APITestCase):
     @patch("api.management.commands.free_resources.get_job_handler")
     def test_free_resources_filters_logs_user_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function without provider."""
+        compute_resource = ComputeResource.objects.create(
+            title="test-cluster-user-logs", active=True
+        )
+        job = self._create_test_job(
+            author="test_author",
+            status=Job.SUCCEEDED,
+            compute_resource=compute_resource,
+            ray_job_id="test-ray-job-id",
+        )
+
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
-                # Create test data
-                program = Program.objects.get(pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
-                compute_resource = ComputeResource.objects.get(
-                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
-                )
-
-                job = Job.objects.create(
-                    author_id=1,
-                    program=program,
-                    compute_resource=compute_resource,
-                    status=Job.SUCCEEDED,
-                    ray_job_id="test-ray-job-id",
-                    created=datetime.now(),
-                )
-
                 # Mock Ray to return unfiltered logs with PUBLIC and PRIVATE markers
                 full_logs = """
 2026-01-06 10:00:00,000 INFO job_manager.py:568 -- Runtime env is setting up.
@@ -155,7 +152,7 @@ Ray internal log without marker
                 # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
                 user_log_file_path = os.path.join(
                     temp_dir,
-                    "test_user",
+                    "test_author",
                     "logs",
                     f"{job.id}.log",
                 )
@@ -175,7 +172,7 @@ INFO:user: Final public log
 
                 private_log_file_path = os.path.join(
                     temp_dir,
-                    program.title,
+                    "program-test_author-custom",
                     "logs",
                     f"{job.id}.log",
                 )
@@ -185,34 +182,19 @@ INFO:user: Final public log
     @patch("api.management.commands.free_resources.get_job_handler")
     def test_free_resources_filters_logs_provider_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function with provider."""
+        compute_resource = ComputeResource.objects.create(
+            title="test-cluster-provider-logs", active=True
+        )
+        job = self._create_test_job(
+            author="test_author",
+            provider_admin="test_provider",
+            status=Job.SUCCEEDED,
+            compute_resource=compute_resource,
+            ray_job_id="test-ray-job-id-with-provider",
+        )
+
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
-                # Create provider and program with provider
-                provider = Provider.objects.create(
-                    name="test-provider",
-                    registry="docker.io/test",
-                )
-
-                program = Program.objects.create(
-                    title="test-program-with-provider",
-                    author_id=1,
-                    provider=provider,
-                    created=datetime.now(),
-                )
-
-                compute_resource = ComputeResource.objects.get(
-                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
-                )
-
-                job = Job.objects.create(
-                    author_id=1,
-                    program=program,
-                    compute_resource=compute_resource,
-                    status=Job.SUCCEEDED,
-                    ray_job_id="test-ray-job-id-with-provider",
-                    created=datetime.now(),
-                )
-
                 # Mock Ray to return unfiltered logs
                 full_logs = """
 [PUBLIC] INFO:user: Public log for user
@@ -235,9 +217,9 @@ Internal system log
                 # Verify user logs are filtered: [PUBLIC] only lines without the [PUBLIC]
                 user_log_file_path = os.path.join(
                     temp_dir,
-                    "test_user",
-                    provider.name,
-                    program.title,
+                    "test_author",
+                    "test_provider",
+                    "program-test_author-test_provider",
                     "logs",
                     f"{job.id}.log",
                 )
@@ -253,8 +235,8 @@ INFO:user: Final public log
                 # Verify provider logs contain everything: [PUBLIC], [PRIVATE] and internal logs...
                 provider_log_file_path = os.path.join(
                     temp_dir,
-                    "test-provider",
-                    "test-program-with-provider",
+                    "test_provider",
+                    "program-test_author-test_provider",
                     "logs",
                     f"{job.id}.log",
                 )
@@ -269,43 +251,33 @@ INFO:user: Final public log
     )
     def test_free_resources_with_gpu_clusters_limits_zero(self, _):
         """Tests that logs are NOT saved when LIMITS_GPU_CLUSTERS is zero."""
+        compute_resource = ComputeResource.objects.create(
+            title="test-cluster-gpu-limits", active=True
+        )
+        job = self._create_test_job(
+            author="test_author",
+            status=Job.SUCCEEDED,
+            compute_resource=compute_resource,
+            ray_job_id="test-ray-job-gpu",
+            gpu=True,
+        )
+
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(
                 MEDIA_ROOT=temp_dir,
-                RAY_CLUSTER_MODE={"local": False},
+                RAY_CLUSTER_MODE={"local": True},
                 LIMITS_GPU_CLUSTERS=0,
             ):
-                program = Program.objects.create(
-                    title="test-program", author_id=1, created=datetime.now()
-                )
-
-                compute_resource = ComputeResource.objects.get(
-                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
-                )
-
-                job = Job.objects.create(
-                    author_id=1,
-                    program=program,
-                    compute_resource=compute_resource,
-                    status=Job.SUCCEEDED,
-                    ray_job_id="test-ray-job-gpu",
-                    created=datetime.now(),
-                    gpu=True,
-                )
-
                 # Execute free_resources command
                 call_command("free_resources")
 
-                compute_resource = ComputeResource.objects.get(
-                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
-                )
-
+                compute_resource.refresh_from_db()
                 self.assertTrue(compute_resource.active)
 
                 # Verify logs are NOT saved when GPU cluster limits are zero
                 user_log_file_path = os.path.join(
                     temp_dir,
-                    "test_user",
+                    "test_author",
                     "logs",
                     f"{job.id}.log",
                 )
@@ -317,62 +289,81 @@ INFO:user: Final public log
     )
     def test_free_resources_with_cpu_clusters_limits_zero(self, _):
         """Tests that logs are NOT saved when LIMITS_MAX_CLUSTERS is zero."""
+        compute_resource = ComputeResource.objects.create(
+            title="test-cluster-cpu-limits", active=True
+        )
+        job = self._create_test_job(
+            author="test_author",
+            status=Job.SUCCEEDED,
+            compute_resource=compute_resource,
+            ray_job_id="test-ray-job-cpu",
+        )
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(
                 MEDIA_ROOT=temp_dir,
-                RAY_CLUSTER_MODE={"local": False},
+                RAY_CLUSTER_MODE={"local": True},
                 LIMITS_MAX_CLUSTERS=0,
             ):
-                program = Program.objects.create(
-                    title="test-program", author_id=1, created=datetime.now()
-                )
-
-                compute_resource = ComputeResource.objects.get(
-                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
-                )
-
-                job = Job.objects.create(
-                    author_id=1,
-                    program=program,
-                    compute_resource=compute_resource,
-                    status=Job.SUCCEEDED,
-                    ray_job_id="test-ray-job-cpu",
-                    created=datetime.now(),
-                )
-
                 # Execute free_resources command
                 call_command("free_resources")
 
-                compute_resource = ComputeResource.objects.get(
-                    pk="1a7947f9-6ae8-4e3d-ac1e-e7d608deec99"
-                )
-
+                compute_resource.refresh_from_db()
                 self.assertTrue(compute_resource.active)
 
                 # Verify logs are NOT saved when CPU cluster limits are zero
                 user_log_file_path = os.path.join(
                     temp_dir,
-                    "test_user",
+                    "test_author",
                     "logs",
                     f"{job.id}.log",
                 )
                 self.assertFalse(os.path.exists(user_log_file_path))
 
-    def _create_test_job(self, ray_job_id="test-job-id", status=None):
-        """Helper method to create a test job with fresh state."""
-        # Get existing job to use its relationships and set it to STOPPED
-        existing_job = Job.objects.get(id__exact="1a7947f9-6ae8-4e3d-ac1e-e7d608deec84")
-        existing_job.status = Job.STOPPED
-        existing_job.save()
+    def _create_test_job(
+        self,
+        author: str = "test_author",
+        provider_admin: Optional[str] = None,
+        status: str = Job.PENDING,
+        compute_resource: Optional[ComputeResource] = None,
+        ray_job_id: str = "test-job-id",
+        gpu: bool = False,
+    ) -> Job:
+        """Helper method to create a test job.
 
-        # Create a new job for testing
-        job = Job.objects.create(
-            author=existing_job.author,
-            program=existing_job.program,
-            compute_resource=existing_job.compute_resource,
-            env_vars="{'foo':'bar'}",
-            status=Job.PENDING,
-            created=datetime.now(),
-            ray_job_id=ray_job_id,
+        Args:
+            author: Username for the job author
+            provider_admin: If set, creates a provider and assigns admin rights
+            status: Job status (default: PENDING)
+            compute_resource: ComputeResource to use (creates new one if None)
+            ray_job_id: Ray job ID
+            gpu: Whether this is a GPU job
+        """
+        if compute_resource is None:
+            compute_resource = ComputeResource.objects.create(
+                title=f"test-cluster-{ray_job_id}", active=True
+            )
+
+        author_user, _ = User.objects.get_or_create(username=author)
+        provider = None
+
+        if provider_admin:
+            provider = Provider.objects.create(name=provider_admin)
+            admin_group, _ = Group.objects.get_or_create(name=provider_admin)
+            admin_user, _ = User.objects.get_or_create(username=provider_admin)
+            admin_user.groups.add(admin_group)
+            provider.admin_groups.add(admin_group)
+
+        program = Program.objects.create(
+            title=f"program-{author_user.username}-{provider_admin or 'custom'}",
+            author=author_user,
+            provider=provider,
         )
-        return job
+
+        return Job.objects.create(
+            author=author_user,
+            program=program,
+            status=status,
+            compute_resource=compute_resource,
+            ray_job_id=ray_job_id,
+            gpu=gpu,
+        )
