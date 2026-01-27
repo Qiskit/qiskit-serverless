@@ -15,9 +15,6 @@ from api.repositories.jobs import JobsRepository
 from api.access_policies.providers import ProviderAccessPolicy
 from api.services.storage.logs_storage import LogsStorage
 
-NO_LOGS_MSG: Final[str] = "No available logs"
-NO_LOGS_MSG_2: Final[str] = "No logs yet."
-
 
 class GetProviderJobLogsUseCase:
     """Use case for retrieving job logs."""

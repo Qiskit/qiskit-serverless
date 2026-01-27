@@ -19,9 +19,6 @@ from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.services.storage.logs_storage import LogsStorage
 
-NO_LOGS_MSG: Final[str] = "No available logs"
-NO_LOGS_MSG_2: Final[str] = "No logs yet."
-
 
 class GetJobLogsUseCase:
     """Use case for retrieving job logs."""
