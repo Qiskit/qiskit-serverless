@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from django.contrib.auth.models import User, Group
+from django.core.management import call_command
 from django.urls import reverse
 from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
 from rest_framework.test import APITestCase, APIClient
@@ -110,35 +111,100 @@ class TestJobLogsCoverage(BaseJobLogsTest):
     (*) /provider-logs always returns 403 for user jobs (no provider)
     """
 
-    @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
-    def test_job_logs_in_storage_user_job(self, logs_storage_get_mock):
-        """Tests /logs with user job from COS."""
-        logs_storage_get_mock.return_value = "from storage"
+    @patch("api.management.commands.free_resources.get_job_handler")
+    def test_job_logs_in_storage_user_job(self, get_job_handler_mock):
+        """Tests /logs with user job from COS.
+
+        For user jobs, all logs are shown with prefixes removed.
+        """
+        # Create job with compute_resource and terminal status
         job = create_job(author="author")  # User job (no provider)
-
-        self._authorize("author")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
+        job.compute_resource = ComputeResource.objects.create(
+            title="test-cluster-storage-user", active=True
         )
+        job.status = Job.SUCCEEDED
+        job.save()
+
+        # Mock Ray to return logs with all types
+        full_logs = """
+[PUBLIC] Public message
+[PRIVATE] Private message
+
+Unprefixed message
+"""
+        job_handler_mock = Mock()
+        job_handler_mock.logs.return_value = full_logs
+        get_job_handler_mock.return_value = job_handler_mock
+
+        with self.settings(
+            MEDIA_ROOT=self.MEDIA_ROOT, RAY_CLUSTER_MODE={"local": True}
+        ):
+            # Execute free_resources to save logs to storage
+            call_command("free_resources")
+
+            # Call endpoint and verify logs are retrieved from storage
+            self._authorize("author")
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=[str(job.id)]),
+                format="json",
+            )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "from storage")
+        # User jobs: all logs shown, prefixes removed
+        expected_logs = """
+Public message
+Private message
 
-    @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
-    def test_job_logs_in_storage_provider_job(self, logs_storage_get_mock):
-        """Tests /logs with provider job from COS."""
-        logs_storage_get_mock.return_value = "from storage"
+Unprefixed message
+"""
+        self.assertEqual(jobs_response.data.get("logs"), expected_logs)
+
+    @patch("api.management.commands.free_resources.get_job_handler")
+    def test_job_logs_in_storage_provider_job(self, get_job_handler_mock):
+        """Tests /logs with provider job from COS.
+
+        For provider jobs, only [PUBLIC] lines are shown (prefix removed).
+        [PRIVATE] and unprefixed logs are hidden.
+        """
+        # Create job with compute_resource and terminal status
         job = create_job(author="author", provider_admin="provider_admin")
-
-        self._authorize("provider_admin")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
+        job.compute_resource = ComputeResource.objects.create(
+            title="test-cluster-storage-provider", active=True
         )
+        job.status = Job.SUCCEEDED
+        job.save()
+
+        # Mock Ray to return logs with all types
+        full_logs = """
+[PUBLIC] Public message
+[PRIVATE] Private message
+Unprefixed message
+
+[PUBLIC] Another public message
+"""
+        job_handler_mock = Mock()
+        job_handler_mock.logs.return_value = full_logs
+        get_job_handler_mock.return_value = job_handler_mock
+
+        with self.settings(
+            MEDIA_ROOT=self.MEDIA_ROOT, RAY_CLUSTER_MODE={"local": True}
+        ):
+            # Execute free_resources to save logs to storage
+            call_command("free_resources")
+
+            # Call endpoint and verify logs are retrieved from storage
+            self._authorize("provider_admin")
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=[str(job.id)]),
+                format="json",
+            )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "from storage")
+        # Provider jobs /logs: only [PUBLIC] lines, prefix removed
+        expected_logs = """Public message
+Another public message
+"""
+        self.assertEqual(jobs_response.data.get("logs"), expected_logs)
 
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
@@ -202,10 +268,6 @@ Internal system log
 [PRIVATE] WARNING:provider: Private warning
 [PUBLIC] INFO:user: Final public log
 """
-        expected_user_logs = """INFO:user: Public log for user
-INFO:user: Another public log
-INFO:user: Final public log
-"""
 
         job_handler_mock = Mock()
         job_handler_mock.logs.return_value = full_logs
@@ -227,6 +289,10 @@ INFO:user: Final public log
             )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
+        expected_user_logs = """INFO:user: Public log for user
+INFO:user: Another public log
+INFO:user: Final public log
+"""
         self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
 
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
@@ -285,24 +351,49 @@ INFO:user: Final public log
 
         self.assertEqual(message, "Logs not available for this job during execution.")
 
-    # ==========================================================================
-    # COVERAGE TESTS: /provider-logs endpoint - Data sources
-    # ==========================================================================
+    @patch("api.management.commands.free_resources.get_job_handler")
+    def test_job_provider_logs_in_storage(self, get_job_handler_mock):
+        """Tests /provider-logs with provider job from COS.
 
-    @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
-    def test_job_provider_logs_in_storage(self, logs_storage_get_mock):
-        """Tests /provider-logs with provider job from COS."""
-        logs_storage_get_mock.return_value = "from storage"
+        For provider jobs, /provider-logs shows all logs unfiltered (with prefixes).
+        """
+        # All log types with prefixes maintained
+        full_logs = """[PUBLIC] Public message
+[PRIVATE] Private message
+Unprefixed message
+
+[PUBLIC] Another public message
+"""
+
+        # Create job with compute_resource and terminal status
         job = create_job(author="author", provider_admin="provider_admin")
-
-        self._authorize("provider_admin")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-provider-logs", args=[str(job.id)]),
-            format="json",
+        job.compute_resource = ComputeResource.objects.create(
+            title="test-cluster-storage-provider-logs", active=True
         )
+        job.status = Job.SUCCEEDED
+        job.save()
+
+        # Mock Ray to return logs (all logs saved for provider private logs)
+        job_handler_mock = Mock()
+        job_handler_mock.logs.return_value = full_logs
+        get_job_handler_mock.return_value = job_handler_mock
+
+        with self.settings(
+            MEDIA_ROOT=self.MEDIA_ROOT, RAY_CLUSTER_MODE={"local": True}
+        ):
+            # Execute free_resources to save logs to storage
+            call_command("free_resources")
+
+            # Call endpoint and verify logs are retrieved from storage
+            self._authorize("provider_admin")
+            jobs_response = self.client.get(
+                reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+                format="json",
+            )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "from storage")
+        # /provider-logs returns all logs unfiltered (with prefixes)
+        self.assertEqual(jobs_response.data.get("logs"), full_logs)
 
     @patch("api.use_cases.jobs.provider_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
