@@ -600,15 +600,62 @@ class TestJobApi(APITestCase):
         """Tests job log by job author."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             job = self._create_job(author="author")
-            job.logs = "log entry 2"
-            job.save()
 
             self._authorize("author")
             jobs_response = self.client.get(
                 reverse("v1:jobs-logs", args=[str(job.id)]), format="json"
             )
+            # Content tested in: test_job_logs_in_db
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-            self.assertEqual(jobs_response.data.get("logs"), "log entry 2")
+
+    def test_job_logs_by_non_author_for_function_without_provider(self):
+        """Tests that a non-author cannot access logs of a user job (no provider)."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            job = self._create_job(author="author")  # No provider
+
+            self._authorize("other_user")  # Non-author
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=[str(job.id)]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_job_provider_logs_by_non_author_for_function_without_provider(self):
+        """Tests that a non-author cannot access provider-logs of a user job."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            job = self._create_job(author="author")  # No provider
+
+            self._authorize("other_user")  # Non-author
+            jobs_response = self.client.get(
+                reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_job_logs_by_author_for_function_with_provider(self):
+        """Tests that the author can access filtered logs of a provider job."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            job = self._create_job(author="author", provider_admin="provider_admin")
+
+            self._authorize("author")  # Author, not provider
+            jobs_response = self.client.get(
+                reverse("v1:jobs-logs", args=[str(job.id)]),
+                format="json",
+            )
+            # Content tested in: test_job_logs_not_found_empty
+            self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
+
+    def test_job_provider_logs_by_author_for_function_with_provider(self):
+        """Tests that the author (not provider) cannot access provider-logs."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            job = self._create_job(author="author", provider_admin="provider_admin")
+
+            self._authorize("author")  # Author, not provider
+            jobs_response = self.client.get(
+                reverse("v1:jobs-provider-logs", args=[str(job.id)]),
+                format="json",
+            )
+            self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_job_logs_by_non_author_for_function_with_provider(self):
         """Tests that a user who is not the author cannot access logs of a provider job."""
@@ -632,24 +679,21 @@ class TestJobApi(APITestCase):
                 reverse("v1:jobs-logs", args=[str(job.id)]),
                 format="json",
             )
+            # Content tested in: test_job_logs_not_found_empty
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-            self.assertEqual(jobs_response.data.get("logs"), "No logs available.")
 
     def test_job_provider_logs(self):
         """Tests job log by function provider."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             job = self._create_job(author="author", provider_admin="provider_admin")
-            job.logs = "provider log entry 1"
-            job.save()
 
             self._authorize("provider_admin")
             jobs_response = self.client.get(
                 reverse("v1:jobs-provider-logs", args=[str(job.id)]),
                 format="json",
             )
-
+            # Content tested in: test_job_provider_logs_in_db
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-            self.assertEqual(jobs_response.data.get("logs"), "provider log entry 1")
 
     @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
     def test_job_provider_logs_in_storage(self, logs_storage_get_mock):
@@ -930,7 +974,7 @@ INFO:user: Final public log
         self.assertEqual(jobs_response.data.get("logs"), "log from db")
 
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
-    def test_job_logs_not_fount_empty(self, logs_storage_get_mock):
+    def test_job_logs_not_found_empty(self, logs_storage_get_mock):
         """Tests job log by function provider."""
         logs_storage_get_mock.return_value = None
         job = self._create_job(author="author", provider_admin="provider_admin")
