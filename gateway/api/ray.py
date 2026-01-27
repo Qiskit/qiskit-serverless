@@ -384,7 +384,9 @@ def kill_ray_cluster(cluster_name: str) -> bool:
         number of killed clusters
     """
     if settings.RAY_CLUSTER_MODE.get("local"):
-        return True
+        # in local, there's only one ComputeResource shared across all jobs. returning False
+        # will ensure the ComputeResource is not deactivated, so it can be reused later
+        return False
 
     success = False
     namespace = settings.RAY_KUBERAY_NAMESPACE
