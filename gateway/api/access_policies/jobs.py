@@ -18,7 +18,7 @@ class JobAccessPolicies:
     """
 
     @staticmethod
-    def can_access(user: type[AbstractUser], job: Job) -> bool:
+    def can_access(user: AbstractUser, job: Job) -> bool:
         """
         Checks if the user has access to the Job. As an author
         you always have access. If you are not the author you
@@ -31,6 +31,12 @@ class JobAccessPolicies:
         Returns:
             bool: True or False in case the user has access
         """
+
+        if user is None:
+            raise ValueError("user cannot be None")
+
+        if job is None:
+            raise ValueError("job cannot be None")
 
         if user.id == job.author.id:
             return True
@@ -47,7 +53,7 @@ class JobAccessPolicies:
         return has_access
 
     @staticmethod
-    def can_read_result(user: type[AbstractUser], job: Job) -> bool:
+    def can_read_result(user: AbstractUser, job: Job) -> bool:
         """
         Checks if the user has permissions to read the result of a job:
 
@@ -69,7 +75,7 @@ class JobAccessPolicies:
         return has_access
 
     @staticmethod
-    def can_save_result(user: type[AbstractUser], job: Job) -> bool:
+    def can_save_result(user: AbstractUser, job: Job) -> bool:
         """
         Checks if the user has permissions to save the result of a job:
 
@@ -91,7 +97,7 @@ class JobAccessPolicies:
         return has_access
 
     @staticmethod
-    def can_update_sub_status(user: type[AbstractUser], job: Job) -> bool:
+    def can_update_sub_status(user: AbstractUser, job: Job) -> bool:
         """
         Checks if the user has permissions to update the substatus of a job:
 
