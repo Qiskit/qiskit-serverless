@@ -1,3 +1,7 @@
+"""
+This module handle the access to the files store
+"""
+
 import glob
 import logging
 import mimetypes
