@@ -102,14 +102,19 @@ class TestCommands(APITestCase):
         """Test logs checker for very long logs in this case more than 1MB."""
 
         with self.settings(
-            FUNCTIONS_LOGS_SIZE_LIMIT="1",
+            FUNCTIONS_LOGS_SIZE_LIMIT=100,
         ):
             job = MagicMock()
             job.id = "42"
             job.status = "RUNNING"
-            logs = check_logs(logs=("A" * (1_200_000)), job=job)
+            log_to_test = "A" * 120 + "B"
+            logs = check_logs(logs=log_to_test, job=job)
             self.assertIn(
-                "Logs exceeded maximum allowed size (1 MB) and could not be stored.",
+                "[Logs exceeded maximum allowed size (9.5367431640625e-05 MB). Logs have been truncated, discarding the oldest entries first.]",
+                logs,
+            )
+            self.assertIn(
+                "AAAAAAAAAAB",
                 logs,
             )
 
