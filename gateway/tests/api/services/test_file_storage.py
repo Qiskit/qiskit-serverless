@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 from django.test import TestCase
 
-from api.services.file_storage import FileStorage
+from api.services.storage.file_storage import FileStorage
 from api.services.storage.enums.working_dir import WorkingDir
 
 
