@@ -10,6 +10,7 @@ from django.contrib.auth.models import AbstractUser
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.function import check_logs
+from api.domain.function.filter_logs import filter_logs_with_non_public_tags
 from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.access_policies.providers import ProviderAccessPolicy
@@ -38,9 +39,10 @@ class GetProviderJobLogsUseCase:
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        if not job.program.provider or not ProviderAccessPolicy.can_access(
-            user, job.program.provider
-        ):
+        if job.program.provider is None:
+            raise ForbiddenError(f"Job function is not a provider function")
+
+        if not ProviderAccessPolicy.can_access(user, job.program.provider):
             raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
         # Logs stored in COS. They are already filtered
@@ -58,8 +60,7 @@ class GetProviderJobLogsUseCase:
 
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
-            # TODO: goyo filter provider private
-            return logs
+            return filter_logs_with_non_public_tags(logs)
 
         # Legacy: Get from db.
         return job.logs
