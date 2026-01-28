@@ -56,17 +56,20 @@ class TestJobAccessPolicies(TestCase):
 
         self.assertTrue(JobAccessPolicies.can_access(admin_user, provider_job))
 
-    def test_can_read_result_returns_true_for_author(self):
-        """Test that can_read_result returns True for job author."""
+    def test_author_can_access_results_and_update_sub_status(self):
+        """Test that can_read_result, can_save_result and can_update_sub_status returns True for job author."""
         self.assertTrue(JobAccessPolicies.can_read_result(self.job_author, self.job))
         self.assertTrue(JobAccessPolicies.can_save_result(self.job_author, self.job))
-
-        self.assertFalse(JobAccessPolicies.can_read_result(self.other_user, self.job))
-        self.assertFalse(JobAccessPolicies.can_save_result(self.other_user, self.job))
 
         self.assertTrue(
             JobAccessPolicies.can_update_sub_status(self.job_author, self.job)
         )
+        
+    def test_non_author_cannot_access_results_and_update_sub_status(self):
+        """Test that can_read_result, can_save_result and can_update_sub_status returns False for non author."""
+        self.assertFalse(JobAccessPolicies.can_read_result(self.other_user, self.job))
+        self.assertFalse(JobAccessPolicies.can_save_result(self.other_user, self.job))
+
         self.assertFalse(
             JobAccessPolicies.can_update_sub_status(self.other_user, self.job)
         )
