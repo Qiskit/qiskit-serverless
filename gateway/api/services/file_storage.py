@@ -42,20 +42,20 @@ class FileStorage:
         function_title = function.title
         provider_name = function.provider.name if function.provider else None
 
-        self.sub_path = PathBuilder.sub_path(
-            working_dir=working_dir,
-            username=username,
-            function_title=function_title,
-            provider_name=provider_name,
-            extra_sub_path=None,
-        )
-        self.absolute_path = PathBuilder.absolute_path(
-            working_dir=working_dir,
-            username=username,
-            function_title=function_title,
-            provider_name=provider_name,
-            extra_sub_path=None,
-        )
+        if working_dir is WorkingDir.USER_STORAGE:
+            storage_path = PathBuilder.get_user_path(
+                username=username,
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+        else:  # PROVIDER_STORAGE
+            storage_path = PathBuilder.get_provider_path(
+                function_title=function_title,
+                provider_name=provider_name,
+            )
+
+        self.sub_path = storage_path.sub_path
+        self.absolute_path = storage_path.absolute_path
 
     def get_files(self) -> list[str]:
         """

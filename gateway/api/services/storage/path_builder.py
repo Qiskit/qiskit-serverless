@@ -4,14 +4,23 @@ Builder class to manage the different paths generated in the application
 
 import logging
 import os
-from typing import Optional
+from typing import Optional, NamedTuple
 
 from django.conf import settings
 
-from api.services.storage.enums.working_dir import WorkingDir
 from utils import sanitize_file_path
 
 logger = logging.getLogger("gateway")
+
+
+class StoragePath(NamedTuple):
+    """Immutable. Storage path information.
+    sub_path: Relative path within the storage system
+    absolute_path: Full absolute path on the filesystem. It can be used to read/write files.
+    """
+
+    sub_path: str
+    absolute_path: str
 
 
 class PathBuilder:
@@ -20,15 +29,14 @@ class PathBuilder:
     """
 
     @staticmethod
-    def __get_user_sub_path(
+    def get_user_path(
         username: str,
         function_title: str,
         provider_name: Optional[str],
-        extra_sub_path: Optional[str],
-    ) -> str:
+        extra_sub_path: Optional[str] = None,
+    ) -> StoragePath:
         """
-        This method returns the sub-path where the user or the function
-        will store files
+        Returns paths for user storage.
 
         Args:
             username (str): IBMiD of the user
@@ -40,10 +48,10 @@ class PathBuilder:
                 to introduce in the path
 
         Returns:
-            str: storage sub-path.
-                - In case the function is from a provider that sub-path would
+            StoragePath: storage paths.
+                - In case the function is from a provider that sub_path would
                     be: username/provider_name/function_title/{extra_sub_path}
-                - In case the function is from a user that path would
+                - In case the function is from a user that sub_path would
                     be: username/{extra_sub_path}
         """
         if provider_name is None:
@@ -54,15 +62,19 @@ class PathBuilder:
         if extra_sub_path is not None:
             path = os.path.join(path, extra_sub_path)
 
-        return sanitize_file_path(path)
+        sub_path = sanitize_file_path(path)
+        absolute_path = PathBuilder._create_absolute_path(sub_path)
+
+        return StoragePath(sub_path=sub_path, absolute_path=absolute_path)
 
     @staticmethod
-    def __get_provider_sub_path(
-        function_title: str, provider_name: str, extra_sub_path: Optional[str]
-    ) -> str:
+    def get_provider_path(
+        function_title: str,
+        provider_name: str,
+        extra_sub_path: Optional[str] = None,
+    ) -> StoragePath:
         """
-        This method returns the provider sub-path where the user
-        or the function will store files
+        Returns paths for provider storage.
 
         Args:
             function_title (str): in case the function is from a provider
@@ -73,92 +85,30 @@ class PathBuilder:
                 to introduce in the path
 
         Returns:
-            str: storage sub-path following the format provider_name/function_title/{extra_sub_path}
+            StoragePath: storage paths with sub_path following the format
+                provider_name/function_title/{extra_sub_path}
         """
         path = os.path.join(provider_name, function_title)
 
         if extra_sub_path is not None:
             path = os.path.join(path, extra_sub_path)
 
-        return sanitize_file_path(path)
+        sub_path = sanitize_file_path(path)
+        absolute_path = PathBuilder._create_absolute_path(sub_path)
+
+        return StoragePath(sub_path=sub_path, absolute_path=absolute_path)
 
     @staticmethod
-    def sub_path(
-        working_dir: WorkingDir,
-        username: str,
-        function_title: str,
-        provider_name: Optional[str],
-        extra_sub_path: Optional[str],
-    ):
+    def _create_absolute_path(sub_path: str) -> str:
         """
-        This method returns the relative path for the required interaction.
+        Creates the absolute path from a sub_path and ensures the directory exists.
 
         Args:
-            working_dir (WorkingDir): configuration for the generation of
-                the directory
-            username (str): IBMiD of the user
-            function_title (str): in case the function is from a provider
-                it will identify the function folder
-            provider_name (str): in case a provider is provided
-                it will identify the folder for the specific function
-            extra_sub_path (str | None): any additional subpath that we want
-                to introduce in the path
+            sub_path (str): the relative sub-path
 
         Returns:
-            str: storage relative path.
+            str: the absolute path on the filesystem
         """
-
-        sub_path = None
-        if working_dir is WorkingDir.USER_STORAGE:
-            sub_path = PathBuilder.__get_user_sub_path(
-                username=username,
-                function_title=function_title,
-                provider_name=provider_name,
-                extra_sub_path=extra_sub_path,
-            )
-        elif working_dir is WorkingDir.PROVIDER_STORAGE:
-            sub_path = PathBuilder.__get_provider_sub_path(
-                function_title=function_title,
-                provider_name=provider_name,
-                extra_sub_path=extra_sub_path,
-            )
-
-        return sub_path
-
-    @staticmethod
-    def absolute_path(
-        working_dir: WorkingDir,
-        username: str,
-        function_title: str,
-        provider_name: Optional[str],
-        extra_sub_path: Optional[str],
-    ) -> str:
-        """
-        This method returns the aboslute path for the required interaction
-        and it creates it if it doesn't exist.
-
-        Args:
-            working_dir (WorkingDir): configuration for the generation of
-                the directory
-            username (str): IBMiD of the user
-            function_title (str): in case the function is from a provider
-                it will identify the function folder
-            provider_name (str): in case a provider is provided
-                it will identify the folder for the specific function
-            extra_sub_path (str | None): any additional subpath that we want
-                to introduce in the path
-
-        Returns:
-            str: storage relative path.
-        """
-
-        sub_path = PathBuilder.sub_path(
-            working_dir=working_dir,
-            username=username,
-            function_title=function_title,
-            provider_name=provider_name,
-            extra_sub_path=extra_sub_path,
-        )
         path = os.path.join(settings.MEDIA_ROOT, sub_path)
         sanitized_path = sanitize_file_path(path)
 
