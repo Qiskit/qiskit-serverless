@@ -64,7 +64,7 @@ class TestJobAccessPolicies(TestCase):
         self.assertTrue(
             JobAccessPolicies.can_update_sub_status(self.job_author, self.job)
         )
-        
+
     def test_non_author_cannot_access_results_and_update_sub_status(self):
         """Test that can_read_result, can_save_result and can_update_sub_status returns False for non author."""
         self.assertFalse(JobAccessPolicies.can_read_result(self.other_user, self.job))
