@@ -4,12 +4,11 @@ Use case for saving job results.
 
 from uuid import UUID
 import logging
-import json
 from django.contrib.auth.models import AbstractUser
 from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.access_policies.jobs import JobAccessPolicies
-from api.services.result_storage import ResultStorage
+from api.services.storage.result_storage import ResultStorage
 from api.models import Job
 
 logger = logging.getLogger("gateway.use_cases.jobs")

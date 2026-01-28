@@ -11,7 +11,7 @@ import logging
 from typing import Tuple, Union
 from django.conf import settings
 from rest_framework import serializers
-from api.services.arguments_storage import ArgumentsStorage
+from api.services.storage.arguments_storage import ArgumentsStorage
 
 from api.repositories.functions import FunctionRepository
 from api.repositories.users import UserRepository
@@ -299,7 +299,10 @@ class RunJobSerializer(serializers.ModelSerializer):
             )
         )
 
-        arguments_storage = ArgumentsStorage(author.username, program)
+        provider_name = program.provider.name if program.provider else None
+        arguments_storage = ArgumentsStorage(
+            author.username, program.title, provider_name
+        )
         arguments_storage.save(job.id, arguments)
 
         try:
