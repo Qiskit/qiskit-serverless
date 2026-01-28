@@ -20,7 +20,7 @@ class TestJobAccessPolicies(TestCase):
 
         self.other_user = User.objects.create_user(username="who knows")
 
-    def test_can_access_raises_if_user_is_none(self):
+    def test_can_access_validates_parameters(self):
         """ValueError when user is None, author or job is None."""
         with self.assertRaises(ValueError):
             JobAccessPolicies.can_access(None, self.job)
