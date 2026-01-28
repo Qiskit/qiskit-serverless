@@ -27,9 +27,11 @@ class ProviderAccessPolicy:
         Returns:
             bool: True or False in case the user has access
         """
+        if provider is None:
+            raise ValueError("provider cannot be None")
 
         user_groups = set(user.groups.all())
-        admin_groups = set(provider.admin_groups.all() if provider else [])
+        admin_groups = set(provider.admin_groups.all())
         user_is_admin = bool(user_groups.intersection(admin_groups))
         if not user_is_admin:
             logger.warning(
