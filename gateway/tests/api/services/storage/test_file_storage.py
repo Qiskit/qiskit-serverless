@@ -4,6 +4,7 @@ import os
 import tempfile
 from unittest.mock import MagicMock
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from api.services.storage.file_storage import FileStorage
@@ -71,3 +72,28 @@ class TestFileStorage(TestCase):
         self.assertEqual(storage.sub_path, "provider1/myfun")
         self.assertEqual(storage.absolute_path, f"{temp_dir}/provider1/myfun")
         self.assertTrue(os.path.exists(storage.absolute_path))
+
+        # Upload a file
+        file_content = b"functions are cool"
+        uploaded_file = SimpleUploadedFile("test.txt", file_content)
+        path = storage.upload_file(uploaded_file)
+        self.assertTrue(os.path.exists(path))
+
+        # Get the file
+        result = storage.get_file("test.txt")
+        self.assertIsNotNone(result)
+        file_wrapper, file_type, size = result
+        print("File Type" + file_type)
+        self.assertEqual(file_type, "text/plain")
+        self.assertEqual(size, len(file_content))
+
+        # List one file
+        self.assertEqual(storage.get_files(), ["test.txt"])
+
+        # Remove the file
+        removed = storage.remove_file("test.txt")
+        self.assertTrue(removed)
+        self.assertFalse(os.path.exists(path))
+
+        # Now the list has no files
+        self.assertEqual(storage.get_files(), [])

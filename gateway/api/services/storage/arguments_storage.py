@@ -20,7 +20,7 @@ class ArgumentsStorage:
     ENCODING = "utf-8"
 
     def __init__(
-        self, username: str, function_title: str, provider_name: Optional[str]
+        self, username: str, function_title: str, provider_name: Optional[str] = None
     ):
         ### In this case arguments are always stored in user folder
         self.sub_path = PathBuilder.sub_path(
