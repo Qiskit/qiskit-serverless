@@ -8,7 +8,6 @@ from django.contrib.auth.models import Group
 
 from api.models import Provider
 
-
 logger = logging.getLogger("gateway")
 
 

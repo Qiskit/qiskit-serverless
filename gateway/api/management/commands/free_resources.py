@@ -8,7 +8,6 @@ from django.core.management.base import BaseCommand
 from api.models import ComputeResource, Job
 from api.ray import kill_ray_cluster
 
-
 logger = logging.getLogger("commands")
 
 
@@ -21,13 +20,6 @@ class Command(BaseCommand):
         if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
             logger.debug(
                 "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
-                "so compute resources will not be removed.",
-            )
-            return
-
-        if settings.RAY_CLUSTER_MODE.get("local"):
-            logger.debug(
-                "RAY_CLUSTER_MODE is local, "
                 "so compute resources will not be removed.",
             )
             return
@@ -45,7 +37,7 @@ class Command(BaseCommand):
             if not there_are_alive_jobs:
                 self.remove_compute_resource(compute_resource)
 
-    def remove_compute_resource(self, compute_resource):
+    def remove_compute_resource(self, compute_resource: ComputeResource):
         """
         This method removes a Compute Resource if it's
         available in the cluster.
@@ -78,8 +70,9 @@ class Command(BaseCommand):
                 compute_resource.active = False
                 compute_resource.save()
                 logger.info(
-                    "[%s] Cluster [%s] is free after usage from [%s]",
+                    "[%s] Cluster [%s] is free after usage from [%s]. JobID [%s]",
                     "GPU" if is_gpu else "Classical",
                     compute_resource.title,
                     compute_resource.owner,
+                    terminated_job.id,
                 )

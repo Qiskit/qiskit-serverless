@@ -5,7 +5,6 @@ Access policies implementation for Users access
 import logging
 from django.contrib.auth.models import AbstractUser
 
-
 logger = logging.getLogger("gateway")
 
 
