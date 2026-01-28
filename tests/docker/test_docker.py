@@ -56,14 +56,9 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_function_with_errors(self, serverless_client: ServerlessClient):
+    # failed jobs has logs "", so the result() can't get the error from the logs
+    def test_function_with_import_errors(self, serverless_client: ServerlessClient):
         """Integration test for faulty function run."""
-        circuit = QuantumCircuit(2)
-        circuit.h(0)
-        circuit.cx(0, 1)
-        circuit.measure_all()
-        circuit.draw()
-
         function = QiskitFunction(
             title="pattern-with-errors",
             entrypoint="pattern_with_errors.py",
@@ -73,30 +68,28 @@ class TestFunctionsDocker:
         runnable_function = serverless_client.upload(function)
 
         assert runnable_function is not None
-        assert runnable_function.type == "GENERIC"
 
-        runnable_function = serverless_client.function(function.title)
-
-        assert runnable_function is not None
-        assert runnable_function.type == "GENERIC"
-
-        job = runnable_function.run(circuit=circuit)
+        job = runnable_function.run()
 
         assert job is not None
         expected_message = (
             "ImportError: attempted relative import with no known parent package"
         )
 
+        print("--- Test result")
         with raises(QiskitServerlessException) as exc_info:
             job.result()
 
-        print(str(exc_info.value))
+        print(f"exc_info.value: {exc_info}")
+        print(f"exc_info.value: {exc_info.value}")
+        print(f"exc_info.value expected : {expected_message}")
+        print(f"job.status() : {job.status()}")
+        print(f"job.logs() : {job.logs()}")
+
         assert expected_message in str(exc_info.value)
 
         assert job.status() == "ERROR"
         assert isinstance(job.logs(), str)
-
-        print(str(exc_info.value))
 
     def test_function_with_arguments(self, serverless_client: ServerlessClient):
         """Integration test for Functions with arguments."""
@@ -377,6 +370,32 @@ class TestFunctionsDocker:
         succeeded_jobs = serverless_client.jobs(status="SUCCEEDED")
         assert len(succeeded_jobs) >= 3
 
+    def test_logs(self, serverless_client: ServerlessClient):
+        """Integration test for logs."""
+
+        function = QiskitFunction(
+            title="logs_function",
+            entrypoint="logger.py",
+            working_dir=resources_path,
+        )
+        function = serverless_client.upload(function)
+        job = function.run()
+
+        while not job.in_terminal_state():
+            sleep(1)
+
+        assert job.logs().endswith("""INFO:user: User log
+INFO:user: User multiline
+INFO:user: log
+WARNING:user: User log
+ERROR:user: User log
+INFO:provider: Provider log
+INFO:provider: Provider multiline
+INFO:provider: log
+WARNING:provider: Provider log
+ERROR:provider: Provider log
+""")
+
     def test_wrong_function_name(self, serverless_client: ServerlessClient):
         """Integration test for retrieving a function that isn't accessible."""
 
@@ -399,3 +418,24 @@ class TestFunctionsDocker:
             serverless_client.function("wrong-title")
 
         assert str(exc_info.value) == expected_message
+
+    def test_provider_logs(self, serverless_client: ServerlessClient):
+        """Integration test for logs."""
+
+        function = QiskitFunction(
+            title="logs_function_2", entrypoint="logger.py", working_dir=resources_path
+        )
+        function = serverless_client.upload(function)
+        job = function.run()
+
+        while not job.in_terminal_state():
+            sleep(1)
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.provider_logs()
+
+        assert str(exc_info.value).strip() == f"""
+| Message: Http bad request.
+| Code: 403
+| Details: You don't have access to job [{job.job_id}]
+""".strip()

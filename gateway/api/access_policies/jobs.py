@@ -75,6 +75,33 @@ class JobAccessPolicies:
         return has_access
 
     @staticmethod
+    def can_read_logs(user: AbstractUser, job: Job) -> bool:
+        """
+        Checks if the user has permissions to read the result of a job:
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        if user.id == job.author.id:
+            return True
+
+        has_access = False
+        if job.program and job.program.provider:
+            has_access = ProviderAccessPolicy.can_access(user, job.program.provider)
+        if not has_access:
+            logger.warning(
+                "User [%s] has no access to read the result of the job [%s].",
+                user.username,
+                job.author,
+            )
+        return has_access
+
+    @staticmethod
     def can_save_result(user: AbstractUser, job: Job) -> bool:
         """
         Checks if the user has permissions to save the result of a job:

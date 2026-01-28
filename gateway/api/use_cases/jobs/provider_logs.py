@@ -7,20 +7,16 @@ from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 
-from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.function import check_logs
-from api.domain.function.filter_logs import (
-    log_filter_provider_job_public,
-    log_filter_user_job,
-)
 from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
+from api.access_policies.providers import ProviderAccessPolicy
 from api.services.storage.logs_storage import LogsStorage
 
 
-class GetJobLogsUseCase:
+class GetProviderJobLogsUseCase:
     """Use case for retrieving job logs."""
 
     jobs_repository = JobsRepository()
@@ -42,12 +38,14 @@ class GetJobLogsUseCase:
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        if not JobAccessPolicies.can_read_logs(user, job):
+        if not job.program.provider or not ProviderAccessPolicy.can_access(
+            user, job.program.provider
+        ):
             raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
         # Logs stored in COS. They are already filtered
         logs_storage = LogsStorage(job)
-        logs = logs_storage.get_public_logs()
+        logs = logs_storage.get_private_logs()
         if logs:
             return logs
 
@@ -60,17 +58,8 @@ class GetJobLogsUseCase:
 
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
-            if job.program.provider:
-                # Public logs from a provider job
-                return log_filter_provider_job_public(logs)
-
-            # Public logs from a user job
-            return log_filter_user_job(logs)
+            # TODO: goyo filter provider private
+            return logs
 
         # Legacy: Get from db.
-        if job.program.provider:
-            # Public logs from a provider job
-            return "No logs available."
-        else:
-            # Public logs from a user job
-            return job.logs
+        return job.logs
