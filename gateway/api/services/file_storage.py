@@ -12,7 +12,6 @@ from api.services.storage import WorkingDir
 from api.services.storage.path_builder import PathBuilder
 from utils import sanitize_file_path
 
-
 logger = logging.getLogger("gateway")
 
 
