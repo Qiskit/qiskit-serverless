@@ -228,6 +228,12 @@ Internal system log
 INFO:user: Another public log
 INFO:user: Final public log
 """
+                expected_provider_logs = """
+
+INFO:provider: Private log for provider only
+Internal system log
+WARNING:provider: Private warning
+"""
 
                 with open(user_log_file_path, "r", encoding="utf-8") as log_file:
                     saved_user_logs = log_file.read()
@@ -244,7 +250,7 @@ INFO:user: Final public log
 
                 with open(provider_log_file_path, "r", encoding="utf-8") as log_file:
                     saved_provider_logs = log_file.read()
-                self.assertEqual(saved_provider_logs, full_logs)
+                self.assertEqual(saved_provider_logs, expected_provider_logs)
 
     def _create_test_job(
         self,

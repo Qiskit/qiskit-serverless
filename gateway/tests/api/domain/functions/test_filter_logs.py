@@ -3,8 +3,8 @@
 from rest_framework.test import APITestCase
 
 from api.domain.function.filter_logs import (
-    log_filter_provider_job_public,
-    log_filter_user_job,
+    filter_logs_with_public_tags,
+    remove_prefix_tags_in_logs,
 )
 
 
@@ -47,7 +47,7 @@ sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Backend = {
 sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Starting
 """
 
-        output_log = log_filter_provider_job_public(log)
+        output_log = filter_logs_with_public_tags(log)
 
         self.assertEquals(output_log, expected_output)
 
@@ -72,6 +72,6 @@ Another private line
 Regular print statement
 """
 
-        output_log = log_filter_user_job(log)
+        output_log = remove_prefix_tags_in_logs(log)
 
         self.assertEquals(output_log, expected_output)

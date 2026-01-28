@@ -8,8 +8,9 @@ from django.core.management.base import BaseCommand
 
 from api.domain.function import check_logs
 from api.domain.function.filter_logs import (
-    log_filter_provider_job_public,
-    log_filter_user_job,
+    filter_logs_with_non_public_tags,
+    filter_logs_with_public_tags,
+    remove_prefix_tags_in_logs,
 )
 from api.models import Job
 from api.ray import get_job_handler, JobHandler
@@ -107,11 +108,12 @@ def save_logs_to_storage(job: Job, job_handler: JobHandler):
 
     logs_storage = LogsStorage(job)
     if job.program.provider:
-        public_logs = log_filter_provider_job_public(logs)
+        public_logs = filter_logs_with_public_tags(logs)
         logs_storage.save_public_logs(public_logs)
-        logs_storage.save_private_logs(logs)
+        private_logs = filter_logs_with_non_public_tags(logs)
+        logs_storage.save_private_logs(private_logs)
     else:
-        filtered_logs = log_filter_user_job(logs)
+        filtered_logs = remove_prefix_tags_in_logs(logs)
         logs_storage.save_public_logs(filtered_logs)
 
     logger.info("Logs saved to storage for job [%s]", job.id)

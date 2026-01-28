@@ -193,12 +193,7 @@ Unprefixed message
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        # Provider jobs /logs: only [PUBLIC] lines, prefix removed
-        expected_logs = """Public message
-Another public message
-"""
-        self.assertEqual(jobs_response.data.get("logs"), expected_logs)
+        self.assertEqual(jobs_response.status_code, HTTP_403_FORBIDDEN)
 
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
@@ -270,12 +265,7 @@ Internal system log
             format="json",
         )
 
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        expected_user_logs = """INFO:user: Public log for user
-INFO:user: Another public log
-INFO:user: Final public log
-"""
-        self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
+        self.assertEqual(jobs_response.status_code, HTTP_403_FORBIDDEN)
 
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_db(self, logs_storage_get_mock):
@@ -296,25 +286,6 @@ INFO:user: Final public log
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), "log from db")
-
-    @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
-    def test_job_logs_not_found_empty(self, logs_storage_get_mock):
-        """Tests /logs with provider job, no logs available."""
-        logs_storage_get_mock.return_value = None
-
-        job = create_job(author="author", provider_admin="provider_admin")
-        # this is needed so that it looks like the job has finished
-        job.compute_resource = None
-        job.save()
-
-        self._authorize("provider_admin")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
-        )
-
-        self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "No logs available.")
 
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
@@ -350,6 +321,10 @@ Unprefixed message
 
 [PUBLIC] Another public message
 """
+        expected_provider_logs = """Private message
+Unprefixed message
+
+"""
 
         job = create_job(author="author", provider_admin="provider_admin")
 
@@ -371,7 +346,7 @@ Unprefixed message
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         # /provider-logs returns all logs unfiltered (with prefixes)
-        self.assertEqual(jobs_response.data.get("logs"), full_logs)
+        self.assertEqual(jobs_response.data.get("logs"), expected_provider_logs)
 
     @patch("api.use_cases.jobs.provider_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
@@ -390,6 +365,12 @@ Internal system log
 [PRIVATE] WARNING:provider: Private warning
 [PUBLIC] INFO:user: Final public log
 """
+        expected_provider_logs = """
+
+INFO:provider: Private log for provider only
+Internal system log
+WARNING:provider: Private warning
+"""
 
         job_handler_mock = Mock()
         job_handler_mock.logs.return_value = full_logs
@@ -405,7 +386,7 @@ Internal system log
         )
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), full_logs)
+        self.assertEqual(jobs_response.data.get("logs"), expected_provider_logs)
 
     @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
     def test_job_provider_logs_in_db(self, logs_storage_get_mock):

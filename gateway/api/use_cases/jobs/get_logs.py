@@ -12,8 +12,8 @@ from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.function import check_logs
 from api.domain.function.filter_logs import (
-    log_filter_provider_job_public,
-    log_filter_user_job,
+    filter_logs_with_public_tags,
+    remove_prefix_tags_in_logs,
 )
 from api.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
@@ -43,7 +43,9 @@ class GetJobLogsUseCase:
             raise NotFoundError(f"Job [{job_id}] not found")
 
         if not JobAccessPolicies.can_read_logs(user, job):
-            raise ForbiddenError(f"You don't have access to job [{job_id}]")
+            raise ForbiddenError(
+                f"You don't have access to read user logs of the job [{job_id}]"
+            )
 
         # Logs stored in COS. They are already filtered
         logs_storage = LogsStorage(job)
@@ -62,15 +64,15 @@ class GetJobLogsUseCase:
             logs = check_logs(logs, job)
             if job.program.provider:
                 # Public logs from a provider job
-                return log_filter_provider_job_public(logs)
+                return filter_logs_with_public_tags(logs)
 
             # Public logs from a user job
-            return log_filter_user_job(logs)
+            return remove_prefix_tags_in_logs(logs)
 
         # Legacy: Get from db.
         if job.program.provider:
             # Public logs from a provider job
             return "No logs available."
-        else:
-            # Public logs from a user job
-            return job.logs
+
+        # Public logs from a user job
+        return job.logs
