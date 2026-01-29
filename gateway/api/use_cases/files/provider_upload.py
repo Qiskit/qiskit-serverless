@@ -6,7 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.files import File
 from api.access_policies.providers import ProviderAccessPolicy
 from api.repositories.providers import ProviderRepository
-from core.services.file_storage import FileStorage, WorkingDir
+from core.services.storage.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 

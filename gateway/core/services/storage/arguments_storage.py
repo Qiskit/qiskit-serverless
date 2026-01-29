@@ -6,8 +6,8 @@ import logging
 import os
 from typing import Optional
 
-from api.services.storage.path_builder import PathBuilder
-from api.services.storage.enums.working_dir import WorkingDir
+from core.services.storage.path_builder import PathBuilder
+from core.services.storage.enums.working_dir import WorkingDir
 
 logger = logging.getLogger("gateway")
 
