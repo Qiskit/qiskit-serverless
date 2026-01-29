@@ -3,6 +3,7 @@
 import logging
 
 from concurrency.exceptions import RecordModifiedError
+from api.models import Job
 
 from core.services.ray import get_job_handler
 from core.utils import check_logs, ray_job_status_to_model_job_status
@@ -23,8 +24,6 @@ def update_job_status(job):
     Returns:
         bool: True if status changed, False otherwise
     """
-    # Import here to avoid circular dependency
-    from api.models import Job
 
     if not job.compute_resource:
         logger.warning(
