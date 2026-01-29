@@ -58,7 +58,7 @@ class TestJobLogsPermissions:
             ("v1:jobs-logs", "author", None, HTTP_200_OK),
             ("v1:jobs-logs", "other_user", None, HTTP_403_FORBIDDEN),
             ("v1:jobs-logs", "author", "provider", HTTP_200_OK),
-            ("v1:jobs-logs", "provider", "provider", HTTP_200_OK),
+            ("v1:jobs-logs", "provider", "provider", HTTP_403_FORBIDDEN),
             ("v1:jobs-logs", "other_user", "provider", HTTP_403_FORBIDDEN),
             ("v1:jobs-provider-logs", "author", None, HTTP_403_FORBIDDEN),
             ("v1:jobs-provider-logs", "other_user", None, HTTP_403_FORBIDDEN),
@@ -110,15 +110,16 @@ class TestJobLogsCoverage(BaseJobLogsTest):
     Source              | /logs                                | /provider-logs
     --------------------|--------------------------------------|---------------------------------
     COS (user job)      | test_job_logs_in_storage_user_job    | (*)
-    COS (provider job)  | test_job_logs_in_storage_provider_job| test_job_provider_logs_in_storage
+    COS (provider job)  | (**)                                 | test_job_provider_logs_in_storage
     Ray (user job)      | test_job_logs_in_ray                 | (*)
-    Ray (provider job)  | test_job_logs_in_ray_with_provider   | test_job_provider_logs_in_ray
+    Ray (provider job)  | (**)                                 | test_job_provider_logs_in_ray
     DB legacy (user)    | test_job_logs_in_db                  | (*)
-    DB legacy (provider)| test_job_logs_not_found_empty        | test_job_provider_logs_in_db
-    No logs (provider)  | (same as DB legacy)                  | test_job_provider_logs_not_found_empty
+    DB legacy (provider)| (**)                                 | test_job_provider_logs_in_db
+    No logs (provider)  | (**)                                 | test_job_provider_logs_not_found_empty
     Ray error           | test_job_logs_error                  | test_job_provider_logs_error
 
     (*) /provider-logs always returns 403 for user jobs (no provider)
+    (**) /logs always returns 403 for providers.
     """
 
     @patch("api.management.commands.update_jobs_statuses.get_job_handler")
@@ -161,40 +162,6 @@ Unprefixed message
 """
         self.assertEqual(jobs_response.data.get("logs"), expected_logs)
 
-    @patch("api.management.commands.update_jobs_statuses.get_job_handler")
-    def test_job_logs_in_storage_provider_job(self, get_job_handler_mock):
-        """Tests /logs with provider job from COS.
-
-        For provider jobs, only [PUBLIC] lines are shown (prefix removed).
-        [PRIVATE] and unprefixed logs are hidden.
-        """
-        job = create_job(author="author", provider_admin="provider_admin")
-
-        # Mock Ray to return logs with all types
-        full_logs = """
-[PUBLIC] Public message
-[PRIVATE] Private message
-Unprefixed message
-
-[PUBLIC] Another public message
-"""
-        ray_client = Mock()
-        ray_client.get_job_status.return_value = JobStatus.SUCCEEDED
-        ray_client.get_job_logs.return_value = full_logs
-        get_job_handler_mock.return_value = JobHandler(ray_client)
-
-        # Execute update_jobs_statuses to detect terminal state and save logs
-        call_command("update_jobs_statuses")
-
-        # Call endpoint and verify logs are retrieved from storage
-        self._authorize("provider_admin")
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
-        )
-
-        self.assertEqual(jobs_response.status_code, HTTP_403_FORBIDDEN)
-
     @patch("api.use_cases.jobs.get_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_ray(self, logs_storage_get_mock, get_job_handler_mock):
@@ -233,39 +200,6 @@ INFO:user: Final public log
 
         self.assertEqual(jobs_response.status_code, HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("logs"), expected_user_logs)
-
-    @patch("api.use_cases.jobs.get_logs.get_job_handler")
-    @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
-    def test_job_logs_in_ray_with_provider(
-        self, logs_storage_get_mock, get_job_handler_mock
-    ):
-        """Tests /logs with provider job from Ray."""
-        logs_storage_get_mock.return_value = None
-
-        full_logs = """
-[PUBLIC] INFO:user: Public log for user
-
-[PRIVATE] INFO:provider: Private log for provider only
-[PUBLIC] INFO:user: Another public log
-Internal system log
-[PRIVATE] WARNING:provider: Private warning
-[PUBLIC] INFO:user: Final public log
-"""
-
-        job_handler_mock = Mock()
-        job_handler_mock.logs.return_value = full_logs
-        get_job_handler_mock.return_value = job_handler_mock
-
-        job = create_job(author="author", provider_admin="provider_admin")
-
-        self._authorize("provider_admin")
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=[str(job.id)]),
-            format="json",
-        )
-
-        self.assertEqual(jobs_response.status_code, HTTP_403_FORBIDDEN)
 
     @patch("api.services.storage.logs_storage.LogsStorage.get_public_logs")
     def test_job_logs_in_db(self, logs_storage_get_mock):

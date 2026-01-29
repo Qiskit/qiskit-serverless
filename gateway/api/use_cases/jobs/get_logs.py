@@ -42,7 +42,7 @@ class GetJobLogsUseCase:
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        if not JobAccessPolicies.can_read_logs(user, job):
+        if not JobAccessPolicies.can_read_user_logs(user, job):
             raise ForbiddenError(
                 f"You don't have access to read user logs of the job [{job_id}]"
             )

@@ -7,6 +7,7 @@ from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 
+from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.function import check_logs
@@ -39,10 +40,7 @@ class GetProviderJobLogsUseCase:
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        if job.program.provider is None:
-            raise ForbiddenError(f"Job function is not a provider function")
-
-        if not ProviderAccessPolicy.can_access(user, job.program.provider):
+        if not JobAccessPolicies.can_read_provider_logs(user, job):
             raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
         # Logs stored in COS. They are already filtered
