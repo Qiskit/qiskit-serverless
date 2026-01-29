@@ -10,8 +10,8 @@ from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.models import Job
 from api.repositories.jobs import JobsRepository
-from api.utils import retry_function
-from scheduler.management.commands.update_jobs_statuses import update_job_status
+from core.utils import retry_function
+from core.services.job_status import update_job_status
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 

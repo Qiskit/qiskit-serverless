@@ -23,13 +23,13 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from api.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
-from api.services.file_storage import FileStorage, WorkingDir
-from api.utils import (
+from core.services.file_storage import FileStorage, WorkingDir
+from core.utils import (
     retry_function,
     decrypt_env_vars,
     generate_cluster_name,
+    sanitize_file_path,
 )
-from core.utils import sanitize_file_path
 
 logger = logging.getLogger("commands")
 
