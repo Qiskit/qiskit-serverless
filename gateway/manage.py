@@ -41,6 +41,7 @@ def main():
         trace._set_tracer_provider(
             provider, log=False
         )  # pylint: disable=protected-access
+
     execute_from_command_line(sys.argv)
 
 

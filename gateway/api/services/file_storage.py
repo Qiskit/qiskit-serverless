@@ -14,7 +14,7 @@ from django.conf import settings
 from django.core.files import File
 
 from api.models import Program
-from utils import sanitize_file_path
+from core.utils import sanitize_file_path
 
 
 class WorkingDir(Enum):
