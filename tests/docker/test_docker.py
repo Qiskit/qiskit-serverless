@@ -76,15 +76,8 @@ class TestFunctionsDocker:
             "ImportError: attempted relative import with no known parent package"
         )
 
-        print("--- Test result")
         with raises(QiskitServerlessException) as exc_info:
             job.result()
-
-        print(f"exc_info.value: {exc_info}")
-        print(f"exc_info.value: {exc_info.value}")
-        print(f"exc_info.value expected : {expected_message}")
-        print(f"job.status() : {job.status()}")
-        print(f"job.logs() : {job.logs()}")
 
         assert expected_message in str(exc_info.value)
 

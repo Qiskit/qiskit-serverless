@@ -28,7 +28,6 @@ def check_logs(logs: Union[str, None], job: Job) -> str:
     if job.status == Job.FAILED and not logs:
         logs = f"Job {job.id} failed due to an internal error."
         logger.warning("Job %s failed due to an internal error.", job.id)
-        print(f"Job {job.id} failed due to an internal error.")
 
         return logs
 
