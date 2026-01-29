@@ -83,6 +83,7 @@ class TestFileStorage(TestCase):
         result = storage.get_file("test.txt")
         self.assertIsNotNone(result)
         file_wrapper, file_type, size = result
+        print("File Type" + file_type)
         self.assertEqual(file_type, "text/plain")
         self.assertEqual(size, len(file_content))
 
