@@ -10,6 +10,7 @@ from django.contrib.auth.models import User, Group
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from api.services.storage.result_storage import ResultStorage
 
 from api.models import Job, Program, Provider, RuntimeJob
 
@@ -365,7 +366,6 @@ class TestJobApi(APITestCase):
         but this test validates the correct behavior if permissions change in
         the future to allow provider admins to read results.
         """
-        from api.services.result_storage import ResultStorage
 
         shutil.copytree(self._fake_media_path, self.MEDIA_ROOT, dirs_exist_ok=True)
 
@@ -428,8 +428,6 @@ class TestJobApi(APITestCase):
         but this test validates the correct behavior if permissions change in
         the future to allow other users (e.g., system processes) to save results.
         """
-        from api.services.result_storage import ResultStorage
-
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             # Get a job created by test_user (author=1)
             job = Job.objects.get(pk="57fc2e4d-267f-40c6-91a3-38153272e764")

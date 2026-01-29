@@ -12,7 +12,7 @@ from wsgiref.util import FileWrapper
 from django.core.files import File
 
 from api.models import Program
-from api.services.storage import WorkingDir
+from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.path_builder import PathBuilder
 from utils import sanitize_file_path
 
@@ -113,7 +113,7 @@ class FileStorage:
 
     def upload_file(self, file: File) -> str:
         """
-        This method upload a file to the specific path:
+        This method uploads a file to the specific path:
             - Only files with supported extensions are available to download
             - It returns only a file from a user or a provider file storage
 
