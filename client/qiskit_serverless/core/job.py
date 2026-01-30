@@ -105,7 +105,7 @@ class JobService(ABC):
 
     @abstractmethod
     def provider_logs(self, job_id: str) -> str:
-        """Return logs."""
+        """Return provider logs."""
 
     @abstractmethod
     def runtime_jobs(
