@@ -15,7 +15,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from api import serializers as api_serializers
-from api.models import Job
+from core.models import Job
 from api.use_cases.jobs.save_result import JobSaveResultUseCase
 from api.v1.endpoint_decorator import endpoint
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions

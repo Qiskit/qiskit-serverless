@@ -6,7 +6,7 @@ import logging
 from typing import List, Optional
 from django.contrib.auth.models import Group
 
-from api.models import Provider
+from core.models import Provider
 
 logger = logging.getLogger("gateway")
 

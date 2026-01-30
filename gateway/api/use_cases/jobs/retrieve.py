@@ -4,7 +4,7 @@ import logging
 from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 from api.domain.exceptions.not_found_error import NotFoundError
-from api.models import Job
+from core.models import Job
 from api.repositories.jobs import JobsRepository
 from api.access_policies.jobs import JobAccessPolicies
 from core.services.storage.result_storage import ResultStorage

@@ -16,7 +16,7 @@ from api.v1.serializers import (
     RunProgramSerializer,
     RunJobSerializer,
 )
-from api.models import JobConfig, Program
+from core.models import JobConfig, Program
 
 
 @override_settings(

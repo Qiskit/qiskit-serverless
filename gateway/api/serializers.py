@@ -17,7 +17,7 @@ from api.repositories.functions import FunctionRepository
 from api.repositories.users import UserRepository
 from api.utils import build_env_variables, sanitize_name
 from core.utils import encrypt_env_vars
-from .models import (
+from core.models import (
     Provider,
     Program,
     Job,

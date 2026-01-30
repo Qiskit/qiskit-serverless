@@ -195,7 +195,7 @@ def generate_cluster_name(username: str) -> str:
 def ray_job_status_to_model_job_status(ray_job_status):
     """Maps ray job status to model job status."""
     # Import here to avoid circular dependency
-    from api.models import Job
+    from core.models import Job
 
     mapping = {
         JobStatus.PENDING: Job.PENDING,
@@ -242,7 +242,7 @@ def check_logs(logs: Union[str, None], job) -> str:
         logs with error message and metadata.
     """
     # Import here to avoid circular dependency
-    from api.models import Job
+    from core.models import Job
 
     if job.status == Job.FAILED and not logs:
         logs = f"Job {job.id} failed due to an internal error."

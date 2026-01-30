@@ -28,7 +28,7 @@ from api.serializers import (
     RunProgramSerializer,
     UploadProgramSerializer,
 )
-from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
+from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
 from api.views.enums.type_filter import TypeFilter
 from api.decorators.trace_decorator import trace_decorator_factory
 

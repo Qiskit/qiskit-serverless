@@ -7,7 +7,7 @@ from django.contrib.auth.models import AbstractUser
 from rest_framework import exceptions
 
 from api.access_policies.users import UserAccessPolicies
-from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
+from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 from api.repositories.providers import ProviderRepository
 from api.repositories.users import UserRepository
 from api.services.authentication.authentication_base import AuthenticationBase

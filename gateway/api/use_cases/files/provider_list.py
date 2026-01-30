@@ -9,7 +9,7 @@ from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 
-from api.models import RUN_PROGRAM_PERMISSION
+from core.models import RUN_PROGRAM_PERMISSION
 
 logger = logging.getLogger("gateway.use_cases.files")
 

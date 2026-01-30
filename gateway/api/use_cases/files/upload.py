@@ -8,7 +8,7 @@ from core.services.storage.file_storage import FileStorage, WorkingDir
 from api.repositories.functions import FunctionRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 
-from api.models import RUN_PROGRAM_PERMISSION
+from core.models import RUN_PROGRAM_PERMISSION
 
 logger = logging.getLogger("gateway.use_cases.files")
 

@@ -11,7 +11,7 @@ from packaging.requirements import Requirement
 import objsize
 
 from api.domain.authentication.channel import Channel
-from api.models import Job
+from core.models import Job
 
 logger = logging.getLogger("utils")
 
