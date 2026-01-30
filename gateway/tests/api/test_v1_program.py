@@ -5,14 +5,13 @@ import os
 import tempfile
 
 from django.contrib.auth import models
-from django.contrib.auth.models import Group, Permission
 from django.core.files.base import ContentFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from api.models import Job, Program
-from api.services.arguments_storage import ArgumentsStorage
+from api.services.storage.arguments_storage import ArgumentsStorage
 
 
 class TestProgramApi(APITestCase):
@@ -151,7 +150,7 @@ class TestProgramApi(APITestCase):
             self.assertEqual(job.config.auto_scaling, True)
 
             program = Program.objects.get(title="Program", author=user)
-            arguments_storage = ArgumentsStorage(user.username, program)
+            arguments_storage = ArgumentsStorage(user.username, program.title, None)
             stored_arguments = arguments_storage.get(job.id)
 
             self.assertEqual(stored_arguments, arguments)
@@ -160,9 +159,7 @@ class TestProgramApi(APITestCase):
             expected_arguments_path = os.path.join(
                 self.MEDIA_ROOT, user.username, "arguments"
             )
-            self.assertEqual(
-                arguments_storage.user_arguments_directory, expected_arguments_path
-            )
+            self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
 
     def test_provider_run(self):
         """Tests run existing authorized."""
@@ -201,7 +198,10 @@ class TestProgramApi(APITestCase):
             self.assertEqual(job.config.auto_scaling, True)
 
             program = Program.objects.get(title="Docker-Image-Program", author=user)
-            arguments_storage = ArgumentsStorage(user.username, program)
+            provider_name = program.provider.name if program.provider else None
+            arguments_storage = ArgumentsStorage(
+                user.username, program.title, provider_name
+            )
             stored_arguments = arguments_storage.get(job.id)
 
             self.assertEqual(stored_arguments, arguments)
@@ -214,9 +214,7 @@ class TestProgramApi(APITestCase):
                 "Docker-Image-Program",
                 "arguments",
             )
-            self.assertEqual(
-                arguments_storage.user_arguments_directory, expected_arguments_path
-            )
+            self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
 
     def test_run_locked(self):
         """Tests run disabled program."""
@@ -672,7 +670,9 @@ class TestProgramApi(APITestCase):
             self.assertIsNone(job.program.provider)
 
             # Verify arguments are stored in the correct path (user storage, not provider)
-            arguments_storage = ArgumentsStorage(user.username, user_program)
+            arguments_storage = ArgumentsStorage(
+                user.username, user_program.title, None
+            )
             stored_arguments = arguments_storage.get(job.id)
             self.assertEqual(stored_arguments, arguments)
 
@@ -680,6 +680,4 @@ class TestProgramApi(APITestCase):
             expected_arguments_path = os.path.join(
                 self.MEDIA_ROOT, user.username, "arguments"
             )
-            self.assertEqual(
-                arguments_storage.user_arguments_directory, expected_arguments_path
-            )
+            self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)

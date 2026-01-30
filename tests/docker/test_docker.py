@@ -1,5 +1,6 @@
 # pylint: disable=import-error, invalid-name
 """Tests jobs."""
+
 from datetime import datetime, timezone
 import os
 from time import sleep
@@ -15,7 +16,6 @@ from qiskit_serverless import (
     ServerlessClient,
     QiskitServerlessException,
 )
-
 
 resources_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "source_files"
@@ -56,8 +56,6 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    # local client doesn't make sense here
-    # since it follows a different logging mechanism
     def test_function_with_errors(self, serverless_client: ServerlessClient):
         """Integration test for faulty function run."""
         circuit = QuantumCircuit(2)
@@ -126,8 +124,6 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    # local client doesn't make sense here
-    # since all dependencies are in the user computer
     def test_function_dependencies_basic(self, serverless_client: ServerlessClient):
         """Integration test for Functions with dependencies."""
         function = QiskitFunction(
@@ -147,8 +143,6 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    # local client doesn't make sense here
-    # since all dependencies are in the user computer
     def test_function_dependencies_with_version(
         self, serverless_client: ServerlessClient
     ):
@@ -164,8 +158,6 @@ class TestFunctionsDocker:
 
         assert runnable_function is not None
 
-    # local client doesn't make sense here
-    # since all dependencies are in the user computer
     def test_function_blocked_dependency(self, serverless_client: ServerlessClient):
         """Integration test for Functions with blocked dependencies."""
         dependency = "notallowedone"
@@ -239,10 +231,6 @@ class TestFunctionsDocker:
         assert isinstance(retrieved_job1.logs(), str)
         assert isinstance(retrieved_job2.logs(), str)
 
-    @mark.skip(
-        reason="Images are not working in tests jet and "
-        + "LocalClient does not manage image instead of working_dir+entrypoint"
-    )
     def test_error(self, serverless_client: ServerlessClient):
         """Integration test to force an error."""
 

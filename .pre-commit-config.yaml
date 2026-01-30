@@ -1,13 +1,36 @@
 repos:
-  - repo: local
+  # Black on commit
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
     hooks:
       - id: black
-        name: "Run black"
+        language_version: python3.11
+
+  # Pylint & Mypy only on pre-push (slower checks)
+  # These hooks use tox to run linting in isolated environments with correct dependencies.
+  # First run is slower (tox creates envs), subsequent runs are cached.
+  - repo: local
+    hooks:
+      - id: lint-gateway
+        name: lint (gateway)
+        entry: bash -c 'cd gateway && tox -e lint'
         language: system
-        entry: "./.pre-commit-scripts.sh black gateway client"
-        pass_filenames: false
-      - id: lint
-        name: "Run lint"
+        files: ^gateway/
+        types: [python]
+        stages: [pre-push]
+
+      - id: lint-client
+        name: lint (client)
+        entry: bash -c 'cd client && tox -e lint'
         language: system
-        entry: "./.pre-commit-scripts.sh lint gateway client"
-        pass_filenames: false
+        files: ^client/
+        types: [python]
+        stages: [pre-push]
+
+      - id: lint-tests
+        name: lint (tests)
+        entry: bash -c 'cd tests && tox -e lint'
+        language: system
+        files: ^tests/docker/
+        types: [python]
+        stages: [pre-push]

@@ -15,7 +15,6 @@ from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
 from api.domain.authentication.channel import Channel
 
-
 logger = logging.getLogger("gateway.use_cases.authentication")
 
 

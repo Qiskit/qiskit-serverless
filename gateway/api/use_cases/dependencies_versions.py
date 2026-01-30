@@ -6,7 +6,6 @@ from packaging.requirements import Requirement
 
 from api.utils import create_dynamic_dependencies_whitelist
 
-
 logger = logging.getLogger("gateway.use_cases.dependencies_versions")
 
 

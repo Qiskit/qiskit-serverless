@@ -9,8 +9,7 @@ permissions:
 
 jobs:
   verify-integration:
-    name: lint, test
-
+    name: Integration tests [lint, test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # keep running if one leg fails

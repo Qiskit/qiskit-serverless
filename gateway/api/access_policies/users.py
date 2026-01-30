@@ -5,7 +5,6 @@ Access policies implementation for Users access
 import logging
 from django.contrib.auth.models import AbstractUser
 
-
 logger = logging.getLogger("gateway")
 
 
@@ -16,7 +15,7 @@ class UserAccessPolicies:
     """
 
     @staticmethod
-    def can_access(user: type[AbstractUser]) -> bool:
+    def can_access(user: AbstractUser) -> bool:
         """
         Checks if the user has access to the application.
         For that, the user will need to be active.
@@ -27,6 +26,9 @@ class UserAccessPolicies:
         Returns:
             bool: True or False in case the user has access
         """
+
+        if user is None:
+            raise ValueError("user cannot be None")
 
         if user.is_active:
             return True

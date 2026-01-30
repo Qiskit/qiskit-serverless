@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 import os
 import os.path
 import sys
-from datetime import timedelta
 from pathlib import Path
 from utils import sanitize_file_path
 
@@ -71,9 +70,6 @@ INSTALLED_APPS = [
     "django_prometheus",
     "rest_framework",
     "rest_framework.authtoken",
-    "rest_framework_simplejwt",
-    "allauth",
-    "allauth.socialaccount",
     "pgactivity",
     "pglock",
     "api",
@@ -201,11 +197,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-AUTHENTICATION_BACKENDS = [
-    # `allauth` specific authentication methods, such as login by e-mail
-    "allauth.account.auth_backends.AuthenticationBackend",
-]
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
@@ -235,13 +226,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =============
 # AUTH SETTINGS
 # =============
-SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "default")
-SETTINGS_DEFAULT_AUTH_CLASSES = [
-    "rest_framework_simplejwt.authentication.JWTAuthentication",
-    "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
-]
+SETTINGS_AUTH_MECHANISM = os.environ.get("SETTINGS_AUTH_MECHANISM", "custom_token")
 ALL_AUTH_CLASSES_CONFIGURATION = {
-    "default": SETTINGS_DEFAULT_AUTH_CLASSES,
     "custom_token": [
         "api.authentication.CustomTokenBackend",
     ],
@@ -250,7 +236,7 @@ ALL_AUTH_CLASSES_CONFIGURATION = {
     ],
 }
 DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
-    SETTINGS_AUTH_MECHANISM, SETTINGS_DEFAULT_AUTH_CLASSES
+    SETTINGS_AUTH_MECHANISM, ALL_AUTH_CLASSES_CONFIGURATION["mock_token"]
 )
 # mock token value
 SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
@@ -270,12 +256,6 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 100,
 }
 
-REST_AUTH = {
-    "USE_JWT": True,
-    # 'JWT_AUTH_COOKIE': 'gateway-app-auth',
-    # 'JWT_AUTH_REFRESH_COOKIE': 'gateway-refresh-token',
-}
-
 SWAGGER_SETTINGS = {
     "SECURITY_DEFINITIONS": {
         "Bearer Token": {
@@ -289,12 +269,6 @@ SWAGGER_SETTINGS = {
 
 SITE_ID = 1
 SITE_HOST = os.environ.get("SITE_HOST", "http://localhost:8000")
-
-# Provider specific settings
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=10),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=20),
-}
 
 # custom token auth
 QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", None)
@@ -430,5 +404,5 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = (
 )
 SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == "true"
 
-# Functions logs size limite in MB
-FUNCTIONS_LOGS_SIZE_LIMIT = os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "50")
+# Functions logs size limite in Bytes
+FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "52428800"))
