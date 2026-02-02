@@ -64,9 +64,6 @@ def update_job_status(job: Job):
         if job.in_terminal_state():
             job.sub_status = None
             job.env_vars = "{}"
-            if job_handler:
-                save_logs_to_storage(job, job_handler)
-                job.logs = ""
 
     if job_handler:
         logs = job_handler.logs(job.ray_job_id)
@@ -77,6 +74,9 @@ def update_job_status(job: Job):
             job.status = job_new_status
             # cleanup env vars
             job.env_vars = "{}"
+            
+        save_logs_to_storage(job, job_handler)
+        job.logs = ""
 
     try:
         job.save()
