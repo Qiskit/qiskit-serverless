@@ -377,16 +377,16 @@ class TestFunctionsDocker:
         while not job.in_terminal_state():
             sleep(1)
 
-        assert job.logs().endswith("""INFO:user: User log
-INFO:user: User multiline
-INFO:user: log
-WARNING:user: User log
-ERROR:user: User log
-INFO:provider: Provider log
-INFO:provider: Provider multiline
-INFO:provider: log
-WARNING:provider: Provider log
-ERROR:provider: Provider log
+        assert job.logs().endswith("""INFO: User log
+INFO: User multiline
+INFO: log
+WARNING: User log
+ERROR: User log
+INFO: Provider log
+INFO: Provider multiline
+INFO: log
+WARNING: Provider log
+ERROR: Provider log
 """)
 
     def test_wrong_function_name(self, serverless_client: ServerlessClient):

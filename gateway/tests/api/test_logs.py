@@ -170,22 +170,22 @@ Unprefixed message
 
         job_handler_mock = Mock()
         job_handler_mock.logs.return_value = """
-[PUBLIC] INFO:user: Public log for user
+[PUBLIC] INFO: Public log for user
 
-[PRIVATE] INFO:provider: Private log for provider only
-[PUBLIC] INFO:user: Another public log
+[PRIVATE] INFO: Private log for provider only
+[PUBLIC] INFO: Another public log
 Internal system log
-[PRIVATE] WARNING:provider: Private warning
-[PUBLIC] INFO:user: Final public log
+[PRIVATE] WARNING: Private warning
+[PUBLIC] INFO: Final public log
 """
         expected_user_logs = """
-INFO:user: Public log for user
+INFO: Public log for user
 
-INFO:provider: Private log for provider only
-INFO:user: Another public log
+INFO: Private log for provider only
+INFO: Another public log
 Internal system log
-WARNING:provider: Private warning
-INFO:user: Final public log
+WARNING: Private warning
+INFO: Final public log
 """
         get_job_handler_mock.return_value = job_handler_mock
 
@@ -291,19 +291,19 @@ Unprefixed message
         logs_storage_get_mock.return_value = None
 
         full_logs = """
-[PUBLIC] INFO:user: Public log for user
+[PUBLIC] INFO: Public log for user
 
-[PRIVATE] INFO:provider: Private log for provider only
-[PUBLIC] INFO:user: Another public log
+[PRIVATE] INFO: Private log for provider only
+[PUBLIC] INFO: Another public log
 Internal system log
-[PRIVATE] WARNING:provider: Private warning
-[PUBLIC] INFO:user: Final public log
+[PRIVATE] WARNING: Private warning
+[PUBLIC] INFO: Final public log
 """
         expected_provider_logs = """
 
-INFO:provider: Private log for provider only
+INFO: Private log for provider only
 Internal system log
-WARNING:provider: Private warning
+WARNING: Private warning
 """
 
         job_handler_mock = Mock()
