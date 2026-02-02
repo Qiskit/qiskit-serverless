@@ -135,11 +135,11 @@ class TestCommands(APITestCase):
                 full_logs = """
 2026-01-06 10:00:00,000 INFO job_manager.py:568 -- Runtime env is setting up.
 
-[PUBLIC] INFO:user: Public user log
-[PRIVATE] INFO:provider: Private provider log
-[PUBLIC] INFO:user: Another public log
+[PUBLIC] INFO: Public user log
+[PRIVATE] INFO: Private provider log
+[PUBLIC] INFO: Another public log
 Ray internal log without marker
-[PUBLIC] INFO:user: Final public log
+[PUBLIC] INFO: Final public log
 """
 
                 ray_client = MagicMock()
@@ -160,11 +160,11 @@ Ray internal log without marker
                 expected_user_logs = """
 2026-01-06 10:00:00,000 INFO job_manager.py:568 -- Runtime env is setting up.
 
-INFO:user: Public user log
-INFO:provider: Private provider log
-INFO:user: Another public log
+INFO: Public user log
+INFO: Private provider log
+INFO: Another public log
 Ray internal log without marker
-INFO:user: Final public log
+INFO: Final public log
 """
 
                 with open(user_log_file_path, "r", encoding="utf-8") as log_file:
@@ -179,6 +179,9 @@ INFO:user: Final public log
                 )
                 # private log shouldn't exist
                 self.assertFalse(os.path.exists(private_log_file_path))
+
+                updated_job = Job.objects.filter(id=job.id).first()
+                self.assertTrue(updated_job.logs == "")
 
     @patch("api.management.commands.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler):
@@ -198,13 +201,13 @@ INFO:user: Final public log
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
                 # Mock Ray to return unfiltered logs
                 full_logs = """
-[PUBLIC] INFO:user: Public log for user
+[PUBLIC] INFO: Public log for user
 
-[PRIVATE] INFO:provider: Private log for provider only
-[PUBLIC] INFO:user: Another public log
+[PRIVATE] INFO: Private log for provider only
+[PUBLIC] INFO: Another public log
 Internal system log
-[PRIVATE] WARNING:provider: Private warning
-[PUBLIC] INFO:user: Final public log
+[PRIVATE] WARNING: Private warning
+[PUBLIC] INFO: Final public log
 """
 
                 ray_client = MagicMock()
@@ -224,15 +227,15 @@ Internal system log
                     "logs",
                     f"{job.id}.log",
                 )
-                expected_user_logs = """INFO:user: Public log for user
-INFO:user: Another public log
-INFO:user: Final public log
+                expected_user_logs = """INFO: Public log for user
+INFO: Another public log
+INFO: Final public log
 """
                 expected_provider_logs = """
 
-INFO:provider: Private log for provider only
+INFO: Private log for provider only
 Internal system log
-WARNING:provider: Private warning
+WARNING: Private warning
 """
 
                 with open(user_log_file_path, "r", encoding="utf-8") as log_file:

@@ -74,7 +74,7 @@ def update_job_status(job: Job):
             job.status = job_new_status
             # cleanup env vars
             job.env_vars = "{}"
-            
+
         save_logs_to_storage(job, job_handler)
         job.logs = ""
 
