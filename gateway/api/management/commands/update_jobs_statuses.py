@@ -66,6 +66,7 @@ def update_job_status(job: Job):
             job.env_vars = "{}"
             if job_handler:
                 save_logs_to_storage(job, job_handler)
+                job.logs = ""
 
     if job_handler:
         logs = job_handler.logs(job.ray_job_id)
