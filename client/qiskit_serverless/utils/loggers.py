@@ -58,9 +58,7 @@ def _create_logger(name, prefix):
 
     if not logger.handlers:
         handler = logging.StreamHandler()
-        formatter = PrefixFormatter(
-            prefix=prefix, fmt="%(levelname)s: %(message)s"
-        )
+        formatter = PrefixFormatter(prefix=prefix, fmt="%(levelname)s: %(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
