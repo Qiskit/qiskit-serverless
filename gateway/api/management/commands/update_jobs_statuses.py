@@ -64,6 +64,9 @@ def update_job_status(job: Job):
         if job.in_terminal_state():
             job.sub_status = None
             job.env_vars = "{}"
+            logs = job_handler.logs(job.ray_job_id) if job_handler else ""
+            save_logs_to_storage(job, logs)
+            job.logs = ""
 
     if job_handler:
         logs = job_handler.logs(job.ray_job_id)
@@ -71,12 +74,17 @@ def update_job_status(job: Job):
         no_resources_log = "No available node types can fulfill resource request"
         if no_resources_log in logs:
             job_new_status = fail_job_insufficient_resources(job)
+            logs = (
+                "Insufficient resources available to the run job in this "
+                "configuration.\nMax resources allowed are "
+                f"{settings.LIMITS_CPU_PER_TASK} CPUs and "
+                f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
+            )
             job.status = job_new_status
             # cleanup env vars
             job.env_vars = "{}"
-
-        save_logs_to_storage(job, job_handler)
-        job.logs = ""
+            save_logs_to_storage(job, logs)
+            job.logs = ""
 
     try:
         job.save()
@@ -86,7 +94,7 @@ def update_job_status(job: Job):
     return status_has_changed
 
 
-def save_logs_to_storage(job: Job, job_handler: JobHandler):
+def save_logs_to_storage(job: Job, logs: str):
     """
     Save the logs in the corresponding storages.
 
@@ -96,16 +104,8 @@ def save_logs_to_storage(job: Job, job_handler: JobHandler):
         job: Job that has reached a terminal state
         job_handler: JobHandler to retrieve logs from Ray
     """
-    try:
-        logs = job_handler.logs(job.ray_job_id)
-        logs = check_logs(logs, job)
-    except ConnectionError:
-        logger.error(
-            "Compute resource [%s] is not accessible for logs. Job [%s]",
-            job.compute_resource.title,
-            job.id,
-        )
-        logs = "Error getting logs: compute resource is not accessible."
+
+    logs = check_logs(logs, job)
 
     logs_storage = LogsStorage(job)
     if job.program.provider:

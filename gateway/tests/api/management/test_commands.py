@@ -180,8 +180,8 @@ INFO: Final public log
                 # private log shouldn't exist
                 self.assertFalse(os.path.exists(private_log_file_path))
 
-                updated_job = Job.objects.filter(id=job.id).first()
-                self.assertTrue(updated_job.logs == "")
+                job.refresh_from_db()
+                self.assertTrue(job.logs == "")
 
     @patch("api.management.commands.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler):
