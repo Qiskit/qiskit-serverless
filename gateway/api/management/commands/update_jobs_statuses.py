@@ -13,7 +13,7 @@ from api.domain.function.filter_logs import (
     remove_prefix_tags_in_logs,
 )
 from api.models import Job
-from api.ray import get_job_handler, JobHandler
+from api.ray import get_job_handler
 from api.schedule import (
     check_job_timeout,
     handle_job_status_not_available,
