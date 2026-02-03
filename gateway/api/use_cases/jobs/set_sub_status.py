@@ -11,6 +11,7 @@ from api.domain.exceptions.not_found_error import NotFoundError
 from api.models import Job
 from api.repositories.jobs import JobsRepository
 from api.utils import retry_function
+from scheduler.management.commands.update_jobs_statuses import update_job_status
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 
@@ -43,13 +44,6 @@ class SetJobSubStatusUseCase:
         can_update_sub_status = JobAccessPolicies.can_update_sub_status(user, job)
         if not can_update_sub_status:
             raise NotFoundError(f"Job [{job_id}] not found")
-
-        # If we import this with the regular imports,
-        # update jobs statuses test command fail.
-        # it should be something related with python import order.
-        from api.management.commands.update_jobs_statuses import (  # pylint: disable=import-outside-toplevel
-            update_job_status,
-        )
 
         update_job_status(job)
 

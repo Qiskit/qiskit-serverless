@@ -14,7 +14,7 @@ from django.core.files import File
 from api.models import Program
 from api.services.storage.enums.working_dir import WorkingDir
 from api.services.storage.path_builder import PathBuilder
-from utils import sanitize_file_path
+from core.utils import sanitize_file_path
 
 logger = logging.getLogger("gateway")
 
