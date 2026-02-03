@@ -13,7 +13,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
 from rest_framework.test import APITestCase, APIClient
 
 from api.models import ComputeResource, Job, Program, Provider
-from api.ray import JobHandler
+from core.services.ray import JobHandler
 
 
 def create_job(author: str, provider_admin: Optional[str] = None) -> Job:
@@ -122,7 +122,7 @@ class TestJobLogsCoverage(BaseJobLogsTest):
     (**) /logs always returns 403 for providers.
     """
 
-    @patch("api.management.commands.update_jobs_statuses.get_job_handler")
+    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
     def test_job_logs_in_storage_user_job(self, get_job_handler_mock):
         """Tests /logs with user job from COS.
 
@@ -242,7 +242,7 @@ INFO: Final public log
             "Logs not available for this job during execution.",
         )
 
-    @patch("api.management.commands.update_jobs_statuses.get_job_handler")
+    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
     def test_job_provider_logs_in_storage(self, get_job_handler_mock):
         """Tests /provider-logs with provider job from COS.
 

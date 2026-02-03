@@ -1,5 +1,7 @@
 """Tests for commands."""
 
+import os
+import tempfile
 from typing import Optional
 
 from django.contrib.auth.models import User, Group
@@ -114,7 +116,7 @@ class TestCommands(APITestCase):
                 logs,
             )
 
-    @patch("api.management.commands.update_jobs_statuses.get_job_handler")
+    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_filters_logs_user_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function without provider."""
         compute_resource = ComputeResource.objects.create(
@@ -181,7 +183,7 @@ INFO: Final public log
                 job.refresh_from_db()
                 self.assertTrue(job.logs == "")
 
-    @patch("api.management.commands.update_jobs_statuses.get_job_handler")
+    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function with provider."""
         compute_resource = ComputeResource.objects.create(

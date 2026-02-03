@@ -12,9 +12,8 @@ from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.function import check_logs
 from api.domain.function.filter_logs import filter_logs_with_non_public_tags
-from api.ray import get_job_handler
+from core.services.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
-from api.access_policies.providers import ProviderAccessPolicy
 from api.services.storage.logs_storage import LogsStorage
 
 

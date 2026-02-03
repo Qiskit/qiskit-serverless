@@ -15,7 +15,7 @@ from api.domain.function.filter_logs import (
     filter_logs_with_public_tags,
     remove_prefix_tags_in_logs,
 )
-from api.ray import get_job_handler
+from core.services.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.services.storage.logs_storage import LogsStorage
 
