@@ -1,7 +1,5 @@
 """Tests for commands."""
 
-import os
-import tempfile
 from typing import Optional
 
 from django.contrib.auth.models import User, Group
@@ -12,7 +10,7 @@ from unittest.mock import patch, MagicMock
 
 from api.domain.function import check_logs
 from api.models import ComputeResource, Job, Program, Provider
-from api.ray import JobHandler
+from core.services.ray import JobHandler
 
 
 class TestCommands(APITestCase):
@@ -34,7 +32,7 @@ class TestCommands(APITestCase):
         num_resources = ComputeResource.objects.count()
         self.assertEqual(num_resources, 1)
 
-    @patch("api.ray.get_job_handler")
+    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses(self, get_job_handler):
         """Tests update of job statuses."""
         # Test status change from PENDING to RUNNING
@@ -66,7 +64,7 @@ class TestCommands(APITestCase):
         self.assertEqual(job.env_vars, "{}")
         self.assertIsNone(job.sub_status)
 
-    @patch("api.schedule.execute_job")
+    @patch("scheduler.management.commands.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""
         fake_job = MagicMock()

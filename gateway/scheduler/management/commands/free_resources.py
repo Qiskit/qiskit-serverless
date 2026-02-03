@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from api.models import ComputeResource, Job
-from api.ray import kill_ray_cluster
+from core.services.ray import kill_ray_cluster
 
 logger = logging.getLogger("commands")
 

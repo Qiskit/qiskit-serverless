@@ -8,8 +8,8 @@ from django.core.management.base import BaseCommand
 
 from api.domain.function import check_logs
 from api.models import Job
-from api.ray import get_job_handler
-from api.schedule import (
+from core.services.ray import get_job_handler
+from scheduler.schedule import (
     check_job_timeout,
     handle_job_status_not_available,
     fail_job_insufficient_resources,

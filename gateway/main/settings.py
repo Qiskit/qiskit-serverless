@@ -14,7 +14,7 @@ import os
 import os.path
 import sys
 from pathlib import Path
-from utils import sanitize_file_path
+from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
 
@@ -73,6 +73,8 @@ INSTALLED_APPS = [
     "pgactivity",
     "pglock",
     "api",
+    "core",
+    "scheduler",
     "psycopg2",
     "drf_yasg",
     "corsheaders",

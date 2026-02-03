@@ -29,7 +29,7 @@ from api.utils import (
     decrypt_env_vars,
     generate_cluster_name,
 )
-from utils import sanitize_file_path
+from core.utils import sanitize_file_path
 
 logger = logging.getLogger("commands")
 
