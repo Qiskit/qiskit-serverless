@@ -5,7 +5,7 @@ from uuid import UUID
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
 from api.models import Job
-from api.ray import get_job_handler
+from core.services.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.repositories.runtime_job import RuntimeJobRepository
