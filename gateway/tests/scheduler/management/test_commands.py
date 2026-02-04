@@ -65,6 +65,24 @@ class TestCommands(APITestCase):
         self.assertEqual(job.env_vars, "{}")
         self.assertIsNone(job.sub_status)
 
+    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
+    def test_update_jobs_statuses_job_not_found_in_ray(self, get_job_handler):
+        """Tests that job is marked as FAILED when it no longer exists in Ray."""
+        job_handler = MagicMock()
+        job_handler.status.side_effect = RuntimeError(
+            "Request failed with status code 404: Job raysubmit_xyz does not exist."
+        )
+        get_job_handler.return_value = job_handler
+
+        job = self._create_test_job(ray_job_id="test_job_not_found")
+
+        call_command("update_jobs_statuses")
+
+        job.refresh_from_db()
+        self.assertEqual(job.status, "FAILED")
+        self.assertEqual(job.env_vars, "{}")
+        self.assertIsNone(job.sub_status)
+
     @patch("scheduler.management.commands.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""
