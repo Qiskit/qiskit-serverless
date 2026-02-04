@@ -11,5 +11,5 @@ pylint>=2.17.7
 mypy>=0.991
 mypy-extensions>=0.4.4
 # dependency from ray and tox requires newer versions from cachetools
-cachetools~=6.2.4
+cachetools~=7.0.0
 pre-commit>=3.0.0
