@@ -1,15 +1,44 @@
 """This file contains e2e tests for IBM Quantum Platform authentication process."""
 
+import base64
+import json
+import time
 from unittest.mock import MagicMock, patch
 import responses
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APITestCase
-from ibm_platform_services import IamAccessGroupsV2, IamIdentityV1, ResourceControllerV2
+from ibm_platform_services import IamAccessGroupsV2, ResourceControllerV2
 from ibm_cloud_sdk_core import DetailedResponse
 
 from api.authentication import CustomTokenBackend
 from api.domain.authentication.custom_authentication import CustomAuthentication
 from api.models import VIEW_PROGRAM_PERMISSION
+
+
+def _create_mock_jwt(iam_id: str, account_id: str) -> str:
+    """Create a mock JWT token with the given iam_id and account_id."""
+    current_time = int(time.time())
+    header = (
+        base64.urlsafe_b64encode(json.dumps({"alg": "RS256", "typ": "JWT"}).encode())
+        .decode()
+        .rstrip("=")
+    )
+    payload = (
+        base64.urlsafe_b64encode(
+            json.dumps(
+                {
+                    "iam_id": iam_id,
+                    "account": {"bss": account_id},
+                    "iat": current_time,
+                    "exp": current_time + 3600,
+                }
+            ).encode()
+        )
+        .decode()
+        .rstrip("=")
+    )
+    signature = "mock_signature"
+    return f"{header}.{payload}.{signature}"
 
 
 class TestIBMQuantumPlatformAuthentication(APITestCase):
@@ -19,24 +48,13 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
-    @patch.object(IamIdentityV1, "get_api_keys_details")
     @responses.activate
     def test_default_authentication_workflow(
         self,
-        mock_get_api_keys_details: MagicMock,
         mock_get_resource_instance: MagicMock,
         mock_list_access_groups: MagicMock,
     ):
         """This test verifies the entire flow of the custom token authentication"""
-
-        mock_get_api_keys_details.return_value = DetailedResponse(
-            response={
-                "iam_id": "IBMid-0000000ABC",
-                "account_id": "abc18abcd41546508b35dfe0627109c4",
-            },
-            headers={},
-            status_code=200,
-        )
 
         mock_get_resource_instance.return_value = DetailedResponse(
             response={
@@ -59,12 +77,17 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
             status_code=200,
         )
 
+        mock_jwt = _create_mock_jwt(
+            iam_id="IBMid-0000000ABC",
+            account_id="abc18abcd41546508b35dfe0627109c4",
+        )
         responses.add(
             responses.POST,
             "https://iam.test.cloud.ibm.com/identity/token",
             json={
-                "iam_id": "IBMid-0000000ABC",
-                "account_id": "abc18abcd41546508b35dfe0627109c4",
+                "access_token": mock_jwt,
+                "token_type": "Bearer",
+                "expires_in": 3600,
             },
             status=200,
         )
@@ -109,11 +132,9 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
 
     @patch.object(IamAccessGroupsV2, "list_access_groups")
     @patch.object(ResourceControllerV2, "get_resource_instance")
-    @patch.object(IamIdentityV1, "get_api_keys_details")
     @responses.activate
     def test_default_authentication_workflow_with_inactive_account(
         self,
-        mock_get_api_keys_details: MagicMock,
         mock_get_resource_instance: MagicMock,
         mock_list_access_groups: MagicMock,
     ):
@@ -121,15 +142,6 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
         This test verifies the entire flow of the custom token authentication
         for a deactivated user.
         """
-
-        mock_get_api_keys_details.return_value = DetailedResponse(
-            response={
-                "iam_id": "IBMid-1000000XYZ",
-                "account_id": "abc18abcd41546508b35dfe0627109c4",
-            },
-            headers={},
-            status_code=200,
-        )
 
         mock_get_resource_instance.return_value = DetailedResponse(
             response={
@@ -152,12 +164,17 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
             status_code=200,
         )
 
+        mock_jwt = _create_mock_jwt(
+            iam_id="IBMid-1000000XYZ",
+            account_id="abc18abcd41546508b35dfe0627109c4",
+        )
         responses.add(
             responses.POST,
             "https://iam.test.cloud.ibm.com/identity/token",
             json={
-                "iam_id": "IBMid-1000000XYZ",
-                "account_id": "abc18abcd41546508b35dfe0627109c4",
+                "access_token": mock_jwt,
+                "token_type": "Bearer",
+                "expires_in": 3600,
             },
             status=200,
         )
