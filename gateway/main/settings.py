@@ -401,3 +401,9 @@ SESSION_COOKIE_AGE = 3600
 
 # Functions logs size limite in Bytes
 FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "52428800"))
+
+
+# Functions logs size limite in Bytes
+JOB_LOGS_MIGRATION_BATCH_SIZE = int(
+    os.environ.get("JOB_LOGS_MIGRATION_BATCH_SIZE", "10")
+)
