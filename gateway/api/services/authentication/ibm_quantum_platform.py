@@ -1,10 +1,10 @@
 """This service will manage the access to the 3rd party end-points in IBM Quantum Platform."""
 
-import base64
-import json
 import logging
 from typing import List, Optional
 
+import jwt
+from jwt import PyJWKClient
 from django.conf import settings
 from ibm_cloud_sdk_core import ApiException
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
@@ -23,12 +23,34 @@ class IBMQuantumPlatform(AuthenticationBase):
     end-points that we will make use of them in this service.
     """
 
+    jwks_client = PyJWKClient(f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/keys")
+
     def __init__(self, api_key: str, crn: str):
-        self.iam_url = settings.IAM_IBM_CLOUD_BASE_URL
-        self.resource_controller_url = settings.RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL
+        if settings.IAM_IBM_CLOUD_BASE_URL is None:
+            logger.warning(
+                "IAM_IBM_CLOUD_BASE_URL environment variable was not correctly configured."
+            )
+            raise exceptions.AuthenticationFailed("You couldn't be authenticated.")
+
+        if settings.RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL is None:
+            logger.warning(
+                "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL environment variable was not correctly configured."
+            )
+            raise exceptions.AuthenticationFailed("You couldn't be authenticated.")
+
         self.api_key = api_key
         self.crn = crn
-        self.authenticator = IAMAuthenticator(apikey=self.api_key, url=self.iam_url)
+        self.authenticator = IAMAuthenticator(
+            apikey=self.api_key, url=settings.IAM_IBM_CLOUD_BASE_URL
+        )
+        self.access_groups_service = IamAccessGroupsV2(authenticator=self.authenticator)
+        self.access_groups_service.set_service_url(settings.IAM_IBM_CLOUD_BASE_URL)
+
+        self.resource_controller = ResourceControllerV2(self.authenticator)
+        self.resource_controller.set_service_url(
+            settings.RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL
+        )
+
         self.account_id: Optional[str] = None
         self.iam_id: Optional[str] = None
 
@@ -44,13 +66,10 @@ class IBMQuantumPlatform(AuthenticationBase):
             str: the iam_id of the authenticated user
             None: in case the authentication failed
         """
-        if self.iam_url is None:
-            logger.warning("IAM URL environment variable was not correctly configured.")
-            raise exceptions.AuthenticationFailed("You couldn't be authenticated.")
 
         try:
             access_token = self.authenticator.token_manager.get_token()
-            decoded = decode_jwt(access_token)
+            decoded = decode_jwt(access_token, IBMQuantumPlatform.jwks_client)
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("IBM Quantum Platform authentication error: %s.", str(ex))
             raise exceptions.AuthenticationFailed(
@@ -110,10 +129,8 @@ class IBMQuantumPlatform(AuthenticationBase):
             bool: True or False if the user has or no access
         """
 
-        resource_controller = ResourceControllerV2(self.authenticator)
-        resource_controller.set_service_url(self.resource_controller_url)
         try:
-            instance = resource_controller.get_resource_instance(
+            instance = self.resource_controller.get_resource_instance(
                 id=self.crn
             ).get_result()
         except ApiException as api_exception:
@@ -154,11 +171,8 @@ class IBMQuantumPlatform(AuthenticationBase):
             ["account_id/access_group_name"]
         """
 
-        access_groups_service = IamAccessGroupsV2(authenticator=self.authenticator)
-        access_groups_service.set_service_url(self.iam_url)
-
         try:
-            access_groups_response = access_groups_service.list_access_groups(
+            access_groups_response = self.access_groups_service.list_access_groups(
                 account_id=self.account_id
             ).get_result()
         except ApiException as api_exception:
@@ -183,8 +197,23 @@ class IBMQuantumPlatform(AuthenticationBase):
         ]
 
 
-def decode_jwt(token: str) -> dict:
-    """Decode a JWT token and return the payload as a dictionary."""
-    payload = token.split(".")[1]
-    padded = payload + "=" * (-len(payload) % 4)
-    return json.loads(base64.urlsafe_b64decode(padded))
+def decode_jwt(token: str, jwks_client: PyJWKClient) -> dict:
+    """Decode and validate a JWT token signature using JWKS.
+
+    Args:
+        token: The JWT token to decode and validate
+        jwks_client: The JWKS client to fetch signing keys
+
+    Returns:
+        The decoded JWT payload as a dictionary
+
+    Raises:
+        jwt.exceptions.InvalidTokenError: If the token is invalid or signature verification fails
+    """
+    signing_key = jwks_client.get_signing_key_from_jwt(token)
+    return jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=["RS256"],
+        options={"verify_exp": True, "verify_iat": True},
+    )
