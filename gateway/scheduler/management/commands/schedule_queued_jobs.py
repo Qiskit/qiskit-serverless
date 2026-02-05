@@ -126,4 +126,5 @@ class Command(BaseCommand):
                         job.ray_job_id = backup_ray_job_id
 
                 logger.info("Executing %s of %s", job, job.author)
-        logger.info("%s are scheduled for execution.", len(jobs))
+        if len(jobs) > 0:
+            logger.info("%s are scheduled for execution.", len(jobs))

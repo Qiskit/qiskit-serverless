@@ -112,7 +112,16 @@ class Command(BaseCommand):
                 if update_job_status(job):
                     updated_jobs_counter += 1
 
-            logger.info("Updated %s classical jobs.", updated_jobs_counter)
+            if len(jobs) > 0:
+                if updated_jobs_counter != len(jobs):
+                    logger.info(
+                        "Updated %s of %s classical jobs. Pending: ",
+                        updated_jobs_counter,
+                        len(jobs),
+                        len(jobs) - updated_jobs_counter,
+                    )
+                else:
+                    logger.info("Updated %s classical jobs.", updated_jobs_counter)
 
         if update_gpu_jobs:
             updated_jobs_counter = 0
@@ -121,4 +130,12 @@ class Command(BaseCommand):
                 if update_job_status(job):
                     updated_jobs_counter += 1
 
-            logger.info("Updated %s GPU jobs.", updated_jobs_counter)
+            if updated_jobs_counter != len(jobs):
+                logger.info(
+                    "Updated %s of %s GPU jobs. Pending: ",
+                    updated_jobs_counter,
+                    len(jobs),
+                    len(jobs) - updated_jobs_counter,
+                )
+            else:
+                logger.info("Updated %s GPU jobs.", updated_jobs_counter)

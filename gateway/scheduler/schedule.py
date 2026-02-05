@@ -97,14 +97,15 @@ def execute_job(job: Job) -> Job:
         try:
             job = submit_job(job)
             job.status = Job.PENDING
-        except Exception:  # pylint: disable=broad-exception-caught:
+        except Exception as ex:  # pylint: disable=broad-exception-caught:
             logger.error(
                 "Exception was caught during scheduling job on user [%s] resource.\n"
                 "Resource [%s] was in DB records, but address is not reachable.\n"
-                "Cleaning up db record and setting job [%s] to failed",
+                "Cleaning up db record and setting job [%s] to failed: %s",
                 job.author,
                 compute_resource.title,
                 job.id,
+                ex,
             )
             kill_ray_cluster(compute_resource.title)
             compute_resource.delete()
