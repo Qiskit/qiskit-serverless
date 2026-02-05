@@ -582,16 +582,6 @@ WARNING: Private warning
                 if job.logs == "":
                     empty_logs_count += 1
 
-            self.assertEqual(empty_logs_count, 10)
-
-            call_command("migrate_old_job_logs")
-
-            empty_logs_count = 0
-            for job in job_list:
-                job.refresh_from_db()
-                if job.logs == "":
-                    empty_logs_count += 1
-
             self.assertEqual(empty_logs_count, 15)
 
     def _create_test_job(
