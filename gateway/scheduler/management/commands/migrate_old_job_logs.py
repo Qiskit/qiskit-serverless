@@ -44,11 +44,11 @@ class Command(BaseCommand):
                 )
                 .exclude(logs="")[: settings.JOB_LOGS_MIGRATION_BATCH_SIZE]
             )
-            
+
             if len(jobs) == 0:
                 logger.info("No more jobs to process")
                 break
-            
+
             logger.info("Processing [%s] jobs", len(jobs))
             for job in jobs:
                 save_job_logs_to_storage(job)
