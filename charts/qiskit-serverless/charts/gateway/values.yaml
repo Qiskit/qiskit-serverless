@@ -63,6 +63,10 @@ application:
   dependencies:
       dynamicDependencies: "requirements-dynamic-dependencies.txt"
   logsMaximumSize: "52428800" # 50Mb in bytes
+  security:
+    hstsSeconds: 0  # 0 means disabled
+    hstsIncludeSubdomains: false
+    hstsPreload: false
 
 cos:
   claimName: gateway-claim
