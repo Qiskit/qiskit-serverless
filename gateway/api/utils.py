@@ -172,6 +172,16 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
             }
         )
 
+    # DATA_PATH is where the function has the volume mounted (arguments, results, etc.)
+    # In K8s/COS: volume user folder is mounted in /data using subPath={username}
+    # in the values.yaml, so /data is actually the user's folder
+    # docker-compose (local mode): there is only one Ray node, and it has mounted the
+    # whole shared /data folder, so we need to append the username: /data/{username}
+    if settings.RAY_CLUSTER_MODE.get("local"):
+        data_path = f"/data/{job.author.username}"
+    else:
+        data_path = "/data"
+
     return {
         **{
             "ENV_JOB_GATEWAY_TOKEN": str(token),
@@ -179,6 +189,7 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
             "ENV_JOB_ID_GATEWAY": str(job.id),
             "ENV_JOB_ARGUMENTS": arguments,
             "ENV_ACCESS_TRIAL": str(trial_mode),
+            "DATA_PATH": data_path,
         },
         **extra,
     }

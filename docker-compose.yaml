@@ -13,8 +13,6 @@ services:
     volumes:
       - host-shm:/dev/shm
       - program-artifacts:/data
-    environment:
-      - DATA_PATH=/data/mockuser
     networks:
       - safe-tier
   postgres:
