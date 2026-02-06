@@ -60,6 +60,7 @@ print("[test] Results saved.")
         function_title = "test-error-function"
         entrypoint = "program.py"
 
+        # Function with a compile error: SyntaxError: invalid syntax
         artifact_tar = client.create_artifact_tar("""p r i n t ()""", entrypoint)
 
         client.upload(artifact_tar, entrypoint, function_title)
