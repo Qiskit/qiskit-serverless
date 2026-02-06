@@ -42,6 +42,7 @@ services:
     environment:
       - DEBUG=0
       - RAY_HOST=http://ray-head:8265
+      - RAY_CLUSTER_MODE_LOCAL=true
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
@@ -70,8 +71,8 @@ services:
       - DATABASE_NAME=serverlessdb
       - DATABASE_USER=serverlessuser
       - DATABASE_PASSWORD=serverlesspassword
-      - RAY_CLUSTER_MODE_LOCAL_HOST=http://ray-head:8265
-      - RAY_CLUSTER_MODE_LOCAL=1
+      - RAY_LOCAL_HOST=http://ray-head:8265
+      - RAY_CLUSTER_MODE_LOCAL=true
       - SETTINGS_AUTH_MECHANISM=mock_token
     networks:
       - safe-tier
