@@ -27,14 +27,12 @@ class IBMQuantumPlatform(AuthenticationBase):
 
     def __init__(self, api_key: str, crn: str):
         if settings.IAM_IBM_CLOUD_BASE_URL is None:
-            logger.warning(
-                "IAM_IBM_CLOUD_BASE_URL environment variable was not correctly configured."
-            )
+            logger.warning("IAM_IBM_CLOUD_BASE_URL environment variable missing.")
             raise exceptions.AuthenticationFailed("You couldn't be authenticated.")
 
         if settings.RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL is None:
             logger.warning(
-                "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL environment variable was not correctly configured."
+                "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL environment variable missing."
             )
             raise exceptions.AuthenticationFailed("You couldn't be authenticated.")
 
