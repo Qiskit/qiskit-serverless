@@ -69,7 +69,16 @@ class IBMQuantumPlatform(AuthenticationBase):
 
         try:
             access_token = self.authenticator.token_manager.get_token()
-            decoded = decode_jwt(access_token, IBMQuantumPlatform.jwks_client)
+            signing_key = IBMQuantumPlatform.jwks_client.get_signing_key_from_jwt(
+                access_token
+            )
+            decoded = jwt.decode(
+                access_token,
+                signing_key.key,
+                algorithms=["RS256"],
+                options={"verify_exp": True, "verify_iat": True},
+            )
+
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("IBM Quantum Platform authentication error: %s.", str(ex))
             raise exceptions.AuthenticationFailed(
@@ -195,25 +204,3 @@ class IBMQuantumPlatform(AuthenticationBase):
             AuthenticationGroup(group_name=access_group["id"], account=self.account_id)
             for access_group in access_groups_filtered
         ]
-
-
-def decode_jwt(token: str, jwks_client: PyJWKClient) -> dict:
-    """Decode and validate a JWT token signature using JWKS.
-
-    Args:
-        token: The JWT token to decode and validate
-        jwks_client: The JWKS client to fetch signing keys
-
-    Returns:
-        The decoded JWT payload as a dictionary
-
-    Raises:
-        jwt.exceptions.InvalidTokenError: If the token is invalid or signature verification fails
-    """
-    signing_key = jwks_client.get_signing_key_from_jwt(token)
-    return jwt.decode(
-        token,
-        signing_key.key,
-        algorithms=["RS256"],
-        options={"verify_exp": True, "verify_iat": True},
-    )
