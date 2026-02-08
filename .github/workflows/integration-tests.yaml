@@ -29,22 +29,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - name: Build the containers
-        run: docker compose -f ../docker-compose-dev.yaml build
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - name: Set up tox environment
-        run: |
-          pver=${{ matrix.python-version }}
-          tox_env="-epy${pver/./}"
-          echo tox_env
-          echo TOX_ENV=$tox_env >> $GITHUB_ENV
       - name: Install tox
-        run: |
-          pip install tox>=4.0.0
+        run: pip install tox>=4.0.0
       - name: Run styles check
-        run: tox -elint
+        run: tox -e lint
+      - name: Build containers
+        run: tox -e compose-build
+      - name: Start services
+        run: tox -e compose-up
+      - name: Wait for gateway
+        run: timeout 300 bash -c 'until curl -s http://localhost:8000/backoffice > /dev/null; do sleep 5; done'
       - name: Test using tox environment
-        run: |
-          tox ${{ env.TOX_ENV }}
+        run: tox -e py311
+      - name: Stop services
+        if: always()
+        run: tox -e compose-down
+      - name: Print logs on failure
+        if: failure()
+        run: tox -e compose-logs
