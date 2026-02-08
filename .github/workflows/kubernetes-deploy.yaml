@@ -13,6 +13,13 @@ jobs:
     name: Kubernetes deploy tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
+
+    defaults:
+      run:
+        working-directory: ./tests
+
+    env:
+      KIND_CLUSTER_NAME: kind
     steps:
       - uses: actions/checkout@v6
       - name: Create Kind cluster
@@ -23,61 +30,33 @@ jobs:
           kind-worker-count: 0
       - name: Label nodes
         run: kubectl label node kind-control-plane has-gpu=gpu has-cpu=cpu
-      - name: Build and load gateway
-        run: |
-          docker build -t gateway:test -f ./gateway/Dockerfile .
-          kind load docker-image gateway:test
-          docker image rm gateway:test
-      - name: Build and load ray node
-        run: |
-          docker build --build-arg DYNAMIC_DEPENDENCIES_FILE=requirements-test-dynamic-dependencies.txt -t ray:test -f ./ray-node/Dockerfile .
-          kind load docker-image ray:test
-          docker image rm ray:test
-      - name: Install helm chart
-        run: |
-          cd charts/qiskit-serverless
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm repo add kuberay https://ray-project.github.io/kuberay-helm
-          helm dependency build
-          helm install qs \
-            --set platform=kind \
-            --set nginxIngressControllerEnable=false \
-            --set gateway.image.repository=gateway \
-            --set gateway.image.tag=test \
-            --set gateway.application.ray.nodeImage=ray:test \
-            --set gateway.application.ray.cpu=1 \
-            --set gateway.application.ray.memory=3 \
-            --set gateway.application.debug=1 \
-            --set gateway.application.authMockproviderRegistry=test \
-            --set gateway.application.dependencies.dynamicDependencies=requirements-test-dynamic-dependencies.txt \
-            --set postgresql.image.repository=bitnamilegacy/postgresql \
-            --set postgresql.volumePermissions.image.repository=bitnamilegacy/os-shell \
-            --set postgresql.metrics.image.repository=bitnamilegacy/postgres-exporter \
-            .
-          GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
-          kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
-      - name: setup python
+        working-directory: .
+      - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Install dependencies
+      - name: Install tox
+        run: pip install tox>=4.0.0
+      - name: Build and load images
+        run: tox -e kind-build
+      - name: Add Helm repos
         run: |
-          cd client
-          pip install . --no-cache-dir
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add kuberay https://ray-project.github.io/kuberay-helm
+        working-directory: .
+      - name: Deploy with Helm
+        run: tox -e kind-deploy
+      - name: Wait for gateway
+        run: |
+          GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
+          kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
+        working-directory: .
       - name: Run tests
         run: |
-          kubectl patch svc gateway -p '{"spec": {"type": "LoadBalancer"}}'
           export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
-          echo $GATEWAY_HOST
-          # basic tests
-          cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/basic
-          rm 06_function.py
-          for f in *.py; do echo "TEST: $f" && python "$f"; done
-          # experimental tests
-          cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/experimental
-          for f in *.py; do echo "TEST: $f" && python "$f"; done
+          echo "GATEWAY_HOST=$GATEWAY_HOST"
+          tox -e py311 -- -k "not staging"
       - uses: chainguard-dev/actions/kind-diag@main
-        # Only upload logs on failure.
         if: ${{ failure() }}
         with:
           cluster-resources: nodes,namespaces,crds
