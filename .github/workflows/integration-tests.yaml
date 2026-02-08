@@ -41,7 +41,7 @@ jobs:
       - name: Start services
         run: tox -e compose-up
       - name: Wait for gateway
-        run: timeout 300 bash -c 'until curl -s http://localhost:8000/backoffice > /dev/null; do sleep 5; done'
+        run: tox -e compose-wait
       - name: Test using tox environment
         run: tox -e py311
       - name: Stop services
