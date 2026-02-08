@@ -13,49 +13,34 @@ jobs:
     name: Kubernetes deploy tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
+
+    defaults:
+      run:
+        working-directory: ./tests
+
+    env:
+      KIND_CLUSTER_NAME: kind
     steps:
       - uses: actions/checkout@v6
-      - name: Create Kind cluster
-        uses: chainguard-dev/actions/setup-kind@main
+      - name: Setup Kind and kubectl
+        uses: helm/kind-action@v1
         with:
-          k8s-version: 1.33.x
-          kind-version: 0.29.0
-          kind-worker-count: 0
-      - name: Label nodes
-        run: kubectl label node kind-control-plane has-gpu=gpu has-cpu=cpu
-      - name: Build and load gateway
-        run: |
-          docker build -t gateway:test -f ./gateway/Dockerfile .
-          kind load docker-image gateway:test
-          docker image rm gateway:test
-      - name: Build and load ray node
-        run: |
-          docker build --build-arg DYNAMIC_DEPENDENCIES_FILE=requirements-test-dynamic-dependencies.txt -t ray:test -f ./ray-node/Dockerfile .
-          kind load docker-image ray:test
-          docker image rm ray:test
-      - name: Install helm chart
-        run: |
-          cd charts/qiskit-serverless
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm repo add kuberay https://ray-project.github.io/kuberay-helm
-          helm dependency build
-          helm install qs \
-            --set platform=kind \
-            --set nginxIngressControllerEnable=false \
-            --set gateway.image.repository=gateway \
-            --set gateway.image.tag=test \
-            --set gateway.application.ray.nodeImage=ray:test \
-            --set gateway.application.ray.cpu=1 \
-            --set gateway.application.ray.memory=3 \
-            --set gateway.application.debug=1 \
-            --set gateway.application.authMockproviderRegistry=test \
-            --set gateway.application.dependencies.dynamicDependencies=requirements-test-dynamic-dependencies.txt \
-            --set postgresql.image.repository=bitnamilegacy/postgresql \
-            --set postgresql.volumePermissions.image.repository=bitnamilegacy/os-shell \
-            --set postgresql.metrics.image.repository=bitnamilegacy/postgres-exporter \
-            .
-          GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
-          kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
+          version: v0.29.0
+          install_only: true
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install tox
+        run: pip install tox>=4.0.0
+      - name: Create Kind cluster
+        run: tox -e kind-create
+      - name: Build and load images
+        run: tox -e kind-build
+      - name: Deploy with Helm
+        run: tox -e kind-deploy
+      - name: Wait for pods
+        run: tox -e kind-wait
       - name: setup python
         uses: actions/setup-python@v6
         with:
