@@ -22,41 +22,40 @@ jobs:
       KIND_CLUSTER_NAME: kind
     steps:
       - uses: actions/checkout@v6
-      - name: Create Kind cluster
-        uses: chainguard-dev/actions/setup-kind@main
+      - name: Setup Kind and kubectl
+        uses: helm/kind-action@v1
         with:
-          k8s-version: 1.33.x
-          kind-version: 0.29.0
-          kind-worker-count: 0
-      - name: Label nodes
-        run: kubectl label node kind-control-plane has-gpu=gpu has-cpu=cpu
-        working-directory: .
+          version: v0.29.0
+          install_only: true
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install tox
         run: pip install tox>=4.0.0
+      - name: Create Kind cluster
+        run: tox -e kind-create
       - name: Build and load images
         run: tox -e kind-build
-      - name: Add Helm repos
-        run: |
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm repo add kuberay https://ray-project.github.io/kuberay-helm
-        working-directory: .
       - name: Deploy with Helm
         run: tox -e kind-deploy
-      - name: Wait for gateway
+      - name: Wait for pods
+        run: tox -e kind-wait
+      - name: setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
         run: |
-          GATEWAY=$(kubectl get pod -l app.kubernetes.io/name=gateway -o name)
-          kubectl wait --for=condition=Ready "$GATEWAY" --timeout 5m
-        working-directory: .
+          cd client
+          pip install . --no-cache-dir
       - name: Run tests
         run: |
           export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
           echo "GATEWAY_HOST=$GATEWAY_HOST"
           tox -e py311 -- -k "not staging"
       - uses: chainguard-dev/actions/kind-diag@main
+        # Only upload logs on failure.
         if: ${{ failure() }}
         with:
           cluster-resources: nodes,namespaces,crds
