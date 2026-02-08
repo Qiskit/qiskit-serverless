@@ -8,7 +8,7 @@ It assumes the server is pre-started externally (via docker-compose or kubernete
 import os
 
 from pytest import fixture
-from qiskit_serverless import ServerlessClient, QiskitFunction
+from qiskit_serverless import ServerlessClient
 
 
 def create_serverless_client():
