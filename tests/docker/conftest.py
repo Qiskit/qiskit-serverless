@@ -25,7 +25,7 @@ def create_serverless_client():
     if _client_instance is not None:
         return _client_instance
 
-    connection_url = os.environ.get("GATEWAY_HOST", "http://localhost:80")
+    connection_url = os.environ.get("GATEWAY_HOST", "http://localhost:8000")
 
     serverless = ServerlessClient(
         token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
