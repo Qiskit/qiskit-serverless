@@ -14,12 +14,6 @@ class TestSmokeTests:
         response.raise_for_status()
         assert "<title>Gateway API</title>" in response.text
 
-    @mark.skip(reason="TODO: specific User-Agent")
-    def test_backoffice(self, gateway_url):
-        response = requests.get(f"{gateway_url}/backoffice/login/", timeout=10)
-        response.raise_for_status()
-        assert "Django administration" in response.text
-
     def test_auth_missing(self, gateway_url):
         response = requests.get(f"{gateway_url}/api/v1/jobs/", timeout=10)
         print(response.text)
