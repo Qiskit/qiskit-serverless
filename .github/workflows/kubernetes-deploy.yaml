@@ -47,11 +47,26 @@ jobs:
         run: |
           cd ../client
           pip install . --no-cache-dir
-      - name: Run tests
+      - name: Debug cluster info
         run: |
-          kubectl patch svc gateway -p '{"spec": {"type": "LoadBalancer"}}'
-          export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
-          echo $GATEWAY_HOST
+          echo "NODES"
+          kubectl get nodes -o wide
+          echo "PODS"
+          kubectl get pods -o wide
+          echo "SERVICES"
+          kubectl get svc -o wide
+          echo "INGRESS"
+          kubectl get ingress -o wide
+          echo "INGRESS NGINX PODS"
+          kubectl get pods -n ingress-nginx -o wide
+          echo "GATEWAY SERVICE DETAILS"
+          kubectl describe svc gateway
+          echo "TEST"
+          curl -v http://localhost:8000/readiness
+      - name: Run tests
+        env:
+          GATEWAY_HOST: http://localhost:8000
+        run: |
           # basic tests
           cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/basic
           rm 06_function.py
