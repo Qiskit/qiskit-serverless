@@ -257,6 +257,13 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 serializer.errors,
             )
             return Response(job_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if queue_limit_reached(author):
+            logger.error(
+                "The number of queued job has reached the limit. The set limit is:\n %s",
+                settings.LIMITS_JOBS_QUEUE_PER_USER,
+            )
+            return Response(f"Job limit reached. Maximum allowed jobs: {settings.LIMITS_JOBS_QUEUE_PER_USER}",
+                            status=status.HTTP_429_TOO_MANY_REQUESTS)
         job = job_serializer.save(
             author=author,
             carrier=carrier,
