@@ -10,18 +10,18 @@ import os
 from pytest import fixture
 from qiskit_serverless import ServerlessClient
 
-
-def create_serverless_client():
-    """Create a serverless client connected to a pre-started server."""
-    serverless = ServerlessClient(
-        token=os.environ.get("GATEWAY_TOKEN", "awesome_token"),
-        host=os.environ.get("GATEWAY_HOST", "http://127.0.0.1:8000"),
-        instance=os.environ.get("GATEWAY_INSTANCE", "an_awesome_crn"),
-    )
-    return serverless
+GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "awesome_token")
+GATEWAY_HOST = os.environ.get("GATEWAY_HOST", "http://localhost:8000")
+GATEWAY_INSTANCE = os.environ.get("GATEWAY_INSTANCE", "an_awesome_crn")
+GATEWAY_CHANNEL = os.environ.get("GATEWAY_CHANNEL", "ibm_quantum_platform")
 
 
 @fixture(scope="session")
 def serverless_client():
     """Fixture for testing files with serverless client."""
-    return create_serverless_client()
+    return ServerlessClient(
+        token=GATEWAY_TOKEN,
+        host=GATEWAY_HOST,
+        instance=GATEWAY_INSTANCE,
+        channel=GATEWAY_CHANNEL,
+    )
