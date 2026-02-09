@@ -13,11 +13,9 @@ jobs:
     name: Kubernetes deploy tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
     defaults:
       run:
         working-directory: ./tests
-
     env:
       KIND_CLUSTER_NAME: kind
     steps:
@@ -47,12 +45,28 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: |
-          cd client
+          cd ../client
           pip install . --no-cache-dir
-      - name: Run tests
+      - name: Debug cluster info
         run: |
-          export GATEWAY_HOST="http://$(kubectl get svc gateway -o jsonpath="{.status.loadBalancer.ingress[0].ip}"):8000"
-          echo "GATEWAY_HOST=$GATEWAY_HOST"
+          echo "NODES"
+          kubectl get nodes -o wide
+          echo "PODS"
+          kubectl get pods -o wide
+          echo "SERVICES"
+          kubectl get svc -o wide
+          echo "INGRESS"
+          kubectl get ingress -o wide
+          echo "INGRESS NGINX PODS"
+          kubectl get pods -n ingress-nginx -o wide
+          echo "GATEWAY SERVICE DETAILS"
+          kubectl describe svc gateway
+          echo "TEST"
+          curl -v http://localhost:8000/readiness
+      - name: Run tests
+        env:
+          GATEWAY_HOST: http://localhost:8000
+        run: |
           tox -e py311 -- -k "not staging"
       - uses: chainguard-dev/actions/kind-diag@main
         # Only upload logs on failure.
