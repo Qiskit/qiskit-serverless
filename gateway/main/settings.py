@@ -408,3 +408,7 @@ SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == 
 
 # Functions logs size limite in Bytes
 FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "52428800"))
+
+# Valid upload mime types
+# TODO: modify this to our preference when it is decided
+UPLOAD_FILE_VALID_MIME_TYPES = ["image/jpeg", "image/png", "text/plain"]

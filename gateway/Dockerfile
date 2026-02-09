@@ -20,7 +20,8 @@ RUN dnf update -y && dnf clean all
 RUN dnf install --installroot ${MICRO_IMAGE_DIR} --nodocs -y \
     python3.11 \
     python3.11-devel \
-    libstdc++ &&\
+    libstdc++ \
+    file-libs && \
     dnf upgrade --installroot ${MICRO_IMAGE_DIR} --nodocs -y && \
     dnf clean all --installroot ${MICRO_IMAGE_DIR}
 
