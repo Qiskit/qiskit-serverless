@@ -1,4 +1,4 @@
-# pylint: disable=import-error, invalid-name
+# pylint: disable=import-error, invalid-name, no-member
 """Tests for decorator-based function definitions."""
 
 import os
@@ -89,8 +89,6 @@ class TestDecorators:
 
     def test_decorator_with_modules(self, serverless_client: ServerlessClient):
         """Test function with working_dir that imports local modules."""
-        # Import inside the function to simulate remote execution
-        from source_files.circuit_utils import create_hello_world_circuit
 
         @distribute_qiskit_function(serverless_client, working_dir=resources_path)
         def my_function_with_modules():
