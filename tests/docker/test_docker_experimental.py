@@ -68,7 +68,7 @@ class TestDockerExperimental:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-        files = serverless_client.files(functionTitle)
+        files = serverless_client.files(function)
 
         assert files is not None
 
@@ -76,13 +76,20 @@ class TestDockerExperimental:
 
         assert file_count > 0
 
-        serverless_client.file_delete("uploaded_file.tar", functionTitle)
+        serverless_client.file_delete("uploaded_file.tar", function)
 
-        assert (file_count - len(serverless_client.files(functionTitle))) == 1
+        assert (file_count - len(serverless_client.files(function))) == 1
 
-    @mark.order(1)
     def test_list_upload_download_delete(self, serverless_client: ServerlessClient):
         """Integration test for upload files."""
+
+        function = QiskitFunction(
+            title="hello-world",
+            entrypoint="hello_world.py",
+            working_dir=resources_path,
+        )
+        serverless_client.upload(function)
+
         function = serverless_client.function("hello-world")
 
         print("::: file_upload :::")
