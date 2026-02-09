@@ -26,7 +26,7 @@ docker build -t qiskit/qiskit-serverless/gateway:<VERSION> .
 | SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD | name of a field to use for token verification                                                                                                                         |
 | RAY_KUBERAY_NAMESPACE                  | namespace of kuberay resources. Should match kubernetes namespace                                                                                                     |
 | RAY_NODE_IMAGE                         | Default node image that will be launched on ray cluster creation                                                                                                      |
-| RAY_CLUSTER_MODE_LOCAL                 | 0 or 1. 1 for local mode (docker compose), 0 for cluster mode where clusters will be created by kuberay                                                               |
+| RAY_CLUSTER_MODE_LOCAL                 | Default to `false`. `true` for local mode (docker compose), `false` for cluster mode where clusters will be created by kuberay  |
 | RAY_CLUSTER_MODE_LOCAL_HOST            | if `RAY_CLUSTER_MODE_LOCAL` set to 1, then this host for ray head node will be used to run all workloads                                                              |
 | LIMITS_JOBS_PER_USER                   | number of concurrent programs/jobs user can run at single point of time                                                                                               |
 | LIMITS_MAX_CLUSTERS                    | number of compute resources can be allocated in single point of time                                                                                                  |
