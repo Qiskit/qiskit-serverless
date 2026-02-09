@@ -17,10 +17,6 @@ jobs:
         python-version:
           - '3.11'
 
-    defaults:
-      run:
-        working-directory: ./tests
-
     env:
       QISKIT_IBM_CHANNEL: "ibm_quantum_platform"
       QISKIT_IBM_TOKEN: ${{ secrets.QISKIT_IBM_TOKEN }}
@@ -35,18 +31,18 @@ jobs:
       - name: Install tox
         run: pip install tox>=4.0.0
       - name: Run styles check
-        run: tox -e lint
+        run: tox -c tests/tox.ini -e lint
       - name: Build containers
-        run: tox -e compose-build
+        run: docker compose -f docker-compose-dev.yaml build
       - name: Start services
-        run: tox -e compose-up
+        run: docker compose -f docker-compose-dev.yaml up -d
       - name: Wait for gateway
-        run: tox -e compose-wait
+        run: curl --retry 30 --retry-delay 2 --retry-all-errors --fail http://localhost:8000/liveness/
       - name: Test using tox environment
-        run: tox -e py311
+        run: tox -c tests/tox.ini -e py311
       - name: Stop services
         if: always()
-        run: tox -e compose-down
+        run: docker compose -f docker-compose-dev.yaml down
       - name: Print logs on failure
         if: failure()
-        run: tox -e compose-logs
+        run: docker compose -f docker-compose-dev.yaml logs --tail=500
