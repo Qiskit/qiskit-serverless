@@ -67,7 +67,7 @@ jobs:
         env:
           GATEWAY_HOST: http://localhost:8000
         run: |
-          tox -e py311 -- -k "not staging"
+          tox -e py311
       - uses: chainguard-dev/actions/kind-diag@main
         # Only upload logs on failure.
         if: ${{ failure() }}
