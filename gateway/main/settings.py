@@ -294,6 +294,7 @@ SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get(
 
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
+LIMITS_JOBS_QUEUE_PER_USER = int(os.environ.get("LIMITS_JOBS_QUEUE_PER_USER", "50"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
