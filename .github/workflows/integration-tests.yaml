@@ -17,10 +17,6 @@ jobs:
         python-version:
           - '3.11'
 
-    defaults:
-      run:
-        working-directory: ./tests
-
     env:
       QISKIT_IBM_CHANNEL: "ibm_quantum_platform"
       QISKIT_IBM_TOKEN: ${{ secrets.QISKIT_IBM_TOKEN }}
@@ -29,22 +25,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - name: Build the containers
-        run: docker compose -f ../docker-compose-dev.yaml build
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - name: Set up tox environment
-        run: |
-          pver=${{ matrix.python-version }}
-          tox_env="-epy${pver/./}"
-          echo tox_env
-          echo TOX_ENV=$tox_env >> $GITHUB_ENV
       - name: Install tox
-        run: |
-          pip install tox>=4.0.0
+        run: pip install tox>=4.0.0
       - name: Run styles check
-        run: tox -elint
+        run: tox -c tests/tox.ini -e lint
+      - name: Build containers
+        run: docker compose -f docker-compose-dev.yaml build
+      - name: Start services
+        run: docker compose -f docker-compose-dev.yaml up -d
+      - name: Wait for gateway
+        run: curl --retry 30 --retry-delay 2 --retry-all-errors --fail http://localhost:8000/liveness/
       - name: Test using tox environment
-        run: |
-          tox ${{ env.TOX_ENV }}
+        run: tox -c tests/tox.ini -e py311
+      - name: Stop services
+        if: always()
+        run: docker compose -f docker-compose-dev.yaml down
+      - name: Print logs on failure
+        if: failure()
+        run: docker compose -f docker-compose-dev.yaml logs --tail=500
