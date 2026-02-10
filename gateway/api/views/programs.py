@@ -186,7 +186,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["POST"], detail=False)
-    def run(self, request):  # pylint: disable=too-many-locals
+    def run(self, request):  # pylint: disable=too-many-locals, too-many-return-statements
         """Enqueues existing program."""
         serializer = self.get_serializer_run_program(data=request.data)
         if not serializer.is_valid():
