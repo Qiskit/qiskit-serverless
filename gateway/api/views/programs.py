@@ -8,6 +8,7 @@ import logging
 import os
 
 # pylint: disable=duplicate-code
+from django.conf import settings
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -20,7 +21,7 @@ from rest_framework.response import Response
 
 from api.repositories.functions import FunctionRepository
 from api.domain.authentication.channel import Channel
-from api.utils import sanitize_name
+from api.utils import sanitize_name, queue_limit_reached
 from api.serializers import (
     JobConfigSerializer,
     RunJobSerializer,
@@ -262,8 +263,10 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 "The number of queued job has reached the limit. The set limit is:\n %s",
                 settings.LIMITS_JOBS_QUEUE_PER_USER,
             )
-            return Response(f"Job limit reached. Maximum allowed jobs: {settings.LIMITS_JOBS_QUEUE_PER_USER}",
-                            status=status.HTTP_429_TOO_MANY_REQUESTS)
+            return Response(
+                f"Job limit reached. Maximum allowed jobs: {settings.LIMITS_JOBS_QUEUE_PER_USER}",
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
         job = job_serializer.save(
             author=author,
             carrier=carrier,
