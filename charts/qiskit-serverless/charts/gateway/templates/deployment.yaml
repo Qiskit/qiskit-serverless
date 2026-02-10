@@ -31,6 +31,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
+          imagePullPolicy: IfNotPresent
           command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           volumeMounts:
           - name: gateway-pv-storage
@@ -284,6 +285,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
+          imagePullPolicy: IfNotPresent
           command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           env:
             - name: DATABASE_HOST
