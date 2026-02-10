@@ -20,10 +20,12 @@ class TestProgramApi(APITestCase):
     fixtures = ["tests/fixtures/fixtures.json"]
 
     def setUp(self):
+        # pylint: disable=invalid-name
         """Set up test fixtures and media root path."""
         super().setUp()
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
+        self.LIMITS_JOBS_QUEUE_PER_USER = 2
 
     def tearDown(self):
         self._temp_directory.cleanup()
@@ -215,6 +217,80 @@ class TestProgramApi(APITestCase):
                 "arguments",
             )
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
+
+    def test_queue_limit(self):
+        """Tests queue limit."""
+
+        data = {
+            "title": "Docker-Image-Program",
+            "provider": "default",
+            "arguments": json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"}),
+            "config": {
+                "workers": None,
+                "min_workers": 1,
+                "max_workers": 5,
+                "auto_scaling": True,
+            },
+        }
+
+        def make_program():
+            return self.client.post(
+                "/api/v1/programs/run/",
+                data=data,
+                format="json",
+            )
+
+        def assert_program_ok_response():
+            programs_response = make_program()
+            job_id = programs_response.data.get("id")
+            job = Job.objects.get(id=job_id)
+            self.assertEqual(job.status, Job.QUEUED)
+            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
+
+        with self.settings(LIMITS_JOBS_QUEUE_PER_USER=self.LIMITS_JOBS_QUEUE_PER_USER):
+
+            # test_user_2 has 2 Jobs, one with`QUEUED` status and other in `SUCCEEDED` status.
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            num_jobs_in_queue = Job.objects.filter(
+                author=user, status__in=Job.QUEUE_STATUSES
+            ).count()
+
+            # Checking that this test will run according to scripts
+            self.assertGreater(self.LIMITS_JOBS_QUEUE_PER_USER, num_jobs_in_queue)
+
+            # filling up the queue to the limit
+            for _ in range(num_jobs_in_queue, self.LIMITS_JOBS_QUEUE_PER_USER):
+                assert_program_ok_response()
+
+            # the user has a job with status `SUCCEEDED`.
+            # Checking it doesn't count it towards the limit
+            self.assertEqual(
+                self.LIMITS_JOBS_QUEUE_PER_USER,
+                Job.objects.filter(author=user, status__in=Job.QUEUE_STATUSES).count(),
+            )
+            self.assertGreater(
+                Job.objects.filter(author=user).count(), self.LIMITS_JOBS_QUEUE_PER_USER
+            )
+
+            # Failing to add a job to the queue
+            programs_response_fail = make_program()
+            self.assertEqual(
+                programs_response_fail.status_code, status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+            # Changing a queued job status to Fail and check we can submit another job.
+            job = Job.objects.filter(author=user, status__in=Job.QUEUE_STATUSES).first()
+            job.status = Job.FAILED
+            job.save()
+
+            self.assertGreater(
+                self.LIMITS_JOBS_QUEUE_PER_USER,
+                Job.objects.filter(author=user, status__in=Job.QUEUE_STATUSES).count(),
+            )
+
+            # lastly adding job to the queue
+            assert_program_ok_response()
 
     def test_run_locked(self):
         """Tests run disabled program."""
