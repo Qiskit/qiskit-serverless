@@ -3,7 +3,7 @@ services:
   ray-head:
     user: "0"
     container_name: ray-head
-    image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.28.0}
+    image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.29.0}
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
@@ -34,7 +34,7 @@ services:
       retries: 5
   gateway:
     container_name: gateway
-    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.28.0}
+    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.29.0}
     command: python manage.py runserver 0.0.0.0:8000
     ports:
       - 8000:8000
@@ -62,7 +62,7 @@ services:
         condition: service_healthy
   scheduler:
     container_name: scheduler
-    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.28.0}
+    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.29.0}
     entrypoint: "./scripts/scheduler.sh"
     environment:
       - DEBUG=0
