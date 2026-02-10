@@ -12,8 +12,8 @@ from wsgiref.util import FileWrapper
 from django.core.files import File
 
 from api.models import Program
-from api.services.storage.enums.working_dir import WorkingDir
-from api.services.storage.path_builder import PathBuilder
+from core.services.storage.enums.working_dir import WorkingDir
+from core.services.storage.path_builder import PathBuilder
 from core.utils import sanitize_file_path
 
 logger = logging.getLogger("gateway")

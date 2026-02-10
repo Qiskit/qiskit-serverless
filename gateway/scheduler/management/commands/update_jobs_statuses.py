@@ -6,7 +6,7 @@ from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from api.domain.function import check_logs
+from core.utils import check_logs, ray_job_status_to_model_job_status
 from api.models import Job
 from core.services.ray import get_job_handler
 from scheduler.schedule import (
@@ -14,7 +14,6 @@ from scheduler.schedule import (
     handle_job_status_not_available,
     fail_job_insufficient_resources,
 )
-from api.utils import ray_job_status_to_model_job_status
 
 logger = logging.getLogger("commands")
 

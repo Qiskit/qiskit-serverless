@@ -11,7 +11,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from api.models import Job, Program
-from api.services.storage.arguments_storage import ArgumentsStorage
+from core.services.storage.arguments_storage import ArgumentsStorage
 
 
 class TestProgramApi(APITestCase):

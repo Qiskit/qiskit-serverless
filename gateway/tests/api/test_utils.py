@@ -7,11 +7,13 @@ from rest_framework.test import APITestCase
 from api.domain.authentication.channel import Channel
 from api.utils import (
     build_env_variables,
+    remove_duplicates_from_list,
+)
+from core.utils import (
     encrypt_string,
     decrypt_string,
     encrypt_env_vars,
     decrypt_env_vars,
-    remove_duplicates_from_list,
 )
 
 
