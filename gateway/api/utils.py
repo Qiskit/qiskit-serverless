@@ -1,23 +1,17 @@
 """Utilities."""
 
-import base64
 from collections import OrderedDict
 import json
 import logging
 import re
-import time
-import uuid
-from typing import Any, Optional, Tuple, Type, Callable, Dict, List
+from typing import Any, Optional, Tuple, Callable, Dict, List
 from django.conf import settings
 from packaging.requirements import Requirement
 
-from cryptography.fernet import Fernet
-from ray.dashboard.modules.job.common import JobStatus
 import objsize
 
 from api.domain.authentication.channel import Channel
-
-from .models import Job
+from api.models import Job
 
 logger = logging.getLogger("utils")
 
@@ -29,96 +23,6 @@ def try_json_loads(data: str) -> Tuple[bool, Optional[dict]]:
     except ValueError:
         return False, None
     return True, json_object
-
-
-def ray_job_status_to_model_job_status(ray_job_status):
-    """Maps ray job status to model job status."""
-
-    mapping = {
-        JobStatus.PENDING: Job.PENDING,
-        JobStatus.RUNNING: Job.RUNNING,
-        JobStatus.STOPPED: Job.STOPPED,
-        JobStatus.SUCCEEDED: Job.SUCCEEDED,
-        JobStatus.FAILED: Job.FAILED,
-    }
-    return mapping.get(ray_job_status, Job.FAILED)
-
-
-def retry_function(  # pylint:  disable=too-many-positional-arguments
-    callback: Callable,
-    num_retries: int = 10,
-    interval: int = 1,
-    exceptions: Optional[List[Type[Exception]]] = None,
-    error_message: Optional[str] = None,
-    error_message_level: int = logging.DEBUG,
-    function_name: Optional[str] = None,
-):
-    """Retries to call callback function.
-
-    Args:
-        callback: function
-        num_retries: number of tries
-        interval: interval between tries
-        error_message: error message
-        function_name: name of executable function
-
-    Returns:
-        function result of None
-    """
-    name = function_name or getattr(callback, "__name__", "<callback>")
-
-    for attempt in range(1, num_retries + 1):
-        try:
-            return callback()
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            if exceptions is not None and not isinstance(e, tuple(exceptions)):
-                raise
-
-            # If it's the last allowed attempt, propagate the original exception.
-            if attempt == num_retries:
-                raise
-
-            # Log and wait before next attempt.
-            logger.log(
-                error_message_level,
-                "[%s] attempt %d/%d failed%s%s",
-                name,
-                attempt,
-                num_retries,
-                ": " if error_message else "",
-                error_message or str(e),
-            )
-            time.sleep(interval)
-
-    return None
-
-
-def encrypt_string(string: str) -> str:
-    """Encrypts string using symmetrical encryption.
-
-    Args:
-        string: string to be encrypted
-
-    Returns:
-        encrypted string
-    """
-    code_bytes = settings.SECRET_KEY.encode("utf-8")
-    fernet = Fernet(base64.urlsafe_b64encode(code_bytes.ljust(32)[:32]))
-    return fernet.encrypt(string.encode("utf-8")).decode("utf-8")
-
-
-def decrypt_string(string: str) -> str:
-    """Decrypts string symmetrically encrypted.
-
-    Args:
-        string: encrypted string
-
-    Returns:
-        decrypted string
-    """
-    code_bytes = settings.SECRET_KEY.encode("utf-8")
-    fernet = Fernet(base64.urlsafe_b64encode(code_bytes.ljust(32)[:32]))
-    return fernet.decrypt(string.encode("utf-8")).decode("utf-8")
 
 
 def build_env_variables(  # pylint: disable=too-many-positional-arguments
@@ -200,59 +104,6 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
     }
 
 
-def encrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
-    """Encrypts tokens in env variables.
-
-    Args:
-        env_vars: env variables dict
-
-    Returns:
-        encrypted env vars dict
-    """
-    for key, value in env_vars.items():
-        if "token" in key.lower():
-            env_vars[key] = encrypt_string(value)
-    return env_vars
-
-
-def decrypt_env_vars(env_vars: Dict[str, str]) -> Dict[str, str]:
-    """Decrypts tokens in env variables.
-
-    Args:
-        env_vars: env variables dict
-
-    Returns:
-        decrypted env vars dict
-    """
-    for key, value in env_vars.items():
-        if "token" in key.lower():
-            try:
-                env_vars[key] = decrypt_string(value)
-            except Exception:  # pylint: disable=broad-exception-caught
-                logger.error("Cannot decrypt %s.", key)
-    return env_vars
-
-
-def generate_cluster_name(username: str) -> str:
-    """generate cluster name.
-
-    Args:
-        username: user name for the cluster
-
-    Returns:
-        generated cluster name
-    """
-    # Force capital letters to be lowercase
-    lowercase_username = username.lower()[:20]
-
-    # Substitute any not valid character by "-"
-    pattern = re.compile("[^a-z0-9-]")
-    cluster_name = (
-        f"c-{re.sub(pattern, '-', lowercase_username)}-{str(uuid.uuid4())[:8]}"
-    )
-    return cluster_name
-
-
 def safe_request(request: Callable) -> Optional[Dict[str, Any]]:
     """Makes safe request and parses json response."""
     result = None
@@ -305,26 +156,6 @@ def sanitize_boolean(value: Optional[str]) -> Optional[bool]:
         return False
 
     return None
-
-
-def create_gpujob_allowlist():
-    """
-    Create dictionary of jobs allowed to run on gpu nodes.
-
-    Sample format of json:
-        { "gpu-functions": { "mockprovider": [ "my-first-pattern" ] } }
-    """
-    try:
-        with open(settings.GATEWAY_GPU_JOBS_CONFIG, encoding="utf-8", mode="r") as f:
-            gpujobs = json.load(f)
-    except IOError as e:
-        logger.error("Unable to open gpu job config file: %s", e)
-        raise ValueError("Unable to open gpu job config file") from e
-    except ValueError as e:
-        logger.error("Unable to decode gpu job allowlist: %s", e)
-        raise ValueError("Unable to decode gpujob allowlist") from e
-
-    return gpujobs
 
 
 def sanitize_file_name(name: Optional[str]):

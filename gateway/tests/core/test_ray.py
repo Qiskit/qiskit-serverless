@@ -19,7 +19,7 @@ from core.services.ray import (
     kill_ray_cluster,
     JobHandler,
 )
-from api.utils import encrypt_string
+from core.utils import encrypt_string
 
 
 class response:

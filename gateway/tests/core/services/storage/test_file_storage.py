@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from api.services.storage.file_storage import FileStorage
-from api.services.storage.enums.working_dir import WorkingDir
+from core.services.storage.file_storage import FileStorage
+from core.services.storage.enums.working_dir import WorkingDir
 
 
 def create_function(title, provider_name=None):
