@@ -267,8 +267,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             )
             return Response(
                 {
-                    "message": f"Active job limit reached. The maximum allowed is "
-                    f"{settings.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER}."
+                    "message": f"Active job limit reached. The maximum allowed is {settings.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER}."
                 },
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
