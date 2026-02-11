@@ -25,7 +25,7 @@ class TestProgramApi(APITestCase):
         super().setUp()
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
-        self.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER = 2
+        self.LIMITS_ACTIVE_JOBS_PER_USER = 2
 
     def tearDown(self):
         self._temp_directory.cleanup()
@@ -248,7 +248,7 @@ class TestProgramApi(APITestCase):
             self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
 
         with self.settings(
-            LIMITS_ACTIVE_JOBS_QUEUE_PER_USER=self.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER
+            LIMITS_ACTIVE_JOBS_PER_USER=self.LIMITS_ACTIVE_JOBS_PER_USER
         ):
 
             # test_user_2 has 2 Jobs, one with`QUEUED` status and other in `SUCCEEDED` status.
@@ -259,23 +259,21 @@ class TestProgramApi(APITestCase):
             ).count()
 
             # Checking that this test will run according to scripts
-            self.assertGreater(
-                self.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER, num_jobs_in_queue
-            )
+            self.assertGreater(self.LIMITS_ACTIVE_JOBS_PER_USER, num_jobs_in_queue)
 
             # filling up the queue to the limit
-            for _ in range(num_jobs_in_queue, self.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER):
+            for _ in range(num_jobs_in_queue, self.LIMITS_ACTIVE_JOBS_PER_USER):
                 assert_program_ok_response()
 
             # the user has a job with status `SUCCEEDED`.
             # Checking it doesn't count it towards the limit
             self.assertEqual(
-                self.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER,
+                self.LIMITS_ACTIVE_JOBS_PER_USER,
                 Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count(),
             )
             self.assertGreater(
                 Job.objects.filter(author=user).count(),
-                self.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER,
+                self.LIMITS_ACTIVE_JOBS_PER_USER,
             )
 
             # Failing to add a job to the queue
@@ -286,7 +284,7 @@ class TestProgramApi(APITestCase):
             self.assertEqual(
                 programs_response_fail.data.get("message"),
                 f"Active job limit reached. The maximum allowed is"
-                f" {self.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER}.",
+                f" {self.LIMITS_ACTIVE_JOBS_PER_USER}.",
             )
 
             # Changing a queued job status to Fail and check we can submit another job.
@@ -297,7 +295,7 @@ class TestProgramApi(APITestCase):
             job.save()
 
             self.assertGreater(
-                self.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER,
+                self.LIMITS_ACTIVE_JOBS_PER_USER,
                 Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count(),
             )
 

@@ -2,7 +2,7 @@
 features:
   - |
     Added a new gateway setting to limit the number of active jobs per user. 
-    By setting the environment variable ``LIMITS_ACTIVE_JOBS_QUEUE_PER_USER``, you can 
+    By setting the environment variable ``LIMITS_ACTIVE_JOBS_PER_USER``, you can 
     restrict the total number of jobs a user can have across ``QUEUED``, 
     ``PENDING``, and ``RUNNING`` states. The default limit is ``50``.
 upgrade:

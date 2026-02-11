@@ -192,17 +192,17 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     return {dep.name: dep for dep in dependencies}
 
 
-def active_jobs_queue_limit_reached(author: str) -> bool:
+def active_jobs_limit_reached(author: str) -> bool:
     """
-    Returns True if the user reached his queue limit,
+    Returns True if the user reached his active jobs limit,
     False otherwise.
     """
-    queue_limit = settings.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER
-    user_queue_jobs_count = Job.objects.filter(
+    active_jobs_limit = settings.LIMITS_ACTIVE_JOBS_PER_USER
+    user_active_jobs_count = Job.objects.filter(
         author=author, status__in=Job.ACTIVE_STATUSES
     ).count()
 
-    return not user_queue_jobs_count < queue_limit
+    return not user_active_jobs_count < active_jobs_limit
 
 
 DEPENDENCY_REQUEST_URL = "https://github.com/Qiskit/qiskit-serverless/issues/new?template=pip_dependency_request.yaml"  # pylint: disable=line-too-long

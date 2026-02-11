@@ -222,8 +222,8 @@ spec:
               value: {{ .Values.application.security.hstsIncludeSubdomains | quote }}
             - name: SECURE_HSTS_PRELOAD
               value: {{ .Values.application.security.hstsPreload | quote }}
-            - name: LIMITS_ACTIVE_JOBS_QUEUE_PER_USER
-              value: {{ .Values.application.limits.maxActiveJobsInQueuePerUser | quote }}
+            - name: LIMITS_ACTIVE_JOBS_PER_USER
+              value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
