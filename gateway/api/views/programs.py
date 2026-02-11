@@ -21,7 +21,7 @@ from rest_framework.response import Response
 
 from api.repositories.functions import FunctionRepository
 from api.domain.authentication.channel import Channel
-from api.utils import sanitize_name, queue_limit_reached
+from api.utils import sanitize_name, active_jobs_queue_limit_reached
 from api.serializers import (
     JobConfigSerializer,
     RunJobSerializer,
@@ -260,13 +260,14 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 serializer.errors,
             )
             return Response(job_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        if queue_limit_reached(author):
+        if active_jobs_queue_limit_reached(author):
             logger.error(
-                "The number of queued job has reached the limit. The set limit is:\n %s",
-                settings.LIMITS_JOBS_QUEUE_PER_USER,
+                "The number of active jobs has reached the limit. The set limit is:\n %s",
+                settings.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER,
             )
             return Response(
-                f"Job limit reached. Maximum allowed jobs: {settings.LIMITS_JOBS_QUEUE_PER_USER}",
+                f"Active job limit reached. Maximum allowed active jobs: "
+                f"{settings.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER}",
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         job = job_serializer.save(
