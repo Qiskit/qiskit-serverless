@@ -7,9 +7,9 @@ import os
 from typing import Optional
 
 from api.domain.exceptions.forbidden_error import ForbiddenError
-from api.services.storage.path_builder import PathBuilder
-from api.services.storage.enums.working_dir import WorkingDir
 from api.models import Job
+from core.services.storage.enums.working_dir import WorkingDir
+from core.services.storage.path_builder import PathBuilder
 
 logger = logging.getLogger("gateway")
 
