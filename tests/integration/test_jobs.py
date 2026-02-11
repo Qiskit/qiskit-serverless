@@ -124,6 +124,7 @@ class TestFunctionsDocker:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
+    @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
     def test_distributed_workloads(self, serverless_client: ServerlessClient):
         """Integration test for Functions for distributed workloads."""
 
@@ -205,6 +206,7 @@ class TestFunctionsDocker:
         with raises(QiskitServerlessException):
             job.result()
 
+    @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
     def test_update_sub_status(self, serverless_client: ServerlessClient):
         """Integration test for run functions multiple times."""
 

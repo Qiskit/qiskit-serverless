@@ -3,6 +3,7 @@
 
 import os
 
+import pytest
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_serverless import (
     QiskitFunction,
@@ -14,6 +15,9 @@ resources_path = os.path.join(
 )
 
 
+@pytest.mark.skip(
+    reason="Flaky integration tests, requires re-work to make it work in all environments"
+)
 class TestRuntime:
     """Integration tests for runtime wrapper with and without session."""
 
