@@ -283,6 +283,11 @@ class TestProgramApi(APITestCase):
             self.assertEqual(
                 programs_response_fail.status_code, status.HTTP_429_TOO_MANY_REQUESTS
             )
+            self.assertEqual(
+                programs_response_fail.data.get("message"),
+                f"Active job limit reached. The maximum allowed is"
+                f" {self.LIMITS_ACTIVE_JOBS_QUEUE_PER_USER}.",
+            )
 
             # Changing a queued job status to Fail and check we can submit another job.
             job = Job.objects.filter(
