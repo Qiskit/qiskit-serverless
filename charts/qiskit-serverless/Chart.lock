@@ -1,7 +1,7 @@
 dependencies:
 - name: gateway
   repository: ""
-  version: 0.28.0
+  version: 0.29.0
 - name: nginx-ingress-controller
   repository: https://charts.bitnami.com/bitnami
   version: 9.11.0
@@ -11,5 +11,5 @@ dependencies:
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
   version: 1.3.2
-digest: sha256:6588b16e1d64ed4f97ba3d0afb9879531af9e4db792576d5a699ff74a7892ad1
-generated: "2025-12-03T14:01:22.299675244Z"
+digest: sha256:9ac1cea19f25402de987c45808994edeb8d9053b5250cdb83af5579ace9f0574
+generated: "2026-02-09T19:23:14.584681996Z"

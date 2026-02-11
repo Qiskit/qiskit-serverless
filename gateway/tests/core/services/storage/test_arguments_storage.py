@@ -5,7 +5,7 @@ import tempfile
 
 from django.test import TestCase
 
-from api.services.storage.arguments_storage import ArgumentsStorage
+from core.services.storage.arguments_storage import ArgumentsStorage
 
 
 class TestArgumentsStorage(TestCase):

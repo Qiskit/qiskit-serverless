@@ -23,13 +23,13 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from api.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
-from api.services.storage.file_storage import FileStorage, WorkingDir
-from api.utils import (
+from core.services.storage.file_storage import FileStorage, WorkingDir
+from core.utils import (
     retry_function,
     decrypt_env_vars,
     generate_cluster_name,
+    sanitize_file_path,
 )
-from core.utils import sanitize_file_path
 
 logger = logging.getLogger("commands")
 
@@ -261,11 +261,11 @@ def _create_cluster_data(job: Job, cluster_name: str):
 
 def _create_local_compute_resource(job: Job) -> ComputeResource:
     compute_resource = ComputeResource.objects.filter(
-        host=settings.RAY_CLUSTER_MODE.get("ray_local_host")
+        host=settings.RAY_LOCAL_HOST
     ).first()
     if compute_resource is None:
         compute_resource = ComputeResource(
-            host=settings.RAY_CLUSTER_MODE.get("ray_local_host"),
+            host=settings.RAY_LOCAL_HOST,
             title="Local compute resource",
             owner=job.author,
         )
@@ -340,7 +340,7 @@ def create_compute_resource(  # pylint: disable=too-many-branches,too-many-local
         returns compute resource associated with ray cluster.
     """
 
-    if settings.RAY_CLUSTER_MODE.get("local"):
+    if settings.RAY_CLUSTER_MODE_LOCAL:
         return _create_local_compute_resource(job)
 
     return _create_k8s_cluster(
@@ -383,7 +383,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     Returns:
         number of killed clusters
     """
-    if settings.RAY_CLUSTER_MODE.get("local"):
+    if settings.RAY_CLUSTER_MODE_LOCAL:
         # in local, there's only one ComputeResource shared across all jobs. returning False
         # will ensure the ComputeResource is not deactivated, so it can be reused later
         return False
