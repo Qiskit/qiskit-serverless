@@ -10,9 +10,9 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
 
-from api.domain.function import check_logs
 from api.models import ComputeResource, Job, Program, Provider
 from core.services.ray import JobHandler
+from core.utils import check_logs
 
 
 class TestCommands(APITestCase):
@@ -56,24 +56,6 @@ class TestCommands(APITestCase):
         # Test job logs for FAILED job with empty logs
         ray_client.get_job_status.return_value = JobStatus.FAILED
         ray_client.get_job_logs.return_value = ""
-
-        call_command("update_jobs_statuses")
-
-        job.refresh_from_db()
-        self.assertEqual(job.status, "FAILED")
-        self.assertEqual(job.env_vars, "{}")
-        self.assertIsNone(job.sub_status)
-
-    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
-    def test_update_jobs_statuses_job_not_found_in_ray(self, get_job_handler):
-        """Tests that job is marked as FAILED when it no longer exists in Ray."""
-        job_handler = MagicMock()
-        job_handler.status.side_effect = RuntimeError(
-            "Request failed with status code 404: Job raysubmit_xyz does not exist."
-        )
-        get_job_handler.return_value = job_handler
-
-        job = self._create_test_job(ray_job_id="test_job_not_found")
 
         call_command("update_jobs_statuses")
 

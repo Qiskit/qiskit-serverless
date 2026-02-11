@@ -2,7 +2,7 @@
 
 from rest_framework.test import APITestCase
 
-from api.utils import generate_cluster_name
+from core.utils import generate_cluster_name
 
 
 class TestClusterNameGenerator(APITestCase):

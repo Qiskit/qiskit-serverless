@@ -3,7 +3,7 @@ services:
   ray-head:
     user: "0"
     container_name: ray-head
-    image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.28.0}
+    image: icr.io/quantum-public/qiskit-serverless/ray-node:${VERSION:-0.29.0}
     entrypoint: [
       "ray", "start", "--head", "--port=6379",
       "--dashboard-host=0.0.0.0", "--block"
@@ -13,8 +13,6 @@ services:
     volumes:
       - host-shm:/dev/shm
       - program-artifacts:/data
-    environment:
-      - DATA_PATH=/data/mockuser
     networks:
       - safe-tier
   postgres:
@@ -36,7 +34,7 @@ services:
       retries: 5
   gateway:
     container_name: gateway
-    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.28.0}
+    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.29.0}
     command: python manage.py runserver 0.0.0.0:8000
     ports:
       - 8000:8000
@@ -44,6 +42,7 @@ services:
     environment:
       - DEBUG=0
       - RAY_HOST=http://ray-head:8265
+      - RAY_CLUSTER_MODE_LOCAL=true
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_PASSWORD=123
       - DJANGO_SUPERUSER_EMAIL=admin@noemail.com
@@ -64,7 +63,7 @@ services:
   scheduler:
     user: "root" # root user is needed to write on volumes
     container_name: scheduler
-    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.28.0}
+    image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.29.0}
     entrypoint: "./scripts/scheduler.sh"
     environment:
       - DEBUG=0
@@ -73,8 +72,8 @@ services:
       - DATABASE_NAME=serverlessdb
       - DATABASE_USER=serverlessuser
       - DATABASE_PASSWORD=serverlesspassword
-      - RAY_CLUSTER_MODE_LOCAL_HOST=http://ray-head:8265
-      - RAY_CLUSTER_MODE_LOCAL=1
+      - RAY_LOCAL_HOST=http://ray-head:8265
+      - RAY_CLUSTER_MODE_LOCAL=true
       - SETTINGS_AUTH_MECHANISM=mock_token
     networks:
       - safe-tier
