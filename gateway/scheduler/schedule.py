@@ -15,7 +15,7 @@ from opentelemetry import trace
 
 from api.models import Job, ComputeResource
 from core.services.ray import submit_job, create_compute_resource, kill_ray_cluster
-from api.utils import generate_cluster_name, create_gpujob_allowlist
+from core.utils import generate_cluster_name, create_gpujob_allowlist
 
 User: Model = get_user_model()
 logger = logging.getLogger("commands")

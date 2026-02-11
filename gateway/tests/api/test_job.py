@@ -10,7 +10,7 @@ from django.contrib.auth.models import User, Group
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from api.services.storage.result_storage import ResultStorage
+from core.services.storage.result_storage import ResultStorage
 
 from api.models import Job, Program, Provider, RuntimeJob
 

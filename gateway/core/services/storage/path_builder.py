@@ -8,7 +8,7 @@ from typing import Optional
 
 from django.conf import settings
 
-from api.services.storage.enums.working_dir import WorkingDir
+from core.services.storage.enums.working_dir import WorkingDir
 from core.utils import sanitize_file_path
 
 logger = logging.getLogger("gateway")
