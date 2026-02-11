@@ -11,7 +11,7 @@ from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_job
 
 
 class TestScheduleApi(APITestCase):
-    """TestJobApi."""
+    """TestScheduleApi."""
 
     fixtures = ["tests/fixtures/schedule_fixtures.json"]
 

@@ -5,7 +5,7 @@ import tempfile
 
 from django.test import TestCase
 
-from api.services.storage.result_storage import ResultStorage
+from core.services.storage.result_storage import ResultStorage
 
 
 class TestResultStorage(TestCase):
