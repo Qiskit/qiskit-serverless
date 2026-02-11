@@ -14,7 +14,7 @@ resources_path = os.path.join(
 )
 
 
-class TestFunctionsStaging:
+class TestRuntime:
     """Integration tests for runtime wrapper with and without session."""
 
     def _run_and_validate_function(
