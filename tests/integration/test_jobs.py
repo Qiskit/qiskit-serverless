@@ -252,7 +252,9 @@ class TestFunctionsDocker:
         assert job_2.status() == "RUNNING"
 
     @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
-    def test_get_filtered_jobs(self, serverless_client: ServerlessClient):
+    def test_get_filtered_jobs(  # pylint: disable=too-many-locals
+        self, serverless_client: ServerlessClient
+    ):
         """Integration test for filtering jobs."""
 
         function_1 = QiskitFunction(
