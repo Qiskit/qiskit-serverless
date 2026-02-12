@@ -17,10 +17,6 @@ jobs:
       run:
         working-directory: ./tests
     env:
-      QISKIT_IBM_CHANNEL: "ibm_quantum_platform"
-      QISKIT_IBM_TOKEN: ${{ secrets.QISKIT_IBM_TOKEN }}
-      QISKIT_IBM_INSTANCE: ${{ secrets.QISKIT_IBM_INSTANCE }}
-      QISKIT_IBM_URL: "https://test.cloud.ibm.com"
       KIND_CLUSTER_NAME: kind
     steps:
       - uses: actions/checkout@v6
