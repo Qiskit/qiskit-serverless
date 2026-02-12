@@ -2,15 +2,13 @@ name: Integration tests
 
 on:
   workflow_dispatch:
-  pull_request:
-  merge_group:
 
 permissions:
   contents: read
 
 jobs:
   verify-integration:
-    name: Integration tests [lint, test]
+    name: External integration tests [lint, test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # keep running if one leg fails
