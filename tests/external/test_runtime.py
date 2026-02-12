@@ -3,7 +3,6 @@
 
 import os
 
-import pytest
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_serverless import (
     QiskitFunction,
@@ -11,13 +10,10 @@ from qiskit_serverless import (
 )
 
 resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "source_files"
+    os.path.dirname(os.path.abspath(__file__)), "../source_files"
 )
 
 
-@pytest.mark.skip(
-    reason="Flaky integration tests, requires re-work to make it work in all environments"
-)
 class TestRuntimeIntegration:
     """Integration tests for runtime wrapper with and without session."""
 

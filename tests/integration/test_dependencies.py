@@ -12,7 +12,7 @@ from qiskit_serverless import (
 )
 
 resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "source_files"
+    os.path.dirname(os.path.abspath(__file__)), "../source_files"
 )
 
 
