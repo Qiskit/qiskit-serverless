@@ -2,18 +2,19 @@
 
 import logging
 from typing import Optional
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from rest_framework import exceptions
 
 from api.access_policies.users import UserAccessPolicies
-from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
+from api.domain.authentication.channel import Channel
 from api.repositories.providers import ProviderRepository
 from api.repositories.users import UserRepository
 from api.services.authentication.authentication_base import AuthenticationBase
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
-from api.domain.authentication.channel import Channel
+from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 
 logger = logging.getLogger("gateway.use_cases.authentication")
 
