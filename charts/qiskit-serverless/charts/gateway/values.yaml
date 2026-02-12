@@ -28,7 +28,7 @@ application:
     enable: true
   maintenance: false
   ray:
-    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.28.0"
+    nodeImage: "icr.io/quantum-public/qiskit-serverless/ray-node:0.29.0"
     cpu: 2
     memory: 2
     gpu: 1
@@ -63,6 +63,10 @@ application:
   dependencies:
       dynamicDependencies: "requirements-dynamic-dependencies.txt"
   logsMaximumSize: "52428800" # 50Mb in bytes
+  security:
+    hstsSeconds: 0  # 0 means disabled
+    hstsIncludeSubdomains: false
+    hstsPreload: false
 
 cos:
   claimName: gateway-claim

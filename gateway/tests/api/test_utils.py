@@ -50,6 +50,48 @@ class TestUtils(APITestCase):
                     "ENV_JOB_ID_GATEWAY": "42",
                     "ENV_JOB_ARGUMENTS": "{}",
                     "ENV_ACCESS_TRIAL": "False",
+                    "DATA_PATH": "/data",
+                    "QISKIT_IBM_TOKEN": "an_awesome_api_key",
+                    "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
+                    "QISKIT_IBM_INSTANCE": "an_awesome_crn",
+                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
+                },
+            )
+
+    def test_ibm_cloud_local_env_var_build(self):
+        """This test is to test the env_vars for an IBM Cloud authentication process."""
+
+        with self.settings(
+            SETTINGS_AUTH_MECHANISM="custom_token", RAY_CLUSTER_MODE_LOCAL=True
+        ):
+            channel = Channel.IBM_QUANTUM_PLATFORM
+            token = "an_awesome_api_key"
+            job = MagicMock()
+            job.author.username = "IBMid-691000IC75"
+            job.id = "42"
+            trial = False
+            arguments = "{}"
+            instance = "an_awesome_crn"
+
+            env_vars = build_env_variables(
+                channel=channel,
+                token=token,
+                job=job,
+                trial_mode=trial,
+                args=arguments,
+                instance=instance,
+            )
+
+            self.assertEqual(
+                env_vars,
+                {
+                    "ENV_JOB_GATEWAY_TOKEN": "an_awesome_api_key",
+                    "ENV_JOB_GATEWAY_INSTANCE": "an_awesome_crn",
+                    "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
+                    "ENV_JOB_ID_GATEWAY": "42",
+                    "ENV_JOB_ARGUMENTS": "{}",
+                    "ENV_ACCESS_TRIAL": "False",
+                    "DATA_PATH": "/data/IBMid-691000IC75",
                     "QISKIT_IBM_TOKEN": "an_awesome_api_key",
                     "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
                     "QISKIT_IBM_INSTANCE": "an_awesome_crn",
@@ -60,10 +102,13 @@ class TestUtils(APITestCase):
     def test_local_env_var_build(self):
         """This test is to test the env_vars for a local authentication process."""
 
-        with self.settings(SETTINGS_AUTH_MECHANISM="mock_token"):
+        with self.settings(
+            SETTINGS_AUTH_MECHANISM="mock_token", RAY_CLUSTER_MODE_LOCAL=True
+        ):
             channel = Channel.LOCAL
             token = "mock_token"
             job = MagicMock()
+            job.author.username = "IBMid-691000IC75"
             job.id = "42"
             trial = False
             arguments = "{}"
@@ -86,6 +131,7 @@ class TestUtils(APITestCase):
                     "ENV_JOB_ID_GATEWAY": "42",
                     "ENV_JOB_ARGUMENTS": "{}",
                     "ENV_ACCESS_TRIAL": "False",
+                    "DATA_PATH": "/data/IBMid-691000IC75",
                     "QISKIT_IBM_TOKEN": "mock_token",
                     "QISKIT_IBM_CHANNEL": "local",
                     "QISKIT_IBM_URL": "https://cloud.ibm.com",
@@ -121,6 +167,7 @@ class TestUtils(APITestCase):
                     "ENV_JOB_ID_GATEWAY": "42",
                     "ENV_JOB_ARGUMENTS": "{}",
                     "ENV_ACCESS_TRIAL": "True",
+                    "DATA_PATH": "/data",
                     "QISKIT_IBM_TOKEN": "mock_token",
                     "QISKIT_IBM_CHANNEL": "local",
                     "QISKIT_IBM_URL": "https://cloud.ibm.com",

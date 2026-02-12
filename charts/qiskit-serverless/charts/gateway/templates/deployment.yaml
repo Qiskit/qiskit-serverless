@@ -31,6 +31,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
+          imagePullPolicy: IfNotPresent
           command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           volumeMounts:
           - name: gateway-pv-storage
@@ -215,6 +216,12 @@ spec:
               value: {{ .Values.application.dependencies.dynamicDependencies | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: SECURE_HSTS_SECONDS
+              value: {{ .Values.application.security.hstsSeconds | quote }}
+            - name: SECURE_HSTS_INCLUDE_SUBDOMAINS
+              value: {{ .Values.application.security.hstsIncludeSubdomains | quote }}
+            - name: SECURE_HSTS_PRELOAD
+              value: {{ .Values.application.security.hstsPreload | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -276,6 +283,7 @@ spec:
       initContainers:
         - name: waitpostresql
           image: actions/pg_isready
+          imagePullPolicy: IfNotPresent
           command: ['sh', '-c', 'until pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h ${DATABASE_HOST} -p ${DATABASE_PORT}; do echo waiting for myservice; sleep 2; done']
           env:
             - name: DATABASE_HOST

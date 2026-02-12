@@ -103,3 +103,6 @@ docs/_build/
 .jupyter/
 .ipython/
 .virtual_documents/
+
+# any logs
+*.log

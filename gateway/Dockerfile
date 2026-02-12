@@ -2,11 +2,11 @@ ARG MICRO_IMAGE_DIR=/ubi-micro-img
 
 # BASE image using UBI 9 micro where the
 # application and requirements will be installed
-FROM registry.access.redhat.com/ubi9-micro:9.7-1762965531 AS base
+FROM registry.access.redhat.com/ubi9-micro:9.7-1766049073 AS base
 
 # BUILD image using UBI 9 where the dependencies that
-# require installing with a package manager will be installed
-FROM registry.access.redhat.com/ubi9:9.7-1763340522 AS build
+# require installing with a package manager will be installed.
+FROM registry.access.redhat.com/ubi9:9.7-1769417801 AS build
 ARG MICRO_IMAGE_DIR
 
 # Copy the BASE image into the BUILD image
@@ -60,7 +60,8 @@ COPY --chown=1000:100 gateway .
 COPY --chown=1000:100 ray-node/requirements-dynamic-dependencies.txt .
 COPY --chown=1000:100 ray-node/requirements-test-dynamic-dependencies.txt .
 
-RUN mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
+RUN mkdir /usr/src/app/static && chown 1000:100 /usr/src/app/static && \
+    mkdir /usr/src/app/media && chown 1000:100 /usr/src/app/media
 
 RUN sed -i 's/\r$//g' /usr/src/app/entrypoint.sh && \
     chmod +x /usr/src/app/entrypoint.sh
