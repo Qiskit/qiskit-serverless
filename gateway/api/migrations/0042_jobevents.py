@@ -24,6 +24,7 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
+                ("event_type", models.CharField(max_length=100)),
                 ("context", models.CharField(max_length=100)),
                 ("created", models.DateTimeField(auto_now_add=True, null=True)),
                 ("data", models.JSONField(default=dict)),

@@ -54,6 +54,7 @@ class TestCommands(APITestCase):
 
         job_events = JobEvents.objects.filter(job=job)
         self.assertEqual(len(job_events), 1)
+        self.assertEqual(job_events[0].event_type, "Status change")
         self.assertEqual(job_events[0].data["status"], JobStatus.RUNNING)
         self.assertEqual(job_events[0].data["sub_status"], None)
         self.assertEqual(job_events[0].context, "Scheduler")
@@ -72,6 +73,7 @@ class TestCommands(APITestCase):
 
         job_events = JobEvents.objects.filter(job=job).order_by("created")
         self.assertEqual(len(job_events), 2)
+        self.assertEqual(job_events[1].event_type, "Status change")
         self.assertEqual(job_events[1].data["status"], JobStatus.FAILED)
         self.assertEqual(job_events[1].data["sub_status"], None)
         self.assertEqual(job_events[1].context, "Scheduler")
@@ -97,9 +99,11 @@ class TestCommands(APITestCase):
         # There is one Job in the fixtures in QUEUED state. It call execute_job twice
         # and add 2 equal events. If we remove fixtures we can fix this test properly
         self.assertEqual(len(job_events), 2)
+        self.assertEqual(job_events[0].event_type, "Status change")
         self.assertEqual(job_events[0].data["status"], JobStatus.SUCCEEDED)
         self.assertEqual(job_events[0].data["sub_status"], None)
         self.assertEqual(job_events[0].context, "Scheduler")
+        self.assertEqual(job_events[1].event_type, "Status change")
         self.assertEqual(job_events[1].data["status"], JobStatus.SUCCEEDED)
         self.assertEqual(job_events[1].data["sub_status"], None)
         self.assertEqual(job_events[1].context, "Scheduler")

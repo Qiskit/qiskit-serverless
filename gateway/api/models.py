@@ -318,6 +318,7 @@ class JobEvents(models.Model):
         blank=True,
         related_name="job_events",
     )
+    event_type = models.CharField(max_length=100, blank=False, null=False)
     context = models.CharField(max_length=100, blank=False, null=False)
     created = models.DateTimeField(auto_now_add=True, null=True)
     data = models.JSONField(default=dict, blank=False, null=False)

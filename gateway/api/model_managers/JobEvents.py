@@ -16,6 +16,7 @@ class JobEventsQuerySet(QuerySet):
         return self.create(
             job_id=job_id,
             context=context,
+            event_type="Status change",
             data={
                 "status": status,
                 "sub_status": sub_status,
