@@ -9,6 +9,7 @@ from core.services.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.repositories.runtime_job import RuntimeJobRepository
+from gateway.api.model_managers.JobEvents import JobEventsContext
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 
@@ -38,7 +39,7 @@ class StopJobUseCase:
             job.status = Job.STOPPED
             job.save(update_fields=["status"])
             JobEvents.objects.add_status_event(
-                job_id=job.id, context="API - StopJob", status=job.status
+                job_id=job.id, context=JobEventsContext.API_STOP_JOB, status=job.status
             )
             self.status_messages.append("Job has been stopped.")
         else:

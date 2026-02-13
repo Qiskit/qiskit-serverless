@@ -10,6 +10,7 @@ import json
 import logging
 from typing import Tuple, Union
 from django.conf import settings
+from gateway.api.model_managers.JobEvents import JobEventsContext
 from rest_framework import serializers
 
 from api.repositories.functions import FunctionRepository
@@ -319,7 +320,9 @@ class RunJobSerializer(serializers.ModelSerializer):
         job.env_vars = json.dumps(env)
         job.save()
         JobEvents.objects.add_status_event(
-            job_id=job.id, context="RunProgramSerializer/create", status=job.status
+            job_id=job.id,
+            context=JobEventsContext.RUN_PROGRAM_SERIALIZER,
+            status=job.status,
         )
 
         return job

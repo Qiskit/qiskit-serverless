@@ -10,6 +10,7 @@ from core.utils import check_logs, ray_job_status_to_model_job_status
 from api.models import Job
 from api.models import Job, JobEvents
 from core.services.ray import get_job_handler
+from gateway.api.model_managers.JobEvents import JobEventsContext
 from scheduler.schedule import (
     check_job_timeout,
     handle_job_status_not_available,
@@ -113,7 +114,7 @@ class Command(BaseCommand):
                 if update_job_status(job):
                     JobEvents.objects.add_status_event(
                         job_id=job.id,
-                        context="Scheduler",
+                        context=JobEventsContext.SCHEDULER,
                         status=job.status,
                         sub_status=job.sub_status,
                     )
@@ -128,7 +129,7 @@ class Command(BaseCommand):
                 if update_job_status(job):
                     JobEvents.objects.add_status_event(
                         job_id=job.id,
-                        context="Scheduler",
+                        context=JobEventsContext.SCHEDULER,
                         status=job.status,
                         sub_status=job.sub_status,
                     )

@@ -12,6 +12,7 @@ from api.models import Job, JobEvents
 from api.repositories.jobs import JobsRepository
 from core.utils import retry_function
 from core.services.job_status import update_job_status
+from gateway.api.model_managers.JobEvents import JobEventsContext
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 
@@ -56,7 +57,7 @@ class SetJobSubStatusUseCase:
             if status_has_changed:
                 JobEvents.objects.add_status_event(
                     job_id=job.id,
-                    context="API - SetJobSubStatus",
+                    context=JobEventsContext.API_SET_SUB_STATUS,
                     status=job.status,
                     additional_info=warning_msg,
                 )
@@ -82,7 +83,7 @@ class SetJobSubStatusUseCase:
         if status_has_changed or old_sub_status != job.sub_status:
             JobEvents.objects.add_status_event(
                 job_id=job.id,
-                context="API - SetJobSubStatus",
+                context=JobEventsContext.API_SET_SUB_STATUS,
                 status=job.status,
                 sub_status=job.sub_status,
             )
