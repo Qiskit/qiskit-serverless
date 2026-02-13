@@ -8,7 +8,7 @@ from rest_framework import exceptions
 from rest_framework.test import APITestCase
 
 from api.authentication import MockTokenBackend
-from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
+from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 from api.repositories.providers import ProviderRepository
 
 

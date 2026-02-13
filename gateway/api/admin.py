@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import path
 from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.main import PAGE_VAR
-from api.models import (
+from core.models import (
     GroupMetadata,
     JobConfig,
     Provider,

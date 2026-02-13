@@ -5,7 +5,7 @@ from django.test import TransactionTestCase
 from rest_framework.test import APITestCase
 from api.context import impersonate
 
-from api.models import Job, Program, ProgramHistory
+from core.models import Job, Program, ProgramHistory
 
 
 class TestModels(APITestCase):

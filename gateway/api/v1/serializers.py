@@ -5,11 +5,13 @@ Serializers api for V1.
 import json
 import logging
 from typing import Any
+
 from packaging.requirements import Requirement, InvalidRequirement
 from rest_framework.serializers import ValidationError
+
 from api import serializers
-from api.models import Provider
 from api.utils import check_whitelisted
+from core.models import Provider
 
 logger = logging.getLogger("gateway.serializers")
 

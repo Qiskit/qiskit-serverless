@@ -14,7 +14,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.models import Job, Program
+from core.models import Job, Program
 from api.repositories.jobs import JobFilters
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.v1.endpoint_decorator import endpoint

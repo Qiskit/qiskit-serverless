@@ -12,7 +12,7 @@ from ibm_cloud_sdk_core import DetailedResponse
 
 from api.authentication import CustomTokenBackend
 from api.domain.authentication.custom_authentication import CustomAuthentication
-from api.models import VIEW_PROGRAM_PERMISSION
+from core.models import VIEW_PROGRAM_PERMISSION
 
 
 def _create_mock_jwt(iam_id: str, account_id: str) -> str:

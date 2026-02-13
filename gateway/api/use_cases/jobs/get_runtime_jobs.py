@@ -4,7 +4,7 @@ import logging
 from uuid import UUID
 
 from api.domain.exceptions.not_found_error import NotFoundError
-from api.models import RuntimeJob
+from core.models import RuntimeJob
 from api.repositories.jobs import JobsRepository
 from api.repositories.runtime_job import RuntimeJobRepository
 

@@ -4,7 +4,7 @@ Access policies implementation for Provider access
 
 import logging
 
-from api.models import Provider
+from core.models import Provider
 
 logger = logging.getLogger("gateway")
 

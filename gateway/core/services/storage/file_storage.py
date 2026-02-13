@@ -11,7 +11,7 @@ from wsgiref.util import FileWrapper
 
 from django.core.files import File
 
-from api.models import Program
+from core.models import Program
 from core.services.storage.enums.working_dir import WorkingDir
 from core.services.storage.path_builder import PathBuilder
 from core.utils import sanitize_file_path
