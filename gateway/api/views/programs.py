@@ -21,6 +21,7 @@ from rest_framework.response import Response
 
 from api.repositories.functions import FunctionRepository
 from api.domain.authentication.channel import Channel
+from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.utils import sanitize_name, active_jobs_limit_reached
 from api.serializers import (
     JobConfigSerializer,
@@ -30,6 +31,7 @@ from api.serializers import (
     UploadProgramSerializer,
 )
 from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
+from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.views.enums.type_filter import TypeFilter
 from api.decorators.trace_decorator import trace_decorator_factory
 
@@ -186,9 +188,8 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["POST"], detail=False)
-    def run(
-        self, request
-    ):  # pylint: disable=too-many-locals, too-many-return-statements
+    @endpoint_handle_exceptions
+    def run(self, request):  # pylint: disable=too-many-locals
         """Enqueues existing program."""
         serializer = self.get_serializer_run_program(data=request.data)
         if not serializer.is_valid():
@@ -262,17 +263,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
             return Response(job_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         if active_jobs_limit_reached(author):
             logger.error(
-                "The number of active jobs has reached the limit. The set limit is:\n %s",
+                "The number of active jobs has reached the limit. The set limit is: %s",
                 settings.LIMITS_ACTIVE_JOBS_PER_USER,
             )
-            return Response(
-                {
-                    "message": (
-                        f"Active job limit reached. The maximum allowed is "
-                        f"{settings.LIMITS_ACTIVE_JOBS_PER_USER}."
-                    )
-                },
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            raise ActiveJobLimitExceeded(
+                f"Active job limit reached. The maximum allowed is "
+                f"{settings.LIMITS_ACTIVE_JOBS_PER_USER}."
             )
         job = job_serializer.save(
             author=author,

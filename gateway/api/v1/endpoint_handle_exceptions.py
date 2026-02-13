@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
 from api.domain.exceptions.not_found_error import NotFoundError
+from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
 from api.domain.exceptions.forbidden_error import ForbiddenError
 
 logger = logging.getLogger("gateway")
@@ -54,6 +55,11 @@ def endpoint_handle_exceptions(view_func: Callable):
             return Response(
                 {"message": _first_error_message(error.detail)},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        except ActiveJobLimitExceeded as error:
+            return Response(
+                {"message": error.message},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         except Exception as error:  # pylint: disable=broad-exception-caught
             logger.error(
