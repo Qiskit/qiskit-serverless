@@ -5,6 +5,12 @@ utilities for API.
 from urllib.parse import urlencode
 from typing import List, Optional, Any, TypedDict
 
+import magic
+
+from rest_framework.exceptions import ValidationError
+from django.core.files import File
+from django.conf import settings
+
 
 class PaginatedResponse(TypedDict):
     """
@@ -87,3 +93,24 @@ def parse_positive_int(param: str, default: int) -> int:
     if value < 0:
         raise ValueError(f"{param} must be non-negative")
     return value
+
+
+def validate_uploaded_file(file: File):
+    """
+    Checks that an uploaded file has a valid mime type.
+
+    Args:
+        file (File): The uploaded file
+
+    Raises:
+        ValidationError: If the file is not a valid type
+    """
+
+    if not file:
+        raise ValidationError("A file should be uploaded.")
+
+    mime = magic.from_buffer(file.read(2048), mime=True)
+    file.seek(0)
+
+    if not mime in settings.UPLOAD_FILE_VALID_MIME_TYPES:
+        raise ValidationError("Uploaded file is not a valid type.")

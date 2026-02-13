@@ -17,6 +17,7 @@ from api.use_cases.files.upload import FilesUploadUseCase
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
+from api.v1.views.utils import validate_uploaded_file
 
 # pylint: disable=abstract-method
 
@@ -102,7 +103,8 @@ def files_upload(request: Request) -> Response:
     function = serializer.validated_data.get("function")
     provider = serializer.validated_data.get("provider")
 
-    uploaded_file = request.FILES["file"]
+    uploaded_file = request.FILES.get("file")
+    validate_uploaded_file(uploaded_file)
 
     user = cast(AbstractUser, request.user)
 
