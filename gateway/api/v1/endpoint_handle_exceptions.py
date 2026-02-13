@@ -11,7 +11,9 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
 from api.domain.exceptions.not_found_error import NotFoundError
-from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.active_job_limit_exceeded_exception import (
+    ActiveJobLimitExceeded,
+)
 from api.domain.exceptions.forbidden_error import ForbiddenError
 
 logger = logging.getLogger("gateway")

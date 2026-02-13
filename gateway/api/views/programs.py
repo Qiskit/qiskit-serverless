@@ -21,7 +21,9 @@ from rest_framework.response import Response
 
 from api.repositories.functions import FunctionRepository
 from api.domain.authentication.channel import Channel
-from api.domain.exceptions.active_job_limit_exceeded_exception import ActiveJobLimitExceeded
+from api.domain.exceptions.active_job_limit_exceeded_exception import (
+    ActiveJobLimitExceeded,
+)
 from api.utils import sanitize_name, active_jobs_limit_reached
 from api.serializers import (
     JobConfigSerializer,

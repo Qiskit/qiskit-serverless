@@ -1,5 +1,6 @@
 """Base exception for business domain errors."""
 
+
 class ActiveJobLimitExceeded(Exception):
     """Base exception for business domain errors."""
 
