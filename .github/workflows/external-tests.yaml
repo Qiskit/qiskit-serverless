@@ -1,21 +1,25 @@
 name: Integration tests
 
 on:
-  pull_request:
-  merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   verify-integration:
-    name: Integration tests [lint, test]
+    name: External integration tests [lint, test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # keep running if one leg fails
       matrix:
         python-version:
           - '3.11'
+    env:
+      QISKIT_IBM_CHANNEL: "ibm_quantum_platform"
+      QISKIT_IBM_TOKEN: ${{ secrets.QISKIT_IBM_TOKEN }}
+      QISKIT_IBM_INSTANCE: ${{ secrets.QISKIT_IBM_INSTANCE }}
+      QISKIT_IBM_URL: "https://test.cloud.ibm.com"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -32,7 +36,7 @@ jobs:
       - name: Wait for gateway
         run: curl --retry 30 --retry-delay 2 --retry-all-errors --fail http://localhost:8000/liveness/
       - name: Test using tox environment
-        run: tox -c tests/tox.ini -e py311
+        run: tox -c tests/tox.ini -e py311-external
       - name: Stop services
         if: always()
         run: docker compose -f docker-compose-dev.yaml down

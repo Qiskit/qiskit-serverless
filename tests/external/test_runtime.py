@@ -10,11 +10,11 @@ from qiskit_serverless import (
 )
 
 resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "source_files"
+    os.path.dirname(os.path.abspath(__file__)), "../source_files"
 )
 
 
-class TestFunctionsStaging:
+class TestRuntimeIntegration:
     """Integration tests for runtime wrapper with and without session."""
 
     def _run_and_validate_function(

@@ -67,13 +67,7 @@ jobs:
         env:
           GATEWAY_HOST: http://localhost:8000
         run: |
-          # basic tests
-          cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/basic
-          rm 06_function.py
-          for f in *.py; do echo "TEST: $f" && python "$f"; done
-          # experimental tests
-          cd /home/runner/work/qiskit-serverless/qiskit-serverless/tests/experimental
-          for f in *.py; do echo "TEST: $f" && python "$f"; done
+          tox -e py311
       - uses: chainguard-dev/actions/kind-diag@main
         # Only upload logs on failure.
         if: ${{ failure() }}
