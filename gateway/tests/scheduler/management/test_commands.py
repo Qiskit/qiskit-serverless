@@ -8,7 +8,7 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
 
-from api.models import ComputeResource, Job, Program, Provider
+from api.models import ComputeResource, Job, JobEvents, Program, Provider
 from core.services.ray import JobHandler
 from core.utils import check_logs
 
@@ -52,6 +52,12 @@ class TestCommands(APITestCase):
         self.assertEqual(job.logs, "No logs yet.")
         self.assertIsNotNone(job.env_vars)
 
+        job_events = JobEvents.objects.filter(job=job)
+        self.assertEqual(len(job_events), 1)
+        self.assertEqual(job_events[0].data["status"], JobStatus.RUNNING)
+        self.assertEqual(job_events[0].data["sub_status"], None)
+        self.assertEqual(job_events[0].context, "Scheduler")
+
         # Test job logs for FAILED job with empty logs
         ray_client.get_job_status.return_value = JobStatus.FAILED
         ray_client.get_job_logs.return_value = ""
@@ -64,6 +70,12 @@ class TestCommands(APITestCase):
         self.assertEqual(job.env_vars, "{}")
         self.assertIsNone(job.sub_status)
 
+        job_events = JobEvents.objects.filter(job=job).order_by("created")
+        self.assertEqual(len(job_events), 2)
+        self.assertEqual(job_events[1].data["status"], JobStatus.FAILED)
+        self.assertEqual(job_events[1].data["sub_status"], None)
+        self.assertEqual(job_events[1].context, "Scheduler")
+
     @patch("scheduler.management.commands.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""
@@ -71,6 +83,7 @@ class TestCommands(APITestCase):
         fake_job.id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
         fake_job.logs = ""
         fake_job.status = "SUCCEEDED"
+        fake_job.sub_status = None
         fake_job.program.artifact.path = "non_existing_file.tar"
         fake_job.save.return_value = None
 
@@ -79,6 +92,17 @@ class TestCommands(APITestCase):
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
         self.assertEqual(job_count, 7)
+
+        job_events = JobEvents.objects.filter(job_id=fake_job.id)
+        # There is one Job in the fixtures in QUEUED state. It call execute_job twice
+        # and add 2 equal events. If we remove fixtures we can fix this test properly
+        self.assertEqual(len(job_events), 2)
+        self.assertEqual(job_events[0].data["status"], JobStatus.SUCCEEDED)
+        self.assertEqual(job_events[0].data["sub_status"], None)
+        self.assertEqual(job_events[0].context, "Scheduler")
+        self.assertEqual(job_events[1].data["status"], JobStatus.SUCCEEDED)
+        self.assertEqual(job_events[1].data["sub_status"], None)
+        self.assertEqual(job_events[1].context, "Scheduler")
 
     def test_check_empty_logs(self):
         """Test error notification for failed and empty logs."""

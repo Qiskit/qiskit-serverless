@@ -8,7 +8,7 @@ from django.contrib.auth.models import AbstractUser
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.exceptions.not_found_error import NotFoundError
-from api.models import Job
+from api.models import Job, JobEvents
 from api.repositories.jobs import JobsRepository
 from core.utils import retry_function
 from core.services.job_status import update_job_status
@@ -45,14 +45,23 @@ class SetJobSubStatusUseCase:
         if not can_update_sub_status:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        update_job_status(job)
+        status_has_changed = update_job_status(job)
 
         if job.status != Job.RUNNING:
-            logger.warning(
+            warning_msg = (
                 "'sub_status' cannot change because the job"
                 " [%s] current status is not Running",
                 job.id,
             )
+            if status_has_changed:
+                JobEvents.objects.add_status_event(
+                    job_id=job.id,
+                    context="API - SetJobSubStatus",
+                    status=job.status,
+                    additional_info=warning_msg,
+                )
+
+            logger.warning(warning_msg)
             raise ForbiddenError(
                 "Cannot update 'sub_status' when is not"
                 f" in RUNNING status. (Currently {job.status})"
@@ -60,12 +69,22 @@ class SetJobSubStatusUseCase:
 
         def set_sub_status():
             self.jobs_repository.update_job_sub_status(job, sub_status)
-            return self.jobs_repository.get_job_by_id(job_id)
+            job.refresh_from_db()
 
-        job = retry_function(
+        old_sub_status = job.sub_status
+
+        retry_function(
             callback=set_sub_status,
             error_message=f"Job[{job_id}] record has not been updated due to lock.",
             error_message_level=logging.WARNING,
         )
+
+        if status_has_changed or old_sub_status != job.sub_status:
+            JobEvents.objects.add_status_event(
+                job_id=job.id,
+                context="API - SetJobSubStatus",
+                status=job.status,
+                sub_status=job.sub_status,
+            )
 
         return job

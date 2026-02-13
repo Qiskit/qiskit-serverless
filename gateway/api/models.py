@@ -9,6 +9,8 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
+from api.model_managers.JobEvents import JobEventsQuerySet
+
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
 
@@ -302,6 +304,25 @@ class RuntimeJob(models.Model):
     runtime_session = models.CharField(
         max_length=100, blank=True, null=True, default=None
     )
+
+
+class JobEvents(models.Model):
+    """Events history for jobs."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job = models.ForeignKey(
+        to=Job,
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="job_events",
+    )
+    context = models.CharField(max_length=100, blank=False, null=False)
+    created = models.DateTimeField(auto_now_add=True, null=True)
+    data = models.JSONField(default=dict, blank=False, null=False)
+
+    objects = JobEventsQuerySet.as_manager()
 
 
 class GroupMetadata(models.Model):

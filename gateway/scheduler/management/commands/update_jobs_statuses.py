@@ -8,6 +8,7 @@ from django.core.management.base import BaseCommand
 
 from core.utils import check_logs, ray_job_status_to_model_job_status
 from api.models import Job
+from api.models import Job, JobEvents
 from core.services.ray import get_job_handler
 from scheduler.schedule import (
     check_job_timeout,
@@ -82,6 +83,7 @@ def update_job_status(job: Job):
             job.status = job_new_status
             # cleanup env vars
             job.env_vars = "{}"
+            status_has_changed = True
 
     try:
         job.save()
@@ -109,6 +111,12 @@ class Command(BaseCommand):
             jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=False)
             for job in jobs:
                 if update_job_status(job):
+                    JobEvents.objects.add_status_event(
+                        job_id=job.id,
+                        context="Scheduler",
+                        status=job.status,
+                        sub_status=job.sub_status,
+                    )
                     updated_jobs_counter += 1
 
             logger.info("Updated %s classical jobs.", updated_jobs_counter)
@@ -118,6 +126,12 @@ class Command(BaseCommand):
             jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=True)
             for job in jobs:
                 if update_job_status(job):
+                    JobEvents.objects.add_status_event(
+                        job_id=job.id,
+                        context="Scheduler",
+                        status=job.status,
+                        sub_status=job.sub_status,
+                    )
                     updated_jobs_counter += 1
 
             logger.info("Updated %s GPU jobs.", updated_jobs_counter)
