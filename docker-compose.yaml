@@ -38,7 +38,7 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     ports:
       - 8000:8000
-    user: "root" # we use the root user here so the docker-compose watch can sync files into the container
+    user: "root" # root user is needed to write on volumes
     environment:
       - DEBUG=0
       - RAY_HOST=http://ray-head:8265
@@ -61,6 +61,7 @@ services:
       postgres:
         condition: service_healthy
   scheduler:
+    user: "root" # root user is needed to write on volumes
     container_name: scheduler
     image: icr.io/quantum-public/qiskit-serverless/gateway:${VERSION:-0.29.0}
     entrypoint: "./scripts/scheduler.sh"

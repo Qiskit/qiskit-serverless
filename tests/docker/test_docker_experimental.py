@@ -43,7 +43,7 @@ class TestDockerExperimental:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-        assert len(serverless_client.files(functionTitle)) > 0
+        assert len(serverless_client.files(file_producer_function)) > 0
 
     @mark.skip(
         reason="File producing and consuming is not working. Maybe write permissions for functions?"
@@ -68,7 +68,7 @@ class TestDockerExperimental:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-        files = serverless_client.files(function)
+        files = serverless_client.files(file_consumer_function)
 
         assert files is not None
 
@@ -76,10 +76,11 @@ class TestDockerExperimental:
 
         assert file_count > 0
 
-        serverless_client.file_delete("uploaded_file.tar", function)
+        serverless_client.file_delete("uploaded_file.tar", file_consumer_function)
 
-        assert (file_count - len(serverless_client.files(function))) == 1
+        assert (file_count - len(serverless_client.files(file_consumer_function))) == 1
 
+    @mark.order(1)
     def test_list_upload_download_delete(self, serverless_client: ServerlessClient):
         """Integration test for upload files."""
 

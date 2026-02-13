@@ -1,5 +1,5 @@
 """
-This file stores the logic to manage the access to data stores
+This module handle the access to the files store
 """
 
 import glob

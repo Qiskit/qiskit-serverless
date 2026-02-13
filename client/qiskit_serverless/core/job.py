@@ -104,6 +104,10 @@ class JobService(ABC):
         """Return logs."""
 
     @abstractmethod
+    def provider_logs(self, job_id: str) -> str:
+        """Return provider logs."""
+
+    @abstractmethod
     def runtime_jobs(
         self, job_id: str, runtime_session: Optional[str] = None
     ) -> list[str]:
@@ -171,7 +175,8 @@ class Job:
 
     def status(self):
         """Returns status of the job."""
-        return _map_status_from_serveless(self._job_service.status(self.job_id))
+        status = _map_status_from_serveless(self._job_service.status(self.job_id))
+        return status
 
     def stop(self, service: Optional[QiskitRuntimeService] = None):
         """Stops the job from running."""
@@ -190,6 +195,10 @@ class Job:
     def logs(self) -> str:
         """Returns logs of the job."""
         return self._job_service.logs(self.job_id)
+
+    def provider_logs(self) -> str:
+        """Returns logs of the job."""
+        return self._job_service.provider_logs(self.job_id)
 
     def runtime_jobs(self, runtime_session: Optional[str] = None) -> list[str]:
         """Returns associated runtime jobs if any."""
@@ -250,8 +259,6 @@ class Job:
             if results:
                 raise QiskitServerlessException(results)
 
-            # If no result returned (common with import errors),
-            # try to match on error trace in logs to point to source of error
             raise QiskitServerlessException(
                 self.filtered_logs(include=r"(?i)error|exception")
             )
