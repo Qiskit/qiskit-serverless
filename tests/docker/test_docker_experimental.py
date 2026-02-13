@@ -83,6 +83,14 @@ class TestDockerExperimental:
     @mark.order(1)
     def test_list_upload_download_delete(self, serverless_client: ServerlessClient):
         """Integration test for upload files."""
+
+        function = QiskitFunction(
+            title="hello-world",
+            entrypoint="hello_world.py",
+            working_dir=resources_path,
+        )
+        serverless_client.upload(function)
+
         function = serverless_client.function("hello-world")
 
         print("::: file_upload :::")

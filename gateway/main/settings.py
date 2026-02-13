@@ -303,14 +303,12 @@ MAINTENANCE = os.environ.get("MAINTENANCE", "false") == "true"
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
-RAY_CLUSTER_MODE = {
-    "local": int(os.environ.get("RAY_CLUSTER_MODE_LOCAL", 0)),
-    "ray_local_host": os.environ.get(
-        "RAY_CLUSTER_MODE_LOCAL_HOST", "http://localhost:8265"
-    ),
-}
+RAY_CLUSTER_MODE_LOCAL = (
+    os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
+)
+RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
 RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.28.0"
+    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.29.0"
 )
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
 RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
@@ -375,9 +373,12 @@ IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
 
 # IBM Cloud
 
-IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL", None)
+IAM_IBM_CLOUD_BASE_URL = os.environ.get(
+    "IAM_IBM_CLOUD_BASE_URL", "https://iam.test.cloud.ibm.com"
+)
 RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = os.environ.get(
-    "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL", None
+    "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL",
+    "https://resource-controller.test.cloud.ibm.com",
 )
 RESOURCE_PLANS_ID_ALLOWED = os.environ.get("RESOURCE_PLANS_ID_ALLOWED", "").split(",")
 

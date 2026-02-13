@@ -2,8 +2,8 @@
 
 from django.test import TestCase
 
-from api.services.storage.path_builder import PathBuilder
-from api.services.storage.enums.working_dir import WorkingDir
+from core.services.storage.enums.working_dir import WorkingDir
+from core.services.storage.path_builder import PathBuilder
 
 
 class TestPathBuilder(TestCase):
