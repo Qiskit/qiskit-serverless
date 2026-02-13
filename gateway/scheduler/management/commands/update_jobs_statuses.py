@@ -31,7 +31,21 @@ def update_job_status(job: Job):
     job_new_status = Job.PENDING
     success = False
     job_handler = get_job_handler(job.compute_resource.host)
-    ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
+
+    try:
+        ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
+    except RuntimeError as ex:
+        logger.warning(
+            "Job [%s] marked as FAILED because Ray get_job_status: %s", job.id, str(ex)
+        )
+        job.status = Job.FAILED
+        job.sub_status = None
+        job.env_vars = "{}"
+        try:
+            job.save()
+        except RecordModifiedError:
+            logger.warning("Job [%s] record has not been updated due to lock.", job.id)
+        return True
 
     if ray_job_status:
         job_new_status = ray_job_status_to_model_job_status(ray_job_status)
