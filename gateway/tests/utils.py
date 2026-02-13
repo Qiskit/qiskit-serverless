@@ -24,7 +24,6 @@ class TestUtils:
     @staticmethod
     def _get_or_create_provider(provider_admin: str) -> Provider:
         """Helper to setup a provider and its admin group/user safely."""
-
         provider, _ = Provider.objects.get_or_create(
             name=provider_admin
         )  # provider name is unique

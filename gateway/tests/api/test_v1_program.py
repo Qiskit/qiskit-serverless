@@ -275,11 +275,10 @@ class TestProgramApi(APITestCase):
             # Failing to add a job to the queue
             programs_response_fail = run_program()
             assert programs_response_fail.status_code == 429  # limit error
-
-            self.assertEqual(
-                programs_response_fail.data.get("message"),
-                f"Active job limit reached. The maximum allowed is"
-                f" {self.LIMITS_ACTIVE_JOBS_PER_USER}.",
+            assert (
+                programs_response_fail.data.get("message")
+                == f"Active job limit reached. The maximum allowed is "
+                f"{self.LIMITS_ACTIVE_JOBS_PER_USER}."
             )
 
             # Changing a queued job status to Fail and check we can submit another job.
