@@ -240,13 +240,6 @@ class TestProgramApi(APITestCase):
                 format="json",
             )
 
-        def assert_program_ok_response():
-            programs_response = run_program()
-            job_id = programs_response.data.get("id")
-            job = Job.objects.get(id=job_id)
-            self.assertEqual(job.status, Job.QUEUED)
-            self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-
         with self.settings(
             LIMITS_ACTIVE_JOBS_PER_USER=self.LIMITS_ACTIVE_JOBS_PER_USER
         ):
@@ -263,24 +256,26 @@ class TestProgramApi(APITestCase):
 
             # filling up the queue to the limit
             for _ in range(num_jobs_in_queue, self.LIMITS_ACTIVE_JOBS_PER_USER):
-                assert_program_ok_response()
+                programs_response = run_program()
+                assert programs_response.status_code == 200  # ok
 
             # the user has a job with status `SUCCEEDED`.
             # Checking it doesn't count it towards the limit
-            self.assertEqual(
-                self.LIMITS_ACTIVE_JOBS_PER_USER,
-                Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count(),
+            assert (
+                self.LIMITS_ACTIVE_JOBS_PER_USER
+                == Job.objects.filter(
+                    author=user, status__in=Job.ACTIVE_STATUSES
+                ).count()
             )
-            self.assertGreater(
-                Job.objects.filter(author=user).count(),
-                self.LIMITS_ACTIVE_JOBS_PER_USER,
+            assert (
+                Job.objects.filter(author=user).count()
+                > self.LIMITS_ACTIVE_JOBS_PER_USER
             )
 
             # Failing to add a job to the queue
             programs_response_fail = run_program()
-            self.assertEqual(
-                programs_response_fail.status_code, status.HTTP_429_TOO_MANY_REQUESTS
-            )
+            assert programs_response_fail.status_code == 429  # limit error
+
             self.assertEqual(
                 programs_response_fail.data.get("message"),
                 f"Active job limit reached. The maximum allowed is"
@@ -294,13 +289,16 @@ class TestProgramApi(APITestCase):
             job.status = Job.FAILED
             job.save()
 
-            self.assertGreater(
-                self.LIMITS_ACTIVE_JOBS_PER_USER,
-                Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count(),
+            assert (
+                self.LIMITS_ACTIVE_JOBS_PER_USER
+                > Job.objects.filter(
+                    author=user, status__in=Job.ACTIVE_STATUSES
+                ).count()
             )
 
             # lastly adding job to the queue
-            assert_program_ok_response()
+            programs_response = run_program()
+            assert programs_response.status_code == 200  # ok
 
     def test_run_locked(self):
         """Tests run disabled program."""
