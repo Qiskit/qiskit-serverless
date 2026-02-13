@@ -221,19 +221,19 @@ class TestProgramApi(APITestCase):
     def test_active_jobs_queue_limit(self):
         """Tests queue limit."""
 
-        data = {
-            "title": "Docker-Image-Program",
-            "provider": "default",
-            "arguments": json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"}),
-            "config": {
-                "workers": None,
-                "min_workers": 1,
-                "max_workers": 5,
-                "auto_scaling": True,
-            },
-        }
-
-        def make_program():
+        def run_program():
+            """Runs program"""
+            data = {
+                "title": "Docker-Image-Program",
+                "provider": "default",
+                "arguments": json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"}),
+                "config": {
+                    "workers": None,
+                    "min_workers": 1,
+                    "max_workers": 5,
+                    "auto_scaling": True,
+                },
+            }
             return self.client.post(
                 "/api/v1/programs/run/",
                 data=data,
@@ -241,7 +241,7 @@ class TestProgramApi(APITestCase):
             )
 
         def assert_program_ok_response():
-            programs_response = make_program()
+            programs_response = run_program()
             job_id = programs_response.data.get("id")
             job = Job.objects.get(id=job_id)
             self.assertEqual(job.status, Job.QUEUED)
@@ -277,7 +277,7 @@ class TestProgramApi(APITestCase):
             )
 
             # Failing to add a job to the queue
-            programs_response_fail = make_program()
+            programs_response_fail = run_program()
             self.assertEqual(
                 programs_response_fail.status_code, status.HTTP_429_TOO_MANY_REQUESTS
             )
