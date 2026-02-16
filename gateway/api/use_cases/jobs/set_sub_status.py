@@ -54,13 +54,6 @@ class SetJobSubStatusUseCase:
                 " [%s] current status is not Running",
                 job.id,
             )
-            if status_has_changed:
-                JobEvents.objects.add_status_event(
-                    job_id=job.id,
-                    context=JobEventsContext.API_SET_SUB_STATUS,
-                    status=job.status,
-                    additional_info=warning_msg,
-                )
 
             logger.warning(warning_msg)
             raise ForbiddenError(
