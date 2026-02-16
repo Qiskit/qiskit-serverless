@@ -5,6 +5,11 @@ import os
 from urllib.parse import urlparse
 
 from pytest import fixture
+import qiskit_ibm_runtime
+from qiskit_serverless.serializers import program_serializers
+from qiskit_serverless.core.clients.serverless_client import (
+    ServerlessClient as _ServerlessClientInternal,
+)
 from qiskit_serverless import ServerlessClient
 
 GATEWAY_TOKEN = os.environ.get("GATEWAY_TOKEN", "awesome_token")
@@ -24,17 +29,17 @@ def _is_mock_runtime_url(url: str) -> bool:
 
 def pytest_configure():
     """Patch only what is needed for mock runtime URLs."""
-    import qiskit_ibm_runtime
-    from qiskit_serverless.serializers import program_serializers
-    from qiskit_serverless.core.clients.serverless_client import ServerlessClient as _SC
 
     _original_qiskit_runtime_service = qiskit_ibm_runtime.QiskitRuntimeService
-    _original_stop = _SC.stop
-    _original_status = _SC.status
+    _original_stop = _ServerlessClientInternal.stop
+    _original_status = _ServerlessClientInternal.status
     _mock_stopped_jobs = set()
 
     class _PatchedQiskitRuntimeService:
+        """Patched QiskitRuntimeService for mocking purposes."""
+
         def __init__(self, *args, **kwargs):
+            """Initializes the patched QiskitRuntimeService."""
             runtime_url = kwargs.get("url") or os.environ.get("QISKIT_IBM_URL", "")
             self._is_mock = _is_mock_runtime_url(runtime_url)
             if self._is_mock:
@@ -48,6 +53,7 @@ def pytest_configure():
                 self._service = _original_qiskit_runtime_service(*args, **kwargs)
 
         def active_account(self):
+            """Returns the active account."""
             if self._is_mock:
                 return self._account
             return self._service.active_account()
@@ -74,8 +80,8 @@ def pytest_configure():
             return "STOPPED"
         return _original_status(self, job_id)
 
-    _SC.stop = _patched_stop
-    _SC.status = _patched_status
+    _ServerlessClientInternal.stop = _patched_stop
+    _ServerlessClientInternal.status = _patched_status
 
 
 @fixture(scope="session")
