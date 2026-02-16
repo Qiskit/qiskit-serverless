@@ -7,7 +7,7 @@ from typing import List, Optional
 from django.db.models import Q
 from django.contrib.auth.models import Group
 
-from api.models import Program as Function
+from core.models import Program as Function
 from api.repositories.users import UserRepository
 
 logger = logging.getLogger("gateway")

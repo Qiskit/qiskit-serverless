@@ -13,7 +13,7 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
-from api.models import Job, ComputeResource
+from core.models import Job, ComputeResource
 from core.services.ray import submit_job, create_compute_resource, kill_ray_cluster
 from core.utils import generate_cluster_name, create_gpujob_allowlist
 
