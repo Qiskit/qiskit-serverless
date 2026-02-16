@@ -8,7 +8,8 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
 
-from api.models import ComputeResource, Job, JobEvents, Program, Provider
+from api.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from api.models import ComputeResource, Job, JobEvent, Program, Provider
 from core.services.ray import JobHandler
 from core.utils import check_logs
 
@@ -52,12 +53,13 @@ class TestCommands(APITestCase):
         self.assertEqual(job.logs, "No logs yet.")
         self.assertIsNotNone(job.env_vars)
 
-        job_events = JobEvents.objects.filter(job=job)
+        job_events = JobEvent.objects.filter(job=job)
         self.assertEqual(len(job_events), 1)
-        self.assertEqual(job_events[0].event_type, "Status change")
+        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[0].data["status"], JobStatus.RUNNING)
         self.assertEqual(job_events[0].data["sub_status"], None)
-        self.assertEqual(job_events[0].context, "Scheduler")
+        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
+        self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
 
         # Test job logs for FAILED job with empty logs
         ray_client.get_job_status.return_value = JobStatus.FAILED
@@ -71,12 +73,13 @@ class TestCommands(APITestCase):
         self.assertEqual(job.env_vars, "{}")
         self.assertIsNone(job.sub_status)
 
-        job_events = JobEvents.objects.filter(job=job).order_by("created")
+        job_events = JobEvent.objects.filter(job=job).order_by("created")
         self.assertEqual(len(job_events), 2)
-        self.assertEqual(job_events[1].event_type, "Status change")
+        self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[1].data["status"], JobStatus.FAILED)
         self.assertEqual(job_events[1].data["sub_status"], None)
-        self.assertEqual(job_events[1].context, "Scheduler")
+        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
+        self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
 
     @patch("scheduler.management.commands.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
@@ -95,18 +98,20 @@ class TestCommands(APITestCase):
         job_count = Job.objects.count()
         self.assertEqual(job_count, 7)
 
-        job_events = JobEvents.objects.filter(job_id=fake_job.id)
+        job_events = JobEvent.objects.filter(job_id=fake_job.id)
         # There is one Job in the fixtures in QUEUED state. It call execute_job twice
         # and add 2 equal events. If we remove fixtures we can fix this test properly
         self.assertEqual(len(job_events), 2)
-        self.assertEqual(job_events[0].event_type, "Status change")
+        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[0].data["status"], JobStatus.SUCCEEDED)
         self.assertEqual(job_events[0].data["sub_status"], None)
-        self.assertEqual(job_events[0].context, "Scheduler")
-        self.assertEqual(job_events[1].event_type, "Status change")
+        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
+        self.assertEqual(job_events[0].context, JobEventContext.SCHEDULE_JOBS)
+        self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[1].data["status"], JobStatus.SUCCEEDED)
         self.assertEqual(job_events[1].data["sub_status"], None)
-        self.assertEqual(job_events[1].context, "Scheduler")
+        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
+        self.assertEqual(job_events[0].context, JobEventContext.SCHEDULE_JOBS)
 
     def test_check_empty_logs(self):
         """Test error notification for failed and empty logs."""

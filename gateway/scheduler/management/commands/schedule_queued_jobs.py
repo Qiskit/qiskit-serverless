@@ -13,8 +13,8 @@ from django.db.models import Model
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from api.models import ComputeResource, Job, JobEvents
-from gateway.api.model_managers.JobEvents import JobEventsContext
+from api.models import ComputeResource, Job, JobEvent
+from api.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     configure_job_to_use_gpu,
     get_jobs_to_schedule_fair_share,
@@ -112,9 +112,10 @@ class Command(BaseCommand):
                         #     os.remove(job.program.artifact.path)
 
                         succeed = True
-                        JobEvents.objects.add_status_event(
+                        JobEvent.objects.add_status_event(
                             job_id=job.id,
-                            context=JobEventsContext.SCHEDULER,
+                            origin=JobEventOrigin.SCHEDULER,
+                            context=JobEventContext.SCHEDULE_JOBS,
                             status=job.status,
                             sub_status=job.sub_status,
                         )

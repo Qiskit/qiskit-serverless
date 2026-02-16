@@ -12,7 +12,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from core.services.storage.result_storage import ResultStorage
 
-from api.models import Job, JobEvents, Program, Provider, RuntimeJob
+from api.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from api.models import Job, JobEvent, Program, Provider, RuntimeJob
 
 
 class TestJobApi(APITestCase):
@@ -476,12 +477,13 @@ class TestJobApi(APITestCase):
         self.assertEqual(job.get("status"), "RUNNING")
         self.assertEqual(job.get("sub_status"), "MAPPING")
 
-        job_events = JobEvents.objects.filter(job=job_id)
+        job_events = JobEvent.objects.filter(job=job_id)
         self.assertEqual(len(job_events), 1)
-        self.assertEqual(job_events[0].event_type, "Status change")
-        self.assertEqual(job_events[0].data["status"], "RUNNING")
-        self.assertEqual(job_events[0].data["sub_status"], "MAPPING")
-        self.assertEqual(job_events[0].context, "API - SetJobSubStatus")
+        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+        self.assertEqual(job_events[0].data["status"], Job.RUNNING)
+        self.assertEqual(job_events[0].data["sub_status"], Job.MAPPING)
+        self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+        self.assertEqual(job_events[0].context, JobEventContext.SET_SUB_STATUS)
 
     def test_job_update_sub_status_wrong_value(self):
         """Test job update sub status with wrong sub-status value"""
@@ -500,7 +502,7 @@ class TestJobApi(APITestCase):
             "'sub_status' not provided or is not valid",
         )
 
-        job_events = JobEvents.objects.filter(job=job_id)
+        job_events = JobEvent.objects.filter(job=job_id)
         self.assertEqual(len(job_events), 0)
 
     def test_job_update_sub_status_empty_value(self):
@@ -518,7 +520,7 @@ class TestJobApi(APITestCase):
             "'sub_status' not provided or is not valid",
         )
 
-        job_events = JobEvents.objects.filter(job=job_id)
+        job_events = JobEvent.objects.filter(job=job_id)
         self.assertEqual(len(job_events), 0)
 
     def test_job_update_sub_status_wrong_user(self):
@@ -537,7 +539,7 @@ class TestJobApi(APITestCase):
             response_sub_status.data.get("message"), f"Job [{job_id}] not found"
         )
 
-        job_events = JobEvents.objects.filter(job=job_id)
+        job_events = JobEvent.objects.filter(job=job_id)
         self.assertEqual(len(job_events), 0)
 
     def test_job_update_sub_status_not_running(self):
@@ -557,7 +559,7 @@ class TestJobApi(APITestCase):
             "Cannot update 'sub_status' when is not in RUNNING status. (Currently SUCCEEDED)",
         )
 
-        job_events = JobEvents.objects.filter(job=job_id)
+        job_events = JobEvent.objects.filter(job=job_id)
         self.assertEqual(len(job_events), 0)
 
     def test_user_has_access_to_job_result_from_provider_function(self):
@@ -610,12 +612,13 @@ class TestJobApi(APITestCase):
             "Job has been stopped." in job_stop_response.data.get("message")
         )
 
-        job_events = JobEvents.objects.filter(job=job)
+        job_events = JobEvent.objects.filter(job=job)
         self.assertEqual(len(job_events), 1)
-        self.assertEqual(job_events[0].event_type, "Status change")
+        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[0].data["status"], Job.STOPPED)
         self.assertEqual(job_events[0].data["sub_status"], None)
-        self.assertEqual(job_events[0].context, "API - StopJob")
+        self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+        self.assertEqual(job_events[0].context, JobEventContext.STOP_JOB)
 
     def test_job_logs_by_author_for_function_without_provider(self):
         """Tests job log by job author."""

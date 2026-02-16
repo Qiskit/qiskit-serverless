@@ -8,11 +8,11 @@ from django.contrib.auth.models import AbstractUser
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.exceptions.not_found_error import NotFoundError
-from api.models import Job, JobEvents
+from api.models import Job, JobEvent
 from api.repositories.jobs import JobsRepository
 from core.utils import retry_function
 from core.services.job_status import update_job_status
-from gateway.api.model_managers.JobEvents import JobEventsContext
+from api.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 
@@ -74,9 +74,10 @@ class SetJobSubStatusUseCase:
         )
 
         if status_has_changed or old_sub_status != job.sub_status:
-            JobEvents.objects.add_status_event(
+            JobEvent.objects.add_status_event(
                 job_id=job.id,
-                context=JobEventsContext.API_SET_SUB_STATUS,
+                origin=JobEventOrigin.API,
+                context=JobEventContext.SET_SUB_STATUS,
                 status=job.status,
                 sub_status=job.sub_status,
             )

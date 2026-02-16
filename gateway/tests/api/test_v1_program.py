@@ -10,7 +10,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.models import Job, Program
+from api.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from api.models import Job, JobEvent, Program
 from core.services.storage.arguments_storage import ArgumentsStorage
 
 
@@ -160,6 +161,16 @@ class TestProgramApi(APITestCase):
                 self.MEDIA_ROOT, user.username, "arguments"
             )
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
+
+            job_events = JobEvent.objects.filter(job=job_id)
+            self.assertEqual(len(job_events), 1)
+            self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+            self.assertEqual(job_events[0].data["status"], Job.QUEUED)
+            self.assertEqual(job_events[0].data["sub_status"], None)
+            self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+            self.assertEqual(
+                job_events[0].context, JobEventContext.RUN_PROGRAM_SERIALIZER
+            )
 
     def test_provider_run(self):
         """Tests run existing authorized."""
