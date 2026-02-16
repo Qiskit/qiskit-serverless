@@ -99,7 +99,7 @@ class TestExperimental:
         print("::: file_count :::")
         print(file_count)
 
-        assert file_count >= 1
+        assert file_count == 1
 
         print("::: file_download :::")
         download_dir = tmp_path / "downloads"
@@ -150,7 +150,7 @@ class TestExperimental:
         print("::: file_count :::")
         print(file_count)
 
-        assert file_count >= 1
+        assert file_count == 1
 
         print("::: file_download :::")
         download_dir = tmp_path / "downloads"
@@ -201,7 +201,7 @@ class TestExperimental:
         print("::: Provider file_count :::")
         print(file_count)
 
-        assert file_count >= 1
+        assert file_count == 1
 
         print("::: Provider file_download :::")
         download_dir = tmp_path / "downloads"
