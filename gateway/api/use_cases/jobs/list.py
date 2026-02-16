@@ -5,7 +5,7 @@ from typing import List
 from django.contrib.auth.models import AbstractUser
 
 from api.domain.exceptions.not_found_error import NotFoundError
-from api.models import Job
+from core.models import Job
 from api.repositories.functions import FunctionRepository
 from api.repositories.jobs import JobFilters, JobsRepository
 

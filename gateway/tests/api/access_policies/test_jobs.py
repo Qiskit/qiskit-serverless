@@ -2,7 +2,7 @@ from django.contrib.auth.models import User, Group
 from django.test import TestCase
 
 from api.access_policies.jobs import JobAccessPolicies
-from api.models import Program, Job, Provider
+from core.models import Program, Job, Provider
 
 
 class TestJobAccessPolicies(TestCase):

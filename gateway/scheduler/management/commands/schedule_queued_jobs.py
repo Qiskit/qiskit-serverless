@@ -13,7 +13,7 @@ from django.db.models import Model
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from api.models import ComputeResource, Job
+from core.models import ComputeResource, Job
 from scheduler.schedule import (
     configure_job_to_use_gpu,
     get_jobs_to_schedule_fair_share,

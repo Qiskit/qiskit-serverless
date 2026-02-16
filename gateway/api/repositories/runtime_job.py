@@ -2,7 +2,7 @@
 RuntimeJob repository
 """
 
-from api.models import RuntimeJob
+from core.models import RuntimeJob
 
 
 class RuntimeJobRepository:
