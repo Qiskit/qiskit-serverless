@@ -99,7 +99,7 @@ class TestExperimental:
         print("::: file_count :::")
         print(file_count)
 
-        assert file_count == 1
+        assert filename in files
 
         print("::: file_download :::")
         download_dir = tmp_path / "downloads"
@@ -124,7 +124,7 @@ class TestExperimental:
         files = serverless_client.files(function)
         print(files)
 
-        assert (file_count - len(files)) == 1
+        assert filename not in files
 
     def test_list_upload_download_delete_with_provider_function(
         self, serverless_client: ServerlessClient, tmp_path
@@ -150,7 +150,7 @@ class TestExperimental:
         print("::: file_count :::")
         print(file_count)
 
-        assert file_count == 1
+        assert filename in files
 
         print("::: file_download :::")
         download_dir = tmp_path / "downloads"
@@ -175,7 +175,7 @@ class TestExperimental:
         files = serverless_client.files(function)
         print(files)
 
-        assert (file_count - len(files)) == 1
+        assert filename not in files
 
     def test_provider_list_upload_download_delete(
         self, serverless_client: ServerlessClient, tmp_path
@@ -201,7 +201,7 @@ class TestExperimental:
         print("::: Provider file_count :::")
         print(file_count)
 
-        assert file_count == 1
+        assert filename in files
 
         print("::: Provider file_download :::")
         download_dir = tmp_path / "downloads"
@@ -226,4 +226,4 @@ class TestExperimental:
         files = serverless_client.provider_files(function)
         print(files)
 
-        assert (file_count - len(files)) == 1
+        assert filename not in files
