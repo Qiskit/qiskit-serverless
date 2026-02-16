@@ -291,7 +291,7 @@ class TestProgramApi(APITestCase):
         self.assertEqual(
             programs_response.data.get("message"), Program.DEFAULT_DISABLED_MESSAGE
         )
-        
+
         job_events = JobEvent.objects.filter()
         self.assertEqual(len(job_events), 0)
 
