@@ -1,11 +1,16 @@
 """Utilities for tests."""
 
-from typing import Union
+from typing import Union, Literal
 
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User, Group  # pylint: disable=imported-auth-user
 from rest_framework.test import APIClient
 
-from api.models import Job, Program, Provider
+from api.models import Job, JobConfig, Program, Provider
+
+# literal for job status
+JobStatusType = Literal[
+    Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED
+]
 
 
 class TestUtils:
@@ -65,25 +70,51 @@ class TestUtils:
         if not program_title:
             program_title = f"{author_username}-{provider_admin or 'custom'}"
 
-        return Program.objects.create(
+        program = Program.objects.create(
             title=program_title, author=author_obj, provider=provider, **kwargs
         )
+        program.save()
+        return program
 
     @staticmethod
-    def create_job(
+    def create_job_config(
+        workers: int = None,
+        min_workers: int = 1,
+        max_workers: int = 5,
+        auto_scaling: bool = True,
+        **kwargs,
+    ) -> JobConfig:
+        """create a JobConfig instance, save it and return it."""
+        job_config = JobConfig.objects.create(
+            workers=workers,
+            min_workers=min_workers,
+            max_workers=max_workers,
+            auto_scaling=auto_scaling,
+            **kwargs,
+        )
+        job_config.save()
+        return job_config
+
+    @staticmethod
+    def create_job(  # pylint: disable=too-many-positional-arguments
         author: Union[User, str] = "default_user",
-        provider_admin: str = None,
+        status: JobStatusType = Job.PENDING,
+        config: Union[JobConfig, dict[str, str]] = None,
+        provider: str = None,
         program: Program = None,
-        program_title: str = None,
+        title: str = None,
         **kwargs,
     ) -> Job:
         """
-        Creates a Job instance along with its dependencies (User, Provider, Program).
+        Creates a Job instance along with its dependencies (User, Provider, Program), save it and
+        return it.
         Args:
             author: The author or username for the Job (and Program).
-            provider_admin: Optional admin for the linked Program.
+            status: Job status. Defaults to Job.PENDING.
+            config: Optional JobConfig instance or a dict to create a JobConfig instance.
+            provider: Optional admin for the linked Program.
             program: Optional Program instance.
-            program_title: Optional title for the linked Program.
+            title: Optional title for the linked Program.
             **kwargs: Fields for the Job.
                      Use the key 'program_fields' (dict) to pass kwargs to the Program.
         """
@@ -92,18 +123,29 @@ class TestUtils:
         if not isinstance(program, Program):
             program = TestUtils.create_program(
                 author=author,
-                provider_admin=provider_admin,
-                program_title=program_title,
+                provider_admin=provider,
+                program_title=title,
                 **program_kwargs,
             )
 
-        return Job.objects.create(author=author_obj, program=program, **kwargs)
+        if isinstance(config, dict):
+            if config.get("id", None):
+                # making sure that if id is provided, we will not create an entry with this id.
+                config = JobConfig.objects.get(**config)
+            else:
+                config = JobConfig.objects.create(**config)
+
+        job = Job.objects.create(
+            author=author_obj, program=program, status=status, config=config, **kwargs
+        )
+        job.save()
+        return job
 
     @staticmethod
     def authorize_client(username: str, client: APIClient) -> User:
         """
         Helper to authenticate a DRF test client.
         """
-        user, _ = User.objects.get_or_create(username=username)
+        user, _ = TestUtils._get_user_and_username(author=username)
         client.force_authenticate(user=user)
         return user

@@ -268,10 +268,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 "The number of active jobs has reached the limit. The set limit is: %s",
                 settings.LIMITS_ACTIVE_JOBS_PER_USER,
             )
-            raise ActiveJobLimitExceeded(
-                f"Active job limit reached. The maximum allowed is "
-                f"{settings.LIMITS_ACTIVE_JOBS_PER_USER}."
-            )
+            raise ActiveJobLimitExceeded()
         job = job_serializer.save(
             author=author,
             carrier=carrier,

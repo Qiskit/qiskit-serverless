@@ -12,6 +12,7 @@ from rest_framework.test import APITestCase
 
 from api.models import Job, Program
 from core.services.storage.arguments_storage import ArgumentsStorage
+from tests.utils import TestUtils
 
 
 class TestProgramApi(APITestCase):
@@ -221,22 +222,23 @@ class TestProgramApi(APITestCase):
     def test_active_jobs_queue_limit(self):
         """Tests queue limit."""
 
+        job_kwargs = {
+            "title": "Docker-Image-Program-Test",
+            "provider": "default",
+            "arguments": json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"}),
+            "config": {
+                "workers": None,
+                "min_workers": 1,
+                "max_workers": 5,
+                "auto_scaling": True,
+            },
+        }
+
         def run_program():
             """Runs program"""
-            data = {
-                "title": "Docker-Image-Program",
-                "provider": "default",
-                "arguments": json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"}),
-                "config": {
-                    "workers": None,
-                    "min_workers": 1,
-                    "max_workers": 5,
-                    "auto_scaling": True,
-                },
-            }
             return self.client.post(
                 "/api/v1/programs/run/",
-                data=data,
+                data=job_kwargs,
                 format="json",
             )
 
@@ -245,14 +247,19 @@ class TestProgramApi(APITestCase):
         ):
 
             # test_user_2 has 2 Jobs, one with`QUEUED` status and other in `SUCCEEDED` status.
-            user = models.User.objects.get(username="test_user_2")
-            self.client.force_authenticate(user=user)
+            user = TestUtils.authorize_client(
+                username="test_limit_user", client=self.client
+            )
+
+            # out user will have 2 Jobs, one with `QUEUED` status and other in `SUCCEEDED` status.
+            job = TestUtils.create_job(author=user, status=Job.SUCCEEDED, **job_kwargs)
+            job = TestUtils.create_job(author=user, status=Job.QUEUED, **job_kwargs)
             num_jobs_in_queue = Job.objects.filter(
                 author=user, status__in=Job.ACTIVE_STATUSES
             ).count()
 
             # Checking that this test will run according to scripts
-            self.assertGreater(self.LIMITS_ACTIVE_JOBS_PER_USER, num_jobs_in_queue)
+            assert self.LIMITS_ACTIVE_JOBS_PER_USER > num_jobs_in_queue
 
             # filling up the queue to the limit
             for _ in range(num_jobs_in_queue, self.LIMITS_ACTIVE_JOBS_PER_USER):
