@@ -78,8 +78,8 @@ class TestCommands(APITestCase):
         self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[1].data["status"], JobStatus.FAILED)
         self.assertEqual(job_events[1].data["sub_status"], None)
-        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
-        self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
+        self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
+        self.assertEqual(job_events[1].context, JobEventContext.UPDATE_JOB_STATUS)
 
     @patch("scheduler.management.commands.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
@@ -110,8 +110,8 @@ class TestCommands(APITestCase):
         self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[1].data["status"], JobStatus.SUCCEEDED)
         self.assertEqual(job_events[1].data["sub_status"], None)
-        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
-        self.assertEqual(job_events[0].context, JobEventContext.SCHEDULE_JOBS)
+        self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
+        self.assertEqual(job_events[1].context, JobEventContext.SCHEDULE_JOBS)
 
     def test_check_empty_logs(self):
         """Test error notification for failed and empty logs."""
