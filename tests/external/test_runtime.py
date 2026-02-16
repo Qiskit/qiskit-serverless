@@ -22,14 +22,24 @@ class TestRuntimeIntegration:
     @pytest.fixture(autouse=True)
     def _ensure_runtime_env(self, monkeypatch):
         """Provide default mock runtime env vars only when missing."""
-        defaults = {
-            "QISKIT_IBM_URL": "mock://runtime",
-            "QISKIT_IBM_INSTANCE": "x",
-            "QISKIT_IBM_TOKEN": "x",
-        }
-        for key, value in defaults.items():
-            if key not in os.environ:
-                monkeypatch.setenv(key, value)
+        if os.environ.get("QISKIT_IBM_URL"):
+            # Validate
+            if not os.environ.get("QISKIT_IBM_TOKEN"):
+                pytest.fail("QISKIT_IBM_TOKEN missing")
+            if not os.environ.get("QISKIT_IBM_INSTANCE"):
+                pytest.fail("QISKIT_IBM_INSTANCE missing")
+        else:
+            # Set defaults
+            monkeypatch.setenv("QISKIT_IBM_URL", "mock://runtime")
+            monkeypatch.setenv("QISKIT_IBM_INSTANCE", "instance_is_needed_during_mocks")
+            monkeypatch.setenv("QISKIT_IBM_TOKEN", "mock_not_needed")
+
+        print("\nQISKIT_IBM_URL:", os.environ.get("QISKIT_IBM_URL"))
+        print("QISKIT_IBM_INSTANCE:", os.environ.get("QISKIT_IBM_INSTANCE"))
+        print(
+            "QISKIT_IBM_TOKEN:", os.environ.get("QISKIT_IBM_TOKEN")[:6] + "***********"
+        )
+
         yield
 
     def _run_and_validate_function(

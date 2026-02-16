@@ -17,7 +17,12 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
-service = get_runtime_service(url=os.environ["QISKIT_IBM_URL"])
+print("QISKIT_IBM_URL:", os.environ.get("QISKIT_IBM_URL"))
+print("QISKIT_IBM_INSTANCE:", os.environ.get("QISKIT_IBM_INSTANCE"))
+print("QISKIT_IBM_TOKEN:", os.environ.get("QISKIT_IBM_TOKEN")[:6] + "***********")
+print("QISKIT_IBM_CHANNEL:", os.environ.get("QISKIT_IBM_CHANNEL"))
+
+service = get_runtime_service()
 
 backends = service.backends()
 backend = service.backend("test_eagle")
