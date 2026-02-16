@@ -8,15 +8,15 @@ from pytest import mark
 from qiskit_serverless import ServerlessClient, QiskitFunction
 
 resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../source_files"
+    os.path.dirname(os.path.abspath(__file__)), "source_producer_consumer"
 )
 
 filename = "data.tar"
 filename_path = os.path.join(resources_path, filename)
 
 
-class TestExperimental:
-    """Test class for integration testing with docker."""
+class TestFiles:
+    """Test class for integration tests producing and consuming files"""
 
     @mark.order(1)
     def test_file_producer(self, serverless_client: ServerlessClient):
