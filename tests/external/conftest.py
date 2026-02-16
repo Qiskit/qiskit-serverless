@@ -1,4 +1,4 @@
-# pylint: disable=import-error, invalid-name
+# pylint: disable=R0801,import-error, invalid-name
 """Fixtures and minimal runtime patches for external tests."""
 
 import os

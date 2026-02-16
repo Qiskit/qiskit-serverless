@@ -1,4 +1,4 @@
-# pylint: disable=import-error, invalid-name
+# pylint: disable=R0801,import-error, invalid-name
 """Tests jobs using Qiskit Runtime's staging resources."""
 
 import os
