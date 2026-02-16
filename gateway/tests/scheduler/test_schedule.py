@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
-from api.models import Job
+from core.models import Job
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_job
 
 

@@ -11,8 +11,8 @@ from typing import List, Optional, Tuple
 from django.db.models import Q, QuerySet
 from django.contrib.auth.models import AbstractUser
 
-from api.models import Job
-from api.models import Program as Function
+from core.models import Job
+from core.models import Program as Function
 from api.views.enums.type_filter import TypeFilter
 
 logger = logging.getLogger("gateway")

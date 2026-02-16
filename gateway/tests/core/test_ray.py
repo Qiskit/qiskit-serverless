@@ -13,7 +13,7 @@ from kubernetes.dynamic.client import DynamicClient
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 
-from api.models import ComputeResource, Job
+from core.models import ComputeResource, Job
 from core.services.ray import (
     create_compute_resource,
     kill_ray_cluster,
