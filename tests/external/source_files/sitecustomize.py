@@ -1,12 +1,12 @@
 """Runtime monkeypatches for external tests.
 
-If QISKIT_IBM_URL points to a mock URL, patch qiskit_ibm_runtime primitives
-to avoid real network calls while preserving runtime-wrapper behavior.
+Loaded automatically in remote job processes from the uploaded working_dir.
 """
 
 from __future__ import annotations
 
 import os
+import time
 import uuid
 from urllib.parse import urlparse
 
@@ -21,7 +21,6 @@ def _is_mock_runtime_url(url: str) -> bool:
 
 
 if _is_mock_runtime_url(os.environ.get("QISKIT_IBM_URL", "")):
-    # Import only when patching is needed.
     import qiskit_ibm_runtime as _runtime
     import qiskit_ibm_runtime.runtime_job_v2 as _runtime_job_v2
 
@@ -39,6 +38,8 @@ if _is_mock_runtime_url(os.environ.get("QISKIT_IBM_URL", "")):
             return self._job_id
 
         def result(self):
+            # Keep jobs alive briefly so log shipping has time to happen.
+            time.sleep(3)
             return {"status": "done"}
 
     class _QiskitRuntimeService:

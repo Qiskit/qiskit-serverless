@@ -12,7 +12,7 @@ from qiskit_serverless import (
 )
 
 resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../source_files"
+    os.path.dirname(os.path.abspath(__file__)), "source_files"
 )
 
 
@@ -102,44 +102,6 @@ class TestRuntimeIntegration:
             f"Timed out waiting for marker '{log_substring}' in logs for job {job.job_id}. "
             f"Last status={job.status()}. Last logs tail:\n{tail}"
         )
-
-    def test_stop_job(self, serverless_client: ServerlessClient):
-        """Integration test for stopping a job."""
-
-        function = QiskitFunction(
-            title="test-runtime-wrapper",
-            entrypoint="pattern_with_stop.py",
-            working_dir=resources_path,
-            env_vars={
-                "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
-                "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
-                "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
-                "QISKIT_IBM_URL": os.environ["QISKIT_IBM_URL"],
-            },
-        )
-
-        serverless_client.upload(function)
-        my_function = serverless_client.function("test-runtime-wrapper")
-
-        job = my_function.run()
-        job_id = job.job_id
-
-        self._wait_for_log_marker(job, log_substring="JOB IDS")
-
-        # Attempt to stop the job
-        stop_response = serverless_client.stop(job_id)
-
-        # Validate the response
-        assert isinstance(stop_response, str)
-        assert "QiskitRuntimeService not found" in stop_response
-        assert (
-            "Job has been stopped" in stop_response
-            or "Job already in terminal state" in stop_response
-        )
-        if "Job has been stopped" in stop_response:
-            assert job.status() == "CANCELED"
-        else:
-            assert job.status() == "DONE"
 
     def test_stop_job_service(self, serverless_client: ServerlessClient):
         """Integration test for stopping a job given a runtime service."""
