@@ -17,10 +17,10 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         """Register system checks."""
-        register(Tags.models)(check_models_have_api_app_label)
+        register(Tags.models)(check_model_labels)
 
 
-def check_models_have_api_app_label(app_configs, **kwargs):
+def check_model_labels(app_configs, **kwargs):
     """
     This ensures all models have the same "api_" prefix in the table name and the
     migrations are located in the api app.
