@@ -7,7 +7,7 @@ import os
 from typing import Optional
 
 from api.domain.exceptions.forbidden_error import ForbiddenError
-from api.models import Job
+from core.models import Job
 from core.services.storage.enums.working_dir import WorkingDir
 from core.services.storage.path_builder import PathBuilder
 

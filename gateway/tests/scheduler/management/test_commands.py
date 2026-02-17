@@ -10,7 +10,7 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
 
-from api.models import ComputeResource, Job, Program, Provider
+from core.models import ComputeResource, Job, Program, Provider
 from core.services.ray import JobHandler
 from core.utils import check_logs
 from scheduler.management.commands import update_jobs_statuses

@@ -12,7 +12,7 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
 from rest_framework.test import APITestCase, APIClient
 
-from api.models import ComputeResource, Job, Program, Provider
+from core.models import ComputeResource, Job, Program, Provider
 from core.services.ray import JobHandler
 
 

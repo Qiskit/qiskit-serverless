@@ -12,7 +12,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from core.services.storage.result_storage import ResultStorage
 
-from api.models import Job, Program, Provider, RuntimeJob
+from core.models import Job, Program, Provider, RuntimeJob
 
 
 class TestJobApi(APITestCase):
