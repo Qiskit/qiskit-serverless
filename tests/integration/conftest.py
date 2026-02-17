@@ -15,6 +15,11 @@ GATEWAY_HOST = os.environ.get("GATEWAY_HOST", "http://localhost:8000")
 GATEWAY_INSTANCE = os.environ.get("GATEWAY_INSTANCE", "an_awesome_crn")
 GATEWAY_CHANNEL = os.environ.get("GATEWAY_CHANNEL", "ibm_quantum_platform")
 
+print("GATEWAY_HOST:", GATEWAY_HOST)
+print("GATEWAY_TOKEN:", GATEWAY_TOKEN[:6] + "***********")
+print("GATEWAY_INSTANCE:", GATEWAY_INSTANCE)
+print("GATEWAY_CHANNEL:", GATEWAY_CHANNEL)
+
 
 @fixture(scope="session")
 def serverless_client():
