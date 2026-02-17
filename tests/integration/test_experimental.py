@@ -74,7 +74,6 @@ class TestExperimental:
 
         assert (file_count - len(serverless_client.files(file_consumer_function))) == 1
 
-
     def test_list_upload_download_delete(
         self, serverless_client: ServerlessClient, tmp_path
     ):
