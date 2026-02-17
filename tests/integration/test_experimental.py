@@ -62,7 +62,7 @@ class TestExperimental:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-        files = serverless_client.files(function)
+        files = serverless_client.files(file_consumer_function)
 
         assert files is not None
 
@@ -70,9 +70,9 @@ class TestExperimental:
 
         assert file_count > 0
 
-        serverless_client.file_delete("my_file.tar", function)
+        serverless_client.file_delete("my_file.tar", file_consumer_function)
 
-        assert (file_count - len(serverless_client.files(function))) == 1
+        assert (file_count - len(serverless_client.files(file_consumer_function))) == 1
 
     def test_list_upload_download_delete(
         self, serverless_client: ServerlessClient, tmp_path

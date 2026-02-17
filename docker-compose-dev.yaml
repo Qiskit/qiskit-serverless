@@ -44,7 +44,7 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     ports:
       - 8000:8000
-    user: "root" # we use the root user here so the docker-compose watch can sync files into the container
+    user: "root" # root user is needed to write on volumes and sync files from local system (see the watch: section)
     environment:
       - DEBUG=1
       - RAY_HOST=http://ray-head:8265
@@ -73,6 +73,7 @@ services:
           action: sync
           target: /usr/src/app
   scheduler:
+    user: "root" # root user is needed to write on volumes
     container_name: scheduler
     build:
       context: ./
