@@ -70,7 +70,7 @@ class TestExperimental:
 
         assert file_count > 0
 
-        serverless_client.file_delete("uploaded_file.tar", file_consumer_function)
+        serverless_client.file_delete("my_file.tar", file_consumer_function)
 
         assert (file_count - len(serverless_client.files(file_consumer_function))) == 1
 
