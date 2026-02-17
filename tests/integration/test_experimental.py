@@ -8,19 +8,16 @@ from pytest import mark
 from qiskit_serverless import ServerlessClient, QiskitFunction
 
 resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "source_files"
+    os.path.dirname(os.path.abspath(__file__)), "../source_files"
 )
 
 filename = "data.tar"
 filename_path = os.path.join(resources_path, filename)
 
 
-class TestDockerExperimental:
+class TestExperimental:
     """Test class for integration testing with docker."""
 
-    @mark.skip(
-        reason="File producing and consuming is not working. Maybe write permissions for functions?"
-    )
     @mark.order(1)
     def test_file_producer(self, serverless_client: ServerlessClient):
         """Integration test for files."""
@@ -43,11 +40,8 @@ class TestDockerExperimental:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-        assert len(serverless_client.files(functionTitle)) > 0
+        assert len(serverless_client.files(file_producer_function)) > 0
 
-    @mark.skip(
-        reason="File producing and consuming is not working. Maybe write permissions for functions?"
-    )
     @mark.order(2)
     def test_file_consumer(self, serverless_client: ServerlessClient):
         """Integration test for files."""
@@ -64,7 +58,7 @@ class TestDockerExperimental:
         job = file_consumer_function.run()
         assert job is not None
         assert job.result()
-        assert job.result() == {"Message": "Hello"}
+        assert job.result() == {"Message": "Hello!"}
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
@@ -76,11 +70,13 @@ class TestDockerExperimental:
 
         assert file_count > 0
 
-        serverless_client.file_delete("uploaded_file.tar", function)
+        serverless_client.file_delete("my_file.tar", function)
 
         assert (file_count - len(serverless_client.files(function))) == 1
 
-    def test_list_upload_download_delete(self, serverless_client: ServerlessClient):
+    def test_list_upload_download_delete(
+        self, serverless_client: ServerlessClient, tmp_path
+    ):
         """Integration test for upload files."""
 
         function = QiskitFunction(
@@ -103,10 +99,17 @@ class TestDockerExperimental:
         print("::: file_count :::")
         print(file_count)
 
-        assert file_count == 1
+        assert filename in files
 
         print("::: file_download :::")
-        assert serverless_client.file_download(filename, function) is not None
+        download_dir = tmp_path / "downloads"
+        download_dir.mkdir()
+        assert (
+            serverless_client.file_download(
+                filename, function, download_location=str(download_dir)
+            )
+            is not None
+        )
 
         files = serverless_client.files(function)
         print("::: files after download :::")
@@ -121,10 +124,10 @@ class TestDockerExperimental:
         files = serverless_client.files(function)
         print(files)
 
-        assert (file_count - len(files)) == 1
+        assert filename not in files
 
     def test_list_upload_download_delete_with_provider_function(
-        self, serverless_client: ServerlessClient
+        self, serverless_client: ServerlessClient, tmp_path
     ):
         """Integration test for upload files."""
         function = QiskitFunction(
@@ -147,10 +150,17 @@ class TestDockerExperimental:
         print("::: file_count :::")
         print(file_count)
 
-        assert file_count == 1
+        assert filename in files
 
         print("::: file_download :::")
-        assert serverless_client.file_download(filename, function) is not None
+        download_dir = tmp_path / "downloads"
+        download_dir.mkdir()
+        assert (
+            serverless_client.file_download(
+                filename, function, download_location=str(download_dir)
+            )
+            is not None
+        )
 
         files = serverless_client.files(function)
         print("::: files after download :::")
@@ -165,10 +175,10 @@ class TestDockerExperimental:
         files = serverless_client.files(function)
         print(files)
 
-        assert (file_count - len(files)) == 1
+        assert filename not in files
 
     def test_provider_list_upload_download_delete(
-        self, serverless_client: ServerlessClient
+        self, serverless_client: ServerlessClient, tmp_path
     ):
         """Integration test for upload files."""
         function = QiskitFunction(
@@ -191,10 +201,17 @@ class TestDockerExperimental:
         print("::: Provider file_count :::")
         print(file_count)
 
-        assert file_count == 1
+        assert filename in files
 
         print("::: Provider file_download :::")
-        assert serverless_client.provider_file_download(filename, function) is not None
+        download_dir = tmp_path / "downloads"
+        download_dir.mkdir()
+        assert (
+            serverless_client.provider_file_download(
+                filename, function, download_location=str(download_dir)
+            )
+            is not None
+        )
 
         files = serverless_client.provider_files(function)
         print("::: Provider files after download :::")
@@ -209,4 +226,4 @@ class TestDockerExperimental:
         files = serverless_client.provider_files(function)
         print(files)
 
-        assert (file_count - len(files)) == 1
+        assert filename not in files

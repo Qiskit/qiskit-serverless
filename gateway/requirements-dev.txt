@@ -9,3 +9,4 @@ coverage>=5.5
 responses>=0.23.3
 tox>=4.0.0
 pre-commit>=3.0.0
+import-linter>=2.0

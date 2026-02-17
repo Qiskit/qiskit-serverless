@@ -1,7 +1,7 @@
 """Permissions."""
 
 from rest_framework import permissions
-from api.models import RuntimeJob
+from core.models import RuntimeJob
 
 
 class IsOwner(permissions.BasePermission):

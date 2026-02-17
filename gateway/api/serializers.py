@@ -9,16 +9,14 @@ Version serializers inherit from the different serializers.
 import json
 import logging
 from typing import Tuple, Union
+
 from django.conf import settings
 from rest_framework import serializers
 
 from api.repositories.functions import FunctionRepository
 from api.repositories.users import UserRepository
 from api.utils import build_env_variables, sanitize_name
-from core.services.storage.arguments_storage import ArgumentsStorage
-from core.utils import encrypt_env_vars
-
-from .models import (
+from core.models import (
     Provider,
     Program,
     Job,
@@ -27,6 +25,8 @@ from .models import (
     DEFAULT_PROGRAM_ENTRYPOINT,
     RUN_PROGRAM_PERMISSION,
 )
+from core.services.storage.arguments_storage import ArgumentsStorage
+from core.utils import encrypt_env_vars
 
 logger = logging.getLogger("gateway.serializers")
 

@@ -3,10 +3,11 @@
 from django.db import transaction
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
+
 from api.context import get_current_user
-from api.models import Program, ProgramHistory
 from api.repositories.groups import GroupRepository
 from api.repositories.program_history import ProgramHistoryRepository
+from core.models import Program, ProgramHistory
 
 
 @receiver(m2m_changed, sender=Program.instances.through)
