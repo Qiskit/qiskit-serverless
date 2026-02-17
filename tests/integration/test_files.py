@@ -15,8 +15,8 @@ filename = "data.tar"
 filename_path = os.path.join(resources_path, filename)
 
 
-class TestExperimental:
-    """Test class for integration testing with docker."""
+class TestFiles:
+    """Test class for integration tests producing and consuming files"""
 
     @mark.order(1)
     def test_file_producer(self, serverless_client: ServerlessClient):
@@ -88,20 +88,12 @@ class TestExperimental:
 
         function = serverless_client.function("hello-world")
 
-        print("::: file_upload :::")
         print(serverless_client.file_upload(filename_path, function))
-
         files = serverless_client.files(function)
-        print("::: files :::")
         print(files)
-
-        file_count = len(files)
-        print("::: file_count :::")
-        print(file_count)
 
         assert filename in files
 
-        print("::: file_download :::")
         download_dir = tmp_path / "downloads"
         download_dir.mkdir()
         assert (
@@ -111,16 +103,7 @@ class TestExperimental:
             is not None
         )
 
-        files = serverless_client.files(function)
-        print("::: files after download :::")
-        print(files)
-
-        assert file_count == len(files)
-
-        print("::: file_delete :::")
         print(serverless_client.file_delete(filename, function))
-
-        print("::: files after delete:::")
         files = serverless_client.files(function)
         print(files)
 
@@ -139,20 +122,12 @@ class TestExperimental:
 
         function = serverless_client.function("mockprovider/provider-function")
 
-        print("::: file_upload :::")
         print(serverless_client.file_upload(filename_path, function))
-
         files = serverless_client.files(function)
-        print("::: files :::")
         print(files)
-
-        file_count = len(files)
-        print("::: file_count :::")
-        print(file_count)
 
         assert filename in files
 
-        print("::: file_download :::")
         download_dir = tmp_path / "downloads"
         download_dir.mkdir()
         assert (
@@ -162,16 +137,7 @@ class TestExperimental:
             is not None
         )
 
-        files = serverless_client.files(function)
-        print("::: files after download :::")
-        print(files)
-
-        assert file_count == len(files)
-
-        print("::: file_delete :::")
         print(serverless_client.file_delete(filename, function))
-
-        print("::: files after delete:::")
         files = serverless_client.files(function)
         print(files)
 
@@ -190,20 +156,12 @@ class TestExperimental:
 
         function = serverless_client.function("mockprovider/provider-function")
 
-        print("::: Provider file_upload :::")
         print(serverless_client.provider_file_upload(filename_path, function))
-
         files = serverless_client.provider_files(function)
-        print("::: Provider files :::")
         print(files)
-
-        file_count = len(files)
-        print("::: Provider file_count :::")
-        print(file_count)
 
         assert filename in files
 
-        print("::: Provider file_download :::")
         download_dir = tmp_path / "downloads"
         download_dir.mkdir()
         assert (
@@ -213,16 +171,7 @@ class TestExperimental:
             is not None
         )
 
-        files = serverless_client.provider_files(function)
-        print("::: Provider files after download :::")
-        print(files)
-
-        assert file_count == len(files)
-
-        print("::: Provider file_delete :::")
         print(serverless_client.provider_file_delete(filename, function))
-
-        print("::: Provider files after delete:::")
         files = serverless_client.provider_files(function)
         print(files)
 
