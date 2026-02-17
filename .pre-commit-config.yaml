@@ -25,7 +25,6 @@ repos:
         entry: bash -c 'cd client && tox -e lint'
         language: system
         pass_filenames: false
-        require_serial: true
         files: ^client/
         types: [python]
         stages: [pre-push]
@@ -35,7 +34,6 @@ repos:
         entry: bash -c 'cd tests && tox -e lint'
         language: system
         pass_filenames: false
-        require_serial: true
         files: ^tests/docker/
         types: [python]
         stages: [pre-push]
