@@ -32,8 +32,7 @@ from api.serializers import (
     RunProgramSerializer,
     UploadProgramSerializer,
 )
-from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
-from api.utils import sactive_jobs_limit_reached, anitize_name
+from api.utils import active_jobs_limit_reached, sanitize_name
 from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
 from api.views.enums.type_filter import TypeFilter
 from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
