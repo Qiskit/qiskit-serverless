@@ -19,7 +19,9 @@ from api.services.authentication.authentication_base import AuthenticationBase
 logger = logging.getLogger("gateway.services.authentication.ibm_quantum_platform")
 
 
-class IBMQuantumPlatform(AuthenticationBase):
+class IBMQuantumPlatform(
+    AuthenticationBase
+):  # pylint: disable=too-many-instance-attributes
     """
     This class will manage the different access to the different
     end-points that we will make use of them in this service.
@@ -184,8 +186,7 @@ class IBMQuantumPlatform(AuthenticationBase):
                 api_exception.message,
             )
             raise exceptions.AuthenticationFailed(
-                "There was a problem in the authentication process with IBM Quantum Platform, please review your CRN."
-                # pylint: disable=line-too-long
+                "There was a problem in the authentication process with IBM Quantum Platform, please review your CRN."  # pylint: disable=line-too-long
             )
 
         resource_plan_id = instance.get("resource_plan_id")
