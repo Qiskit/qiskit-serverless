@@ -1,0 +1,30 @@
+---
+prelude: >
+    Major refactor in logs to be able to differentiate between Provider logs
+    and user logs. Also the logs now are stored in COS keeping backward 
+    compatibility.
+features:
+  - |
+    The Client added new functions :func:`get_logger()` and :func:`get_provider_logger()`.
+    The users should use the :func:`get_logger()` to log their relevant information.
+    The providers should use this functions discriminate the relevant information 
+    for users or providers respectively.
+    This will create `[PUBLIC]` and `[PRIVATE]` prefixes under the hood to filter 
+    the information appropriately
+  - |
+    The :class:`ServerlessClient` and :class:`Job` added new method :meth:`provider_logs`
+    to use the new `/provider_logs` endpoint.
+  - |
+    The Scheduler is modified to upload logs to COS when job transition from running to 
+    a terminal state. In this moment the logs will be filtered taking into account the
+    prefixes and it will save the information in its corresponding folder inside the COS.
+  - |
+    The Gateway has new a endpoint `/provider_logs` and `/logs` is modified.
+    Both should return: 
+    1. The COS log for finished jobs if exist. This was previously filtered in the Scheduler
+    2. The Ray console if job is running. This is filtered live.
+    3. As a fallback, return the logs from the db.
+upgrade:
+  - |
+    Added several quality of life improvements in testing.
+

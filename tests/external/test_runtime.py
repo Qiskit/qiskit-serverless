@@ -2,16 +2,28 @@
 """Tests jobs using Qiskit Runtime's staging resources."""
 
 import os
+import time
 
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_serverless import (
-    QiskitFunction,
-    ServerlessClient,
-)
+from qiskit_serverless import QiskitFunction, ServerlessClient, Job
 
 resources_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "../source_files"
 )
+
+
+def wait_for_logs(job: Job, contain: str):
+    """Wait for a job to contain JOB IDS."""
+    timeout = 90  # Secs
+    deadline = time.perf_counter() + timeout
+
+    while True:
+        if time.perf_counter() > deadline:
+            raise TimeoutError("TIMEOUT waiting for JOB IDS")
+
+        if contain in job.logs():
+            break
+        time.sleep(1)
 
 
 class TestRuntimeIntegration:
@@ -34,8 +46,7 @@ class TestRuntimeIntegration:
                 "QISKIT_IBM_URL": os.environ["QISKIT_IBM_URL"],
             },
         )
-        serverless_client.upload(function)
-        my_function = serverless_client.function("test-runtime-wrapper")
+        my_function = serverless_client.upload(function)
 
         job = my_function.run()
         result = job.result()
@@ -77,15 +88,12 @@ class TestRuntimeIntegration:
             },
         )
 
-        serverless_client.upload(function)
-        my_function = serverless_client.function("test-runtime-wrapper")
+        my_function = serverless_client.upload(function)
 
         job = my_function.run()
         job_id = job.job_id
 
-        while True:
-            if "JOB IDS" in job.logs():
-                break
+        wait_for_logs(job, "JOB IDS")
 
         # Attempt to stop the job
         stop_response = serverless_client.stop(job_id)
@@ -117,15 +125,12 @@ class TestRuntimeIntegration:
             },
         )
 
-        serverless_client.upload(function)
-        my_function = serverless_client.function("test-runtime-wrapper")
+        my_function = serverless_client.upload(function)
 
         job = my_function.run()
         job_id = job.job_id
 
-        while True:
-            if "JOB IDS" in job.logs():
-                break
+        wait_for_logs(job, "JOB IDS")
 
         service = QiskitRuntimeService(
             channel="ibm_quantum_platform",
