@@ -25,6 +25,7 @@
       ~BaseClient.jobs
       ~BaseClient.list
       ~BaseClient.logs
+      ~BaseClient.provider_logs
       ~BaseClient.result
       ~BaseClient.run
       ~BaseClient.runtime_jobs

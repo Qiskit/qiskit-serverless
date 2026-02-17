@@ -35,6 +35,7 @@
       ~IBMServerlessClient.provider_file_upload
       ~IBMServerlessClient.provider_files
       ~IBMServerlessClient.provider_jobs
+      ~IBMServerlessClient.provider_logs
       ~IBMServerlessClient.result
       ~IBMServerlessClient.run
       ~IBMServerlessClient.runtime_jobs

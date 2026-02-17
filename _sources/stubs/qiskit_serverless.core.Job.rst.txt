@@ -19,6 +19,7 @@
       ~Job.filtered_logs
       ~Job.in_terminal_state
       ~Job.logs
+      ~Job.provider_logs
       ~Job.result
       ~Job.runtime_jobs
       ~Job.runtime_sessions

@@ -35,6 +35,7 @@
       ~ServerlessClient.provider_file_upload
       ~ServerlessClient.provider_files
       ~ServerlessClient.provider_jobs
+      ~ServerlessClient.provider_logs
       ~ServerlessClient.result
       ~ServerlessClient.run
       ~ServerlessClient.runtime_jobs
