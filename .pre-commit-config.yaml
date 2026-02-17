@@ -16,7 +16,6 @@ repos:
         entry: bash -c 'cd gateway && tox -e lint'
         language: system
         pass_filenames: false
-        require_serial: true
         files: ^gateway/
         types: [python]
         stages: [pre-push]
