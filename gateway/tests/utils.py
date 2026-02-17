@@ -5,7 +5,7 @@ from typing import Union, Literal
 from django.contrib.auth.models import User, Group  # pylint: disable=imported-auth-user
 from rest_framework.test import APIClient
 
-from api.models import Job, JobConfig, Program, Provider
+from core.models import Job, JobConfig, Program, Provider
 
 # literal for job status
 JobStatusType = Literal[
