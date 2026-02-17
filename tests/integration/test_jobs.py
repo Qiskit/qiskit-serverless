@@ -22,7 +22,7 @@ resources_path = os.path.join(
 )
 
 
-class TestFunctionsDocker:
+class TestJobs:
     """Test class for integration testing with docker."""
 
     @mark.order(1)

@@ -2,7 +2,7 @@
 
 from django.core.management.base import BaseCommand
 
-from api.models import ComputeResource
+from core.models import ComputeResource
 
 
 class Command(BaseCommand):

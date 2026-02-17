@@ -8,11 +8,11 @@ from django.contrib.auth.models import AbstractUser
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.forbidden_error import ForbiddenError
 from api.domain.exceptions.not_found_error import NotFoundError
-from api.models import Job, JobEvent
+from core.models import Job, JobEvent
 from api.repositories.jobs import JobsRepository
 from core.utils import retry_function
 from core.services.job_status import update_job_status
-from api.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 

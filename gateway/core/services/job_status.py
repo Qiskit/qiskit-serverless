@@ -3,11 +3,11 @@
 import logging
 
 from concurrency.exceptions import RecordModifiedError
-from api.models import Job, JobEvent
+from core.models import Job, JobEvent
 
 from core.services.ray import get_job_handler
 from core.utils import check_logs, ray_job_status_to_model_job_status
-from api.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("core.services.job_status")
 

@@ -5,7 +5,7 @@ Access policies implementation for Job access
 import logging
 from django.contrib.auth.models import AbstractUser
 
-from api.models import Job
+from core.models import Job
 from api.access_policies.providers import ProviderAccessPolicy
 
 logger = logging.getLogger("gateway")

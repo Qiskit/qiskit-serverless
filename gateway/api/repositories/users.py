@@ -9,7 +9,7 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db.models import Q
 
 from api.domain.authentication.authentication_group import AuthenticationGroup
-from api.models import GroupMetadata
+from core.models import GroupMetadata
 
 User = get_user_model()
 logger = logging.getLogger("gateway.repositories.user")

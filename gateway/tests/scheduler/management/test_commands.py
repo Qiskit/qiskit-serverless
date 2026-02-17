@@ -8,8 +8,8 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
 
-from api.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from api.models import ComputeResource, Job, JobEvent, Program, Provider
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.models import ComputeResource, Job, JobEvent, Program, Provider
 from core.services.ray import JobHandler
 from core.utils import check_logs
 

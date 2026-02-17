@@ -9,7 +9,7 @@ from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.access_policies.jobs import JobAccessPolicies
 from core.services.storage.result_storage import ResultStorage
-from api.models import Job
+from core.models import Job
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 

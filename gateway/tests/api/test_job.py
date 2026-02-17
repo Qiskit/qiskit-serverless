@@ -12,8 +12,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from core.services.storage.result_storage import ResultStorage
 
-from api.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from api.models import Job, JobEvent, Program, Provider, RuntimeJob
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.models import Job, JobEvent, Program, Provider, RuntimeJob
 
 
 class TestJobApi(APITestCase):

@@ -7,10 +7,10 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from core.utils import check_logs, ray_job_status_to_model_job_status
-from api.models import Job
-from api.models import Job, JobEvent
+from core.models import Job
+from core.models import Job, JobEvent
 from core.services.ray import get_job_handler
-from api.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     check_job_timeout,
     handle_job_status_not_available,

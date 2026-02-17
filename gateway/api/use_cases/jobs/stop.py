@@ -4,12 +4,12 @@ from uuid import UUID
 
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
-from api.models import Job, JobEvent
+from core.models import Job, JobEvent
 from core.services.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.repositories.runtime_job import RuntimeJobRepository
-from api.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 

@@ -10,8 +10,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from api.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from api.models import Job, JobEvent, Program
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.models import Job, JobEvent, Program
 from core.services.storage.arguments_storage import ArgumentsStorage
 
 
