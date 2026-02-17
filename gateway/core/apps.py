@@ -34,7 +34,7 @@ def check_model_labels(app_configs, **kwargs):
         if (
             not issubclass(obj, django_models.Model)
             or obj._meta.abstract
-            or obj._meta.app_label == "auth"  # ignore auth.Group and others
+            or obj.__module__ != "core.models"  # skip imported classes
         ):
             continue
 
