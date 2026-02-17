@@ -348,6 +348,7 @@ class JobEvent(models.Model):
     class Meta:
         app_label = "api"
 
+
 class GroupMetadata(models.Model):
     """
     This model will store metadata from different resources for Group
