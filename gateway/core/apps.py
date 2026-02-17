@@ -21,11 +21,12 @@ class CoreConfig(AppConfig):
         register(Tags.models)(check_model_labels)
 
 
-def check_model_labels(_app_configs, **kwargs):
+def check_model_labels(app_configs, **kwargs):
     """
     This ensures all models have the same "api_" prefix in the table name and the
     migrations are located in the api app.
     """
+    _ = app_configs
     errors = []
     core_models_module = importlib.import_module("core.models")
 
