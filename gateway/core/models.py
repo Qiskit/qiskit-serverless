@@ -345,6 +345,8 @@ class JobEvent(models.Model):
 
     objects = JobEventQuerySet.as_manager()
 
+    class Meta:
+        app_label = "api"
 
 class GroupMetadata(models.Model):
     """
