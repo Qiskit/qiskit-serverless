@@ -168,7 +168,7 @@ class TestProgramApi(APITestCase):
             self.assertEqual(job_events[0].data["status"], Job.QUEUED)
             self.assertEqual(job_events[0].origin, JobEventOrigin.API)
             self.assertEqual(
-                job_events[0].context, JobEventContext.RUN_PROGRAM_SERIALIZER
+                job_events[0].context, JobEventContext.RUN_PROGRAM
             )
 
     def test_provider_run(self):
@@ -232,7 +232,7 @@ class TestProgramApi(APITestCase):
             self.assertEqual(job_events[0].data["status"], Job.QUEUED)
             self.assertEqual(job_events[0].origin, JobEventOrigin.API)
             self.assertEqual(
-                job_events[0].context, JobEventContext.RUN_PROGRAM_SERIALIZER
+                job_events[0].context, JobEventContext.RUN_PROGRAM
             )
 
     def test_run_locked(self):

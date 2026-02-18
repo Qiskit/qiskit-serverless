@@ -324,7 +324,7 @@ class RunJobSerializer(serializers.ModelSerializer):
         JobEvent.objects.add_status_event(
             job_id=job.id,
             origin=JobEventOrigin.API,
-            context=JobEventContext.RUN_PROGRAM_SERIALIZER,
+            context=JobEventContext.RUN_PROGRAM,
             status=job.status,
         )
 
