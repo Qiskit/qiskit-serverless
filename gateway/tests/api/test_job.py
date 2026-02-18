@@ -479,8 +479,7 @@ class TestJobApi(APITestCase):
 
         job_events = JobEvent.objects.filter(job=job_id)
         self.assertEqual(len(job_events), 1)
-        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
-        self.assertEqual(job_events[0].data["status"], Job.RUNNING)
+        self.assertEqual(job_events[0].event_type, JobEventType.SUB_STATUS_CHANGE)
         self.assertEqual(job_events[0].data["sub_status"], Job.MAPPING)
         self.assertEqual(job_events[0].origin, JobEventOrigin.API)
         self.assertEqual(job_events[0].context, JobEventContext.SET_SUB_STATUS)
@@ -616,7 +615,6 @@ class TestJobApi(APITestCase):
         self.assertEqual(len(job_events), 1)
         self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[0].data["status"], Job.STOPPED)
-        self.assertEqual(job_events[0].data["sub_status"], None)
         self.assertEqual(job_events[0].origin, JobEventOrigin.API)
         self.assertEqual(job_events[0].context, JobEventContext.STOP_JOB)
 

@@ -166,7 +166,6 @@ class TestProgramApi(APITestCase):
             self.assertEqual(len(job_events), 1)
             self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
             self.assertEqual(job_events[0].data["status"], Job.QUEUED)
-            self.assertEqual(job_events[0].data["sub_status"], None)
             self.assertEqual(job_events[0].origin, JobEventOrigin.API)
             self.assertEqual(
                 job_events[0].context, JobEventContext.RUN_PROGRAM_SERIALIZER
@@ -231,7 +230,6 @@ class TestProgramApi(APITestCase):
             self.assertEqual(len(job_events), 1)
             self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
             self.assertEqual(job_events[0].data["status"], Job.QUEUED)
-            self.assertEqual(job_events[0].data["sub_status"], None)
             self.assertEqual(job_events[0].origin, JobEventOrigin.API)
             self.assertEqual(
                 job_events[0].context, JobEventContext.RUN_PROGRAM_SERIALIZER

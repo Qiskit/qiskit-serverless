@@ -59,7 +59,6 @@ class TestCommands(APITestCase):
         self.assertEqual(len(job_events), 1)
         self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[0].data["status"], JobStatus.RUNNING)
-        self.assertEqual(job_events[0].data["sub_status"], None)
         self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
         self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
 
@@ -78,7 +77,6 @@ class TestCommands(APITestCase):
         self.assertEqual(len(job_events), 2)
         self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[1].data["status"], JobStatus.FAILED)
-        self.assertEqual(job_events[1].data["sub_status"], None)
         self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
         self.assertEqual(job_events[1].context, JobEventContext.UPDATE_JOB_STATUS)
 
@@ -105,12 +103,10 @@ class TestCommands(APITestCase):
         self.assertEqual(len(job_events), 2)
         self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[0].data["status"], JobStatus.SUCCEEDED)
-        self.assertEqual(job_events[0].data["sub_status"], None)
         self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
         self.assertEqual(job_events[0].context, JobEventContext.SCHEDULE_JOBS)
         self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
         self.assertEqual(job_events[1].data["status"], JobStatus.SUCCEEDED)
-        self.assertEqual(job_events[1].data["sub_status"], None)
         self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
         self.assertEqual(job_events[1].context, JobEventContext.SCHEDULE_JOBS)
 
@@ -326,7 +322,6 @@ Internal system log
                 self.assertEqual(len(job_events), 1)
                 self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
                 self.assertEqual(job_events[0].data["status"], Job.FAILED)
-                self.assertEqual(job_events[0].data["sub_status"], None)
                 self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
                 self.assertEqual(
                     job_events[0].context, JobEventContext.UPDATE_JOB_STATUS
