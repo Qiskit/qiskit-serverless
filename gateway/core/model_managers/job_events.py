@@ -40,8 +40,7 @@ class JobEventQuerySet(QuerySet):
         origin: JobEventOrigin,
         context: JobEventContext,
         status: str,
-        sub_status: Optional[str] = None,
-        additional_info: Optional[str] = None,
+        sub_status: Optional[str] = None
     ):
         """Status change event for jobs."""
 
@@ -52,7 +51,6 @@ class JobEventQuerySet(QuerySet):
             event_type=JobEventType.STATUS_CHANGE,
             data={
                 "status": status,
-                "sub_status": sub_status,
-                "additional_info": additional_info,
+                "sub_status": sub_status
             },
         )

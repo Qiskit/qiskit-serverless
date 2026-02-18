@@ -335,7 +335,7 @@ class JobEvent(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="job_event",
+        related_name="job_events",
     )
     event_type = models.CharField(max_length=100, blank=False, null=False)
     origin = models.CharField(max_length=100, blank=False, null=False)
