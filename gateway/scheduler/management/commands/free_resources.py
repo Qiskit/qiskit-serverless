@@ -66,7 +66,6 @@ class Command(BaseCommand):
         if should_remove_as_classical or should_remove_as_gpu:
             success = kill_ray_cluster(compute_resource.title)
             if success:
-                # deactivate
                 compute_resource.active = False
                 compute_resource.save()
                 logger.info(
