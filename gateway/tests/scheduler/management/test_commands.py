@@ -286,8 +286,8 @@ WARNING: Private warning
                 self.assertEqual(saved_provider_logs, expected_provider_logs)
 
     @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
-    def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler):
-        """Tests that logs are filtered when saving for function with provider."""
+    def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_job_handler):
+        """Tests that the job_event is stored when job_handler.status() raises exception."""
         compute_resource = ComputeResource.objects.create(
             title="test-cluster-provider-logs", active=True
         )
@@ -301,17 +301,6 @@ WARNING: Private warning
 
         with tempfile.TemporaryDirectory() as temp_dir:
             with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
-                # Mock Ray to return unfiltered logs
-                full_logs = """
-[PUBLIC] INFO: Public log for user
-
-[PRIVATE] INFO: Private log for provider only
-[PUBLIC] INFO: Another public log
-Internal system log
-[PRIVATE] WARNING: Private warning
-[PUBLIC] INFO: Final public log
-"""
-
                 job_handler = MagicMock()
                 job_handler.status.side_effect = RuntimeError("Error")
                 get_job_handler.return_value = job_handler
