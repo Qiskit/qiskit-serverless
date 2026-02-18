@@ -51,17 +51,17 @@ def update_job_status(job: Job):
         job.sub_status = None
         job.env_vars = "{}"
         try:
-            job.save()
+            job.save()        
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+                sub_status=job.sub_status,
+            )
         except RecordModifiedError:
             logger.warning("Job [%s] record has not been updated due to lock.", job.id)
-        
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
-            sub_status=job.sub_status,
-        )
+
         
         return True
 
@@ -114,17 +114,17 @@ def update_job_status(job: Job):
 
     try:
         job.save()
+        
+        if status_has_changed:
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+                sub_status=job.sub_status,
+            )
     except RecordModifiedError:
         logger.warning("Job [%s] record has not been updated due to lock.", job.id)
-
-    if status_has_changed:
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.SCHEDULER,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
-            sub_status=job.sub_status,
-        )
 
     return status_has_changed
 
