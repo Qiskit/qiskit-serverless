@@ -39,5 +39,5 @@ from .core import (
 from .exception import QiskitServerlessException
 from .core.function import QiskitPattern, QiskitFunction
 from .serializers import get_arguments
-from .utils import ServerlessRuntimeService
+from .utils import ServerlessRuntimeService, get_logger, get_provider_logger
 from .version import __version__

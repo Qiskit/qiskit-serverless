@@ -10,17 +10,14 @@ from django.contrib.auth.models import AbstractUser
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
-from api.domain.function.filter_logs import (
-    filter_logs_with_public_tags,
-    remove_prefix_tags_in_logs,
-)
-from core.services.ray import get_job_handler
+from api.domain.function.filter_logs import filter_logs_with_non_public_tags
 from core.utils import check_logs
+from core.services.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.services.storage.logs_storage import LogsStorage
 
 
-class GetJobLogsUseCase:
+class GetProviderJobLogsUseCase:
     """Use case for retrieving job logs."""
 
     jobs_repository = JobsRepository()
@@ -42,14 +39,12 @@ class GetJobLogsUseCase:
         if job is None:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        if not JobAccessPolicies.can_read_user_logs(user, job):
-            raise ForbiddenError(
-                f"You don't have access to read user logs of the job [{job_id}]"
-            )
+        if not JobAccessPolicies.can_read_provider_logs(user, job):
+            raise ForbiddenError(f"You don't have access to job [{job_id}]")
 
         # Logs stored in COS. They are already filtered
         logs_storage = LogsStorage(job)
-        logs = logs_storage.get_public_logs()
+        logs = logs_storage.get_private_logs()
         if logs:
             return logs
 
@@ -62,17 +57,7 @@ class GetJobLogsUseCase:
 
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
-            if job.program.provider:
-                # Public logs from a provider job
-                return filter_logs_with_public_tags(logs)
-
-            # Public logs from a user job
-            return remove_prefix_tags_in_logs(logs)
+            return filter_logs_with_non_public_tags(logs)
 
         # Legacy: Get from db.
-        if job.program.provider:
-            # Public logs from a provider job
-            return "No logs available."
-
-        # Public logs from a user job
         return job.logs

@@ -210,12 +210,4 @@ def fail_job_insufficient_resources(job: Job):
         job.compute_resource.delete()
         job.compute_resource = None
 
-    job_status = Job.FAILED
-    job.logs = (
-        "Insufficient resources available to the run job in this "
-        "configuration.\nMax resources allowed are "
-        f"{settings.LIMITS_CPU_PER_TASK} CPUs and "
-        f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
-    )
-
-    return job_status
+    return Job.FAILED
