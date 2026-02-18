@@ -74,11 +74,10 @@ class SetJobSubStatusUseCase:
         )
 
         if old_sub_status != job.sub_status:
-            JobEvent.objects.add_status_event(
+            JobEvent.objects.add_sub_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.API,
                 context=JobEventContext.SET_SUB_STATUS,
-                status=job.status,
                 sub_status=job.sub_status,
             )
 

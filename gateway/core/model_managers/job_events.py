@@ -1,7 +1,6 @@
 """Job events model manager."""
 
 import uuid
-from typing import Optional
 
 from enum import StrEnum
 
@@ -29,6 +28,7 @@ class JobEventType(StrEnum):
     """Job events type enum."""
 
     STATUS_CHANGE = "STATUS_CHANGE"
+    SUB_STATUS_CHANGE = "SUB_STATUS_CHANGE"
 
 
 class JobEventQuerySet(QuerySet):
@@ -40,7 +40,6 @@ class JobEventQuerySet(QuerySet):
         origin: JobEventOrigin,
         context: JobEventContext,
         status: str,
-        sub_status: Optional[str] = None
     ):
         """Status change event for jobs."""
 
@@ -49,8 +48,22 @@ class JobEventQuerySet(QuerySet):
             origin=origin,
             context=context,
             event_type=JobEventType.STATUS_CHANGE,
-            data={
-                "status": status,
-                "sub_status": sub_status
-            },
+            data={"status": status},
+        )
+
+    def add_sub_status_event(  # pylint:  disable=too-many-positional-arguments
+        self,
+        job_id: uuid.UUID,
+        origin: JobEventOrigin,
+        context: JobEventContext,
+        sub_status: str = None,
+    ):
+        """Sub Status change event for jobs."""
+
+        return self.create(
+            job_id=job_id,
+            origin=origin,
+            context=context,
+            event_type=JobEventType.SUB_STATUS_CHANGE,
+            data={"sub_status": sub_status},
         )

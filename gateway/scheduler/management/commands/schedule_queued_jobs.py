@@ -117,7 +117,6 @@ class Command(BaseCommand):
                             origin=JobEventOrigin.SCHEDULER,
                             context=JobEventContext.SCHEDULE_JOBS,
                             status=job.status,
-                            sub_status=job.sub_status,
                         )
                     except RecordModifiedError:
                         logger.warning(

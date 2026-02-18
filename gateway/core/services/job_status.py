@@ -71,7 +71,6 @@ def update_job_status(job):
             origin=JobEventOrigin.API,
             context=JobEventContext.UPDATE_JOB_STATUS,
             status=job.status,
-            sub_status=job.sub_status,
         )
 
     return status_has_changed

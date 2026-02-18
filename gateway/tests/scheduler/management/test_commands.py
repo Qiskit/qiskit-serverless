@@ -328,7 +328,9 @@ Internal system log
                 self.assertEqual(job_events[0].data["status"], Job.FAILED)
                 self.assertEqual(job_events[0].data["sub_status"], None)
                 self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
-                self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
+                self.assertEqual(
+                    job_events[0].context, JobEventContext.UPDATE_JOB_STATUS
+                )
 
     def _create_test_job(
         self,
