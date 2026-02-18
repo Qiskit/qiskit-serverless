@@ -46,7 +46,7 @@ class SetJobSubStatusUseCase:
         if not can_update_sub_status:
             raise NotFoundError(f"Job [{job_id}] not found")
 
-        status_has_changed = update_job_status(job)
+        update_job_status(job)
 
         if job.status != Job.RUNNING:
             warning_msg = (
