@@ -14,7 +14,6 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobE
 from core.models import ComputeResource, Job, JobEvent, Program, Provider
 from core.services.ray import JobHandler
 from core.utils import check_logs
-from scheduler.management.commands import update_jobs_statuses
 
 
 class TestCommands(APITestCase):
@@ -286,7 +285,9 @@ WARNING: Private warning
                 self.assertEqual(saved_provider_logs, expected_provider_logs)
 
     @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
-    def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_job_handler):
+    def test_update_jobs_statuses_job_handler_status_error_status_event(
+        self, get_job_handler
+    ):
         """Tests that the job_event is stored when job_handler.status() raises exception."""
         compute_resource = ComputeResource.objects.create(
             title="test-cluster-provider-logs", active=True
