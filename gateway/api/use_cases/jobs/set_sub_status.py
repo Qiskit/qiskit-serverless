@@ -73,7 +73,7 @@ class SetJobSubStatusUseCase:
             error_message_level=logging.WARNING,
         )
 
-        if status_has_changed or old_sub_status != job.sub_status:
+        if old_sub_status != job.sub_status:
             JobEvent.objects.add_status_event(
                 job_id=job.id,
                 origin=JobEventOrigin.API,
