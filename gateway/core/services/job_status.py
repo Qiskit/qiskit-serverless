@@ -62,15 +62,14 @@ def update_job_status(job):
 
     try:
         job.save()
+        if status_has_changed:
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.API,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
     except RecordModifiedError:
         logger.warning("Job [%s] record has not been updated due to lock.", job.id)
-
-    if status_has_changed:
-        JobEvent.objects.add_status_event(
-            job_id=job.id,
-            origin=JobEventOrigin.API,
-            context=JobEventContext.UPDATE_JOB_STATUS,
-            status=job.status,
-        )
 
     return status_has_changed
