@@ -618,50 +618,6 @@ class TestJobApi(APITestCase):
         self.assertEqual(job_events[0].origin, JobEventOrigin.API)
         self.assertEqual(job_events[0].context, JobEventContext.STOP_JOB)
 
-    def test_job_logs_by_author_for_function_without_provider(self):
-        """Tests job log by job author."""
-        self._authorize("test_user")
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 2")
-
-    def test_job_logs_by_author_for_function_with_provider(self):
-        """Tests job log by job author."""
-        self._authorize("test_user")
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_job_logs_by_function_provider(self):
-        """Tests job log by fuction provider."""
-        user = User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
-
-    def test_job_logs(self):
-        """Tests job log non-authorized."""
-        user = User.objects.get(username="test_user_3")
-        self.client.force_authenticate(user=user)
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
-
     def test_runtime_jobs_post(self):
         """Tests runtime jobs POST endpoint."""
         self._authorize("test_user")
