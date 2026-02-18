@@ -289,6 +289,47 @@ WARNING: Private warning
                     saved_provider_logs = log_file.read()
                 self.assertEqual(saved_provider_logs, expected_provider_logs)
 
+    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
+    def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler):
+        """Tests that logs are filtered when saving for function with provider."""
+        compute_resource = ComputeResource.objects.create(
+            title="test-cluster-provider-logs", active=True
+        )
+        job = self._create_test_job(
+            author="test_author",
+            provider_admin="test_provider",
+            status=Job.RUNNING,
+            compute_resource=compute_resource,
+            ray_job_id="test-ray-job-id-with-provider",
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
+                # Mock Ray to return unfiltered logs
+                full_logs = """
+[PUBLIC] INFO: Public log for user
+
+[PRIVATE] INFO: Private log for provider only
+[PUBLIC] INFO: Another public log
+Internal system log
+[PRIVATE] WARNING: Private warning
+[PUBLIC] INFO: Final public log
+"""
+
+                job_handler = MagicMock()
+                job_handler.status.side_effect = RuntimeError("Error")
+                get_job_handler.return_value = job_handler
+
+                call_command("update_jobs_statuses")
+
+                job_events = JobEvent.objects.filter(job=job.id)
+                self.assertEqual(len(job_events), 1)
+                self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+                self.assertEqual(job_events[0].data["status"], Job.FAILED)
+                self.assertEqual(job_events[0].data["sub_status"], None)
+                self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
+                self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
+
     def _create_test_job(
         self,
         author: str = "test_author",
