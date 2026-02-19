@@ -7,9 +7,7 @@ from pytest import mark
 
 from qiskit_serverless import ServerlessClient, QiskitFunction
 
-resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../source_files"
-)
+resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
 filename = "data.tar"
 filename_path = os.path.join(resources_path, filename)
@@ -74,9 +72,7 @@ class TestFiles:
 
         assert (file_count - len(serverless_client.files(file_consumer_function))) == 1
 
-    def test_list_upload_download_delete(
-        self, serverless_client: ServerlessClient, tmp_path
-    ):
+    def test_list_upload_download_delete(self, serverless_client: ServerlessClient, tmp_path):
         """Integration test for upload files."""
 
         function = QiskitFunction(
@@ -96,12 +92,7 @@ class TestFiles:
 
         download_dir = tmp_path / "downloads"
         download_dir.mkdir()
-        assert (
-            serverless_client.file_download(
-                filename, function, download_location=str(download_dir)
-            )
-            is not None
-        )
+        assert serverless_client.file_download(filename, function, download_location=str(download_dir)) is not None
 
         print(serverless_client.file_delete(filename, function))
         files = serverless_client.files(function)
@@ -109,9 +100,7 @@ class TestFiles:
 
         assert filename not in files
 
-    def test_list_upload_download_delete_with_provider_function(
-        self, serverless_client: ServerlessClient, tmp_path
-    ):
+    def test_list_upload_download_delete_with_provider_function(self, serverless_client: ServerlessClient, tmp_path):
         """Integration test for upload files."""
         function = QiskitFunction(
             title="provider-function",
@@ -130,12 +119,7 @@ class TestFiles:
 
         download_dir = tmp_path / "downloads"
         download_dir.mkdir()
-        assert (
-            serverless_client.file_download(
-                filename, function, download_location=str(download_dir)
-            )
-            is not None
-        )
+        assert serverless_client.file_download(filename, function, download_location=str(download_dir)) is not None
 
         print(serverless_client.file_delete(filename, function))
         files = serverless_client.files(function)
@@ -143,9 +127,7 @@ class TestFiles:
 
         assert filename not in files
 
-    def test_provider_list_upload_download_delete(
-        self, serverless_client: ServerlessClient, tmp_path
-    ):
+    def test_provider_list_upload_download_delete(self, serverless_client: ServerlessClient, tmp_path):
         """Integration test for upload files."""
         function = QiskitFunction(
             title="provider-function",
@@ -165,9 +147,7 @@ class TestFiles:
         download_dir = tmp_path / "downloads"
         download_dir.mkdir()
         assert (
-            serverless_client.provider_file_download(
-                filename, function, download_location=str(download_dir)
-            )
+            serverless_client.provider_file_download(filename, function, download_location=str(download_dir))
             is not None
         )
 

@@ -7,9 +7,7 @@ import time
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_serverless import QiskitFunction, ServerlessClient, Job
 
-resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../source_files"
-)
+resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
 
 def wait_for_logs(job: Job, contain: str):
@@ -29,9 +27,7 @@ def wait_for_logs(job: Job, contain: str):
 class TestRuntimeIntegration:
     """Integration tests for runtime wrapper with and without session."""
 
-    def _run_and_validate_function(
-        self, serverless_client: ServerlessClient, entrypoint: str, num_jobs: int
-    ):
+    def _run_and_validate_function(self, serverless_client: ServerlessClient, entrypoint: str, num_jobs: int):
         """Run function with given entrypoint and check that runtime job ids and
         session ids reported by the serverless API match those stored at job submission
         time."""
@@ -101,10 +97,7 @@ class TestRuntimeIntegration:
         # Validate the response
         assert isinstance(stop_response, str)
         assert "QiskitRuntimeService not found" in stop_response
-        assert (
-            "Job has been stopped" in stop_response
-            or "Job already in terminal state" in stop_response
-        )
+        assert "Job has been stopped" in stop_response or "Job already in terminal state" in stop_response
         if "Job has been stopped" in stop_response:
             assert job.status() == "CANCELED"
         else:
@@ -144,10 +137,7 @@ class TestRuntimeIntegration:
 
         # Validate the response
         assert isinstance(stop_response, str)
-        assert (
-            "Job has been stopped" in stop_response
-            or "Job already in terminal state" in stop_response
-        )
+        assert "Job has been stopped" in stop_response or "Job already in terminal state" in stop_response
         assert "Canceled runtime session" in stop_response
         if "Job has been stopped" in stop_response:
             assert job.status() == "CANCELED"
@@ -156,12 +146,8 @@ class TestRuntimeIntegration:
 
     def test_jobs_no_session(self, serverless_client: ServerlessClient):
         """Test job submission with get_runtime_service without sessions."""
-        self._run_and_validate_function(
-            serverless_client, "pattern_with_runtime_wrapper_1.py", num_jobs=2
-        )
+        self._run_and_validate_function(serverless_client, "pattern_with_runtime_wrapper_1.py", num_jobs=2)
 
     def test_jobs_with_session(self, serverless_client: ServerlessClient):
         """Test job submission with get_runtime_service with sessions."""
-        self._run_and_validate_function(
-            serverless_client, "pattern_with_runtime_wrapper_2.py", num_jobs=4
-        )
+        self._run_and_validate_function(serverless_client, "pattern_with_runtime_wrapper_2.py", num_jobs=4)
