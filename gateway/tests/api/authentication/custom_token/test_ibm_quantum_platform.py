@@ -45,6 +45,54 @@ def _create_mock_jwt(iam_id: str, account_id: str) -> str:
     return f"{header}.{payload}.{signature}"
 
 
+def _mock_iam_services(
+    mock_get_resource_instance: MagicMock,
+    mock_list_access_groups: MagicMock,
+    group_id="test-group",
+):
+    """Configure mock responses for IAM services."""
+    mock_get_resource_instance.return_value = DetailedResponse(
+        response={"resource_plan_id": RESOURCE_PLAN_ID},
+        headers={},
+        status_code=200,
+    )
+    mock_list_access_groups.return_value = DetailedResponse(
+        response={
+            "groups": [
+                {"id": group_id, "name": "Test Group"},
+                {"id": group_id, "name": "Public Accesss"},
+            ]
+        },
+        headers={},
+        status_code=200,
+    )
+
+
+def _add_mock_response(iam_id: str, account_id: str):
+    """Add a mock token response to responses."""
+    responses.add(
+        responses.POST,
+        f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/token",
+        json={
+            "access_token": _create_mock_jwt(iam_id, account_id),
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        },
+        status=200,
+    )
+
+
+def _create_request(token: str = "any_token", crn: str = "any:crn:123"):
+    """Create a mock request that can be used in the authenticate() method"""
+    request = MagicMock()
+    request.META = {
+        "HTTP_SERVICE_CHANNEL": "ibm_quantum_platform",
+        "HTTP_AUTHORIZATION": f"Bearer {token}",
+        "HTTP_SERVICE_CRN": crn,
+    }
+    return request
+
+
 class TestIBMQuantumPlatformAuthentication(APITestCase):
     """E2E tests for IBM Quantum Platform authentication."""
 
@@ -145,51 +193,3 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
             self.assertEqual(user_b.username, "IBMid-USER-B")
             self.assertEqual(mock_get_resource_instance.call_count, 2)
             self.assertEqual(mock_list_access_groups.call_count, 2)
-
-
-def _mock_iam_services(
-    mock_get_resource_instance: MagicMock,
-    mock_list_access_groups: MagicMock,
-    group_id="test-group",
-):
-    """Configure mock responses for IAM services."""
-    mock_get_resource_instance.return_value = DetailedResponse(
-        response={"resource_plan_id": RESOURCE_PLAN_ID},
-        headers={},
-        status_code=200,
-    )
-    mock_list_access_groups.return_value = DetailedResponse(
-        response={
-            "groups": [
-                {"id": group_id, "name": "Test Group"},
-                {"id": group_id, "name": "Public Accesss"},
-            ]
-        },
-        headers={},
-        status_code=200,
-    )
-
-
-def _add_mock_response(iam_id: str, account_id: str):
-    """Add a mock token response to responses."""
-    responses.add(
-        responses.POST,
-        f"{settings.IAM_IBM_CLOUD_BASE_URL}/identity/token",
-        json={
-            "access_token": _create_mock_jwt(iam_id, account_id),
-            "token_type": "Bearer",
-            "expires_in": 3600,
-        },
-        status=200,
-    )
-
-
-def _create_request(token: str = "any_token", crn: str = "any:crn:123"):
-    """Create a mock request that can be used in the authenticate() method"""
-    request = MagicMock()
-    request.META = {
-        "HTTP_SERVICE_CHANNEL": "ibm_quantum_platform",
-        "HTTP_AUTHORIZATION": f"Bearer {token}",
-        "HTTP_SERVICE_CRN": crn,
-    }
-    return request
