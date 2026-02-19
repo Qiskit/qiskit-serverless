@@ -165,30 +165,22 @@ def fetch_execution_meta(*args, **kwargs) -> Dict[str, Sequence[Numeric]]:
 
     for idx, argument in enumerate(args):
         if isinstance(argument, QuantumCircuit):
-            meta[f"{OT_ATTRIBUTE_PREFIX}.args.arg_{idx}"] = fetch_meta(
-                argument
-            ).to_seq()
+            meta[f"{OT_ATTRIBUTE_PREFIX}.args.arg_{idx}"] = fetch_meta(argument).to_seq()
         elif isinstance(argument, list):
             for sub_idx, sub_argument in enumerate(argument):
                 if isinstance(sub_argument, QuantumCircuit):
-                    meta[f"{OT_ATTRIBUTE_PREFIX}.args.arg_{idx}.{sub_idx}"] = (
-                        fetch_meta(sub_argument).to_seq()
-                    )
+                    meta[f"{OT_ATTRIBUTE_PREFIX}.args.arg_{idx}.{sub_idx}"] = fetch_meta(sub_argument).to_seq()
     for key, value in kwargs.items():
         if isinstance(value, QuantumCircuit):
             meta[f"{OT_ATTRIBUTE_PREFIX}.kwargs.{key}"] = fetch_meta(value).to_seq()
         elif isinstance(value, list):
             for sub_idx, sub_argument in enumerate(value):
                 if isinstance(sub_argument, QuantumCircuit):
-                    meta[f"{OT_ATTRIBUTE_PREFIX}.kwargs.{key}.{sub_idx}"] = fetch_meta(
-                        sub_argument
-                    ).to_seq()
+                    meta[f"{OT_ATTRIBUTE_PREFIX}.kwargs.{key}.{sub_idx}"] = fetch_meta(sub_argument).to_seq()
     return meta
 
 
-def _tracible_function(
-    name: str, target: Target, trace_id: Optional[str] = None
-) -> Callable:
+def _tracible_function(name: str, target: Target, trace_id: Optional[str] = None) -> Callable:
     """Wrap a function in an OTel span.
 
     Args:
@@ -212,31 +204,19 @@ def _tracible_function(
                     agent_port=int(os.environ.get(OT_JAEGER_PORT_KEY, 6831)),
                 )
             ctx = TraceContextTextMapPropagator().extract(
-                {
-                    TraceContextTextMapPropagator._TRACEPARENT_HEADER_NAME: trace_id  # pylint:disable=protected-access
-                }
+                {TraceContextTextMapPropagator._TRACEPARENT_HEADER_NAME: trace_id}  # pylint:disable=protected-access
             )
 
             circuits_meta = fetch_execution_meta(*args, **kwargs)
 
             with tracer.start_as_current_span(name, context=ctx) as rollspan:
                 # TODO: add serverless package version # pylint: disable=fixme
-                rollspan.set_attribute(
-                    f"{OT_ATTRIBUTE_PREFIX}.meta.function_name", name
-                )
-                rollspan.set_attribute(
-                    f"{OT_ATTRIBUTE_PREFIX}.meta.stack_layer", "qiskit_serverless"
-                )
+                rollspan.set_attribute(f"{OT_ATTRIBUTE_PREFIX}.meta.function_name", name)
+                rollspan.set_attribute(f"{OT_ATTRIBUTE_PREFIX}.meta.stack_layer", "qiskit_serverless")
 
-                rollspan.set_attribute(
-                    f"{OT_ATTRIBUTE_PREFIX}.resources.cpu", target.cpu
-                )
-                rollspan.set_attribute(
-                    f"{OT_ATTRIBUTE_PREFIX}.resources.memory", target.mem
-                )
-                rollspan.set_attribute(
-                    f"{OT_ATTRIBUTE_PREFIX}.resources.gpu", target.gpu
-                )
+                rollspan.set_attribute(f"{OT_ATTRIBUTE_PREFIX}.resources.cpu", target.cpu)
+                rollspan.set_attribute(f"{OT_ATTRIBUTE_PREFIX}.resources.memory", target.mem)
+                rollspan.set_attribute(f"{OT_ATTRIBUTE_PREFIX}.resources.gpu", target.gpu)
 
                 resources = target.resources or {}
                 for resource_name, resource_value in resources.items():
@@ -291,9 +271,7 @@ def distribute_task(
     def decorator(function):
         def wrapper(*args, **kwargs):
             # tracing
-            traced_env_vars = _trace_env_vars(
-                remote_target.env_vars or {}, location="on decoration"
-            )
+            traced_env_vars = _trace_env_vars(remote_target.env_vars or {}, location="on decoration")
             traced_function = _tracible_function(
                 name=function.__name__,
                 target=remote_target,
@@ -368,8 +346,7 @@ def distribute_qiskit_function(
             provider = ServerlessClient()
         except QiskitServerlessException as qs_error:
             raise QiskitServerlessException(
-                "Set provider in arguments for `distribute_program` "
-                "decorator or define env variables."
+                "Set provider in arguments for `distribute_program` " "decorator or define env variables."
             ) from qs_error
     if provider is None:
         raise QiskitServerlessException(
@@ -380,9 +357,7 @@ def distribute_qiskit_function(
     def decorator(function):
         """Decorator."""
         if not inspect.isfunction(function):
-            raise QiskitServerlessException(
-                "Only functions are supported by this decorator."
-            )
+            raise QiskitServerlessException("Only functions are supported by this decorator.")
 
         def wrapper(*args, **kwargs):
             """Function wrapper."""
@@ -395,9 +370,7 @@ def distribute_qiskit_function(
                 )
 
             # create folder
-            working_directory = (
-                working_dir or f"./qs_artifacts/{function.__name__}_{suffix}"
-            )
+            working_directory = working_dir or f"./qs_artifacts/{function.__name__}_{suffix}"
             os.makedirs(working_directory, exist_ok=True)
 
             # dump pickle
@@ -471,11 +444,7 @@ def trace_decorator_factory(traced_feature: str):
             def wrapper(*args, **kwargs):
                 """The wrapper"""
                 tracer = trace.get_tracer("client.tracer")
-                function_name = (
-                    traced_function
-                    if isinstance(traced_function, str)
-                    else func.__name__
-                )
+                function_name = traced_function if isinstance(traced_function, str) else func.__name__
                 with tracer.start_as_current_span(f"{traced_feature}.{function_name}"):
                     result = func(*args, **kwargs)
                 return result

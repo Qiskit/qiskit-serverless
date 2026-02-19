@@ -46,9 +46,7 @@ from qiskit_serverless.core.constants import (
 from qiskit_serverless.utils.http import get_headers
 
 
-def associate_runtime_job_with_serverless_job(
-    runtime_job_id: str, session_id: Optional[str] = None
-) -> bool:
+def associate_runtime_job_with_serverless_job(runtime_job_id: str, session_id: Optional[str] = None) -> bool:
     """Make a request to gateway to associate runtime job id with serverless job id.
 
     Args:
@@ -108,7 +106,5 @@ class ServerlessRuntimeService(QiskitRuntimeService):
             *args,
             **kwargs,
         )
-        associate_runtime_job_with_serverless_job(
-            runtime_job.job_id(), runtime_job.session_id
-        )
+        associate_runtime_job_with_serverless_job(runtime_job.job_id(), runtime_job.session_id)
         return runtime_job

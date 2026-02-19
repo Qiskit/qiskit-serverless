@@ -101,6 +101,4 @@ def register_all_serializers():
         deserializer=service_deserializer,
     )
     # serialization for QuantumCircuit
-    ray.util.register_serializer(
-        QuantumCircuit, serializer=circuit_serializer, deserializer=circuit_deserializer
-    )
+    ray.util.register_serializer(QuantumCircuit, serializer=circuit_serializer, deserializer=circuit_deserializer)

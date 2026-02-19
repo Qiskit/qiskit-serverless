@@ -33,9 +33,7 @@ class TestDecorators(TestCase):
         """Test for run_qiskit_remote."""
 
         @distribute_task()
-        def another_function(
-            circuit: List[QuantumCircuit], other_circuit: QuantumCircuit
-        ):
+        def another_function(circuit: List[QuantumCircuit], other_circuit: QuantumCircuit):
             """Another test function."""
             return circuit[0].compose(other_circuit, range(5)).depth()
 
@@ -43,11 +41,7 @@ class TestDecorators(TestCase):
         def ultimate_function(ultimate_argument: int):
             """Test function."""
             print("Printing function argument:", ultimate_argument)
-            mid_result = get(
-                another_function(
-                    [random_circuit(5, 2)], other_circuit=random_circuit(5, 2)
-                )
-            )
+            mid_result = get(another_function([random_circuit(5, 2)], other_circuit=random_circuit(5, 2)))
             return mid_result
 
         with ray.init():

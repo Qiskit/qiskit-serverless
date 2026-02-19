@@ -23,9 +23,7 @@ from qiskit_serverless.core.enums import Channel
 class TestIBMServerlessClient(unittest.TestCase):
     """Unit tests for IBMServerlessClient."""
 
-    @patch(
-        "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials"
-    )
+    @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_init(self, mock_file_path, mock_verify_credentials):
         """Test __init__ with an explicit token, instance and host"""
@@ -42,18 +40,14 @@ class TestIBMServerlessClient(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as temp_file:
             mock_file_path.return_value = temp_file.name
 
-        client = IBMServerlessClient(
-            token=use_token, instance=use_instance, channel=use_channel, host=use_host
-        )
+        client = IBMServerlessClient(token=use_token, instance=use_instance, channel=use_channel, host=use_host)
 
         self.assertEqual(client.host, use_host)
         self.assertEqual(client.channel, use_channel)
         self.assertEqual(client.instance, use_instance)
         self.assertEqual(client.token, use_token)
 
-    @patch(
-        "qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials"
-    )
+    @patch("qiskit_serverless.core.clients.serverless_client.ServerlessClient._verify_credentials")
     @patch("qiskit_ibm_runtime.accounts.management._DEFAULT_ACCOUNT_CONFIG_JSON_FILE")
     def test_save_load_account(self, mock_file_path, mock_verify_credentials):
         """Test saving and loading accounts with the IBMServerlessClient."""
@@ -99,9 +93,7 @@ class TestIBMServerlessClient(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, r"Your channel value is not correct"):
 
-            IBMServerlessClient(
-                channel=use_channel, instance=use_instance, token=use_token
-            )
+            IBMServerlessClient(channel=use_channel, instance=use_instance, token=use_token)
 
 
 if __name__ == "__main__":

@@ -28,9 +28,7 @@ Qiskit Serverless formatting utilities
 from typing import Tuple, Union
 
 
-def format_provider_name_and_title(
-    request_provider, title
-) -> Tuple[Union[str, None], str]:
+def format_provider_name_and_title(request_provider, title) -> Tuple[Union[str, None], str]:
     """
     This method returns provider_name and title from a title with / if it contains it
     """

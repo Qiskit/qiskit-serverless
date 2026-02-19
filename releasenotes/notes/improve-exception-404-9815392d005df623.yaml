@@ -1,17 +1,17 @@
 ---
 fixes:
   - |
-    Fixed a bug in the json decoder that would crop the response details to the first character when 
-    gateway errors were raised. This utility now forwards the full error message to the raised 
+    Fixed a bug in the json decoder that would crop the response details to the first character when
+    gateway errors were raised. This utility now forwards the full error message to the raised
     ``QiskitServerlessException``.
-    
+
   - |
-    Fixed error handling when a function is not found. Instead of providing a 
+    Fixed error handling when a function is not found. Instead of providing a
     bare 404 error, the ``QiskitServerlessException`` now contains a more meaningful error message::
 
-      QiskitServerlessException: 
+      QiskitServerlessException:
       | Message: Http bad request.
       | Code: 404
       | Details: User program 'my-program' was not found or you do not have permission to view it.
-      
+
     Fixes https://github.com/Qiskit/qiskit-serverless/issues/1773.
