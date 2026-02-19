@@ -12,7 +12,7 @@ sphinx-autodoc-typehints>=1.24.0
 reno>=3.5.0
 # Black's formatting rules can change between major versions, so we use
 # the ~= specifier for it.
-black[jupyter]~=26.1
+black[jupyter]~=25.11
 requests-mock>=1.11.0
 # new versions of testcontainers don't support docker compose
 testcontainers>=4.7.2
