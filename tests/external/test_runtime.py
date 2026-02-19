@@ -158,11 +158,7 @@ class TestRuntimeIntegration:
         job = my_function.run()
         job_id = job.job_id
 
-        try:
-            wait_for_logs(job, "JOB IDS")
-        except TimeoutError as error:
-            print(f"Job failed. Logs:\n{job.logs()}")
-            raise error
+        wait_for_logs(job, "JOB IDS")
 
         service = QiskitRuntimeService(
             channel=os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum_platform"),
