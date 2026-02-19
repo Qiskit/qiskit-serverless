@@ -17,6 +17,7 @@ Loggers utilities (:mod:`qiskit_serverless.utils.loggers`)
 
 .. currentmodule:: qiskit_serverless.utils.loggers
 """
+
 import logging
 
 
