@@ -4,6 +4,11 @@ repos:
     rev: v5.0.0
     hooks:
      - id: trailing-whitespace
+     - id: check-case-conflict
+     - id: check-json
+     - id: check-yaml
+       exclude: ^charts/.*templates/
+     - id: check-added-large-files
 
   - repo: https://github.com/psf/black
     rev: 24.10.0
