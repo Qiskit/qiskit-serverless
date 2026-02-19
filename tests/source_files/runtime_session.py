@@ -18,9 +18,7 @@ warnings.filterwarnings(
 )
 
 print(f"Function: QISKIT_IBM_INSTANCE: {os.environ.get('QISKIT_IBM_INSTANCE')}")
-print(
-    f"Function: QISKIT_IBM_TOKEN: {os.environ.get('QISKIT_IBM_TOKEN', '****')[:4]}****"
-)
+print(f"Function: QISKIT_IBM_TOKEN: {os.environ.get('QISKIT_IBM_TOKEN')[:4]}****")
 print(f"Function: QISKIT_IBM_URL: {os.environ.get('QISKIT_IBM_URL')}")
 print(f"Function: QISKIT_IBM_BACKEND_1: {os.environ.get('QISKIT_IBM_BACKEND_1')}")
 print(f"Function: QISKIT_IBM_BACKEND_2: {os.environ.get('QISKIT_IBM_BACKEND_2')}")
