@@ -13,7 +13,8 @@ from django.db.models import Model
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from core.models import ComputeResource, Job
+from core.models import ComputeResource, Job, JobEvent
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     configure_job_to_use_gpu,
     get_jobs_to_schedule_fair_share,
@@ -111,6 +112,12 @@ class Command(BaseCommand):
                         #     os.remove(job.program.artifact.path)
 
                         succeed = True
+                        JobEvent.objects.add_status_event(
+                            job_id=job.id,
+                            origin=JobEventOrigin.SCHEDULER,
+                            context=JobEventContext.SCHEDULE_JOBS,
+                            status=job.status,
+                        )
                     except RecordModifiedError:
                         logger.warning(
                             "Schedule: Job [%s] record has not been updated due to lock.",

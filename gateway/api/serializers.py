@@ -13,10 +13,16 @@ from typing import Tuple, Union
 from django.conf import settings
 from rest_framework import serializers
 
+
 from api.repositories.functions import FunctionRepository
 from api.repositories.users import UserRepository
 from api.utils import build_env_variables, sanitize_name
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.services.storage.arguments_storage import ArgumentsStorage
+from core.utils import encrypt_env_vars
+
 from core.models import (
+    JobEvent,
     Provider,
     Program,
     Job,
@@ -25,8 +31,6 @@ from core.models import (
     DEFAULT_PROGRAM_ENTRYPOINT,
     RUN_PROGRAM_PERMISSION,
 )
-from core.services.storage.arguments_storage import ArgumentsStorage
-from core.utils import encrypt_env_vars
 
 logger = logging.getLogger("gateway.serializers")
 
@@ -317,6 +321,12 @@ class RunJobSerializer(serializers.ModelSerializer):
 
         job.env_vars = json.dumps(env)
         job.save()
+        JobEvent.objects.add_status_event(
+            job_id=job.id,
+            origin=JobEventOrigin.API,
+            context=JobEventContext.RUN_PROGRAM,
+            status=job.status,
+        )
 
         return job
 

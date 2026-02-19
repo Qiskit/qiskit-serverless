@@ -4,11 +4,12 @@ from uuid import UUID
 
 from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 
-from core.models import Job
+from core.models import Job, JobEvent
 from core.services.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.repositories.runtime_job import RuntimeJobRepository
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("gateway.use_cases.jobs")
 
@@ -37,6 +38,12 @@ class StopJobUseCase:
         if not job.in_terminal_state():
             job.status = Job.STOPPED
             job.save(update_fields=["status"])
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.API,
+                context=JobEventContext.STOP_JOB,
+                status=job.status,
+            )
             self.status_messages.append("Job has been stopped.")
         else:
             self.status_messages.append("Job already in terminal state.")
