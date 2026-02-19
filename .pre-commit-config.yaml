@@ -35,6 +35,6 @@ repos:
         entry: bash -c 'cd tests && tox -e lint'
         language: system
         pass_filenames: false
-        files: ^tests/docker/
+        files: ^tests/
         types: [python]
         stages: [pre-push]
