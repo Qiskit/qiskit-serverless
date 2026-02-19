@@ -347,7 +347,7 @@ def distribute_qiskit_function(
             provider = ServerlessClient()
         except QiskitServerlessException as qs_error:
             raise QiskitServerlessException(
-                "Set provider in arguments for `distribute_program` " "decorator or define env variables."
+                "Set provider in arguments for `distribute_program` decorator or define env variables."
             ) from qs_error
     if provider is None:
         raise QiskitServerlessException(
