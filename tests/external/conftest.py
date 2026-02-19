@@ -1,4 +1,4 @@
-# pylint: disable=import-error, invalid-name
+# pylint: disable=import-error, invalid-name, duplicate-code
 """Fixtures for external runtime tests."""
 
 import os
@@ -46,15 +46,20 @@ def serverless_client():
 
 
 @fixture(scope="session")
-def selected_backends():
-    """Fixture that returns exactly 2 operational test backends."""
-    service = QiskitRuntimeService(
+def qiskit_runtime_service():
+    """Fixture providing configured Qiskit runtime service."""
+    return QiskitRuntimeService(
         token=QISKIT_IBM_TOKEN,
         instance=QISKIT_IBM_INSTANCE,
         url=QISKIT_IBM_URL,
         channel=QISKIT_IBM_CHANNEL,
     )
-    all_backends = service.backends()
+
+
+@fixture(scope="session")
+def working_backends(qiskit_runtime_service):  # pylint: disable=redefined-outer-name
+    """Fixture that returns exactly 2 operational test backends."""
+    all_backends = qiskit_runtime_service.backends()
     print(f"Getting backends from {QISKIT_IBM_URL}:", [b.name for b in all_backends])
 
     backends = []
