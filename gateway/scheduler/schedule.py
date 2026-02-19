@@ -32,7 +32,7 @@ def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | No
         # if something went wrong
         #   try to kill resource if it was allocated
         logger.warning(
-            "Compute resource [%s] was not created properly.\n" "Setting job [%s] status to [FAILED].",
+            "Compute resource [%s] was not created properly.\nSetting job [%s] status to [FAILED].",
             cluster_name,
             job,
         )
@@ -177,7 +177,7 @@ def handle_job_status_not_available(job: Job, job_status):
 
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
-            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, " + "so cluster [%s] will not be removed",
+            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, so cluster [%s] will not be removed",
             job.compute_resource.title,
         )
     else:
@@ -193,7 +193,7 @@ def fail_job_insufficient_resources(job: Job):
     """Fail job if insufficient resources are available."""
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
-            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, " + "so cluster [%s] will not be removed",
+            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, so cluster [%s] will not be removed",
             job.compute_resource.title,
         )
     else:

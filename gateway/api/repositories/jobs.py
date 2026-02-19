@@ -105,7 +105,7 @@ class JobsRepository:
             )
         else:
             logger.warning(
-                "Job [%s] sub_status cannot be updated because " "it is not in RUNNING state or id doesn't exist",
+                "Job [%s] sub_status cannot be updated because it is not in RUNNING state or id doesn't exist",
                 job.id,
             )
 
