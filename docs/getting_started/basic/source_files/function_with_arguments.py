@@ -9,7 +9,6 @@ from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit_serverless import get_arguments, save_result
 
-
 # ----- parse inputs -----
 # get all arguments passed to this function
 print("[main] Parsing arguments...")

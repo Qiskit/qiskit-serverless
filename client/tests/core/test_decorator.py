@@ -11,6 +11,7 @@
 # that they have been altered from the originals.
 
 """Test decorators."""
+
 from typing import List
 from unittest import TestCase
 

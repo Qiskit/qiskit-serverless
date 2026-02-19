@@ -25,6 +25,7 @@ Qiskit Serverless widgets
 
     Widget
 """
+
 import os
 from datetime import datetime
 

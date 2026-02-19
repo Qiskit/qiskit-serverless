@@ -26,6 +26,7 @@ Qiskit Serverless function
 
     QiskitFunction
 """
+
 from abc import ABC, abstractmethod
 import dataclasses
 import warnings

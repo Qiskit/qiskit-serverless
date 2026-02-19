@@ -25,6 +25,7 @@ Qiskit Serverless formatting utilities
 
     format_provider_name_and_title
 """
+
 from typing import Tuple, Union
 
 

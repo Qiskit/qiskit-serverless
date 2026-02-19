@@ -25,6 +25,7 @@ Qiskit Serverless files
     :toctree: ../stubs/
 
 """
+
 import os.path
 import uuid
 from typing import List, Optional
@@ -42,7 +43,6 @@ from qiskit_serverless.core.function import QiskitFunction
 from qiskit_serverless.exception import QiskitServerlessException
 from qiskit_serverless.utils.http import get_headers
 from qiskit_serverless.utils.json import safe_json_request_as_dict
-
 
 _trace = trace_decorator_factory("files")
 
