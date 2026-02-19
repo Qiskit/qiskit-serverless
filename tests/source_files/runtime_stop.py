@@ -18,17 +18,27 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
+print(f"Inside function: QISKIT_IBM_INSTANCE: {os.environ.get('QISKIT_IBM_INSTANCE')}")
+print(
+    f"Inside function: QISKIT_IBM_TOKEN: {os.environ.get('QISKIT_IBM_TOKEN', '****')[:4]}****"
+)
+print(f"Inside function: QISKIT_IBM_URL: {os.environ.get('QISKIT_IBM_URL')}")
+print(
+    f"Inside function: QISKIT_IBM_BACKEND_1: {os.environ.get('QISKIT_IBM_BACKEND_1')}"
+)
+
 print("getting runtime service")
-service = get_runtime_service(url=os.environ["QISKIT_IBM_URL"])
+service = get_runtime_service()
 
 print("getting backends")
 backends = service.backends()
-backend = service.backend("test_eagle2")
+backend = service.backend(os.environ["QISKIT_IBM_BACKEND_1"])
 session = Session(backend=backend)
 sampler = SamplerV2(mode=session)
 
 qc = QuantumCircuit(1)
 qc.measure_all()
+print("running jobs")
 out1 = sampler.run([qc])
 out2 = sampler.run([qc])
 

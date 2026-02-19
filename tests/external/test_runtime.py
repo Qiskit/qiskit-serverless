@@ -13,16 +13,20 @@ resources_path = os.path.join(
 
 
 def wait_for_logs(job: Job, contain: str):
-    """Wait for a job to contain JOB IDS."""
+    """Wait for a job to contain a specific string in logs."""
     timeout = 90  # Secs
     deadline = time.perf_counter() + timeout
 
     while True:
-        if time.perf_counter() > deadline:
-            raise TimeoutError("TIMEOUT waiting for JOB IDS")
-
-        if contain in job.logs():
+        logs = job.logs()
+        if contain in logs:
             break
+
+        if time.perf_counter() > deadline:
+            raise TimeoutError(
+                f"TIMEOUT waiting for '{contain}' in logs. Current logs:\n{logs}"
+            )
+
         time.sleep(1)
 
 
@@ -30,28 +34,42 @@ class TestRuntimeIntegration:
     """Integration tests for runtime wrapper with and without session."""
 
     def _run_and_validate_function(
-        self, serverless_client: ServerlessClient, entrypoint: str, num_jobs: int
+        self,
+        serverless_client: ServerlessClient,
+        selected_backends: list,
+        entrypoint: str,
+        num_jobs: int,
     ):
         """Run function with given entrypoint and check that runtime job ids and
         session ids reported by the serverless API match those stored at job submission
         time."""
+        env_vars = {
+            "QISKIT_IBM_CHANNEL": os.environ.get(
+                "QISKIT_IBM_CHANNEL", "ibm_quantum_platform"
+            ),
+            "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
+            "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
+            "QISKIT_IBM_URL": os.environ["QISKIT_IBM_URL"],
+            "QISKIT_IBM_BACKEND_1": selected_backends[0],
+            "QISKIT_IBM_BACKEND_2": selected_backends[1],
+        }
+
         function = QiskitFunction(
             title="test-runtime-wrapper",
             entrypoint=entrypoint,
             working_dir=resources_path,
-            env_vars={
-                "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
-                "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
-                "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
-                "QISKIT_IBM_URL": os.environ["QISKIT_IBM_URL"],
-            },
+            env_vars=env_vars,
         )
         my_function = serverless_client.upload(function)
 
         job = my_function.run()
-        result = job.result()
+        try:
+            result = job.result()
+        except Exception as error:
+            print(f"Job failed. Logs:\n{job.logs()}")
+            raise error
 
-        assert result and "test_eagle" in result["backends"]
+        assert selected_backends[0] in result["backends"]
 
         reference_job_ids = result["results"][0]
         reference_session_ids = result["results"][1]
@@ -65,7 +83,7 @@ class TestRuntimeIntegration:
 
         # cancel runtime jobs after running to avoid wasting resources
         service = QiskitRuntimeService(
-            channel="ibm_quantum_platform",
+            channel=os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum_platform"),
             token=os.environ["QISKIT_IBM_TOKEN"],
             instance=os.environ["QISKIT_IBM_INSTANCE"],
             url=os.environ["QISKIT_IBM_URL"],
@@ -73,18 +91,22 @@ class TestRuntimeIntegration:
 
         job.cancel(service)
 
-    def test_stop_job(self, serverless_client: ServerlessClient):
+    def test_stop_job(self, serverless_client: ServerlessClient, selected_backends):
         """Integration test for stopping a job."""
 
         function = QiskitFunction(
             title="test-runtime-wrapper",
-            entrypoint="pattern_with_stop.py",
+            entrypoint="runtime_stop.py",
             working_dir=resources_path,
             env_vars={
-                "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
+                "QISKIT_IBM_CHANNEL": os.environ.get(
+                    "QISKIT_IBM_CHANNEL", "ibm_quantum_platform"
+                ),
                 "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
                 "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
                 "QISKIT_IBM_URL": os.environ["QISKIT_IBM_URL"],
+                "QISKIT_IBM_BACKEND_1": selected_backends[0],
+                "QISKIT_IBM_BACKEND_2": selected_backends[1],
             },
         )
 
@@ -110,18 +132,24 @@ class TestRuntimeIntegration:
         else:
             assert job.status() == "DONE"
 
-    def test_stop_job_service(self, serverless_client: ServerlessClient):
+    def test_stop_job_service(
+        self, serverless_client: ServerlessClient, selected_backends
+    ):
         """Integration test for stopping a job given a runtime service."""
 
         function = QiskitFunction(
             title="test-runtime-wrapper",
-            entrypoint="pattern_with_stop.py",
+            entrypoint="runtime_stop.py",
             working_dir=resources_path,
             env_vars={
-                "QISKIT_IBM_CHANNEL": "ibm_quantum_platform",
+                "QISKIT_IBM_CHANNEL": os.environ.get(
+                    "QISKIT_IBM_CHANNEL", "ibm_quantum_platform"
+                ),
                 "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
                 "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
                 "QISKIT_IBM_URL": os.environ["QISKIT_IBM_URL"],
+                "QISKIT_IBM_BACKEND_1": selected_backends[0],
+                "QISKIT_IBM_BACKEND_2": selected_backends[1],
             },
         )
 
@@ -130,10 +158,14 @@ class TestRuntimeIntegration:
         job = my_function.run()
         job_id = job.job_id
 
-        wait_for_logs(job, "JOB IDS")
+        try:
+            wait_for_logs(job, "JOB IDS")
+        except TimeoutError as error:
+            print(f"Job failed. Logs:\n{job.logs()}")
+            raise error
 
         service = QiskitRuntimeService(
-            channel="ibm_quantum_platform",
+            channel=os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum_platform"),
             token=os.environ["QISKIT_IBM_TOKEN"],
             instance=os.environ["QISKIT_IBM_INSTANCE"],
             url=os.environ["QISKIT_IBM_URL"],
@@ -154,14 +186,24 @@ class TestRuntimeIntegration:
         else:
             assert job.status() == "DONE"
 
-    def test_jobs_no_session(self, serverless_client: ServerlessClient):
+    def test_jobs_no_session(
+        self, serverless_client: ServerlessClient, selected_backends
+    ):
         """Test job submission with get_runtime_service without sessions."""
         self._run_and_validate_function(
-            serverless_client, "pattern_with_runtime_wrapper_1.py", num_jobs=2
+            serverless_client,
+            selected_backends,
+            "runtime_job.py",
+            num_jobs=2,
         )
 
-    def test_jobs_with_session(self, serverless_client: ServerlessClient):
+    def test_jobs_with_session(
+        self, serverless_client: ServerlessClient, selected_backends
+    ):
         """Test job submission with get_runtime_service with sessions."""
         self._run_and_validate_function(
-            serverless_client, "pattern_with_runtime_wrapper_2.py", num_jobs=4
+            serverless_client,
+            selected_backends,
+            "runtime_session.py",
+            num_jobs=4,
         )
