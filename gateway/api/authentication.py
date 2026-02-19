@@ -31,9 +31,6 @@ class CustomTokenBackend(authentication.BaseAuthentication):
     """Custom token backend for authentication against 3rd party auth service."""
 
     def authenticate(self, request):
-        quantum_user = None
-        authorization_token = None
-
         crn = request.META.get("HTTP_SERVICE_CRN", None)
         channel_header = request.META.get("HTTP_SERVICE_CHANNEL", None)
 
