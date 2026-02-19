@@ -3,10 +3,11 @@
 import logging
 
 from concurrency.exceptions import RecordModifiedError
-from core.models import Job
+from core.models import Job, JobEvent
 
 from core.services.ray import get_job_handler
 from core.utils import check_logs, ray_job_status_to_model_job_status
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 logger = logging.getLogger("core.services.job_status")
 
@@ -61,6 +62,13 @@ def update_job_status(job):
 
     try:
         job.save()
+        if status_has_changed:
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.API,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
     except RecordModifiedError:
         logger.warning("Job [%s] record has not been updated due to lock.", job.id)
 

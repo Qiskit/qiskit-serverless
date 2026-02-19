@@ -10,7 +10,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Job, Program
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.models import Job, JobEvent, Program
 from core.services.storage.arguments_storage import ArgumentsStorage
 
 
@@ -161,6 +162,13 @@ class TestProgramApi(APITestCase):
             )
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
 
+            job_events = JobEvent.objects.filter(job=job_id)
+            self.assertEqual(len(job_events), 1)
+            self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+            self.assertEqual(job_events[0].data["status"], Job.QUEUED)
+            self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+            self.assertEqual(job_events[0].context, JobEventContext.RUN_PROGRAM)
+
     def test_provider_run(self):
         """Tests run existing authorized."""
 
@@ -216,6 +224,13 @@ class TestProgramApi(APITestCase):
             )
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
 
+            job_events = JobEvent.objects.filter(job=job_id)
+            self.assertEqual(len(job_events), 1)
+            self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+            self.assertEqual(job_events[0].data["status"], Job.QUEUED)
+            self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+            self.assertEqual(job_events[0].context, JobEventContext.RUN_PROGRAM)
+
     def test_run_locked(self):
         """Tests run disabled program."""
 
@@ -240,6 +255,9 @@ class TestProgramApi(APITestCase):
 
         self.assertEqual(programs_response.status_code, status.HTTP_423_LOCKED)
         self.assertEqual(programs_response.data.get("message"), "Program is locked")
+
+        job_events = JobEvent.objects.filter()
+        self.assertEqual(len(job_events), 0)
 
     def test_run_locked_default_msg(self):
         """Tests run disabled program."""
@@ -267,6 +285,9 @@ class TestProgramApi(APITestCase):
         self.assertEqual(
             programs_response.data.get("message"), Program.DEFAULT_DISABLED_MESSAGE
         )
+
+        job_events = JobEvent.objects.filter()
+        self.assertEqual(len(job_events), 0)
 
     def test_upload_private_function(self):
         """Tests upload end-point authorized."""
