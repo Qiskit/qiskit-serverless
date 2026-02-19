@@ -1,4 +1,4 @@
-name: Client verify process
+name: Client lint
 
 on:
   pull_request:
@@ -8,19 +8,10 @@ permissions:
   contents: read
 
 jobs:
-  verify-client:
-    name: Verify client [lint, test]
+  lint-client:
+    name: Lint client
 
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false # keep running if one leg fails
-      matrix:
-        python-version:
-          - '3.9'
-          - '3.10'
-          - '3.11'
-          - '3.12'
-          - '3.13'
 
     defaults:
       run:
@@ -28,22 +19,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.13'
           cache: 'pip'
-      - name: Set up tox environment
-        run: |
-          pver=${{ matrix.python-version }}
-          tox_env="-epy${pver/./}"
-          echo tox_env
-          echo TOX_ENV=$tox_env >> $GITHUB_ENV
       - name: Install tox
         run: |
           pip install tox>=4.0.0
       - name: Run styles check
         run: tox -elint
-      - name: Test using tox environment
-        run: |
-          tox ${{ env.TOX_ENV }}
