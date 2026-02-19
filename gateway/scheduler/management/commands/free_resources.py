@@ -19,8 +19,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
             logger.debug(
-                "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
-                "so compute resources will not be removed.",
+                "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, " "so compute resources will not be removed.",
             )
             return
 
@@ -50,9 +49,7 @@ class Command(BaseCommand):
         remove_classical_jobs = max_ray_clusters_possible > 0
         remove_gpu_jobs = max_gpu_clusters_possible > 0
 
-        terminated_job = Job.objects.filter(
-            status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource
-        ).first()
+        terminated_job = Job.objects.filter(status__in=Job.TERMINAL_STATUSES, compute_resource=compute_resource).first()
         if terminated_job is None:
             logger.error(
                 "There is no job finished for [%s] compute resource:",

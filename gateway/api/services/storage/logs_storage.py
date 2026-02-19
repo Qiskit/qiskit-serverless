@@ -31,9 +31,7 @@ class LogsStorage:
         self._job_id = str(job.id)
         self._username = job.author.username
         self._function_title = job.program.title
-        self._provider_name = (
-            job.program.provider.name if job.program.provider else None
-        )
+        self._provider_name = job.program.provider.name if job.program.provider else None
 
         # Build public logs path (USER_STORAGE)
         # User job: {author}/logs/

@@ -16,9 +16,7 @@ class AssociateRuntimeJobsUseCase:
     jobs_repository = JobsRepository()
     runtime_job_repository = RuntimeJobRepository()
 
-    def execute(
-        self, job_id: UUID, runtime_job: str, runtime_session: str | None
-    ) -> str:
+    def execute(self, job_id: UUID, runtime_job: str, runtime_session: str | None) -> str:
         """
         Associate a RuntimeJob object to a given Job.
 
@@ -38,18 +36,10 @@ class AssociateRuntimeJobsUseCase:
             raise NotFoundError(f"Job [{job_id}] not found")
 
         try:
-            self.runtime_job_repository.create_runtime_job(
-                job, runtime_job, runtime_session
-            )
-            message = (
-                f"RuntimeJob object [{runtime_job}] created "
-                f"for serverless job id [{job_id}]."
-            )
+            self.runtime_job_repository.create_runtime_job(job, runtime_job, runtime_session)
+            message = f"RuntimeJob object [{runtime_job}] created " f"for serverless job id [{job_id}]."
         except Exception as e:
-            message = (
-                f"Failed to create RuntimeJob object "
-                f"[{runtime_job}] for job id [{job_id}]. Error: {e}"
-            )
+            message = f"Failed to create RuntimeJob object " f"[{runtime_job}] for job id [{job_id}]. Error: {e}"
             logger.error(message)
 
         return message

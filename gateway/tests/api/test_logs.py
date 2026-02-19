@@ -34,9 +34,7 @@ def create_job(author: str, provider_admin: Optional[str] = None) -> Job:
         provider=provider,
     )
 
-    compute_resource = ComputeResource.objects.create(
-        title="test-cluster-storage-provider-logs", active=True
-    )
+    compute_resource = ComputeResource.objects.create(title="test-cluster-storage-provider-logs", active=True)
 
     return Job.objects.create(
         author=author_user,
@@ -67,9 +65,7 @@ class TestJobLogsPermissions:
             ("v1:jobs-provider-logs", "other_user", "provider", HTTP_403_FORBIDDEN),
         ],
     )
-    def test_endpoint_permissions(
-        self, endpoint, caller, provider_admin, expected_status
-    ):
+    def test_endpoint_permissions(self, endpoint, caller, provider_admin, expected_status):
         """Test permissions for /logs and /provider-logs endpoints."""
         user_caller, _ = User.objects.get_or_create(username=caller)
         job = create_job(author="author", provider_admin=provider_admin)
@@ -284,9 +280,7 @@ Unprefixed message
 
     @patch("api.use_cases.jobs.provider_logs.get_job_handler")
     @patch("api.services.storage.logs_storage.LogsStorage.get_private_logs")
-    def test_job_provider_logs_in_ray(
-        self, logs_storage_get_mock, get_job_handler_mock
-    ):
+    def test_job_provider_logs_in_ray(self, logs_storage_get_mock, get_job_handler_mock):
         """Tests /provider-logs with provider job from Ray."""
         logs_storage_get_mock.return_value = None
 

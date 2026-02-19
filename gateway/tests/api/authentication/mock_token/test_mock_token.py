@@ -33,9 +33,7 @@ class TestMockTokenAuthentication(APITestCase):
 
             for group in user.groups.all():
                 permissions = list(group.permissions.values_list("codename", flat=True))
-                self.assertEqual(
-                    permissions, [RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION]
-                )
+                self.assertEqual(permissions, [RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION])
 
             provider = provider_repository.get_provider_by_name("mockprovider")
             self.assertIsNotNone(provider)

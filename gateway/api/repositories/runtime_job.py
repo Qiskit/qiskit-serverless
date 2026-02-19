@@ -14,9 +14,7 @@ class RuntimeJobRepository:
         """get runtime job for job"""
         return RuntimeJob.objects.filter(job=job)
 
-    def create_runtime_job(
-        self, job, runtime_job_id: str, runtime_session: str | None
-    ) -> RuntimeJob:
+    def create_runtime_job(self, job, runtime_job_id: str, runtime_session: str | None) -> RuntimeJob:
         """Create a runtime job associated with a given job"""
         return RuntimeJob.objects.create(
             job=job,

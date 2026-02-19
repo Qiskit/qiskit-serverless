@@ -41,9 +41,7 @@ class AuthenticationUseCase:
 
     def _get_authentication_service_instance(self) -> AuthenticationBase:
         if self.channel in (Channel.IBM_CLOUD, Channel.IBM_QUANTUM_PLATFORM):
-            logger.debug(
-                "Authentication will be executed with IBM Cloud Quantum Platform."
-            )
+            logger.debug("Authentication will be executed with IBM Cloud Quantum Platform.")
             return IBMQuantumPlatform(api_key=self.authorization_token, crn=self.crn)
 
         logger.debug("Authentication will be executed with Local service.")
@@ -61,9 +59,7 @@ class AuthenticationUseCase:
         if self.public_access is False:
             verified = authentication_service.verify_access()
             if verified is False:
-                raise exceptions.AuthenticationFailed(
-                    "Sorry, you don't have access to the service."
-                )
+                raise exceptions.AuthenticationFailed("Sorry, you don't have access to the service.")
 
         access_groups = authentication_service.get_groups()
         quantum_user = self.user_repository.get_or_create_by_id(user_id=user_id)

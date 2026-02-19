@@ -69,9 +69,7 @@ class InputSerializer(serializers.Serializer):
     responses={
         status.HTTP_200_OK: openapi.Response(
             description="List of files",
-            schema=openapi.Schema(
-                type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)
-            ),
+            schema=openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)),
             examples={
                 "application/json": [
                     "file",

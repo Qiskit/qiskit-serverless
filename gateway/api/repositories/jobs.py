@@ -94,9 +94,7 @@ class JobsRepository:
         if sub_status and sub_status not in Job.RUNNING_SUB_STATUSES:
             return False
 
-        updated = Job.objects.filter(id=job.id, status=Job.RUNNING).update(
-            sub_status=sub_status
-        )
+        updated = Job.objects.filter(id=job.id, status=Job.RUNNING).update(sub_status=sub_status)
         if updated:
             logger.info(
                 "Job [%s] of [%s] changed sub_status from [%s] to [%s]",
@@ -107,8 +105,7 @@ class JobsRepository:
             )
         else:
             logger.warning(
-                "Job [%s] sub_status cannot be updated because "
-                "it is not in RUNNING state or id doesn't exist",
+                "Job [%s] sub_status cannot be updated because " "it is not in RUNNING state or id doesn't exist",
                 job.id,
             )
 
@@ -169,9 +166,7 @@ class JobsRepository:
 
         return queryset
 
-    def _paginate_queryset(
-        self, queryset: QuerySet, limit: int | None, offset: int | None
-    ) -> tuple[QuerySet, int]:
+    def _paginate_queryset(self, queryset: QuerySet, limit: int | None, offset: int | None) -> tuple[QuerySet, int]:
         """Apply pagination to job queryset."""
         total_count = queryset.count()
 

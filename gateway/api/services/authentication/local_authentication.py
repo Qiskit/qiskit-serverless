@@ -35,9 +35,7 @@ class LocalAuthenticationService(AuthenticationBase):
         """
         if settings.SETTINGS_AUTH_MOCK_TOKEN is None:
             logger.warning("Mock token environment variable is not configured.")
-            raise exceptions.AuthenticationFailed(
-                "Mock token environment variable is not configured."
-            )
+            raise exceptions.AuthenticationFailed("Mock token environment variable is not configured.")
 
         if self.authorization_token != settings.SETTINGS_AUTH_MOCK_TOKEN:
             logger.warning("Authorization token and mock token are different.")

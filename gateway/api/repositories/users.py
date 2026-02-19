@@ -84,16 +84,12 @@ class UserRepository:
 
         logger.debug("Update [%s] groups", len(authentication_groups))
         for authentication_group in authentication_groups:
-            group, created = Group.objects.get_or_create(
-                name=authentication_group.group_name
-            )
+            group, created = Group.objects.get_or_create(name=authentication_group.group_name)
             if created:
                 for permission in permissions:
                     group.permissions.add(permission)
                 if authentication_group.account is not None:
-                    GroupMetadata.objects.create(
-                        group=group, account=authentication_group.account
-                    )
+                    GroupMetadata.objects.create(group=group, account=authentication_group.account)
             group.user_set.add(user)
             new_groups.append(group)
 

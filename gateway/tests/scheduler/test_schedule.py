@@ -53,6 +53,4 @@ class TestScheduleApi(APITestCase):
             job_2.author = user
             ret_job_2 = execute_job(job_2)
 
-            self.assertNotEqual(
-                str(ret_job_1.compute_resource.id), str(ret_job_2.compute_resource.id)
-            )
+            self.assertNotEqual(str(ret_job_1.compute_resource.id), str(ret_job_2.compute_resource.id))

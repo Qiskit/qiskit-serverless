@@ -44,9 +44,7 @@ def update_job_status(job: Job):
     try:
         ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
     except RuntimeError as ex:
-        logger.warning(
-            "Job [%s] marked as FAILED because Ray get_job_status: %s", job.id, str(ex)
-        )
+        logger.warning("Job [%s] marked as FAILED because Ray get_job_status: %s", job.id, str(ex))
         job.status = Job.FAILED
         job.sub_status = None
         job.env_vars = "{}"

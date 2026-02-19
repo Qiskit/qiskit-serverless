@@ -25,9 +25,7 @@ class TestCommands(APITestCase):
         """Tests compute resource creation command."""
         call_command("create_compute_resource", "test_host")
         resources = ComputeResource.objects.all()
-        self.assertTrue(
-            "Ray cluster default" in [resource.title for resource in resources]
-        )
+        self.assertTrue("Ray cluster default" in [resource.title for resource in resources])
 
     def test_free_resources(self):
         """Tests free resources command."""
@@ -148,9 +146,7 @@ class TestCommands(APITestCase):
     @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_filters_logs_user_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function without provider."""
-        compute_resource = ComputeResource.objects.create(
-            title="test-cluster-user-logs", active=True
-        )
+        compute_resource = ComputeResource.objects.create(title="test-cluster-user-logs", active=True)
         job = self._create_test_job(
             author="test_author",
             status=Job.RUNNING,
@@ -215,9 +211,7 @@ INFO: Final public log
     @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function with provider."""
-        compute_resource = ComputeResource.objects.create(
-            title="test-cluster-provider-logs", active=True
-        )
+        compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
             author="test_author",
             provider_admin="test_provider",
@@ -285,13 +279,9 @@ WARNING: Private warning
                 self.assertEqual(saved_provider_logs, expected_provider_logs)
 
     @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
-    def test_update_jobs_statuses_job_handler_status_error_status_event(
-        self, get_job_handler
-    ):
+    def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_job_handler):
         """Tests that the job_event is stored when job_handler.status() raises exception."""
-        compute_resource = ComputeResource.objects.create(
-            title="test-cluster-provider-logs", active=True
-        )
+        compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
             author="test_author",
             provider_admin="test_provider",
@@ -313,9 +303,7 @@ WARNING: Private warning
                 self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
                 self.assertEqual(job_events[0].data["status"], Job.FAILED)
                 self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
-                self.assertEqual(
-                    job_events[0].context, JobEventContext.UPDATE_JOB_STATUS
-                )
+                self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
 
     def _create_test_job(
         self,
@@ -337,9 +325,7 @@ WARNING: Private warning
             gpu: Whether this is a GPU job
         """
         if compute_resource is None:
-            compute_resource = ComputeResource.objects.create(
-                title=f"test-cluster-{ray_job_id}", active=True
-            )
+            compute_resource = ComputeResource.objects.create(title=f"test-cluster-{ray_job_id}", active=True)
 
         author_user, _ = User.objects.get_or_create(username=author)
         provider = None

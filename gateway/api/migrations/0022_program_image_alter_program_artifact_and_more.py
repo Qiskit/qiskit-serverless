@@ -23,11 +23,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 null=True,
                 upload_to=core.models.get_upload_path,
-                validators=[
-                    django.core.validators.FileExtensionValidator(
-                        allowed_extensions=["tar"]
-                    )
-                ],
+                validators=[django.core.validators.FileExtensionValidator(allowed_extensions=["tar"])],
             ),
         ),
         migrations.AlterField(
