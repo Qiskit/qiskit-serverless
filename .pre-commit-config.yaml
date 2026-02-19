@@ -15,6 +15,7 @@ repos:
         name: lint (gateway)
         entry: bash -c 'cd gateway && tox -e lint'
         language: system
+        pass_filenames: false
         files: ^gateway/
         types: [python]
         stages: [pre-push]
@@ -23,6 +24,7 @@ repos:
         name: lint (client)
         entry: bash -c 'cd client && tox -e lint'
         language: system
+        pass_filenames: false
         files: ^client/
         types: [python]
         stages: [pre-push]
@@ -31,6 +33,7 @@ repos:
         name: lint (tests)
         entry: bash -c 'cd tests && tox -e lint'
         language: system
+        pass_filenames: false
         files: ^tests/docker/
         types: [python]
         stages: [pre-push]
