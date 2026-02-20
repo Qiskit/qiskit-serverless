@@ -368,3 +368,9 @@ SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == 
 
 # Functions logs size limite in Bytes
 FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "52428800"))
+
+# COS
+COS_ENDPOINT = os.environ.get("COS_ENDPOINT", None)
+COS_BUCKET = os.environ.get("COS_BUCKET", None)
+COS_ACCESS_KEY = os.environ.get("COS_ACCESS_KEY", None)
+COS_SECRET_KEY = os.environ.get("COS_SECRET_KEY", None)
