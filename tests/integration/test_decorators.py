@@ -45,7 +45,7 @@ class TestDecorators:
         try:
             result = job.result()
         except Exception as exc:
-                xfail(f"Flaky failure on deprecated decorator: {exc}")
+            xfail(f"Flaky failure on deprecated decorator: {exc}")
 
         assert result is not None
         # Result should have measurement outcomes like {"00": X, "11": Y}
@@ -82,7 +82,7 @@ class TestDecorators:
         try:
             result = job.result()
         except Exception as exc:
-                xfail(f"Flaky failure on deprecated decorator: {exc}")
+            xfail(f"Flaky failure on deprecated decorator: {exc}")
         assert result is not None
         assert "results" in result
         assert len(result["results"]) == 3
@@ -110,7 +110,7 @@ class TestDecorators:
         try:
             result = job.result()
         except Exception as exc:
-                xfail(f"Flaky failure on deprecated decorator: {exc}")
+            xfail(f"Flaky failure on deprecated decorator: {exc}")
         assert result is not None
         assert "quasi_dists" in result
 
