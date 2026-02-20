@@ -28,7 +28,6 @@ Qiskit Serverless decorators
     run_qiskit_remote
     get_refs_by_status
     distribute_task
-    distribute_program
 """
 
 import functools
@@ -298,6 +297,7 @@ def distribute_task(
     return decorator
 
 
+# TODO: remove once distribute_qiskit_function is removed
 ENTRYPOINT_CONTENT = """
 import cloudpickle
 from qiskit_serverless import get_arguments, save_result
@@ -335,6 +335,11 @@ def distribute_qiskit_function(
     Returns:
         remotely executable program
     """
+    warnings.warn(
+        "`distribute_qiskit_function` has been deprecated "
+        "and will be removed in future releases. "
+        "To upload custom functions, use the `upload` functionality of the ServerlessClient class."
+    )
     # pylint: disable=import-outside-toplevel,cyclic-import
     from qiskit_serverless import QiskitServerlessException
     from qiskit_serverless.core.function import QiskitFunction
@@ -412,21 +417,6 @@ def distribute_qiskit_function(
         return wrapper
 
     return decorator
-
-
-def distribute_program(
-    provider: Optional[Any] = None,
-    dependencies: Optional[List[str]] = None,
-    working_dir: Optional[str] = None,
-):
-    """Decorator for distributed program."""
-    warnings.warn(
-        "`distribute_program` has been deprecated "
-        "and will be removed in future releases. "
-        "Please, use `distribute_qiskit_function` instead."
-    )
-    return distribute_qiskit_function(provider, dependencies, working_dir)
-
 
 def trace_decorator_factory(traced_feature: str):
     """Factory for generate decorators for classes or features."""
