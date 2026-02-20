@@ -321,6 +321,7 @@
 
 <span class="sd">    ServerlessClient</span>
 <span class="sd">&quot;&quot;&quot;</span>
+
 <span class="c1"># pylint: disable=duplicate-code</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os.path</span>
@@ -422,9 +423,7 @@
 
         <span class="n">token</span> <span class="o">=</span> <span class="n">token</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ENV_GATEWAY_PROVIDER_TOKEN</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">token</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-                <span class="s2">&quot;Authentication credentials must be provided in form of `token`.&quot;</span>
-            <span class="p">)</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">&quot;Authentication credentials must be provided in form of `token`.&quot;</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">channel_enum</span> <span class="o">=</span> <span class="n">Channel</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
@@ -436,9 +435,7 @@
             <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">error</span>
 
         <span class="k">if</span> <span class="n">channel_enum</span> <span class="ow">is</span> <span class="n">Channel</span><span class="o">.</span><span class="n">IBM_CLOUD</span> <span class="ow">and</span> <span class="n">instance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-                <span class="s2">&quot;Authentication with IBM Cloud requires to pass the CRN as an instance.&quot;</span>
-            <span class="p">)</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">&quot;Authentication with IBM Cloud requires to pass the CRN as an instance.&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">channel_enum</span> <span class="ow">is</span> <span class="n">Channel</span><span class="o">.</span><span class="n">IBM_QUANTUM_PLATFORM</span> <span class="ow">and</span> <span class="n">instance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
@@ -449,9 +446,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">version</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_verify_credentials</span><span class="p">()</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span> <span class="o">=</span> <span class="n">GatewayFilesClient</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-        <span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span> <span class="o">=</span> <span class="n">GatewayFilesClient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span></div>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
@@ -463,16 +458,12 @@
             <span class="n">safe_json_request</span><span class="p">(</span>
                 <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                     <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/v1/programs/&quot;</span><span class="p">,</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                        <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                    <span class="p">),</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                     <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="p">)</span>
         <span class="k">except</span> <span class="n">QiskitServerlessException</span> <span class="k">as</span> <span class="n">reason</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-                <span class="s2">&quot;Credentials couldn&#39;t be verified.&quot;</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">reason</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">&quot;Credentials couldn&#39;t be verified.&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">reason</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">dependencies_versions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the list of available dependencies and its versions for creating functions&quot;&quot;&quot;</span>
@@ -522,17 +513,12 @@
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/&quot;</span><span class="p">,</span>
                 <span class="n">params</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
 
-        <span class="k">return</span> <span class="p">[</span>
-            <span class="n">Job</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span> <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">=</span><span class="n">job</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])</span>
-        <span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">Job</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span> <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">=</span><span class="n">job</span><span class="p">)</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])]</span>
 
     <span class="nd">@_trace_job</span><span class="p">(</span><span class="s2">&quot;provider_list&quot;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">provider_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">QiskitFunction</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
@@ -574,17 +560,12 @@
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/provider/&quot;</span><span class="p">,</span>
                 <span class="n">params</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
 
-        <span class="k">return</span> <span class="p">[</span>
-            <span class="n">Job</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span> <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">=</span><span class="n">job</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])</span>
-        <span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">Job</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span> <span class="n">job_service</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">=</span><span class="n">job</span><span class="p">)</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;results&quot;</span><span class="p">,</span> <span class="p">[])]</span>
 
     <span class="nd">@_trace_job</span><span class="p">(</span><span class="s2">&quot;get&quot;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Job</span><span class="p">]:</span>
@@ -592,9 +573,7 @@
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="n">url</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
@@ -644,9 +623,7 @@
                 <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
                     <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
                     <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                        <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                    <span class="p">),</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                     <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="p">)</span>
@@ -662,9 +639,7 @@
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">,</span>
                 <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;with_result&quot;</span><span class="p">:</span> <span class="s2">&quot;false&quot;</span><span class="p">},</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
@@ -681,9 +656,7 @@
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">service</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
-                    <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span>
-                <span class="p">)</span>
+                <span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">)</span>
             <span class="k">except</span> <span class="n">InvalidAccountError</span><span class="p">:</span>
                 <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
                     <span class="s2">&quot;No QiskitRuntimeService can be associated to the given token and instance. &quot;</span>
@@ -697,9 +670,7 @@
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/stop/&quot;</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
                 <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
             <span class="p">)</span>
@@ -712,25 +683,19 @@
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/&quot;</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;with_result&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">},</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
-        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
-            <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;result&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsDecoder</span>
-        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;result&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">QiskitObjectsDecoder</span><span class="p">)</span>
 
     <span class="nd">@_trace_job</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/logs/&quot;</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
@@ -741,26 +706,20 @@
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/provider-logs/&quot;</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;logs&quot;</span><span class="p">)</span>
 
     <span class="nd">@_trace_job</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">runtime_jobs</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">runtime_session</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">runtime_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">runtime_session</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve Qiskit IBM Runtime job ids that correspond to a</span>
 <span class="sd">        given serverless job_id execution and, optionally, filtered by session id.&quot;&quot;&quot;</span>
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/runtime_jobs/&quot;</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
@@ -780,20 +739,12 @@
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/jobs/</span><span class="si">{</span><span class="n">job_id</span><span class="si">}</span><span class="s2">/runtime_jobs/&quot;</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="p">)</span>
         <span class="n">runtime_jobs</span> <span class="o">=</span> <span class="n">response_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;runtime_jobs&quot;</span><span class="p">,</span> <span class="p">[])</span>
-        <span class="n">out_sessions</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
-            <span class="p">{</span>
-                <span class="n">job</span><span class="p">[</span><span class="s2">&quot;runtime_session&quot;</span><span class="p">]</span>
-                <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">runtime_jobs</span>
-                <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;runtime_session&quot;</span><span class="p">)</span>
-            <span class="p">}</span>
-        <span class="p">)</span>
+        <span class="n">out_sessions</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">({</span><span class="n">job</span><span class="p">[</span><span class="s2">&quot;runtime_session&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">runtime_jobs</span> <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;runtime_session&quot;</span><span class="p">)})</span>
         <span class="k">return</span> <span class="n">out_sessions</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">filtered_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -850,9 +801,7 @@
                     <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-                    <span class="s2">&quot;Function must either have `entrypoint` or `image` specified.&quot;</span>
-                <span class="p">)</span>
+                <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="s2">&quot;Function must either have `entrypoint` or `image` specified.&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">function_uploaded</span>
 
@@ -862,9 +811,7 @@
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_list</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs&quot;</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">params</span><span class="o">=</span><span class="n">kwargs</span><span class="p">,</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
@@ -873,26 +820,17 @@
         <span class="k">for</span> <span class="n">program_data</span> <span class="ow">in</span> <span class="n">response_data</span><span class="p">:</span>
             <span class="n">program_data</span><span class="p">[</span><span class="s2">&quot;client&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
 
-        <span class="k">return</span> <span class="p">[</span>
-            <span class="n">RunnableQiskitFunction</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">program_data</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">program_data</span> <span class="ow">in</span> <span class="n">response_data</span>
-        <span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">program_data</span><span class="p">)</span> <span class="k">for</span> <span class="n">program_data</span> <span class="ow">in</span> <span class="n">response_data</span><span class="p">]</span>
 
     <span class="nd">@_trace_functions</span><span class="p">(</span><span class="s2">&quot;get_by_title&quot;</span><span class="p">)</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">function</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RunnableQiskitFunction</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns program based on parameters.&quot;&quot;&quot;</span>
-        <span class="n">provider</span><span class="p">,</span> <span class="n">title</span> <span class="o">=</span> <span class="n">format_provider_name_and_title</span><span class="p">(</span>
-            <span class="n">request_provider</span><span class="o">=</span><span class="n">provider</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span>
-        <span class="p">)</span>
+        <span class="n">provider</span><span class="p">,</span> <span class="n">title</span> <span class="o">=</span> <span class="n">format_provider_name_and_title</span><span class="p">(</span><span class="n">request_provider</span><span class="o">=</span><span class="n">provider</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">)</span>
 
         <span class="n">response_data</span> <span class="o">=</span> <span class="n">safe_json_request_as_dict</span><span class="p">(</span>
             <span class="n">request</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/api/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">/programs/get_by_title/</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                    <span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span>
-                <span class="p">),</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
                 <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="n">provider</span><span class="p">},</span>
                 <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
             <span class="p">)</span>
@@ -922,9 +860,7 @@
         <span class="n">download_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;./&quot;</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Download a file available to the user for the specific Qiskit Function.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">download</span><span class="p">(</span>
-            <span class="n">file</span><span class="p">,</span> <span class="n">download_location</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">target_name</span>
-        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">download_location</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">target_name</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">provider_file_download</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -934,9 +870,7 @@
         <span class="n">download_location</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;./&quot;</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Download a file available to the provider for the specific Qiskit Function.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">provider_download</span><span class="p">(</span>
-            <span class="n">file</span><span class="p">,</span> <span class="n">download_location</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">target_name</span>
-        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files_client</span><span class="o">.</span><span class="n">provider_download</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">download_location</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">target_name</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">file_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">function</span><span class="p">:</span> <span class="n">QiskitFunction</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Deletes a file available to the user for the specific Qiskit Function.&quot;&quot;&quot;</span>
@@ -1066,9 +1000,7 @@
                 <span class="n">account</span> <span class="o">=</span> <span class="n">AccountManager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">any</span><span class="p">([</span><span class="n">token</span><span class="p">]):</span>
             <span class="c1"># Let&#39;s not infer based on these attributes as they may change in the future.</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;&#39;channel&#39; is required if &#39;token&#39; is specified but &#39;name&#39; is not.&quot;</span>
-            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;&#39;channel&#39; is required if &#39;token&#39; is specified but &#39;name&#39; is not.&quot;</span><span class="p">)</span>
 
         <span class="c1"># channel is not defined yet, get it from the AccountManager</span>
         <span class="k">if</span> <span class="n">account</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1080,9 +1012,7 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">account</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
         <span class="k">except</span> <span class="n">InvalidAccountError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Invalid format in account inputs - </span><span class="si">{</span><span class="n">ex</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">ex</span>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid format in account inputs - </span><span class="si">{</span><span class="n">ex</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">ex</span>
 
         <span class="k">return</span> <span class="n">account</span>
 
@@ -1113,9 +1043,7 @@
                 <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">except</span> <span class="n">InvalidAccountError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Invalid format in account inputs - </span><span class="si">{</span><span class="n">ex</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">ex</span></div>
+            <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid format in account inputs - </span><span class="si">{</span><span class="n">ex</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">ex</span></div>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_upload_with_docker_image</span><span class="p">(</span>  <span class="c1"># pylint: disable=too-many-positional-arguments</span>
@@ -1190,13 +1118,9 @@
     <span class="n">artifact_file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="s2">&quot;artifact.tar&quot;</span><span class="p">)</span>
 
     <span class="c1"># check if entrypoint exists</span>
-    <span class="k">if</span> <span class="p">(</span>
-        <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">))</span>
-        <span class="ow">or</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;/&quot;</span>
-    <span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="p">,</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">))</span> <span class="ow">or</span> <span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;/&quot;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">QiskitServerlessException</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Entrypoint file [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">] does not exist &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;in [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="si">}</span><span class="s2">] working directory.&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Entrypoint file [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">entrypoint</span><span class="si">}</span><span class="s2">] does not exist &quot;</span> <span class="sa">f</span><span class="s2">&quot;in [</span><span class="si">{</span><span class="n">program</span><span class="o">.</span><span class="n">working_dir</span><span class="si">}</span><span class="s2">] working directory.&quot;</span>
         <span class="p">)</span>
 
     <span class="k">try</span><span class="p">:</span>
@@ -1228,9 +1152,7 @@
                         <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="n">program</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
                     <span class="p">},</span>
                     <span class="n">files</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;artifact&quot;</span><span class="p">:</span> <span class="n">file</span><span class="p">},</span>
-                    <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span>
-                        <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="n">channel</span>
-                    <span class="p">),</span>
+                    <span class="n">headers</span><span class="o">=</span><span class="n">get_headers</span><span class="p">(</span><span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span> <span class="n">instance</span><span class="o">=</span><span class="n">instance</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">),</span>
                     <span class="n">timeout</span><span class="o">=</span><span class="n">REQUESTS_TIMEOUT</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="p">)</span>

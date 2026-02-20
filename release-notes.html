@@ -305,16 +305,16 @@
 <span id="release-notes-upcoming-qiskit-serverless-release"></span><h2>Upcoming Qiskit Serverless release<a class="headerlink" href="#upcoming-qiskit-serverless-release" title="Permalink to this heading">¶</a></h2>
 <section id="prelude">
 <span id="release-notes-upcoming-qiskit-serverless-release-prelude"></span><h3>Prelude<a class="headerlink" href="#prelude" title="Permalink to this heading">¶</a></h3>
-<p>Major refactor in logs to be able to differentiate between Provider logs and user logs. Also the logs now are stored in COS keeping backward  compatibility.</p>
+<p>Major refactor in logs to be able to differentiate between Provider logs and user logs. Also the logs now are stored in COS keeping backward compatibility.</p>
 </section>
 <section id="new-features">
 <span id="release-notes-upcoming-qiskit-serverless-release-new-features"></span><h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>The Client added new functions <code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">get_provider_logger()</span></code>.
 The users should use the <code class="xref py py-func docutils literal notranslate"><span class="pre">get_logger()</span></code> to log their relevant information.
-The providers should use this functions discriminate the relevant information 
+The providers should use this functions discriminate the relevant information
 for users or providers respectively.
-This will create <cite>[PUBLIC]</cite> and <cite>[PRIVATE]</cite> prefixes under the hood to filter 
+This will create <cite>[PUBLIC]</cite> and <cite>[PRIVATE]</cite> prefixes under the hood to filter
 the information appropriately</p></li>
 </ul>
 <ul class="simple">
@@ -322,13 +322,13 @@ the information appropriately</p></li>
 to use the new <cite>/provider_logs</cite> endpoint.</p></li>
 </ul>
 <ul class="simple">
-<li><p>The Scheduler is modified to upload logs to COS when job transition from running to 
+<li><p>The Scheduler is modified to upload logs to COS when job transition from running to
 a terminal state. In this moment the logs will be filtered taking into account the
 prefixes and it will save the information in its corresponding folder inside the COS.</p></li>
 </ul>
 <ul class="simple">
 <li><p>The Gateway has new a endpoint <cite>/provider_logs</cite> and <cite>/logs</cite> is modified.
-Both should return: 
+Both should return:
 1. The COS log for finished jobs if exist. This was previously filtered in the Scheduler
 2. The Ray console if job is running. This is filtered live.
 3. As a fallback, return the logs from the db.</p></li>
@@ -359,7 +359,7 @@ components and ensures consistent access to program metadata across storage serv
 parameters are no longer used after the storage service refactoring.</p></li>
 </ul>
 <ul class="simple">
-<li><p>Removed <code class="docutils literal notranslate"><span class="pre">LocalClient</span></code> and <code class="docutils literal notranslate"><span class="pre">RayClient</span></code> classes and their usages in the tests. For testing, one should use 
+<li><p>Removed <code class="docutils literal notranslate"><span class="pre">LocalClient</span></code> and <code class="docutils literal notranslate"><span class="pre">RayClient</span></code> classes and their usages in the tests. For testing, one should use
 <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code> with default values as in <code class="docutils literal notranslate"><span class="pre">docs/deployment/example_custom_image_function.rst</span></code>.
 In addition, updated tests and removed irrelevant comments.</p></li>
 </ul>
@@ -377,14 +377,14 @@ and a CRN is present, the system defaults to <code class="docutils literal notra
 <section id="bug-fixes">
 <span id="release-notes-v0-29-0-bug-fixes"></span><h3>Bug Fixes<a class="headerlink" href="#bug-fixes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
-<li><p>Fixed a bug in the json decoder that would crop the response details to the first character when 
-gateway errors were raised. This utility now forwards the full error message to the raised 
+<li><p>Fixed a bug in the json decoder that would crop the response details to the first character when
+gateway errors were raised. This utility now forwards the full error message to the raised
 <code class="docutils literal notranslate"><span class="pre">QiskitServerlessException</span></code>.</p></li>
 </ul>
 <ul>
-<li><p>Fixed error handling when a function is not found. Instead of providing a 
+<li><p>Fixed error handling when a function is not found. Instead of providing a
 bare 404 error, the <code class="docutils literal notranslate"><span class="pre">QiskitServerlessException</span></code> now contains a more meaningful error message:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">QiskitServerlessException</span><span class="p">:</span> 
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">QiskitServerlessException</span><span class="p">:</span>
 <span class="o">|</span> <span class="n">Message</span><span class="p">:</span> <span class="n">Http</span> <span class="n">bad</span> <span class="n">request</span><span class="o">.</span>
 <span class="o">|</span> <span class="n">Code</span><span class="p">:</span> <span class="mi">404</span>
 <span class="o">|</span> <span class="n">Details</span><span class="p">:</span> <span class="n">User</span> <span class="n">program</span> <span class="s1">&#39;my-program&#39;</span> <span class="n">was</span> <span class="ow">not</span> <span class="n">found</span> <span class="ow">or</span> <span class="n">you</span> <span class="n">do</span> <span class="ow">not</span> <span class="n">have</span> <span class="n">permission</span> <span class="n">to</span> <span class="n">view</span> <span class="n">it</span><span class="o">.</span>
@@ -442,8 +442,8 @@ with the environment variable <code class="docutils literal notranslate"><span c
 <section id="release-notes-v0-27-0-new-features">
 <span id="id6"></span><h3>New Features<a class="headerlink" href="#release-notes-v0-27-0-new-features" title="Permalink to this heading">¶</a></h3>
 <ul>
-<li><p>A new utility <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> is now available to simplify the instantiation of 
-a <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> within a function. It automatically pulls credentials from environment 
+<li><p>A new utility <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> is now available to simplify the instantiation of
+a <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> within a function. It automatically pulls credentials from environment
 variables, reducing boilerplate code and improving usability for function developers.</p>
 <p>Example usage:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_runtime_service</span>
@@ -463,15 +463,15 @@ variables, reducing boilerplate code and improving usability for function develo
 <span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">&quot;ibm_fez&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>This function also enables automatic tracking of runtime job and session IDs created during function 
+<p>This function also enables automatic tracking of runtime job and session IDs created during function
 execution. It’s important to note that tracking will only be possible if the function runtime jobs
 are submitted through a service instantiated with this function.</p>
 <p>On top of the default credentials, function developers can customize the call to <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code>
 with custom input parameters, including <code class="docutils literal notranslate"><span class="pre">token</span></code>, <code class="docutils literal notranslate"><span class="pre">instance</span></code>, <code class="docutils literal notranslate"><span class="pre">channel</span></code> and <code class="docutils literal notranslate"><span class="pre">url</span></code>. For example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_runtime_service</span>
-<span class="n">service</span> <span class="o">=</span> <span class="n">get_runtime_service</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="s2">&quot;ibm_quantum_platform&quot;</span><span class="p">,</span> 
-                              <span class="n">token</span><span class="o">=</span><span class="s2">&quot;staging_token&quot;</span><span class="p">,</span> 
-                              <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;staging_crn&quot;</span><span class="p">,</span> 
+<span class="n">service</span> <span class="o">=</span> <span class="n">get_runtime_service</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="s2">&quot;ibm_quantum_platform&quot;</span><span class="p">,</span>
+                              <span class="n">token</span><span class="o">=</span><span class="s2">&quot;staging_token&quot;</span><span class="p">,</span>
+                              <span class="n">instance</span><span class="o">=</span><span class="s2">&quot;staging_crn&quot;</span><span class="p">,</span>
                               <span class="n">url</span><span class="o">=</span><span class="s2">&quot;staging_url&quot;</span><span class="p">)</span>
 <span class="n">backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">backend</span><span class="p">(</span><span class="s2">&quot;staging_backend&quot;</span><span class="p">)</span>
 </pre></div>
@@ -479,9 +479,9 @@ with custom input parameters, including <code class="docutils literal notranslat
 </li>
 </ul>
 <ul>
-<li><p>When using <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> inside a serverless function, the resulting job object now 
-supports two new methods: <code class="docutils literal notranslate"><span class="pre">job.runtime_jobs()</span></code> and <code class="docutils literal notranslate"><span class="pre">job.runtime_sessions()</span></code>. 
-These methods return lists of job/session IDs that can be used to fetch job objects from a 
+<li><p>When using <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code> inside a serverless function, the resulting job object now
+supports two new methods: <code class="docutils literal notranslate"><span class="pre">job.runtime_jobs()</span></code> and <code class="docutils literal notranslate"><span class="pre">job.runtime_sessions()</span></code>.
+These methods return lists of job/session IDs that can be used to fetch job objects from a
 <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> or access IQP dashboards. <code class="docutils literal notranslate"><span class="pre">job.runtime_jobs()</span></code> accepts an optional
 <code class="docutils literal notranslate"><span class="pre">runtime_session</span></code> parameter that allows to filter the returned jobs by associated session id.
 For example:</p>
@@ -511,12 +511,12 @@ For example:</p>
 not the access to the service by the <code class="docutils literal notranslate"><span class="pre">is_active</span></code> parameter.</p></li>
 </ul>
 <ul>
-<li><p>Enhanced <code class="docutils literal notranslate"><span class="pre">job.cancel()</span></code> behavior to use the newly introduced features. <code class="docutils literal notranslate"><span class="pre">job.cancel()</span></code> now attempts 
-to instantiate a <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> using the credentials from the <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code>, 
-allowing automatic canceling of associated runtime jobs. This works when the credentials used in 
+<li><p>Enhanced <code class="docutils literal notranslate"><span class="pre">job.cancel()</span></code> behavior to use the newly introduced features. <code class="docutils literal notranslate"><span class="pre">job.cancel()</span></code> now attempts
+to instantiate a <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> using the credentials from the <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code>,
+allowing automatic canceling of associated runtime jobs. This works when the credentials used in
 the function match those in the client, which happens by default when using <code class="docutils literal notranslate"><span class="pre">get_runtime_service()</span></code>
 with no additional inputs.</p>
-<p>To support local testing or non-standard runtime URLs (e.g., staging environments), where the 
+<p>To support local testing or non-standard runtime URLs (e.g., staging environments), where the
 <code class="docutils literal notranslate"><span class="pre">ServerlessClient</span></code> don’t match those in the <code class="docutils literal notranslate"><span class="pre">QiskitRuntimeService</span></code> used to submit the jobs,
 <code class="docutils literal notranslate"><span class="pre">job.cancel()</span></code> accepts a service parameter:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">(</span>
@@ -531,7 +531,7 @@ with no additional inputs.</p>
 </li>
 </ul>
 <ul class="simple">
-<li><p>The <code class="docutils literal notranslate"><span class="pre">ServerlessRuntimeService</span></code> class has been updated to support changes introduced in 
+<li><p>The <code class="docutils literal notranslate"><span class="pre">ServerlessRuntimeService</span></code> class has been updated to support changes introduced in
 <code class="docutils literal notranslate"><span class="pre">qiskit_ibm_runtime&gt;=0.42</span></code>, unlocking compatibility of the <cite>qiskit-serverless&gt;=0.27.0</cite> package with
 <code class="docutils literal notranslate"><span class="pre">qiskit_ibm_runtime&gt;=0.42</span></code>. For older versions of <code class="docutils literal notranslate"><span class="pre">qiskit-serverless</span></code>,  <code class="docutils literal notranslate"><span class="pre">qiskit_ibm_runtime&lt;0.42</span></code>
 will still be required.</p></li>
