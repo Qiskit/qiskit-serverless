@@ -1,4 +1,5 @@
 """function with arguments for jupyter notebook."""
+
 import os
 from qiskit import QuantumCircuit
 from qiskit.providers.exceptions import QiskitBackendNotFoundError
@@ -7,7 +8,6 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit_serverless import get_arguments, save_result
-
 
 # ----- parse inputs -----
 # get all arguments passed to this function
@@ -30,9 +30,7 @@ print(f"[main] Inputs received (backend_name={backend_name})")
 
 # Choose a provider: fake provider for local testing, or a real servic
 if "fake" in backend_name.lower():
-    print(
-        "[main] Using fake provider (auto-selected because backend_name contains 'fake')."
-    )
+    print("[main] Using fake provider (auto-selected because backend_name contains 'fake').")
     service = FakeProviderForBackendV2()
 
 if isinstance(service, (FakeProviderForBackendV2, QiskitRuntimeService)):
@@ -56,16 +54,11 @@ else:
             url=os.environ.get("QISKIT_IBM_URL"),
         )
         backend = service.backend(backend_name)
-        print(
-            f"[main] Runtime service initialized from env and backend "
-            f"resolved (name={backend.name})"
-        )
+        print(f"[main] Runtime service initialized from env and backend " f"resolved (name={backend.name})")
     except QiskitBackendNotFoundError as e:
         raise ValueError(f"The backend named {backend_name} couldn't be found.") from e
     except Exception as e:
-        raise ValueError(
-            f"`QiskitRuntimeService` couldn't be initialized with os environment variables: {e}."
-        ) from e
+        raise ValueError(f"`QiskitRuntimeService` couldn't be initialized with os environment variables: {e}.") from e
 
 # ----- transpile -----
 # Match the run to the backend and transpile

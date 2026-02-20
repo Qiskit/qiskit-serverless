@@ -28,10 +28,7 @@ logger = logging.getLogger("commands")
 class Command(BaseCommand):
     """Schedule jobs command."""
 
-    help = (
-        "Schedule jobs that are in queued "
-        "status based on availability of resources in the system."
-    )
+    help = "Schedule jobs that are in queued " "status based on availability of resources in the system."
 
     def handle(self, *args, **options):
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
@@ -42,23 +39,13 @@ class Command(BaseCommand):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
 
-        number_of_clusters_running = ComputeResource.objects.filter(
-            active=True, gpu=False
-        ).count()
-        number_of_gpu_clusters_running = ComputeResource.objects.filter(
-            active=True, gpu=True
-        ).count()
+        number_of_clusters_running = ComputeResource.objects.filter(active=True, gpu=False).count()
+        number_of_gpu_clusters_running = ComputeResource.objects.filter(active=True, gpu=True).count()
 
-        self.schedule_jobs_if_slots_available(
-            max_ray_clusters_possible, number_of_clusters_running, False
-        )
-        self.schedule_jobs_if_slots_available(
-            max_gpu_clusters_possible, number_of_gpu_clusters_running, True
-        )
+        self.schedule_jobs_if_slots_available(max_ray_clusters_possible, number_of_clusters_running, False)
+        self.schedule_jobs_if_slots_available(max_gpu_clusters_possible, number_of_gpu_clusters_running, True)
 
-    def schedule_jobs_if_slots_available(
-        self, max_ray_clusters_possible, number_of_clusters_running, gpu_job
-    ):
+    def schedule_jobs_if_slots_available(self, max_ray_clusters_possible, number_of_clusters_running, gpu_job):
         """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
         if gpu_job:

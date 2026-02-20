@@ -52,11 +52,7 @@ class InputSerializer(serializers.Serializer):
     operation_description="Upload selected file",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        properties={
-            "file": openapi.Schema(
-                type=openapi.TYPE_FILE, description="File to be uploaded"
-            )
-        },
+        properties={"file": openapi.Schema(type=openapi.TYPE_FILE, description="File to be uploaded")},
         required=["file"],
     ),
     manual_parameters=[

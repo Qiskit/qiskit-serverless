@@ -43,9 +43,7 @@ class InputSerializer(serializers.Serializer):
         required=True,
         error_messages={"required": "'provider' not provided or is not valid"},
     )
-    limit = serializers.IntegerField(
-        required=False, default=settings.REST_FRAMEWORK["PAGE_SIZE"], min_value=0
-    )
+    limit = serializers.IntegerField(required=False, default=settings.REST_FRAMEWORK["PAGE_SIZE"], min_value=0)
     offset = serializers.IntegerField(required=False, default=0, min_value=0)
     filter = TypeFilterField(
         choices=[TypeFilter.CATALOG, TypeFilter.SERVERLESS],
@@ -189,6 +187,4 @@ def get_provider_jobs(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters)
-    return Response(
-        serialize_output(jobs, total, request, filters.limit, filters.offset)
-    )
+    return Response(serialize_output(jobs, total, request, filters.limit, filters.offset))

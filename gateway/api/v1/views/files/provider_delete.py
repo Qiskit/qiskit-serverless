@@ -56,8 +56,7 @@ class InputSerializer(serializers.Serializer):
 
 @swagger_auto_schema(
     method="delete",
-    operation_description="Deletes file uploaded or produced by the programs "
-    "in the provider directory.",
+    operation_description="Deletes file uploaded or produced by the programs " "in the provider directory.",
     manual_parameters=[
         openapi.Parameter(
             "file",
@@ -113,6 +112,4 @@ def files_provider_delete(request: Request) -> Response:
 
     FilesProviderDeleteUseCase().execute(user, provider, function, file)
 
-    return Response(
-        {"message": "Requested file was deleted."}, status=status.HTTP_200_OK
-    )
+    return Response({"message": "Requested file was deleted."}, status=status.HTTP_200_OK)

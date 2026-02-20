@@ -93,13 +93,13 @@ Or if you are using kubernetes you will need to create the cluster and load the 
 
 .. code-block::
    :caption: Run your local cluster
-    
+
     tox -e cluster-deploy
     kind load docker-image test-local-provider-function:latest
 
 And that's everything you need to take into account if you are using the k8s approach.
 
-Once time the local environment is running, it only remains to run the code! For that you just need to define `QiskitFunction` 
+Once time the local environment is running, it only remains to run the code! For that you just need to define `QiskitFunction`
 
 with the image that you just built, give it a name and upload it:
 

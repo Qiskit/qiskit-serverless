@@ -16,11 +16,7 @@ class Migration(migrations.Migration):
             name="artifact",
             field=models.FileField(
                 upload_to=core.models.get_upload_path,
-                validators=[
-                    django.core.validators.FileExtensionValidator(
-                        allowed_extensions=["tar"]
-                    )
-                ],
+                validators=[django.core.validators.FileExtensionValidator(allowed_extensions=["tar"])],
             ),
         ),
     ]

@@ -1,4 +1,5 @@
 """function with parallel workflow for jupyter notebook."""
+
 import os
 from qiskit import QuantumCircuit
 from qiskit.providers import BackendV2
@@ -11,9 +12,7 @@ from qiskit_serverless import get_arguments, save_result, distribute_task, get
 
 
 @distribute_task()
-def distributed_transpilation(
-    circuit_idx: int, circuit: QuantumCircuit, target_backend: BackendV2
-):
+def distributed_transpilation(circuit_idx: int, circuit: QuantumCircuit, target_backend: BackendV2):
     """Distributed task that returns an ISA circuit ready for execution."""
     print(
         f"[distributed_transpilation] Start (index={circuit_idx}, "
@@ -37,9 +36,7 @@ service = arguments.get("service")
 
 # Normalize inputs
 if circuits is None:
-    raise ValueError(
-        "`circuits` is required and must be a QuantumCircuit or a list of them."
-    )
+    raise ValueError("`circuits` is required and must be a QuantumCircuit or a list of them.")
 if not isinstance(circuits, list):
     circuits = [circuits]
 
@@ -49,16 +46,12 @@ if not all(isinstance(circuit, QuantumCircuit) for circuit in circuits):
 if not isinstance(backend_name, str) or len(backend_name) == 0:
     raise ValueError("backend_name must be a non-empty string.")
 
-print(
-    f"[main] Inputs received (num_circuits={len(circuits)}, backend_name={backend_name})"
-)
+print(f"[main] Inputs received (num_circuits={len(circuits)}, backend_name={backend_name})")
 
 # ----- resolve provider / backend -----
 # Choose a provider: fake provider for local testing, or a real servic
 if "fake" in backend_name.lower():
-    print(
-        "[main] Using fake provider (auto-selected because backend_name contains 'fake')."
-    )
+    print("[main] Using fake provider (auto-selected because backend_name contains 'fake').")
     service = FakeProviderForBackendV2()
 
 if isinstance(service, (FakeProviderForBackendV2, QiskitRuntimeService)):
@@ -81,16 +74,11 @@ else:
             url=os.environ.get("QISKIT_IBM_URL"),
         )
         backend = service.backend(backend_name)
-        print(
-            f"[main] Runtime service initialized from env and backend "
-            f"resolved (name={backend.name})"
-        )
+        print(f"[main] Runtime service initialized from env and backend " f"resolved (name={backend.name})")
     except QiskitBackendNotFoundError as e:
         raise ValueError(f"The backend named {backend_name} couldn't be found.") from e
     except Exception as e:
-        raise ValueError(
-            f"`QiskitRuntimeService` couldn't be initialized with os environment variables: {e}."
-        ) from e
+        raise ValueError(f"`QiskitRuntimeService` couldn't be initialized with os environment variables: {e}.") from e
 
 
 # ----- launch parallel tasks -----
@@ -98,10 +86,7 @@ else:
 # get task references (async, parallel on the serverless cluster)
 print(f"[main] Launching distributed transpilation tasks (count={len(circuits)})...")
 # sending circuit indexing for
-sample_task_references = [
-    distributed_transpilation(idx, circuit, backend)
-    for idx, circuit in enumerate(circuits)
-]
+sample_task_references = [distributed_transpilation(idx, circuit, backend) for idx, circuit in enumerate(circuits)]
 
 # ----- collect ISA circuits -----
 # collect all results (blocks until all tasks complete)

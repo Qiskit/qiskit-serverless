@@ -41,7 +41,9 @@ class FilesUploadUseCase:
 
         if not function:
             if provider_name:
-                error_message = f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                error_message = (
+                    f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
+                )
             else:
                 error_message = f"Qiskit Function {function_title} doesn't exist."
             raise NotFoundError(error_message)

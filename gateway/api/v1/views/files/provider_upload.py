@@ -52,11 +52,7 @@ class InputSerializer(serializers.Serializer):
     operation_description="Upload selected file into the provider directory",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        properties={
-            "file": openapi.Schema(
-                type=openapi.TYPE_FILE, description="File to be uploaded"
-            )
-        },
+        properties={"file": openapi.Schema(type=openapi.TYPE_FILE, description="File to be uploaded")},
         required=["file"],
     ),
     manual_parameters=[
@@ -106,8 +102,6 @@ def files_provider_upload(request: Request) -> Response:
 
     user = cast(AbstractUser, request.user)
 
-    result = FilesProviderUploadUseCase().execute(
-        user, provider, function, uploaded_file
-    )
+    result = FilesProviderUploadUseCase().execute(user, provider, function, uploaded_file)
 
     return Response({"message": result})

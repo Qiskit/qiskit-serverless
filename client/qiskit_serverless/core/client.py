@@ -26,6 +26,7 @@ Qiskit Serverless provider
     ComputeResource
     BaseClient
 """
+
 import warnings
 from abc import ABC, abstractmethod
 from typing import Optional, List
@@ -160,14 +161,10 @@ class BaseClient(JobService, RunService, JsonSerializable, ABC):
         """Returns list of available programs."""
 
     @abstractmethod
-    def function(
-        self, title: str, provider: Optional[str] = None
-    ) -> Optional[RunnableQiskitFunction]:
+    def function(self, title: str, provider: Optional[str] = None) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
 
-    def get(
-        self, title: str, provider: Optional[str] = None
-    ) -> Optional[RunnableQiskitFunction]:
+    def get(self, title: str, provider: Optional[str] = None) -> Optional[RunnableQiskitFunction]:
         """Returns program based on parameters."""
         warnings.warn(
             "`get` method has been deprecated. "

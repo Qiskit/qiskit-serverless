@@ -55,9 +55,7 @@ class Provider(models.Model):
     updated = models.DateTimeField(auto_now=True, null=True)
 
     name = models.CharField(max_length=255, db_index=True, unique=True)
-    readable_name = models.CharField(
-        max_length=255, null=True, blank=True, default=None
-    )
+    readable_name = models.CharField(max_length=255, null=True, blank=True, default=None)
     url = models.TextField(null=True, blank=True, default=None)
     icon_url = models.TextField(null=True, blank=True, default=None)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
@@ -88,14 +86,10 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
 
     title = models.CharField(max_length=255, db_index=True)
-    readable_title = models.CharField(
-        max_length=255, null=True, blank=True, default=None
-    )
+    readable_title = models.CharField(max_length=255, null=True, blank=True, default=None)
 
     disabled = models.BooleanField(default=False, null=False)
-    disabled_message = models.TextField(
-        default=DEFAULT_DISABLED_MESSAGE, null=True, blank=True
-    )
+    disabled_message = models.TextField(default=DEFAULT_DISABLED_MESSAGE, null=True, blank=True)
     type = models.CharField(
         max_length=20,
         choices=PROGRAM_TYPES,
@@ -116,12 +110,8 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
 
-    instances = models.ManyToManyField(
-        Group, blank=True, related_name="program_instances"
-    )
-    trial_instances = models.ManyToManyField(
-        Group, blank=True, related_name="program_trial_instances"
-    )
+    instances = models.ManyToManyField(Group, blank=True, related_name="program_instances")
+    trial_instances = models.ManyToManyField(Group, blank=True, related_name="program_trial_instances")
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -270,9 +260,7 @@ class Job(models.Model):
         choices=JOB_STATUSES,
         default=QUEUED,
     )
-    sub_status = models.CharField(
-        max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True
-    )
+    sub_status = models.CharField(max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True)
     trial = models.BooleanField(default=False, null=False)
     version = IntegerVersionField()
 
@@ -280,9 +268,7 @@ class Job(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
-    compute_resource = models.ForeignKey(
-        ComputeResource, on_delete=models.SET_NULL, null=True, blank=True
-    )
+    compute_resource = models.ForeignKey(ComputeResource, on_delete=models.SET_NULL, null=True, blank=True)
     config = models.ForeignKey(
         to=JobConfig,
         on_delete=models.CASCADE,
@@ -314,12 +300,8 @@ class RuntimeJob(models.Model):
         blank=True,
         related_name="runtime_jobs",
     )
-    runtime_job = models.CharField(
-        primary_key=True, max_length=100, blank=False, null=False
-    )
-    runtime_session = models.CharField(
-        max_length=100, blank=True, null=True, default=None
-    )
+    runtime_job = models.CharField(primary_key=True, max_length=100, blank=False, null=False)
+    runtime_session = models.CharField(max_length=100, blank=True, null=True, default=None)
 
     class Meta:
         app_label = "api"
@@ -360,9 +342,7 @@ class GroupMetadata(models.Model):
     # This field will store the account_id from IBM Cloud.
     account = models.CharField(max_length=255, blank=True, null=True, default=None)
 
-    group = models.OneToOneField(
-        Group, on_delete=models.CASCADE, related_name="metadata"
-    )
+    group = models.OneToOneField(Group, on_delete=models.CASCADE, related_name="metadata")
 
     class Meta:
         app_label = "api"

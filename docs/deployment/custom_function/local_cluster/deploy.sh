@@ -66,7 +66,7 @@ kubectl wait \
 kubectl wait \
   --for=condition=ready pod \
   --selector=app.kubernetes.io/name=gateway \
-  --timeout=5m  
+  --timeout=5m
 
 kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \

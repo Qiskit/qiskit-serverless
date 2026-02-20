@@ -33,9 +33,7 @@ class ProviderRepository:
 
         return provider
 
-    def get_or_create_by_name(
-        self, name: str, registry: str, admin_groups: List[Group]
-    ) -> Optional[Provider]:
+    def get_or_create_by_name(self, name: str, registry: str, admin_groups: List[Group]) -> Optional[Provider]:
         """
         Creates a new provider with a given name and registry.
 
