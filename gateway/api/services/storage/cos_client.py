@@ -21,6 +21,7 @@ class COSClient:
 
     @property
     def client(self):
+        """Lazy load COS client."""
         if self._client is None:
             self._client = boto3.client(
                 "s3",
