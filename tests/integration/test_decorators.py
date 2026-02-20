@@ -44,7 +44,7 @@ class TestDecorators:
 
         try:
             result = job.result()
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             xfail(f"Flaky failure on deprecated decorator: {exc}")
 
         assert result is not None
@@ -81,7 +81,7 @@ class TestDecorators:
 
         try:
             result = job.result()
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             xfail(f"Flaky failure on deprecated decorator: {exc}")
         assert result is not None
         assert "results" in result
@@ -109,7 +109,7 @@ class TestDecorators:
 
         try:
             result = job.result()
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             xfail(f"Flaky failure on deprecated decorator: {exc}")
         assert result is not None
         assert "quasi_dists" in result
