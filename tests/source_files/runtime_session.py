@@ -17,11 +17,19 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
-service = get_runtime_service(url=os.environ["QISKIT_IBM_URL"])
+print(f"Function: QISKIT_IBM_INSTANCE: {os.environ.get('QISKIT_IBM_INSTANCE')}")
+print(f"Function: QISKIT_IBM_TOKEN: {os.environ.get('QISKIT_IBM_TOKEN')[:4]}****")
+print(f"Function: QISKIT_IBM_URL: {os.environ.get('QISKIT_IBM_URL')}")
+print(f"Function: QISKIT_IBM_BACKEND_1: {os.environ.get('QISKIT_IBM_BACKEND_1')}")
+print(f"Function: QISKIT_IBM_BACKEND_2: {os.environ.get('QISKIT_IBM_BACKEND_2')}")
 
+print("getting runtime service")
+service = get_runtime_service()
+
+print("getting backends")
 backends = service.backends()
-backend1 = service.backend("test_eagle")
-backend2 = service.backend("test_eagle2")
+backend1 = service.backend(os.environ["QISKIT_IBM_BACKEND_1"])
+backend2 = service.backend(os.environ["QISKIT_IBM_BACKEND_2"])
 
 qc = QuantumCircuit(1)
 qc.measure_all()
@@ -33,9 +41,11 @@ for backend in [backend1, backend2]:
     session = Session(backend=backend)
     sampler = SamplerV2(mode=session)
 
+    print(f"running jobs in backend {backend}")
     job1 = sampler.run([qc])
     job2 = sampler.run([qc])
 
+    print("JOB IDS", job1.job_id(), job2.job_id())
     job_ids += [job1.job_id(), job2.job_id()]
     session_ids.append(session.session_id)
 
