@@ -297,7 +297,7 @@ def distribute_task(
     return decorator
 
 
-# TODO: remove once distribute_qiskit_function is removed
+# TODO: remove once distribute_qiskit_function is removed # pylint: disable=fixme
 ENTRYPOINT_CONTENT = """
 import cloudpickle
 from qiskit_serverless import get_arguments, save_result
@@ -339,7 +339,7 @@ def distribute_qiskit_function(
         "`distribute_qiskit_function` has been deprecated "
         "and will be removed in future releases. "
         "To upload custom functions, use the `upload` functionality of the ServerlessClient class.",
-        category=DeprecationWarning
+        category=DeprecationWarning,
     )
     # pylint: disable=import-outside-toplevel,cyclic-import
     from qiskit_serverless import QiskitServerlessException
@@ -418,6 +418,7 @@ def distribute_qiskit_function(
         return wrapper
 
     return decorator
+
 
 def trace_decorator_factory(traced_feature: str):
     """Factory for generate decorators for classes or features."""
