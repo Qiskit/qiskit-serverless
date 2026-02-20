@@ -338,7 +338,8 @@ def distribute_qiskit_function(
     warnings.warn(
         "`distribute_qiskit_function` has been deprecated "
         "and will be removed in future releases. "
-        "To upload custom functions, use the `upload` functionality of the ServerlessClient class."
+        "To upload custom functions, use the `upload` functionality of the ServerlessClient class.",
+        category=DeprecationWarning
     )
     # pylint: disable=import-outside-toplevel,cyclic-import
     from qiskit_serverless import QiskitServerlessException
