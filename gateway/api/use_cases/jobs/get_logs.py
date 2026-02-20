@@ -2,6 +2,7 @@
 Use case: retrieve job logs.
 """
 
+import logging
 from typing import Final
 from uuid import UUID
 
@@ -18,6 +19,8 @@ from core.services.ray import get_job_handler
 from core.utils import check_logs
 from api.repositories.jobs import JobsRepository
 from api.services.storage.logs_storage import LogsStorage
+
+logger = logging.getLogger("gateway")
 
 
 class GetJobLogsUseCase:
@@ -60,6 +63,9 @@ class GetJobLogsUseCase:
 
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
+
+            logger.info("Getting logs from ray job [%s]", job.ray_job_id)
+
             if job.program.provider:
                 # Public logs from a provider job
                 return filter_logs_with_public_tags(logs)
