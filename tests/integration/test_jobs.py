@@ -16,6 +16,7 @@ from qiskit_serverless import (
     ServerlessClient,
     QiskitServerlessException,
 )
+from utils import wait_for_logs, wait_for_terminal_state
 
 resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
@@ -307,15 +308,18 @@ class TestJobs:
         """Integration test for logs."""
 
         function = QiskitFunction(
-            title="logs_function",
-            entrypoint="logger.py",
-            working_dir=resources_path,
+            title="logs_function", entrypoint="logger.py", working_dir=resources_path, env_vars={"DELAY": "10"}
         )
         function = serverless_client.upload(function)
         job = function.run()
 
-        while not job.in_terminal_state():
-            sleep(1)
+        wait_for_logs(job, "DELAY STARTS")
+
+        print(f"Execution logs until DELAY STARTS {job.job_id}")
+        print(job.logs())
+        print("-----")
+
+        wait_for_terminal_state(job)
 
         assert job.logs().endswith(
             """INFO: User log
@@ -323,12 +327,25 @@ INFO: User multiline
 INFO: log
 WARNING: User log
 ERROR: User log
+DELAY STARTS
 INFO: Provider log
 INFO: Provider multiline
 INFO: log
 WARNING: Provider log
 ERROR: Provider log
 """
+        )
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.provider_logs()
+
+        assert (
+            str(exc_info.value).strip()
+            == f"""
+| Message: Http bad request.
+| Code: 403
+| Details: You don't have access to job [{job.job_id}]
+""".strip()
         )
 
     def test_wrong_function_name(self, serverless_client: ServerlessClient):
@@ -353,25 +370,3 @@ ERROR: Provider log
             serverless_client.function("wrong-title")
 
         assert str(exc_info.value) == expected_message
-
-    def test_provider_logs(self, serverless_client: ServerlessClient):
-        """Integration test for logs."""
-
-        function = QiskitFunction(title="logs_function_2", entrypoint="logger.py", working_dir=resources_path)
-        function = serverless_client.upload(function)
-        job = function.run()
-
-        while not job.in_terminal_state():
-            sleep(1)
-
-        with raises(QiskitServerlessException) as exc_info:
-            job.provider_logs()
-
-        assert (
-            str(exc_info.value).strip()
-            == f"""
-| Message: Http bad request.
-| Code: 403
-| Details: You don't have access to job [{job.job_id}]
-""".strip()
-        )

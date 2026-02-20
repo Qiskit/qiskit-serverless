@@ -2,27 +2,11 @@
 """Tests jobs using Qiskit Runtime's staging resources."""
 
 import os
-import time
 
-from qiskit_serverless import QiskitFunction, ServerlessClient, Job
+from qiskit_serverless import QiskitFunction, ServerlessClient
+from utils import wait_for_logs
 
 resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
-
-
-def wait_for_logs(job: Job, contain: str):
-    """Wait for a job to contain a specific string in logs."""
-    timeout = 90  # Secs
-    deadline = time.perf_counter() + timeout
-
-    while True:
-        logs = job.logs()
-        if contain in logs:
-            break
-
-        if time.perf_counter() > deadline:
-            raise TimeoutError(f"TIMEOUT waiting for '{contain}' in logs. Current logs:\n{logs}")
-
-        time.sleep(1)
 
 
 def runtime_env_vars(backend1: str, backend2: str):
