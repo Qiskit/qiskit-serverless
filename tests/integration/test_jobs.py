@@ -308,9 +308,7 @@ class TestJobs:
         """Integration test for logs."""
 
         function = QiskitFunction(
-            title="logs_function",
-            entrypoint="logger.py",
-            working_dir=resources_path,
+            title="logs_function", entrypoint="logger.py", working_dir=resources_path, env_vars={"DELAY": "10"}
         )
         function = serverless_client.upload(function)
         job = function.run()
