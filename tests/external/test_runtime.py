@@ -2,26 +2,12 @@
 """Tests jobs using Qiskit Runtime's staging resources."""
 
 import os
-import time
 
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_serverless import QiskitFunction, ServerlessClient, Job
+from qiskit_serverless import QiskitFunction, ServerlessClient
+from utils import wait_for_logs
 
 resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
-
-
-def wait_for_logs(job: Job, contain: str):
-    """Wait for a job to contain JOB IDS."""
-    timeout = 90  # Secs
-    deadline = time.perf_counter() + timeout
-
-    while True:
-        if time.perf_counter() > deadline:
-            raise TimeoutError("TIMEOUT waiting for JOB IDS")
-
-        if contain in job.logs():
-            break
-        time.sleep(1)
 
 
 class TestRuntimeIntegration:

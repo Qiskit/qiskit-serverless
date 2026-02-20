@@ -16,6 +16,7 @@ from qiskit_serverless import (
     ServerlessClient,
     QiskitServerlessException,
 )
+from utils import wait_for_logs, wait_for_terminal_state
 
 resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
@@ -314,8 +315,13 @@ class TestJobs:
         function = serverless_client.upload(function)
         job = function.run()
 
-        while not job.in_terminal_state():
-            sleep(1)
+        wait_for_logs(job, "DELAY STARTS")
+
+        print("Execution logs until DELAY STARTS")
+        print(job.logs())
+        print("-----")
+
+        wait_for_terminal_state(job)
 
         assert job.logs().endswith(
             """INFO: User log
