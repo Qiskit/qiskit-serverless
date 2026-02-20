@@ -37,9 +37,7 @@ class FilesProviderUploadUseCase:
         """
 
         provider = self.provider_repository.get_provider_by_name(name=provider_name)
-        if provider is None or not ProviderAccessPolicy.can_access(
-            user=user, provider=provider
-        ):
+        if provider is None or not ProviderAccessPolicy.can_access(user=user, provider=provider):
             raise NotFoundError(f"Provider {provider_name} doesn't exist.")
 
         function = self.function_repository.get_function_by_permission(
@@ -50,9 +48,7 @@ class FilesProviderUploadUseCase:
         )
 
         if not function:
-            raise NotFoundError(
-                f"Qiskit Function {provider_name}/{function_title} doesn't exist."
-            )
+            raise NotFoundError(f"Qiskit Function {provider_name}/{function_title} doesn't exist.")
 
         file_storage = FileStorage(
             username=user.username,

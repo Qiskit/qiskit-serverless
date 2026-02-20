@@ -29,9 +29,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "account",
-                    models.CharField(
-                        blank=True, default=None, max_length=255, null=True
-                    ),
+                    models.CharField(blank=True, default=None, max_length=255, null=True),
                 ),
             ],
             bases=("auth.group",),

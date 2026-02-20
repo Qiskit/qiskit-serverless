@@ -19,7 +19,7 @@ updates:
     versioning-strategy: increase
     schedule:
       interval: "weekly"
-      
+
   - package-ecosystem: "pip"
     directory: "/tests"
     labels: ["dependencies"]

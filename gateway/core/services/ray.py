@@ -97,9 +97,7 @@ class JobHandler:
                     }
                 )
                 with open(
-                    os.path.join(
-                        working_directory_for_upload, DEFAULT_PROGRAM_ENTRYPOINT
-                    ),
+                    os.path.join(working_directory_for_upload, DEFAULT_PROGRAM_ENTRYPOINT),
                     "w",
                     encoding="utf-8",
                 ) as entrypoint_file:
@@ -108,9 +106,7 @@ class JobHandler:
                 with tarfile.open(program.artifact.path) as file:
                     file.extractall(working_directory_for_upload)
             else:
-                raise ResourceNotFoundError(
-                    f"Program [{program.title}] has no image or artifact associated."
-                )
+                raise ResourceNotFoundError(f"Program [{program.title}] has no image or artifact associated.")
 
             # set tracing
             carrier: dict[str, str] = {}
@@ -123,9 +119,7 @@ class JobHandler:
 
             env = decrypt_env_vars(env_w_span)
             token = env["ENV_JOB_GATEWAY_TOKEN"]
-            env["QISKIT_IBM_RUNTIME_CUSTOM_CLIENT_APP_HEADER"] = (
-                "middleware_job_id/" + str(job.id) + "," + token + "/"
-            )
+            env["QISKIT_IBM_RUNTIME_CUSTOM_CLIENT_APP_HEADER"] = "middleware_job_id/" + str(job.id) + "," + token + "/"
             ray_job_id = retry_function(
                 callback=lambda: self.client.submit_job(
                     entrypoint=f"python {program.entrypoint}",
@@ -175,12 +169,8 @@ def submit_job(job: Job) -> Job:
     """
     ray_client = get_job_handler(job.compute_resource.host)
     if ray_client is None:
-        logger.error(
-            "Unable to set up ray client with host [%s]", job.compute_resource.host
-        )
-        raise ConnectionError(
-            f"Unable to set up ray client with host [{job.compute_resource.host}]"
-        )
+        logger.error("Unable to set up ray client with host [%s]", job.compute_resource.host)
+        raise ConnectionError(f"Unable to set up ray client with host [{job.compute_resource.host}]")
 
     ray_job_id = ray_client.submit(job)
     if ray_job_id is None:
@@ -202,15 +192,9 @@ def _create_cluster_data(job: Job, cluster_name: str):
 
     # can we remove the job_config in the left operator?
     job_config.workers = job_config.workers or settings.RAY_CLUSTER_WORKER_REPLICAS
-    job_config.min_workers = (
-        job_config.min_workers or settings.RAY_CLUSTER_WORKER_MIN_REPLICAS
-    )
-    job_config.max_workers = (
-        job_config.max_workers or settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
-    )
-    job_config.auto_scaling = (
-        job_config.auto_scaling or settings.RAY_CLUSTER_WORKER_AUTO_SCALING
-    )
+    job_config.min_workers = job_config.min_workers or settings.RAY_CLUSTER_WORKER_MIN_REPLICAS
+    job_config.max_workers = job_config.max_workers or settings.RAY_CLUSTER_WORKER_MAX_REPLICAS
+    job_config.auto_scaling = job_config.auto_scaling or settings.RAY_CLUSTER_WORKER_AUTO_SCALING
 
     # cpu job settings
     node_selector_label = settings.RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL
@@ -260,9 +244,7 @@ def _create_cluster_data(job: Job, cluster_name: str):
 
 
 def _create_local_compute_resource(job: Job) -> ComputeResource:
-    compute_resource = ComputeResource.objects.filter(
-        host=settings.RAY_LOCAL_HOST
-    ).first()
+    compute_resource = ComputeResource.objects.filter(host=settings.RAY_LOCAL_HOST).first()
     if compute_resource is None:
         compute_resource = ComputeResource(
             host=settings.RAY_LOCAL_HOST,
@@ -301,9 +283,7 @@ def _create_k8s_cluster(
     raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
     response = raycluster_client.create(body=cluster_data, namespace=namespace)
     if response.metadata.name != cluster_name:
-        logger.warning(
-            "Something went wrong during cluster creation: %s", response.text
-        )
+        logger.warning("Something went wrong during cluster creation: %s", response.text)
         raise RuntimeError("Something went wrong during cluster creation")
 
     # wait for cluster to be up and running
@@ -312,9 +292,7 @@ def _create_k8s_cluster(
     if not cluster_is_ready:
         raise RuntimeError("Something went wrong during cluster creation: Timeout")
 
-    compute_resource = ComputeResource(
-        owner=user, title=cluster_name, host=host, gpu=job.gpu
-    )
+    compute_resource = ComputeResource(owner=user, title=cluster_name, host=host, gpu=job.gpu)
     compute_resource.save()
 
     return compute_resource
@@ -343,9 +321,7 @@ def create_compute_resource(  # pylint: disable=too-many-branches,too-many-local
     if settings.RAY_CLUSTER_MODE_LOCAL:
         return _create_local_compute_resource(job)
 
-    return _create_k8s_cluster(
-        job, cluster_name=cluster_name, cluster_data=cluster_data
-    )
+    return _create_k8s_cluster(job, cluster_name=cluster_name, cluster_data=cluster_data)
 
 
 def _wait_for_cluster_ready(cluster_name: str):
@@ -396,9 +372,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
     dyn_client = DynamicClient(k8s_client)
     raycluster_client = dyn_client.resources.get(api_version="v1", kind="RayCluster")
     try:
-        delete_response = raycluster_client.delete(
-            name=cluster_name, namespace=namespace
-        )
+        delete_response = raycluster_client.delete(name=cluster_name, namespace=namespace)
     except NotFoundError as resource_not_found:
         sanitized = repr(resource_not_found).replace("\n", "").replace("\r", "")
         logger.error(
@@ -447,9 +421,7 @@ def kill_ray_cluster(cluster_name: str) -> bool:
             cluster_name,
         )
     try:
-        corev1.delete_namespaced_secret(
-            name=f"{cluster_name}-worker", namespace=namespace
-        )
+        corev1.delete_namespaced_secret(name=f"{cluster_name}-worker", namespace=namespace)
         success = True
     except ApiException:
         logger.error(

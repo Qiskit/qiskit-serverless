@@ -16,9 +16,7 @@ from qiskit_serverless import (
     get,
 )
 
-resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../source_files"
-)
+resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
 
 class TestDecorators:
@@ -63,9 +61,7 @@ class TestDecorators:
 
         @distribute_qiskit_function(serverless_client)
         def function_with_distributed_tasks(circuits):
-            sample_task_references = [
-                distributed_sample([circuit]) for circuit in circuits
-            ]
+            sample_task_references = [distributed_sample([circuit]) for circuit in circuits]
             results = get(sample_task_references)
             return {"results": results}
 
@@ -97,9 +93,7 @@ class TestDecorators:
                 create_hello_world_circuit as create_circuit,
             )
 
-            quasi_dists = (
-                Sampler().run([create_circuit()]).result()[0].data.meas.get_counts()
-            )
+            quasi_dists = Sampler().run([create_circuit()]).result()[0].data.meas.get_counts()
             return {"quasi_dists": quasi_dists}
 
         job = my_function_with_modules()

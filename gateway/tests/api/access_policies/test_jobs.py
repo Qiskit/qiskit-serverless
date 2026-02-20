@@ -45,9 +45,7 @@ class TestJobAccessPolicies(TestCase):
         admin_user.groups.add(admin_group)
         provider.admin_groups.add(admin_group)
 
-        provider_program = Program.objects.create(
-            title="Program", author=self.job_author, provider=provider
-        )
+        provider_program = Program.objects.create(title="Program", author=self.job_author, provider=provider)
         provider_job = Job.objects.create(
             program=provider_program,
             author=self.job_author,
@@ -61,18 +59,14 @@ class TestJobAccessPolicies(TestCase):
         self.assertTrue(JobAccessPolicies.can_read_result(self.job_author, self.job))
         self.assertTrue(JobAccessPolicies.can_save_result(self.job_author, self.job))
 
-        self.assertTrue(
-            JobAccessPolicies.can_update_sub_status(self.job_author, self.job)
-        )
+        self.assertTrue(JobAccessPolicies.can_update_sub_status(self.job_author, self.job))
 
     def test_non_author_cannot_access_results_and_update_sub_status(self):
         """Test that can_read_result, can_save_result and can_update_sub_status returns False for non author."""
         self.assertFalse(JobAccessPolicies.can_read_result(self.other_user, self.job))
         self.assertFalse(JobAccessPolicies.can_save_result(self.other_user, self.job))
 
-        self.assertFalse(
-            JobAccessPolicies.can_update_sub_status(self.other_user, self.job)
-        )
+        self.assertFalse(JobAccessPolicies.can_update_sub_status(self.other_user, self.job))
 
     def test_author_can_read_user_logs(self):
         """Test that can_read_result, can_save_result and can_update_sub_status returns True for job author."""
@@ -80,9 +74,7 @@ class TestJobAccessPolicies(TestCase):
 
     def test_non_author_cannot_read_user_logs(self):
         """Test that can_read_result, can_save_result and can_update_sub_status returns False for non author."""
-        self.assertFalse(
-            JobAccessPolicies.can_read_user_logs(self.other_user, self.job)
-        )
+        self.assertFalse(JobAccessPolicies.can_read_user_logs(self.other_user, self.job))
 
     def test_provider_admin_cannot_read_user_logs(self):
         """Test that can_access returns True for provider admin on provider job."""
@@ -93,9 +85,7 @@ class TestJobAccessPolicies(TestCase):
         admin_user.groups.add(admin_group)
         provider.admin_groups.add(admin_group)
 
-        provider_program = Program.objects.create(
-            title="Program", author=self.job_author, provider=provider
-        )
+        provider_program = Program.objects.create(title="Program", author=self.job_author, provider=provider)
         provider_job = Job.objects.create(
             program=provider_program,
             author=self.job_author,
@@ -106,15 +96,11 @@ class TestJobAccessPolicies(TestCase):
 
     def test_author_cannot_read_provider_logs(self):
         """Test that can_read_result, can_save_result and can_update_sub_status returns True for job author."""
-        self.assertFalse(
-            JobAccessPolicies.can_read_provider_logs(self.job_author, self.job)
-        )
+        self.assertFalse(JobAccessPolicies.can_read_provider_logs(self.job_author, self.job))
 
     def test_non_author_cannot_read_provider_logs(self):
         """Test that can_read_result, can_save_result and can_update_sub_status returns False for non author."""
-        self.assertFalse(
-            JobAccessPolicies.can_read_provider_logs(self.other_user, self.job)
-        )
+        self.assertFalse(JobAccessPolicies.can_read_provider_logs(self.other_user, self.job))
 
     def test_provider_admin_can_read_provider_logs(self):
         """Test that can_access returns True for provider admin on provider job."""
@@ -125,15 +111,11 @@ class TestJobAccessPolicies(TestCase):
         admin_user.groups.add(admin_group)
         provider.admin_groups.add(admin_group)
 
-        provider_program = Program.objects.create(
-            title="Program", author=self.job_author, provider=provider
-        )
+        provider_program = Program.objects.create(title="Program", author=self.job_author, provider=provider)
         provider_job = Job.objects.create(
             program=provider_program,
             author=self.job_author,
             status=Job.QUEUED,
         )
 
-        self.assertTrue(
-            JobAccessPolicies.can_read_provider_logs(admin_user, provider_job)
-        )
+        self.assertTrue(JobAccessPolicies.can_read_provider_logs(admin_user, provider_job))

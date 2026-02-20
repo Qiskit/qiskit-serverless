@@ -38,9 +38,7 @@ resource = Resource(attributes={SERVICE_NAME: "QiskitServerless-Gateway"})
 provider = TracerProvider(resource=resource)
 otel_exporter = BatchSpanProcessor(
     OTLPSpanExporter(
-        endpoint=os.environ.get(
-            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
-        ),
+        endpoint=os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"),
         insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
     )
 )
@@ -148,23 +146,17 @@ class ProgramViewSet(viewsets.GenericViewSet):
         title = serializer.validated_data.get("title")
         request_provider = serializer.validated_data.get("provider", None)
         author = request.user
-        provider_name, title = serializer.get_provider_name_and_title(
-            request_provider, title
-        )
+        provider_name, title = serializer.get_provider_name_and_title(request_provider, title)
 
         if provider_name:
-            user_has_access = serializer.check_provider_access(
-                provider_name=provider_name, author=author
-            )
+            user_has_access = serializer.check_provider_access(provider_name=provider_name, author=author)
             if not user_has_access:
                 # For security we just return a 404 not a 401
                 return Response(
                     {"message": f"Provider [{provider_name}] was not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            program = serializer.retrieve_provider_function(
-                title=title, provider_name=provider_name
-            )
+            program = serializer.retrieve_provider_function(title=title, provider_name=provider_name)
         else:
             program = serializer.retrieve_private_function(title=title, author=author)
 
@@ -213,11 +205,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
             )
 
         if function.disabled:
-            error_message = (
-                function.disabled_message
-                if function.disabled_message
-                else Program.DEFAULT_DISABLED_MESSAGE
-            )
+            error_message = function.disabled_message if function.disabled_message else Program.DEFAULT_DISABLED_MESSAGE
             return Response(
                 {"message": error_message},
                 status=status.HTTP_423_LOCKED,
@@ -233,9 +221,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     "JobConfigSerializer validation failed:\n %s",
                     serializer.errors,
                 )
-                return Response(
-                    job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response(job_config_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             jobconfig = job_config_serializer.save()
             logger.info("JobConfig [%s] created.", jobconfig.id)
 
@@ -278,9 +264,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
         provider_name = sanitize_name(request.query_params.get("provider", None))
 
         serializer = self.get_serializer_upload_program(data=self.request.data)
-        provider_name, function_title = serializer.get_provider_name_and_title(
-            provider_name, function_title
-        )
+        provider_name, function_title = serializer.get_provider_name_and_title(provider_name, function_title)
 
         if provider_name:
             function = self.function_repository.get_provider_function_by_permission(
@@ -300,9 +284,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
         else:
-            function = self.function_repository.get_user_function(
-                author=author, title=function_title
-            )
+            function = self.function_repository.get_user_function(author=author, title=function_title)
             if function is None:
                 return Response(
                     {
@@ -319,9 +301,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
     # This end-point is deprecated and we need to confirm if we can remove it
     @_trace
     @action(methods=["GET"], detail=True)
-    def get_jobs(
-        self, request, pk=None
-    ):  # pylint: disable=invalid-name,unused-argument
+    def get_jobs(self, request, pk=None):  # pylint: disable=invalid-name,unused-argument
         """Returns jobs of the program."""
         program = Program.objects.filter(id=pk).first()
         if not program:

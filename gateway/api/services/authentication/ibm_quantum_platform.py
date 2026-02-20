@@ -19,9 +19,7 @@ from api.services.authentication.authentication_base import AuthenticationBase
 logger = logging.getLogger("gateway.services.authentication.ibm_quantum_platform")
 
 
-class IBMQuantumPlatform(
-    AuthenticationBase
-):  # pylint: disable=too-many-instance-attributes
+class IBMQuantumPlatform(AuthenticationBase):  # pylint: disable=too-many-instance-attributes
     """
     This class will manage the different access to the different
     end-points that we will make use of them in this service.
@@ -58,38 +56,23 @@ class IBMQuantumPlatform(
 
         self.iam_id = decoded.get("iam_id")
         if self.iam_id is None:
-            logger.warning(
-                "IBM Quantum Platform didn't return the IAM ID for the user."
-            )
+            logger.warning("IBM Quantum Platform didn't return the IAM ID for the user.")
             raise exceptions.AuthenticationFailed(
-                (
-                    "There was a problem in the authentication process with IBM Quantum Platform, "
-                    "please try later."
-                )
+                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
             )
 
         account_data = decoded.get("account")
         if account_data is None:
-            logger.warning(
-                "IBM Quantum Platform didn't return the Account data for the user."
-            )
+            logger.warning("IBM Quantum Platform didn't return the Account data for the user.")
             raise exceptions.AuthenticationFailed(
-                (
-                    "There was a problem in the authentication process with IBM Quantum Platform, "
-                    "please try later."
-                )
+                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
             )
 
         self.account_id = account_data.get("bss")
         if self.account_id is None:
-            logger.warning(
-                "IBM Quantum Platform didn't return the Account ID for the user."
-            )
+            logger.warning("IBM Quantum Platform didn't return the Account ID for the user.")
             raise exceptions.AuthenticationFailed(
-                (
-                    "There was a problem in the authentication process with IBM Quantum Platform, "
-                    "please try later."
-                )
+                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
             )
 
         logger.debug(
@@ -112,14 +95,9 @@ class IBMQuantumPlatform(
         resource_plan_id = self._request_or_cache_resource_plan_id()
 
         if resource_plan_id is None:
-            logger.warning(
-                "IBM Quantum Platform didn't return the Resource plan ID for the resource."
-            )
+            logger.warning("IBM Quantum Platform didn't return the Resource plan ID for the resource.")
             raise exceptions.AuthenticationFailed(
-                (
-                    "There was a problem in the authentication process with IBM Quantum Platform, "
-                    "please try later."
-                )
+                "There was a problem in the authentication process with IBM Quantum Platform, please try later."
             )
 
         if resource_plan_id not in settings.RESOURCE_PLANS_ID_ALLOWED:
@@ -145,10 +123,7 @@ class IBMQuantumPlatform(
 
         group_ids = self._request_or_cache_group_ids()
 
-        return [
-            AuthenticationGroup(group_name=group_id, account=self.account_id)
-            for group_id in group_ids
-        ]
+        return [AuthenticationGroup(group_name=group_id, account=self.account_id) for group_id in group_ids]
 
     def _request_or_cache_jwt_data(self) -> Any:
         cache_key = f"auth:jwt:{self.api_key_hash}"
@@ -162,9 +137,7 @@ class IBMQuantumPlatform(
             cache.set(cache_key, decoded, timeout=self.cache_ttl)
         except Exception as ex:  # pylint: disable=broad-exception-caught
             logger.warning("IBM Quantum Platform authentication error: %s.", str(ex))
-            raise exceptions.AuthenticationFailed(
-                "You couldn't be authenticated, please review your API Key."
-            )
+            raise exceptions.AuthenticationFailed("You couldn't be authenticated, please review your API Key.")
         return decoded
 
     def _request_or_cache_resource_plan_id(self) -> Any:
@@ -177,9 +150,7 @@ class IBMQuantumPlatform(
         try:
             resource_controller = ResourceControllerV2(self.authenticator)
             resource_controller.set_service_url(self.resource_controller_url)
-            instance = resource_controller.get_resource_instance(
-                id=self.crn
-            ).get_result()
+            instance = resource_controller.get_resource_instance(id=self.crn).get_result()
         except ApiException as api_exception:
             logger.warning(
                 "IBM Quantum Platform verification error: %s.",
@@ -204,22 +175,16 @@ class IBMQuantumPlatform(
         try:
             access_groups_service = IamAccessGroupsV2(authenticator=self.authenticator)
             access_groups_service.set_service_url(self.iam_url)
-            access_groups_response = access_groups_service.list_access_groups(
-                account_id=self.account_id
-            ).get_result()
+            access_groups_response = access_groups_service.list_access_groups(account_id=self.account_id).get_result()
         except ApiException as api_exception:
-            logger.warning(
-                "IBM Quantum Platform authentication error: %s.", api_exception.message
-            )
+            logger.warning("IBM Quantum Platform authentication error: %s.", api_exception.message)
             return []
 
         access_groups = access_groups_response.get("groups", [])
         # Remove Public Access from the available groups
         # This group is always available in an account and can be problematic to manage
         access_groups_filtered = [
-            access_group
-            for access_group in access_groups
-            if access_group["name"] != "Public Access"
+            access_group for access_group in access_groups if access_group["name"] != "Public Access"
         ]
         group_ids = [access_group["id"] for access_group in access_groups_filtered]
 

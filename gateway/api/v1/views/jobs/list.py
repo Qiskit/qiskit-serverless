@@ -207,6 +207,4 @@ def get_jobs(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     jobs, total = JobsListUseCase().execute(user=user, filters=filters)
-    return Response(
-        serialize_output(jobs, total, request, filters.limit, filters.offset)
-    )
+    return Response(serialize_output(jobs, total, request, filters.limit, filters.offset))

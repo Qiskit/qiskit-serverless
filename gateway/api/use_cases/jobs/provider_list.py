@@ -44,9 +44,7 @@ class JobsProviderListUseCase:
             )
 
             if not function:
-                raise NotFoundError(
-                    f"Qiskit Function {filters.provider}/{filters.function} doesn't exist."
-                )
+                raise NotFoundError(f"Qiskit Function {filters.provider}/{filters.function} doesn't exist.")
 
         queryset, total = self.jobs_repository.get_user_jobs(user=None, filters=filters)
         return list(queryset), total

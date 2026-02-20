@@ -32,8 +32,7 @@ def _create_ray_cluster_compute_resource(job: Job, span) -> ComputeResource | No
         # if something went wrong
         #   try to kill resource if it was allocated
         logger.warning(
-            "Compute resource [%s] was not created properly.\n"
-            "Setting job [%s] status to [FAILED].",
+            "Compute resource [%s] was not created properly.\nSetting job [%s] status to [FAILED].",
             cluster_name,
             job,
         )
@@ -58,11 +57,7 @@ def configure_job_to_use_gpu(job: Job):
     """
 
     gpujobs = create_gpujob_allowlist()
-    if (
-        job.program
-        and job.program.provider
-        and job.program.provider.name in gpujobs["gpu-functions"].keys()
-    ):
+    if job.program and job.program.provider and job.program.provider.name in gpujobs["gpu-functions"].keys():
         logger.debug("Job [%s] will be run on GPU nodes", job.id)
         job.gpu = True
 
@@ -129,9 +124,7 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
     # maybe refactor this using big SQL query :thinking:
 
     running_jobs_per_user = (
-        Job.objects.filter(status__in=Job.RUNNING_STATUSES)
-        .values("author")
-        .annotate(running_jobs_count=Count("id"))
+        Job.objects.filter(status__in=Job.RUNNING_STATUSES).values("author").annotate(running_jobs_count=Count("id"))
     )
 
     users_at_max_capacity = [
@@ -184,8 +177,7 @@ def handle_job_status_not_available(job: Job, job_status):
 
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
-            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
-            + "so cluster [%s] will not be removed",
+            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, so cluster [%s] will not be removed",
             job.compute_resource.title,
         )
     else:
@@ -201,8 +193,7 @@ def fail_job_insufficient_resources(job: Job):
     """Fail job if insufficient resources are available."""
     if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
         logger.debug(
-            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, "
-            + "so cluster [%s] will not be removed",
+            "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, so cluster [%s] will not be removed",
             job.compute_resource.title,
         )
     else:

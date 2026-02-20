@@ -36,11 +36,7 @@ def filter_logs_with_non_public_tags(text: str) -> str:
             return line[10:]
         return line
 
-    lines = [
-        remove_prefix_tag(line)
-        for line in text.splitlines()
-        if not public_pattern.match(line)
-    ]
+    lines = [remove_prefix_tag(line) for line in text.splitlines() if not public_pattern.match(line)]
     return "\n".join(lines) + "\n" if lines else ""
 
 

@@ -56,18 +56,14 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
 
     def _parse_dependency(self, dep: Any):
         if not isinstance(dep, dict) and not isinstance(dep, str):
-            raise ValidationError(
-                "'dependencies' should be an array with strings or dict."
-            )
+            raise ValidationError("'dependencies' should be an array with strings or dict.")
 
         if isinstance(dep, str):
             dep_string = dep
         else:
             dep_name = list(dep.keys())
             if len(dep_name) > 1 or len(dep_name) == 0:
-                raise ValidationError(
-                    "'dependencies' should be an array with dict containing one dependency only."
-                )
+                raise ValidationError("'dependencies' should be an array with dict containing one dependency only.")
             dep_name = str(dep_name[0])
             dep_version = str(list(dep.values())[0])
 
@@ -84,12 +80,8 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         req_specifier_list = list(requirement.specifier)
         req_specifier_first = next(iter(req_specifier_list), None)
 
-        if len(req_specifier_list) > 1 or (
-            req_specifier_first and req_specifier_first.operator != "=="
-        ):
-            raise ValidationError(
-                "'dependencies' needs one fixed version using the '==' operator."
-            )
+        if len(req_specifier_list) > 1 or (req_specifier_first and req_specifier_first.operator != "=="):
+            raise ValidationError("'dependencies' needs one fixed version using the '==' operator.")
 
         return requirement
 
@@ -103,9 +95,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         try:
             required_deps = [self._parse_dependency(dep) for dep in deps]
         except InvalidRequirement as invalid_requirement:
-            raise ValidationError(
-                "Error while parsing dependencies."
-            ) from invalid_requirement
+            raise ValidationError("Error while parsing dependencies.") from invalid_requirement
 
         try:
             check_whitelisted(required_deps)
@@ -117,9 +107,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         entrypoint = attrs.get("entrypoint", None)
         image = attrs.get("image", None)
         if entrypoint is None and image is None:
-            raise ValidationError(
-                "At least one of attributes (entrypoint, image) is required."
-            )
+            raise ValidationError("At least one of attributes (entrypoint, image) is required.")
         try:
             # validate dependencies
             deps = json.loads(attrs.get("dependencies", "[]"))
@@ -138,26 +126,18 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
 
         title_split = title.split("/")
         if len(title_split) > 2:
-            raise ValidationError(
-                "Qiskit Function title is malformed. It can only contain one slash."
-            )
+            raise ValidationError("Qiskit Function title is malformed. It can only contain one slash.")
 
         if image is not None:
             if provider is None and len(title_split) != 2:
-                raise ValidationError(
-                    "Custom images are only available if you are a provider."
-                )
+                raise ValidationError("Custom images are only available if you are a provider.")
             if not provider:
                 provider = title_split[0]
             provider_instance = Provider.objects.filter(name=provider).first()
             if provider_instance is None:
                 raise ValidationError(f"{provider} is not valid provider.")
-            if provider_instance.registry and not image.startswith(
-                provider_instance.registry
-            ):
-                raise ValidationError(
-                    f"Custom images must be in {provider_instance.registry}."
-                )
+            if provider_instance.registry and not image.startswith(provider_instance.registry):
+                raise ValidationError(f"Custom images must be in {provider_instance.registry}.")
 
         return super().validate(attrs)
 

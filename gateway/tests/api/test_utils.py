@@ -61,9 +61,7 @@ class TestUtils(APITestCase):
     def test_ibm_cloud_local_env_var_build(self):
         """This test is to test the env_vars for an IBM Cloud authentication process."""
 
-        with self.settings(
-            SETTINGS_AUTH_MECHANISM="custom_token", RAY_CLUSTER_MODE_LOCAL=True
-        ):
+        with self.settings(SETTINGS_AUTH_MECHANISM="custom_token", RAY_CLUSTER_MODE_LOCAL=True):
             channel = Channel.IBM_QUANTUM_PLATFORM
             token = "an_awesome_api_key"
             job = MagicMock()
@@ -102,9 +100,7 @@ class TestUtils(APITestCase):
     def test_local_env_var_build(self):
         """This test is to test the env_vars for a local authentication process."""
 
-        with self.settings(
-            SETTINGS_AUTH_MECHANISM="mock_token", RAY_CLUSTER_MODE_LOCAL=True
-        ):
+        with self.settings(SETTINGS_AUTH_MECHANISM="mock_token", RAY_CLUSTER_MODE_LOCAL=True):
             channel = Channel.LOCAL
             token = "mock_token"
             job = MagicMock()
@@ -197,13 +193,9 @@ class TestUtils(APITestCase):
             encrypted_env_vars = encrypt_env_vars(env_vars_with_qiskit_runtime)
             self.assertFalse(encrypted_env_vars["QISKIT_IBM_TOKEN"] == "42")
             self.assertFalse(encrypted_env_vars["ENV_JOB_GATEWAY_TOKEN"] == "42")
-            self.assertEqual(
-                env_vars_with_qiskit_runtime, decrypt_env_vars(encrypted_env_vars)
-            )
+            self.assertEqual(env_vars_with_qiskit_runtime, decrypt_env_vars(encrypted_env_vars))
 
     def test_remove_duplicates_from_list(self):
         list_with_duplicates = ["value_two", "value_one", "value_two"]
         test_list = ["value_two", "value_one"]
-        self.assertListEqual(
-            test_list, remove_duplicates_from_list(list_with_duplicates)
-        )
+        self.assertListEqual(test_list, remove_duplicates_from_list(list_with_duplicates))

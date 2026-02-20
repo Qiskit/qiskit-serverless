@@ -43,9 +43,7 @@ class GetJobLogsUseCase:
             raise NotFoundError(f"Job [{job_id}] not found")
 
         if not JobAccessPolicies.can_read_user_logs(user, job):
-            raise ForbiddenError(
-                f"You don't have access to read user logs of the job [{job_id}]"
-            )
+            raise ForbiddenError(f"You don't have access to read user logs of the job [{job_id}]")
 
         # Logs stored in COS. They are already filtered
         logs_storage = LogsStorage(job)

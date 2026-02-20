@@ -50,15 +50,13 @@ class SetJobSubStatusUseCase:
 
         if job.status != Job.RUNNING:
             warning_msg = (
-                "'sub_status' cannot change because the job"
-                " [%s] current status is not Running",
+                "'sub_status' cannot change because the job" " [%s] current status is not Running",
                 job.id,
             )
 
             logger.warning(warning_msg)
             raise ForbiddenError(
-                "Cannot update 'sub_status' when is not"
-                f" in RUNNING status. (Currently {job.status})"
+                "Cannot update 'sub_status' when is not" f" in RUNNING status. (Currently {job.status})"
             )
 
         def set_sub_status():

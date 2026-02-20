@@ -57,9 +57,7 @@ class PathBuilder:
         return sanitize_file_path(path)
 
     @staticmethod
-    def __get_provider_sub_path(
-        function_title: str, provider_name: str, extra_sub_path: Optional[str]
-    ) -> str:
+    def __get_provider_sub_path(function_title: str, provider_name: str, extra_sub_path: Optional[str]) -> str:
         """
         This method returns the provider sub-path where the user
         or the function will store files

@@ -6,9 +6,7 @@ import time
 
 from qiskit_serverless import QiskitFunction, ServerlessClient, Job
 
-resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../source_files"
-)
+resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
 
 def wait_for_logs(job: Job, contain: str):
@@ -22,9 +20,7 @@ def wait_for_logs(job: Job, contain: str):
             break
 
         if time.perf_counter() > deadline:
-            raise TimeoutError(
-                f"TIMEOUT waiting for '{contain}' in logs. Current logs:\n{logs}"
-            )
+            raise TimeoutError(f"TIMEOUT waiting for '{contain}' in logs. Current logs:\n{logs}")
 
         time.sleep(1)
 
@@ -32,9 +28,7 @@ def wait_for_logs(job: Job, contain: str):
 def runtime_env_vars(backend1: str, backend2: str):
     """Build runtime environment variables for function execution."""
     return {
-        "QISKIT_IBM_CHANNEL": os.environ.get(
-            "QISKIT_IBM_CHANNEL", "ibm_quantum_platform"
-        ),
+        "QISKIT_IBM_CHANNEL": os.environ.get("QISKIT_IBM_CHANNEL", "ibm_quantum_platform"),
         "QISKIT_IBM_TOKEN": os.environ["QISKIT_IBM_TOKEN"],
         "QISKIT_IBM_INSTANCE": os.environ["QISKIT_IBM_INSTANCE"],
         "QISKIT_IBM_URL": os.environ["QISKIT_IBM_URL"],
@@ -113,10 +107,7 @@ class TestRuntimeIntegration:
         # Validate the response
         assert isinstance(stop_response, str)
         assert "QiskitRuntimeService not found" in stop_response
-        assert (
-            "Job has been stopped" in stop_response
-            or "Job already in terminal state" in stop_response
-        )
+        assert "Job has been stopped" in stop_response or "Job already in terminal state" in stop_response
         if "Job has been stopped" in stop_response:
             assert job.status() == "CANCELED"
         else:
@@ -149,10 +140,7 @@ class TestRuntimeIntegration:
 
         # Validate the response
         assert isinstance(stop_response, str)
-        assert (
-            "Job has been stopped" in stop_response
-            or "Job already in terminal state" in stop_response
-        )
+        assert "Job has been stopped" in stop_response or "Job already in terminal state" in stop_response
         assert "Canceled runtime session" in stop_response
         if "Job has been stopped" in stop_response:
             assert job.status() == "CANCELED"

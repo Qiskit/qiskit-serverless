@@ -61,9 +61,7 @@ class ProgramAdmin(admin.ModelAdmin):
         """View to display the program history."""
         program = get_object_or_404(Program, pk=object_id)
 
-        history_entries_list = ProgramHistory.objects.filter(program=program).order_by(
-            "-changed"
-        )
+        history_entries_list = ProgramHistory.objects.filter(program=program).order_by("-changed")
 
         paginator = self.get_paginator(request, history_entries_list, 100)
         page_number = request.GET.get(PAGE_VAR, 1)

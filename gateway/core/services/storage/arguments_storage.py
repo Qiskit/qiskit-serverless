@@ -19,9 +19,7 @@ class ArgumentsStorage:
     PATH = "arguments"
     ENCODING = "utf-8"
 
-    def __init__(
-        self, username: str, function_title: str, provider_name: Optional[str] = None
-    ):
+    def __init__(self, username: str, function_title: str, provider_name: Optional[str] = None):
         ### In this case arguments are always stored in user folder
         self.sub_path = PathBuilder.sub_path(
             working_dir=WorkingDir.USER_STORAGE,
@@ -40,9 +38,7 @@ class ArgumentsStorage:
 
     def _get_arguments_path(self, job_id: str) -> str:
         """Construct the full path for a arguments file."""
-        return os.path.join(
-            self.absolute_path, f"{job_id}{self.ARGUMENTS_FILE_EXTENSION}"
-        )
+        return os.path.join(self.absolute_path, f"{job_id}{self.ARGUMENTS_FILE_EXTENSION}")
 
     def get(self, job_id: str) -> Optional[str]:
         """

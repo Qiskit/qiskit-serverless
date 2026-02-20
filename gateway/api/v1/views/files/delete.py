@@ -112,6 +112,4 @@ def files_delete(request: Request) -> Response:
 
     FilesDeleteUseCase().execute(user, provider, function, file)
 
-    return Response(
-        {"message": "Requested file was deleted."}, status=status.HTTP_200_OK
-    )
+    return Response({"message": "Requested file was deleted."}, status=status.HTTP_200_OK)

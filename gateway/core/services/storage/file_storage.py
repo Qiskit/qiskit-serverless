@@ -66,11 +66,7 @@ class FileStorage:
             list[str]: list of file names
         """
 
-        return [
-            os.path.basename(path)
-            for path in glob.glob(f"{self.absolute_path}/*")
-            if os.path.isfile(path)
-        ]
+        return [os.path.basename(path) for path in glob.glob(f"{self.absolute_path}/*") if os.path.isfile(path)]
 
     def get_file(self, file_name: str) -> Optional[Tuple[FileWrapper, str, int]]:
         """
@@ -88,9 +84,7 @@ class FileStorage:
         """
 
         file_name_path = os.path.basename(file_name)
-        path_to_file = sanitize_file_path(
-            os.path.join(self.absolute_path, file_name_path)
-        )
+        path_to_file = sanitize_file_path(os.path.join(self.absolute_path, file_name_path))
 
         if not os.path.exists(path_to_file):
             logger.warning(
@@ -102,9 +96,7 @@ class FileStorage:
 
         # We can not use context manager here. Django close the file automatically:
         # https://docs.djangoproject.com/en/5.1/ref/request-response/#fileresponse-objects
-        file_wrapper = FileWrapper(
-            open(path_to_file, "rb")  # pylint: disable=consider-using-with
-        )
+        file_wrapper = FileWrapper(open(path_to_file, "rb"))  # pylint: disable=consider-using-with
 
         file_type = mimetypes.guess_type(path_to_file)[0]
         file_size = os.path.getsize(path_to_file)
@@ -147,9 +139,7 @@ class FileStorage:
         """
 
         file_name_path = os.path.basename(file_name)
-        path_to_file = sanitize_file_path(
-            os.path.join(self.absolute_path, file_name_path)
-        )
+        path_to_file = sanitize_file_path(os.path.join(self.absolute_path, file_name_path))
 
         try:
             os.remove(path_to_file)
