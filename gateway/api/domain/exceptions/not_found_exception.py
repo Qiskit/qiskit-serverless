@@ -15,7 +15,7 @@ class NotFoundError(Exception, ABC):
     """
 
     def __init__(self, message: str):
-        if type(self) is NotFoundError:
+        if isinstance(self, NotFoundError):
             raise TypeError("Cannot instantiate abstract class NotFoundError directly")
         self.message = message
         super().__init__(message)
