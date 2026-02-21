@@ -1,7 +1,7 @@
 """Base exception for business domain errors."""
 
 
-class ForbiddenError(Exception):
+class ForbiddenException(Exception):
     """Base exception for business domain errors."""
 
     def __init__(self, message: str):

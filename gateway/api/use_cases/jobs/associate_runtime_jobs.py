@@ -3,7 +3,7 @@
 import logging
 from uuid import UUID
 
-from api.domain.exceptions.not_found_error import NotFoundError
+from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.jobs import JobsRepository
 from api.repositories.runtime_job import RuntimeJobRepository
 
@@ -33,7 +33,7 @@ class AssociateRuntimeJobsUseCase:
         """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise JobNotFoundException(job_id)
 
         try:
             self.runtime_job_repository.create_runtime_job(job, runtime_job, runtime_session)

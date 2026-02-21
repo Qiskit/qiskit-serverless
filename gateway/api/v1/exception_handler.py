@@ -10,8 +10,8 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
-from api.domain.exceptions.not_found_error import NotFoundError
-from api.domain.exceptions.forbidden_error import ForbiddenError
+from api.domain.exceptions.not_found_exception import NotFoundError
+from api.domain.exceptions.forbidden_exception import ForbiddenException
 
 logger = logging.getLogger("gateway")
 
@@ -33,7 +33,14 @@ def _first_error_message(detail) -> str:
 
 def endpoint_handle_exceptions(view_func: Callable):
     """
-    endpoint decorator for handle views exceptions
+    Decorator to handle exceptions in API endpoints.
+
+    Catches domain exceptions and converts them to appropriate HTTP responses:
+    - NotFoundError and subclasses (JobNotFoundException, ProviderNotFoundException,
+      FunctionNotFoundException, FileNotFoundException) -> 404 NOT FOUND
+    - ForbiddenError -> 403 FORBIDDEN
+    - ValidationError -> 400 BAD REQUEST
+    - All other exceptions -> 500 INTERNAL SERVER ERROR
     """
 
     @wraps(view_func)
@@ -45,7 +52,7 @@ def endpoint_handle_exceptions(view_func: Callable):
                 {"message": error.message},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        except ForbiddenError as error:
+        except ForbiddenException as error:
             return Response(
                 {"message": error.message},
                 status=status.HTTP_403_FORBIDDEN,
