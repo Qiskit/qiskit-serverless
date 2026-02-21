@@ -8,17 +8,14 @@ from scheduler.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.free_resources import FreeResources
 from scheduler.schedule_queued_jobs import ScheduleQueuedJobs
 
-logger = logging.getLogger("commands")
+logger = logging.getLogger("main")
 
 
 class Main:
-    """Scheduler loop that runs all scheduler tasks."""
+    """Main scheduler loop that runs all scheduler tasks."""
 
     def __init__(self):
         self.running = True
-        self.update_jobs_statuses = UpdateJobsStatuses(self)
-        self.free_resources = FreeResources(self)
-        self.schedule_queued_jobs = ScheduleQueuedJobs(self)
 
     def run(self):
         """Run the scheduler loop."""
@@ -27,29 +24,26 @@ class Main:
 
         logger.info("Scheduler loop started.")
 
+        update_jobs_statuses = UpdateJobsStatuses(self)
+        free_resources = FreeResources(self)
+        schedule_queued_jobs = ScheduleQueuedJobs(self)
+
+        tasks = [
+            (update_jobs_statuses, "UpdateJobsStatuses"),
+            (free_resources, "FreeResources"),
+            (schedule_queued_jobs, "ScheduleQueuedJobs"),
+        ]
+
         while self.running:
             start_time = time.time()
 
-            try:
-                self.update_jobs_statuses.run()
-            except Exception as ex:
-                logger.exception("Error in UpdateJobsStatuses: %s", ex)
-
-            if not self.running:
-                break
-
-            try:
-                self.free_resources.run()
-            except Exception as ex:
-                logger.exception("Error in FreeResources: %s", ex)
-
-            if not self.running:
-                break
-
-            try:
-                self.schedule_queued_jobs.run()
-            except Exception as ex:
-                logger.exception("Error in ScheduleQueuedJobs: %s", ex)
+            for task, name in tasks:
+                try:
+                    task.run()
+                except Exception as ex:
+                    logger.exception("Error in %s: %s", name, ex)
+                if not self.running:
+                    break
 
             elapsed = time.time() - start_time
             if self.running and elapsed < 1:
