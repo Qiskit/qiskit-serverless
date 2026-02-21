@@ -24,6 +24,7 @@ from scheduler.schedule import (
 logger = logging.getLogger("commands")
 
 
+# pylint: disable=too-many-statements
 def update_job_status(job: Job):
     """Update status of one job."""
     if not job.compute_resource:
