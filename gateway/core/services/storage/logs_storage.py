@@ -68,13 +68,13 @@ class LogsStorage:
     def get_private_logs(self) -> Optional[str]:
         """Retrieve private logs for the job (provider jobs only)."""
         if self._private_path is None:
-            raise ForbiddenError("Private logs are only available for provider jobs")
+            raise RuntimeError("Private logs are only available for provider jobs")
         return self._read_logs(self._private_path)
 
     def save_private_logs(self, logs: str) -> None:
         """Save private logs for the job (provider jobs only)."""
         if self._private_path is None:
-            raise ForbiddenError("Private logs are only available for provider jobs")
+            raise RuntimeError("Private logs are only available for provider jobs")
         self._write_logs(self._private_path, logs)
 
     def _get_file_path(self, base_path: str) -> str:
