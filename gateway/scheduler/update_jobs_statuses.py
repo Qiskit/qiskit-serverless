@@ -10,6 +10,7 @@ from api.domain.function.filter_logs import (
     filter_logs_with_public_tags,
     remove_prefix_tags_in_logs,
 )
+from api.services.storage.logs_storage import LogsStorage
 from core.utils import check_logs, ray_job_status_to_model_job_status
 from core.models import Job, JobEvent
 from core.services.ray import get_job_handler
@@ -19,7 +20,6 @@ from scheduler.schedule import (
     handle_job_status_not_available,
     fail_job_insufficient_resources,
 )
-from api.services.storage.logs_storage import LogsStorage
 
 logger = logging.getLogger("commands")
 
@@ -157,6 +157,7 @@ class UpdateJobsStatuses:
         return self.scheduler is not None and not self.scheduler.running
 
     def run(self):
+        """Update statuses of all running jobs."""
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
         update_classical_jobs = max_ray_clusters_possible > 0

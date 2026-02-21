@@ -20,6 +20,7 @@ class FreeResources:
         return self.scheduler is not None and not self.scheduler.running
 
     def run(self):
+        """Free unused compute resources."""
         if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
             logger.debug(
                 "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, so compute resources will not be removed.",

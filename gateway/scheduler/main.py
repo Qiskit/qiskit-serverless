@@ -40,7 +40,7 @@ class Main:
             for task, name in tasks:
                 try:
                     task.run()
-                except Exception as ex:
+                except Exception as ex:  # pylint: disable=broad-exception-caught
                     logger.exception("Error in %s: %s", name, ex)
                 if not self.running:
                     break

@@ -31,6 +31,7 @@ class ScheduleQueuedJobs:
         return self.scheduler is not None and not self.scheduler.running
 
     def run(self):
+        """Schedule queued jobs to available cluster slots."""
         if settings.MAINTENANCE:
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
