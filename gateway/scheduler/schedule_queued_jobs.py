@@ -1,4 +1,4 @@
-"""Cleanup resources command."""
+"""Schedule queued jobs service."""
 
 import json
 import logging
@@ -6,9 +6,6 @@ import time
 
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
-from django.db.models import Model
 
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -21,31 +18,41 @@ from scheduler.schedule import (
     execute_job,
 )
 
-User: Model = get_user_model()
 logger = logging.getLogger("commands")
 
 
-class Command(BaseCommand):
-    """Schedule jobs command."""
+class ScheduleQueuedJobs:
+    """Schedule jobs service."""
 
-    help = "Schedule jobs that are in queued " "status based on availability of resources in the system."
+    def __init__(self, scheduler=None):
+        self.scheduler = scheduler
 
-    def handle(self, *args, **options):
-        max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
-        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-        maintenance = settings.MAINTENANCE
+    def _should_stop(self):
+        return self.scheduler is not None and not self.scheduler.running
 
-        if maintenance:
+    def run(self):
+        if settings.MAINTENANCE:
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
 
-        number_of_clusters_running = ComputeResource.objects.filter(active=True, gpu=False).count()
-        number_of_gpu_clusters_running = ComputeResource.objects.filter(active=True, gpu=True).count()
+        self._schedule_cpu_jobs()
+        if self._should_stop():
+            return
+        self._schedule_gpu_jobs()
 
-        self.schedule_jobs_if_slots_available(max_ray_clusters_possible, number_of_clusters_running, False)
-        self.schedule_jobs_if_slots_available(max_gpu_clusters_possible, number_of_gpu_clusters_running, True)
+    def _schedule_cpu_jobs(self):
+        """Schedule CPU jobs."""
+        max_clusters = settings.LIMITS_MAX_CLUSTERS
+        running_clusters = ComputeResource.objects.filter(active=True, gpu=False).count()
+        self._schedule_jobs_if_slots_available(max_clusters, running_clusters, gpu_job=False)
 
-    def schedule_jobs_if_slots_available(self, max_ray_clusters_possible, number_of_clusters_running, gpu_job):
+    def _schedule_gpu_jobs(self):
+        """Schedule GPU jobs."""
+        max_clusters = settings.LIMITS_GPU_CLUSTERS
+        running_clusters = ComputeResource.objects.filter(active=True, gpu=True).count()
+        self._schedule_jobs_if_slots_available(max_clusters, running_clusters, gpu_job=True)
+
+    def _schedule_jobs_if_slots_available(self, max_ray_clusters_possible, number_of_clusters_running, gpu_job):
         """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
         if gpu_job:
@@ -73,6 +80,8 @@ class Command(BaseCommand):
         jobs = [job for job in jobs if job.gpu is gpu_job]
 
         for job in jobs:
+            if self._should_stop():
+                return
 
             env = json.loads(job.env_vars)
             ctx = TraceContextTextMapPropagator().extract(carrier=env)

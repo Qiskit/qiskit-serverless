@@ -1,10 +1,9 @@
-"""Cleanup resources command."""
+"""Update jobs statuses service."""
 
 import logging
 
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
-from django.core.management.base import BaseCommand
 
 from api.domain.function.filter_logs import (
     filter_logs_with_non_public_tags,
@@ -12,11 +11,9 @@ from api.domain.function.filter_logs import (
     remove_prefix_tags_in_logs,
 )
 from core.utils import check_logs, ray_job_status_to_model_job_status
-from core.models import Job
 from core.models import Job, JobEvent
 from core.services.ray import get_job_handler
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
-from core.utils import check_logs, ray_job_status_to_model_job_status
 from scheduler.schedule import (
     check_job_timeout,
     handle_job_status_not_available,
@@ -150,14 +147,16 @@ def save_logs_to_storage(job: Job, logs: str):
     logger.info("Logs saved to storage for job [%s]", job.id)
 
 
-class Command(BaseCommand):
+class UpdateJobsStatuses:
     """Update status of jobs."""
 
-    help = "Update running job statuses and logs."
+    def __init__(self, scheduler=None):
+        self.scheduler = scheduler
 
-    def handle(self, *args, **options):
-        # update job statuses
-        # pylint: disable=too-many-branches
+    def _should_stop(self):
+        return self.scheduler is not None and not self.scheduler.running
+
+    def run(self):
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
         update_classical_jobs = max_ray_clusters_possible > 0
@@ -167,6 +166,8 @@ class Command(BaseCommand):
             updated_jobs_counter = 0
             jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=False)
             for job in jobs:
+                if self._should_stop():
+                    return
                 if update_job_status(job):
                     updated_jobs_counter += 1
 
@@ -176,6 +177,8 @@ class Command(BaseCommand):
             updated_jobs_counter = 0
             jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=True)
             for job in jobs:
+                if self._should_stop():
+                    return
                 if update_job_status(job):
                     updated_jobs_counter += 1
 

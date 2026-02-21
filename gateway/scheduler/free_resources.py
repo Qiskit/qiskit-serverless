@@ -1,9 +1,8 @@
-"""Cleanup resources command."""
+"""Free resources service."""
 
 import logging
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
 
 from core.models import ComputeResource, Job
 from core.services.ray import kill_ray_cluster
@@ -11,20 +10,27 @@ from core.services.ray import kill_ray_cluster
 logger = logging.getLogger("commands")
 
 
-class Command(BaseCommand):
+class FreeResources:
     """Cleanup resources."""
 
-    help = "Clean up resources."
+    def __init__(self, scheduler=None):
+        self.scheduler = scheduler
 
-    def handle(self, *args, **options):
+    def _should_stop(self):
+        return self.scheduler is not None and not self.scheduler.running
+
+    def run(self):
         if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
             logger.debug(
-                "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, " "so compute resources will not be removed.",
+                "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, so compute resources will not be removed.",
             )
             return
 
         compute_resources = ComputeResource.objects.filter(active=True)
         for compute_resource in compute_resources:
+            if self._should_stop():
+                return
+
             # I think this logic could be reviewed because now each job
             # would have its own compute resource but let's do that
             # in an additional iteration
@@ -34,9 +40,9 @@ class Command(BaseCommand):
 
             # only kill cluster if not in local mode and no jobs are running there
             if not there_are_alive_jobs:
-                self.remove_compute_resource(compute_resource)
+                self._remove_compute_resource(compute_resource)
 
-    def remove_compute_resource(self, compute_resource: ComputeResource):
+    def _remove_compute_resource(self, compute_resource: ComputeResource):
         """
         This method removes a Compute Resource if it's
         available in the cluster.
