@@ -9,7 +9,7 @@ from django.contrib.auth.models import AbstractUser
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.not_found_error import NotFoundError
 from api.domain.exceptions.forbidden_error import ForbiddenError
-from api.domain.function.filter_logs import (
+from core.filter_logs import (
     filter_logs_with_public_tags,
     remove_prefix_tags_in_logs,
 )

@@ -5,7 +5,7 @@ import logging
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
 
-from api.domain.function.filter_logs import (
+from core.filter_logs import (
     filter_logs_with_non_public_tags,
     filter_logs_with_public_tags,
     remove_prefix_tags_in_logs,
