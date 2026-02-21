@@ -2,7 +2,6 @@
 Use case: retrieve job logs.
 """
 
-from typing import Final
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
@@ -17,7 +16,7 @@ from api.domain.function.filter_logs import (
 from core.services.ray import get_job_handler
 from core.utils import check_logs
 from api.repositories.jobs import JobsRepository
-from api.services.storage.logs_storage import LogsStorage
+from core.services.storage.logs_storage import LogsStorage
 
 
 class GetJobLogsUseCase:

@@ -10,7 +10,7 @@ from api.domain.function.filter_logs import (
     filter_logs_with_public_tags,
     remove_prefix_tags_in_logs,
 )
-from api.services.storage.logs_storage import LogsStorage
+from core.services.storage.logs_storage import LogsStorage
 from core.utils import check_logs, ray_job_status_to_model_job_status
 from core.models import Job, JobEvent
 from core.services.ray import get_job_handler
