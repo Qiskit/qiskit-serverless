@@ -6,7 +6,7 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
-from api.domain.exceptions.forbidden_exception import ForbiddenException
+from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.models import Job, JobEvent
 from api.repositories.jobs import JobsRepository
@@ -55,7 +55,7 @@ class SetJobSubStatusUseCase:
             )
 
             logger.warning(warning_msg)
-            raise ForbiddenException(
+            raise InvalidAccessException(
                 "Cannot update 'sub_status' when is not" f" in RUNNING status. (Currently {job.status})"
             )
 

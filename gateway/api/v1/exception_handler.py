@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status
 
 from api.domain.exceptions.not_found_exception import NotFoundError
-from api.domain.exceptions.forbidden_exception import ForbiddenException
+from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 
 logger = logging.getLogger("gateway")
 
@@ -52,7 +52,7 @@ def endpoint_handle_exceptions(view_func: Callable):
                 {"message": error.message},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        except ForbiddenException as error:
+        except InvalidAccessException as error:
             return Response(
                 {"message": error.message},
                 status=status.HTTP_403_FORBIDDEN,

@@ -9,7 +9,7 @@ from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
-from api.domain.exceptions.forbidden_exception import ForbiddenException
+from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.function.filter_logs import filter_logs_with_non_public_tags
 from core.utils import check_logs
 from core.services.ray import get_job_handler
@@ -40,7 +40,7 @@ class GetProviderJobLogsUseCase:
             raise JobNotFoundException(job_id)
 
         if not JobAccessPolicies.can_read_provider_logs(user, job):
-            raise ForbiddenException(f"You don't have access to job [{job_id}]")
+            raise InvalidAccessException(f"You don't have access to job [{job_id}]")
 
         # Logs stored in COS. They are already filtered
         logs_storage = LogsStorage(job)
