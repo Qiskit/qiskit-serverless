@@ -7,6 +7,7 @@ from django.contrib.admin.views.main import PAGE_VAR
 from core.models import (
     GroupMetadata,
     JobConfig,
+    JobEvent,
     Provider,
     Program,
     ProgramHistory,
@@ -14,6 +15,7 @@ from core.models import (
     Job,
     RuntimeJob,
 )
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
 
 @admin.register(JobConfig)
@@ -99,6 +101,26 @@ class JobAdmin(admin.ModelAdmin):
     exclude = ["arguments", "env_vars", "logs", "result"]
     ordering = ["-created"]
 
+    def save_model(self, request, obj, form, change):
+        if change:
+            if "status" in form.changed_data:
+                JobEvent.objects.add_status_event(
+                    job_id=obj.id,
+                    origin=JobEventOrigin.BACKOFFICE,
+                    context=JobEventContext.SAVE_MODEL,
+                    status=obj.status,
+                )
+
+            if "sub_status" in form.changed_data:
+                JobEvent.objects.add_sub_status_event(
+                    job_id=obj.id,
+                    origin=JobEventOrigin.BACKOFFICE,
+                    context=JobEventContext.SAVE_MODEL,
+                    sub_status=obj.status,
+                )
+
+        super().save_model(request, obj, form, change)
+
 
 @admin.register(RuntimeJob)
 class RuntimeJobAdmin(admin.ModelAdmin):
@@ -112,3 +134,11 @@ class GroupMetadataAdmin(admin.ModelAdmin):
     """RuntimeJobAdmin."""
 
     search_fields = ["account", "group__name"]
+
+
+@admin.register(JobEvent)
+class JobEventAdmin(admin.ModelAdmin):
+    """JobEventAdmin."""
+
+    list_display = ("created", "job", "event_type", "origin", "context")
+    date_hierarchy = "created"
