@@ -15,7 +15,7 @@ from rest_framework.request import Request
 from rest_framework import serializers
 
 from api.use_cases.files.download import FilesDownloadUseCase
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
 

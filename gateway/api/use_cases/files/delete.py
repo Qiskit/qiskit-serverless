@@ -5,7 +5,8 @@ import logging
 
 from django.contrib.auth.models import AbstractUser
 
-from api.domain.exceptions.not_found_error import NotFoundError
+from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
+from api.domain.exceptions.file_not_found_exception import FileNotFoundException
 from api.repositories.functions import FunctionRepository
 from core.models import RUN_PROGRAM_PERMISSION
 from core.services.storage.file_storage import FileStorage, WorkingDir
@@ -39,13 +40,7 @@ class FilesDeleteUseCase:
         )
 
         if not function:
-            if provider_name:
-                error_message = (
-                    f"Qiskit Function {provider_name}/{function_title} doesn't exist."  # pylint: disable=line-too-long
-                )
-            else:
-                error_message = f"Qiskit Function {function_title} doesn't exist."
-            raise NotFoundError(error_message)
+            raise FunctionNotFoundException(function=function_title)
 
         file_storage = FileStorage(
             username=user.username,
@@ -55,4 +50,4 @@ class FilesDeleteUseCase:
         result = file_storage.remove_file(file_name=file_name)
 
         if not result:
-            raise NotFoundError("Requested file was not found.")
+            raise FileNotFoundException()

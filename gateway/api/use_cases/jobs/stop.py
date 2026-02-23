@@ -7,7 +7,7 @@ from qiskit_ibm_runtime import QiskitRuntimeService, RuntimeInvalidStateError
 from core.models import Job, JobEvent
 from core.services.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
-from api.domain.exceptions.not_found_error import NotFoundError
+from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.repositories.runtime_job import RuntimeJobRepository
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 
@@ -29,7 +29,7 @@ class StopJobUseCase:
     def execute(self, job_id: UUID, service_str: str) -> str:
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise JobNotFoundException(str(job_id))
 
         # reset stopped sessions and status messages
         self.status_messages = []

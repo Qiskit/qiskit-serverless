@@ -6,8 +6,8 @@ from uuid import UUID
 from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
-from api.domain.exceptions.forbidden_error import ForbiddenError
-from api.domain.exceptions.not_found_error import NotFoundError
+from api.domain.exceptions.invalid_access_exception import InvalidAccessException
+from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from core.models import Job, JobEvent
 from api.repositories.jobs import JobsRepository
 from core.utils import retry_function
@@ -35,16 +35,16 @@ class SetJobSubStatusUseCase:
             The updated Job.
 
         Raises:
-            NotFoundError: If the job does not exist or access is denied.
+            JobNotFoundException: If the job does not exist or access is denied.
             ForbiddenError: If the job is not in RUNNING status.
         """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise JobNotFoundException(str(job_id))
 
         can_update_sub_status = JobAccessPolicies.can_update_sub_status(user, job)
         if not can_update_sub_status:
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise JobNotFoundException(str(job_id))
 
         update_job_status(job)
 
@@ -55,7 +55,7 @@ class SetJobSubStatusUseCase:
             )
 
             logger.warning(warning_msg)
-            raise ForbiddenError(
+            raise InvalidAccessException(
                 "Cannot update 'sub_status' when is not" f" in RUNNING status. (Currently {job.status})"
             )
 
