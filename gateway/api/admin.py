@@ -102,6 +102,7 @@ class JobAdmin(admin.ModelAdmin):
     ordering = ["-created"]
 
     def save_model(self, request, obj, form, change):
+        print("SAVE_MODEL")
         if change:
             if "status" in form.changed_data:
                 JobEvent.objects.add_status_event(
@@ -116,7 +117,7 @@ class JobAdmin(admin.ModelAdmin):
                     job_id=obj.id,
                     origin=JobEventOrigin.BACKOFFICE,
                     context=JobEventContext.SAVE_MODEL,
-                    sub_status=obj.status,
+                    sub_status=obj.sub_status,
                 )
 
         super().save_model(request, obj, form, change)
