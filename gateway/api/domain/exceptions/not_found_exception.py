@@ -15,7 +15,7 @@ class NotFoundError(Exception, ABC):
     """
 
     def __init__(self, message: str):
-        if type(self) is NotFoundError:
+        if type(self) is NotFoundError:  # pylint: disable=unidiomatic-typecheck
             raise TypeError("Cannot instantiate abstract class NotFoundError directly")
         self.message = message
         super().__init__(message)
