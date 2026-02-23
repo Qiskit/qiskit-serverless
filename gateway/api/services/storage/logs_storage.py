@@ -83,9 +83,10 @@ class LogsStorage:
 
     def _read_logs(self, base_path: str) -> Optional[str]:
         """Read logs from the given path."""
-        # Refresh the COS volume. This log is written in the Scheduler and read from the Gateway and there is 15min TTL
-        log_path = self._get_file_path(base_path)
         try:
+            log_path = self._get_file_path(base_path)
+            # listdir refreshes the COS volume.
+            # The log file is written in the Scheduler and read from the Gateway, and there is 15m TTL.
             os.listdir(base_path)
             with open(log_path, "r", encoding=self.ENCODING) as log_file:
                 return log_file.read()
