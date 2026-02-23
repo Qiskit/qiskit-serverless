@@ -11,7 +11,9 @@ from packaging.requirements import Requirement
 import objsize
 
 from api.domain.authentication.channel import Channel
+from core.services.storage.path_builder import PathBuilder
 from core.models import Job
+from core.services.storage.enums.working_dir import WorkingDir
 
 logger = logging.getLogger("utils")
 
@@ -85,9 +87,29 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
     # shares the same volume program-artifacts which is
     #     `program-artifacts:/data` for Ray node
     #     `program-artifacts:/usr/src/app/media` for Gateway
-    # So DATA PATH needs to include the username: /data/{username}
+    # However, the DATA_PATH value changes depending on the upload mode:
+    #      - if the upload is via the `entrypoint` argument, the function will be a "user function",
+    #         and the DATA_PATH follows the pattern /data/{username}
+    #      - if the upload is via the `image` argument, a `provider` is required and the function will
+    #        be a "provider function". In this case, the DATA_PATH will contain a sub-path after /data/{username}
+    #        resulting in DATA_PATH = /data/{username}/{providername}/{imagename}
     if settings.RAY_CLUSTER_MODE_LOCAL:
-        data_path = f"/data/{job.author.username}"
+        prefix = f"data/{job.author.username}"
+        # only if provider is found, resolve path using path builder used
+        # when storing arguments
+        has_provider = job.program.provider is not None
+        sub_path = (
+            PathBuilder.sub_path(
+                working_dir=WorkingDir.PROVIDER_STORAGE,
+                username=job.author.username,
+                function_title=job.program.title,
+                provider_name=job.program.provider.name,
+                extra_sub_path=None,
+            )
+            if has_provider
+            else ""
+        )
+        data_path = f"/{prefix}/{sub_path}".replace("//", "/")
     else:
         data_path = "/data"
 
