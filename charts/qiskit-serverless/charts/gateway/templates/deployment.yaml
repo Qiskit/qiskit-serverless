@@ -218,6 +218,20 @@ spec:
               value: {{ .Values.application.dependencies.dynamicDependencies | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: COS_ENDPOINT
+              value: {{ .Values.cos.endpoint | quote }}
+            - name: COS_BUCKET
+              value: {{ .Values.cos.bucket | quote }}
+            - name: COS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cos.secretName }}
+                  key: access-key
+            - name: COS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cos.secretName }}
+                  key: secret-key
             - name: SECURE_HSTS_SECONDS
               value: {{ .Values.application.security.hstsSeconds | quote }}
             - name: SECURE_HSTS_INCLUDE_SUBDOMAINS
@@ -393,6 +407,20 @@ spec:
               value: {{ .Values.application.limits.programTimeoutDays | quote }}
             - name: FUNCTIONS_LOGS_SIZE_LIMIT
               value: {{ .Values.application.logsMaximumSize | quote }}
+            - name: COS_ENDPOINT
+              value: {{ .Values.cos.endpoint | quote }}
+            - name: COS_BUCKET
+              value: {{ .Values.cos.bucket | quote }}
+            - name: COS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cos.secretName }}
+                  key: access-key
+            - name: COS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cos.secretName }}
+                  key: secret-key
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
