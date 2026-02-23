@@ -235,7 +235,6 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.CircuitMeta.html">qiskit_serverless.core.CircuitMeta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.fetch_execution_meta.html">qiskit_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.distribute_task.html">qiskit_serverless.core.distribute_task</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.distribute_program.html">qiskit_serverless.core.distribute_program</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.distribute_qiskit_function.html">qiskit_serverless.core.distribute_qiskit_function</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.get.html">qiskit_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../stubs/qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
@@ -324,7 +323,6 @@
 <span class="sd">    run_qiskit_remote</span>
 <span class="sd">    get_refs_by_status</span>
 <span class="sd">    distribute_task</span>
-<span class="sd">    distribute_program</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
@@ -594,6 +592,7 @@
     <span class="k">return</span> <span class="n">decorator</span></div>
 
 
+<span class="c1"># TODO: remove once distribute_qiskit_function is removed # pylint: disable=fixme</span>
 <span class="n">ENTRYPOINT_CONTENT</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
 <span class="s2">import cloudpickle</span>
 <span class="s2">from qiskit_serverless import get_arguments, save_result</span>
@@ -631,6 +630,12 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        remotely executable program</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+        <span class="s2">&quot;`distribute_qiskit_function` has been deprecated &quot;</span>
+        <span class="s2">&quot;and will be removed in future releases. &quot;</span>
+        <span class="s2">&quot;To upload custom functions, use the `upload` functionality of the ServerlessClient class.&quot;</span><span class="p">,</span>
+        <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
+    <span class="p">)</span>
     <span class="c1"># pylint: disable=import-outside-toplevel,cyclic-import</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitServerlessException</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_serverless.core.function</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitFunction</span>
@@ -708,20 +713,6 @@
         <span class="k">return</span> <span class="n">wrapper</span>
 
     <span class="k">return</span> <span class="n">decorator</span></div>
-
-
-<div class="viewcode-block" id="distribute_program"><a class="viewcode-back" href="../../../stubs/qiskit_serverless.core.distribute_program.html#qiskit_serverless.core.distribute_program">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">distribute_program</span><span class="p">(</span>
-    <span class="n">provider</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">dependencies</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">working_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator for distributed program.&quot;&quot;&quot;</span>
-    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-        <span class="s2">&quot;`distribute_program` has been deprecated &quot;</span>
-        <span class="s2">&quot;and will be removed in future releases. &quot;</span>
-        <span class="s2">&quot;Please, use `distribute_qiskit_function` instead.&quot;</span>
-    <span class="p">)</span>
-    <span class="k">return</span> <span class="n">distribute_qiskit_function</span><span class="p">(</span><span class="n">provider</span><span class="p">,</span> <span class="n">dependencies</span><span class="p">,</span> <span class="n">working_dir</span><span class="p">)</span></div>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">trace_decorator_factory</span><span class="p">(</span><span class="n">traced_feature</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>

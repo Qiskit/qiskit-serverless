@@ -235,7 +235,6 @@
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.CircuitMeta.html">qiskit_serverless.core.CircuitMeta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.fetch_execution_meta.html">qiskit_serverless.core.fetch_execution_meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.distribute_task.html">qiskit_serverless.core.distribute_task</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.distribute_program.html">qiskit_serverless.core.distribute_program</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.distribute_qiskit_function.html">qiskit_serverless.core.distribute_qiskit_function</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.get.html">qiskit_serverless.core.get</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stubs/qiskit_serverless.core.put.html">qiskit_serverless.core.put</a></li>
@@ -338,6 +337,15 @@ Both should return:
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Added several quality of life improvements in testing.</p></li>
+</ul>
+</section>
+<section id="deprecation-notes">
+<span id="release-notes-upcoming-qiskit-serverless-release-deprecation-notes"></span><h3>Deprecation Notes<a class="headerlink" href="#deprecation-notes" title="Permalink to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">&#64;distribute_qiskit_function</span></code> decorator has been deprecated and will
+be removed in following releases. The decorator was designed for remote 
+program execution, a functionality that is now provided through the different
+serverless clients through the <cite>upload</cite> method.</p></li>
 </ul>
 </section>
 </section>
@@ -625,6 +633,7 @@ specific jobs. For example:</p>
 <li><a class="reference internal" href="#prelude">Prelude</a></li>
 <li><a class="reference internal" href="#new-features">New Features</a></li>
 <li><a class="reference internal" href="#upgrade-notes">Upgrade Notes</a></li>
+<li><a class="reference internal" href="#deprecation-notes">Deprecation Notes</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#v0-29-0">v0.29.0</a><ul>
