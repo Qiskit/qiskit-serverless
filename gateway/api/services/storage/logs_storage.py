@@ -84,17 +84,16 @@ class LogsStorage:
     def _read_logs(self, base_path: str) -> Optional[str]:
         """Read logs from the given path."""
         log_path = self._get_file_path(base_path)
-        if not os.path.exists(log_path):
+        try:
+            with open(log_path, "r", encoding=self.ENCODING) as log_file:
+                return log_file.read()
+        except FileNotFoundError:
             logger.info(
                 "Log file for job ID '%s' not found at '%s'.",
                 self._job_id,
                 log_path,
             )
             return None
-
-        try:
-            with open(log_path, "r", encoding=self.ENCODING) as log_file:
-                return log_file.read()
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
                 "Failed to read log file for job ID '%s': %s",
@@ -109,6 +108,8 @@ class LogsStorage:
         try:
             with open(log_path, "w+", encoding=self.ENCODING) as log_file:
                 log_file.write(logs)
+                log_file.flush()
+                os.fsync(log_file.fileno())
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
                 "Failed to write log file for job ID '%s': %s",
