@@ -66,6 +66,7 @@ def endpoint_handle_exceptions(view_func: Callable):
             logger.error(
                 "Unexpected error occurred in view: %s",
                 str(error),
+                exc_info=True,
             )
             return Response(
                 {"message": "Internal server error"},
