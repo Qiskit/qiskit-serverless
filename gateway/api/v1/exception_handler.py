@@ -42,7 +42,7 @@ def endpoint_handle_exceptions(view_func: Callable):
     Catches domain exceptions and converts them to appropriate HTTP responses:
     - NotFoundError and subclasses (JobNotFoundException, ProviderNotFoundException,
       FunctionNotFoundException, FileNotFoundException) -> 404 NOT FOUND
-    - ForbiddenError -> 403 FORBIDDEN
+    - InvalidAccessException -> 403 FORBIDDEN
     - ValidationError -> 400 BAD REQUEST
     - All other exceptions -> 500 INTERNAL SERVER ERROR
     """
