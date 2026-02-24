@@ -116,12 +116,8 @@ class JobAdmin(admin.ModelAdmin):
     inlines = [JobEventInline]
 
     def save_model(self, request, obj, form, change):
-        print("SAVE_MODEL")
         if change:
-            print(change)
-            print(form.changed_data)
             if "status" in form.changed_data:
-                print("status")
                 JobEvent.objects.add_status_event(
                     job_id=obj.id,
                     origin=JobEventOrigin.BACKOFFICE,
@@ -130,7 +126,6 @@ class JobAdmin(admin.ModelAdmin):
                 )
 
             if "sub_status" in form.changed_data:
-                print("sub_status")
                 JobEvent.objects.add_sub_status_event(
                     job_id=obj.id,
                     origin=JobEventOrigin.BACKOFFICE,
