@@ -2,14 +2,15 @@
 Use case: retrieve job logs.
 """
 
+import logging
 from typing import Final
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 
 from api.access_policies.jobs import JobAccessPolicies
-from api.domain.exceptions.not_found_error import NotFoundError
-from api.domain.exceptions.forbidden_error import ForbiddenError
+from api.domain.exceptions.job_not_found_exception import JobNotFoundException
+from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.domain.function.filter_logs import (
     filter_logs_with_public_tags,
     remove_prefix_tags_in_logs,
@@ -18,6 +19,8 @@ from core.services.ray import get_job_handler
 from core.utils import check_logs
 from api.repositories.jobs import JobsRepository
 from api.services.storage.logs_storage import LogsStorage
+
+logger = logging.getLogger("gateway")
 
 
 class GetJobLogsUseCase:
@@ -40,10 +43,10 @@ class GetJobLogsUseCase:
         """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise JobNotFoundException(str(job_id))
 
         if not JobAccessPolicies.can_read_user_logs(user, job):
-            raise ForbiddenError(f"You don't have access to read user logs of the job [{job_id}]")
+            raise InvalidAccessException(f"You don't have access to read user logs of the job [{job_id}]")
 
         # Logs stored in COS. They are already filtered
         logs_storage = LogsStorage(job)
@@ -60,6 +63,9 @@ class GetJobLogsUseCase:
 
             logs = job_handler.logs(job.ray_job_id)
             logs = check_logs(logs, job)
+
+            logger.info("Getting logs from ray job [%s]", job.ray_job_id)
+
             if job.program.provider:
                 # Public logs from a provider job
                 return filter_logs_with_public_tags(logs)
