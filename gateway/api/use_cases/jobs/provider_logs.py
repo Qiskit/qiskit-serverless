@@ -11,7 +11,7 @@ from django.contrib.auth.models import AbstractUser
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
-from api.domain.function.filter_logs import filter_logs_with_non_public_tags
+from core.filter_logs import filter_logs_with_non_public_tags
 from core.utils import check_logs
 from core.services.ray import get_job_handler
 from api.repositories.jobs import JobsRepository
@@ -40,7 +40,7 @@ class GetProviderJobLogsUseCase:
         """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
-            raise JobNotFoundException(job_id)
+            raise JobNotFoundException(str(job_id))
 
         if not JobAccessPolicies.can_read_provider_logs(user, job):
             raise InvalidAccessException(f"You don't have access to job [{job_id}]")
