@@ -3,7 +3,6 @@
 import logging
 
 from concurrency.exceptions import RecordModifiedError
-from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from api.domain.function.filter_logs import (
@@ -11,9 +10,8 @@ from api.domain.function.filter_logs import (
     filter_logs_with_public_tags,
     remove_prefix_tags_in_logs,
 )
-from core.utils import check_logs, ray_job_status_to_model_job_status
-from core.models import Job
-from core.models import Job, JobEvent
+from core.config_key import ConfigKey
+from core.models import Job, JobEvent, Config
 from core.services.ray import get_job_handler
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.utils import check_logs, ray_job_status_to_model_job_status
@@ -98,8 +96,8 @@ def update_job_status(job: Job):
             logs = (
                 "Insufficient resources available to the run job in this "
                 "configuration.\nMax resources allowed are "
-                f"{settings.LIMITS_CPU_PER_TASK} CPUs and "
-                f"{settings.LIMITS_MEMORY_PER_TASK} GB of RAM per job."
+                f"{Config.get_int(ConfigKey.LIMITS_CPU_PER_TASK)} CPUs and "
+                f"{Config.get_int(ConfigKey.LIMITS_MEMORY_PER_TASK)} GB of RAM per job."
             )
             job.status = job_new_status
             # cleanup env vars
@@ -158,8 +156,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # update job statuses
         # pylint: disable=too-many-branches
-        max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
-        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
+        max_ray_clusters_possible = Config.get_int(ConfigKey.LIMITS_CPU_CLUSTERS)
+        max_gpu_clusters_possible = Config.get_int(ConfigKey.LIMITS_GPU_CLUSTERS)
         update_classical_jobs = max_ray_clusters_possible > 0
         update_gpu_jobs = max_gpu_clusters_possible > 0
 

@@ -32,8 +32,8 @@ class Command(BaseCommand):
     help = "Schedule jobs that are in queued " "status based on availability of resources in the system."
 
     def handle(self, *args, **options):
-        max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
-        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
+        max_ray_clusters_possible = Config.get_int(ConfigKey.LIMITS_CPU_CLUSTERS)
+        max_gpu_clusters_possible = Config.get_int(ConfigKey.LIMITS_GPU_CLUSTERS)
 
         if Config.get_bool(ConfigKey.MAINTENANCE):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")

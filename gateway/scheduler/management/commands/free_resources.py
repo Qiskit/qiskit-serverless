@@ -5,7 +5,8 @@ import logging
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from core.models import ComputeResource, Job
+from core.config_key import ConfigKey
+from core.models import ComputeResource, Job, Config
 from core.services.ray import kill_ray_cluster
 
 logger = logging.getLogger("commands")
@@ -44,8 +45,8 @@ class Command(BaseCommand):
         Args:
             compute_resource: ComputeResource
         """
-        max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
-        max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
+        max_ray_clusters_possible = Config.get_int(ConfigKey.LIMITS_CPU_CLUSTERS)
+        max_gpu_clusters_possible = Config.get_int(ConfigKey.LIMITS_GPU_CLUSTERS)
         remove_classical_jobs = max_ray_clusters_possible > 0
         remove_gpu_jobs = max_gpu_clusters_possible > 0
 

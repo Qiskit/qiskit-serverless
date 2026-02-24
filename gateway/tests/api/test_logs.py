@@ -12,7 +12,7 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.status import HTTP_200_OK, HTTP_403_FORBIDDEN
 from rest_framework.test import APITestCase, APIClient
 
-from core.models import ComputeResource, Job, Program, Provider
+from core.models import ComputeResource, Job, Program, Provider, Config
 from core.services.ray import JobHandler
 
 
@@ -86,6 +86,7 @@ class BaseJobLogsTest(APITestCase):
         super().setUp()
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
+        Config.register_all()
 
     def tearDown(self):
         self._temp_directory.cleanup()

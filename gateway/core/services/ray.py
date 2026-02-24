@@ -22,7 +22,8 @@ from ray.dashboard.modules.job.sdk import JobSubmissionClient
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from core.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT
+from core.config_key import ConfigKey
+from core.models import ComputeResource, Job, JobConfig, DEFAULT_PROGRAM_ENTRYPOINT, Config
 from core.services.storage.file_storage import FileStorage, WorkingDir
 from core.utils import (
     retry_function,
@@ -203,7 +204,7 @@ def _create_cluster_data(job: Job, cluster_name: str):
     gpu_request = 0
     if job.gpu:
         node_selector_label = settings.RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL
-        gpu_request = settings.LIMITS_GPU_PER_TASK
+        gpu_request = Config.get_int(ConfigKey.LIMITS_GPU_PER_TASK)
 
     # configure provider configuration if needed
     node_image = settings.RAY_NODE_IMAGE

@@ -426,3 +426,9 @@ class Config(models.Model):
         """Get configuration value as boolean."""
         value = cls.get(key)
         return value.lower() == "true"
+
+    @classmethod
+    def get_int(cls, key: ConfigKey) -> int:
+        """Get configuration value as integer."""
+        value = cls.get(key)
+        return int(value)

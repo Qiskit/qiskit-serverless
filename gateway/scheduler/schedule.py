@@ -13,7 +13,8 @@ from django.db.models.aggregates import Count, Min
 
 from opentelemetry import trace
 
-from core.models import Job, ComputeResource
+from core.config_key import ConfigKey
+from core.models import Job, ComputeResource, Config
 from core.services.ray import submit_job, create_compute_resource, kill_ray_cluster
 from core.utils import generate_cluster_name, create_gpujob_allowlist
 
@@ -130,7 +131,7 @@ def get_jobs_to_schedule_fair_share(slots: int) -> List[Job]:
     users_at_max_capacity = [
         entry["author"]
         for entry in running_jobs_per_user
-        if entry["running_jobs_count"] >= settings.LIMITS_JOBS_PER_USER
+        if entry["running_jobs_count"] >= Config.get_int(ConfigKey.LIMITS_JOBS_PER_USER)
     ]
 
     max_limit = 100  # not to kill db in case we will have a lot of jobs

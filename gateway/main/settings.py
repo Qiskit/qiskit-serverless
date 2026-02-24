@@ -280,13 +280,6 @@ QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", 
 #    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", "is_valid;some,nested,field"
 SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get("SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None)
 
-# resources limitations
-LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
-LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
-LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
-LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
-LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
-LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
@@ -372,10 +365,43 @@ FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "524
 DYNAMIC_CONFIG_CACHE_TTL = int(os.environ.get("DYNAMIC_CONFIG_CACHE_TTL", "60"))
 
 # Dynamic configuration defaults (used by core.config.ConfigKey)
+# Initial values can be overridden via environment variables (from Helm values.yaml)
+# These env vars are only used to set the initial value in the database on first startup.
+# After that, values are managed via Django Admin
 DYNAMIC_CONFIG_DEFAULTS = {
     "scheduler.maintenance": {
         "default": "false",
         "type": "boolean",  # not used yet, but maybe the backoffice can use this in the future to improve the edit page
         "description": "Enable maintenance mode: the scheduler will not execute new jobs",
+    },
+    "scheduler.limits.jobs_per_user": {
+        "default": os.environ.get("LIMITS_JOBS_PER_USER", "2"),
+        "type": "number",
+        "description": "Maximum number of concurrent jobs per user",
+    },
+    "scheduler.limits.cpu_clusters": {
+        "default": os.environ.get("LIMITS_MAX_CLUSTERS", "6"),
+        "type": "number",
+        "description": "Maximum number of CPU clusters",
+    },
+    "scheduler.limits.gpu_clusters": {
+        "default": os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"),
+        "type": "number",
+        "description": "Maximum number of GPU clusters",
+    },
+    "scheduler.limits.cpu_per_task": {
+        "default": os.environ.get("LIMITS_CPU_PER_TASK", "4"),
+        "type": "number",
+        "description": "CPU limit per task",
+    },
+    "scheduler.limits.gpu_per_task": {
+        "default": os.environ.get("LIMITS_GPU_PER_TASK", "1"),
+        "type": "number",
+        "description": "GPU limit per task",
+    },
+    "scheduler.limits.memory_per_task": {
+        "default": os.environ.get("LIMITS_MEMORY_PER_TASK", "8"),
+        "type": "number",
+        "description": "Memory limit per task (GB)",
     },
 }
