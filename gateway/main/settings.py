@@ -287,7 +287,6 @@ LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
-MAINTENANCE = os.environ.get("MAINTENANCE", "false") == "true"
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
@@ -368,3 +367,15 @@ SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == 
 
 # Functions logs size limite in Bytes
 FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "52428800"))
+
+# Dynamic configuration cache TTL in seconds
+DYNAMIC_CONFIG_CACHE_TTL = int(os.environ.get("DYNAMIC_CONFIG_CACHE_TTL", "60"))
+
+# Dynamic configuration defaults (used by core.config.ConfigKey)
+DYNAMIC_CONFIG_DEFAULTS = {
+    "scheduler.maintenance": {
+        "default": "false",
+        "type": "boolean",  # not used yet, but maybe the backoffice can use this in the future to improve the edit page
+        "description": "Enable maintenance mode: the scheduler will not execute new jobs",
+    },
+}

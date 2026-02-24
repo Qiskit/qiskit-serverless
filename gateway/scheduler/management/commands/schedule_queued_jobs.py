@@ -13,7 +13,8 @@ from django.db.models import Model
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from core.models import ComputeResource, Job, JobEvent
+from core.config_key import ConfigKey
+from core.models import ComputeResource, Job, JobEvent, Config
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     configure_job_to_use_gpu,
@@ -33,9 +34,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-        maintenance = settings.MAINTENANCE
 
-        if maintenance:
+        if Config.get_bool(ConfigKey.MAINTENANCE):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
 
