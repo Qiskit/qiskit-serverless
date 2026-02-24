@@ -50,7 +50,7 @@ sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Starting
 
         output_log = filter_logs_with_public_tags(log)
 
-        self.assertEqual(output_log, expected_output)
+        assert output_log == expected_output
 
     def test_filter_logs_with_non_public_tags(self):
         """Tests compute resource creation command."""
