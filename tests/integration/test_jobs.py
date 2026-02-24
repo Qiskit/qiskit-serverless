@@ -16,10 +16,9 @@ from qiskit_serverless import (
     ServerlessClient,
     QiskitServerlessException,
 )
+from utils import wait_for_logs, wait_for_terminal_state
 
-resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../source_files"
-)
+resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
 
 class TestJobs:
@@ -72,9 +71,7 @@ class TestJobs:
         job = runnable_function.run()
 
         assert job is not None
-        expected_message = (
-            "ImportError: attempted relative import with no known parent package"
-        )
+        expected_message = "ImportError: attempted relative import with no known parent package"
 
         with raises(QiskitServerlessException) as exc_info:
             job.result()
@@ -240,9 +237,7 @@ class TestJobs:
         assert job_2.status() == "RUNNING"
 
     @mark.skip(reason="Works in docker compose but tails in k8s/staging/production")
-    def test_get_filtered_jobs(  # pylint: disable=too-many-locals
-        self, serverless_client: ServerlessClient
-    ):
+    def test_get_filtered_jobs(self, serverless_client: ServerlessClient):  # pylint: disable=too-many-locals
         """Integration test for filtering jobs."""
 
         function_1 = QiskitFunction(
@@ -313,27 +308,45 @@ class TestJobs:
         """Integration test for logs."""
 
         function = QiskitFunction(
-            title="logs_function",
-            entrypoint="logger.py",
-            working_dir=resources_path,
+            title="logs_function", entrypoint="logger.py", working_dir=resources_path, env_vars={"DELAY": "10"}
         )
         function = serverless_client.upload(function)
         job = function.run()
 
-        while not job.in_terminal_state():
-            sleep(1)
+        wait_for_logs(job, "DELAY STARTS")
 
-        assert job.logs().endswith("""INFO: User log
+        print(f"Execution logs until DELAY STARTS {job.job_id}")
+        print(job.logs())
+        print("-----")
+
+        wait_for_terminal_state(job)
+
+        assert job.logs().endswith(
+            """INFO: User log
 INFO: User multiline
 INFO: log
 WARNING: User log
 ERROR: User log
+DELAY STARTS
 INFO: Provider log
 INFO: Provider multiline
 INFO: log
 WARNING: Provider log
 ERROR: Provider log
-""")
+"""
+        )
+
+        with raises(QiskitServerlessException) as exc_info:
+            job.provider_logs()
+
+        assert (
+            str(exc_info.value).strip()
+            == f"""
+| Message: Http bad request.
+| Code: 403
+| Details: You don't have access to job [{job.job_id}]
+""".strip()
+        )
 
     def test_wrong_function_name(self, serverless_client: ServerlessClient):
         """Integration test for retrieving a function that isn't accessible."""
@@ -357,24 +370,3 @@ ERROR: Provider log
             serverless_client.function("wrong-title")
 
         assert str(exc_info.value) == expected_message
-
-    def test_provider_logs(self, serverless_client: ServerlessClient):
-        """Integration test for logs."""
-
-        function = QiskitFunction(
-            title="logs_function_2", entrypoint="logger.py", working_dir=resources_path
-        )
-        function = serverless_client.upload(function)
-        job = function.run()
-
-        while not job.in_terminal_state():
-            sleep(1)
-
-        with raises(QiskitServerlessException) as exc_info:
-            job.provider_logs()
-
-        assert str(exc_info.value).strip() == f"""
-| Message: Http bad request.
-| Code: 403
-| Details: You don't have access to job [{job.job_id}]
-""".strip()

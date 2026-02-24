@@ -34,11 +34,11 @@ on your local machine straightforward. The first thing we will do is clone the r
 Step 2: Setup Docker
 
 To setup Qiskit Serverless on your local machine, you will need to use docker compose. As we mentioned in the `README <https://github.com/Qiskit/qiskit-serverless/blob/main/README.md>`_
-you can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman... 
+you can use any runtime that you prefer to run Docker on your machine: Docker Desktop, podman...
 If you are using a MacOS with ARM processors we highly recommend to use `Colima <https://github.com/abiosoft/colima>`_
 as your container runtime to avoid problems with that architecture.
 
-This is a project that takes advantage of distributed computing, so it places a high demand on resources. We recommend increasing the assigned resources to these runtimes. 
+This is a project that takes advantage of distributed computing, so it places a high demand on resources. We recommend increasing the assigned resources to these runtimes.
 In case of Colima for example we typically use:
 
 .. code-block::
@@ -60,10 +60,10 @@ monitorying systems.
 
 Step 3: Setup Kind
 
-Additionally we provide you a way to deploy a k8s cluster on your local machine. This has some benefits as this is a more similar environment 
+Additionally we provide you a way to deploy a k8s cluster on your local machine. This has some benefits as this is a more similar environment
 to production than the docker-compose approach.
 
-To simplify the process to deploy a k8s cluster locally we use `Kind <https://kind.sigs.k8s.io/docs/user/quick-start#installation>`_ 
+To simplify the process to deploy a k8s cluster locally we use `Kind <https://kind.sigs.k8s.io/docs/user/quick-start#installation>`_
 as the main tool to create a cluster.
 
 Step 3.1: Initiate the test cluster

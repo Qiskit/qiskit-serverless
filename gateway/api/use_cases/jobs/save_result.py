@@ -6,7 +6,7 @@ from uuid import UUID
 import logging
 from django.contrib.auth.models import AbstractUser
 from api.repositories.jobs import JobsRepository
-from api.domain.exceptions.not_found_error import NotFoundError
+from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.access_policies.jobs import JobAccessPolicies
 from core.services.storage.result_storage import ResultStorage
 from core.models import Job
@@ -37,11 +37,11 @@ class JobSaveResultUseCase:
         """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise JobNotFoundException(job_id)
 
         can_save_result = JobAccessPolicies.can_save_result(user, job)
         if not can_save_result:
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise JobNotFoundException(job_id)
 
         result_storage = ResultStorage(job.author.username)
         result_storage.save(job.id, result)

@@ -13,7 +13,9 @@ from api.domain.function.filter_logs import (
 )
 from core.utils import check_logs, ray_job_status_to_model_job_status
 from core.models import Job
+from core.models import Job, JobEvent
 from core.services.ray import get_job_handler
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from core.utils import check_logs, ray_job_status_to_model_job_status
 from scheduler.schedule import (
     check_job_timeout,
@@ -42,16 +44,21 @@ def update_job_status(job: Job):
     try:
         ray_job_status = job_handler.status(job.ray_job_id) if job_handler else None
     except RuntimeError as ex:
-        logger.warning(
-            "Job [%s] marked as FAILED because Ray get_job_status: %s", job.id, str(ex)
-        )
+        logger.warning("Job [%s] marked as FAILED because Ray get_job_status: %s", job.id, str(ex))
         job.status = Job.FAILED
         job.sub_status = None
         job.env_vars = "{}"
         try:
             job.save()
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
         except RecordModifiedError:
             logger.warning("Job [%s] record has not been updated due to lock.", job.id)
+
         return True
 
     if ray_job_status:
@@ -97,11 +104,20 @@ def update_job_status(job: Job):
             job.status = job_new_status
             # cleanup env vars
             job.env_vars = "{}"
+            status_has_changed = True
             save_logs_to_storage(job, logs)
             job.logs = ""
 
     try:
         job.save()
+
+        if status_has_changed:
+            JobEvent.objects.add_status_event(
+                job_id=job.id,
+                origin=JobEventOrigin.SCHEDULER,
+                context=JobEventContext.UPDATE_JOB_STATUS,
+                status=job.status,
+            )
     except RecordModifiedError:
         logger.warning("Job [%s] record has not been updated due to lock.", job.id)
 

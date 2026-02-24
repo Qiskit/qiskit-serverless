@@ -9,6 +9,8 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
+from core.model_managers.job_events import JobEventQuerySet
+
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
 
@@ -53,9 +55,7 @@ class Provider(models.Model):
     updated = models.DateTimeField(auto_now=True, null=True)
 
     name = models.CharField(max_length=255, db_index=True, unique=True)
-    readable_name = models.CharField(
-        max_length=255, null=True, blank=True, default=None
-    )
+    readable_name = models.CharField(max_length=255, null=True, blank=True, default=None)
     url = models.TextField(null=True, blank=True, default=None)
     icon_url = models.TextField(null=True, blank=True, default=None)
     registry = models.CharField(max_length=255, null=True, blank=True, default=None)
@@ -86,14 +86,10 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     created = models.DateTimeField(auto_now_add=True, editable=False)
 
     title = models.CharField(max_length=255, db_index=True)
-    readable_title = models.CharField(
-        max_length=255, null=True, blank=True, default=None
-    )
+    readable_title = models.CharField(max_length=255, null=True, blank=True, default=None)
 
     disabled = models.BooleanField(default=False, null=False)
-    disabled_message = models.TextField(
-        default=DEFAULT_DISABLED_MESSAGE, null=True, blank=True
-    )
+    disabled_message = models.TextField(default=DEFAULT_DISABLED_MESSAGE, null=True, blank=True)
     type = models.CharField(
         max_length=20,
         choices=PROGRAM_TYPES,
@@ -114,12 +110,8 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
     env_vars = models.TextField(null=False, blank=True, default="{}")
     dependencies = models.TextField(null=False, blank=True, default="[]")
 
-    instances = models.ManyToManyField(
-        Group, blank=True, related_name="program_instances"
-    )
-    trial_instances = models.ManyToManyField(
-        Group, blank=True, related_name="program_trial_instances"
-    )
+    instances = models.ManyToManyField(Group, blank=True, related_name="program_instances")
+    trial_instances = models.ManyToManyField(Group, blank=True, related_name="program_trial_instances")
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -269,9 +261,7 @@ class Job(models.Model):
         choices=JOB_STATUSES,
         default=QUEUED,
     )
-    sub_status = models.CharField(
-        max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True
-    )
+    sub_status = models.CharField(max_length=255, choices=SUB_STATUSES, default=None, null=True, blank=True)
     trial = models.BooleanField(default=False, null=False)
     version = IntegerVersionField()
 
@@ -279,9 +269,7 @@ class Job(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
     )
-    compute_resource = models.ForeignKey(
-        ComputeResource, on_delete=models.SET_NULL, null=True, blank=True
-    )
+    compute_resource = models.ForeignKey(ComputeResource, on_delete=models.SET_NULL, null=True, blank=True)
     config = models.ForeignKey(
         to=JobConfig,
         on_delete=models.CASCADE,
@@ -313,12 +301,32 @@ class RuntimeJob(models.Model):
         blank=True,
         related_name="runtime_jobs",
     )
-    runtime_job = models.CharField(
-        primary_key=True, max_length=100, blank=False, null=False
+    runtime_job = models.CharField(primary_key=True, max_length=100, blank=False, null=False)
+    runtime_session = models.CharField(max_length=100, blank=True, null=True, default=None)
+
+    class Meta:
+        app_label = "api"
+
+
+class JobEvent(models.Model):
+    """Events history for jobs."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job = models.ForeignKey(
+        to=Job,
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="job_events",
     )
-    runtime_session = models.CharField(
-        max_length=100, blank=True, null=True, default=None
-    )
+    event_type = models.CharField(max_length=100, blank=False, null=False)
+    origin = models.CharField(max_length=100, blank=False, null=False)
+    context = models.CharField(max_length=100, blank=False, null=False)
+    created = models.DateTimeField(auto_now_add=True, null=True)
+    data = models.JSONField(default=dict, blank=False, null=False)
+
+    objects = JobEventQuerySet.as_manager()
 
     class Meta:
         app_label = "api"
@@ -335,9 +343,7 @@ class GroupMetadata(models.Model):
     # This field will store the account_id from IBM Cloud.
     account = models.CharField(max_length=255, blank=True, null=True, default=None)
 
-    group = models.OneToOneField(
-        Group, on_delete=models.CASCADE, related_name="metadata"
-    )
+    group = models.OneToOneField(Group, on_delete=models.CASCADE, related_name="metadata")
 
     class Meta:
         app_label = "api"

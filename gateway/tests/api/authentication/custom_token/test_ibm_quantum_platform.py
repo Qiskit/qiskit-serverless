@@ -22,11 +22,7 @@ RESOURCE_PLAN_ID = "test-plan-id"
 def _create_mock_jwt(iam_id: str, account_id: str) -> str:
     """Create a mock JWT token with the given iam_id and account_id."""
     current_time = int(time.time())
-    header = (
-        base64.urlsafe_b64encode(json.dumps({"alg": "RS256", "typ": "JWT"}).encode())
-        .decode()
-        .rstrip("=")
-    )
+    header = base64.urlsafe_b64encode(json.dumps({"alg": "RS256", "typ": "JWT"}).encode()).decode().rstrip("=")
     payload = (
         base64.urlsafe_b64encode(
             json.dumps(
@@ -123,14 +119,10 @@ class TestIBMQuantumPlatformAuthentication(APITestCase):
             self.assertEqual(auth.channel, "ibm_quantum_platform")
 
             group_names = list(user.groups.values_list("name", flat=True))
-            self.assertEqual(
-                group_names, ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"]
-            )
+            self.assertEqual(group_names, ["AccessGroupId-23afbcd24-00a0-00ab-ab0c-1a23b4c567de"])
 
             for group in user.groups.all():
-                self.assertEqual(
-                    group.metadata.account, "abc18abcd41546508b35dfe0627109c4"
-                )
+                self.assertEqual(group.metadata.account, "abc18abcd41546508b35dfe0627109c4")
                 permissions = list(group.permissions.values_list("codename", flat=True))
                 self.assertEqual(permissions, [VIEW_PROGRAM_PERMISSION])
 

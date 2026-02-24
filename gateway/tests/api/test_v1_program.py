@@ -10,7 +10,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Job, Program
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.models import Job, JobEvent, Program
 from core.services.storage.arguments_storage import ArgumentsStorage
 from tests.utils import TestUtils
 
@@ -78,9 +79,7 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user_4")
         self.client.force_authenticate(user=user)
 
-        programs_response = self.client.get(
-            reverse("v1:programs-list"), {"filter": "catalog"}, format="json"
-        )
+        programs_response = self.client.get(reverse("v1:programs-list"), {"filter": "catalog"}, format="json")
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 2)
@@ -107,9 +106,7 @@ class TestProgramApi(APITestCase):
         user = models.User.objects.get(username="test_user_3")
         self.client.force_authenticate(user=user)
 
-        programs_response = self.client.get(
-            reverse("v1:programs-list"), {"filter": "serverless"}, format="json"
-        )
+        programs_response = self.client.get(reverse("v1:programs-list"), {"filter": "serverless"}, format="json")
 
         self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(programs_response.data), 1)
@@ -159,10 +156,15 @@ class TestProgramApi(APITestCase):
             self.assertEqual(stored_arguments, arguments)
 
             # Verify arguments are stored in the correct folder path
-            expected_arguments_path = os.path.join(
-                self.MEDIA_ROOT, user.username, "arguments"
-            )
+            expected_arguments_path = os.path.join(self.MEDIA_ROOT, user.username, "arguments")
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
+
+            job_events = JobEvent.objects.filter(job=job_id)
+            self.assertEqual(len(job_events), 1)
+            self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+            self.assertEqual(job_events[0].data["status"], Job.QUEUED)
+            self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+            self.assertEqual(job_events[0].context, JobEventContext.RUN_PROGRAM)
 
     def test_provider_run(self):
         """Tests run existing authorized."""
@@ -202,9 +204,7 @@ class TestProgramApi(APITestCase):
 
             program = Program.objects.get(title="Docker-Image-Program", author=user)
             provider_name = program.provider.name if program.provider else None
-            arguments_storage = ArgumentsStorage(
-                user.username, program.title, provider_name
-            )
+            arguments_storage = ArgumentsStorage(user.username, program.title, provider_name)
             stored_arguments = arguments_storage.get(job.id)
 
             self.assertEqual(stored_arguments, arguments)
@@ -219,7 +219,14 @@ class TestProgramApi(APITestCase):
             )
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
 
-    def test_active_jobs_queue_limit(self):
+            job_events = JobEvent.objects.filter(job=job_id)
+            self.assertEqual(len(job_events), 1)
+            self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+            self.assertEqual(job_events[0].data["status"], Job.QUEUED)
+            self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+            self.assertEqual(job_events[0].context, JobEventContext.RUN_PROGRAM)
+
+        def test_active_jobs_queue_limit(self):
         """Tests queue limit."""
 
         job_kwargs = {
@@ -305,7 +312,7 @@ class TestProgramApi(APITestCase):
             # lastly adding job to the queue
             programs_response = run_program()
             assert programs_response.status_code == 200  # ok
-
+    
     def test_run_locked(self):
         """Tests run disabled program."""
 
@@ -331,6 +338,9 @@ class TestProgramApi(APITestCase):
         self.assertEqual(programs_response.status_code, status.HTTP_423_LOCKED)
         self.assertEqual(programs_response.data.get("message"), "Program is locked")
 
+        job_events = JobEvent.objects.filter()
+        self.assertEqual(len(job_events), 0)
+
     def test_run_locked_default_msg(self):
         """Tests run disabled program."""
 
@@ -354,9 +364,10 @@ class TestProgramApi(APITestCase):
         )
 
         self.assertEqual(programs_response.status_code, status.HTTP_423_LOCKED)
-        self.assertEqual(
-            programs_response.data.get("message"), Program.DEFAULT_DISABLED_MESSAGE
-        )
+        self.assertEqual(programs_response.data.get("message"), Program.DEFAULT_DISABLED_MESSAGE)
+
+        job_events = JobEvent.objects.filter()
+        self.assertEqual(len(job_events), 0)
 
     def test_upload_private_function(self):
         """Tests upload end-point authorized."""
@@ -481,9 +492,7 @@ class TestProgramApi(APITestCase):
             )
             self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(programs_response.data.get("provider"), "default")
-            self.assertEqual(
-                programs_response.data.get("entrypoint"), "test_user_3_program.py"
-            )
+            self.assertEqual(programs_response.data.get("entrypoint"), "test_user_3_program.py")
             self.assertEqual(programs_response.data.get("title"), "Provider Function")
             self.assertRaises(
                 Program.DoesNotExist,
@@ -542,9 +551,7 @@ class TestProgramApi(APITestCase):
             self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(programs_response.data.get("provider"), "default")
 
-            programs_response = self.client.get(
-                reverse("v1:programs-list"), format="json"
-            )
+            programs_response = self.client.get(reverse("v1:programs-list"), format="json")
 
             self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(len(programs_response.data), 2)
@@ -576,9 +583,7 @@ class TestProgramApi(APITestCase):
             {"provider": "default"},
             format="json",
         )
-        self.assertEqual(
-            programs_response_with_provider.data.get("provider"), "default"
-        )
+        self.assertEqual(programs_response_with_provider.data.get("provider"), "default")
         self.assertIsNotNone(programs_response_with_provider.data.get("title"))
 
         programs_response_non_existing_provider = self.client.get(
@@ -649,9 +654,7 @@ class TestProgramApi(APITestCase):
             )
 
             self.assertEqual(programs_response.status_code, status.HTTP_200_OK)
-            self.assertEqual(
-                programs_response.data.get("description"), "Program description test"
-            )
+            self.assertEqual(programs_response.data.get("description"), "Program description test")
 
     def test_upload_private_function_update_description(self):
         """Tests upload end-point authorized."""
@@ -724,12 +727,8 @@ class TestProgramApi(APITestCase):
             self.assertEqual(upload_response_provider.data.get("provider"), "default")
 
             # Verify both functions exist
-            user_program = Program.objects.get(
-                title="duplicate-title", author=user, provider=None
-            )
-            provider_program = Program.objects.get(
-                title="duplicate-title", author=user, provider__name="default"
-            )
+            user_program = Program.objects.get(title="duplicate-title", author=user, provider=None)
+            provider_program = Program.objects.get(title="duplicate-title", author=user, provider__name="default")
             self.assertIsNotNone(user_program)
             self.assertIsNotNone(provider_program)
             self.assertNotEqual(user_program.id, provider_program.id)
@@ -760,14 +759,10 @@ class TestProgramApi(APITestCase):
             self.assertIsNone(job.program.provider)
 
             # Verify arguments are stored in the correct path (user storage, not provider)
-            arguments_storage = ArgumentsStorage(
-                user.username, user_program.title, None
-            )
+            arguments_storage = ArgumentsStorage(user.username, user_program.title, None)
             stored_arguments = arguments_storage.get(job.id)
             self.assertEqual(stored_arguments, arguments)
 
             # Verify the storage path is for user function (no provider in path)
-            expected_arguments_path = os.path.join(
-                self.MEDIA_ROOT, user.username, "arguments"
-            )
+            expected_arguments_path = os.path.join(self.MEDIA_ROOT, user.username, "arguments")
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)

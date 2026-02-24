@@ -55,15 +55,11 @@ class TestRayUtils(APITestCase):
         job = Job.objects.first()
         with requests_mock.Mocker() as mocker:
             mocker.get(head_node_url, status_code=200)
-            compute_resource = create_compute_resource(
-                job, "test_user", "dummy yaml file contents"
-            )
+            compute_resource = create_compute_resource(job, "test_user", "dummy yaml file contents")
             self.assertIsInstance(compute_resource, ComputeResource)
             self.assertEqual(job.author.username, compute_resource.title)
             self.assertEqual(compute_resource.host, head_node_url)
-            DynamicClient.resources.get.assert_called_once_with(
-                api_version="v1", kind="RayCluster"
-            )
+            DynamicClient.resources.get.assert_called_once_with(api_version="v1", kind="RayCluster")
 
     def test_kill_cluster(self):
         """Tests cluster deletion."""
@@ -80,9 +76,7 @@ class TestRayUtils(APITestCase):
         success = kill_ray_cluster("some_cluster")
         self.assertTrue(success)
         DynamicClient.resources.get.assert_any_call(api_version="v1", kind="RayCluster")
-        DynamicClient.resources.get.assert_any_call(
-            api_version="v1", kind="Certificate"
-        )
+        DynamicClient.resources.get.assert_any_call(api_version="v1", kind="Certificate")
         client.CoreV1Api.assert_called()
 
 
@@ -136,8 +130,6 @@ class TestJobHandler(APITestCase):
         """Tests job submission."""
         with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
             job = Job.objects.first()
-            job.env_vars = json.dumps(
-                {"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")}
-            )
+            job.env_vars = json.dumps({"ENV_JOB_GATEWAY_TOKEN": encrypt_string("awesome_token")})
             job_id = self.handler.submit(job)
             self.assertEqual(job_id, "AwesomeJobId")

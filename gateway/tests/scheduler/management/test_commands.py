@@ -10,10 +10,10 @@ from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
 
-from core.models import ComputeResource, Job, Program, Provider
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.models import ComputeResource, Job, JobEvent, Program, Provider
 from core.services.ray import JobHandler
 from core.utils import check_logs
-from scheduler.management.commands import update_jobs_statuses
 
 
 class TestCommands(APITestCase):
@@ -25,9 +25,7 @@ class TestCommands(APITestCase):
         """Tests compute resource creation command."""
         call_command("create_compute_resource", "test_host")
         resources = ComputeResource.objects.all()
-        self.assertTrue(
-            "Ray cluster default" in [resource.title for resource in resources]
-        )
+        self.assertTrue("Ray cluster default" in [resource.title for resource in resources])
 
     def test_free_resources(self):
         """Tests free resources command."""
@@ -54,6 +52,13 @@ class TestCommands(APITestCase):
         self.assertEqual(job.status, "RUNNING")
         self.assertIsNotNone(job.env_vars)
 
+        job_events = JobEvent.objects.filter(job=job)
+        self.assertEqual(len(job_events), 1)
+        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+        self.assertEqual(job_events[0].data["status"], JobStatus.RUNNING)
+        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
+        self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
+
         # Test job logs for FAILED job with empty logs
         ray_client.get_job_status.return_value = JobStatus.FAILED
         ray_client.get_job_logs.return_value = ""
@@ -65,6 +70,13 @@ class TestCommands(APITestCase):
         self.assertEqual(job.env_vars, "{}")
         self.assertIsNone(job.sub_status)
 
+        job_events = JobEvent.objects.filter(job=job).order_by("created")
+        self.assertEqual(len(job_events), 2)
+        self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
+        self.assertEqual(job_events[1].data["status"], JobStatus.FAILED)
+        self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
+        self.assertEqual(job_events[1].context, JobEventContext.UPDATE_JOB_STATUS)
+
     @patch("scheduler.management.commands.schedule_queued_jobs.execute_job")
     def test_schedule_queued_jobs(self, execute_job):
         """Tests schedule of queued jobs command."""
@@ -72,6 +84,7 @@ class TestCommands(APITestCase):
         fake_job.id = "1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
         fake_job.logs = ""
         fake_job.status = "SUCCEEDED"
+        fake_job.sub_status = None
         fake_job.program.artifact.path = "non_existing_file.tar"
         fake_job.save.return_value = None
 
@@ -80,6 +93,19 @@ class TestCommands(APITestCase):
         # TODO: mock execute job to change status of job and query for QUEUED jobs  # pylint: disable=fixme
         job_count = Job.objects.count()
         self.assertEqual(job_count, 7)
+
+        job_events = JobEvent.objects.filter(job_id=fake_job.id)
+        # There is one Job in the fixtures in QUEUED state. It call execute_job twice
+        # and add 2 equal events. If we remove fixtures we can fix this test properly
+        self.assertEqual(len(job_events), 2)
+        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+        self.assertEqual(job_events[0].data["status"], JobStatus.SUCCEEDED)
+        self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
+        self.assertEqual(job_events[0].context, JobEventContext.SCHEDULE_JOBS)
+        self.assertEqual(job_events[1].event_type, JobEventType.STATUS_CHANGE)
+        self.assertEqual(job_events[1].data["status"], JobStatus.SUCCEEDED)
+        self.assertEqual(job_events[1].origin, JobEventOrigin.SCHEDULER)
+        self.assertEqual(job_events[1].context, JobEventContext.SCHEDULE_JOBS)
 
     def test_check_empty_logs(self):
         """Test error notification for failed and empty logs."""
@@ -120,9 +146,7 @@ class TestCommands(APITestCase):
     @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_filters_logs_user_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function without provider."""
-        compute_resource = ComputeResource.objects.create(
-            title="test-cluster-user-logs", active=True
-        )
+        compute_resource = ComputeResource.objects.create(title="test-cluster-user-logs", active=True)
         job = self._create_test_job(
             author="test_author",
             status=Job.RUNNING,
@@ -187,9 +211,7 @@ INFO: Final public log
     @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
     def test_update_jobs_statuses_filters_logs_provider_function(self, get_job_handler):
         """Tests that logs are filtered when saving for function with provider."""
-        compute_resource = ComputeResource.objects.create(
-            title="test-cluster-provider-logs", active=True
-        )
+        compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
         job = self._create_test_job(
             author="test_author",
             provider_admin="test_provider",
@@ -256,6 +278,33 @@ WARNING: Private warning
                     saved_provider_logs = log_file.read()
                 self.assertEqual(saved_provider_logs, expected_provider_logs)
 
+    @patch("scheduler.management.commands.update_jobs_statuses.get_job_handler")
+    def test_update_jobs_statuses_job_handler_status_error_status_event(self, get_job_handler):
+        """Tests that the job_event is stored when job_handler.status() raises exception."""
+        compute_resource = ComputeResource.objects.create(title="test-cluster-provider-logs", active=True)
+        job = self._create_test_job(
+            author="test_author",
+            provider_admin="test_provider",
+            status=Job.RUNNING,
+            compute_resource=compute_resource,
+            ray_job_id="test-ray-job-id-with-provider",
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.settings(MEDIA_ROOT=temp_dir, RAY_CLUSTER_MODE={"local": True}):
+                job_handler = MagicMock()
+                job_handler.status.side_effect = RuntimeError("Error")
+                get_job_handler.return_value = job_handler
+
+                call_command("update_jobs_statuses")
+
+                job_events = JobEvent.objects.filter(job=job.id)
+                self.assertEqual(len(job_events), 1)
+                self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+                self.assertEqual(job_events[0].data["status"], Job.FAILED)
+                self.assertEqual(job_events[0].origin, JobEventOrigin.SCHEDULER)
+                self.assertEqual(job_events[0].context, JobEventContext.UPDATE_JOB_STATUS)
+
     def _create_test_job(
         self,
         author: str = "test_author",
@@ -276,9 +325,7 @@ WARNING: Private warning
             gpu: Whether this is a GPU job
         """
         if compute_resource is None:
-            compute_resource = ComputeResource.objects.create(
-                title=f"test-cluster-{ray_job_id}", active=True
-            )
+            compute_resource = ComputeResource.objects.create(title=f"test-cluster-{ray_job_id}", active=True)
 
         author_user, _ = User.objects.get_or_create(username=author)
         provider = None

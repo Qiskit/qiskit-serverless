@@ -11,9 +11,7 @@ from qiskit_serverless import (
     QiskitServerlessException,
 )
 
-resources_path = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../source_files"
-)
+resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
 
 class TestDependencies:
@@ -38,9 +36,7 @@ class TestDependencies:
         assert job.status() == "DONE"
         assert isinstance(job.logs(), str)
 
-    def test_function_dependencies_with_version(
-        self, serverless_client: ServerlessClient
-    ):
+    def test_function_dependencies_with_version(self, serverless_client: ServerlessClient):
         """Integration test for Functions with dependencies."""
         function = QiskitFunction(
             title="pattern-with-dependencies-2",

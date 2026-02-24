@@ -18,8 +18,4 @@ class Command(BaseCommand):
         compute_resource = ComputeResource(title="Ray cluster default", host=host)
         compute_resource.save()
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Successfully created compute resource {compute_resource.title}"
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Successfully created compute resource {compute_resource.title}"))

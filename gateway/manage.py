@@ -28,19 +28,13 @@ def main():
     provider = TracerProvider(resource=resource)
     otel_exporter = BatchSpanProcessor(
         OTLPSpanExporter(
-            endpoint=os.environ.get(
-                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"
-            ),
-            insecure=bool(
-                int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))
-            ),
+            endpoint=os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4317"),
+            insecure=bool(int(os.environ.get("OTEL_EXPORTER_OTLP_TRACES_INSECURE", "0"))),
         )
     )
     provider.add_span_processor(otel_exporter)
     if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
-        trace._set_tracer_provider(
-            provider, log=False
-        )  # pylint: disable=protected-access
+        trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
     execute_from_command_line(sys.argv)
 

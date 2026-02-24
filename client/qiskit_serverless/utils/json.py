@@ -25,6 +25,7 @@ Qiskit Serverless json utilities
 
     JsonSerializable
 """
+
 import json
 from abc import ABC, abstractmethod
 from json import JSONEncoder

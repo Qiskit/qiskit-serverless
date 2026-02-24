@@ -186,9 +186,7 @@ def generate_cluster_name(username: str) -> str:
 
     # Substitute any not valid character by "-"
     pattern = re.compile("[^a-z0-9-]")
-    cluster_name = (
-        f"c-{re.sub(pattern, '-', lowercase_username)}-{str(uuid.uuid4())[:8]}"
-    )
+    cluster_name = f"c-{re.sub(pattern, '-', lowercase_username)}-{str(uuid.uuid4())[:8]}"
     return cluster_name
 
 

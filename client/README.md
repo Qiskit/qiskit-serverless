@@ -11,7 +11,7 @@
 
 # Installation
 
-To install the latest release of the client, run: 
+To install the latest release of the client, run:
 
 ```shell
 pip install qiskit-serverless

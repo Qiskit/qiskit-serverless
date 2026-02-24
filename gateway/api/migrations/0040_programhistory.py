@@ -29,9 +29,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "action",
-                    models.CharField(
-                        choices=[("ADD", "Add"), ("REMOVE", "Remove")], max_length=255
-                    ),
+                    models.CharField(choices=[("ADD", "Add"), ("REMOVE", "Remove")], max_length=255),
                 ),
                 (
                     "field_name",
@@ -58,9 +56,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "program",
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE, to="api.program"
-                    ),
+                    models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="api.program"),
                 ),
             ],
         ),

@@ -7,7 +7,8 @@ from django.contrib.auth.models import AbstractUser
 from django.core.files import File
 
 from api.access_policies.providers import ProviderAccessPolicy
-from api.domain.exceptions.not_found_error import NotFoundError
+from api.domain.exceptions.provider_not_found_exception import ProviderNotFoundException
+from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
 from api.repositories.functions import FunctionRepository
 from api.repositories.providers import ProviderRepository
 from core.models import RUN_PROGRAM_PERMISSION
@@ -37,10 +38,8 @@ class FilesProviderUploadUseCase:
         """
 
         provider = self.provider_repository.get_provider_by_name(name=provider_name)
-        if provider is None or not ProviderAccessPolicy.can_access(
-            user=user, provider=provider
-        ):
-            raise NotFoundError(f"Provider {provider_name} doesn't exist.")
+        if provider is None or not ProviderAccessPolicy.can_access(user=user, provider=provider):
+            raise ProviderNotFoundException(provider_name)
 
         function = self.function_repository.get_function_by_permission(
             user=user,
@@ -50,9 +49,7 @@ class FilesProviderUploadUseCase:
         )
 
         if not function:
-            raise NotFoundError(
-                f"Qiskit Function {provider_name}/{function_title} doesn't exist."
-            )
+            raise FunctionNotFoundException(function=function_title, provider=provider_name)
 
         file_storage = FileStorage(
             username=user.username,
