@@ -16,7 +16,6 @@ from api.domain.exceptions.active_job_limit_exceeded_exception import (
     ActiveJobLimitExceeded,
 )
 
-
 logger = logging.getLogger("gateway")
 
 
