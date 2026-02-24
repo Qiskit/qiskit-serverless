@@ -10,7 +10,8 @@ from django.conf import settings
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from core.models import ComputeResource, Job, JobEvent
+from core.config_key import ConfigKey
+from core.models import ComputeResource, Job, JobEvent, Config
 from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     configure_job_to_use_gpu,
@@ -32,7 +33,7 @@ class ScheduleQueuedJobs:
 
     def run(self):
         """Schedule queued jobs to available cluster slots."""
-        if settings.MAINTENANCE:
+        if Config.get_bool(ConfigKey.MAINTENANCE):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
 

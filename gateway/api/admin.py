@@ -8,6 +8,7 @@ from django.urls import path
 from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.main import PAGE_VAR
 from core.models import (
+    Config,
     GroupMetadata,
     JobConfig,
     JobEvent,
@@ -202,6 +203,21 @@ class GroupMetadataAdmin(admin.ModelAdmin):
     """RuntimeJobAdmin."""
 
     search_fields = ["account", "group__name"]
+
+
+@admin.register(Config)
+class ConfigAdmin(admin.ModelAdmin):
+    """ConfigAdmin."""
+
+    list_display = ["name", "value", "bool_value", "description", "updated"]
+    search_fields = ["name", "value", "description"]
+    ordering = ["name"]
+    readonly_fields = ["created", "updated"]
+
+    @admin.display(description="Bool value", boolean=True)
+    def bool_value(self, obj):
+        """Display the boolean interpretation of the value."""
+        return obj.value.lower() == "true"
 
 
 @admin.register(JobEvent)
