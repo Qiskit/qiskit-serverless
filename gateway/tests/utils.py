@@ -8,9 +8,7 @@ from rest_framework.test import APIClient
 from core.models import Job, JobConfig, Program, Provider
 
 # literal for job status
-JobStatusType = Literal[
-    Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED
-]
+JobStatusType = Literal[Job.PENDING, Job.RUNNING, Job.STOPPED, Job.SUCCEEDED, Job.FAILED, Job.QUEUED]
 
 
 class TestUtils:
@@ -29,9 +27,7 @@ class TestUtils:
     @staticmethod
     def _get_or_create_provider(provider_admin: str) -> Provider:
         """Helper to setup a provider and its admin group/user safely."""
-        provider, _ = Provider.objects.get_or_create(
-            name=provider_admin
-        )  # provider name is unique
+        provider, _ = Provider.objects.get_or_create(name=provider_admin)  # provider name is unique
         # Setup Groups and Admin User if needed
         admin_group, _ = Group.objects.get_or_create(name=provider_admin)
         admin_user, _ = User.objects.get_or_create(username=provider_admin)
@@ -70,9 +66,7 @@ class TestUtils:
         if not program_title:
             program_title = f"{author_username}-{provider_admin or 'custom'}"
 
-        program = Program.objects.create(
-            title=program_title, author=author_obj, provider=provider, **kwargs
-        )
+        program = Program.objects.create(title=program_title, author=author_obj, provider=provider, **kwargs)
         program.save()
         return program
 
@@ -135,9 +129,7 @@ class TestUtils:
             else:
                 config = JobConfig.objects.create(**config)
 
-        job = Job.objects.create(
-            author=author_obj, program=program, status=status, config=config, **kwargs
-        )
+        job = Job.objects.create(author=author_obj, program=program, status=status, config=config, **kwargs)
         job.save()
         return job
 
