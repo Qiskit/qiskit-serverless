@@ -363,11 +363,21 @@ Both should return:
 2. The Ray console if job is running. This is filtered live.
 3. As a fallback, return the logs from the db.</p></li>
 </ul>
+<ul class="simple">
+<li><p>Added a new gateway setting to limit the number of active jobs per user. 
+By setting the environment variable <code class="docutils literal notranslate"><span class="pre">LIMITS_ACTIVE_JOBS_PER_USER</span></code>, you can 
+restrict the total number of jobs a user can have across <code class="docutils literal notranslate"><span class="pre">QUEUED</span></code>, 
+<code class="docutils literal notranslate"><span class="pre">PENDING</span></code>, and <code class="docutils literal notranslate"><span class="pre">RUNNING</span></code> states. The default limit is <code class="docutils literal notranslate"><span class="pre">50</span></code>.</p></li>
+</ul>
 </section>
 <section id="upgrade-notes">
 <span id="release-notes-upcoming-qiskit-serverless-release-upgrade-notes"></span><h3>Upgrade Notes<a class="headerlink" href="#upgrade-notes" title="Permalink to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Added several quality of life improvements in testing.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Requests to run programs will now return an <code class="docutils literal notranslate"><span class="pre">HTTP</span> <span class="pre">429</span> <span class="pre">Too</span> <span class="pre">Many</span> <span class="pre">Requests</span></code> response 
+if a user attempts to start a new job while they are at their active job limit.</p></li>
 </ul>
 </section>
 <section id="deprecation-notes">
