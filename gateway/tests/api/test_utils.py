@@ -136,67 +136,6 @@ class TestUtils(APITestCase):
                 },
             )
 
-    def test_trial_mode_env_var_build(self):
-        """This test will verify that the environment variables are correct with trial mode activated."""
-
-        with self.settings(SETTINGS_AUTH_MECHANISM="mock_token"):
-            channel = Channel.LOCAL
-            token = "mock_token"
-            job = MagicMock()
-            job.id = "42"
-            trial = True
-            arguments = "{}"
-            instance = None
-
-            env_vars = build_env_variables(
-                channel=channel,
-                token=token,
-                job=job,
-                trial_mode=trial,
-                args=arguments,
-                instance=instance,
-            )
-
-            self.assertEqual(
-                env_vars,
-                {
-                    "ENV_JOB_GATEWAY_TOKEN": "mock_token",
-                    "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
-                    "ENV_JOB_ID_GATEWAY": "42",
-                    "ENV_JOB_ARGUMENTS": "{}",
-                    "ENV_ACCESS_TRIAL": "True",
-                    "DATA_PATH": "/data",
-                    "QISKIT_IBM_TOKEN": "mock_token",
-                    "QISKIT_IBM_CHANNEL": "local",
-                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
-                },
-            )
-
-    def test_encryption(self):
-        """Tests encryption utils."""
-        string = "awesome string"
-        with self.settings(SECRET_KEY="django-super-secret"):
-            encrypted_string = encrypt_string(string)
-            decrypted_string = decrypt_string(encrypted_string)
-            self.assertEqual(string, decrypted_string)
-
-    def test_env_vars_encryption(self):
-        """Tests env vars encryption."""
-        with self.settings(SECRET_KEY="super-secret"):
-            env_vars_with_qiskit_runtime = {
-                "ENV_JOB_GATEWAY_TOKEN": "42",
-                "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
-                "ENV_JOB_ID_GATEWAY": "42",
-                "ENV_JOB_ARGUMENTS": {"answer": 42},
-                "QISKIT_IBM_TOKEN": "42",
-                "QISKIT_IBM_CHANNEL": "ibm_quantum",
-                "QISKIT_IBM_URL": "https://cloud.ibm.com",
-            }
-            encrypted_env_vars = encrypt_env_vars(env_vars_with_qiskit_runtime)
-            self.assertFalse(encrypted_env_vars["QISKIT_IBM_TOKEN"] == "42")
-            self.assertFalse(encrypted_env_vars["ENV_JOB_GATEWAY_TOKEN"] == "42")
-            self.assertEqual(env_vars_with_qiskit_runtime, decrypt_env_vars(encrypted_env_vars))
-
     def test_ibm_cloud_local_provider_env_var_build(self):
         """Test env_vars for IBM Cloud authentication with provider function in local mode."""
 
@@ -278,6 +217,67 @@ class TestUtils(APITestCase):
                     "QISKIT_IBM_URL": "https://cloud.ibm.com",
                 },
             )
+
+    def test_trial_mode_env_var_build(self):
+        """This test will verify that the environment variables are correct with trial mode activated."""
+
+        with self.settings(SETTINGS_AUTH_MECHANISM="mock_token"):
+            channel = Channel.LOCAL
+            token = "mock_token"
+            job = MagicMock()
+            job.id = "42"
+            trial = True
+            arguments = "{}"
+            instance = None
+
+            env_vars = build_env_variables(
+                channel=channel,
+                token=token,
+                job=job,
+                trial_mode=trial,
+                args=arguments,
+                instance=instance,
+            )
+
+            self.assertEqual(
+                env_vars,
+                {
+                    "ENV_JOB_GATEWAY_TOKEN": "mock_token",
+                    "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
+                    "ENV_JOB_ID_GATEWAY": "42",
+                    "ENV_JOB_ARGUMENTS": "{}",
+                    "ENV_ACCESS_TRIAL": "True",
+                    "DATA_PATH": "/data",
+                    "QISKIT_IBM_TOKEN": "mock_token",
+                    "QISKIT_IBM_CHANNEL": "local",
+                    "QISKIT_IBM_URL": "https://cloud.ibm.com",
+                },
+            )
+
+    def test_encryption(self):
+        """Tests encryption utils."""
+        string = "awesome string"
+        with self.settings(SECRET_KEY="django-super-secret"):
+            encrypted_string = encrypt_string(string)
+            decrypted_string = decrypt_string(encrypted_string)
+            self.assertEqual(string, decrypted_string)
+
+    def test_env_vars_encryption(self):
+        """Tests env vars encryption."""
+        with self.settings(SECRET_KEY="super-secret"):
+            env_vars_with_qiskit_runtime = {
+                "ENV_JOB_GATEWAY_TOKEN": "42",
+                "ENV_JOB_GATEWAY_HOST": "http://localhost:8000",
+                "ENV_JOB_ID_GATEWAY": "42",
+                "ENV_JOB_ARGUMENTS": {"answer": 42},
+                "QISKIT_IBM_TOKEN": "42",
+                "QISKIT_IBM_CHANNEL": "ibm_quantum",
+                "QISKIT_IBM_URL": "https://cloud.ibm.com",
+            }
+            encrypted_env_vars = encrypt_env_vars(env_vars_with_qiskit_runtime)
+            self.assertFalse(encrypted_env_vars["QISKIT_IBM_TOKEN"] == "42")
+            self.assertFalse(encrypted_env_vars["ENV_JOB_GATEWAY_TOKEN"] == "42")
+            self.assertEqual(env_vars_with_qiskit_runtime, decrypt_env_vars(encrypted_env_vars))
 
     def test_remove_duplicates_from_list(self):
         list_with_duplicates = ["value_two", "value_one", "value_two"]

@@ -95,20 +95,18 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
     #        resulting in DATA_PATH = /data/{username}/{providername}/{imagename}
     if settings.RAY_CLUSTER_MODE_LOCAL:
         prefix = f"data/{job.author.username}"
-        # only if provider is found, resolve path using path builder used
-        # when storing arguments
-        has_provider = job.program.provider is not None
-        sub_path = (
-            PathBuilder.sub_path(
+        # only if provider is found, resolve path using path builder
+        if job.program.provider is not None:
+            sub_path = PathBuilder.sub_path(
                 working_dir=WorkingDir.PROVIDER_STORAGE,
                 username=job.author.username,
                 function_title=job.program.title,
                 provider_name=job.program.provider.name,
                 extra_sub_path=None,
             )
-            if has_provider
-            else ""
-        )
+        else:
+            sub_path = ""
+        # avoid double slash or trailing slash
         data_path = f"/{prefix}/{sub_path}".replace("//", "/").rstrip("/")
     else:
         data_path = "/data"
