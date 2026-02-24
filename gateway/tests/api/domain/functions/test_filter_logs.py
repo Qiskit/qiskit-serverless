@@ -104,7 +104,7 @@ sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Private information
 
         output_log = filter_logs_with_non_public_tags(log)
 
-        self.assertEqual(output_log, expected_output)
+        assert output_log == expected_output
 
     def test_remove_prefix_tags_in_logs(self):
         """Tests log_filter_user_job removes prefixes but keeps all lines."""
