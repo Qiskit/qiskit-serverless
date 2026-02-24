@@ -2,6 +2,6 @@
 deprecations:
   - |
     The ``@distribute_qiskit_function`` decorator has been deprecated and will
-    be removed in following releases. The decorator was designed for remote 
+    be removed in following releases. The decorator was designed for remote
     program execution, a functionality that is now provided through the different
-    serverless clients through the `upload` method. 
+    serverless clients through the `upload` method.
