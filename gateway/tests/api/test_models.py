@@ -233,8 +233,8 @@ class TestJobAdmin(APITestCase):
                 "_save": "Save",
             }
         )
-        
+
         self.client.post(url, data, follow=True)
-                
+
         job_events = JobEvent.objects.filter(job_id=job.id)
         self.assertEqual(job_events.count(), 0)
