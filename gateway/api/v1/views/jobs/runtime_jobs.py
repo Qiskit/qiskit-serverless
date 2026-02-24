@@ -20,7 +20,7 @@ from api.use_cases.jobs.associate_runtime_jobs import (
 )
 from api.use_cases.jobs.get_runtime_jobs import GetRuntimeJobsUseCase
 from api.v1.endpoint_decorator import endpoint
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 
 

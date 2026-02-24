@@ -12,6 +12,7 @@ class JobEventOrigin(StrEnum):
 
     API = "API"
     SCHEDULER = "SCHEDULER"
+    BACKOFFICE = "BACKOFFICE"
 
 
 class JobEventContext(StrEnum):
@@ -22,6 +23,7 @@ class JobEventContext(StrEnum):
     RUN_PROGRAM = "RUN_PROGRAM"
     UPDATE_JOB_STATUS = "UPDATE_JOB_STATUS"
     SCHEDULE_JOBS = "SCHEDULE_JOBS"
+    SAVE_MODEL = "SAVE_MODEL"
 
 
 class JobEventType(StrEnum):

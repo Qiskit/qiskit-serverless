@@ -6,7 +6,6 @@ import os
 from django.test import TestCase
 from unittest.mock import Mock
 
-from api.domain.exceptions.forbidden_error import ForbiddenError
 from core.services.storage.logs_storage import LogsStorage
 
 
