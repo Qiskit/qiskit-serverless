@@ -334,6 +334,7 @@ class JobEvent(models.Model):
 
     class Meta:
         app_label = "api"
+        ordering = ("-created",)
 
 
 class GroupMetadata(models.Model):

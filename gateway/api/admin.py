@@ -1,6 +1,9 @@
 """Admin module."""
 
+import json
+
 from django.contrib import admin
+from django.utils.safestring import mark_safe
 from django.urls import path
 from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.main import PAGE_VAR
@@ -8,6 +11,7 @@ from core.models import (
     Config,
     GroupMetadata,
     JobConfig,
+    JobEvent,
     Provider,
     Program,
     ProgramHistory,
@@ -15,6 +19,7 @@ from core.models import (
     Job,
     RuntimeJob,
 )
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 
 
 @admin.register(JobConfig)
@@ -91,6 +96,70 @@ class ComputeResourceAdmin(admin.ModelAdmin):
     list_filter = ["active"]
 
 
+class JobEventInline(admin.TabularInline):
+    """JobEventInline for admin views."""
+
+    model = JobEvent
+    extra = 0
+    ordering = ("-created",)
+    fields = ("event_type", "pretty_status", "created", "origin", "context", "render_data_json")
+    readonly_fields = ("created", "pretty_status", "event_type", "origin", "context", "render_data_json")
+    can_delete = False
+
+    verbose_name_plural = "Job Events History"
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="Data JSON")
+    def render_data_json(self, instance):
+        """Formatea el campo JSON para que se vea como código."""
+        if not instance.data:
+            return ""
+
+        pretty_json = json.dumps(instance.data, indent=2)
+
+        return mark_safe(
+            f'<pre style="background: #f4f4f4; padding: 5px; border-radius: 4px; '
+            f'font-family: monospace; font-size: 11px; white-space: pre-wrap;">'
+            f"{pretty_json.strip()}</pre>"
+        )
+
+    @admin.display(description="Status/SubStatus")
+    def pretty_status(self, instance):
+        """Añade un badge de color según el tipo de evento."""
+        colors = {
+            # STATUSES
+            Job.QUEUED: "#f0ad4e",
+            Job.PENDING: "#f0ad4e",
+            Job.RUNNING: "#5bc0de",
+            Job.SUCCEEDED: "#00aa00",
+            Job.STOPPED: "#888888",
+            Job.FAILED: "#cc0000",
+            # SUB-STATUSES
+            Job.MAPPING: "#5bc0de",
+            Job.OPTIMIZING_HARDWARE: "#5bc0de",
+            Job.WAITING_QPU: "#5bc0de",
+            Job.EXECUTING_QPU: "#5bc0de",
+            Job.POST_PROCESSING: "#5bc0de",
+        }
+
+        status = "None"
+        if instance.event_type == JobEventType.STATUS_CHANGE:
+            status = instance.data["status"]
+        elif instance.event_type == JobEventType.SUB_STATUS_CHANGE:
+            status = instance.data["sub_status"]
+
+        # Buscamos el color, si no existe usamos gris por defecto
+        color = colors.get(status, "#ff00ff")
+
+        return mark_safe(
+            f'<span style="background-color: {color} !important; color: white; padding: 3px 10px; '
+            f'border-radius: 12px; font-weight: bold; font-size: 10px; text-transform: uppercase;">'
+            f"{status}</span>"
+        )
+
+
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
     """JobAdmin."""
@@ -99,6 +168,27 @@ class JobAdmin(admin.ModelAdmin):
     list_filter = ["status"]
     exclude = ["arguments", "env_vars", "logs", "result"]
     ordering = ["-created"]
+    inlines = [JobEventInline]
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            if "status" in form.changed_data:
+                JobEvent.objects.add_status_event(
+                    job_id=obj.id,
+                    origin=JobEventOrigin.BACKOFFICE,
+                    context=JobEventContext.SAVE_MODEL,
+                    status=obj.status,
+                )
+
+            if "sub_status" in form.changed_data:
+                JobEvent.objects.add_sub_status_event(
+                    job_id=obj.id,
+                    origin=JobEventOrigin.BACKOFFICE,
+                    context=JobEventContext.SAVE_MODEL,
+                    sub_status=obj.sub_status,
+                )
+
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(RuntimeJob)
@@ -128,3 +218,11 @@ class ConfigAdmin(admin.ModelAdmin):
     def bool_value(self, obj):
         """Display the boolean interpretation of the value."""
         return obj.value.lower() == "true"
+
+
+@admin.register(JobEvent)
+class JobEventAdmin(admin.ModelAdmin):
+    """JobEventAdmin."""
+
+    list_display = ("created", "job", "event_type", "origin", "context")
+    date_hierarchy = "created"
