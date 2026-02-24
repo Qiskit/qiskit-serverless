@@ -109,7 +109,7 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
             if has_provider
             else ""
         )
-        data_path = f"/{prefix}/{sub_path}".replace("//", "/")
+        data_path = f"/{prefix}/{sub_path}".replace("//", "/").rstrip("/")
     else:
         data_path = "/data"
 
