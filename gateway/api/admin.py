@@ -1,6 +1,9 @@
 """Admin module."""
 
+import json
+
 from django.contrib import admin
+from django.utils.safestring import mark_safe
 from django.urls import path
 from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.main import PAGE_VAR
@@ -15,7 +18,7 @@ from core.models import (
     Job,
     RuntimeJob,
 )
-from core.model_managers.job_events import JobEventContext, JobEventOrigin
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 
 
 @admin.register(JobConfig)
@@ -98,11 +101,62 @@ class JobEventInline(admin.TabularInline):
     model = JobEvent
     extra = 0
     ordering = ("-created",)
-    readonly_fields = ("created", "event_type", "origin", "context", "data")
+    fields = ("event_type", "pretty_status", "created", "origin", "context", "render_data_json")
+    readonly_fields = ("created", "pretty_status", "event_type", "origin", "context", "render_data_json")
     can_delete = False
+
+    verbose_name_plural = "Job Events History"
 
     def has_add_permission(self, request, obj=None):
         return False
+
+    @admin.display(description="Data JSON")
+    def render_data_json(self, instance):
+        """Formatea el campo JSON para que se vea como código."""
+        if not instance.data:
+            return ""
+
+        pretty_json = json.dumps(instance.data, indent=2)
+
+        return mark_safe(
+            f'<pre style="background: #f4f4f4; padding: 5px; border-radius: 4px; '
+            f'font-family: monospace; font-size: 11px; white-space: pre-wrap;">'
+            f"{pretty_json.strip()}</pre>"
+        )
+
+    @admin.display(description="Status/SubStatus")
+    def pretty_status(self, instance):
+        """Añade un badge de color según el tipo de evento."""
+        colors = {
+            # STATUSES
+            Job.QUEUED: "#f0ad4e",
+            Job.PENDING: "#f0ad4e",
+            Job.RUNNING: "#5bc0de",
+            Job.SUCCEEDED: "#00aa00",
+            Job.STOPPED: "#888888",
+            Job.FAILED: "#cc0000",
+            # SUB-STATUSES
+            Job.MAPPING: "#5bc0de",
+            Job.OPTIMIZING_HARDWARE: "#5bc0de",
+            Job.WAITING_QPU: "#5bc0de",
+            Job.EXECUTING_QPU: "#5bc0de",
+            Job.POST_PROCESSING: "#5bc0de",
+        }
+
+        status = "None"
+        if instance.event_type == JobEventType.STATUS_CHANGE:
+            status = instance.data["status"]
+        elif instance.event_type == JobEventType.SUB_STATUS_CHANGE:
+            status = instance.data["sub_status"]
+
+        # Buscamos el color, si no existe usamos gris por defecto
+        color = colors.get(status, "#ff00ff")
+
+        return mark_safe(
+            f'<span style="background-color: {color} !important; color: white; padding: 3px 10px; '
+            f'border-radius: 12px; font-weight: bold; font-size: 10px; text-transform: uppercase;">'
+            f"{status}</span>"
+        )
 
 
 @admin.register(Job)
