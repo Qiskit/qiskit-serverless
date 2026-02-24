@@ -83,8 +83,11 @@ class LogsStorage:
 
     def _read_logs(self, base_path: str) -> Optional[str]:
         """Read logs from the given path."""
-        log_path = self._get_file_path(base_path)
         try:
+            log_path = self._get_file_path(base_path)
+            # listdir refreshes the COS volume.
+            # The log file is written in the Scheduler and read from the Gateway, and there is 15m TTL.
+            os.listdir(base_path)
             with open(log_path, "r", encoding=self.ENCODING) as log_file:
                 return log_file.read()
         except FileNotFoundError:
@@ -109,7 +112,6 @@ class LogsStorage:
             with open(log_path, "w+", encoding=self.ENCODING) as log_file:
                 log_file.write(logs)
                 log_file.flush()
-                os.fsync(log_file.fileno())
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
                 "Failed to write log file for job ID '%s': %s",
