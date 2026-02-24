@@ -92,6 +92,16 @@ class ComputeResourceAdmin(admin.ModelAdmin):
     list_filter = ["active"]
 
 
+class JobEventInline(admin.TabularInline):
+    model = JobEvent
+    extra = 0
+    ordering = ("-created",)
+    readonly_fields = ("created", "event_type", "origin", "context", "data")
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
     """JobAdmin."""
@@ -100,6 +110,7 @@ class JobAdmin(admin.ModelAdmin):
     list_filter = ["status"]
     exclude = ["arguments", "env_vars", "logs", "result"]
     ordering = ["-created"]
+    inlines = [JobEventInline]
 
     def save_model(self, request, obj, form, change):
         if change:
@@ -142,3 +153,4 @@ class JobEventAdmin(admin.ModelAdmin):
 
     list_display = ("created", "job", "event_type", "origin", "context")
     date_hierarchy = "created"
+
