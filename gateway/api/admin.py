@@ -93,6 +93,8 @@ class ComputeResourceAdmin(admin.ModelAdmin):
 
 
 class JobEventInline(admin.TabularInline):
+    """JobEventInline for admin views."""
+
     model = JobEvent
     extra = 0
     ordering = ("-created",)
@@ -101,6 +103,7 @@ class JobEventInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         return False
+
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
@@ -153,4 +156,3 @@ class JobEventAdmin(admin.ModelAdmin):
 
     list_display = ("created", "job", "event_type", "origin", "context")
     date_hierarchy = "created"
-
