@@ -129,4 +129,4 @@ Regular print statement
 
         output_log = remove_prefix_tags_in_logs(log)
 
-        self.assertEqual(output_log, expected_output)
+        assert output_log == expected_output
