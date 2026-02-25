@@ -30,9 +30,6 @@ class ScheduleQueuedJobs:
     def __init__(self, kill_signal: KillSignal = None):
         self.kill_signal = kill_signal or KillSignal()
 
-    def _should_stop(self):
-        return self.kill_signal.running
-
     def run(self):
         """Schedule queued jobs to available cluster slots."""
         if Config.get_bool(ConfigKey.MAINTENANCE):
@@ -82,7 +79,7 @@ class ScheduleQueuedJobs:
         jobs = [job for job in jobs if job.gpu is gpu_job]
 
         for job in jobs:
-            if self._should_stop():
+            if self.kill_signal.received:
                 return
 
             env = json.loads(job.env_vars)

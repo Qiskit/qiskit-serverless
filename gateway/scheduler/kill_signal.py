@@ -11,7 +11,7 @@ class KillSignal:
     """Encapsulates signal handling and the running flag for graceful shutdown."""
 
     def __init__(self):
-        self.running = True
+        self.received = False
 
     def register(self):
         """Register signal handlers for graceful shutdown."""
@@ -20,4 +20,4 @@ class KillSignal:
 
     def _handle_signal(self, signum, _frame):
         logger.info("Received signal %s, stopping scheduler loop...", signum)
-        self.running = False
+        self.received = True

@@ -26,9 +26,6 @@ class Main:
 
         logger.info("Scheduler loop started.")
 
-    def _should_stop(self):
-        return self.kill_signal.running
-
     def run(self):
         """Run the scheduler loop."""
         update_jobs_statuses = UpdateJobsStatuses(self.kill_signal)
@@ -41,7 +38,7 @@ class Main:
             (schedule_queued_jobs, "ScheduleQueuedJobs"),
         ]
 
-        while self._should_stop():
+        while self.kill_signal.received:
             start_time = time.time()
 
             for task, name in tasks:
@@ -49,11 +46,11 @@ class Main:
                     task.run()
                 except Exception as ex:  # pylint: disable=broad-exception-caught
                     logger.exception("Error in %s: %s", name, ex)
-                if not self._should_stop():
+                if not self.kill_signal.received:
                     break
 
             elapsed = time.time() - start_time
-            if self._should_stop() and elapsed < 1:
+            if self.kill_signal.received and elapsed < 1:
                 time.sleep(1 - elapsed)
 
         logger.info("Scheduler loop stopped.")

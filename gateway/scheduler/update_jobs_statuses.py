@@ -156,9 +156,6 @@ class UpdateJobsStatuses:
     def __init__(self, kill_signal: KillSignal = None):
         self.kill_signal = kill_signal or KillSignal()
 
-    def _should_stop(self):
-        return self.kill_signal is not None and not self.kill_signal.running
-
     def run(self):
         """Update statuses of all running jobs."""
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
@@ -170,7 +167,7 @@ class UpdateJobsStatuses:
             updated_jobs_counter = 0
             jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=False)
             for job in jobs:
-                if self._should_stop():
+                if self.kill_signal.received:
                     return
                 if update_job_status(job):
                     updated_jobs_counter += 1
@@ -181,7 +178,7 @@ class UpdateJobsStatuses:
             updated_jobs_counter = 0
             jobs = Job.objects.filter(status__in=Job.RUNNING_STATUSES, gpu=True)
             for job in jobs:
-                if self._should_stop():
+                if self.kill_signal.received:
                     return
                 if update_job_status(job):
                     updated_jobs_counter += 1

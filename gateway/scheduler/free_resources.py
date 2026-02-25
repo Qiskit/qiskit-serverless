@@ -18,9 +18,6 @@ class FreeResources:
     def __init__(self, kill_signal: KillSignal = None):
         self.kill_signal = kill_signal or KillSignal()
 
-    def _should_stop(self):
-        return self.kill_signal.running
-
     def run(self):
         """Free unused compute resources."""
         if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
@@ -31,7 +28,7 @@ class FreeResources:
 
         compute_resources = ComputeResource.objects.filter(active=True)
         for compute_resource in compute_resources:
-            if self._should_stop():
+            if self.kill_signal.received:
                 return
 
             # I think this logic could be reviewed because now each job
