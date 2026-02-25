@@ -1,10 +1,11 @@
 #!/bin/sh
+trap 'exit 0' TERM INT
 
 python manage.py migrate_with_lock
 while :
 do
-  exec python manage.py update_jobs_statuses
-  exec python manage.py free_resources
-	exec python manage.py schedule_queued_jobs
-	sleep 1
+  python manage.py update_jobs_statuses
+  python manage.py free_resources
+  python manage.py schedule_queued_jobs
+  sleep 1
 done
