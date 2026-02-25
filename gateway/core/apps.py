@@ -26,13 +26,13 @@ class CoreConfig(AppConfig):
         register(Tags.models)(check_model_labels)
 
         if settings.IS_GATEWAY or settings.IS_SCHEDULER:
-            logger.info(f"[BOOT] CoreApp.ready in {'gateway' if settings.IS_GATEWAY else 'scheduler'}")
+            logger.info("[BOOT] CoreApp.ready in %s", "gateway" if settings.IS_GATEWAY else "scheduler")
 
             from core.models import Config  # pylint: disable=import-outside-toplevel
 
             Config.add_defaults()
         else:
-            logger.info(f"[BOOT] CoreApp.ready in command {settings.COMMAND}")
+            logger.info("[BOOT] CoreApp.ready in command %s", settings.COMMAND)
 
 
 def check_model_labels(app_configs, **kwargs):

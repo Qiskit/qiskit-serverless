@@ -391,4 +391,4 @@ DYNAMIC_CONFIG_DEFAULTS = {
     },
 }
 
-logging.getLogger("main").info(f"[BOOT] Settings.py: {'gunicorn' if IS_UNICORN else COMMAND}")
+logging.getLogger("main").info("[BOOT] Settings.py: %s", "gunicorn" if IS_UNICORN else COMMAND)
