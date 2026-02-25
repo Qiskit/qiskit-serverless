@@ -1,3 +1,6 @@
+"""Signal handling for the scheduler loop."""
+
+import signal
 import signal
 
 import logging
