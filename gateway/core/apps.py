@@ -3,7 +3,6 @@
 import importlib
 import inspect
 import logging
-import sys
 
 from django.apps import AppConfig
 from django.conf import settings
@@ -27,7 +26,7 @@ class CoreConfig(AppConfig):
 
         register_dynamic_config()
 
-        logger.info(f"**** core app started (gateway)")
+        logger.info("**** core app started (gateway)")
 
 
 def register_dynamic_config():
