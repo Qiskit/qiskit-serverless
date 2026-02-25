@@ -38,8 +38,6 @@ class ScheduleQueuedJobs:
             return
 
         self._schedule_cpu_jobs()
-        if self._should_stop():
-            return
         self._schedule_gpu_jobs()
 
     def _schedule_cpu_jobs(self):

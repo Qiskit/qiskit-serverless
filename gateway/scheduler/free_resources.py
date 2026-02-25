@@ -6,6 +6,7 @@ from django.conf import settings
 
 from core.models import ComputeResource, Job
 from core.services.ray import kill_ray_cluster
+from scheduler.main import Main
 
 logger = logging.getLogger("commands")
 
@@ -13,7 +14,7 @@ logger = logging.getLogger("commands")
 class FreeResources:
     """Cleanup resources."""
 
-    def __init__(self, scheduler=None):
+    def __init__(self, schedule: Main):
         self.scheduler = scheduler
 
     def _should_stop(self):
@@ -41,9 +42,9 @@ class FreeResources:
 
             # only kill cluster if not in local mode and no jobs are running there
             if not there_are_alive_jobs:
-                self._remove_compute_resource(compute_resource)
+                self.remove_compute_resource(compute_resource)
 
-    def _remove_compute_resource(self, compute_resource: ComputeResource):
+    def remove_compute_resource(self, compute_resource: ComputeResource):
         """
         This method removes a Compute Resource if it's
         available in the cluster.
