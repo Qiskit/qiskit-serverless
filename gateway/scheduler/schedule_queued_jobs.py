@@ -19,17 +19,19 @@ from scheduler.schedule import (
     execute_job,
 )
 
+from scheduler.kill_signal import KillSignal
+
 logger = logging.getLogger("commands")
 
 
 class ScheduleQueuedJobs:
     """Schedule jobs service."""
 
-    def __init__(self, scheduler=None):
-        self.scheduler = scheduler
+    def __init__(self, kill_signal: KillSignal = None):
+        self.kill_signal = kill_signal or KillSignal()
 
     def _should_stop(self):
-        return self.scheduler is not None and not self.scheduler.running
+        return self.kill_signal.running
 
     def run(self):
         """Schedule queued jobs to available cluster slots."""

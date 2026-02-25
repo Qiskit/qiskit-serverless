@@ -21,6 +21,8 @@ from scheduler.schedule import (
     fail_job_insufficient_resources,
 )
 
+from scheduler.kill_signal import KillSignal
+
 logger = logging.getLogger("commands")
 
 
@@ -151,11 +153,11 @@ def save_logs_to_storage(job: Job, logs: str):
 class UpdateJobsStatuses:
     """Update status of jobs."""
 
-    def __init__(self, scheduler=None):
-        self.scheduler = scheduler
+    def __init__(self, kill_signal: KillSignal = None):
+        self.kill_signal = kill_signal or KillSignal()
 
     def _should_stop(self):
-        return self.scheduler is not None and not self.scheduler.running
+        return self.kill_signal is not None and not self.kill_signal.running
 
     def run(self):
         """Update statuses of all running jobs."""

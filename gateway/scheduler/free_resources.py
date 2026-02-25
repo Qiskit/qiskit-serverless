@@ -7,17 +7,19 @@ from django.conf import settings
 from core.models import ComputeResource, Job
 from core.services.ray import kill_ray_cluster
 
+from scheduler.kill_signal import KillSignal
+
 logger = logging.getLogger("commands")
 
 
 class FreeResources:
     """Cleanup resources."""
 
-    def __init__(self, scheduler):
-        self.scheduler = scheduler
+    def __init__(self, kill_signal: KillSignal = None):
+        self.kill_signal = kill_signal or KillSignal()
 
     def _should_stop(self):
-        return self.scheduler is not None and not self.scheduler.running
+        return self.kill_signal.running
 
     def run(self):
         """Free unused compute resources."""

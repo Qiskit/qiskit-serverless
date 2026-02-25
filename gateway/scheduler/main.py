@@ -1,10 +1,10 @@
 """Scheduler loop service."""
 
 import logging
-import signal
 import time
 
 from core.models import Config
+from scheduler.kill_signal import KillSignal
 from scheduler.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.free_resources import FreeResources
 from scheduler.schedule_queued_jobs import ScheduleQueuedJobs
@@ -16,22 +16,24 @@ class Main:
     """Main scheduler loop that runs all scheduler tasks."""
 
     def __init__(self):
-        self.running = True
+        self.kill_signal = KillSignal()
 
     def configure(self):
         """Configure the scheduler."""
-        signal.signal(signal.SIGTERM, self._handle_signal)
-        signal.signal(signal.SIGINT, self._handle_signal)
+        self.kill_signal.register()
 
         Config.add_defaults()
 
         logger.info("Scheduler loop started.")
 
+    def _should_stop(self):
+        return self.kill_signal.running
+
     def run(self):
         """Run the scheduler loop."""
-        update_jobs_statuses = UpdateJobsStatuses(self)
-        free_resources = FreeResources(self)
-        schedule_queued_jobs = ScheduleQueuedJobs(self)
+        update_jobs_statuses = UpdateJobsStatuses(self.kill_signal)
+        free_resources = FreeResources(self.kill_signal)
+        schedule_queued_jobs = ScheduleQueuedJobs(self.kill_signal)
 
         tasks = [
             (update_jobs_statuses, "UpdateJobsStatuses"),
@@ -39,7 +41,7 @@ class Main:
             (schedule_queued_jobs, "ScheduleQueuedJobs"),
         ]
 
-        while self.running:
+        while self._should_stop():
             start_time = time.time()
 
             for task, name in tasks:
@@ -47,15 +49,11 @@ class Main:
                     task.run()
                 except Exception as ex:  # pylint: disable=broad-exception-caught
                     logger.exception("Error in %s: %s", name, ex)
-                if not self.running:
+                if not self._should_stop():
                     break
 
             elapsed = time.time() - start_time
-            if self.running and elapsed < 1:
+            if self._should_stop() and elapsed < 1:
                 time.sleep(1 - elapsed)
 
         logger.info("Scheduler loop stopped.")
-
-    def _handle_signal(self, signum, _frame):
-        logger.info("Received signal %s, stopping scheduler loop...", signum)
-        self.running = False
