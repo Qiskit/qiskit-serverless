@@ -6,7 +6,6 @@ from django.conf import settings
 
 from core.models import ComputeResource, Job
 from core.services.ray import kill_ray_cluster
-from scheduler.main import Main
 
 logger = logging.getLogger("commands")
 
