@@ -676,3 +676,23 @@ class TestProgramApi(APITestCase):
             # Verify the storage path is for user function (no provider in path)
             expected_arguments_path = os.path.join(self.MEDIA_ROOT, user.username, "arguments")
             self.assertEqual(arguments_storage.absolute_path, expected_arguments_path)
+
+    def test_program_version_field_returned(self):
+        """Tests that the Program `version` field is returned by the API."""
+
+        user = models.User.objects.get(username="test_user_2")
+        self.client.force_authenticate(user=user)
+
+        # Update fixture program to have a version string
+        program = Program.objects.get(title="Docker-Image-Program", author=user)
+        program.version = "1.2.3"
+        program.save()
+
+        response = self.client.get(
+            "/api/v1/programs/get_by_title/Docker-Image-Program/",
+            {"provider": "default"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get("version"), "1.2.3")
