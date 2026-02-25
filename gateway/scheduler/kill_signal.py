@@ -8,7 +8,7 @@ logger = logging.getLogger("kill_signal")
 
 
 class KillSignal:
-    """Encapsulates signal handling and the running flag for graceful shutdown."""
+    """Encapsulates signal handling for graceful shutdown."""
 
     def __init__(self):
         self.received = False
