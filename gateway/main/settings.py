@@ -18,6 +18,18 @@ from core.utils import sanitize_file_path
 
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
 
+
+def _is_running_as(commands):
+    """Check if the current process was started with any of the given commands."""
+    if isinstance(commands, str):
+        commands = (commands,)
+    return any(cmd in arg for arg in sys.argv for cmd in commands)
+
+
+IS_GATEWAY = _is_running_as(("runserver", "gunicorn"))
+IS_TEST = _is_running_as("test")
+IS_SCHEDULER = _is_running_as("scheduler_loop")
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -68,13 +80,13 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "pgactivity",
     "pglock",
-    "api",
-    "core",
-    "scheduler",
     "psycopg2",
     "drf_yasg",
     "corsheaders",
     "csp",
+    "core",
+    *(["api"] if IS_GATEWAY or IS_TEST else []),
+    *(["scheduler"] if IS_SCHEDULER or IS_TEST else []),
 ]
 
 MIDDLEWARE = [
@@ -95,7 +107,7 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
-ROOT_URLCONF = "main.urls"
+ROOT_URLCONF = "main.urls" if IS_GATEWAY or IS_TEST else None
 
 TEMPLATES = [
     {

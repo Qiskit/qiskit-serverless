@@ -1,6 +1,11 @@
 """Applications."""
 
+import logging
+
 from django.apps import AppConfig
+from django.conf import settings
+
+logger = logging.getLogger("gateway")
 
 
 class ApiConfig(AppConfig):
@@ -11,7 +16,14 @@ class ApiConfig(AppConfig):
     is_ready = False
 
     def ready(self):
-        """Import signal handlers only when Django has started and ready."""
+        """Executed when Gateway app starts"""
+
+        assert settings.IS_GATEWAY or settings.IS_TEST, "ApiConfig.ready() executed but IS_GATEWAY/IS_TEST are false"
+
+        # Import signal handlers only when Django has started and ready.
         import api.signals  # noqa: F401  # pylint: disable=import-outside-toplevel,unused-import
 
+        # Flag used for the /liveness and /readiness probes
         ApiConfig.is_ready = True
+
+        logger.info("**** api app started")
