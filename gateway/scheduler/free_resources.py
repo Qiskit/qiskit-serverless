@@ -14,7 +14,7 @@ logger = logging.getLogger("commands")
 class FreeResources:
     """Cleanup resources."""
 
-    def __init__(self, schedule: Main):
+    def __init__(self, scheduler):
         self.scheduler = scheduler
 
     def _should_stop(self):
