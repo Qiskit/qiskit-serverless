@@ -26,7 +26,7 @@ class TestCommands(APITestCase):
     fixtures = ["tests/fixtures/schedule_fixtures.json"]
 
     def setUp(self):
-        Config.register_all()
+        Config.add_defaults()
 
     def test_create_compute_resource(self):
         """Tests compute resource creation command."""

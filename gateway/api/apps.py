@@ -18,8 +18,6 @@ class ApiConfig(AppConfig):
     def ready(self):
         """Executed when Gateway app starts"""
 
-        assert settings.IS_GATEWAY or settings.IS_TEST, "ApiConfig.ready() executed but IS_GATEWAY/IS_TEST are false"
-
         # Import signal handlers only when Django has started and ready.
         import api.signals  # noqa: F401  # pylint: disable=import-outside-toplevel,unused-import
 

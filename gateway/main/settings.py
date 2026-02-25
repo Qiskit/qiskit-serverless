@@ -80,13 +80,13 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "pgactivity",
     "pglock",
+    "api",
+    "core",
+    "scheduler",
     "psycopg2",
     "drf_yasg",
     "corsheaders",
     "csp",
-    "core",
-    *(["api"] if IS_GATEWAY or IS_TEST else []),
-    *(["scheduler"] if IS_SCHEDULER or IS_TEST else []),
 ]
 
 MIDDLEWARE = [
@@ -107,7 +107,7 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
-ROOT_URLCONF = "main.urls" if IS_GATEWAY or IS_TEST else None
+ROOT_URLCONF = "main.urls"
 
 TEMPLATES = [
     {

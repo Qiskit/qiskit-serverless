@@ -4,6 +4,7 @@ import logging
 import signal
 import time
 
+from core.models import Config
 from scheduler.update_jobs_statuses import UpdateJobsStatuses
 from scheduler.free_resources import FreeResources
 from scheduler.schedule_queued_jobs import ScheduleQueuedJobs
@@ -17,13 +18,17 @@ class Main:
     def __init__(self):
         self.running = True
 
-    def run(self):
-        """Run the scheduler loop."""
+    def configure(self):
+        """Configure the scheduler."""
         signal.signal(signal.SIGTERM, self._handle_signal)
         signal.signal(signal.SIGINT, self._handle_signal)
 
+        Config.add_defaults()
+
         logger.info("Scheduler loop started.")
 
+    def run(self):
+        """Run the scheduler loop."""
         update_jobs_statuses = UpdateJobsStatuses(self)
         free_resources = FreeResources(self)
         schedule_queued_jobs = ScheduleQueuedJobs(self)
