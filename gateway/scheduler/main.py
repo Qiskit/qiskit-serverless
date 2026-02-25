@@ -38,19 +38,19 @@ class Main:
             (schedule_queued_jobs, "ScheduleQueuedJobs"),
         ]
 
-        while self.kill_signal.received:
+        while not self.kill_signal.received:
             start_time = time.time()
 
             for task, name in tasks:
+                if self.kill_signal.received:
+                    break
                 try:
                     task.run()
                 except Exception as ex:  # pylint: disable=broad-exception-caught
                     logger.exception("Error in %s: %s", name, ex)
-                if not self.kill_signal.received:
-                    break
 
             elapsed = time.time() - start_time
-            if self.kill_signal.received and elapsed < 1:
+            if not self.kill_signal.received and elapsed < 1:
                 time.sleep(1 - elapsed)
 
         logger.info("Scheduler loop stopped.")
