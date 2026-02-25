@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0042_jobevent"),
+        ("api", "0043_config"),
     ]
 
     operations = [
