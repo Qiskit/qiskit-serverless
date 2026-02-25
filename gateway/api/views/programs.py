@@ -8,6 +8,7 @@ import logging
 import os
 
 # pylint: disable=duplicate-code
+from django.conf import settings
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -20,6 +21,9 @@ from rest_framework.response import Response
 
 from api.decorators.trace_decorator import trace_decorator_factory
 from api.domain.authentication.channel import Channel
+from api.domain.exceptions.active_job_limit_exceeded_exception import (
+    ActiveJobLimitExceeded,
+)
 from api.repositories.functions import FunctionRepository
 from api.serializers import (
     JobConfigSerializer,
@@ -28,7 +32,8 @@ from api.serializers import (
     RunProgramSerializer,
     UploadProgramSerializer,
 )
-from api.utils import sanitize_name
+from api.utils import active_jobs_limit_reached, sanitize_name
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.views.enums.type_filter import TypeFilter
 from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION, Program, Job
 
@@ -177,6 +182,7 @@ class ProgramViewSet(viewsets.GenericViewSet):
 
     @_trace
     @action(methods=["POST"], detail=False)
+    @endpoint_handle_exceptions
     def run(self, request):  # pylint: disable=too-many-locals
         """Enqueues existing program."""
         serializer = self.get_serializer_run_program(data=request.data)
@@ -243,6 +249,12 @@ class ProgramViewSet(viewsets.GenericViewSet):
                 serializer.errors,
             )
             return Response(job_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if active_jobs_limit_reached(author):
+            logger.error(
+                "The number of active jobs has reached the limit. The set limit is: %s",
+                settings.LIMITS_ACTIVE_JOBS_PER_USER,
+            )
+            raise ActiveJobLimitExceeded()
         job = job_serializer.save(
             author=author,
             carrier=carrier,

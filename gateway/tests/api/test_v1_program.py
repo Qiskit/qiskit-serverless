@@ -13,6 +13,7 @@ from rest_framework.test import APITestCase
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
 from core.models import Job, JobEvent, Program
 from core.services.storage.arguments_storage import ArgumentsStorage
+from tests.utils import TestUtils
 
 
 class TestProgramApi(APITestCase):
@@ -21,10 +22,12 @@ class TestProgramApi(APITestCase):
     fixtures = ["tests/fixtures/fixtures.json"]
 
     def setUp(self):
+        # pylint: disable=invalid-name
         """Set up test fixtures and media root path."""
         super().setUp()
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
+        self.LIMITS_ACTIVE_JOBS_PER_USER = 2
 
     def tearDown(self):
         self._temp_directory.cleanup()
@@ -222,6 +225,75 @@ class TestProgramApi(APITestCase):
             self.assertEqual(job_events[0].data["status"], Job.QUEUED)
             self.assertEqual(job_events[0].origin, JobEventOrigin.API)
             self.assertEqual(job_events[0].context, JobEventContext.RUN_PROGRAM)
+
+    def test_active_jobs_queue_limit(self):
+        """Tests queue limit."""
+
+        job_kwargs = {
+            "title": "Docker-Image-Program-Test",
+            "provider": "default",
+            "arguments": json.dumps({"MY_ARGUMENT_KEY": "MY_ARGUMENT_VALUE"}),
+            "config": {
+                "workers": None,
+                "min_workers": 1,
+                "max_workers": 5,
+                "auto_scaling": True,
+            },
+        }
+
+        def run_program():
+            """Runs program"""
+            return self.client.post(
+                "/api/v1/programs/run/",
+                data=job_kwargs,
+                format="json",
+            )
+
+        with self.settings(LIMITS_ACTIVE_JOBS_PER_USER=self.LIMITS_ACTIVE_JOBS_PER_USER):
+            user = TestUtils.authorize_client(username="test_limit_user", client=self.client)
+
+            # our user will have 2 Jobs, one with `QUEUED` status and other in `SUCCEEDED` status.
+            job = TestUtils.create_job(author=user, status=Job.SUCCEEDED, **job_kwargs)
+            job = TestUtils.create_job(author=user, status=Job.QUEUED, **job_kwargs)
+            num_jobs_in_queue = Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
+
+            # Checking that this test will run according to scripts
+            assert self.LIMITS_ACTIVE_JOBS_PER_USER > num_jobs_in_queue
+
+            # filling up the queue to the limit
+            for _ in range(num_jobs_in_queue, self.LIMITS_ACTIVE_JOBS_PER_USER):
+                programs_response = run_program()
+                assert programs_response.status_code == 200  # ok
+
+            # the user has a job with status `SUCCEEDED`.
+            # Checking it doesn't count it towards the limit
+            assert (
+                self.LIMITS_ACTIVE_JOBS_PER_USER
+                == Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
+            )
+            assert Job.objects.filter(author=user).count() > self.LIMITS_ACTIVE_JOBS_PER_USER
+
+            # Failing to add a job to the queue
+            programs_response_fail = run_program()
+            assert programs_response_fail.status_code == 429  # limit error
+            assert (
+                programs_response_fail.data.get("message") == f"Active job limit reached. The maximum allowed is "
+                f"{self.LIMITS_ACTIVE_JOBS_PER_USER}."
+            )
+
+            # Changing a queued job status to Fail and check we can submit another job.
+            job = Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).first()
+            job.status = Job.FAILED
+            job.save()
+
+            assert (
+                self.LIMITS_ACTIVE_JOBS_PER_USER
+                > Job.objects.filter(author=user, status__in=Job.ACTIVE_STATUSES).count()
+            )
+
+            # lastly adding job to the queue
+            programs_response = run_program()
+            assert programs_response.status_code == 200  # ok
 
     def test_run_locked(self):
         """Tests run disabled program."""
