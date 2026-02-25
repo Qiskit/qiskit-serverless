@@ -96,6 +96,7 @@ class Program(ExportModelOperationsMixin("program"), models.Model):
         default=GENERIC,
     )
     description = models.TextField(null=True, blank=True)
+    version = models.TextField(null=True, blank=True, default="0.0.0")
     documentation_url = models.TextField(null=True, blank=True, default=None)
     additional_info = models.TextField(null=True, blank=True, default="{}")
 
