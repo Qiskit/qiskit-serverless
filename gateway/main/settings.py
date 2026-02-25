@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+import logging
 import os
 import os.path
 import sys
@@ -19,16 +20,13 @@ from core.utils import sanitize_file_path
 RELEASE_VERSION = os.environ.get("VERSION", "UNKNOWN")
 
 
-def _is_command(commands):
-    """Check if the current process was started with any of the given commands."""
-    if isinstance(commands, str):
-        commands = (commands,)
-    return any(cmd in arg for arg in sys.argv for cmd in commands)
+COMMAND = sys.argv[1] if len(sys.argv) > 1 else None
+IS_UNICORN = "gunicorn" in sys.argv[0]
 
-
-IS_GATEWAY = _is_command(("runserver", "gunicorn"))
-IS_TEST = _is_command("test")
-IS_SCHEDULER = _is_command("scheduler_loop")
+IS_TEST = COMMAND == "test"
+IS_RUNSERVER = COMMAND == "runserver"
+IS_SCHEDULER = COMMAND == "scheduler_loop"
+IS_GATEWAY = IS_UNICORN or IS_RUNSERVER
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -131,7 +129,7 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "simple": {"format": "%(levelname)s %(asctime)s %(filename)s:%(lineno)s : %(message)s"},
+        "simple": {"format": "%(levelname)s %(asctime)s [%(name)s] %(filename)s:(%(lineno)s) %(message)s"},
     },
     "handlers": {
         "console": {
@@ -185,7 +183,7 @@ DATABASES = {
     },
 }
 
-if "test" in sys.argv:
+if IS_TEST:
     DATABASES["default"] = DATABASES["test"]
 
 # Password validation
@@ -392,3 +390,5 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Enable maintenance mode: the scheduler will not execute new jobs",
     },
 }
+
+logging.getLogger("main").info(f"[BOOT] Settings.py: {'gunicorn' if IS_UNICORN else COMMAND}")

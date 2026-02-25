@@ -2,11 +2,14 @@
 
 import importlib
 import inspect
+import logging
 
 from django.apps import AppConfig
 from django.conf import settings
 from django.core.checks import Error, Tags, register
 from django.db import models as django_models
+
+logger = logging.getLogger("core")
 
 
 class CoreConfig(AppConfig):
@@ -22,11 +25,14 @@ class CoreConfig(AppConfig):
         # Check if all models has the "api_" prefix
         register(Tags.models)(check_model_labels)
 
-        from core.models import Config  # pylint: disable=import-outside-toplevel
+        if settings.IS_GATEWAY or settings.IS_SCHEDULER:
+            logger.info(f"[BOOT] CoreApp.ready in {'gateway' if settings.IS_GATEWAY else 'scheduler'}")
 
-        if not settings.IS_TEST:
-            # Test didn't run the migrations yet, so add_defaults would fail
+            from core.models import Config  # pylint: disable=import-outside-toplevel
+
             Config.add_defaults()
+        else:
+            logger.info(f"[BOOT] CoreApp.ready in command {settings.COMMAND}")
 
 
 def check_model_labels(app_configs, **kwargs):

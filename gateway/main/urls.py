@@ -14,6 +14,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+import logging
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -24,6 +26,7 @@ from drf_yasg import openapi
 from api.views import probes, system
 
 handler500 = "rest_framework.exceptions.server_error"
+logging.getLogger("main").info("[BOOT] Reading urls.py...")
 
 schema = get_schema_view(  # pylint: disable=invalid-name
     openapi.Info(
