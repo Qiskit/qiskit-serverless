@@ -32,6 +32,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "description",
             "documentation_url",
             "type",
+            "version",
         ]
 
 
@@ -152,6 +153,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "provider",
             "description",
             "type",
+            "version",
         ]
 
 
