@@ -71,6 +71,7 @@
         "fields": {
             "created": "2023-02-01T15:30:43.281796Z",
             "title": "Program",
+            "version": "0.0.1",
             "image": "icr.io/awesome-namespace/awesome-title",
             "author": ["test_user_2"],
             "provider": "bfe8aa6a-2127-4123-bf57-5b547293cbea",
@@ -86,6 +87,7 @@
         "fields": {
             "created": "2023-02-01T15:30:43.281796Z",
             "title": "personal-program",
+            "version": "0.0.1",
             "entrypoint": "program.py",
             "artifact": "path",
             "author": ["test_user_2"]
