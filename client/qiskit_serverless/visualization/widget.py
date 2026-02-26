@@ -25,6 +25,7 @@ Qiskit Serverless widgets
 
     Widget
 """
+
 import os
 from datetime import datetime
 
@@ -61,9 +62,7 @@ class Widget:  # pylint: disable=too-many-instance-attributes
             provider: provider
         """
         if provider is None:
-            raise QiskitServerlessException(
-                "Provider must be set in order to display widget."
-            )
+            raise QiskitServerlessException("Provider must be set in order to display widget.")
         self.provider = provider
 
         self.job_offset = 0
@@ -167,14 +166,10 @@ class Widget:  # pylint: disable=too-many-instance-attributes
         def paginate(page_button):
             """Handles pagination callback logic."""
             if page_button.tooltip == "prev":
-                self.jobs = self.provider.jobs(
-                    limit=self.job_limit, offset=self.job_offset - self.job_limit
-                )
+                self.jobs = self.provider.jobs(limit=self.job_limit, offset=self.job_offset - self.job_limit)
                 self.job_offset = self.job_offset - self.job_limit
             elif page_button.tooltip == "next":
-                self.jobs = self.provider.jobs(
-                    limit=self.job_limit, offset=self.job_offset + self.job_limit
-                )
+                self.jobs = self.provider.jobs(limit=self.job_limit, offset=self.job_offset + self.job_limit)
                 self.job_offset = self.job_offset + self.job_limit
             with self.job_list_view:
                 clear_output()
@@ -281,9 +276,7 @@ class Widget:  # pylint: disable=too-many-instance-attributes
     def render_information(self):
         """Renders information widget."""
         client_version = "Unknown"
-        version_file_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "..", "VERSION.txt"
-        )
+        version_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "VERSION.txt")
         if os.path.exists(version_file_path):
             with open(version_file_path, "r", encoding="utf-8") as version_file:
                 client_version = version_file.read().strip()

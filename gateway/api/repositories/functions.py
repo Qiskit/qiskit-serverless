@@ -7,7 +7,7 @@ from typing import List, Optional
 from django.db.models import Q
 from django.contrib.auth.models import Group
 
-from api.models import Program as Function
+from core.models import Program as Function
 from api.repositories.users import UserRepository
 
 logger = logging.getLogger("gateway")
@@ -23,9 +23,7 @@ class FunctionRepository:
     # in the meantime
     user_repository = UserRepository()
 
-    def get_functions_by_permission(
-        self, author, permission_name: str
-    ) -> List[Function]:
+    def get_functions_by_permission(self, author, permission_name: str) -> List[Function]:
         """
         Returns all the functions available to the user. This means:
             - User functions where the user is the author
@@ -40,9 +38,7 @@ class FunctionRepository:
             List[Function]: all the functions available to the user
         """
 
-        view_groups = self.user_repository.get_groups_by_permissions(
-            user=author, permission_name=permission_name
-        )
+        view_groups = self.user_repository.get_groups_by_permissions(user=author, permission_name=permission_name)
         author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
         author_criteria = Q(author=author)
 
@@ -71,18 +67,14 @@ class FunctionRepository:
         author_criteria = Q(author=author)
         provider_criteria = Q(provider=None)
 
-        result_queryset = Function.objects.filter(
-            author_criteria & provider_criteria
-        ).distinct()
+        result_queryset = Function.objects.filter(author_criteria & provider_criteria).distinct()
 
         count = result_queryset.count()
         logger.info("[%d] user Functions found for author [%s]", count, author.id)
 
         return result_queryset
 
-    def get_provider_functions_by_permission(
-        self, author, permission_name: str
-    ) -> List[Function]:
+    def get_provider_functions_by_permission(self, author, permission_name: str) -> List[Function]:
         """
         Returns the provider functions available to the user. This means:
           - Provider functions where the user has run permissions
@@ -98,9 +90,7 @@ class FunctionRepository:
             List[Program]: providers functions available to the user
         """
 
-        run_groups = self.user_repository.get_groups_by_permissions(
-            user=author, permission_name=permission_name
-        )
+        run_groups = self.user_repository.get_groups_by_permissions(user=author, permission_name=permission_name)
         author_groups_with_run_permissions_criteria = Q(instances__in=run_groups)
         provider_exists_criteria = ~Q(provider=None)
         author_criteria = Q(author=author)
@@ -131,9 +121,7 @@ class FunctionRepository:
         title_criteria = Q(title=title)
         provider_criteria = Q(provider=None)
 
-        result_queryset = Function.objects.filter(
-            author_criteria & title_criteria & provider_criteria
-        ).first()
+        result_queryset = Function.objects.filter(author_criteria & title_criteria & provider_criteria).first()
 
         if result_queryset is None:
             logger.warning(
@@ -168,16 +156,13 @@ class FunctionRepository:
         # This access should be checked in the use-case but how we don't
         # have it implemented yet we will do the check by now in the
         # repository call
-        view_groups = self.user_repository.get_groups_by_permissions(
-            user=author, permission_name=permission_name
-        )
+        view_groups = self.user_repository.get_groups_by_permissions(user=author, permission_name=permission_name)
         author_groups_with_view_permissions_criteria = Q(instances__in=view_groups)
         author_criteria = Q(author=author)
         title_criteria = Q(title=title, provider__name=provider_name)
 
         result_queryset = Function.objects.filter(
-            (author_criteria | author_groups_with_view_permissions_criteria)
-            & title_criteria
+            (author_criteria | author_groups_with_view_permissions_criteria) & title_criteria
         ).first()
 
         if result_queryset is None:
@@ -246,9 +231,7 @@ class FunctionRepository:
         result_queryset = queryset.first()
 
         if result_queryset is None:
-            complete_name = (
-                f"{provider_name}/{function_title}" if provider_name else function_title
-            )
+            complete_name = f"{provider_name}/{function_title}" if provider_name else function_title
             logger.warning(
                 "Function [%s] was not found",
                 complete_name,

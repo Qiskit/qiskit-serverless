@@ -37,7 +37,6 @@ Core abstractions
     CircuitMeta
     fetch_execution_meta
     distribute_task
-    distribute_program
     distribute_qiskit_function
     get
     put
@@ -69,7 +68,6 @@ from .decorators import (
     fetch_execution_meta,
     distribute_task,
     distribute_qiskit_function,
-    distribute_program,
     Target,
     CircuitMeta,
 )

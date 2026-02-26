@@ -28,9 +28,7 @@ class Migration(migrations.Migration):
                 ("created", models.DateTimeField(auto_now_add=True)),
                 (
                     "account",
-                    models.CharField(
-                        blank=True, default=None, max_length=255, null=True
-                    ),
+                    models.CharField(blank=True, default=None, max_length=255, null=True),
                 ),
                 (
                     "group",

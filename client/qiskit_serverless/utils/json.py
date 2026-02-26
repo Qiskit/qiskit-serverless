@@ -25,6 +25,7 @@ Qiskit Serverless json utilities
 
     JsonSerializable
 """
+
 import json
 from abc import ABC, abstractmethod
 from json import JSONEncoder
@@ -134,7 +135,6 @@ def safe_json_request(
             ErrorCodes.AUTH1001,
             str(request_exception.args),
         )
-        response = None
 
     if error_message:
         raise QiskitServerlessException(error_message)

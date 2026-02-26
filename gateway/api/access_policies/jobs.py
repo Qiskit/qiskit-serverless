@@ -5,7 +5,7 @@ Access policies implementation for Job access
 import logging
 from django.contrib.auth.models import AbstractUser
 
-from api.models import Job
+from core.models import Job
 from api.access_policies.providers import ProviderAccessPolicy
 
 logger = logging.getLogger("gateway")
@@ -47,9 +47,7 @@ class JobAccessPolicies:
             has_access = ProviderAccessPolicy.can_access(user, job.program.provider)
 
         if not has_access:
-            logger.warning(
-                "User [%s] has no access to job [%s].", user.username, job.author
-            )
+            logger.warning("User [%s] has no access to job [%s].", user.username, job.author)
         return has_access
 
     @staticmethod
@@ -73,6 +71,52 @@ class JobAccessPolicies:
                 job.author,
             )
         return has_access
+
+    @staticmethod
+    def can_read_user_logs(user: AbstractUser, job: Job) -> bool:
+        """
+        Checks if the user has permissions to read the public logs of a job:
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        if user.id == job.author.id:
+            return True
+
+        logger.warning(
+            "User [%s] has no access to read the user logs of the job [%s].",
+            user.username,
+            job.author,
+        )
+        return False
+
+    @staticmethod
+    def can_read_provider_logs(user: AbstractUser, job: Job) -> bool:
+        """
+        Checks if the user has permissions to read the provider logs of a job:
+
+        Args:
+            user: Django user from the request
+            job: Job instance against to check the permission
+
+        Returns:
+            bool: True or False in case the user has permissions
+        """
+
+        if job.program.provider and ProviderAccessPolicy.can_access(user, job.program.provider):
+            return True
+
+        logger.warning(
+            "User [%s] has no access to read the provider logs of the job [%s].",
+            user.username,
+            job.author,
+        )
+        return False
 
     @staticmethod
     def can_save_result(user: AbstractUser, job: Job) -> bool:
