@@ -1,5 +1,0 @@
----
-features:
-  - |
-    Added a new scheduler command `migrate_old_job_logs.py` to migrate
-    the old job logs in the database to the COS.
