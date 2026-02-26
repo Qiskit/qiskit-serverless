@@ -39,9 +39,7 @@ class Command(BaseCommand):
         while True:
             jobs = list(
                 Job.objects.order_by("id")
-                .filter(
-                    status__in=Job.TERMINAL_STATUSES, compute_resource__active=False
-                )
+                .filter(status__in=Job.TERMINAL_STATUSES, compute_resource__active=False)
                 .exclude(logs="")[: settings.JOB_LOGS_MIGRATION_BATCH_SIZE]
             )
 
