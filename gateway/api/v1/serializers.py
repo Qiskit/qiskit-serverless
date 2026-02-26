@@ -7,6 +7,7 @@ import logging
 from typing import Any
 
 from packaging.requirements import Requirement, InvalidRequirement
+from packaging.version import Version, InvalidVersion
 from rest_framework.serializers import ValidationError
 
 from api import serializers
@@ -32,6 +33,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "description",
             "documentation_url",
             "type",
+            "version",
         ]
 
 
@@ -139,6 +141,14 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             if provider_instance.registry and not image.startswith(provider_instance.registry):
                 raise ValidationError(f"Custom images must be in {provider_instance.registry}.")
 
+        # Validate `version` using packaging.version (PEP 440 compatible)
+        version = attrs.get("version", None)
+        if version is not None:
+            try:
+                Version(version)
+            except InvalidVersion as exc:
+                raise ValidationError("Invalid version - expected format x.y.z") from exc
+
         return super().validate(attrs)
 
     class Meta(serializers.UploadProgramSerializer.Meta):
@@ -152,6 +162,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             "provider",
             "description",
             "type",
+            "version",
         ]
 
 
