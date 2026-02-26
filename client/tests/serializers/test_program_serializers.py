@@ -11,6 +11,7 @@
 # that they have been altered from the originals.
 
 """QiskitPattern serializers tests."""
+
 import json
 import os
 from unittest import TestCase, skip

@@ -1,10 +1,22 @@
 repos:
-  # Black on commit
+   # pre-commit hooks (fast)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+     - id: trailing-whitespace
+       exclude: \.py$
+     - id: check-case-conflict
+     - id: check-json
+     - id: check-yaml
+       exclude: ^charts/.*templates/
+     - id: check-added-large-files
+
   - repo: https://github.com/psf/black
-    rev: 24.10.0
+    rev: 25.11.0
     hooks:
       - id: black
         language_version: python3.11
+        args: [--line-length=120]
 
   # Pylint & Mypy only on pre-push (slower checks)
   # These hooks use tox to run linting in isolated environments with correct dependencies.
@@ -15,6 +27,7 @@ repos:
         name: lint (gateway)
         entry: bash -c 'cd gateway && tox -e lint'
         language: system
+        pass_filenames: false
         files: ^gateway/
         types: [python]
         stages: [pre-push]
@@ -23,6 +36,7 @@ repos:
         name: lint (client)
         entry: bash -c 'cd client && tox -e lint'
         language: system
+        pass_filenames: false
         files: ^client/
         types: [python]
         stages: [pre-push]
@@ -31,6 +45,7 @@ repos:
         name: lint (tests)
         entry: bash -c 'cd tests && tox -e lint'
         language: system
-        files: ^tests/docker/
+        pass_filenames: false
+        files: ^tests/
         types: [python]
         stages: [pre-push]

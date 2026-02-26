@@ -30,9 +30,7 @@ class Migration(migrations.Migration):
                 ("name", models.CharField(db_index=True, max_length=255, unique=True)),
                 (
                     "registry",
-                    models.CharField(
-                        blank=True, default=None, max_length=255, null=True
-                    ),
+                    models.CharField(blank=True, default=None, max_length=255, null=True),
                 ),
                 (
                     "admin_group",

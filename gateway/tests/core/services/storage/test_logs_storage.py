@@ -6,7 +6,7 @@ import os
 from django.test import TestCase
 from unittest.mock import Mock
 
-from api.domain.exceptions.forbidden_error import ForbiddenError
+from api.domain.exceptions.invalid_access_exception import InvalidAccessException
 from api.services.storage.logs_storage import LogsStorage
 
 
@@ -38,14 +38,14 @@ class TestLogsStorage(TestCase):
         """get_private_logs is not allowed for user jobs."""
         job = self._create_job("auth1", provider=None)
 
-        with self.assertRaises(ForbiddenError):
+        with self.assertRaises(InvalidAccessException):
             LogsStorage(job).get_private_logs()
 
     def test_save_private_logs_not_allowed_for_user_job(self):
         """save_private_logs is not allowed for user jobs."""
         job = self._create_job("auth1", provider=None)
 
-        with self.assertRaises(ForbiddenError):
+        with self.assertRaises(InvalidAccessException):
             LogsStorage(job).save_private_logs("some logs")
 
     def test_get_public_logs_returns_none_if_not_found(self):

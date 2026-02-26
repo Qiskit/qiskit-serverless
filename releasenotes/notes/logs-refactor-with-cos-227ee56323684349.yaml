@@ -1,26 +1,55 @@
 ---
 prelude: >
     Major refactor in logs to be able to differentiate between Provider logs
-    and user logs. Also the logs now are stored in COS keeping backward 
+    and user logs. Also the logs now are stored in COS keeping backward
     compatibility.
 features:
   - |
-    The Client added new functions :func:`get_logger()` and :func:`get_provider_logger()`.
-    The users should use the :func:`get_logger()` to log their relevant information.
-    The providers should use this functions discriminate the relevant information 
-    for users or providers respectively.
-    This will create `[PUBLIC]` and `[PRIVATE]` prefixes under the hood to filter 
-    the information appropriately
+    The Qiskit-Serverless python library added two new functions :func:`get_logger()`
+    and :func:`get_provider_logger()`.
+    The functions developers should use this functions discriminate the relevant
+    information for users (:func:`get_logger()`) or providers
+    (:func:`get_provider_logger()`) respectively.
+    This will create `[PUBLIC]` and `[PRIVATE]` prefixes under the hood to
+    so that the service can filter the information appropriately.
+    In order to keep intelectual property safe only function users can access user logs
+    and only providers can access provider logs.
+    For example::
+
+      from qiskit_serverless import get_logger, get_provider_logger
+
+      user_logger = get_logger()
+      provider_logger = get_provider_logger()
+
+      get_logger().info("User log")
+      user_logger.info("User multiline\nlog")
+      user_logger.warning("User log")
+      user_logger.error("User log")
+
+      get_provider_logger().info("Provider log")
+      provider_logger.info("Provider multiline\nlog")
+      provider_logger.warning("Provider log")
+      provider_logger.error("Provider log")
+
   - |
-    The :class:`ServerlessClient` and :class:`Job` added new method :meth:`provider_logs`
-    to use the new `/provider_logs` endpoint.
+    The :class:`ServerlessClient` and :class:`Job` classes :meth:`logs` method will
+    from now on only return user logs. To access provider logs we have added a new
+    :meth:`provider_logs` method.
+    For example::
+
+        runnable_function = serverless_client.function("my_function")
+        job = runnable_function.run()
+
+        print(job.logs()) # only users
+        print(job.provider_logs()) # only providers
+
   - |
-    The Scheduler is modified to upload logs to COS when job transition from running to 
+    The Scheduler is modified to upload logs to COS when job transition from running to
     a terminal state. In this moment the logs will be filtered taking into account the
     prefixes and it will save the information in its corresponding folder inside the COS.
   - |
     The Gateway has new a endpoint `/provider_logs` and `/logs` is modified.
-    Both should return: 
+    Both should return:
     1. The COS log for finished jobs if exist. This was previously filtered in the Scheduler
     2. The Ray console if job is running. This is filtered live.
     3. As a fallback, return the logs from the db.

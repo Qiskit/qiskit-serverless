@@ -16,13 +16,6 @@ jobs:
       matrix:
         python-version:
           - '3.11'
-
-    env:
-      QISKIT_IBM_CHANNEL: "ibm_quantum_platform"
-      QISKIT_IBM_TOKEN: ${{ secrets.QISKIT_IBM_TOKEN }}
-      QISKIT_IBM_INSTANCE: ${{ secrets.QISKIT_IBM_INSTANCE }}
-      QISKIT_IBM_URL: "https://test.cloud.ibm.com"
-
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6

@@ -65,6 +65,7 @@ gateway:
       gpuJobsConfig: "/tmp/gpujobs/gpu-jobs.json"
     limits:
       maxJobsPerUser: 2
+      maxActiveJobsPerUser: 50
       maxComputeResources: 4
     nodeSelector:
       cpu: "has-cpu: cpu"

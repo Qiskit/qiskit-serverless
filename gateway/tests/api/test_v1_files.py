@@ -154,9 +154,7 @@ class TestFilesApi(APITestCase):
                 format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(
-                response.data, {"results": ["provider_program_artifact.tar"]}
-            )
+            self.assertEqual(response.data, {"results": ["provider_program_artifact.tar"]})
 
     def test_files_provider_list_with_a_user_that_has_no_access_to_provider(self):
         """Tests files provider list with working dir as provider"""
@@ -354,11 +352,7 @@ class TestFilesApi(APITestCase):
                 )
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(
-                    os.path.exists(
-                        os.path.join(self.MEDIA_ROOT, "test_user_2", "README.md")
-                    )
-                )
+                self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, "test_user_2", "README.md")))
 
     def test_provider_file_upload(self):
         """Tests uploading existing file."""
@@ -378,11 +372,7 @@ class TestFilesApi(APITestCase):
                 )
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(
-                    os.path.exists(
-                        os.path.join(self.MEDIA_ROOT, "default", "Program", "README.md")
-                    )
-                )
+                self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, "default", "Program", "README.md")))
 
     def test_escape_directory(self):
         """Tests directory escape / injection."""

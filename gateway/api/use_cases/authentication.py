@@ -2,18 +2,19 @@
 
 import logging
 from typing import Optional
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from rest_framework import exceptions
 
 from api.access_policies.users import UserAccessPolicies
-from api.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
+from api.domain.authentication.channel import Channel
 from api.repositories.providers import ProviderRepository
 from api.repositories.users import UserRepository
 from api.services.authentication.authentication_base import AuthenticationBase
 from api.services.authentication.ibm_quantum_platform import IBMQuantumPlatform
 from api.services.authentication.local_authentication import LocalAuthenticationService
-from api.domain.authentication.channel import Channel
+from core.models import RUN_PROGRAM_PERMISSION, VIEW_PROGRAM_PERMISSION
 
 logger = logging.getLogger("gateway.use_cases.authentication")
 
@@ -40,9 +41,7 @@ class AuthenticationUseCase:
 
     def _get_authentication_service_instance(self) -> AuthenticationBase:
         if self.channel in (Channel.IBM_CLOUD, Channel.IBM_QUANTUM_PLATFORM):
-            logger.debug(
-                "Authentication will be executed with IBM Cloud Quantum Platform."
-            )
+            logger.debug("Authentication will be executed with IBM Cloud Quantum Platform.")
             return IBMQuantumPlatform(api_key=self.authorization_token, crn=self.crn)
 
         logger.debug("Authentication will be executed with Local service.")
@@ -60,9 +59,7 @@ class AuthenticationUseCase:
         if self.public_access is False:
             verified = authentication_service.verify_access()
             if verified is False:
-                raise exceptions.AuthenticationFailed(
-                    "Sorry, you don't have access to the service."
-                )
+                raise exceptions.AuthenticationFailed("Sorry, you don't have access to the service.")
 
         access_groups = authentication_service.get_groups()
         quantum_user = self.user_repository.get_or_create_by_id(user_id=user_id)

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
-from api.models import Job
+from core.models import Job
 from scheduler.schedule import get_jobs_to_schedule_fair_share, execute_job
 
 
@@ -53,6 +53,4 @@ class TestScheduleApi(APITestCase):
             job_2.author = user
             ret_job_2 = execute_job(job_2)
 
-            self.assertNotEqual(
-                str(ret_job_1.compute_resource.id), str(ret_job_2.compute_resource.id)
-            )
+            self.assertNotEqual(str(ret_job_1.compute_resource.id), str(ret_job_2.compute_resource.id))

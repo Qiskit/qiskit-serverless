@@ -126,6 +126,8 @@ spec:
               value: {{ .Values.application.auth.token.verificationField | quote }}
             - name: IAM_IBM_CLOUD_BASE_URL
               value: {{ .Values.application.auth.token.iamUrl | quote }}
+            - name: IAM_IBM_CLOUD_CACHE_TTL
+              value: {{ .Values.application.auth.token.iamCacheTtl | default 60 | quote }}
             - name: RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL
               value: {{ .Values.application.auth.token.resourceControllerUrl | quote }}
             - name: RESOURCE_PLANS_ID_ALLOWED
@@ -222,6 +224,8 @@ spec:
               value: {{ .Values.application.security.hstsIncludeSubdomains | quote }}
             - name: SECURE_HSTS_PRELOAD
               value: {{ .Values.application.security.hstsPreload | quote }}
+            - name: LIMITS_ACTIVE_JOBS_PER_USER
+              value: {{ .Values.application.limits.maxActiveJobsPerUser | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

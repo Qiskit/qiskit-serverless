@@ -15,11 +15,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.models import Job, Program
+from core.models import Job, Program
 from api.repositories.jobs import JobFilters
 from api.use_cases.jobs.list import JobsListUseCase
 from api.v1.endpoint_decorator import endpoint
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.utils import (
     PaginatedResponse,
     create_paginated_response,
@@ -207,6 +207,4 @@ def get_jobs(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     jobs, total = JobsListUseCase().execute(user=user, filters=filters)
-    return Response(
-        serialize_output(jobs, total, request, filters.limit, filters.offset)
-    )
+    return Response(serialize_output(jobs, total, request, filters.limit, filters.offset))

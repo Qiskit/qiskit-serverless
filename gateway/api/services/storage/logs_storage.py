@@ -6,8 +6,8 @@ import logging
 import os
 from typing import Optional
 
-from api.domain.exceptions.forbidden_error import ForbiddenError
-from api.models import Job
+from api.domain.exceptions.invalid_access_exception import InvalidAccessException
+from core.models import Job
 from core.services.storage.enums.working_dir import WorkingDir
 from core.services.storage.path_builder import PathBuilder
 
@@ -31,9 +31,7 @@ class LogsStorage:
         self._job_id = str(job.id)
         self._username = job.author.username
         self._function_title = job.program.title
-        self._provider_name = (
-            job.program.provider.name if job.program.provider else None
-        )
+        self._provider_name = job.program.provider.name if job.program.provider else None
 
         # Build public logs path (USER_STORAGE)
         # User job: {author}/logs/
@@ -70,13 +68,13 @@ class LogsStorage:
     def get_private_logs(self) -> Optional[str]:
         """Retrieve private logs for the job (provider jobs only)."""
         if self._private_path is None:
-            raise ForbiddenError("Private logs are only available for provider jobs")
+            raise InvalidAccessException("Private logs are only available for provider jobs")
         return self._read_logs(self._private_path)
 
     def save_private_logs(self, logs: str) -> None:
         """Save private logs for the job (provider jobs only)."""
         if self._private_path is None:
-            raise ForbiddenError("Private logs are only available for provider jobs")
+            raise InvalidAccessException("Private logs are only available for provider jobs")
         self._write_logs(self._private_path, logs)
 
     def _get_file_path(self, base_path: str) -> str:
@@ -85,18 +83,20 @@ class LogsStorage:
 
     def _read_logs(self, base_path: str) -> Optional[str]:
         """Read logs from the given path."""
-        log_path = self._get_file_path(base_path)
-        if not os.path.exists(log_path):
+        try:
+            log_path = self._get_file_path(base_path)
+            # listdir refreshes the COS volume.
+            # The log file is written in the Scheduler and read from the Gateway, and there is 15m TTL.
+            os.listdir(base_path)
+            with open(log_path, "r", encoding=self.ENCODING) as log_file:
+                return log_file.read()
+        except FileNotFoundError:
             logger.info(
                 "Log file for job ID '%s' not found at '%s'.",
                 self._job_id,
                 log_path,
             )
             return None
-
-        try:
-            with open(log_path, "r", encoding=self.ENCODING) as log_file:
-                return log_file.read()
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
                 "Failed to read log file for job ID '%s': %s",
@@ -111,6 +111,7 @@ class LogsStorage:
         try:
             with open(log_path, "w+", encoding=self.ENCODING) as log_file:
                 log_file.write(logs)
+                log_file.flush()
         except (UnicodeDecodeError, IOError) as e:
             logger.error(
                 "Failed to write log file for job ID '%s': %s",

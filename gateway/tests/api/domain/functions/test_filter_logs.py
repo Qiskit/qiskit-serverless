@@ -16,7 +16,7 @@ class TestFilterLogs(APITestCase):
         """Tests compute resource creation command."""
 
         log = """
-        
+
 third_party.run_function:INFO:2024-11-15 11:30:32,124: third party setting up...
 system 1 up...
 system 2 up...
@@ -50,13 +50,13 @@ sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Starting
 
         output_log = filter_logs_with_public_tags(log)
 
-        self.assertEquals(output_log, expected_output)
+        assert output_log == expected_output
 
     def test_filter_logs_with_non_public_tags(self):
         """Tests compute resource creation command."""
 
         log = """
-        
+
 third_party.run_function:INFO:2024-11-15 11:30:32,124: third party setting up...
 system 1 up...
 system 2 up...
@@ -82,7 +82,7 @@ third_party.run_function:INFO:2024-11-15 11:30:32,124: running_options = {
 """
 
         expected_output = """
-        
+
 third_party.run_function:INFO:2024-11-15 11:30:32,124: third party setting up...
 system 1 up...
 system 2 up...
@@ -104,7 +104,7 @@ sim_entrypoint.run_function:INFO:2024-11-15 11:30:32,124: Private information
 
         output_log = filter_logs_with_non_public_tags(log)
 
-        self.assertEquals(output_log, expected_output)
+        assert output_log == expected_output
 
     def test_remove_prefix_tags_in_logs(self):
         """Tests log_filter_user_job removes prefixes but keeps all lines."""
@@ -129,4 +129,4 @@ Regular print statement
 
         output_log = remove_prefix_tags_in_logs(log)
 
-        self.assertEquals(output_log, expected_output)
+        assert output_log == expected_output

@@ -90,10 +90,7 @@ class TestJob:
         """Tests job save result."""
         _ = job_env_variables
 
-        url = (
-            f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/"
-            f"api/v1/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
-        )
+        url = f"{os.environ.get(ENV_JOB_GATEWAY_HOST)}/" f"api/v1/jobs/{os.environ.get(ENV_JOB_ID_GATEWAY)}/result/"
         with requests_mock.Mocker() as mocker:
             mocker.post(url)
             result = save_result(
@@ -115,36 +112,24 @@ class TestJob:
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_filtered_logs(self):
         """Tests job filtered log."""
-        client = ServerlessClient(
-            host="host", token="token", instance="instance", version="version"
-        )
+        client = ServerlessClient(host="host", token="token", instance="instance", version="version")
         client.logs = MagicMock(
             return_value="This is the line 1\nThis is the second line\nOK.  This is the last line.\n",  # pylint: disable=line-too-long
         )
-        assert "OK.  This is the last line.\n" == client.filtered_logs(
-            "id", include="the.+a.+l"
-        )
-        assert "This is the line 1\nThis is the second line\n" == client.filtered_logs(
-            "id", exclude="the.+a.+l"
-        )
-        assert "This is the line 1\n" == client.filtered_logs(
-            "id", include="This is the l.+", exclude="the.+a.+l"
-        )
+        assert "OK.  This is the last line.\n" == client.filtered_logs("id", include="the.+a.+l")
+        assert "This is the line 1\nThis is the second line\n" == client.filtered_logs("id", exclude="the.+a.+l")
+        assert "This is the line 1\n" == client.filtered_logs("id", include="This is the l.+", exclude="the.+a.+l")
 
     @patch("requests.get", Mock(return_value=ResponseMock()))
     def test_error_message(self):
         """Tests job filtered log."""
-        client = ServerlessClient(
-            host="host", token="token", instance="instance", version="version"
-        )
+        client = ServerlessClient(host="host", token="token", instance="instance", version="version")
         client.status = MagicMock(
             return_value="ERROR",
         )
         client.result = MagicMock(
             return_value=(
-                '"This is the line \\"1\\"\\n'
-                "This is the second line\\n"
-                'OK.  This is the last line.\\n"'
+                '"This is the line \\"1\\"\\n' "This is the second line\\n" 'OK.  This is the last line.\\n"'
             ),
         )
         job = Job(
@@ -152,9 +137,7 @@ class TestJob:
             job_service=client,
         )
         assert (
-            'This is the line "1"\n'
-            "This is the second line\n"
-            "OK.  This is the last line.\n"
+            'This is the line "1"\n' "This is the second line\n" "OK.  This is the last line.\n"
         ) == job.error_message()
 
     @patch("requests.get", Mock(return_value=ResponseMockWithRuntimeJobs()))
@@ -164,9 +147,7 @@ class TestJob:
     )
     def test_runtime_sessions(self):
         """Tests runtime session id retrieval for serverless job."""
-        client = ServerlessClient(
-            host="host", token="token", instance="instance", version="v1"
-        )
+        client = ServerlessClient(host="host", token="token", instance="instance", version="v1")
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
         runtime_sessions = client.runtime_sessions(job_id)
@@ -181,9 +162,7 @@ class TestJob:
     )
     def test_runtime_jobs(self):
         """Tests runtime job id retrieval for serverless job."""
-        client = ServerlessClient(
-            host="host", token="token", instance="instance", version="v1"
-        )
+        client = ServerlessClient(host="host", token="token", instance="instance", version="v1")
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b8a348"
         runtime_jobs = client.runtime_jobs(job_id)

@@ -49,6 +49,7 @@ application:
     gpuJobsConfig: "api/v1/gpu-jobs.json"
   limits:
     maxJobsPerUser: 2
+    maxActiveJobsPerUser: 50
     maxComputeResources: 4
     maxGpuResources: 1
     keepClusterOnComplete: False

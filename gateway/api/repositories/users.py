@@ -9,7 +9,7 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db.models import Q
 
 from api.domain.authentication.authentication_group import AuthenticationGroup
-from api.models import GroupMetadata
+from core.models import GroupMetadata
 
 User = get_user_model()
 logger = logging.getLogger("gateway.repositories.user")
@@ -84,16 +84,12 @@ class UserRepository:
 
         logger.debug("Update [%s] groups", len(authentication_groups))
         for authentication_group in authentication_groups:
-            group, created = Group.objects.get_or_create(
-                name=authentication_group.group_name
-            )
+            group, created = Group.objects.get_or_create(name=authentication_group.group_name)
             if created:
                 for permission in permissions:
                     group.permissions.add(permission)
                 if authentication_group.account is not None:
-                    GroupMetadata.objects.create(
-                        group=group, account=authentication_group.account
-                    )
+                    GroupMetadata.objects.create(group=group, account=authentication_group.account)
             group.user_set.add(user)
             new_groups.append(group)
 

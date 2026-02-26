@@ -20,7 +20,7 @@ from api.use_cases.jobs.associate_runtime_jobs import (
 )
 from api.use_cases.jobs.get_runtime_jobs import GetRuntimeJobsUseCase
 from api.v1.endpoint_decorator import endpoint
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.swagger_utils import standard_error_responses
 
 
@@ -30,9 +30,7 @@ class InputSerializer(serializers.Serializer):
     """
 
     runtime_job = serializers.CharField(required=True)
-    runtime_session = serializers.CharField(
-        required=False, allow_null=True, allow_blank=True
-    )
+    runtime_session = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         """Meta class to define input serializer name"""
@@ -102,9 +100,7 @@ def runtime_jobs(request: Request, job_id: UUID) -> Response:
         serializer.is_valid(raise_exception=True)
         runtime_job = serializer.validated_data.get("runtime_job")
         runtime_session = serializer.validated_data.get("runtime_session")
-        message = AssociateRuntimeJobsUseCase().execute(
-            job_id, runtime_job, runtime_session
-        )
+        message = AssociateRuntimeJobsUseCase().execute(job_id, runtime_job, runtime_session)
         return Response({"message": message})
 
     if request.method == "GET":

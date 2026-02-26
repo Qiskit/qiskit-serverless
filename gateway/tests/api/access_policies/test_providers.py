@@ -5,7 +5,7 @@ from django.contrib.auth.models import Group, User
 from django.test import TestCase
 
 from api.access_policies.providers import ProviderAccessPolicy
-from api.models import Provider
+from core.models import Provider
 
 
 class TestProviderAccessPolicy(TestCase):

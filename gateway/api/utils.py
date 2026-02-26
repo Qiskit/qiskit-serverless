@@ -11,7 +11,7 @@ from packaging.requirements import Requirement
 import objsize
 
 from api.domain.authentication.channel import Channel
-from api.models import Job
+from core.models import Job
 
 logger = logging.getLogger("utils")
 
@@ -173,9 +173,7 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     The format of the readed file should be a requirements.txt file.
     """
     try:
-        with open(
-            settings.GATEWAY_DYNAMIC_DEPENDENCIES, encoding="utf-8", mode="r"
-        ) as f:
+        with open(settings.GATEWAY_DYNAMIC_DEPENDENCIES, encoding="utf-8", mode="r") as f:
             dependencies = f.readlines()
     except IOError as e:
         if settings.GATEWAY_DYNAMIC_DEPENDENCIES != "":
@@ -192,12 +190,21 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     return {dep.name: dep for dep in dependencies}
 
 
+def active_jobs_limit_reached(author: str) -> bool:
+    """
+    Returns True if the user reached his active jobs limit,
+    False otherwise.
+    """
+    active_jobs_limit = settings.LIMITS_ACTIVE_JOBS_PER_USER
+    user_active_jobs_count = Job.objects.filter(author=author, status__in=Job.ACTIVE_STATUSES).count()
+
+    return user_active_jobs_count >= active_jobs_limit
+
+
 DEPENDENCY_REQUEST_URL = "https://github.com/Qiskit/qiskit-serverless/issues/new?template=pip_dependency_request.yaml"  # pylint: disable=line-too-long
 
 
-def check_whitelisted(
-    dependencies: List[Requirement], inject_version_if_missing=False
-) -> List[Requirement]:
+def check_whitelisted(dependencies: List[Requirement], inject_version_if_missing=False) -> List[Requirement]:
     """
     check if a list of dependencies are whitelisted.
 
