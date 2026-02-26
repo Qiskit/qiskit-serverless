@@ -143,9 +143,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
 
         # Validate `version` using packaging.version (PEP 440 compatible)
         version = attrs.get("version", None)
-        if version in (None, ""):
-            pass  # Allow empty version
-        else:
+        if version is not None:
             try:
                 Version(version)
             except InvalidVersion:
