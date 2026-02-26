@@ -133,7 +133,9 @@ class JobEventInline(admin.TabularInline):
 
         return mark_safe(f'<span class="event-badge" data-event-status="{status}">{status}</span>')
 
-    class Media:
+    class Media:  # pylint: disable=too-few-public-methods
+        """JobEventInline Media"""
+
         css = {"all": ["admin/css/admin_job_event_inline.css"]}
 
 
