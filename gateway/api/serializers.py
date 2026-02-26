@@ -147,6 +147,10 @@ class UploadProgramSerializer(serializers.ModelSerializer):
         if description is not None:
             instance.description = description
 
+        version = validated_data.get("version")
+        if version is not None:
+            instance.version = version
+
         instance.save()
         return instance
 
