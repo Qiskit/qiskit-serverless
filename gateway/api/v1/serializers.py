@@ -36,6 +36,7 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "version",
         ]
 
+
 class ProgramSummarySerializer(serializers.ProgramSerializer):
     """
     Program serializer with summary fields for job listings.
@@ -139,7 +140,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 raise ValidationError(f"{provider} is not valid provider.")
             if provider_instance.registry and not image.startswith(provider_instance.registry):
                 raise ValidationError(f"Custom images must be in {provider_instance.registry}.")
-        
+
         # Validate `version` using packaging.version (PEP 440 compatible)
         version = attrs.get("version", None)
         if version in (None, ""):
