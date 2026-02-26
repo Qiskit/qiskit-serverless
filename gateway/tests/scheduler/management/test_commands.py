@@ -5,13 +5,14 @@ import tempfile
 from typing import Optional
 
 from django.contrib.auth.models import User, Group
+from django.core.cache import cache
 from django.core.management import call_command
 from ray.dashboard.modules.job.common import JobStatus
 from rest_framework.test import APITestCase
 from unittest.mock import patch, MagicMock
 
 from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
-from core.models import ComputeResource, Job, JobEvent, Program, Provider
+from core.models import ComputeResource, Job, JobEvent, Program, Provider, Config
 from core.services.ray import JobHandler
 from core.utils import check_logs
 
@@ -20,6 +21,9 @@ class TestCommands(APITestCase):
     """Tests for commands."""
 
     fixtures = ["tests/fixtures/schedule_fixtures.json"]
+
+    def setUp(self):
+        Config.register_all()
 
     def test_create_compute_resource(self):
         """Tests compute resource creation command."""

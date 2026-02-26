@@ -12,6 +12,9 @@ from rest_framework import status
 
 from api.domain.exceptions.not_found_exception import NotFoundError
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
+from api.domain.exceptions.active_job_limit_exceeded_exception import (
+    ActiveJobLimitExceeded,
+)
 
 logger = logging.getLogger("gateway")
 
@@ -38,7 +41,7 @@ def endpoint_handle_exceptions(view_func: Callable):
     Catches domain exceptions and converts them to appropriate HTTP responses:
     - NotFoundError and subclasses (JobNotFoundException, ProviderNotFoundException,
       FunctionNotFoundException, FileNotFoundException) -> 404 NOT FOUND
-    - ForbiddenError -> 403 FORBIDDEN
+    - InvalidAccessException -> 403 FORBIDDEN
     - ValidationError -> 400 BAD REQUEST
     - All other exceptions -> 500 INTERNAL SERVER ERROR
     """
@@ -61,6 +64,11 @@ def endpoint_handle_exceptions(view_func: Callable):
             return Response(
                 {"message": _first_error_message(error.detail)},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        except ActiveJobLimitExceeded as error:
+            return Response(
+                {"message": error.message},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         except Exception as error:  # pylint: disable=broad-exception-caught
             logger.error(

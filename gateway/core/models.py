@@ -1,15 +1,20 @@
 """Models."""
 
+import logging
 import uuid
 
 from concurrency.fields import IntegerVersionField
 from django.contrib.auth.models import Group
 from django.conf import settings
+from django.core.cache import cache
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django_prometheus.models import ExportModelOperationsMixin
 
+from core.config_key import ConfigKey
 from core.model_managers.job_events import JobEventQuerySet
+
+logger = logging.getLogger("gateway")
 
 VIEW_PROGRAM_PERMISSION = "view_program"
 RUN_PROGRAM_PERMISSION = "run_program"
@@ -228,6 +233,7 @@ class Job(models.Model):
 
     TERMINAL_STATUSES = [SUCCEEDED, FAILED, STOPPED]
     RUNNING_STATUSES = [RUNNING, PENDING]
+    ACTIVE_STATUSES = [QUEUED, PENDING, RUNNING]
 
     RUNNING_SUB_STATUSES = [
         MAPPING,
@@ -350,3 +356,74 @@ class GroupMetadata(models.Model):
 
     def __str__(self):
         return f"{self.id}"
+
+
+class Config(models.Model):
+    """Dynamic configuration stored in database with caching."""
+
+    name = models.CharField(max_length=255, unique=True, db_index=True)
+    value = models.TextField()
+    description = models.TextField(blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    updated = models.DateTimeField(auto_now=True, null=True)
+
+    class Meta:
+        app_label = "api"
+        verbose_name = "Configuration"
+        verbose_name_plural = "Config values"
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} = {self.value}"
+
+    @classmethod
+    def _get_cache_key(cls, key: ConfigKey) -> str:
+        return f"dynamic_config:{key.value}"
+
+    @classmethod
+    def register_all(cls):
+        """Insert in the db the default values from the configuration keys defined in the ConfigKey enum."""
+        for value in (k.value for k in ConfigKey):
+            if value not in settings.DYNAMIC_CONFIG_DEFAULTS:
+                raise KeyError(f"ConfigKey '{value}' not found in DYNAMIC_CONFIG_DEFAULTS. Add it to setting.py")
+
+            config_entry = settings.DYNAMIC_CONFIG_DEFAULTS[value]
+            if "default" not in config_entry or "description" not in config_entry:
+                raise KeyError(f"Error in settings.DYNAMIC_CONFIG_DEFAULTS['{value}'] Missing default/description.")
+
+            default = config_entry["default"]
+            description = config_entry["description"]
+            _, created = cls.objects.get_or_create(
+                name=value,
+                defaults={"value": default, "description": description},
+            )
+            if created:
+                logger.info("Registered new Config: %s = %s", value, default)
+
+    @classmethod
+    def set(cls, key: ConfigKey, value: str):
+        """Changes a configuration value in DB and cache."""
+        cls.objects.filter(name=key.value).update(value=value)
+        cache.set(cls._get_cache_key(key), value, settings.DYNAMIC_CONFIG_CACHE_TTL)
+
+    @classmethod
+    def get(cls, key: ConfigKey) -> str:
+        """Get configuration value with caching. Raises KeyError if key was not registered."""
+        cache_key = cls._get_cache_key(key)
+        cached_value = cache.get(cache_key)
+
+        if cached_value is not None:
+            return cached_value
+
+        try:
+            config = cls.objects.get(name=key.value)
+            cache.set(cache_key, config.value, settings.DYNAMIC_CONFIG_CACHE_TTL)
+            return config.value
+        except cls.DoesNotExist as exc:
+            raise KeyError(f"Config '{key.value}' not found in db. Call register_all() before") from exc
+
+    @classmethod
+    def get_bool(cls, key: ConfigKey) -> bool:
+        """Get configuration value as boolean."""
+        value = cls.get(key)
+        return value.lower() == "true"
