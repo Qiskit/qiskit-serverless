@@ -7,6 +7,7 @@ import logging
 from typing import Any
 
 from packaging.requirements import Requirement, InvalidRequirement
+from packaging.version import Version, InvalidVersion
 from rest_framework.serializers import ValidationError
 
 from api import serializers
@@ -34,7 +35,6 @@ class ProgramSerializer(serializers.ProgramSerializer):
             "type",
             "version",
         ]
-
 
 class ProgramSummarySerializer(serializers.ProgramSerializer):
     """
@@ -139,6 +139,16 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
                 raise ValidationError(f"{provider} is not valid provider.")
             if provider_instance.registry and not image.startswith(provider_instance.registry):
                 raise ValidationError(f"Custom images must be in {provider_instance.registry}.")
+        
+        # Validate `version` using packaging.version (PEP 440 compatible)
+        version = attrs.get("version", None)
+        if version in (None, ""):
+            pass  # Allow empty version
+        else:
+            try:
+                Version(version)
+            except InvalidVersion:
+                raise ValidationError("Invalid version string. Must be a valid version (e.g. 1.2.3).")
 
         return super().validate(attrs)
 
