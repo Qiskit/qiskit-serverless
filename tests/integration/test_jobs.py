@@ -321,7 +321,7 @@ class TestJobs:
 
         wait_for_terminal_state(job)
 
-        assert job.logs().endswith("""INFO: User log
+        expected_result = """INFO: User log
 INFO: User multiline
 INFO: log
 WARNING: User log
@@ -332,16 +332,20 @@ INFO: Provider multiline
 INFO: log
 WARNING: Provider log
 ERROR: Provider log
-""")
+"""
+
+        assert job.logs().endswith(expected_result)
 
         with raises(QiskitServerlessException) as exc_info:
             job.provider_logs()
 
-        assert str(exc_info.value).strip() == f"""
+        expected_error = f"""
 | Message: Http bad request.
 | Code: 403
 | Details: You don't have access to job [{job.job_id}]
 """.strip()
+
+        assert str(exc_info.value).strip() == expected_error
 
     def test_wrong_function_name(self, serverless_client: ServerlessClient):
         """Integration test for retrieving a function that isn't accessible."""
@@ -379,11 +383,10 @@ ERROR: Provider log
         with raises(QiskitServerlessException) as exc_info:
             job.provider_logs()
 
-        assert (
-            str(exc_info.value).strip()
-            == f"""
+        expected_message = f"""
 | Message: Http bad request.
 | Code: 403
 | Details: You don't have access to job [{job.job_id}]
 """.strip()
-        )
+
+        assert str(exc_info.value).strip() == expected_message
