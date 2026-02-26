@@ -88,7 +88,8 @@
                 ["ibm-test/close/execute"]
             ],
             "trial_instances": [],
-            "author": ["test_user_3"]
+            "author": ["test_user_3"],
+            "version": "0.0.1"
         }
     },
     {
@@ -105,7 +106,8 @@
                 ["ibm-test/open/execute"]
             ],
             "trial_instances": [],
-            "author": ["test_user_3"]
+            "author": ["test_user_3"],
+            "version": "0.0.1"
         }
     },
     {
@@ -118,7 +120,8 @@
             "artifact": "path",
             "instances": [],
             "trial_instances": [],
-            "author": ["test_user"]
+            "author": ["test_user"],
+            "version": "0.0.1"
         }
     }
 ]
