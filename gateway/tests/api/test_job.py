@@ -435,6 +435,88 @@ class TestJobApi(APITestCase):
             if os.path.exists(result_path):
                 os.remove(result_path)
 
+    def test_job_arguments_storage_path_user(self):
+        """
+        Tests that job arguments for user functions (no provider) are saved to:
+        /data/{username}/arguments/
+
+        This validates the DATA_PATH environment variable computation in build_env_variables()
+        for user functions.
+        """
+        from core.services.storage.arguments_storage import ArgumentsStorage
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            # Create user function (no provider)
+            user_job = self._create_job(author="test_user")
+            self.assertIsNone(user_job.program.provider)
+
+            # Save arguments for user function
+            user_args_storage = ArgumentsStorage(
+                username=user_job.author.username, function_title=user_job.program.title, provider_name=None
+            )
+            test_args = '{"param": "value"}'
+            user_args_storage.save(str(user_job.id), test_args)
+
+            # Verify arguments saved in user's directory
+            expected_user_path = os.path.join(self.MEDIA_ROOT, "test_user", "arguments", f"{user_job.id}.json")
+            self.assertTrue(os.path.exists(expected_user_path))
+
+            # Verify we can retrieve the arguments
+            retrieved_args = user_args_storage.get(str(user_job.id))
+            self.assertEqual(retrieved_args, test_args)
+
+            # Verify arguments are NOT in provider path
+            wrong_provider_storage = ArgumentsStorage(
+                username=user_job.author.username, function_title=user_job.program.title, provider_name="fake_provider"
+            )
+            self.assertIsNone(wrong_provider_storage.get(str(user_job.id)))
+
+    def test_job_arguments_storage_path_provider(self):
+        """
+        Tests that job arguments for provider functions are saved to:
+        /data/{username}/{provider}/{function}/arguments/
+
+        This validates the DATA_PATH environment variable computation in build_env_variables()
+        for provider functions.
+        """
+        from core.services.storage.arguments_storage import ArgumentsStorage
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            # Create provider function
+            provider_job = self._create_job(author="test_user", provider_admin="test_provider")
+            self.assertIsNotNone(provider_job.program.provider)
+            self.assertEqual(provider_job.program.provider.name, "test_provider")
+
+            # Save arguments for provider function
+            provider_args_storage = ArgumentsStorage(
+                username=provider_job.author.username,
+                function_title=provider_job.program.title,
+                provider_name=provider_job.program.provider.name,
+            )
+            provider_test_args = '{"provider_param": "provider_value"}'
+            provider_args_storage.save(str(provider_job.id), provider_test_args)
+
+            # Verify arguments saved in provider's directory structure
+            expected_provider_path = os.path.join(
+                self.MEDIA_ROOT,
+                "test_user",
+                "test_provider",
+                provider_job.program.title,
+                "arguments",
+                f"{provider_job.id}.json",
+            )
+            self.assertTrue(os.path.exists(expected_provider_path))
+
+            # Verify we can retrieve the arguments
+            retrieved_provider_args = provider_args_storage.get(str(provider_job.id))
+            self.assertEqual(retrieved_provider_args, provider_test_args)
+
+            # Verify provider function arguments are NOT in user-only path
+            wrong_user_storage = ArgumentsStorage(
+                username=provider_job.author.username, function_title=provider_job.program.title, provider_name=None
+            )
+            self.assertIsNone(wrong_user_storage.get(str(provider_job.id)))
+
     def test_job_update_sub_status(self):
         """Test job update sub status"""
         self._authorize("test_user")
