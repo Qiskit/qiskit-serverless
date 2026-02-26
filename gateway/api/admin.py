@@ -102,7 +102,7 @@ class JobEventInline(admin.TabularInline):
     model = JobEvent
     extra = 0
     ordering = ("-created",)
-    fields = ("event_type", "pretty_status", "created", "origin", "context", "render_data_json")
+    fields = ("created", "event_type", "pretty_status", "origin", "context", "render_data_json")
     readonly_fields = ("created", "pretty_status", "event_type", "origin", "context", "render_data_json")
     can_delete = False
 
@@ -113,36 +113,17 @@ class JobEventInline(admin.TabularInline):
 
     @admin.display(description="Data JSON")
     def render_data_json(self, instance):
-        """Formatea el campo JSON para que se vea como código."""
+        """Format JSON field to visualize it like code."""
         if not instance.data:
             return ""
 
-        pretty_json = json.dumps(instance.data, indent=2)
+        pretty_json = json.dumps(instance.data, indent=2).strip()
 
-        return mark_safe(
-            f'<pre style="background: #f4f4f4; padding: 5px; border-radius: 4px; '
-            f'font-family: monospace; font-size: 11px; white-space: pre-wrap;">'
-            f"{pretty_json.strip()}</pre>"
-        )
+        return mark_safe(f'<pre class="event-json-block">{pretty_json}</pre>')
 
     @admin.display(description="Status/SubStatus")
     def pretty_status(self, instance):
-        """Añade un badge de color según el tipo de evento."""
-        colors = {
-            # STATUSES
-            Job.QUEUED: "#f0ad4e",
-            Job.PENDING: "#f0ad4e",
-            Job.RUNNING: "#5bc0de",
-            Job.SUCCEEDED: "#00aa00",
-            Job.STOPPED: "#888888",
-            Job.FAILED: "#cc0000",
-            # SUB-STATUSES
-            Job.MAPPING: "#5bc0de",
-            Job.OPTIMIZING_HARDWARE: "#5bc0de",
-            Job.WAITING_QPU: "#5bc0de",
-            Job.EXECUTING_QPU: "#5bc0de",
-            Job.POST_PROCESSING: "#5bc0de",
-        }
+        """Add a badge color per status type."""
 
         status = "None"
         if instance.event_type == JobEventType.STATUS_CHANGE:
@@ -150,14 +131,10 @@ class JobEventInline(admin.TabularInline):
         elif instance.event_type == JobEventType.SUB_STATUS_CHANGE:
             status = instance.data["sub_status"]
 
-        # Buscamos el color, si no existe usamos gris por defecto
-        color = colors.get(status, "#ff00ff")
+        return mark_safe(f'<span class="event-badge" data-event-status="{status}">{status}</span>')
 
-        return mark_safe(
-            f'<span style="background-color: {color} !important; color: white; padding: 3px 10px; '
-            f'border-radius: 12px; font-weight: bold; font-size: 10px; text-transform: uppercase;">'
-            f"{status}</span>"
-        )
+    class Media:
+        css = {"all": ["admin/css/admin_job_event_inline.css"]}
 
 
 @admin.register(Job)
