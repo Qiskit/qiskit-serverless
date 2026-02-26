@@ -81,7 +81,7 @@
       "disabled": true,
       "disabled_message": "Program is locked",
       "description": "Program description test",
-      "version": "1.0.0",
+      "version": "0.0.1",
       "entrypoint": "program.py",
       "artifact": "path",
       "author": ["test_user"],
