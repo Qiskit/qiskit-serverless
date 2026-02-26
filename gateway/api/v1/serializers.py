@@ -146,8 +146,8 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
         if version is not None:
             try:
                 Version(version)
-            except InvalidVersion:
-                raise ValidationError("Invalid version - expected format x.y.z")
+            except InvalidVersion as exc:
+                raise ValidationError("Invalid version - expected format x.y.z") from exc
 
         return super().validate(attrs)
 
