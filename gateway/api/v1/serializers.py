@@ -149,7 +149,7 @@ class UploadProgramSerializer(serializers.UploadProgramSerializer):
             try:
                 Version(version)
             except InvalidVersion:
-                raise ValidationError("Invalid version string. Must be a valid version (e.g. 1.2.3).")
+                raise ValidationError("Invalid version - expected format x.y.z")
 
         return super().validate(attrs)
 
