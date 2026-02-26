@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="program",
             name="version",
-            field=models.TextField(blank=True, default="0.0.0", null=True),
+            field=models.TextField(null=True, blank=True, default=None),
         ),
     ]
