@@ -41,8 +41,7 @@
         ["ibm-q/open/main"],
         ["admin-group"]
       ],
-      "trial_instances": [],
-      "version": "0.0.1"
+      "trial_instances": []
     }
   },
   {
@@ -58,8 +57,7 @@
       "instances": [
         ["admin-group"]
       ],
-      "trial_instances": [],
-      "version": "0.0.1"
+      "trial_instances": []
     }
   },
   {
