@@ -380,7 +380,6 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "description": "Enable maintenance mode: the scheduler will not execute new jobs",
     },
     "upload_file.valid_mime_types": {
-        # TODO: modify this to our preference when it is decided
         "default": '["image/jpeg", "image/png", "text/plain"]',
         "type": "list",
         "description": "Specify the permitted mime types to upload files.",
