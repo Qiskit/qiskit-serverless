@@ -25,7 +25,7 @@ IS_UNICORN = "gunicorn" in sys.argv[0]
 
 IS_TEST = COMMAND == "test"
 IS_RUNSERVER = COMMAND == "runserver"
-IS_SCHEDULER = COMMAND == "scheduler_loop"
+IS_SCHEDULER = COMMAND == "run_scheduler"
 IS_GATEWAY = IS_UNICORN or IS_RUNSERVER
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

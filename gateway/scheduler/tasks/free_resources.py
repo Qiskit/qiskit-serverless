@@ -8,11 +8,12 @@ from core.models import ComputeResource, Job
 from core.services.ray import kill_ray_cluster
 
 from scheduler.kill_signal import KillSignal
+from scheduler.tasks.task import SchedulerTask
 
 logger = logging.getLogger("commands")
 
 
-class FreeResources:
+class FreeResources(SchedulerTask):
     """Cleanup resources."""
 
     def __init__(self, kill_signal: KillSignal = None):

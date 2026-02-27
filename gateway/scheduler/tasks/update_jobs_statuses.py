@@ -5,7 +5,7 @@ import logging
 from concurrency.exceptions import RecordModifiedError
 from django.conf import settings
 
-from core.filter_logs import (
+from core.domain.filter_logs import (
     filter_logs_with_non_public_tags,
     filter_logs_with_public_tags,
     remove_prefix_tags_in_logs,
@@ -22,6 +22,7 @@ from scheduler.schedule import (
 )
 
 from scheduler.kill_signal import KillSignal
+from scheduler.tasks.task import SchedulerTask
 
 logger = logging.getLogger("commands")
 
@@ -150,7 +151,7 @@ def save_logs_to_storage(job: Job, logs: str):
     logger.info("Logs saved to storage for job [%s]", job.id)
 
 
-class UpdateJobsStatuses:
+class UpdateJobsStatuses(SchedulerTask):
     """Update status of jobs."""
 
     def __init__(self, kill_signal: KillSignal = None):

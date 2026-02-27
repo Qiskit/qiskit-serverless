@@ -3,7 +3,6 @@ Use case: retrieve job logs.
 """
 
 import logging
-from typing import Final
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
@@ -11,7 +10,7 @@ from django.contrib.auth.models import AbstractUser
 from api.access_policies.jobs import JobAccessPolicies
 from api.domain.exceptions.job_not_found_exception import JobNotFoundException
 from api.domain.exceptions.invalid_access_exception import InvalidAccessException
-from core.filter_logs import filter_logs_with_non_public_tags
+from core.domain.filter_logs import filter_logs_with_non_public_tags
 from core.utils import check_logs
 from core.services.ray import get_job_handler
 from api.repositories.jobs import JobsRepository

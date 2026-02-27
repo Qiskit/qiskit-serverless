@@ -5,9 +5,9 @@ import time
 
 from core.models import Config
 from scheduler.kill_signal import KillSignal
-from scheduler.update_jobs_statuses import UpdateJobsStatuses
-from scheduler.free_resources import FreeResources
-from scheduler.schedule_queued_jobs import ScheduleQueuedJobs
+from scheduler.tasks.update_jobs_statuses import UpdateJobsStatuses
+from scheduler.tasks.free_resources import FreeResources
+from scheduler.tasks.schedule_queued_jobs import ScheduleQueuedJobs
 
 logger = logging.getLogger("main")
 
@@ -17,6 +17,9 @@ class Main:
 
     def __init__(self):
         self.kill_signal = KillSignal()
+        self.update_jobs_statuses = UpdateJobsStatuses(self.kill_signal)
+        self.free_resources = FreeResources(self.kill_signal)
+        self.schedule_queued_jobs = ScheduleQueuedJobs(self.kill_signal)
 
     def configure(self):
         """Configure the scheduler."""
@@ -28,26 +31,23 @@ class Main:
 
     def run(self):
         """Run the scheduler loop."""
-        update_jobs_statuses = UpdateJobsStatuses(self.kill_signal)
-        free_resources = FreeResources(self.kill_signal)
-        schedule_queued_jobs = ScheduleQueuedJobs(self.kill_signal)
 
         tasks = [
-            (update_jobs_statuses, "UpdateJobsStatuses"),
-            (free_resources, "FreeResources"),
-            (schedule_queued_jobs, "ScheduleQueuedJobs"),
+            self.update_jobs_statuses,
+            self.free_resources,
+            self.schedule_queued_jobs,
         ]
 
         while not self.kill_signal.received:
             start_time = time.time()
 
-            for task, name in tasks:
+            for task in tasks:
                 if self.kill_signal.received:
                     break
                 try:
                     task.run()
                 except Exception as ex:  # pylint: disable=broad-exception-caught
-                    logger.exception("Error in %s: %s", name, ex)
+                    logger.exception("Error in %s: %s", task.name, ex)
 
             elapsed = time.time() - start_time
             if not self.kill_signal.received and elapsed < 1:

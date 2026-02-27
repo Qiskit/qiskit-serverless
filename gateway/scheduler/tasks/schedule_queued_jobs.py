@@ -20,11 +20,12 @@ from scheduler.schedule import (
 )
 
 from scheduler.kill_signal import KillSignal
+from scheduler.tasks.task import SchedulerTask
 
 logger = logging.getLogger("commands")
 
 
-class ScheduleQueuedJobs:
+class ScheduleQueuedJobs(SchedulerTask):
     """Schedule jobs service."""
 
     def __init__(self, kill_signal: KillSignal = None):

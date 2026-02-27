@@ -2,7 +2,7 @@
 
 from rest_framework.test import APITestCase
 
-from core.filter_logs import (
+from core.domain.filter_logs import (
     filter_logs_with_public_tags,
     filter_logs_with_non_public_tags,
     remove_prefix_tags_in_logs,
