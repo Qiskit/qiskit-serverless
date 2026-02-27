@@ -2,11 +2,14 @@
 
 import importlib
 import inspect
-import sys
+import logging
 
 from django.apps import AppConfig
+from django.conf import settings
 from django.core.checks import Error, Tags, register
 from django.db import models as django_models
+
+logger = logging.getLogger("core")
 
 
 class CoreConfig(AppConfig):
@@ -19,29 +22,17 @@ class CoreConfig(AppConfig):
     def ready(self):
         """Register system checks and dynamic configuration."""
 
-        # Insert the default config in the db (it they don't exist)
-        register_dynamic_config()
-
         # Check if all models has the "api_" prefix
         register(Tags.models)(check_model_labels)
 
+        if settings.IS_GATEWAY or settings.IS_SCHEDULER:
+            logger.info("[BOOT] CoreApp.ready in %s", "gateway" if settings.IS_GATEWAY else "scheduler")
 
-def register_dynamic_config():
-    """Register default dynamic config values in the database."""
-    gateway_commands = ("runserver", "gunicorn")
-    scheduler_commands = ("update_jobs_statuses", "free_resources", "schedule_queued_jobs")
+            from core.models import Config  # pylint: disable=import-outside-toplevel
 
-    def matches(commands):
-        # when executing from k8s, gunicorn is not an argument, it's the caller and it could have a path
-        return any(cmd in arg for arg in sys.argv for cmd in commands)
-
-    is_gateway = matches(gateway_commands)
-    is_scheduler = matches(scheduler_commands)
-
-    if is_gateway or is_scheduler:
-        from core.models import Config  # pylint: disable=import-outside-toplevel
-
-        Config.register_all()
+            Config.add_defaults()
+        else:
+            logger.info("[BOOT] CoreApp.ready in command %s", settings.COMMAND)
 
 
 def check_model_labels(app_configs, **kwargs):

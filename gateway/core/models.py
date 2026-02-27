@@ -382,7 +382,7 @@ class Config(models.Model):
         return f"dynamic_config:{key.value}"
 
     @classmethod
-    def register_all(cls):
+    def add_defaults(cls):
         """Insert in the db the default values from the configuration keys defined in the ConfigKey enum."""
         for value in (k.value for k in ConfigKey):
             if value not in settings.DYNAMIC_CONFIG_DEFAULTS:
@@ -421,7 +421,7 @@ class Config(models.Model):
             cache.set(cache_key, config.value, settings.DYNAMIC_CONFIG_CACHE_TTL)
             return config.value
         except cls.DoesNotExist as exc:
-            raise KeyError(f"Config '{key.value}' not found in db. Call register_all() before") from exc
+            raise KeyError(f"Config '{key.value}' not found in db. Call add_defaults() before") from exc
 
     @classmethod
     def get_bool(cls, key: ConfigKey) -> bool:

@@ -10,7 +10,7 @@ from rest_framework.routers import SimpleRouter
 from api.v1 import views as v1_views
 from api.v1.route_registry import RouteRegistry
 
-logger = logging.getLogger("gateway.v1.urls")
+logger = logging.getLogger("api.v1.urls")
 
 
 ###
@@ -28,7 +28,7 @@ def import_dir(directory: str, base_module: str):
         elif filename.endswith(".py") and not filename.startswith("__"):
             module_name = filename[:-3]
             importlib.import_module(f"{base_module}.{module_name}")
-            logger.debug("[IMPORT] api.v1.views.%s", module_name)
+            logger.debug("[BOOT] Import api.v1.views.%s", module_name)
 
 
 import_dir(views_dir, BASE_MODULE)

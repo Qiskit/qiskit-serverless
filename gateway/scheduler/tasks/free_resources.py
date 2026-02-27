@@ -1,30 +1,37 @@
-"""Cleanup resources command."""
+"""Free resources service."""
 
 import logging
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
 
 from core.models import ComputeResource, Job
 from core.services.ray import kill_ray_cluster
 
+from scheduler.kill_signal import KillSignal
+from scheduler.tasks.task import SchedulerTask
+
 logger = logging.getLogger("commands")
 
 
-class Command(BaseCommand):
+class FreeResources(SchedulerTask):
     """Cleanup resources."""
 
-    help = "Clean up resources."
+    def __init__(self, kill_signal: KillSignal = None):
+        self.kill_signal = kill_signal or KillSignal()
 
-    def handle(self, *args, **options):
+    def run(self):
+        """Free unused compute resources."""
         if settings.RAY_CLUSTER_NO_DELETE_ON_COMPLETE:
             logger.debug(
-                "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, " "so compute resources will not be removed.",
+                "RAY_CLUSTER_NO_DELETE_ON_COMPLETE is enabled, so compute resources will not be removed.",
             )
             return
 
         compute_resources = ComputeResource.objects.filter(active=True)
         for compute_resource in compute_resources:
+            if self.kill_signal.received:
+                return
+
             # I think this logic could be reviewed because now each job
             # would have its own compute resource but let's do that
             # in an additional iteration

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
 
+import logging
 import os
 import sys
 
@@ -9,8 +10,8 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace import Tracer
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+logger = logging.getLogger("main")
 
 
 def main():
@@ -36,6 +37,7 @@ def main():
     if bool(int(os.environ.get("OTEL_ENABLED", "0"))):
         trace._set_tracer_provider(provider, log=False)  # pylint: disable=protected-access
 
+    logger.info(f"[BOOT] Executing command manage.py {sys.argv[1] if len(sys.argv) > 1 else ''}")
     execute_from_command_line(sys.argv)
 
 
