@@ -15,6 +15,7 @@ from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobE
 from core.models import ComputeResource, Job, JobEvent, Program, Provider, Config
 from core.services.ray import JobHandler
 from core.utils import check_logs
+from scheduler.management.commands import update_jobs_statuses
 
 
 class TestCommands(APITestCase):
@@ -317,6 +318,7 @@ WARNING: Private warning
         compute_resource: Optional[ComputeResource] = None,
         ray_job_id: str = "test-job-id",
         gpu: bool = False,
+        logs: str = "No logs yet.",
     ) -> Job:
         """Helper method to create a test job.
 
@@ -354,4 +356,5 @@ WARNING: Private warning
             compute_resource=compute_resource,
             ray_job_id=ray_job_id,
             gpu=gpu,
+            logs=logs,
         )
