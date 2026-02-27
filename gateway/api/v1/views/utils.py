@@ -9,7 +9,9 @@ import magic
 
 from rest_framework.exceptions import ValidationError
 from django.core.files import File
-from django.conf import settings
+
+from core.config_key import ConfigKey
+from core.models import Config
 
 
 class PaginatedResponse(TypedDict):
@@ -112,5 +114,5 @@ def validate_uploaded_file(file: File):
     mime = magic.from_buffer(file.read(2048), mime=True)
     file.seek(0)
 
-    if not mime in settings.UPLOAD_FILE_VALID_MIME_TYPES:
+    if not mime in Config.get_list(ConfigKey.UPLOAD_FILE_VALID_MIME_TYPES):
         raise ValidationError("Uploaded file is not a valid type.")

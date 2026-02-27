@@ -11,6 +11,10 @@ from pytest import mark
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import models
+from django.core.cache import cache
+
+from core.config_key import ConfigKey
+from core.models import Config
 
 
 class TestFilesApi(APITestCase):
@@ -29,6 +33,8 @@ class TestFilesApi(APITestCase):
 
     def setUp(self):
         super().setUp()
+        cache.clear()
+        Config.register_all()
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
 
@@ -377,7 +383,8 @@ class TestFilesApi(APITestCase):
 
     def test_file_upload_wrong_type(self):
         """Tests uploading existing file."""
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["image/jpeg"]):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            Config.set(ConfigKey.UPLOAD_FILE_VALID_MIME_TYPES, '["image/jpeg"]')
             function = "personal-program"
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)

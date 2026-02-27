@@ -369,10 +369,6 @@ SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == 
 # Functions logs size limite in Bytes
 FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "52428800"))
 
-# Valid upload mime types
-# TODO: modify this to our preference when it is decided
-UPLOAD_FILE_VALID_MIME_TYPES = ["image/jpeg", "image/png", "text/plain"]
-
 # Dynamic configuration cache TTL in seconds
 DYNAMIC_CONFIG_CACHE_TTL = int(os.environ.get("DYNAMIC_CONFIG_CACHE_TTL", "60"))
 
@@ -382,5 +378,11 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "default": "false",
         "type": "boolean",  # not used yet, but maybe the backoffice can use this in the future to improve the edit page
         "description": "Enable maintenance mode: the scheduler will not execute new jobs",
+    },
+    "upload_file.valid_mime_types": {
+        # TODO: modify this to our preference when it is decided
+        "default": '["image/jpeg", "image/png", "text/plain"]',
+        "type": "list",
+        "description": "Specify the permitted mime types to upload files.",
     },
 }
