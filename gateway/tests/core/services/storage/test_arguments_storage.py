@@ -32,9 +32,7 @@ class TestArgumentsStorage(TestCase):
             )
 
         self.assertEqual(storage.sub_path, "user1/provider1/myfun/arguments")
-        self.assertEqual(
-            storage.absolute_path, f"{temp_dir}/user1/provider1/myfun/arguments"
-        )
+        self.assertEqual(storage.absolute_path, f"{temp_dir}/user1/provider1/myfun/arguments")
 
     def test_save_and_get(self):
         """Test saving and retrieving arguments."""

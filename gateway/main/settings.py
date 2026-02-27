@@ -41,14 +41,10 @@ LOG_LEVEL = "DEBUG" if int(os.environ.get("DEBUG", 1)) else "INFO"
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
 # It must be a full url: https://mydomain.com
-CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(
-    ","
-)
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")
 
 # It must be a regex compatible: ^https://\w+\.example\.com$
-CORS_ALLOWED_ORIGIN_REGEXES = os.environ.get(
-    "CORS_ALLOWED_ORIGIN_REGEXES", "http://localhost"
-).split(",")
+CORS_ALLOWED_ORIGIN_REGEXES = os.environ.get("CORS_ALLOWED_ORIGIN_REGEXES", "http://localhost").split(",")
 CORS_ALLOWED_ORIGIN_REGEXES = [rf"{pattern}" for pattern in CORS_ALLOWED_ORIGIN_REGEXES]
 
 # allow connections from any kubernetes pod within the cluster
@@ -123,9 +119,7 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "simple": {
-            "format": "%(levelname)s %(asctime)s %(filename)s:%(lineno)s : %(message)s"
-        },
+        "simple": {"format": "%(levelname)s %(asctime)s %(filename)s:%(lineno)s : %(message)s"},
     },
     "handlers": {
         "console": {
@@ -242,17 +236,13 @@ DJR_DEFAULT_AUTHENTICATION_CLASSES = ALL_AUTH_CLASSES_CONFIGURATION.get(
 )
 # mock token value
 SETTINGS_AUTH_MOCK_TOKEN = os.environ.get("SETTINGS_AUTH_MOCK_TOKEN", "awesome_token")
-SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get(
-    "SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", None
-)
+SETTINGS_AUTH_MOCKPROVIDER_REGISTRY = os.environ.get("SETTINGS_AUTH_MOCKPROVIDER_REGISTRY", None)
 # =============
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"
-    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"],
     "DEFAULT_AUTHENTICATION_CLASSES": DJR_DEFAULT_AUTHENTICATION_CLASSES,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 100,
@@ -288,56 +278,34 @@ QUANTUM_PLATFORM_API_BASE_URL = os.environ.get("QUANTUM_PLATFORM_API_BASE_URL", 
 #    }
 #   setting string will be:
 #    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", "is_valid;some,nested,field"
-SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get(
-    "SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None
-)
+SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD = os.environ.get("SETTINGS_TOKEN_AUTH_VERIFICATION_FIELD", None)
 
 # resources limitations
 LIMITS_JOBS_PER_USER = int(os.environ.get("LIMITS_JOBS_PER_USER", "2"))
+LIMITS_ACTIVE_JOBS_PER_USER = int(os.environ.get("LIMITS_ACTIVE_JOBS_PER_USER", "50"))
 LIMITS_MAX_CLUSTERS = int(os.environ.get("LIMITS_MAX_CLUSTERS", "6"))
 LIMITS_GPU_CLUSTERS = int(os.environ.get("LIMITS_MAX_GPU_CLUSTERS", "1"))
 LIMITS_CPU_PER_TASK = int(os.environ.get("LIMITS_CPU_PER_TASK", "4"))
 LIMITS_GPU_PER_TASK = int(os.environ.get("LIMITS_GPU_PER_TASK", "1"))
 LIMITS_MEMORY_PER_TASK = int(os.environ.get("LIMITS_MEMORY_PER_TASK", "8"))
-MAINTENANCE = os.environ.get("MAINTENANCE", "false") == "true"
 
 # ray cluster management
 RAY_KUBERAY_NAMESPACE = os.environ.get("RAY_KUBERAY_NAMESPACE", "qiskit-serverless")
-RAY_CLUSTER_MODE_LOCAL = (
-    os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
-)
+RAY_CLUSTER_MODE_LOCAL = os.environ.get("RAY_CLUSTER_MODE_LOCAL", "false").lower() == "true"
 RAY_LOCAL_HOST = os.environ.get("RAY_LOCAL_HOST", "http://localhost:8265")
-RAY_NODE_IMAGE = os.environ.get(
-    "RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.29.0"
-)
+RAY_NODE_IMAGE = os.environ.get("RAY_NODE_IMAGE", "icr.io/quantum-public/qiskit-serverless/ray-node:0.29.0")
 RAY_CLUSTER_WORKER_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS", "1"))
-RAY_CLUSTER_WORKER_REPLICAS_MAX = int(
-    os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5")
-)
-RAY_CLUSTER_WORKER_MIN_REPLICAS = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1")
-)
-RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX", "2")
-)
-RAY_CLUSTER_WORKER_MAX_REPLICAS = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4")
-)
-RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX = int(
-    os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX", "10")
-)
-RAY_CLUSTER_WORKER_AUTO_SCALING = bool(
-    os.environ.get("RAY_CLUSTER_WORKER_AUTO_SCALING", False)
-)
-RAY_CLUSTER_MAX_READINESS_TIME = int(
-    os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "120")
-)
+RAY_CLUSTER_WORKER_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_REPLICAS_MAX", "5"))
+RAY_CLUSTER_WORKER_MIN_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS", "1"))
+RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_MIN_REPLICAS_MAX", "2"))
+RAY_CLUSTER_WORKER_MAX_REPLICAS = int(os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS", "4"))
+RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX = int(os.environ.get("RAY_CLUSTER_WORKER_MAX_REPLICAS_MAX", "10"))
+RAY_CLUSTER_WORKER_AUTO_SCALING = bool(os.environ.get("RAY_CLUSTER_WORKER_AUTO_SCALING", False))
+RAY_CLUSTER_MAX_READINESS_TIME = int(os.environ.get("RAY_CLUSTER_MAX_READINESS_TIME", "120"))
 
 RAY_SETUP_MAX_RETRIES = int(os.environ.get("RAY_SETUP_MAX_RETRIES", 30))
 
-RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(
-    os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False)
-)
+RAY_CLUSTER_NO_DELETE_ON_COMPLETE = bool(os.environ.get("RAY_CLUSTER_NO_DELETE_ON_COMPLETE", False))
 
 RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL = os.environ.get(
     "RAY_CLUSTER_CPU_NODE_SELECTOR_LABEL",
@@ -351,18 +319,12 @@ RAY_CLUSTER_GPU_NODE_SELECTOR_LABEL = os.environ.get(
 
 PROGRAM_TIMEOUT = int(os.environ.get("PROGRAM_TIMEOUT", "14"))
 
-GATEWAY_ALLOWLIST_CONFIG = str(
-    os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json")
-)
+GATEWAY_ALLOWLIST_CONFIG = str(os.environ.get("GATEWAY_ALLOWLIST_CONFIG", "api/v1/allowlist.json"))
 
-GATEWAY_GPU_JOBS_CONFIG = str(
-    os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json")
-)
+GATEWAY_GPU_JOBS_CONFIG = str(os.environ.get("GATEWAY_GPU_JOBS_CONFIG", "api/v1/gpu-jobs.json"))
 
 GATEWAY_DYNAMIC_DEPENDENCIES = str(
-    os.environ.get(
-        "GATEWAY_DYNAMIC_DEPENDENCIES", "requirements-dynamic-dependencies.txt"
-    )
+    os.environ.get("GATEWAY_DYNAMIC_DEPENDENCIES", "requirements-dynamic-dependencies.txt")
 )
 
 # authentication base url for qiskit runtime
@@ -373,9 +335,8 @@ IQP_QCON_API_BASE_URL = os.environ.get("IQP_QCON_API_BASE_URL", None)
 
 # IBM Cloud
 
-IAM_IBM_CLOUD_BASE_URL = os.environ.get(
-    "IAM_IBM_CLOUD_BASE_URL", "https://iam.test.cloud.ibm.com"
-)
+IAM_IBM_CLOUD_BASE_URL = os.environ.get("IAM_IBM_CLOUD_BASE_URL", "https://iam.test.cloud.ibm.com")
+IAM_IBM_CLOUD_CACHE_TTL = int(os.environ.get("IAM_IBM_CLOUD_CACHE_TTL", "60"))
 RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL = os.environ.get(
     "RESOURCE_CONTROLLER_IBM_CLOUD_BASE_URL",
     "https://resource-controller.test.cloud.ibm.com",
@@ -402,9 +363,7 @@ SESSION_COOKIE_AGE = 3600
 
 # HSTS Security Settings
 SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = (
-    os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "false").lower() == "true"
-)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "false").lower() == "true"
 SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == "true"
 
 # Functions logs size limite in Bytes
@@ -413,3 +372,15 @@ FUNCTIONS_LOGS_SIZE_LIMIT = int(os.environ.get("FUNCTIONS_LOGS_SIZE_LIMIT", "524
 # Valid upload mime types
 # TODO: modify this to our preference when it is decided
 UPLOAD_FILE_VALID_MIME_TYPES = ["image/jpeg", "image/png", "text/plain"]
+
+# Dynamic configuration cache TTL in seconds
+DYNAMIC_CONFIG_CACHE_TTL = int(os.environ.get("DYNAMIC_CONFIG_CACHE_TTL", "60"))
+
+# Dynamic configuration defaults (used by core.config.ConfigKey)
+DYNAMIC_CONFIG_DEFAULTS = {
+    "scheduler.maintenance": {
+        "default": "false",
+        "type": "boolean",  # not used yet, but maybe the backoffice can use this in the future to improve the edit page
+        "description": "Enable maintenance mode: the scheduler will not execute new jobs",
+    },
+}

@@ -11,7 +11,9 @@ from packaging.requirements import Requirement
 import objsize
 
 from api.domain.authentication.channel import Channel
-from api.models import Job
+from core.services.storage.path_builder import PathBuilder
+from core.models import Job
+from core.services.storage.enums.working_dir import WorkingDir
 
 logger = logging.getLogger("utils")
 
@@ -85,9 +87,27 @@ def build_env_variables(  # pylint: disable=too-many-positional-arguments
     # shares the same volume program-artifacts which is
     #     `program-artifacts:/data` for Ray node
     #     `program-artifacts:/usr/src/app/media` for Gateway
-    # So DATA PATH needs to include the username: /data/{username}
+    # However, the DATA_PATH value changes depending on the upload mode:
+    #      - if the upload is via the `entrypoint` argument, the function will be a "user function",
+    #         and the DATA_PATH follows the pattern /data/{username}
+    #      - if the upload is via the `image` argument, a `provider` is required and the function will
+    #        be a "provider function". In this case, the DATA_PATH will contain a sub-path after /data/{username}
+    #        resulting in DATA_PATH = /data/{username}/{providername}/{imagename}
     if settings.RAY_CLUSTER_MODE_LOCAL:
-        data_path = f"/data/{job.author.username}"
+        prefix = f"data/{job.author.username}"
+        # only if provider is found, resolve path using path builder
+        if job.program.provider is not None:
+            sub_path = PathBuilder.sub_path(
+                working_dir=WorkingDir.PROVIDER_STORAGE,
+                username=job.author.username,
+                function_title=job.program.title,
+                provider_name=job.program.provider.name,
+                extra_sub_path=None,
+            )
+        else:
+            sub_path = ""
+        # avoid double slash or trailing slash
+        data_path = f"/{prefix}/{sub_path}".replace("//", "/").rstrip("/")
     else:
         data_path = "/data"
 
@@ -173,9 +193,7 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     The format of the readed file should be a requirements.txt file.
     """
     try:
-        with open(
-            settings.GATEWAY_DYNAMIC_DEPENDENCIES, encoding="utf-8", mode="r"
-        ) as f:
+        with open(settings.GATEWAY_DYNAMIC_DEPENDENCIES, encoding="utf-8", mode="r") as f:
             dependencies = f.readlines()
     except IOError as e:
         if settings.GATEWAY_DYNAMIC_DEPENDENCIES != "":
@@ -192,12 +210,21 @@ def create_dynamic_dependencies_whitelist() -> Dict[str, Requirement]:
     return {dep.name: dep for dep in dependencies}
 
 
+def active_jobs_limit_reached(author: str) -> bool:
+    """
+    Returns True if the user reached his active jobs limit,
+    False otherwise.
+    """
+    active_jobs_limit = settings.LIMITS_ACTIVE_JOBS_PER_USER
+    user_active_jobs_count = Job.objects.filter(author=author, status__in=Job.ACTIVE_STATUSES).count()
+
+    return user_active_jobs_count >= active_jobs_limit
+
+
 DEPENDENCY_REQUEST_URL = "https://github.com/Qiskit/qiskit-serverless/issues/new?template=pip_dependency_request.yaml"  # pylint: disable=line-too-long
 
 
-def check_whitelisted(
-    dependencies: List[Requirement], inject_version_if_missing=False
-) -> List[Requirement]:
+def check_whitelisted(dependencies: List[Requirement], inject_version_if_missing=False) -> List[Requirement]:
     """
     check if a list of dependencies are whitelisted.
 

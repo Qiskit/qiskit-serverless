@@ -14,7 +14,7 @@ from rest_framework.request import Request
 from rest_framework import serializers
 
 from api.use_cases.files.delete import FilesDeleteUseCase
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
 
@@ -112,6 +112,4 @@ def files_delete(request: Request) -> Response:
 
     FilesDeleteUseCase().execute(user, provider, function, file)
 
-    return Response(
-        {"message": "Requested file was deleted."}, status=status.HTTP_200_OK
-    )
+    return Response({"message": "Requested file was deleted."}, status=status.HTTP_200_OK)

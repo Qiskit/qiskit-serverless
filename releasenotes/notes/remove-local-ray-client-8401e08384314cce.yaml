@@ -1,6 +1,6 @@
 ---
 upgrade:
   - |
-    Removed ``LocalClient`` and ``RayClient`` classes and their usages in the tests. For testing, one should use 
+    Removed ``LocalClient`` and ``RayClient`` classes and their usages in the tests. For testing, one should use
     ``ServerlessClient`` with default values as in ``docs/deployment/example_custom_image_function.rst``.
     In addition, updated tests and removed irrelevant comments.

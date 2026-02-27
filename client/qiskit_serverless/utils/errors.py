@@ -24,8 +24,7 @@ class ErrorCodes:  # pylint: disable=too-few-public-methods
 
 DEFAULT_ERROR_MESSAGE: str = "Something went wrong."
 error_mapping: Dict[ErrorCodeType, str] = {
-    ErrorCodes.AUTH1001: "Connection error. Make sure configuration "
-    "(host and auth details) is correct.",
+    ErrorCodes.AUTH1001: "Connection error. Make sure configuration " "(host and auth details) is correct.",
     ErrorCodes.HTTP_STD_ERROR: "Http bad request.",
     ErrorCodes.JSON1001: "Error occurred during decoding server json response.",
 }

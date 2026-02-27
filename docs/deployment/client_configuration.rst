@@ -17,11 +17,11 @@ To install the client library, run:
 Next, we need to configure the client to communicate with the provider.
 This can be done through the `ServerlessClient` configuration.
 
-Before we can configure the client, we need to know two things: 
+Before we can configure the client, we need to know two things:
 the `token` (authentication details) and the `host` of our gateway server.
 
 If you are using the local docker compose setup,
-your token would be `awesome_token` and the host would 
+your token would be `awesome_token` and the host would
 be `http://gateway:8000`.
 
 If you are using `IBMServerlessClient`, you only need to pass the `tokne`.

@@ -14,7 +14,7 @@ from rest_framework.request import Request
 from rest_framework import serializers
 
 from api.use_cases.files.list import FilesListUseCase
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
 
@@ -69,9 +69,7 @@ class InputSerializer(serializers.Serializer):
     responses={
         status.HTTP_200_OK: openapi.Response(
             description="List of files",
-            schema=openapi.Schema(
-                type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)
-            ),
+            schema=openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)),
             examples={
                 "application/json": [
                     "file",

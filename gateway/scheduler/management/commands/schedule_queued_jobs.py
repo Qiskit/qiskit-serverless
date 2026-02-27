@@ -13,7 +13,9 @@ from django.db.models import Model
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from api.models import ComputeResource, Job
+from core.config_key import ConfigKey
+from core.models import ComputeResource, Job, JobEvent, Config
+from core.model_managers.job_events import JobEventContext, JobEventOrigin
 from scheduler.schedule import (
     configure_job_to_use_gpu,
     get_jobs_to_schedule_fair_share,
@@ -27,37 +29,23 @@ logger = logging.getLogger("commands")
 class Command(BaseCommand):
     """Schedule jobs command."""
 
-    help = (
-        "Schedule jobs that are in queued "
-        "status based on availability of resources in the system."
-    )
+    help = "Schedule jobs that are in queued " "status based on availability of resources in the system."
 
     def handle(self, *args, **options):
         max_ray_clusters_possible = settings.LIMITS_MAX_CLUSTERS
         max_gpu_clusters_possible = settings.LIMITS_GPU_CLUSTERS
-        maintenance = settings.MAINTENANCE
 
-        if maintenance:
+        if Config.get_bool(ConfigKey.MAINTENANCE):
             logger.warning("System in maintenance mode. Skipping new jobs schedule.")
             return
 
-        number_of_clusters_running = ComputeResource.objects.filter(
-            active=True, gpu=False
-        ).count()
-        number_of_gpu_clusters_running = ComputeResource.objects.filter(
-            active=True, gpu=True
-        ).count()
+        number_of_clusters_running = ComputeResource.objects.filter(active=True, gpu=False).count()
+        number_of_gpu_clusters_running = ComputeResource.objects.filter(active=True, gpu=True).count()
 
-        self.schedule_jobs_if_slots_available(
-            max_ray_clusters_possible, number_of_clusters_running, False
-        )
-        self.schedule_jobs_if_slots_available(
-            max_gpu_clusters_possible, number_of_gpu_clusters_running, True
-        )
+        self.schedule_jobs_if_slots_available(max_ray_clusters_possible, number_of_clusters_running, False)
+        self.schedule_jobs_if_slots_available(max_gpu_clusters_possible, number_of_gpu_clusters_running, True)
 
-    def schedule_jobs_if_slots_available(
-        self, max_ray_clusters_possible, number_of_clusters_running, gpu_job
-    ):
+    def schedule_jobs_if_slots_available(self, max_ray_clusters_possible, number_of_clusters_running, gpu_job):
         """Schedule jobs depending on free cluster slots."""
         free_clusters_slots = max_ray_clusters_possible - number_of_clusters_running
         if gpu_job:
@@ -111,6 +99,12 @@ class Command(BaseCommand):
                         #     os.remove(job.program.artifact.path)
 
                         succeed = True
+                        JobEvent.objects.add_status_event(
+                            job_id=job.id,
+                            origin=JobEventOrigin.SCHEDULER,
+                            context=JobEventContext.SCHEDULE_JOBS,
+                            status=job.status,
+                        )
                     except RecordModifiedError:
                         logger.warning(
                             "Schedule: Job [%s] record has not been updated due to lock.",

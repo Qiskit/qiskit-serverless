@@ -24,14 +24,11 @@ def serialize_output(data: Dict[str, Requirement]):
 
 @swagger_auto_schema(
     method="get",
-    operation_description="Get the list of available "
-    "dependencies and its versions for creating functions",
+    operation_description="Get the list of available " "dependencies and its versions for creating functions",
     responses={
         status.HTTP_200_OK: openapi.Response(
             description="List of strings",
-            schema=openapi.Schema(
-                type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)
-            ),
+            schema=openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING)),
             examples={
                 "application/json": [
                     "qiskit-aer==0.17.1",

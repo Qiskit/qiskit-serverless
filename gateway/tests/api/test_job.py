@@ -12,7 +12,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from core.services.storage.result_storage import ResultStorage
 
-from api.models import Job, Program, Provider, RuntimeJob
+from core.model_managers.job_events import JobEventContext, JobEventOrigin, JobEventType
+from core.models import Job, JobEvent, Program, Provider, RuntimeJob
 
 
 class TestJobApi(APITestCase):
@@ -82,18 +83,14 @@ class TestJobApi(APITestCase):
         jobs_response = self.client.get(reverse("v1:jobs-list"), format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 5)
-        self.assertEqual(
-            jobs_response.data.get("results")[0].get("status"), "SUCCEEDED"
-        )
+        self.assertEqual(jobs_response.data.get("results")[0].get("status"), "SUCCEEDED")
         self.assertEqual(jobs_response.data.get("results")[0].get("result"), None)
 
     def test_job_catalog_list(self):
         """Tests job list authorized."""
         self._authorize("test_user")
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-list"), {"filter": "catalog"}, format="json"
-        )
+        jobs_response = self.client.get(reverse("v1:jobs-list"), {"filter": "catalog"}, format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 2)
         self.assertEqual(jobs_response.data.get("results")[0].get("status"), "QUEUED")
@@ -103,9 +100,7 @@ class TestJobApi(APITestCase):
         """Tests job list authorized."""
         self._authorize("test_user")
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-list"), {"filter": "serverless"}, format="json"
-        )
+        jobs_response = self.client.get(reverse("v1:jobs-list"), {"filter": "serverless"}, format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 3)
 
@@ -113,9 +108,7 @@ class TestJobApi(APITestCase):
         """Tests job list filtered by status."""
         self._authorize("test_user")
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-list"), {"status": "SUCCEEDED"}, format="json"
-        )
+        jobs_response = self.client.get(reverse("v1:jobs-list"), {"status": "SUCCEEDED"}, format="json")
 
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 1)
@@ -126,9 +119,7 @@ class TestJobApi(APITestCase):
         self._authorize("test_user")
         created_after = "2023-02-02T00:00:00.000000Z"
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-list"), {"created_after": created_after}, format="json"
-        )
+        jobs_response = self.client.get(reverse("v1:jobs-list"), {"created_after": created_after}, format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 3)
         for job in jobs_response.data.get("results"):
@@ -138,9 +129,7 @@ class TestJobApi(APITestCase):
         """Tests job list filtered by function."""
         self._authorize("test_user")
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-list"), {"function": "Docker-Image-Program"}, format="json"
-        )
+        jobs_response = self.client.get(reverse("v1:jobs-list"), {"function": "Docker-Image-Program"}, format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 1)
 
@@ -148,24 +137,18 @@ class TestJobApi(APITestCase):
         """Tests job list pagination."""
         self._authorize("test_user")
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-list"), {"offset": 0, "limit": 2}, format="json"
-        )
+        jobs_response = self.client.get(reverse("v1:jobs-list"), {"offset": 0, "limit": 2}, format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
         self.assertEqual(jobs_response.data.get("count"), 5)
         self.assertEqual(len(jobs_response.data.get("results")), 2)
-        self.assertRegex(
-            jobs_response.data.get("next"), r"/api/v1/jobs/\?limit=2&offset=2$"
-        )
+        self.assertRegex(jobs_response.data.get("next"), r"/api/v1/jobs/\?limit=2&offset=2$")
         self.assertEqual(jobs_response.data.get("previous"), None)
 
     def test_job_provider_list_wrong_params(self):
         """Tests job provider list wrong params."""
         self._authorize("test_user")
 
-        jobs_response = self.client.get(
-            reverse("v1:jobs-provider-list"), {}, format="json"
-        )
+        jobs_response = self.client.get(reverse("v1:jobs-provider-list"), {}, format="json")
         self.assertEqual(jobs_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
             jobs_response.content,
@@ -185,9 +168,7 @@ class TestJobApi(APITestCase):
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(
-            jobs_response.data.get("message"), f"Provider {provider} doesn't exist."
-        )
+        self.assertEqual(jobs_response.data.get("message"), f"Provider {provider} doesn't exist.")
 
     def test_job_provider_list_not_authorized_provider(self):
         """Tests job provider list not authorized provider."""
@@ -201,9 +182,7 @@ class TestJobApi(APITestCase):
             format="json",
         )
         self.assertEqual(jobs_response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(
-            jobs_response.data.get("message"), f"Provider {provider} doesn't exist."
-        )
+        self.assertEqual(jobs_response.data.get("message"), f"Provider {provider} doesn't exist.")
 
     def test_job_provider_list_function_not_found(self):
         """Tests job provider list not authorized provider."""
@@ -315,8 +294,7 @@ class TestJobApi(APITestCase):
             self._authorize("test_user")
 
             jobs_response = self.client.get(
-                reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"])
-                + "?with_result=false",
+                reverse("v1:retrieve", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]) + "?with_result=false",
                 format="json",
             )
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
@@ -395,9 +373,7 @@ class TestJobApi(APITestCase):
                 format="json",
                 data={"result": json.dumps({"ultimate": 42})},
             )
-            result_path = os.path.join(
-                self.MEDIA_ROOT, "test_user", "results", f"{job_id}.json"
-            )
+            result_path = os.path.join(self.MEDIA_ROOT, "test_user", "results", f"{job_id}.json")
             self.assertTrue(os.path.exists(result_path))
             self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
             self.assertEqual(jobs_response.data.get("result"), '{"ultimate": 42}')
@@ -455,11 +431,91 @@ class TestJobApi(APITestCase):
             self.assertIsNone(wrong_result)  # Should not find result in wrong path
 
             # Cleanup
-            result_path = os.path.join(
-                self.MEDIA_ROOT, job.author.username, "results", f"{job.id}.json"
-            )
+            result_path = os.path.join(self.MEDIA_ROOT, job.author.username, "results", f"{job.id}.json")
             if os.path.exists(result_path):
                 os.remove(result_path)
+
+    def test_job_arguments_storage_path_user(self):
+        """
+        Tests that job arguments for user functions (no provider) are saved to:
+        /data/{username}/arguments/
+
+        This validates the DATA_PATH environment variable computation in build_env_variables()
+        for user functions.
+        """
+        from core.services.storage.arguments_storage import ArgumentsStorage
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            # Create user function (no provider)
+            user_job = self._create_job(author="test_user")
+            self.assertIsNone(user_job.program.provider)
+
+            # Save arguments for user function
+            user_args_storage = ArgumentsStorage(
+                username=user_job.author.username, function_title=user_job.program.title, provider_name=None
+            )
+            test_args = '{"param": "value"}'
+            user_args_storage.save(str(user_job.id), test_args)
+
+            # Verify arguments saved in user's directory
+            expected_user_path = os.path.join(self.MEDIA_ROOT, "test_user", "arguments", f"{user_job.id}.json")
+            self.assertTrue(os.path.exists(expected_user_path))
+
+            # Verify we can retrieve the arguments
+            retrieved_args = user_args_storage.get(str(user_job.id))
+            self.assertEqual(retrieved_args, test_args)
+
+            # Verify arguments are NOT in provider path
+            wrong_provider_storage = ArgumentsStorage(
+                username=user_job.author.username, function_title=user_job.program.title, provider_name="fake_provider"
+            )
+            self.assertIsNone(wrong_provider_storage.get(str(user_job.id)))
+
+    def test_job_arguments_storage_path_provider(self):
+        """
+        Tests that job arguments for provider functions are saved to:
+        /data/{username}/{provider}/{function}/arguments/
+
+        This validates the DATA_PATH environment variable computation in build_env_variables()
+        for provider functions.
+        """
+        from core.services.storage.arguments_storage import ArgumentsStorage
+
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            # Create provider function
+            provider_job = self._create_job(author="test_user", provider_admin="test_provider")
+            self.assertIsNotNone(provider_job.program.provider)
+            self.assertEqual(provider_job.program.provider.name, "test_provider")
+
+            # Save arguments for provider function
+            provider_args_storage = ArgumentsStorage(
+                username=provider_job.author.username,
+                function_title=provider_job.program.title,
+                provider_name=provider_job.program.provider.name,
+            )
+            provider_test_args = '{"provider_param": "provider_value"}'
+            provider_args_storage.save(str(provider_job.id), provider_test_args)
+
+            # Verify arguments saved in provider's directory structure
+            expected_provider_path = os.path.join(
+                self.MEDIA_ROOT,
+                "test_user",
+                "test_provider",
+                provider_job.program.title,
+                "arguments",
+                f"{provider_job.id}.json",
+            )
+            self.assertTrue(os.path.exists(expected_provider_path))
+
+            # Verify we can retrieve the arguments
+            retrieved_provider_args = provider_args_storage.get(str(provider_job.id))
+            self.assertEqual(retrieved_provider_args, provider_test_args)
+
+            # Verify provider function arguments are NOT in user-only path
+            wrong_user_storage = ArgumentsStorage(
+                username=provider_job.author.username, function_title=provider_job.program.title, provider_name=None
+            )
+            self.assertIsNone(wrong_user_storage.get(str(provider_job.id)))
 
     def test_job_update_sub_status(self):
         """Test job update sub status"""
@@ -475,6 +531,13 @@ class TestJobApi(APITestCase):
         job = response_sub_status.data.get("job")
         self.assertEqual(job.get("status"), "RUNNING")
         self.assertEqual(job.get("sub_status"), "MAPPING")
+
+        job_events = JobEvent.objects.filter(job=job_id)
+        self.assertEqual(len(job_events), 1)
+        self.assertEqual(job_events[0].event_type, JobEventType.SUB_STATUS_CHANGE)
+        self.assertEqual(job_events[0].data["sub_status"], Job.MAPPING)
+        self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+        self.assertEqual(job_events[0].context, JobEventContext.SET_SUB_STATUS)
 
     def test_job_update_sub_status_wrong_value(self):
         """Test job update sub status with wrong sub-status value"""
@@ -493,20 +556,24 @@ class TestJobApi(APITestCase):
             "'sub_status' not provided or is not valid",
         )
 
+        job_events = JobEvent.objects.filter(job=job_id)
+        self.assertEqual(len(job_events), 0)
+
     def test_job_update_sub_status_empty_value(self):
         """Test job update sub status with empty sub-status"""
         self._authorize("test_user")
 
         job_id = "8317718f-5c0d-4fb6-9947-72e480b85048"
-        response_sub_status = self.client.patch(
-            reverse("v1:jobs-sub-status", args=[job_id]), format="json"
-        )
+        response_sub_status = self.client.patch(reverse("v1:jobs-sub-status", args=[job_id]), format="json")
 
         self.assertEqual(response_sub_status.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
             response_sub_status.data.get("message"),
             "'sub_status' not provided or is not valid",
         )
+
+        job_events = JobEvent.objects.filter(job=job_id)
+        self.assertEqual(len(job_events), 0)
 
     def test_job_update_sub_status_wrong_user(self):
         """Test job update sub status with unauthorized user"""
@@ -520,9 +587,10 @@ class TestJobApi(APITestCase):
         )
 
         self.assertEqual(response_sub_status.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(
-            response_sub_status.data.get("message"), f"Job [{job_id}] not found"
-        )
+        self.assertEqual(response_sub_status.data.get("message"), f"Job [{job_id}] not found")
+
+        job_events = JobEvent.objects.filter(job=job_id)
+        self.assertEqual(len(job_events), 0)
 
     def test_job_update_sub_status_not_running(self):
         """Test job update sub status not in running state"""
@@ -540,6 +608,9 @@ class TestJobApi(APITestCase):
             response_sub_status.data.get("message"),
             "Cannot update 'sub_status' when is not in RUNNING status. (Currently SUCCEEDED)",
         )
+
+        job_events = JobEvent.objects.filter(job=job_id)
+        self.assertEqual(len(job_events), 0)
 
     def test_user_has_access_to_job_result_from_provider_function(self):
         """
@@ -583,57 +654,16 @@ class TestJobApi(APITestCase):
             format="json",
         )
         self.assertEqual(job_stop_response.status_code, status.HTTP_200_OK)
-        job = Job.objects.filter(
-            id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348"
-        ).first()
+        job = Job.objects.filter(id__exact="8317718f-5c0d-4fb6-9947-72e480b8a348").first()
         self.assertEqual(job.status, Job.STOPPED)
-        self.assertTrue(
-            "Job has been stopped." in job_stop_response.data.get("message")
-        )
+        self.assertTrue("Job has been stopped." in job_stop_response.data.get("message"))
 
-    def test_job_logs_by_author_for_function_without_provider(self):
-        """Tests job log by job author."""
-        self._authorize("test_user")
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 2")
-
-    def test_job_logs_by_author_for_function_with_provider(self):
-        """Tests job log by job author."""
-        self._authorize("test_user")
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_job_logs_by_function_provider(self):
-        """Tests job log by fuction provider."""
-        user = User.objects.get(username="test_user_2")
-        self.client.force_authenticate(user=user)
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(jobs_response.data.get("logs"), "log entry 1")
-
-    def test_job_logs(self):
-        """Tests job log non-authorized."""
-        user = User.objects.get(username="test_user_3")
-        self.client.force_authenticate(user=user)
-
-        jobs_response = self.client.get(
-            reverse("v1:jobs-logs", args=["1a7947f9-6ae8-4e3d-ac1e-e7d608deec85"]),
-            format="json",
-        )
-        self.assertEqual(jobs_response.status_code, status.HTTP_403_FORBIDDEN)
+        job_events = JobEvent.objects.filter(job=job)
+        self.assertEqual(len(job_events), 1)
+        self.assertEqual(job_events[0].event_type, JobEventType.STATUS_CHANGE)
+        self.assertEqual(job_events[0].data["status"], Job.STOPPED)
+        self.assertEqual(job_events[0].origin, JobEventOrigin.API)
+        self.assertEqual(job_events[0].context, JobEventContext.STOP_JOB)
 
     def test_runtime_jobs_post(self):
         """Tests runtime jobs POST endpoint."""
@@ -650,19 +680,14 @@ class TestJobApi(APITestCase):
             format="json",
         )
 
-        expected_message = (
-            f"RuntimeJob object [runtime_job_new] "
-            f"created for serverless job id [{job_id}]."
-        )
+        expected_message = f"RuntimeJob object [runtime_job_new] " f"created for serverless job id [{job_id}]."
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data.get("message"), expected_message)
 
         runtime_job = RuntimeJob.objects.get(runtime_job="runtime_job_new")
 
-        self.assertEqual(
-            str(runtime_job.job.id), "8317718f-5c0d-4fb6-9947-72e480b8a348"
-        )
+        self.assertEqual(str(runtime_job.job.id), "8317718f-5c0d-4fb6-9947-72e480b8a348")
         self.assertEqual(runtime_job.runtime_session, "session_id_new")
 
     def test_runtime_jobs_get(self):
@@ -671,9 +696,7 @@ class TestJobApi(APITestCase):
 
         # Job with multiple runtime jobs
         response = self.client.get(
-            reverse(
-                "v1:jobs-runtime-jobs", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]
-            ),
+            reverse("v1:jobs-runtime-jobs", args=["8317718f-5c0d-4fb6-9947-72e480b8a348"]),
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -688,9 +711,7 @@ class TestJobApi(APITestCase):
 
         # Job with a single runtime job
         response = self.client.get(
-            reverse(
-                "v1:jobs-runtime-jobs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]
-            ),
+            reverse("v1:jobs-runtime-jobs", args=["57fc2e4d-267f-40c6-91a3-38153272e764"]),
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -728,9 +749,7 @@ class TestJobApi(APITestCase):
                 format="json",
             )
 
-            self.assertEqual(
-                response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
             self.assertEqual(response.data.get("message"), "Internal server error")
 
     def test_job_list_error(self):
@@ -743,7 +762,5 @@ class TestJobApi(APITestCase):
         ):
             response = self.client.get(reverse("v1:jobs-list"), format="json")
 
-            self.assertEqual(
-                response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
             self.assertEqual(response.data.get("message"), "Internal server error")

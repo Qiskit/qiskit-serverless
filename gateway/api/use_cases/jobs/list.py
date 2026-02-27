@@ -4,8 +4,8 @@ from typing import List
 
 from django.contrib.auth.models import AbstractUser
 
-from api.domain.exceptions.not_found_error import NotFoundError
-from api.models import Job
+from api.domain.exceptions.function_not_found_exception import FunctionNotFoundException
+from core.models import Job
 from api.repositories.functions import FunctionRepository
 from api.repositories.jobs import JobFilters, JobsRepository
 
@@ -31,11 +31,7 @@ class JobsListUseCase:
             )
 
             if not function:
-                if filters.provider:
-                    error_message = f"Qiskit Function {filters.provider}/{filters.function} doesn't exist."  # pylint: disable=line-too-long
-                else:
-                    error_message = f"Qiskit Function {filters.function} doesn't exist."
-                raise NotFoundError(error_message)
+                raise FunctionNotFoundException(function=filters.function)
 
         queryset, total = self.jobs_repository.get_user_jobs(user=user, filters=filters)
 

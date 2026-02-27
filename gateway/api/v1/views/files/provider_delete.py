@@ -14,7 +14,7 @@ from rest_framework.request import Request
 from rest_framework import serializers
 
 from api.use_cases.files.provider_delete import FilesProviderDeleteUseCase
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_file_name, sanitize_name
 
@@ -56,8 +56,7 @@ class InputSerializer(serializers.Serializer):
 
 @swagger_auto_schema(
     method="delete",
-    operation_description="Deletes file uploaded or produced by the programs "
-    "in the provider directory.",
+    operation_description="Deletes file uploaded or produced by the programs " "in the provider directory.",
     manual_parameters=[
         openapi.Parameter(
             "file",
@@ -113,6 +112,4 @@ def files_provider_delete(request: Request) -> Response:
 
     FilesProviderDeleteUseCase().execute(user, provider, function, file)
 
-    return Response(
-        {"message": "Requested file was deleted."}, status=status.HTTP_200_OK
-    )
+    return Response({"message": "Requested file was deleted."}, status=status.HTTP_200_OK)

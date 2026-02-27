@@ -14,11 +14,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.models import Job, Program
+from core.models import Job, Program
 from api.repositories.jobs import JobFilters
 from api.use_cases.jobs.provider_list import JobsProviderListUseCase
 from api.v1.endpoint_decorator import endpoint
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.views.utils import create_paginated_response
 from api.v1.views.swagger_utils import standard_error_responses
 from api.v1.views.serializer_utils import SanitizedCharField
@@ -43,9 +43,7 @@ class InputSerializer(serializers.Serializer):
         required=True,
         error_messages={"required": "'provider' not provided or is not valid"},
     )
-    limit = serializers.IntegerField(
-        required=False, default=settings.REST_FRAMEWORK["PAGE_SIZE"], min_value=0
-    )
+    limit = serializers.IntegerField(required=False, default=settings.REST_FRAMEWORK["PAGE_SIZE"], min_value=0)
     offset = serializers.IntegerField(required=False, default=0, min_value=0)
     filter = TypeFilterField(
         choices=[TypeFilter.CATALOG, TypeFilter.SERVERLESS],
@@ -189,6 +187,4 @@ def get_provider_jobs(request: Request) -> Response:
     user = cast(AbstractUser, request.user)
 
     jobs, total = JobsProviderListUseCase().execute(user=user, filters=filters)
-    return Response(
-        serialize_output(jobs, total, request, filters.limit, filters.offset)
-    )
+    return Response(serialize_output(jobs, total, request, filters.limit, filters.offset))

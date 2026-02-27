@@ -6,7 +6,7 @@ import logging
 from typing import List, Optional
 from django.contrib.auth.models import Group
 
-from api.models import Provider
+from core.models import Provider
 
 logger = logging.getLogger("gateway")
 
@@ -33,9 +33,7 @@ class ProviderRepository:
 
         return provider
 
-    def get_or_create_by_name(
-        self, name: str, registry: str, admin_groups: List[Group]
-    ) -> Optional[Provider]:
+    def get_or_create_by_name(self, name: str, registry: str, admin_groups: List[Group]) -> Optional[Provider]:
         """
         Creates a new provider with a given name and registry.
 

@@ -155,9 +155,7 @@ class TestFilesApi(APITestCase):
                 format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(
-                response.data, {"results": ["provider_program_artifact.tar"]}
-            )
+            self.assertEqual(response.data, {"results": ["provider_program_artifact.tar"]})
 
     def test_files_provider_list_with_a_user_that_has_no_access_to_provider(self):
         """Tests files provider list with working dir as provider"""
@@ -340,9 +338,7 @@ class TestFilesApi(APITestCase):
 
     def test_file_upload(self):
         """Tests uploading existing file."""
-        with self.settings(
-            MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["text/plain"]
-        ):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["text/plain"]):
             function = "personal-program"
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
@@ -357,17 +353,11 @@ class TestFilesApi(APITestCase):
                 )
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(
-                    os.path.exists(
-                        os.path.join(self.MEDIA_ROOT, "test_user_2", "README.md")
-                    )
-                )
+                self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, "test_user_2", "README.md")))
 
     def test_provider_file_upload(self):
         """Tests uploading existing file."""
-        with self.settings(
-            MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["text/plain"]
-        ):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["text/plain"]):
             provider = "default"
             function = "Program"
             user = models.User.objects.get(username="test_user_2")
@@ -383,17 +373,11 @@ class TestFilesApi(APITestCase):
                 )
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(
-                    os.path.exists(
-                        os.path.join(self.MEDIA_ROOT, provider, function, "README.md")
-                    )
-                )
+                self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, "default", "Program", "README.md")))
 
     def test_file_upload_wrong_type(self):
         """Tests uploading existing file."""
-        with self.settings(
-            MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["image/jpeg"]
-        ):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["image/jpeg"]):
             function = "personal-program"
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
@@ -408,17 +392,11 @@ class TestFilesApi(APITestCase):
                 )
 
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-                self.assertTrue(
-                    not os.path.exists(
-                        os.path.join(self.MEDIA_ROOT, "test_user_2", "README.md")
-                    )
-                )
+                self.assertTrue(not os.path.exists(os.path.join(self.MEDIA_ROOT, "test_user_2", "README.md")))
 
     def test_provider_file_upload(self):
         """Tests uploading existing file."""
-        with self.settings(
-            MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["text/plain"]
-        ):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["text/plain"]):
             provider = "default"
             function = "Program"
             user = models.User.objects.get(username="test_user_2")
@@ -434,11 +412,7 @@ class TestFilesApi(APITestCase):
                 )
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertTrue(
-                    os.path.exists(
-                        os.path.join(self.MEDIA_ROOT, provider, function, "README.md")
-                    )
-                )
+                self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, provider, function, "README.md")))
 
     def test_provider_file_upload_no_file(self):
         """Tests uploading existing file."""

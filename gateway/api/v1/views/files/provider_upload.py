@@ -14,7 +14,7 @@ from rest_framework.request import Request
 from rest_framework import serializers
 
 from api.use_cases.files.provider_upload import FilesProviderUploadUseCase
-from api.v1.endpoint_handle_exceptions import endpoint_handle_exceptions
+from api.v1.exception_handler import endpoint_handle_exceptions
 from api.v1.endpoint_decorator import endpoint
 from api.utils import sanitize_name
 from api.v1.views.utils import validate_uploaded_file
@@ -53,11 +53,7 @@ class InputSerializer(serializers.Serializer):
     operation_description="Upload selected file into the provider directory",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        properties={
-            "file": openapi.Schema(
-                type=openapi.TYPE_FILE, description="File to be uploaded"
-            )
-        },
+        properties={"file": openapi.Schema(type=openapi.TYPE_FILE, description="File to be uploaded")},
         required=["file"],
     ),
     manual_parameters=[
@@ -108,8 +104,6 @@ def files_provider_upload(request: Request) -> Response:
 
     user = cast(AbstractUser, request.user)
 
-    result = FilesProviderUploadUseCase().execute(
-        user, provider, function, uploaded_file
-    )
+    result = FilesProviderUploadUseCase().execute(user, provider, function, uploaded_file)
 
     return Response({"message": result})

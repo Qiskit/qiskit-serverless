@@ -16,12 +16,10 @@ from api.v1.serializers import (
     RunProgramSerializer,
     RunJobSerializer,
 )
-from api.models import JobConfig, Program
+from core.models import JobConfig, Program
 
 
-@override_settings(
-    GATEWAY_DYNAMIC_DEPENDENCIES="../ray-node/requirements-test-dynamic-dependencies.txt"
-)
+@override_settings(GATEWAY_DYNAMIC_DEPENDENCIES="../ray-node/requirements-test-dynamic-dependencies.txt")
 class SerializerTest(APITestCase):
     """Tests for serializer."""
 
@@ -67,9 +65,7 @@ class SerializerTest(APITestCase):
             "artifact.tar",
         )
         file_data = File(open(path_to_resource_artifact, "rb"))
-        upload_file = SimpleUploadedFile(
-            "artifact.tar", file_data.read(), content_type="multipart/form-data"
-        )
+        upload_file = SimpleUploadedFile("artifact.tar", file_data.read(), content_type="multipart/form-data")
 
         user = models.User.objects.get(username="test_user")
 
@@ -113,9 +109,7 @@ class SerializerTest(APITestCase):
             "artifact.tar",
         )
         file_data = File(open(path_to_resource_artifact, "rb"))
-        upload_file = SimpleUploadedFile(
-            "artifact.tar", file_data.read(), content_type="multipart/form-data"
-        )
+        upload_file = SimpleUploadedFile("artifact.tar", file_data.read(), content_type="multipart/form-data")
 
         title = "Hello world"
         entrypoint = "pattern.py"
@@ -234,9 +228,7 @@ class SerializerTest(APITestCase):
 
     def test_run_job_serializer_creates_job(self):
         user = models.User.objects.get(username="test_user")
-        program_instance = Program.objects.get(
-            id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82"
-        )
+        program_instance = Program.objects.get(id="1a7947f9-6ae8-4e3d-ac1e-e7d608deec82")
         arguments = "{}"
 
         config_data = {
@@ -382,9 +374,7 @@ class SerializerTest(APITestCase):
             "artifact.tar",
         )
         file_data = File(open(path_to_resource_artifact, "rb"))
-        upload_file = SimpleUploadedFile(
-            "artifact.tar", file_data.read(), content_type="multipart/form-data"
-        )
+        upload_file = SimpleUploadedFile("artifact.tar", file_data.read(), content_type="multipart/form-data")
 
         user = models.User.objects.get(username="test_user")
 
@@ -415,9 +405,7 @@ class SerializerTest(APITestCase):
             data_without_description["dependencies"] = dependencies
             data_without_description["artifact"] = upload_file
 
-            serializer_2 = UploadProgramSerializer(
-                program, data=data_without_description
-            )
+            serializer_2 = UploadProgramSerializer(program, data=data_without_description)
             serializer_2.is_valid()
             program_2: Program = serializer_2.save(author=user)
             self.assertEqual(description, program_2.description)

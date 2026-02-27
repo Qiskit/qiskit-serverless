@@ -186,16 +186,14 @@ def generate_cluster_name(username: str) -> str:
 
     # Substitute any not valid character by "-"
     pattern = re.compile("[^a-z0-9-]")
-    cluster_name = (
-        f"c-{re.sub(pattern, '-', lowercase_username)}-{str(uuid.uuid4())[:8]}"
-    )
+    cluster_name = f"c-{re.sub(pattern, '-', lowercase_username)}-{str(uuid.uuid4())[:8]}"
     return cluster_name
 
 
 def ray_job_status_to_model_job_status(ray_job_status):
     """Maps ray job status to model job status."""
-    # Import here to avoid circular dependency
-    from api.models import Job
+    # pylint: disable=import-outside-toplevel
+    from core.models import Job  # Import here to avoid circular dependency
 
     mapping = {
         JobStatus.PENDING: Job.PENDING,
@@ -241,8 +239,8 @@ def check_logs(logs: Union[str, None], job) -> str:
     Returns:
         logs with error message and metadata.
     """
-    # Import here to avoid circular dependency
-    from api.models import Job
+    # pylint: disable=import-outside-toplevel
+    from core.models import Job  # Import here to avoid circular dependency
 
     if job.status == Job.FAILED and not logs:
         logs = f"Job {job.id} failed due to an internal error."

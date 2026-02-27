@@ -1,8 +1,8 @@
 ---
 features:
   - |
-    A new utility ``get_runtime_service()`` is now available to simplify the instantiation of 
-    a ``QiskitRuntimeService`` within a function. It automatically pulls credentials from environment 
+    A new utility ``get_runtime_service()`` is now available to simplify the instantiation of
+    a ``QiskitRuntimeService`` within a function. It automatically pulls credentials from environment
     variables, reducing boilerplate code and improving usability for function developers.
 
     Example usage::
@@ -23,24 +23,24 @@ features:
         )
         backend = service.backend("ibm_fez")
 
-    This function also enables automatic tracking of runtime job and session IDs created during function 
+    This function also enables automatic tracking of runtime job and session IDs created during function
     execution. It's important to note that tracking will only be possible if the function runtime jobs
     are submitted through a service instantiated with this function.
 
     On top of the default credentials, function developers can customize the call to ``get_runtime_service()``
     with custom input parameters, including ``token``, ``instance``, ``channel`` and ``url``. For example::
-  
+
         from qiskit_serverless import get_runtime_service
-        service = get_runtime_service(channel="ibm_quantum_platform", 
-                                      token="staging_token", 
-                                      instance="staging_crn", 
+        service = get_runtime_service(channel="ibm_quantum_platform",
+                                      token="staging_token",
+                                      instance="staging_crn",
                                       url="staging_url")
         backend = service.backend("staging_backend")
-      
+
   - |
-    When using ``get_runtime_service()`` inside a serverless function, the resulting job object now 
-    supports two new methods: ``job.runtime_jobs()`` and ``job.runtime_sessions()``. 
-    These methods return lists of job/session IDs that can be used to fetch job objects from a 
+    When using ``get_runtime_service()`` inside a serverless function, the resulting job object now
+    supports two new methods: ``job.runtime_jobs()`` and ``job.runtime_sessions()``.
+    These methods return lists of job/session IDs that can be used to fetch job objects from a
     ``QiskitRuntimeService`` or access IQP dashboards. ``job.runtime_jobs()`` accepts an optional
     ``runtime_session`` parameter that allows to filter the returned jobs by associated session id.
     For example::
@@ -63,13 +63,13 @@ features:
 
 upgrade:
   - |
-    Enhanced ``job.cancel()`` behavior to use the newly introduced features. ``job.cancel()`` now attempts 
-    to instantiate a ``QiskitRuntimeService`` using the credentials from the ``ServerlessClient``, 
-    allowing automatic canceling of associated runtime jobs. This works when the credentials used in 
+    Enhanced ``job.cancel()`` behavior to use the newly introduced features. ``job.cancel()`` now attempts
+    to instantiate a ``QiskitRuntimeService`` using the credentials from the ``ServerlessClient``,
+    allowing automatic canceling of associated runtime jobs. This works when the credentials used in
     the function match those in the client, which happens by default when using ``get_runtime_service()``
-    with no additional inputs. 
+    with no additional inputs.
 
-    To support local testing or non-standard runtime URLs (e.g., staging environments), where the 
+    To support local testing or non-standard runtime URLs (e.g., staging environments), where the
     ``ServerlessClient`` don't match those in the ``QiskitRuntimeService`` used to submit the jobs,
     ``job.cancel()`` accepts a service parameter::
 
@@ -82,7 +82,7 @@ upgrade:
         job.cancel(service)
 
   - |
-    The ``ServerlessRuntimeService`` class has been updated to support changes introduced in 
+    The ``ServerlessRuntimeService`` class has been updated to support changes introduced in
     ``qiskit_ibm_runtime>=0.42``, unlocking compatibility of the `qiskit-serverless>=0.27.0` package with
     ``qiskit_ibm_runtime>=0.42``. For older versions of ``qiskit-serverless``,  ``qiskit_ibm_runtime<0.42``
     will still be required.

@@ -18,16 +18,12 @@ class ResultStorage:
 
     def __init__(self, username: str):
         """Initialize the storage path for a given user."""
-        self.user_results_directory = os.path.join(
-            settings.MEDIA_ROOT, username, "results"
-        )
+        self.user_results_directory = os.path.join(settings.MEDIA_ROOT, username, "results")
         os.makedirs(self.user_results_directory, exist_ok=True)
 
     def __get_result_path(self, job_id: str) -> str:
         """Construct the full path for a result file."""
-        return os.path.join(
-            self.user_results_directory, f"{job_id}{self.RESULT_FILE_EXTENSION}"
-        )
+        return os.path.join(self.user_results_directory, f"{job_id}{self.RESULT_FILE_EXTENSION}")
 
     def get(self, job_id: str) -> Optional[str]:
         """

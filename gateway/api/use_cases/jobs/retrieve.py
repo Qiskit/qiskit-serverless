@@ -3,8 +3,8 @@
 import logging
 from uuid import UUID
 from django.contrib.auth.models import AbstractUser
-from api.domain.exceptions.not_found_error import NotFoundError
-from api.models import Job
+from api.domain.exceptions.job_not_found_exception import JobNotFoundException
+from core.models import Job
 from api.repositories.jobs import JobsRepository
 from api.access_policies.jobs import JobAccessPolicies
 from core.services.storage.result_storage import ResultStorage
@@ -31,10 +31,10 @@ class JobRetrieveUseCase:
         """
         job = self.jobs_repository.get_job_by_id(job_id)
         if job is None:
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise JobNotFoundException(str(job_id))
 
         if not JobAccessPolicies.can_access(user, job):
-            raise NotFoundError(f"Job [{job_id}] not found")
+            raise JobNotFoundException(str(job_id))
 
         can_read_result = JobAccessPolicies.can_read_result(user, job)
 
