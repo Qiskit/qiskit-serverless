@@ -379,4 +379,9 @@ DYNAMIC_CONFIG_DEFAULTS = {
         "type": "boolean",  # not used yet, but maybe the backoffice can use this in the future to improve the edit page
         "description": "Enable maintenance mode: the scheduler will not execute new jobs",
     },
+    "upload_file.valid_mime_types": {
+        "default": '["image/jpeg", "image/png", "text/plain"]',
+        "type": "list",
+        "description": "Specify the permitted mime types to upload files.",
+    },
 }

@@ -9,7 +9,7 @@ from qiskit_serverless import ServerlessClient, QiskitFunction
 
 resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../source_files")
 
-filename = "data.tar"
+filename = "test.md"
 filename_path = os.path.join(resources_path, filename)
 
 

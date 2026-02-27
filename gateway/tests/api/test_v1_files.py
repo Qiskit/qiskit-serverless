@@ -3,6 +3,7 @@
 import os
 import shutil
 import tempfile
+import magic
 from urllib.parse import urlencode
 
 from django.urls import reverse
@@ -10,6 +11,10 @@ from pytest import mark
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import models
+from django.core.cache import cache
+
+from core.config_key import ConfigKey
+from core.models import Config
 
 
 class TestFilesApi(APITestCase):
@@ -28,6 +33,8 @@ class TestFilesApi(APITestCase):
 
     def setUp(self):
         super().setUp()
+        cache.clear()
+        Config.register_all()
         self._temp_directory = tempfile.TemporaryDirectory()
         self.MEDIA_ROOT = self._temp_directory.name
 
@@ -337,7 +344,7 @@ class TestFilesApi(APITestCase):
 
     def test_file_upload(self):
         """Tests uploading existing file."""
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["text/plain"]):
             function = "personal-program"
             user = models.User.objects.get(username="test_user_2")
             self.client.force_authenticate(user=user)
@@ -356,7 +363,7 @@ class TestFilesApi(APITestCase):
 
     def test_provider_file_upload(self):
         """Tests uploading existing file."""
-        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["text/plain"]):
             provider = "default"
             function = "Program"
             user = models.User.objects.get(username="test_user_2")
@@ -373,6 +380,79 @@ class TestFilesApi(APITestCase):
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, "default", "Program", "README.md")))
+
+    def test_file_upload_wrong_type(self):
+        """Tests uploading existing file."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            Config.set(ConfigKey.UPLOAD_FILE_VALID_MIME_TYPES, '["image/jpeg"]')
+            function = "personal-program"
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-upload")
+
+            with open("README.md") as f:
+                query_params = {"function": function}
+                response = self.client.post(
+                    f"{url}?{urlencode(query_params)}",
+                    {"file": f},
+                    format="multipart",
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertTrue(not os.path.exists(os.path.join(self.MEDIA_ROOT, "test_user_2", "README.md")))
+
+    def test_provider_file_upload(self):
+        """Tests uploading existing file."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT, UPLOAD_FILE_VALID_MIME_TYPES=["text/plain"]):
+            provider = "default"
+            function = "Program"
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-provider-upload")
+
+            with open("README.md") as f:
+                query_params = {"function": function, "provider": provider}
+                response = self.client.post(
+                    f"{url}?{urlencode(query_params)}",
+                    {"file": f},
+                    format="multipart",
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertTrue(os.path.exists(os.path.join(self.MEDIA_ROOT, provider, function, "README.md")))
+
+    def test_provider_file_upload_no_file(self):
+        """Tests uploading existing file."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            provider = "default"
+            function = "Program"
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-provider-upload")
+
+            query_params = {"function": function, "provider": provider}
+            response = self.client.post(
+                f"{url}?{urlencode(query_params)}",
+                format="multipart",
+            )
+
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_file_upload_no_file(self):
+        """Tests uploading existing file."""
+        with self.settings(MEDIA_ROOT=self.MEDIA_ROOT):
+            function = "personal-program"
+            user = models.User.objects.get(username="test_user_2")
+            self.client.force_authenticate(user=user)
+            url = reverse("v1:files-upload")
+
+            query_params = {"function": function}
+            response = self.client.post(
+                f"{url}?{urlencode(query_params)}",
+                format="multipart",
+            )
+
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_escape_directory(self):
         """Tests directory escape / injection."""

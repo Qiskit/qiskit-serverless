@@ -1,5 +1,6 @@
 """Models."""
 
+import json
 import logging
 import uuid
 
@@ -428,3 +429,9 @@ class Config(models.Model):
         """Get configuration value as boolean."""
         value = cls.get(key)
         return value.lower() == "true"
+
+    @classmethod
+    def get_list(cls, key: ConfigKey) -> list[str]:
+        """Get configuration value as boolean."""
+        value = cls.get(key)
+        return json.loads(value)
