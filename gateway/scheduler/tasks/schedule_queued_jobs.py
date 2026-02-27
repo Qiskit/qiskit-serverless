@@ -20,7 +20,7 @@ from scheduler.schedule import (
 )
 
 from scheduler.kill_signal import KillSignal
-from .task import SchedulerTask
+from . import SchedulerTask
 
 logger = logging.getLogger("commands")
 
