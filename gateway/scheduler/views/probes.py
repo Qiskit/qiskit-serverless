@@ -2,14 +2,10 @@
 
 from django.db import OperationalError, connection
 from django.http import HttpRequest, JsonResponse, HttpResponse
-from api.apps import ApiConfig
 
 
 def readiness(request: HttpRequest) -> JsonResponse:
     """Service is ready to accept traffic."""
-
-    if not ApiConfig.is_ready:
-        return JsonResponse({"status": "api_config_not_ready"}, status=503)
 
     try:
         with connection.cursor() as cursor:

@@ -32,6 +32,7 @@ class SchedulerHttpServer:
         self._thread: threading.Thread | None = None
 
     def add_path_handler(self, path: str, func):
+        logger.info(f"Adding {path}")
         self._routes[path] = self._create_handler(func)
 
     def add_not_found_handler(self, func):
